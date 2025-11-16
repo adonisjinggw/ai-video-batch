@@ -17,66 +17,18 @@ let uploadedScript = null; // 上传的剧本内容
 // ==================== 初始化 ====================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('✅ AI视频批量创作工具已加载 - 纯前端版本');
-    console.log('🔑 使用内置API Key，无需配置！');
+    console.log('✅ AI视频批量创作工具已加载 - 纯前端版本 v3.0');
+    console.log('🔑 API Key已内置，打开即用！');
+    console.log('📋 支持双模式：纯文生视频 & 文生图+图生视频');
     
-    // 不再从localStorage读取，直接使用内置API Key
-    // apiKey已在全局变量中硬编码
-    
-    // 添加默认示例
-    addDefaultIdeas();
-    
-    // 显示配置状态
-    updateConfigStatus();
+    // 渲染创意列表（初始为空）
+    renderIdeasList();
 });
 
 // ==================== API配置 ====================
-
-function showConfigModal() {
-    document.getElementById('apiKeyInput').value = apiKey;
-    document.getElementById('configModal').style.display = 'flex';
-}
-
-function closeConfigModal() {
-    document.getElementById('configModal').style.display = 'none';
-}
-
-function saveApiKey() {
-    const input = document.getElementById('apiKeyInput').value.trim();
-    
-    if (!input) {
-        showConfigStatus('❌ 请输入API Key！', 'error');
-        return;
-    }
-    
-    apiKey = input;
-    localStorage.setItem('zhenzhen_api_key', apiKey);
-    showConfigStatus('✅ API Key已保存，可以开始使用了', 'success');
-    
-    updateConfigStatus();
-    
-    setTimeout(() => {
-        closeConfigModal();
-    }, 1500);
-}
-
-function showConfigStatus(message, type) {
-    const status = document.getElementById('configStatus');
-    status.textContent = message;
-    status.className = `config-status ${type}`;
-}
-
-function updateConfigStatus() {
-    // API Key已内置，无需配置
-    console.log('✅ API Key已内置，打开即用！');
-}
+// 🔑 API Key已硬编码在全局变量中，无需配置功能
 
 // ==================== 创意管理 ====================
-
-function addDefaultIdeas() {
-    // 默认不添加示例，让用户自行添加
-    renderIdeasList();
-}
 
 function addNewIdea() {
     currentEditingId = null;
@@ -341,8 +293,7 @@ async function startBatchGeneration() {
     }
     
     if (!apiKey) {
-        alert('⚠️ 请先配置API Key！\n\n点击右上角设置按钮配置贞贞工坊API Key。');
-        showConfigModal();
+        alert('❌ API Key配置错误！\n\n请检查代码中的API Key是否正确。');
         return;
     }
     
@@ -1140,6 +1091,3 @@ window.resetAll = resetAll;
 window.backToWelcome = backToWelcome;
 window.switchInputMode = switchInputMode;
 window.handleScriptUpload = handleScriptUpload;
-window.showConfigModal = showConfigModal;
-window.closeConfigModal = closeConfigModal;
-window.saveApiKey = saveApiKey;
