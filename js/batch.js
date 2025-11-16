@@ -1,0 +1,905 @@
+/**
+ * AI视频批量创作工具 - 纯前端版本 v3.0
+ * 特性：双击HTML直接打开，无需服务器
+ */
+
+// ==================== 全局状态 ====================
+
+let ideas = [];
+let currentEditingId = null;
+let isGenerating = false;
+let totalGenerated = 0;
+let apiKey = '';
+let currentInputMode = 'text'; // 'text' 或 'script'
+let uploadedScript = null; // 上传的剧本内容
+
+// ==================== 初始化 ====================
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ AI视频批量创作工具已加载 - 纯前端版本');
+    
+    // 从localStorage读取API Key
+    apiKey = localStorage.getItem('zhenzhen_api_key') || '';
+    
+    // 添加默认示例
+    addDefaultIdeas();
+    
+    // 显示配置状态
+    updateConfigStatus();
+});
+
+// ==================== API配置 ====================
+
+function showConfigModal() {
+    document.getElementById('apiKeyInput').value = apiKey;
+    document.getElementById('configModal').style.display = 'flex';
+}
+
+function closeConfigModal() {
+    document.getElementById('configModal').style.display = 'none';
+}
+
+function saveApiKey() {
+    const input = document.getElementById('apiKeyInput').value.trim();
+    
+    if (!input) {
+        showConfigStatus('❌ 请输入API Key！', 'error');
+        return;
+    }
+    
+    apiKey = input;
+    localStorage.setItem('zhenzhen_api_key', apiKey);
+    showConfigStatus('✅ API Key已保存，可以开始使用了', 'success');
+    
+    updateConfigStatus();
+    
+    setTimeout(() => {
+        closeConfigModal();
+    }, 1500);
+}
+
+function showConfigStatus(message, type) {
+    const status = document.getElementById('configStatus');
+    status.textContent = message;
+    status.className = `config-status ${type}`;
+}
+
+function updateConfigStatus() {
+    // 更新UI提示当前模式
+    console.log(apiKey ? '🔑 已配置API Key' : '⚠️ 未配置API Key，请先配置');
+}
+
+// ==================== 创意管理 ====================
+
+function addDefaultIdeas() {
+    // 默认不添加示例，让用户自行添加
+    renderIdeasList();
+}
+
+function addNewIdea() {
+    currentEditingId = null;
+    currentInputMode = 'text';
+    uploadedScript = null;
+    
+    document.getElementById('ideaTheme').value = '';
+    document.getElementById('ideaStyle').value = 'cartoon';
+    document.getElementById('ideaDuration').value = 30;
+    document.getElementById('ideaScenes').value = 4;
+    
+    // 重置模式切换
+    switchInputMode('text');
+    showIdeaModal();
+}
+
+function editIdea(id) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) return;
+    
+    currentEditingId = id;
+    document.getElementById('ideaTheme').value = idea.theme;
+    document.getElementById('ideaStyle').value = idea.style;
+    document.getElementById('ideaDuration').value = idea.duration;
+    document.getElementById('ideaScenes').value = idea.scenes;
+    showIdeaModal();
+}
+
+function saveIdea() {
+    const style = document.getElementById('ideaStyle').value;
+    const duration = parseInt(document.getElementById('ideaDuration').value);
+    const scenes = parseInt(document.getElementById('ideaScenes').value);
+    
+    // 验证参数
+    if (isNaN(duration) || duration < 5 || duration > 300) {
+        alert('时长必须在5-300秒之间！');
+        return;
+    }
+    
+    if (isNaN(scenes) || scenes < 1 || scenes > 20) {
+        alert('分镜数必须在1-20之间！');
+        return;
+    }
+    
+    let theme = '';
+    let scriptContent = null;
+    
+    // 根据模式获取内容
+    if (currentInputMode === 'text') {
+        theme = document.getElementById('ideaTheme').value.trim();
+        if (!theme) {
+            alert('请输入创意主题！');
+            return;
+        }
+    } else if (currentInputMode === 'script') {
+        if (!uploadedScript) {
+            alert('请先上传剧本文件！');
+            return;
+        }
+        theme = uploadedScript.title || '上传的剧本';
+        scriptContent = uploadedScript.content;
+    }
+    
+    if (currentEditingId) {
+        const idea = ideas.find(i => i.id === currentEditingId);
+        if (idea) {
+            idea.theme = theme;
+            idea.style = style;
+            idea.duration = duration;
+            idea.scenes = scenes;
+            idea.scriptContent = scriptContent;
+            idea.inputMode = currentInputMode;
+        }
+    } else {
+        ideas.push({
+            id: Date.now() + Math.random(),
+            theme, style, duration, scenes,
+            scriptContent,
+            inputMode: currentInputMode,
+            status: 'pending',
+            result: null,
+            error: null
+        });
+    }
+    
+    renderIdeasList();
+    closeIdeaModal();
+}
+
+function removeIdea(id) {
+    if (isGenerating) {
+        alert('生成进行中，无法删除！');
+        return;
+    }
+    
+    ideas = ideas.filter(i => i.id !== id);
+    renderIdeasList();
+}
+
+function renderIdeasList() {
+    const container = document.getElementById('ideasList');
+    
+    if (ideas.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                <p>还没有创意</p>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">点击上方 + 添加</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const styleLabels = {
+        cartoon: '卡通', realistic: '真人', scifi: '科幻',
+        anime: '动漫', cyberpunk: '赛博朋克', fantasy: '奇幻'
+    };
+    
+    container.innerHTML = ideas.map((idea, index) => `
+        <div class="idea-item" onclick="editIdea(${idea.id})">
+            <div class="idea-item-header">
+                <span class="idea-number">${index + 1}</span>
+                <button class="idea-remove" onclick="event.stopPropagation(); removeIdea(${idea.id})">×</button>
+            </div>
+            <div class="idea-theme">${idea.theme}</div>
+            <div class="idea-meta">
+                <span class="meta-tag">🎨 ${styleLabels[idea.style]}</span>
+                <span class="meta-tag">⏱ ${idea.duration}秒</span>
+                <span class="meta-tag">🎬 ${idea.scenes}镜</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ==================== 模态框管理 ====================
+
+function showIdeaModal() {
+    document.getElementById('ideaModal').style.display = 'flex';
+}
+
+function closeIdeaModal() {
+    document.getElementById('ideaModal').style.display = 'none';
+    currentEditingId = null;
+    uploadedScript = null;
+}
+
+// ==================== 模式切换与上传 ====================
+
+function switchInputMode(mode) {
+    currentInputMode = mode;
+    
+    const textArea = document.getElementById('textInputArea');
+    const scriptArea = document.getElementById('scriptUploadArea');
+    const textBtn = document.getElementById('textModeBtn');
+    const scriptBtn = document.getElementById('scriptModeBtn');
+    
+    if (mode === 'text') {
+        textArea.style.display = 'block';
+        scriptArea.style.display = 'none';
+        textBtn.classList.add('active');
+        scriptBtn.classList.remove('active');
+        uploadedScript = null;
+    } else if (mode === 'script') {
+        textArea.style.display = 'none';
+        scriptArea.style.display = 'block';
+        textBtn.classList.remove('active');
+        scriptBtn.classList.add('active');
+    }
+}
+
+function handleScriptUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const statusEl = document.getElementById('uploadStatus');
+    statusEl.textContent = '读取中...';
+    statusEl.className = 'upload-status info';
+    
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+        try {
+            const content = e.target.result;
+            const fileName = file.name;
+            
+            if (fileName.endsWith('.json')) {
+                // JSON格式：[{title: "章节1", script: "内容..."}]
+                const parsed = JSON.parse(content);
+                if (!Array.isArray(parsed) || parsed.length === 0) {
+                    throw new Error('JSON格式错误：必须是数组且至少包含一个章节');
+                }
+                uploadedScript = {
+                    title: parsed[0].title || '上传的剧本',
+                    content: parsed.map(ch => `【${ch.title}】\n${ch.script}`).join('\n\n')
+                };
+            } else if (fileName.endsWith('.txt')) {
+                // TXT格式：===章节标题===
+                const chapters = content.split(/===(.+?)===/g).filter(s => s.trim());
+                if (chapters.length === 0) {
+                    throw new Error('TXT格式错误：未找到章节标题（格式：===章节标题===）');
+                }
+                const firstTitle = chapters[0].trim() || '上传的剧本';
+                uploadedScript = {
+                    title: firstTitle,
+                    content: content
+                };
+            } else {
+                throw new Error('不支持的文件格式');
+            }
+            
+            statusEl.textContent = `✅ 已上传: ${uploadedScript.title}`;
+            statusEl.className = 'upload-status success';
+        } catch (error) {
+            console.error('剧本解析失败:', error);
+            statusEl.textContent = `❌ 解析失败: ${error.message}`;
+            statusEl.className = 'upload-status error';
+            uploadedScript = null;
+        }
+    };
+    
+    reader.onerror = () => {
+        statusEl.textContent = '❌ 文件读取失败';
+        statusEl.className = 'upload-status error';
+        uploadedScript = null;
+    };
+    
+    reader.readAsText(file);
+}
+
+// ==================== 批量生成 ====================
+
+/**
+ * 快速开始生成（从欢迎页的"开始创作"按钮）
+ */
+function quickStartGeneration() {
+    // 检查是否有创意
+    if (ideas.length === 0) {
+        alert('请先添加创意！\n\n💡 点击左侧的 + 按钮添加创意主题');
+        return;
+    }
+    
+    // 直接调用批量生成
+    startBatchGeneration();
+}
+
+async function startBatchGeneration() {
+    if (ideas.length === 0) {
+        alert('请先添加创意！');
+        return;
+    }
+    
+    if (!apiKey) {
+        alert('⚠️ 请先配置API Key！\n\n点击右上角设置按钮配置贞贞工坊API Key。');
+        showConfigModal();
+        return;
+    }
+    
+    if (isGenerating) return;
+    
+    isGenerating = true;
+    
+    ideas.forEach(idea => {
+        idea.status = 'pending';
+        idea.result = null;
+        idea.error = null;
+    });
+    
+    showProgressScreen();
+    document.getElementById('startBatchBtn').disabled = true;
+    
+    await processConcurrently(ideas, 3);
+    
+    isGenerating = false;
+    document.getElementById('startBatchBtn').disabled = false;
+    
+    showResultScreen();
+    
+    const completed = ideas.filter(i => i.status === 'completed').length;
+    totalGenerated += completed;
+    document.getElementById('totalGenerated').textContent = totalGenerated;
+}
+
+async function processConcurrently(tasks, maxConcurrent) {
+    const processing = [];
+    
+    for (let i = 0; i < tasks.length; i++) {
+        while (processing.length >= maxConcurrent) {
+            await Promise.race(processing);
+        }
+        
+        const promise = processIdea(tasks[i]).then(() => {
+            const index = processing.indexOf(promise);
+            if (index > -1) processing.splice(index, 1);
+        });
+        
+        processing.push(promise);
+        await sleep(300);
+    }
+    
+    await Promise.all(processing);
+}
+
+async function processIdea(idea) {
+    try {
+        idea.status = 'processing';
+        updateProgress();
+        renderTaskCard(idea);
+        
+        console.log(`🚀 开始生成: ${idea.theme}`);
+        
+        // 🔥 直接调用AI API或使用模拟数据
+        const result = await generateContent(idea);
+        
+        idea.status = 'completed';
+        idea.result = result;
+        updateProgress();
+        renderTaskCard(idea);
+        
+        console.log(`✅ 完成: ${idea.theme}`);
+        
+    } catch (error) {
+        idea.status = 'failed';
+        idea.error = error.message;
+        updateProgress();
+        renderTaskCard(idea);
+        
+        console.error(`❌ 失败: ${idea.theme}`, error);
+    }
+}
+
+/**
+ * 生成内容（使用真实AI）
+ */
+async function generateContent(idea) {
+    if (!apiKey) {
+        throw new Error('❌ 未配置API Key，请先在设置中配置贞贞工坊API Key');
+    }
+    
+    console.log('🤖 使用贞贞工坊AI生成...');
+    return await generateWithAI(idea);
+}
+
+/**
+ * 使用AI生成（通过Serverless API）
+ */
+async function generateWithAI(idea) {
+    let script;
+    
+    // 如果是上传的剧本，直接使用
+    if (idea.inputMode === 'script' && idea.scriptContent) {
+        script = idea.scriptContent;
+        console.log('📄 使用上传的剧本，跳过AI生成剧本步骤');
+    } else {
+        // 生成剧本（使用Grok-4）
+        const scriptPrompt = generateScriptPrompt(idea);
+        script = await callServerlessAPI('text', scriptPrompt);
+        console.log('🤖 AI生成剧本完成');
+    }
+    
+    // 生成视频提示词（使用Grok-4）
+    const videoPrompt = generateVideoPromptRequest(idea, script);
+    const videoText = await callServerlessAPI('text', videoPrompt);
+    const videoPrompts = parsePrompts(videoText, idea.scenes);
+    console.log('🎬 视频提示词生成完成');
+    
+    // 生成配图提示词（使用Grok-4）
+    const imagePrompt = generateImagePromptRequest(idea, script);
+    const imageText = await callServerlessAPI('text', imagePrompt);
+    const imagePrompts = parsePrompts(imageText, idea.scenes);
+    console.log('🎨 配图提示词生成完成');
+    
+    return { script, videoPrompts, imagePrompts };
+}
+
+/**
+ * 直接调用贞贞工坊API（纯前端版本）
+ */
+async function callServerlessAPI(type, prompt) {
+    try {
+        console.log(`📡 调用贞贞工坊API (${type}):`, prompt.substring(0, 50) + '...');
+        
+        // 贞贞工坊API配置
+        const API_BASE = 'https://api.gptbest.com/v1';
+        
+        let apiUrl, requestBody;
+        
+        if (type === 'text') {
+            // 文本生成 - Grok-4
+            apiUrl = `${API_BASE}/chat/completions`;
+            requestBody = {
+                model: 'grok-2-1212',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 2000
+            };
+        } else if (type === 'video') {
+            // 视频生成 - Sora2
+            apiUrl = `${API_BASE}/video/generations`;
+            requestBody = {
+                model: 'sora-1.0-turbo',
+                prompt: prompt,
+                size: '1280x720'
+            };
+        }
+        
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('API错误:', errorData);
+            throw new Error(errorData.error?.message || `API请求失败 (${response.status})`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ API调用成功');
+        
+        // 解析返回的数据
+        if (type === 'text') {
+            return data.choices[0].message.content.trim();
+        } else if (type === 'video') {
+            return data.data[0].url;
+        }
+        
+    } catch (error) {
+        console.error('❌ API调用失败:', error);
+        throw new Error(`生成失败: ${error.message}`);
+    }
+}
+
+/**
+ * 调用AI API（保留旧函数以防需要）
+ */
+async function callAI(url, model, prompt) {
+    try {
+        console.log('📡 发起API请求:', {
+            url: `${url}/chat/completions`,
+            model: model,
+            hasApiKey: !!apiKey,
+            apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : '无'
+        });
+        
+        const response = await fetch(`${url}/chat/completions`, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 2000
+            })
+        });
+        
+        console.log('📥 收到响应:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API错误响应:', response.status, errorText);
+            
+            if (response.status === 401) {
+                throw new Error('API Key无效或已过期，请检查配置');
+            } else if (response.status === 404) {
+                throw new Error('API地址错误，请联系开发者');
+            } else if (response.status === 429) {
+                throw new Error('请求过于频繁，请稍后再试');
+            } else {
+                throw new Error(`API请求失败 (${response.status}): ${errorText.substring(0, 100)}`);
+            }
+        }
+        
+        const data = await response.json();
+        
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            console.error('API响应格式错误:', data);
+            throw new Error('API响应格式错误，请联系开发者');
+        }
+        
+        return data.choices[0].message.content.trim();
+        
+    } catch (error) {
+        console.error('❌ AI API调用失败:', error);
+        console.error('错误详情:', {
+            message: error.message,
+            name: error.name,
+            stack: error.stack
+        });
+        
+        // 如果是网络错误或CORS错误
+        if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+            throw new Error(`网络请求失败！\n\n可能原因：\n1. ⚠️ CORS跨域限制（纯前端无法直接调用第三方API）\n2. 🔑 API Key未配置或无效\n3. 🌐 网络连接问题\n4. 🚫 API服务不可用\n\n建议：\n1. 检查浏览器控制台（F12）查看详细错误\n2. 确认API Key是否正确配置\n3. 尝试使用代理服务器或后端API`);
+        }
+        
+        throw error;
+    }
+}
+
+/**
+ * 生成剧本提示词
+ */
+function generateScriptPrompt(idea) {
+    const styleMap = {
+        cartoon: '卡通风格', realistic: '真人', scifi: '科幻',
+        anime: '动漫', cyberpunk: '赛博朋克', fantasy: '奇幻'
+    };
+    
+    return `你是专业短视频编剧。为"${idea.theme}"生成${idea.duration}秒短视频剧本，分${idea.scenes}个分镜，${styleMap[idea.style]}风格。
+
+要求：
+1. 每个分镜包含场景、动作、情绪、镜头
+2. 逻辑连贯，叙事完整
+3. 直接输出剧本，不要解释
+
+格式：
+分镜1：[详细描述]
+分镜2：[详细描述]
+...`;
+}
+
+/**
+ * 生成视频提示词请求
+ */
+function generateVideoPromptRequest(idea, script) {
+    const styleMap = {
+        cartoon: 'cartoon style', realistic: 'realistic', scifi: 'sci-fi',
+        anime: 'anime style', cyberpunk: 'cyberpunk', fantasy: 'fantasy style'
+    };
+    
+    return `Based on this script, generate ${idea.scenes} English prompts for Sora2 video:
+
+${script}
+
+Style: ${styleMap[idea.style]}
+
+Format (English only):
+Prompt 1: [detailed prompt]
+Prompt 2: [detailed prompt]
+...`;
+}
+
+/**
+ * 生成配图提示词请求
+ */
+function generateImagePromptRequest(idea, script) {
+    const styleMap = {
+        cartoon: 'cartoon illustration', realistic: 'realistic photo', scifi: 'sci-fi art',
+        anime: 'anime art', cyberpunk: 'cyberpunk art', fantasy: 'fantasy illustration'
+    };
+    
+    return `Based on this script, generate ${idea.scenes} English prompts for AI image:
+
+${script}
+
+Style: ${styleMap[idea.style]}
+
+Format (English only):
+Image 1: [detailed prompt]
+Image 2: [detailed prompt]
+...`;
+}
+
+/**
+ * 解析提示词
+ */
+function parsePrompts(text, count) {
+    const lines = text.split('\n').filter(line => {
+        const trimmed = line.trim();
+        return trimmed && /^(Prompt|Image|Shot|Scene)\s+\d+:/i.test(trimmed);
+    });
+    
+    const prompts = lines.map(line => {
+        return line.replace(/^(Prompt|Image|Shot|Scene)\s+\d+:\s*/i, '').trim();
+    }).slice(0, count);
+    
+    while (prompts.length < count) {
+        prompts.push(prompts[prompts.length - 1] || 'A beautiful scene');
+    }
+    
+    return prompts;
+}
+
+
+function updateProgress() {
+    const total = ideas.length;
+    const completed = ideas.filter(i => i.status === 'completed').length;
+    const failed = ideas.filter(i => i.status === 'failed').length;
+    const processing = ideas.filter(i => i.status === 'processing').length;
+    
+    const progress = ((completed + failed) / total) * 100;
+    document.getElementById('progressBar').style.width = `${progress}%`;
+    document.getElementById('progressText').textContent = 
+        `进度：${completed + failed}/${total} | 成功 ${completed} | 失败 ${failed}`;
+    
+    document.getElementById('successCount').textContent = completed;
+    document.getElementById('processingCount').textContent = processing;
+    document.getElementById('failedCount').textContent = failed;
+}
+
+function renderTaskCard(idea) {
+    const container = document.getElementById('taskCards');
+    let card = container.querySelector(`[data-idea-id="${idea.id}"]`);
+    
+    const statusIcons = { pending: '⏱', processing: '⏳', completed: '✅', failed: '❌' };
+    const statusTexts = { pending: '等待中', processing: '生成中...', completed: '已完成', failed: '生成失败' };
+    
+    const cardHTML = `
+        <div class="task-card ${idea.status}" data-idea-id="${idea.id}">
+            <div class="task-icon">${statusIcons[idea.status]}</div>
+            <div class="task-info">
+                <div class="task-title">${idea.theme}</div>
+                <div class="task-status">${statusTexts[idea.status]}${idea.error ? `: ${idea.error}` : ''}</div>
+            </div>
+        </div>
+    `;
+    
+    if (!card) {
+        container.insertAdjacentHTML('beforeend', cardHTML);
+    } else {
+        card.outerHTML = cardHTML;
+    }
+}
+
+// ==================== 结果展示 ====================
+
+function showResultScreen() {
+    // 切换页面显示
+    document.getElementById('welcomeScreen').style.display = 'none';
+    document.getElementById('progressScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'block';
+    
+    const completedIdeas = ideas.filter(i => i.status === 'completed');
+    
+    if (completedIdeas.length === 0) {
+        alert('没有成功生成的内容！');
+        return;
+    }
+    
+    const container = document.getElementById('resultCards');
+    
+    container.innerHTML = completedIdeas.map(idea => {
+        const result = idea.result;
+        return `
+            <div class="result-card">
+                <div class="result-card-header">
+                    <h3 class="result-title">${idea.theme}</h3>
+                    <button class="btn-download" onclick="downloadResult(${idea.id})">📥 下载</button>
+                </div>
+                
+                <div class="result-sections">
+                    <div class="result-section">
+                        <div class="section-label">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            剧本
+                        </div>
+                        <div class="section-content">${result.script}</div>
+                    </div>
+                    
+                    <div class="result-section">
+                        <div class="section-label">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            视频分镜提示词
+                        </div>
+                        <div class="section-content">${result.videoPrompts.join('\n\n')}</div>
+                    </div>
+                    
+                    <div class="result-section">
+                        <div class="section-label">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            配图提示词
+                        </div>
+                        <div class="section-content">${result.imagePrompts.join('\n\n')}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('welcomeScreen').style.display = 'none';
+    document.getElementById('progressScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'block';
+}
+
+// ==================== 下载功能 ====================
+
+function downloadResult(id) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea || !idea.result) return;
+    
+    const content = formatResult(idea);
+    downloadTextFile(`${idea.theme}.txt`, content);
+}
+
+function downloadAll() {
+    const completedIdeas = ideas.filter(i => i.status === 'completed');
+    
+    if (completedIdeas.length === 0) {
+        alert('没有可下载的内容！');
+        return;
+    }
+    
+    const allContent = completedIdeas.map(idea => {
+        return `${'='.repeat(60)}\n${idea.theme}\n${'='.repeat(60)}\n\n${formatResult(idea)}`;
+    }).join('\n\n\n');
+    
+    downloadTextFile('AI视频批量创作结果.txt', allContent);
+}
+
+function formatResult(idea) {
+    const result = idea.result;
+    const styleLabels = {
+        cartoon: '卡通', realistic: '真人', scifi: '科幻',
+        anime: '动漫', cyberpunk: '赛博朋克', fantasy: '奇幻'
+    };
+    
+    return `
+【创意主题】
+${idea.theme}
+
+【参数配置】
+风格：${styleLabels[idea.style]}
+时长：${idea.duration}秒
+分镜数：${idea.scenes}个
+
+【剧本】
+${result.script}
+
+【视频分镜提示词】
+${result.videoPrompts.map((p, i) => `分镜${i + 1}:\n${p}`).join('\n\n')}
+
+【配图提示词】
+${result.imagePrompts.map((p, i) => `配图${i + 1}:\n${p}`).join('\n\n')}
+
+生成时间：${new Date().toLocaleString()}
+`.trim();
+}
+
+function downloadTextFile(filename, content) {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ==================== 页面切换 ====================
+
+function showWelcomeScreen() {
+    document.getElementById('welcomeScreen').style.display = 'flex';
+    document.getElementById('progressScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'none';
+}
+
+function showProgressScreen() {
+    document.getElementById('welcomeScreen').style.display = 'none';
+    document.getElementById('progressScreen').style.display = 'block';
+    document.getElementById('resultScreen').style.display = 'none';
+    
+    document.getElementById('taskCards').innerHTML = '';
+    updateProgress();
+}
+
+function backToWelcome() {
+    if (isGenerating) {
+        if (!confirm('生成正在进行中，确定要返回吗？')) {
+            return;
+        }
+        isGenerating = false; // 停止生成
+    }
+    
+    showWelcomeScreen();
+}
+
+function resetAll() {
+    if (confirm('确定要重新开始吗？当前结果将被清空。')) {
+        ideas.forEach(idea => {
+            idea.status = 'pending';
+            idea.result = null;
+            idea.error = null;
+        });
+        
+        renderIdeasList();
+        showWelcomeScreen();
+    }
+}
+
+// ==================== 工具函数 ====================
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 导出全局函数
+window.quickStartGeneration = quickStartGeneration;
+window.addNewIdea = addNewIdea;
+window.editIdea = editIdea;
+window.saveIdea = saveIdea;
+window.removeIdea = removeIdea;
+window.closeIdeaModal = closeIdeaModal;
+window.startBatchGeneration = startBatchGeneration;
+window.downloadResult = downloadResult;
+window.downloadAll = downloadAll;
+window.resetAll = resetAll;
+window.backToWelcome = backToWelcome;
+window.switchInputMode = switchInputMode;
+window.handleScriptUpload = handleScriptUpload;
+window.showConfigModal = showConfigModal;
+window.closeConfigModal = closeConfigModal;
+window.saveApiKey = saveApiKey;
