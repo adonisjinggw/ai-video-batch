@@ -84,9 +84,11 @@ function addNewIdea() {
     uploadedScript = null;
     
     document.getElementById('ideaTheme').value = '';
+    document.getElementById('generationMode').value = 'text-to-video';
     document.getElementById('ideaStyle').value = 'cartoon';
     document.getElementById('ideaDuration').value = 30;
     document.getElementById('ideaScenes').value = 4;
+    document.getElementById('imageAspectRatio').value = '16:9 landscape 1344x768';
     
     // 重置模式切换
     switchInputMode('text');
@@ -99,16 +101,20 @@ function editIdea(id) {
     
     currentEditingId = id;
     document.getElementById('ideaTheme').value = idea.theme;
+    document.getElementById('generationMode').value = idea.generationMode || 'text-to-video';
     document.getElementById('ideaStyle').value = idea.style;
     document.getElementById('ideaDuration').value = idea.duration;
     document.getElementById('ideaScenes').value = idea.scenes;
+    document.getElementById('imageAspectRatio').value = idea.imageAspectRatio || '16:9 landscape 1344x768';
     showIdeaModal();
 }
 
 function saveIdea() {
+    const generationMode = document.getElementById('generationMode').value;
     const style = document.getElementById('ideaStyle').value;
     const duration = parseInt(document.getElementById('ideaDuration').value);
     const scenes = parseInt(document.getElementById('ideaScenes').value);
+    const imageAspectRatio = document.getElementById('imageAspectRatio').value;
     
     // 验证参数
     if (isNaN(duration) || duration < 5 || duration > 300) {
@@ -144,16 +150,23 @@ function saveIdea() {
         const idea = ideas.find(i => i.id === currentEditingId);
         if (idea) {
             idea.theme = theme;
+            idea.generationMode = generationMode;
             idea.style = style;
             idea.duration = duration;
             idea.scenes = scenes;
+            idea.imageAspectRatio = imageAspectRatio;
             idea.scriptContent = scriptContent;
             idea.inputMode = currentInputMode;
         }
     } else {
         ideas.push({
             id: Date.now() + Math.random(),
-            theme, style, duration, scenes,
+            theme, 
+            generationMode,
+            style, 
+            duration, 
+            scenes,
+            imageAspectRatio,
             scriptContent,
             inputMode: currentInputMode,
             status: 'pending',
@@ -419,39 +432,264 @@ async function generateContent(idea) {
 }
 
 /**
- * 使用AI生成（通过Serverless API）
+ * 使用AI生成（支持双模式）
  */
 async function generateWithAI(idea) {
+    const mode = idea.generationMode || 'text-to-video';
+    
+    console.log(`🎯 生成模式: ${mode === 'text-to-video' ? '纯文生视频' : '文生图+图生视频'}`);
+    
+    if (mode === 'text-to-video') {
+        // 模式1：纯文生视频（原逻辑）
+        return await generateTextToVideo(idea);
+    } else {
+        // 模式2：文生图+图生视频
+        return await generateTextToImageToVideo(idea);
+    }
+}
+
+/**
+ * 模式1：纯文生视频（Grok-4 + Sora2）
+ */
+async function generateTextToVideo(idea) {
     let script;
     
     // 如果是上传的剧本，直接使用
     if (idea.inputMode === 'script' && idea.scriptContent) {
         script = idea.scriptContent;
-        console.log('📄 使用上传的剧本，跳过AI生成剧本步骤');
+        console.log('📄 使用上传的剧本');
     } else {
         // 生成剧本（使用Grok-4）
         const scriptPrompt = generateScriptPrompt(idea);
-        script = await callServerlessAPI('text', scriptPrompt);
-        console.log('🤖 AI生成剧本完成');
+        script = await callZhenzhenTextAPI(scriptPrompt);
+        console.log('✅ 剧本生成完成');
     }
     
-    // 生成视频提示词（使用Grok-4）
+    // 生成视频提示词
     const videoPrompt = generateVideoPromptRequest(idea, script);
-    const videoText = await callServerlessAPI('text', videoPrompt);
+    const videoText = await callZhenzhenTextAPI(videoPrompt);
     const videoPrompts = parsePrompts(videoText, idea.scenes);
-    console.log('🎬 视频提示词生成完成');
+    console.log('✅ 视频提示词生成完成');
     
-    // 生成配图提示词（使用Grok-4）
+    // 生成配图提示词
     const imagePrompt = generateImagePromptRequest(idea, script);
-    const imageText = await callServerlessAPI('text', imagePrompt);
+    const imageText = await callZhenzhenTextAPI(imagePrompt);
     const imagePrompts = parsePrompts(imageText, idea.scenes);
-    console.log('🎨 配图提示词生成完成');
+    console.log('✅ 配图提示词生成完成');
     
     return { script, videoPrompts, imagePrompts };
 }
 
 /**
- * 直接调用贞贞工坊API（纯前端版本）
+ * 模式2：文生图+图生视频（Flux + Sora2）
+ */
+async function generateTextToImageToVideo(idea) {
+    let script;
+    
+    // 如果是上传的剧本，直接使用
+    if (idea.inputMode === 'script' && idea.scriptContent) {
+        script = idea.scriptContent;
+        console.log('📄 使用上传的剧本');
+    } else {
+        // 生成剧本（使用Grok-4）
+        const scriptPrompt = generateScriptPrompt(idea);
+        script = await callZhenzhenTextAPI(scriptPrompt);
+        console.log('✅ 剧本生成完成');
+    }
+    
+    // 生成配图提示词（用于Flux生图）
+    const imagePrompt = generateImagePromptRequest(idea, script);
+    const imageText = await callZhenzhenTextAPI(imagePrompt);
+    const imagePrompts = parsePrompts(imageText, idea.scenes);
+    console.log('✅ 配图提示词生成完成');
+    
+    // 使用Flux生成图片
+    console.log('🎨 开始生成图片...');
+    const generatedImages = [];
+    for (let i = 0; i < imagePrompts.length; i++) {
+        const imageUrl = await callFluxImageAPI(imagePrompts[i], idea.imageAspectRatio);
+        generatedImages.push(imageUrl);
+        console.log(`✅ 图片 ${i + 1}/${imagePrompts.length} 生成完成`);
+    }
+    
+    // 使用Sora2进行图生视频
+    console.log('🎬 开始图生视频...');
+    const videoPrompts = [];
+    for (let i = 0; i < generatedImages.length; i++) {
+        const videoUrl = await callSora2ImageToVideoAPI(generatedImages[i], imagePrompts[i]);
+        videoPrompts.push({
+            prompt: imagePrompts[i],
+            imageUrl: generatedImages[i],
+            videoUrl: videoUrl
+        });
+        console.log(`✅ 视频 ${i + 1}/${generatedImages.length} 生成完成`);
+    }
+    
+    return { script, videoPrompts, imagePrompts, generatedImages };
+}
+
+/**
+ * 贞贞工坊 - 文本生成API（Grok-4）
+ */
+async function callZhenzhenTextAPI(prompt) {
+    try {
+        const API_URL = 'https://api.gptbest.com/v1/chat/completions';
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'grok-2-1212',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 2000
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API请求失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+    } catch (error) {
+        console.error('❌ 贞贞文本API调用失败:', error);
+        throw error;
+    }
+}
+
+/**
+ * RH Flux - 文生图API
+ */
+async function callFluxImageAPI(prompt, aspectRatio) {
+    try {
+        const API_URL = 'https://www.runninghub.cn/task/openapi/ai-app/run';
+        const API_KEY = 'a380bfb6f25b4733ad6756a0bb0a8403';
+        const WEBAPP_ID = '1986431735514726401';
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Host': 'www.runninghub.cn',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                webappId: WEBAPP_ID,
+                apiKey: API_KEY,
+                nodeInfoList: [
+                    {
+                        nodeId: '53',
+                        fieldName: 'text',
+                        fieldValue: prompt,
+                        description: 'text'
+                    },
+                    {
+                        nodeId: '52',
+                        fieldName: 'aspect_ratio',
+                        fieldData: '[[\"custom\", \"1:1 square 1024x1024\", \"3:4 portrait 896x1152\", \"5:8 portrait 832x1216\", \"9:16 portrait 768x1344\", \"9:21 portrait 640x1536\", \"4:3 landscape 1152x896\", \"3:2 landscape 1216x832\", \"16:9 landscape 1344x768\", \"21:9 landscape 1536x640\"]]',
+                        fieldValue: aspectRatio || '16:9 landscape 1344x768',
+                        description: 'aspect_ratio'
+                    }
+                ]
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`RH Flux API请求失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        // 根据RH的返回格式提取图片URL（可能需要轮询任务状态）
+        // 这里假设返回格式，实际需要根据API文档调整
+        if (data.success && data.data && data.data.imageUrl) {
+            return data.data.imageUrl;
+        } else if (data.taskId) {
+            // 如果是异步任务，需要轮询状态
+            return await pollFluxTaskStatus(data.taskId);
+        } else {
+            throw new Error('Flux生图失败: 未返回图片URL');
+        }
+    } catch (error) {
+        console.error('❌ Flux图片生成失败:', error);
+        throw error;
+    }
+}
+
+/**
+ * 轮询Flux任务状态（如果需要）
+ */
+async function pollFluxTaskStatus(taskId) {
+    const maxAttempts = 30; // 最多轮询30次
+    const interval = 2000; // 每2秒查询一次
+    
+    for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(resolve => setTimeout(resolve, interval));
+        
+        try {
+            const response = await fetch(`https://www.runninghub.cn/task/openapi/task/status/${taskId}`, {
+                headers: {
+                    'Authorization': 'Bearer a380bfb6f25b4733ad6756a0bb0a8403'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.status === 'completed' && data.imageUrl) {
+                    return data.imageUrl;
+                } else if (data.status === 'failed') {
+                    throw new Error('Flux任务失败');
+                }
+            }
+        } catch (error) {
+            console.warn(`轮询任务状态失败 (尝试 ${i + 1}/${maxAttempts}):`, error);
+        }
+    }
+    
+    throw new Error('Flux任务超时');
+}
+
+/**
+ * 贞贞工坊 Sora2 - 图生视频API
+ */
+async function callSora2ImageToVideoAPI(imageUrl, prompt) {
+    try {
+        const API_URL = 'https://api.gptbest.com/v1/video/generations';
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'sora-1.0-turbo',
+                prompt: prompt,
+                image: imageUrl, // 输入图片URL
+                size: '1280x720'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Sora2 API请求失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (data.data && data.data[0] && data.data[0].url) {
+            return data.data[0].url;
+        } else {
+            throw new Error('Sora2图生视频失败: 未返回视频URL');
+        }
+    } catch (error) {
+        console.error('❌ Sora2图生视频失败:', error);
+        throw error;
+    }
+}
+
+/**
+ * 直接调用贞贞工坊API（纯前端版本）- 兼容旧代码
  */
 async function callServerlessAPI(type, prompt) {
     try {
