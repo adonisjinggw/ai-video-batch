@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI视频批量创作平台</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span class="brand-text">AI视频批量创作</span>
+            </div>
+            <div class="nav-stats">
+                <div style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(34, 197, 94, 0.1); border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 18px; height: 18px; color: #22c55e;">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span style="color: #22c55e; font-weight: 600; font-size: 13px;">已配置</span>
+                </div>
+                <span class="stat-item">已生成: <strong id="totalGenerated">0</strong></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- 左侧输入区 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>创意列表</h2>
+                <button class="btn-icon" onclick="addNewIdea()" title="添加创意">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 4v16m8-8H4"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="ideasList" class="ideas-list">
+                <!-- 创意项将动态生成 -->
+            </div>
+
+            <div class="sidebar-footer">
+                <button id="startBatchBtn" class="btn-primary-large" onclick="startBatchGeneration()">
+                    <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span>开始批量生成</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- 右侧结果区 -->
+        <main class="content-area">
+            <!-- 欢迎页 -->
+            <div id="welcomeScreen" class="welcome-screen">
+                <div class="welcome-content">
+                    <div class="welcome-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                    </div>
+                    <h1>AI视频批量创作平台</h1>
+                    <p class="welcome-desc">输入创意主题，AI自动生成剧本、配图提示词、视频分镜提示词</p>
+                    
+                    <div class="welcome-tips">
+                        <div class="tip-card">
+                            <div class="tip-icon">🔑</div>
+                            <div class="tip-text">
+                                <strong>配置API Key</strong>
+                                <p>点击右上角设置，配置贞贞工坊API Key</p>
+                            </div>
+                        </div>
+                        <div class="tip-card">
+                            <div class="tip-icon">⚡</div>
+                            <div class="tip-text">
+                                <strong>真实AI生成</strong>
+                                <p>使用贞贞工坊Grok-4模型，高质量内容</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="welcome-features">
+                        <div class="feature-card">
+                            <div class="feature-icon">📝</div>
+                            <div class="feature-title">智能剧本</div>
+                            <div class="feature-desc">AI自动生成分镜剧本</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎨</div>
+                            <div class="feature-title">配图提示词</div>
+                            <div class="feature-desc">适配主流AI绘画工具</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎬</div>
+                            <div class="feature-title">视频分镜</div>
+                            <div class="feature-desc">Sora2专用提示词</div>
+                        </div>
+                    </div>
+                    <button class="btn-get-started" onclick="quickStartGeneration()">
+                        开始创作
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 生成进度区 -->
+            <div id="progressScreen" class="progress-screen" style="display: none;">
+                <div class="progress-header">
+                    <div class="progress-title-row">
+                        <h2>生成进度</h2>
+                        <button class="btn-back" onclick="backToWelcome()" title="返回">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                            </svg>
+                            返回
+                        </button>
+                    </div>
+                    <div class="progress-stats">
+                        <span class="stat-badge stat-success">✓ <span id="successCount">0</span></span>
+                        <span class="stat-badge stat-processing">⏳ <span id="processingCount">0</span></span>
+                        <span class="stat-badge stat-failed">✗ <span id="failedCount">0</span></span>
+                    </div>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div id="progressBar" class="progress-bar-fill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">准备中...</div>
+                </div>
+
+                <div id="taskCards" class="task-cards">
+                    <!-- 任务卡片动态生成 -->
+                </div>
+            </div>
+
+            <!-- 结果展示区 -->
+            <div id="resultScreen" class="result-screen" style="display: none;">
+                <div class="result-header">
+                    <h2>生成结果</h2>
+                    <div class="result-actions">
+                        <button class="btn-secondary" onclick="downloadAll()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            打包下载
+                        </button>
+                        <button class="btn-secondary" onclick="resetAll()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            重新开始
+                        </button>
+                    </div>
+                </div>
+
+                <div id="resultCards" class="result-cards">
+                    <!-- 结果卡片动态生成 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创意编辑模态框 -->
+    <div id="ideaModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeIdeaModal()"></div>
+        <div class="modal-content modal-wide">
+            <div class="modal-header">
+                <h3>编辑创意</h3>
+                <button class="btn-close" onclick="closeIdeaModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 模式切换 -->
+                <div class="mode-switch">
+                    <button id="textModeBtn" class="mode-btn active" onclick="switchInputMode('text')">
+                        📝 文本输入
+                    </button>
+                    <button id="scriptModeBtn" class="mode-btn" onclick="switchInputMode('script')">
+                        📄 剧本上传
+                    </button>
+                </div>
+
+                <!-- 文本输入区域 -->
+                <div id="textInputArea" class="input-area">
+                    <div class="form-group">
+                        <label>创意主题</label>
+                        <textarea id="ideaTheme" rows="3" placeholder="例如：一个程序员的一天"></textarea>
+                    </div>
+                </div>
+
+                <!-- 剧本上传区域 -->
+                <div id="scriptUploadArea" class="input-area" style="display: none;">
+                    <div class="upload-box">
+                        <input type="file" id="scriptFileInput" accept=".txt,.json" style="display: none;" onchange="handleScriptUpload(event)">
+                        <button class="btn-upload" onclick="document.getElementById('scriptFileInput').click()">
+                            📁 选择剧本文件
+                        </button>
+                        <div class="upload-status" id="uploadStatus">支持 .txt 或 .json 格式</div>
+                    </div>
+                    <div class="format-guide">
+                        <p><strong>剧本格式说明：</strong></p>
+                        <div class="format-examples">
+                            <div class="format-item">
+                                <strong>TXT格式：</strong>
+                                <pre>===章节标题===
+剧本内容第一段...
+剧本内容第二段...</pre>
+                            </div>
+                            <div class="format-item">
+                                <strong>JSON格式：</strong>
+                                <pre>[{"title":"章节1","script":"剧本内容..."}]</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 参数设置 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>生成模式</label>
+                        <select id="generationMode">
+                            <option value="text-to-video">⚡ 纯文生视频（Grok-4 + Sora2）</option>
+                            <option value="text-to-image-to-video">🎨 文生图+图生视频（Flux + Sora2）</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>风格</label>
+                        <select id="ideaStyle">
+                            <option value="cartoon">🎨 卡通</option>
+                            <option value="realistic">📸 真人</option>
+                            <option value="scifi">🚀 科幻</option>
+                            <option value="anime">🌸 动漫</option>
+                            <option value="cyberpunk">🌆 赛博朋克</option>
+                            <option value="fantasy">✨ 奇幻</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>时长（秒）</label>
+                        <input type="number" id="ideaDuration" class="input-number" min="5" max="300" value="30" placeholder="5-300秒">
+                    </div>
+                    <div class="form-group">
+                        <label>分镜数</label>
+                        <input type="number" id="ideaScenes" class="input-number" min="1" max="20" value="4" placeholder="1-20个">
+                    </div>
+                    <div class="form-group">
+                        <label>图片比例</label>
+                        <select id="imageAspectRatio">
+                            <option value="16:9 landscape 1344x768">16:9 横屏</option>
+                            <option value="9:16 portrait 768x1344">9:16 竖屏</option>
+                            <option value="1:1 square 1024x1024">1:1 方形</option>
+                            <option value="3:4 portrait 896x1152">3:4 竖屏</option>
+                            <option value="4:3 landscape 1152x896">4:3 横屏</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeIdeaModal()">取消</button>
+                <button class="btn-primary" onclick="saveIdea()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/batch.js"></script>
+</body>
+</html>
