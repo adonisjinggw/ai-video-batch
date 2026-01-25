@@ -364,9 +364,38 @@
             <div class="option-group">
                 <label>模型</label>
                 <select id="model" onchange="onModelChange()">
-                    <option value="sora-2-all">Sora-2 (文生视频)</option>
-                    <option value="veo3.1">Veo-3.1 (快速+音频)</option>
-                    <option value="grok-video-3">Grok Video 3</option>
+                    <option value="sora-2-all">Sora-2 (15秒)</option>
+                    <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                    <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
+                        <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                        <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                    </optgroup>
+                    <optgroup label="🎬 Vidu 系列 - 5秒">
+                        <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                        <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                        <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                    </optgroup>
+                    <optgroup label="🎬 Vidu 系列 - 10秒">
+                        <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
+                        <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                    </optgroup>
+                    <optgroup label="🐚 海螺 Hailuo - 6秒">
+                        <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
+                        <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
+                    </optgroup>
+                    <optgroup label="🐚 海螺 Hailuo - 10秒">
+                        <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
+                        <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
+                    </optgroup>
+                    <optgroup label="✨ 可灵 Kling - 5秒">
+                        <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
+                        <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
+                    </optgroup>
+                    <optgroup label="✨ 可灵 Kling - 10秒">
+                        <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
+                        <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
+                    </optgroup>
+                    <option value="grok-video-3">Grok Video (6秒)</option>
                 </select>
             </div>
             <div class="option-group">
@@ -504,14 +533,23 @@
             const durationInput = document.getElementById('duration');
             
             // 根据模型设置固定时长
-            const modelDurations = {
-                'sora-2-all': 15,
-                'sora-2-pro-all': 15,
-                'veo3.1': 8,
-                'grok-video-3': 6
-            };
+            let duration = 15;
+            if (model.includes('grok')) {
+                duration = 6;
+            } else if (model.includes('veo')) {
+                duration = 8;
+            } else if (model.includes('vidu') || model.includes('kling')) {
+                // Vidu/Kling: 从模型名提取时长
+                const match = model.match(/-(\d+)s[-$]/i) || model.match(/-(\d+)s$/i);
+                duration = match ? parseInt(match[1]) : 5;
+            } else if (model.includes('hailuo')) {
+                // Hailuo: 从模型名提取时长
+                const match = model.match(/-(\d+)s[-$]/i) || model.match(/-(\d+)s$/i);
+                duration = match ? parseInt(match[1]) : 6;
+            } else if (model.includes('sora')) {
+                duration = 15;
+            }
             
-            const duration = modelDurations[model] || 15;
             durationInput.value = duration;
             
             // 更新费用估算
@@ -1036,23 +1074,44 @@ ${story}
             segments[index] = value;
         }
 
+        // 🎬 模型费用配置
+        const VIDEO_COST = {
+            'sora-2-all': 8, 'sora-2-pro-all': 12,
+            'veo3.1-components-4k': 30, 'veo_3_1-fast-4K': 25,
+            'vidu-q2-5s-720p': 25, 'vidu-q2-5s-1080p': 36, 'vidu-q2-turbo-5s-720p': 19,
+            'vidu-q2-10s-720p': 50, 'vidu-q2-10s-1080p': 72,
+            'hailuo-02-768p-6s': 7, 'hailuo-fast-768p-6s': 5,
+            'hailuo-02-768p-10s': 11, 'hailuo-fast-768p-10s': 8,
+            'kling-2.5-720p-5s': 5, 'kling-2.5-1080p-5s': 9,
+            'kling-2.5-720p-10s': 10, 'kling-2.5-1080p-10s': 17,
+            'grok-video-3': 6
+        };
+        
         // 更新费用预估
         function updateCost() {
+            const model = document.getElementById('model').value;
             const duration = parseInt(document.getElementById('duration').value) || 5;
             const segmentCount = segments.filter(s => s.trim()).length;
             
-            // 第一个分镜：文生视频（3胶片/15秒）
-            // 后续分镜：图生视频（3胶片/15秒）
-            const costPerSegment = (duration / 15) * 3;
+            // 根据模型获取单个分镜费用
+            const costPerSegment = VIDEO_COST[model] || 8;
             const totalCost = segmentCount * costPerSegment;
             const totalPrice = totalCost * 0.3;
+            
+            // 计算预估时间
+            let estTime = segmentCount * 1.5; // 默认每个分镜1.5分钟
+            if (model.includes('turbo') || model.includes('fast')) {
+                estTime = segmentCount * 0.8; // 快速模型
+            } else if (model.includes('veo')) {
+                estTime = segmentCount * 2; // Veo较慢
+            }
 
             document.getElementById('cost-breakdown').innerHTML = `
                 <div><strong>分镜数量：</strong>${segmentCount} 个</div>
                 <div><strong>单镜时长：</strong>${duration} 秒</div>
-                <div><strong>单镜费用：</strong>${costPerSegment.toFixed(1)} 胶片 (¥${(costPerSegment * 0.3).toFixed(2)})</div>
-                <div><strong>总费用：</strong>${totalCost.toFixed(1)} 胶片 = ¥${totalPrice.toFixed(2)}</div>
-                <div style="margin-top: 8px; color: #c53030;">⚠️ 注意：必须串行生成，总耗时约 ${(segmentCount * 1.5).toFixed(1)} 分钟</div>
+                <div><strong>单镜费用：</strong>${costPerSegment} 胶片 (¥${(costPerSegment * 0.3).toFixed(2)})</div>
+                <div><strong>总费用：</strong>${totalCost} 胶片 = ¥${totalPrice.toFixed(2)}</div>
+                <div style="margin-top: 8px; color: #c53030;">⚠️ 注意：必须串行生成，总耗时约 ${estTime.toFixed(1)} 分钟</div>
             `;
         }
 
