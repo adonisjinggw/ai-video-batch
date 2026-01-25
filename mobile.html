@@ -5671,8 +5671,19 @@ ${scriptLine}
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     const controller = new AbortController();
-                    // 🌟 星梦画师批量模式需要更长超时
-                    const timeoutMs = (isSeedream && outputCount > 1) ? 180000 : 120000;
+                    // 🔧 根据模型设置合理超时：
+                    // - Midjourney: 后端轮询最多3分钟，前端给240秒
+                    // - 星梦画师批量: 180秒
+                    // - 万象Max: 150秒（后端已优化到banana2，但保留余量）
+                    // - 其他: 90秒
+                    let timeoutMs = 90000;
+                    if (isMidjourney) {
+                        timeoutMs = 240000;  // MJ 后端轮询可能需要3分钟
+                    } else if (isSeedream && outputCount > 1) {
+                        timeoutMs = 180000;  // 星梦批量模式
+                    } else if (isSeedream || isQwenImage) {
+                        timeoutMs = 150000;  // 星梦/万象单图
+                    }
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
                     const response = await fetch(apiEndpoint, {
