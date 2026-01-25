@@ -165,31 +165,38 @@ async function pollVideoStatus(taskId, maxAttempts = 120) {
 
 /**
  * 生成单个视频片段（文生视频或图生视频）
- * 🔧 修复：使用正确的云梦API端点
- * - 文生视频：/sora/v1/video/text-to-video
- * - 图生视频：/sora/v1/video/image-to-video
+ * 🔧 修复：使用与 sora2.js 相同的云梦API端点
+ * - 统一端点：/v1/video/create
  */
 async function generateVideoSegment({ prompt, model, duration, aspect_ratio, hd, input_reference, character_url, character_timestamps, _character }) {
     let lastError = null;
     
     // 判断是图生视频还是文生视频
     const isImageToVideo = !!input_reference;
-    const apiPath = isImageToVideo ? '/sora/v1/video/image-to-video' : '/sora/v1/video/text-to-video';
+    // 🔧 修复：使用与 sora2.js 相同的端点
+    const apiPath = '/v1/video/create';
     
     for (const endpoint of YUNMENG_ENDPOINTS) {
         for (const apiKey of YUNMENG_API_KEYS) {
             try {
-                // 🔧 云梦API使用的字段命名（参考 sora2.js 和 yunwu.js）
+                // 🔧 云梦API使用的字段命名（与 sora2.js 保持一致）
                 const body = {
                     model: model || 'sora-2-all',
                     prompt
                 };
+                
+                // 🔧 模型名称标准化（与 sora2.js 保持一致）
+                const m = String(body.model || '').trim();
+                if (m === 'sora-2' || m === 'sora-2-hd' || m === 'sora-2-landscape' || m === 'sora-2-landscape-hd' || m === 'sora-2-portrait' || m === 'sora-2-portrait-hd') {
+                    body.model = 'sora-2-all';
+                } else if (m === 'sora-2-pro') {
+                    body.model = 'sora-2-pro-all';
+                }
 
                 // ✅ HD 标志：仅对 sora 系列有意义（veo 不需要）
-                const m = String(body.model || '').trim();
                 const ml = m.toLowerCase();
                 const isVeo = ml.startsWith('veo');
-                const wantHd = (m === 'sora-2-pro') ? ((typeof hd === 'undefined') ? true : !!hd) : !!hd;
+                const wantHd = (m === 'sora-2-pro' || m === 'sora-2-pro-all') ? ((typeof hd === 'undefined') ? true : !!hd) : !!hd;
                 if (!isVeo && wantHd) {
                     body.hd = true;
                 }
@@ -200,9 +207,19 @@ async function generateVideoSegment({ prompt, model, duration, aspect_ratio, hd,
                     if (Number.isFinite(d) && d > 0) body.duration = Math.round(d);
                 }
                 
-                // 云梦API使用 aspect_ratio 而不是 size
+                // 云梦API使用 aspect_ratio
                 if (aspect_ratio) {
                     body.aspect_ratio = aspect_ratio;
+                    // 🔧 添加 orientation 参数（与 sora2.js 保持一致）
+                    body.orientation = (aspect_ratio === '9:16' || aspect_ratio === 'portrait') ? 'portrait' : 'landscape';
+                }
+                
+                // 🔧 添加 size 参数（云梦某些节点要求）
+                const isPortrait = (aspect_ratio === '9:16' || aspect_ratio === 'portrait');
+                if (isPortrait) {
+                    body.size = wantHd ? '1080x1920' : '720x1280';
+                } else {
+                    body.size = wantHd ? '1920x1080' : '1280x720';
                 }
                 
                 // 🔧 图生视频：使用前一个视频的最后一帧作为参考图
@@ -227,8 +244,8 @@ async function generateVideoSegment({ prompt, model, duration, aspect_ratio, hd,
                     }
                 }
                 
-                // ✅ 使用正确的端点
-                console.log(`[video-continuity] 🎬 生成视频: ${endpoint}${apiPath}`, { model: body.model, duration: body.duration, hasImage: isImageToVideo });
+                // ✅ 使用统一端点 /v1/video/create
+                console.log(`[video-continuity] 🎬 生成视频: ${endpoint}${apiPath}`, { model: body.model, duration: body.duration, hasImage: isImageToVideo, size: body.size });
                 const response = await fetch(`${endpoint}${apiPath}`, {
                     method: 'POST',
                     headers: {
