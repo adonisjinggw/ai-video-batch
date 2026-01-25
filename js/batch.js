@@ -2206,6 +2206,69 @@ async function callSora2TextToVideoAPI(prompt, options = {}) {
             return url;
         }
         
+        // 🐚 Hailuo 海螺模型使用 yunwu API
+        if (__isHailuoModel(_m)) {
+            const hailuoParams = __parseHailuoModel(_m);
+            console.log(`🐚 [Hailuo] 使用 yunwu API, version=${hailuoParams.version}, resolution=${hailuoParams.resolution}, duration=${hailuoParams.duration}`);
+            const res = await fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'hailuo',
+                    prompt,
+                    model_version: hailuoParams.version,
+                    duration: hailuoParams.duration,
+                    resolution: hailuoParams.resolution,
+                    userId
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Hailuo失败: ${res.status}`);
+            
+            let url = '';
+            if (data.url || data.video_url) {
+                url = data.url || data.video_url;
+            } else if (data.task_id || data.id) {
+                const taskId = data.task_id || data.id;
+                url = await pollSora2Task(taskId, { _source: data._source || 'yunwu', _endpoint: data._endpoint, isVidu: true });
+            } else {
+                throw new Error('未返回视频URL或task_id');
+            }
+            return url;
+        }
+        
+        // ✨ Kling 可灵模型使用 yunwu API
+        if (__isKlingModel(_m)) {
+            const klingParams = __parseKlingModel(_m);
+            console.log(`✨ [Kling] 使用 yunwu API, version=${klingParams.version}, resolution=${klingParams.resolution}, duration=${klingParams.duration}`);
+            const res = await fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'kling',
+                    prompt,
+                    model_version: klingParams.version,
+                    aspect_ratio: aspectRatio,
+                    duration: klingParams.duration,
+                    resolution: klingParams.resolution,
+                    userId
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Kling失败: ${res.status}`);
+            
+            let url = '';
+            if (data.url || data.video_url) {
+                url = data.url || data.video_url;
+            } else if (data.task_id || data.id) {
+                const taskId = data.task_id || data.id;
+                url = await pollSora2Task(taskId, { _source: data._source || 'yunwu', _endpoint: data._endpoint, isVidu: true });
+            } else {
+                throw new Error('未返回视频URL或task_id');
+            }
+            return url;
+        }
+        
         const res = await fetch('/api/sora2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2267,8 +2330,8 @@ function __normalizeVideoModelName(model) {
     // 兼容旧值：不展示 veo3.1-pro，但如果历史任务里选过，自动降级为 veo3.1
     if (ml === 'veo3.1-pro' || ml === 'veo-3.1-pro' || ml === 'veo3.1pro') return 'veo3.1';
     if (ml === 'grok3' || ml === 'grok-video-3' || ml === 'grok-video-3-text' || ml === 'grok-video-3-hd') return 'grok-video-3';
-    // 🎬 Vidu 模型：保持原名称
-    if (ml.startsWith('vidu-')) return m;
+    // 🎬 Vidu/Hailuo/Kling 模型：保持原名称
+    if (ml.startsWith('vidu-') || ml.startsWith('hailuo-') || ml.startsWith('kling-')) return m;
     return m;
 }
 
@@ -2281,9 +2344,14 @@ function __getFixedClipDurationByModel(model, hd) {
     if (m === 'grok-video-3') return 6;
     if (m === 'veo3.1') return 8;
     // 🎬 Vidu 模型：从模型名提取时长 (vidu-q2-5s-720p -> 5, vidu-q2-10s-1080p -> 10)
-    if (String(m).startsWith('vidu-')) {
-        const durationMatch = String(m).match(/-(\d+)s-/i);
+    if (String(m).startsWith('vidu-') || String(m).startsWith('kling-')) {
+        const durationMatch = String(m).match(/-(\d+)s[-$]/i) || String(m).match(/-(\d+)s$/i);
         return durationMatch ? parseInt(durationMatch[1]) : 5;  // 默认5秒
+    }
+    // 🐚 Hailuo 模型：默认6秒
+    if (String(m).startsWith('hailuo-')) {
+        const durationMatch = String(m).match(/-(\d+)s[-$]/i) || String(m).match(/-(\d+)s$/i);
+        return durationMatch ? parseInt(durationMatch[1]) : 6;  // 默认6秒
     }
     if (String(m).startsWith('sora-2')) return 15;
     return 15;
@@ -2292,6 +2360,16 @@ function __getFixedClipDurationByModel(model, hd) {
 // 🎬 判断是否是 Vidu 模型
 function __isViduModel(model) {
     return model && String(model).toLowerCase().startsWith('vidu-');
+}
+
+// 🐚 判断是否是 Hailuo 模型
+function __isHailuoModel(model) {
+    return model && String(model).toLowerCase().startsWith('hailuo-');
+}
+
+// ✨ 判断是否是 Kling 模型
+function __isKlingModel(model) {
+    return model && String(model).toLowerCase().startsWith('kling-');
 }
 
 // 🎬 解析 Vidu 模型参数 (vidu-q2-5s-720p -> { version: 'q2', duration: 5, resolution: '720P' })
@@ -2315,6 +2393,38 @@ function __parseViduModel(model) {
         };
     }
     return { version: 'q2', duration: 5, resolution: '720P' };
+}
+
+// 🐚 解析 Hailuo 模型参数 (hailuo-02-768p-6s -> { version: '02', duration: 6, resolution: '768P' })
+function __parseHailuoModel(model) {
+    // 格式: hailuo-{version}-{resolution}-{duration}s
+    const match = String(model || '').match(/hailuo-(02|fast)-(768p|1080p)-(\d+)s/i);
+    if (match) {
+        // 版本映射: 02 -> 02, fast -> 2.3-fast
+        const versionMap = { '02': '02', 'fast': '2.3-fast' };
+        return {
+            version: versionMap[match[1].toLowerCase()] || match[1],
+            resolution: match[2].toUpperCase(),
+            duration: parseInt(match[3])
+        };
+    }
+    return { version: '02', duration: 6, resolution: '768P' };
+}
+
+// ✨ 解析 Kling 模型参数 (kling-2.5-720p-5s -> { version: '2.5', duration: 5, resolution: '720P' })
+function __parseKlingModel(model) {
+    // 格式: kling-{version}-{resolution}-{duration}s
+    const match = String(model || '').match(/kling-(o1|2\.5|2\.0|2\.1|1\.6)-(720p|1080p)-(\d+)s/i);
+    if (match) {
+        // O1 需要转为大写
+        const version = match[1].toUpperCase() === 'O1' ? 'O1' : match[1];
+        return {
+            version: version,
+            resolution: match[2].toUpperCase(),
+            duration: parseInt(match[3])
+        };
+    }
+    return { version: '2.5', duration: 5, resolution: '720P' };
 }
 
 function __isSora2Family(model) {

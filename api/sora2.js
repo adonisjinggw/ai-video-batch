@@ -805,7 +805,11 @@ module.exports = async function handler(req, res) {
 
             // 处理不同模型的参数
             if (model && model.startsWith('veo')) {
-                requestBody.enhance_prompt = true;  // 保持开启，让AI增强提示词
+                // 🆕 veo 模型必需参数（根据 API 文档）
+                requestBody.enhance_prompt = true;  // 中文自动转英文
+                requestBody.enable_upsample = body.enable_upsample !== false; // 超分，默认开启
+                requestBody.aspect_ratio = body.aspect_ratio || '16:9'; // veo3 支持 16:9 或 9:16
+                console.log(`[sora2] 🎬 veo文生视频: model=${model}, aspect_ratio=${requestBody.aspect_ratio}`);
             } else {
                 if (body.aspect_ratio) requestBody.aspect_ratio = body.aspect_ratio;
                 if (body.duration != null) {
@@ -1015,7 +1019,26 @@ module.exports = async function handler(req, res) {
 
             // 处理不同模型的参数
             if (model && model.startsWith('veo')) {
-                requestBody.enhance_prompt = true;  // 保持开启，让AI增强提示词
+                // 🆕 veo 模型必需参数（根据 API 文档）
+                requestBody.enhance_prompt = true;  // 中文自动转英文
+                requestBody.enable_upsample = body.enable_upsample !== false; // 超分，默认开启
+                requestBody.aspect_ratio = body.aspect_ratio || '16:9'; // veo3 支持 16:9 或 9:16
+                
+                // 🔧 veo 图生视频需要使用 -frames 后缀的模型
+                // veo2 图生视频 → veo2-fast-frames（支持首尾帧）
+                // veo3 图生视频 → veo3-fast-frames 或 veo3-pro-frames（支持首帧）
+                const m = String(model).toLowerCase();
+                if (m === 'veo3' || m === 'veo3.1') {
+                    requestBody.model = 'veo3-fast-frames'; // 4K 图生视频
+                } else if (m === 'veo3-pro') {
+                    requestBody.model = 'veo3-pro-frames';
+                } else if (m === 'veo2' || m === 'veo2-fast') {
+                    requestBody.model = 'veo2-fast-frames';
+                } else if (!m.includes('-frames')) {
+                    // 其他 veo 模型，自动添加 -frames 后缀
+                    requestBody.model = m + '-frames';
+                }
+                console.log(`[sora2] 🎬 veo图生视频: 原模型=${model} → 实际模型=${requestBody.model}`);
             } else {
                 if (body.aspect_ratio) requestBody.aspect_ratio = body.aspect_ratio;
                 if (duration != null) {

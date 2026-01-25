@@ -1351,7 +1351,7 @@
         /* 跳过按钮 */
         .intro-skip { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; color: #fff; font-size: 13px; cursor: pointer; z-index: 100000; }
 
-        /* 📱 手机端开场动画适配 */
+        /* 📱 手机端适配 */
         @media (max-width: 480px) {
             .film-border { width: 25px; }
             .era-year { font-size: 48px; }
@@ -1425,9 +1425,9 @@
             history.replaceState({}, '', location.pathname);
             _showIntro = false;
         } else {
-            // 其他情况显示开场动画，同时隐藏欢迎页防止闪现
+            // 其他情况显示开场动画
             _showIntro = true;
-            document.write('<style>#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar{display:none!important;opacity:0;visibility:hidden}</style>');
+            document.write('<style>#cinemaIntro{display:flex!important}</style>');
         }
     })();
     </script>
@@ -1675,34 +1675,6 @@
                             <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
                             <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
                         </optgroup>
-                        <optgroup label="🐚 海螺 Hailuo - 6秒">
-                            <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
-                            <option value="hailuo-02-1080p-6s">海螺 02 6秒 1080P (12胶片)</option>
-                            <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
-                            <option value="hailuo-fast-1080p-6s">海螺 Fast 6秒 1080P (8胶片)</option>
-                        </optgroup>
-                        <optgroup label="🐚 海螺 Hailuo - 10秒">
-                            <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
-                            <option value="hailuo-02-1080p-10s">海螺 02 10秒 1080P (20胶片)</option>
-                            <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
-                            <option value="hailuo-fast-1080p-10s">海螺 Fast 10秒 1080P (13胶片)</option>
-                        </optgroup>
-                        <optgroup label="✨ 可灵 Kling - 5秒">
-                            <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
-                            <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
-                            <option value="kling-2.0-720p-5s">可灵 2.0 5秒 720P (7胶片)</option>
-                            <option value="kling-2.0-1080p-5s">可灵 2.0 5秒 1080P (12胶片)</option>
-                            <option value="kling-o1-720p-5s">可灵 O1 5秒 720P (15胶片/顶级)</option>
-                            <option value="kling-o1-1080p-5s">可灵 O1 5秒 1080P (20胶片)</option>
-                        </optgroup>
-                        <optgroup label="✨ 可灵 Kling - 10秒">
-                            <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
-                            <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
-                            <option value="kling-2.0-720p-10s">可灵 2.0 10秒 720P (14胶片)</option>
-                            <option value="kling-2.0-1080p-10s">可灵 2.0 10秒 1080P (24胶片)</option>
-                            <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
-                            <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
-                        </optgroup>
                         <option value="grok-video-3-text">Grok Video 3 (文生视频)</option>
                         <option value="grok-video-3">Grok Video 3 (图生视频)</option>
                         <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
@@ -1824,20 +1796,48 @@
                     <input type="number" id="comicPanels" value="4" min="2" max="8">
                 </div>
             </div>
+            <!-- 📚 批量漫画入口 -->
+            <div class="option-row" style="margin-top:12px;">
+                <button onclick="openBatchComicMode()" 
+                    style="width:100%; padding:12px 16px; background:linear-gradient(135deg, rgba(236,72,153,0.2), rgba(168,85,247,0.15)); border:1px solid rgba(236,72,153,0.4); border-radius:10px; color:#ec4899; font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    📚 批量漫画模式
+                    <span style="font-size:11px; color:#a78bfa;">(多主题并发生成)</span>
+                </button>
+            </div>
         </div>
 
         <!-- 📚 批量漫画区域（从写作页跳转过来时显示） -->
         <div id="batchComicSection" style="display:none;">
             <div style="margin-bottom:16px; padding:12px 16px; background:linear-gradient(135deg, rgba(236,72,153,0.15), rgba(168,85,247,0.1)); border:1px solid rgba(236,72,153,0.3); border-radius:12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <div style="font-size:16px; font-weight:600; color:#ec4899;">📚 批量漫画模式</div>
+                    <div style="font-size:16px; font-weight:600; color:#ec4899;">📚 批量漫画模式 · 宫格配置</div>
                     <button onclick="exitBatchComicMode()" style="padding:4px 10px; background:#333; border:none; border-radius:6px; color:#888; font-size:12px; cursor:pointer;">退出批量</button>
                 </div>
-                <div style="font-size:12px; color:#a78bfa;">已加载 <span id="batchComicCount">0</span> 个漫画任务，将并发生成</div>
+                <div style="font-size:12px; color:#a78bfa;">共 <span id="batchComicCount">0</span> 个任务，点击宫格可单独配置</div>
             </div>
             
-            <!-- 批量任务列表 -->
-            <div id="batchComicTaskList" style="display:grid; gap:12px; margin-bottom:16px;"></div>
+            <!-- 全局配置（应用到所有宫格） -->
+            <div style="margin-bottom:12px; padding:10px 12px; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.2); border-radius:10px;">
+                <div style="font-size:12px; color:#a78bfa; margin-bottom:8px;">🎨 全局配置（应用到未单独配置的宫格）</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <select id="batchComicGlobalStyle" style="padding:8px; background:#1a1a24; border:1px solid #333; border-radius:6px; color:#fff; font-size:12px;">
+                        <option value="japanese">🇯🇵 日式漫画</option>
+                        <option value="japaneseColor">🎨 日式彩漫</option>
+                        <option value="american">🇺🇸 美式漫画</option>
+                        <option value="korean">🇰🇷 韩式条漫</option>
+                        <option value="shagou">🤪 沙雕漫画</option>
+                        <option value="children">👶 儿童绘本</option>
+                    </select>
+                    <select id="batchComicGlobalModel" style="padding:8px; background:#1a1a24; border:1px solid #333; border-radius:6px; color:#fff; font-size:12px;">
+                        <option value="modelscope">🆓 智能绘图</option>
+                        <option value="nano-banana-2">💰 Banana 标准</option>
+                        <option value="nano-banana-2-2k">💎 Banana 2K</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- 宫格任务列表 -->
+            <div id="batchComicTaskList" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-bottom:16px;"></div>
             
             <!-- 批量生成按钮 -->
             <button id="batchComicGenerateBtn" onclick="startBatchComicGenerate()" 
@@ -1848,13 +1848,13 @@
             <!-- 批量进度区域 -->
             <div id="batchComicProgressSection" style="display:none; margin-top:16px;">
                 <div style="font-size:13px; color:#888; margin-bottom:8px;">生成进度</div>
-                <div id="batchComicProgressList" style="display:grid; gap:8px;"></div>
+                <div id="batchComicProgressList" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px;"></div>
             </div>
             
             <!-- 批量结果区域 -->
             <div id="batchComicResultSection" style="display:none; margin-top:16px;">
                 <div style="font-size:14px; color:#4ade80; font-weight:600; margin-bottom:12px;">✅ 批量生成完成</div>
-                <div id="batchComicResultList" style="display:grid; gap:12px;"></div>
+                <div id="batchComicResultList" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;"></div>
             </div>
         </div>
 
@@ -2943,6 +2943,81 @@
         }
         
         /**
+         * 打开批量漫画模式（手动入口）
+         */
+        function openBatchComicMode() {
+            // 如果已经有任务，直接进入
+            if (batchComicTasks.length > 0) {
+                enterBatchComicMode();
+                return;
+            }
+            
+            // 否则弹出输入框让用户添加任务
+            const modal = document.createElement('div');
+            modal.id = 'batchComicInputModal';
+            modal.innerHTML = `
+                <div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;">
+                    <div style="width:100%;max-width:400px;background:#1a1a24;border:1px solid #333;border-radius:16px;overflow:hidden;">
+                        <div style="padding:16px 20px;background:linear-gradient(135deg, rgba(236,72,153,0.2), rgba(168,85,247,0.15));border-bottom:1px solid #333;">
+                            <div style="font-size:18px;font-weight:700;color:#ec4899;">📚 批量漫画模式</div>
+                            <div style="font-size:12px;color:#a78bfa;margin-top:4px;">每行一个主题，将并发生成多本漫画</div>
+                        </div>
+                        <div style="padding:16px 20px;">
+                            <textarea id="batchComicInputText" placeholder="请输入漫画主题，每行一个：\n\n例如：\n一只猫咆学习编程的故事\n狗狗的太空冒险\n小糟糕学魔法"
+                                style="width:100%;height:200px;padding:12px;background:#0d0d14;border:1px solid #333;border-radius:10px;color:#fff;font-size:14px;resize:none;line-height:1.6;"></textarea>
+                            <div style="font-size:11px;color:#666;margin-top:8px;">提示：每行一个主题，空行会被忽略</div>
+                        </div>
+                        <div style="padding:12px 20px 20px;display:flex;gap:10px;">
+                            <button onclick="closeBatchComicInputModal()" 
+                                style="flex:1;padding:12px;background:#333;border:none;border-radius:10px;color:#888;font-size:14px;cursor:pointer;">取消</button>
+                            <button onclick="confirmBatchComicInput()" 
+                                style="flex:2;padding:12px;background:linear-gradient(135deg, #ec4899, #a855f7);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">确认添加</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // 关闭批量漫画输入框
+        function closeBatchComicInputModal() {
+            const modal = document.getElementById('batchComicInputModal');
+            if (modal) modal.remove();
+        }
+        
+        // 确认批量漫画输入
+        function confirmBatchComicInput() {
+            const textarea = document.getElementById('batchComicInputText');
+            if (!textarea) return;
+            
+            const text = textarea.value.trim();
+            if (!text) {
+                showToast('请输入至少一个主题');
+                return;
+            }
+            
+            // 按行分割，过滤空行
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length === 0) {
+                showToast('请输入至少一个主题');
+                return;
+            }
+            
+            // 创建任务
+            batchComicTasks = lines.map((content, idx) => ({
+                id: 'batch_' + Date.now() + '_' + idx,
+                content: content,
+                expanded: false,
+                customStyle: '',
+                customModel: '',
+                customPages: 4
+            }));
+            
+            closeBatchComicInputModal();
+            enterBatchComicMode();
+        }
+        
+        /**
          * 退出批量漫画模式
          */
         function exitBatchComicMode() {
@@ -2967,27 +3042,96 @@
         }
         
         /**
-         * 渲染批量任务列表
+         * 渲染批量任务列表 - 宫格显示+宫格内配置
          */
         function renderBatchComicTaskList() {
             const container = document.getElementById('batchComicTaskList');
             if (!container) return;
             
             container.innerHTML = batchComicTasks.map((task, idx) => {
-                const preview = task.content.length > 80 ? task.content.substring(0, 80) + '...' : task.content;
-                const inputPreview = task.input ? (task.input.length > 30 ? task.input.substring(0, 30) + '...' : task.input) : '';
+                const preview = task.content.length > 50 ? task.content.substring(0, 50) + '...' : task.content;
+                const isExpanded = task.expanded || false;
+                const customStyle = task.customStyle || '';
+                const customModel = task.customModel || '';
+                const customPages = task.customPages || 4;
                 
                 return `
-                    <div class="batch-comic-task-item" data-id="${task.id}" style="padding:12px; background:var(--bg-card); border:1px solid #2a2a35; border-radius:10px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <span style="font-size:13px; font-weight:600; color:#ec4899;">📚 漫画 ${idx + 1}</span>
-                            <button onclick="removeBatchComicTask('${task.id}')" style="background:none; border:none; color:#666; font-size:16px; cursor:pointer; padding:2px 6px;">&times;</button>
+                    <div class="batch-comic-grid-item" data-id="${task.id}" 
+                        style="background:var(--bg-card); border:1px solid ${isExpanded ? '#ec4899' : '#2a2a35'}; border-radius:12px; overflow:hidden; transition:all 0.2s;">
+                        <!-- 宫格头部 -->
+                        <div onclick="toggleBatchComicGrid('${task.id}')" 
+                            style="padding:10px 12px; background:${isExpanded ? 'rgba(236,72,153,0.15)' : 'rgba(0,0,0,0.2)'}; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:13px; font-weight:600; color:#ec4899;">📚 ${idx + 1}</span>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                ${customStyle ? '<span style="font-size:10px; background:#a855f7; color:#fff; padding:2px 6px; border-radius:4px;">已配置</span>' : ''}
+                                <button onclick="event.stopPropagation(); removeBatchComicTask('${task.id}')" 
+                                    style="background:none; border:none; color:#666; font-size:14px; cursor:pointer;">×</button>
+                            </div>
                         </div>
-                        ${inputPreview ? `<div style="font-size:11px; color:#888; margin-bottom:4px;">📝 ${inputPreview}</div>` : ''}
-                        <div style="font-size:12px; color:var(--text-dim); line-height:1.5;">${preview}</div>
+                        
+                        <!-- 宫格内容预览 -->
+                        <div style="padding:10px 12px; font-size:11px; color:var(--text-dim); line-height:1.5; border-bottom:1px solid rgba(255,255,255,0.05);">
+                            ${preview}
+                        </div>
+                        
+                        <!-- 宫格内配置面板 -->
+                        <div id="gridConfig-${task.id}" style="display:${isExpanded ? 'block' : 'none'}; padding:10px 12px; background:rgba(0,0,0,0.15);">
+                            <div style="font-size:11px; color:#888; margin-bottom:6px;">⚙️ 单独配置此宫格</div>
+                            
+                            <!-- 风格选择 -->
+                            <select onchange="setBatchComicTaskConfig('${task.id}', 'customStyle', this.value)" 
+                                style="width:100%; padding:6px 8px; margin-bottom:6px; background:#1a1a24; border:1px solid #333; border-radius:6px; color:#fff; font-size:11px;">
+                                <option value="" ${!customStyle ? 'selected' : ''}>使用全局风格</option>
+                                <option value="japanese" ${customStyle==='japanese' ? 'selected' : ''}>🇯🇵 日式漫画</option>
+                                <option value="japaneseColor" ${customStyle==='japaneseColor' ? 'selected' : ''}>🎨 日式彩漫</option>
+                                <option value="american" ${customStyle==='american' ? 'selected' : ''}>🇺🇸 美式漫画</option>
+                                <option value="korean" ${customStyle==='korean' ? 'selected' : ''}>🇰🇷 韩式条漫</option>
+                                <option value="shagou" ${customStyle==='shagou' ? 'selected' : ''}>🤪 沙雕漫画</option>
+                                <option value="children" ${customStyle==='children' ? 'selected' : ''}>👶 儿童绘本</option>
+                            </select>
+                            
+                            <!-- 模型选择 -->
+                            <select onchange="setBatchComicTaskConfig('${task.id}', 'customModel', this.value)" 
+                                style="width:100%; padding:6px 8px; margin-bottom:6px; background:#1a1a24; border:1px solid #333; border-radius:6px; color:#fff; font-size:11px;">
+                                <option value="" ${!customModel ? 'selected' : ''}>使用全局模型</option>
+                                <option value="modelscope" ${customModel==='modelscope' ? 'selected' : ''}>🆓 智能绘图</option>
+                                <option value="nano-banana-2" ${customModel==='nano-banana-2' ? 'selected' : ''}>💰 Banana 标准</option>
+                                <option value="nano-banana-2-2k" ${customModel==='nano-banana-2-2k' ? 'selected' : ''}>💎 Banana 2K</option>
+                            </select>
+                            
+                            <!-- 页数设置 -->
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="font-size:11px; color:#888;">页数:</span>
+                                <input type="number" value="${customPages}" min="1" max="16"
+                                    onchange="setBatchComicTaskConfig('${task.id}', 'customPages', this.value)"
+                                    style="flex:1; padding:6px 8px; background:#1a1a24; border:1px solid #333; border-radius:6px; color:#fff; font-size:11px; text-align:center;">
+                            </div>
+                        </div>
                     </div>
                 `;
             }).join('');
+        }
+        
+        /**
+         * 切换宫格展开/收起
+         */
+        function toggleBatchComicGrid(taskId) {
+            const task = batchComicTasks.find(t => t.id === taskId);
+            if (task) {
+                task.expanded = !task.expanded;
+                renderBatchComicTaskList();
+            }
+        }
+        
+        /**
+         * 设置单个宫格的配置
+         */
+        function setBatchComicTaskConfig(taskId, key, value) {
+            const task = batchComicTasks.find(t => t.id === taskId);
+            if (task) {
+                task[key] = value;
+                // 不重新渲染，避免丢失焦点
+            }
         }
         
         /**
@@ -3041,7 +3185,12 @@
             document.getElementById('batchComicProgressSection').style.display = 'block';
             renderBatchComicProgress();
             
+            // 获取全局配置
+            const globalStyle = document.getElementById('batchComicGlobalStyle')?.value || 'japanese';
+            const globalModel = document.getElementById('batchComicGlobalModel')?.value || 'modelscope';
+            
             console.log(`📚 [mobile-批量漫画] 开始并发生成 ${batchComicTasks.length} 个漫画`);
+            console.log(`📚 [全局配置] 风格:${globalStyle}, 模型:${globalModel}`);
             
             // 创建并发任务
             const tasks = batchComicTasks.map((task, idx) => {
@@ -3051,16 +3200,25 @@
                         task.status = 'running';
                         renderBatchComicProgress();
                         
-                        console.log(`📚 [漫画${idx + 1}] 开始生成...`);
+                        // 获取此宫格的配置（优先使用单独配置，否则用全局）
+                        const taskStyle = task.customStyle || globalStyle;
+                        const taskModel = task.customModel || globalModel;
+                        const taskPages = parseInt(task.customPages) || 4;
                         
-                        // 创建idea对象
+                        console.log(`📚 [漫画${idx + 1}] 开始生成... 风格:${taskStyle}, 模型:${taskModel}, 页数:${taskPages}`);
+                        
+                        // 创建idea对象，带上宫格配置
                         const idea = {
                             id: task.id,
                             type: 'comic',
                             theme: task.content,
                             userId: userId,
                             status: 'processing',
-                            createdAt: Date.now()
+                            createdAt: Date.now(),
+                            // 宫格单独配置
+                            comicStyle: taskStyle,
+                            comicModel: taskModel,
+                            comicPages: taskPages
                         };
                         
                         // 调用漫画生成函数
@@ -3121,45 +3279,51 @@
         }
         
         /**
-         * 渲染批量进度
+         * 渲染批量进度 - 宫格样式
          */
         function renderBatchComicProgress() {
             const container = document.getElementById('batchComicProgressList');
             if (!container) return;
             
             container.innerHTML = batchComicTasks.map((task, idx) => {
-                let statusIcon, statusText, statusColor;
+                let statusIcon, statusText, statusColor, bgColor;
                 switch (task.status) {
                     case 'pending':
                         statusIcon = '⏳';
-                        statusText = '等待中';
+                        statusText = '等待';
                         statusColor = '#888';
+                        bgColor = 'rgba(0,0,0,0.2)';
                         break;
                     case 'running':
                         statusIcon = '🔄';
-                        statusText = '生成中...';
+                        statusText = '生成中';
                         statusColor = '#fbbf24';
+                        bgColor = 'rgba(251,191,36,0.1)';
                         break;
                     case 'completed':
                         statusIcon = '✅';
-                        statusText = '已完成';
+                        statusText = '完成';
                         statusColor = '#4ade80';
+                        bgColor = 'rgba(74,222,128,0.1)';
                         break;
                     case 'failed':
                         statusIcon = '❌';
-                        statusText = task.error || '失败';
+                        statusText = '失败';
                         statusColor = '#f87171';
+                        bgColor = 'rgba(248,113,113,0.1)';
                         break;
                     default:
                         statusIcon = '❓';
                         statusText = '未知';
                         statusColor = '#888';
+                        bgColor = 'rgba(0,0,0,0.2)';
                 }
                 
                 return `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(0,0,0,0.2); border-radius:8px;">
-                        <span style="font-size:13px; color:var(--text);">📚 漫画 ${idx + 1}</span>
-                        <span style="font-size:12px; color:${statusColor};">${statusIcon} ${statusText}</span>
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px 8px; background:${bgColor}; border:1px solid ${statusColor}33; border-radius:10px; min-height:60px;">
+                        <div style="font-size:20px; margin-bottom:4px;">${statusIcon}</div>
+                        <div style="font-size:12px; font-weight:600; color:${statusColor};">📚 ${idx + 1}</div>
+                        <div style="font-size:10px; color:${statusColor}; opacity:0.8;">${statusText}</div>
                     </div>
                 `;
             }).join('');
@@ -8872,23 +9036,13 @@ ${story}
         // 结束动画
         function finishIntro() {
             animationRunning = false;
-            // 先准备欢迎页(不可见但已渲染)
-            var welcome = document.getElementById('welcomeScreen');
-            if (welcome) {
-                welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
-            }
-            // 短暂延迟确保样式生效
+            intro.classList.add('fade-out');
             setTimeout(function() {
-                // 开始淡出intro同时淡入欢迎页
-                intro.classList.add('fade-out');
-                if (welcome) {
-                    welcome.style.opacity = '1';
-                }
-                // 淡出完成后隐藏intro
-                setTimeout(function() {
-                    intro.classList.add('hidden');
-                }, 600);
-            }, 20);
+                intro.classList.add('hidden');
+                // 显示欢迎页
+                var welcome = document.getElementById('welcomeScreen');
+                if (welcome) welcome.style.display = 'flex';
+            }, 600);
         }
 
         // 跳过动画
