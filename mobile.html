@@ -1238,11 +1238,12 @@
             inset: 0;
             background: #000;
             z-index: 99999;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             overflow: hidden;
         }
+        .cinema-intro.active { display: flex !important; }
         .cinema-intro.hidden { display: none !important; }
         .cinema-intro.fade-out { animation: cinemaFadeOut 0.6s ease-out forwards; }
         @keyframes cinemaFadeOut { to { opacity: 0; visibility: hidden; } }
@@ -1374,7 +1375,7 @@
 
 <body>
     <!-- 🎬 影视开场动画 -->
-    <div id="cinemaIntro" class="cinema-intro" style="display:none;">
+    <div id="cinemaIntro" class="cinema-intro">
         <!-- 时代背景层 -->
         <div class="era-bg era-silent" id="eraBgSilent"></div>
         <div class="era-bg era-color" id="eraBgColor"></div>
@@ -1427,7 +1428,10 @@
         } else {
             // 其他情况显示开场动画，同时隐藏欢迎页防止闪现
             _showIntro = true;
-            document.write('<style>#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar{display:none!important;opacity:0;visibility:hidden}</style>');
+            // 立即添加样式让开场动画显示、其他内容隐藏
+            var style = document.createElement('style');
+            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar{display:none!important;opacity:0;visibility:hidden}';
+            document.head.appendChild(style);
         }
     })();
     </script>
