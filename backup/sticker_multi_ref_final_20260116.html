@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>😀 表情包生成器 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 14px 12px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mode-tab:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .mode-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .mode-content {
+            display: none;
+        }
+
+        .mode-content.active {
+            display: block;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 80px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .quick-tag {
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .quick-tag:active {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .result-section {
+            margin-top: 24px;
+        }
+
+        .result-image-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bg-card);
+            margin-bottom: 16px;
+        }
+
+        .result-image-container img {
+            width: 100%;
+            display: block;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .segment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .segment-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            background: var(--bg-card);
+        }
+
+        .segment-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .segment-item .seg-actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 4px;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            gap: 4px;
+        }
+
+        .segment-item .seg-actions button {
+            flex: 1;
+            padding: 6px;
+            border: none;
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .upload-area {
+            border: 2px dashed #444;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 16px;
+            transition: all 0.3s;
+        }
+
+        .upload-area:active {
+            border-color: var(--accent);
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .upload-area.has-image {
+            padding: 10px;
+        }
+
+        .upload-area img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .section-title {
+            color: var(--accent);
+            font-size: 14px;
+            margin: 20px 0 12px;
+            padding-top: 16px;
+            border-top: 1px solid #333;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>😀 表情包生成器</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <div class="mode-tabs">
+            <div class="mode-tab active" onclick="switchMode('generate')">📝 生成表情包</div>
+            <div class="mode-tab" onclick="switchMode('split')">✂️ 图片分割</div>
+        </div>
+
+        <!-- 生成模式 -->
+        <div id="generateMode" class="mode-content active">
+            <div class="input-section">
+                <label class="input-label">✨ 描述你想要的表情包</label>
+                <textarea class="input-box" id="promptInput" placeholder="例如：一只柴犬做出各种表情，带文字..."></textarea>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span style="color:#888;font-size:12px;">🐾 角色：</span>
+                    <span class="quick-tag" onclick="insertTag('柴犬')">🐕 柴犬</span>
+                    <span class="quick-tag" onclick="insertTag('猫咪')">🐱 猫咪</span>
+                    <span class="quick-tag" onclick="insertTag('熊猫')">🐼 熊猫</span>
+                    <span class="quick-tag" onclick="insertTag('兔子')">🐰 兔子</span>
+                    <span class="quick-tag" onclick="insertTag('仓鼠')">🐹 仓鼠</span>
+                    <span class="quick-tag" onclick="insertTag('企鹅')">🐧 企鹅</span>
+                    <span class="quick-tag" onclick="insertTag('小鸡')">🐤 小鸡</span>
+                    <span class="quick-tag" onclick="insertTag('狐狸')">🦊 狐狸</span>
+                    <span class="quick-tag" onclick="insertTag('恐龙')">🦖 恐龙</span>
+                    <span class="quick-tag" onclick="insertTag('独角兽')">🦄 独角兽</span>
+                </div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span style="color:#888;font-size:12px;">😀 表情：</span>
+                    <span class="quick-tag" onclick="insertTag('无语')">😑 无语</span>
+                    <span class="quick-tag" onclick="insertTag('开心')">😄 开心</span>
+                    <span class="quick-tag" onclick="insertTag('生气')">😠 生气</span>
+                    <span class="quick-tag" onclick="insertTag('委屈')">😢 委屈</span>
+                    <span class="quick-tag" onclick="insertTag('惊讶')">😲 惊讶</span>
+                    <span class="quick-tag" onclick="insertTag('困')">😴 困</span>
+                    <span class="quick-tag" onclick="insertTag('害羞')">😊 害羞</span>
+                    <span class="quick-tag" onclick="insertTag('得意')">😏 得意</span>
+                    <span class="quick-tag" onclick="insertTag('可怜')">🥺 可怜</span>
+                    <span class="quick-tag" onclick="insertTag('酷')">😎 酷</span>
+                </div>
+                <div class="quick-tags">
+                    <span style="color:#888;font-size:12px;">💬 动作：</span>
+                    <span class="quick-tag" onclick="insertTag('比心')">💕 比心</span>
+                    <span class="quick-tag" onclick="insertTag('点赞')">👍 点赞</span>
+                    <span class="quick-tag" onclick="insertTag('摊手')">🤷 摊手</span>
+                    <span class="quick-tag" onclick="insertTag('加油')">💪 加油</span>
+                    <span class="quick-tag" onclick="insertTag('吃瓜')">🍉 吃瓜</span>
+                    <span class="quick-tag" onclick="insertTag('干杯')">🍻 干杯</span>
+                    <span class="quick-tag" onclick="insertTag('打工')">💼 打工</span>
+                    <span class="quick-tag" onclick="insertTag('摸鱼')">🐟 摸鱼</span>
+                </div>
+                <!-- 🖼️ 多参考图上传 -->
+                <div class="section-title" style="margin-top:16px;border-top:none;padding-top:8px;">🖼️ 参考图（可选，支持多图）</div>
+                <div id="refImageArea" style="border:2px dashed #444; border-radius:12px; padding:20px; text-align:center; cursor:pointer; margin-bottom:12px;" onclick="document.getElementById('refImageInput').click()">
+                    <input type="file" id="refImageInput" accept="image/*" multiple style="display:none" onchange="handleRefImageUpload(this)">
+                    <div id="refImagePreview" style="display:none;">
+                        <div id="refImageThumbs" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"></div>
+                        <div style="font-size:12px; color:#888; margin-top:6px;">点击添加更多图片</div>
+                    </div>
+                    <div id="refImagePlaceholder">
+                        <div style="font-size:32px;">🖼️</div>
+                        <div style="font-size:12px; color:#888;">上传参考图，AI会参考其风格生成</div>
+                        <div style="font-size:11px; color:#666; margin-top:4px;">🍌 Banana/🎨 万象MAX/⭐ 星梦/💫 即梦 支持多图（0-3张）</div>
+                    </div>
+                </div>
+                <button id="clearRefBtn" style="display:none; width:100%; padding:8px; background:#ef4444; color:#fff; border:none; border-radius:8px; font-size:12px; cursor:pointer; margin-bottom:12px;" onclick="clearRefImages()">❌ 清除所有参考图</button>
+
+                <div class="section-title" style="margin-top:8px;border-top:none;padding-top:0;">📋 快捷模板</div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('daily')" style="background:rgba(251,191,36,0.15);">🌟 日常聊天包</span>
+                    <span class="quick-tag" onclick="useTemplate('work')" style="background:rgba(251,191,36,0.15);">💼 打工人专属</span>
+                    <span class="quick-tag" onclick="useTemplate('love')" style="background:rgba(251,191,36,0.15);">💕 恋爱甜蜜包</span>
+                    <span class="quick-tag" onclick="useTemplate('angry')" style="background:rgba(251,191,36,0.15);">😤 怨人专用</span>
+                </div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('cute')" style="background:rgba(251,191,36,0.15);">🥺 卖萌撒娇包</span>
+                    <span class="quick-tag" onclick="useTemplate('food')" style="background:rgba(251,191,36,0.15);">🍔 吃货表情包</span>
+                    <span class="quick-tag" onclick="useTemplate('sleep')" style="background:rgba(251,191,36,0.15);">😴 摸鱼睡觉包</span>
+                    <span class="quick-tag" onclick="useTemplate('festival')" style="background:rgba(251,191,36,0.15);">🎉 节日祝福包</span>
+                </div>
+                <!-- 🌟 更多模板 -->
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('meme')" style="background:rgba(236,72,153,0.15);">🤡 沩图恶搞</span>
+                    <span class="quick-tag" onclick="useTemplate('shock')" style="background:rgba(236,72,153,0.15);">😲 震惊吸气</span>
+                    <span class="quick-tag" onclick="useTemplate('emo')" style="background:rgba(236,72,153,0.15);">😢 丧系EMO</span>
+                    <span class="quick-tag" onclick="useTemplate('rich')" style="background:rgba(236,72,153,0.15);">💰 财富密码</span>
+                </div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('social')" style="background:rgba(139,92,246,0.15);">😶 社恐专属</span>
+                    <span class="quick-tag" onclick="useTemplate('gaming')" style="background:rgba(139,92,246,0.15);">🎮 游戏玩家</span>
+                    <span class="quick-tag" onclick="useTemplate('student')" style="background:rgba(139,92,246,0.15);">📚 学生党</span>
+                    <span class="quick-tag" onclick="useTemplate('couple')" style="background:rgba(139,92,246,0.15);">💑 情侣撩妒</span>
+                </div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('cat_special')" style="background:rgba(34,197,94,0.15);">🐱 猫片人</span>
+                    <span class="quick-tag" onclick="useTemplate('dog_special')" style="background:rgba(34,197,94,0.15);">🐶 柴犬控</span>
+                    <span class="quick-tag" onclick="useTemplate('panda_special')" style="background:rgba(34,197,94,0.15);">🐼 滚滚粉</span>
+                    <span class="quick-tag" onclick="useTemplate('bunny_special')" style="background:rgba(34,197,94,0.15);">🐰 兔兔控</span>
+                </div>
+                <div class="quick-tags">
+                    <span class="quick-tag" onclick="useTemplate('spring')" style="background:rgba(239,68,68,0.15);">🧧 新年贺岁</span>
+                    <span class="quick-tag" onclick="useTemplate('xmas')" style="background:rgba(239,68,68,0.15);">🎄 圣诞节</span>
+                    <span class="quick-tag" onclick="useTemplate('birthday')" style="background:rgba(239,68,68,0.15);">🎂 生日快乐</span>
+                    <span class="quick-tag" onclick="useTemplate('programmer')" style="background:rgba(59,130,246,0.15);">💻 程序员</span>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>🤖 模型</label>
+                    <select id="modelSelect" onchange="updateModelCost()">
+                        <option value="nano-banana-2" data-cost="6">🍌 Banana (6胶片)</option>
+                        <option value="doubao-seedream-4-5-251128" data-cost="7">⭐ 星梦画师 (7胶片)</option>
+                        <option value="jimeng-4.5" data-cost="7">💫 即梦4.5 (7胶片)</option>
+                        <option value="Qwen/Qwen-Image-2512" data-cost="8">🎨 万象MAX (8胶片)</option>
+                        <option value="midjourney-fast" data-cost="15">🌟 MJ Fast (15胶片)</option>
+                        <option value="midjourney-turbo" data-cost="25">🚀 MJ Turbo (25胶片)</option>
+                        <option value="midjourney-relax" data-cost="8">🌙 MJ Relax (8胶片)</option>
+                    </select>
+                    <!-- 🎯 MJ版本选择器 -->
+                    <div id="mjVersionGroup" style="display:none; margin-top:8px;">
+                        <label style="font-size:12px; color:#888;">🎯 MJ版本</label>
+                        <select id="mjVersion" style="width:100%; padding:10px; background:var(--bg-card); border:1px solid #333; border-radius:8px; color:#fff; margin-top:4px;">
+                            <option value="7">v7 最新</option>
+                            <option value="6.1" selected>v6.1 稳定</option>
+                            <option value="6">v6.0</option>
+                            <option value="5.2">v5.2</option>
+                            <option value="niji7">Niji 7 动漫（最新）</option>
+                            <option value="niji6">Niji 6 动漫</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label>风格</label>
+                    <select id="styleSelect">
+                        <option value="cute">🥰 可爱Q版</option>
+                        <option value="realistic">📸 写实风</option>
+                        <option value="anime">🎌 动漫风</option>
+                        <option value="pixel">👾 像素风</option>
+                        <option value="3d">🎪 3D卡通</option>
+                        <option value="sketch">✏️ 手绘涂鸦</option>
+                        <option value="flat">🎨 扁平插画</option>
+                        <option value="watercolor">💧 水彩风</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>数量</label>
+                    <select id="countSelect">
+                        <option value="4">4张</option>
+                        <option value="9" selected>9宫格</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="generateBtn" onclick="generateStickers()">
+                ⚡ 生成表情包
+            </button>
+
+            <div class="loading" id="loading" style="display:none;">
+                <div class="spinner"></div>
+                <div id="loadingText">正在生成9宫格表情包...</div>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display:none;">
+                <div class="result-image-container">
+                    <img id="resultImage" src="" alt="生成结果">
+                </div>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadFullImage()">💾 下载整图</button>
+                    <button class="result-btn primary" onclick="splitImage()">✂️ 分割</button>
+                    <button class="result-btn" onclick="regenerate()">🔄 重新生成</button>
+                </div>
+                <div id="segmentSection" style="display:none;">
+                    <div class="section-title">✂️ 分割结果</div>
+                    <div class="segment-grid" id="segmentGrid"></div>
+                    <button class="result-btn" style="margin-top:12px;width:100%;" onclick="downloadAllSegments()">📦 下载全部</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分割模式 -->
+        <div id="splitMode" class="mode-content">
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📷</div>
+                <div class="upload-text">点击上传9宫格图片</div>
+                <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
+            </div>
+            <div id="previewArea" style="display:none;">
+                <div class="result-image-container">
+                    <img id="previewImg" src="" alt="预览">
+                </div>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="resetUpload()">🔄 重新上传</button>
+                    <button class="result-btn primary" onclick="splitUploadedImage()">✂️ 开始分割</button>
+                </div>
+            </div>
+            <div class="loading" id="splitLoading" style="display:none;">
+                <div class="spinner"></div>
+                <div>正在分割图片...</div>
+            </div>
+            <div id="splitResults" style="display:none;">
+                <div class="section-title">✂️ 分割结果</div>
+                <div class="segment-grid" id="splitGrid"></div>
+                <button class="result-btn" style="margin-top:12px;width:100%;" onclick="downloadAllSplitSegments()">📦 下载全部</button>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 返回函数 - 直接返回 mobile.html 工作区
+        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        // 使用 NVAuth 模块
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        let authInitialized = false;
+        let STICKER_COST = 6; // 表情包生成费用（根据模型动态调整）
+
+        // 🤖 更新模型费用显示
+        function updateModelCost() {
+            const modelSelect = document.getElementById('modelSelect');
+            const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+            STICKER_COST = parseInt(selectedOption.dataset.cost) || 6;
+            console.log('[sticker] 模型切换:', modelSelect.value, '费用:', STICKER_COST);
+            
+            // 🎯 显示/隐藏 MJ 版本选择器
+            const isMidjourney = modelSelect.value && modelSelect.value.startsWith('midjourney-');
+            const mjVersionGroup = document.getElementById('mjVersionGroup');
+            if (mjVersionGroup) {
+                mjVersionGroup.style.display = isMidjourney ? 'block' : 'none';
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[sticker] 页面加载完成，开始初始化...');
+            
+            // 🔧 修复：确保按钮事件正确绑定（支持移动端触摸）
+            const generateBtn = document.getElementById('generateBtn');
+            if (generateBtn) {
+                generateBtn.onclick = null;
+                generateBtn.addEventListener('click', function(e) {
+                    console.log('[sticker] 生成按钮被点击 (click)');
+                    generateStickers();
+                });
+                generateBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[sticker] 生成按钮被点击 (touchend)');
+                    generateStickers();
+                });
+                console.log('[sticker] 按钮事件已绑定');
+            }
+            
+            if (typeof NVAuth !== 'undefined') {
+                await checkUser();
+            }
+            authInitialized = true;
+            console.log('[sticker] 初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+        });
+
+        async function checkUser() {
+            try {
+                // 等待认证状态就绪
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+                
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[sticker] 用户已登录:', currentUser.email);
+                    await loadUserQuota();
+                } else {
+                    console.log('[sticker] 用户未登录');
+                }
+            } catch (e) { console.error('检查用户失败:', e); }
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                console.log('[sticker] 用户胶片:', userQuota);
+            } catch (e) { console.error('加载配额失败:', e); }
+        }
+
+        // 预扣费函数
+        async function preDeduct(cost, description) {
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
+            cost = Math.ceil(cost);
+            
+            // 等待认证初始化完成
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) { showToast('请先登录'); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+                
+                // 🔧 修复：先检查 HTTP 状态码
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('余额不足，请先充值');
+                    }
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
+                }
+                
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    console.log(`🎞️ 预扣费成功: -${cost}胶片, 余额=${userQuota}`);
+                    return true;
+                }
+                throw new Error(data.message || data.error || '扣费失败');
+            } catch (e) { showToast('扣费失败: ' + e.message); return false; }
+        }
+
+        // ✅ 已移除退款函数 - 后端成功扣费后不再退款，避免成本损耗
+
+        let currentImageUrl = '';
+        let segmentedImages = [];
+        let uploadedImageData = null;
+        let splitSegments = [];
+
+        // 表情包模板库 - 超丰富多样化
+        const stickerTemplates = {
+            // 基础日常系列
+            daily: '可爱小动物做出日常聊天表情：开心、无语、OK、谢谢、再见、哈哈、好的、收到、晚安',
+            work: '打工人小动物表情包：上班、下班、摸鱼、加班、困、累、发工资开心、周一痛苦、周五狂喜',
+            love: '甜蜜恋爱小动物表情包：比心、亲亲、抱抱、想你、爱你、害羞、撒娇、吃醋、晚安宝贝',
+            angry: '生气怨人小动物表情包：生气、白眼、嫌弃、滚、闭嘴、无语、翻白眼、哼、不理你',
+            cute: '卖萌撒娇小动物表情包：可怜巴巴、求求了、抱抱我、委屈、嘤嘤嘤、人家不要、哄哄我、给糖吃',
+            food: '吃货小动物表情包：好饿、吃饭、好吃、干饭、减肥、暴食、奶茶、火锅、烧烤',
+            sleep: '摸鱼睡觉小动物表情包：困了、睡觉、摸鱼、划水、偷懒、打哈欠、做梦、起床困难、午休',
+            festival: '节日祝福小动物表情包：新年快乐、恭喜发财、生日快乐、节日快乐、红包拿来、放假、庆祝、撒花',
+            // 🌟 新增多样化模板
+            meme: '沩图恶搞小动物表情包：小丑竟是我自己、偷着乐、梦想成真、地铁老人看手机、我表面笑嘣嘣、面无表情、眷了、这谁顶得住、完了要完',
+            shock: '震惊吸气小动物表情包：这也行？、不是吧、奇怪的知识增加了、什么情况、惊了、演都不演了、难以置信、逾到哪来哪、呆住',
+            emo: '丧系emo小动物表情包：我裂开了、想哭、活着好累、想静静、不想努力了、无所谓、不开心、自闭中、会谢',
+            rich: '财富发大小动物表情包：我超有钱、钱到账了、爆富、旺旺旺、招财进宝、王多鱼附体、提钱到手软、发大财、钱钱钱',
+            social: '社恐小动物表情包：不想社交、请勿打扰、我的强项是宅、社死现场、穿的是隐身衣、我谁我在哪、在线降低存在感、不熟请勿 cue、i人',
+            pet: '家有宠物表情包：铲屎官上线、吃啦、求摸摸、不给吃不开心、看看是谁回来了、摆烂、你的眷兽上线、喜提、唱唱反调',
+            gaming: '游戏玩家小动物表情包：GG、MVP、菜、开黑吗、我要开大了、输了、赢了、卡成PPT、网络咖啡',
+            student: '学生党小动物表情包：学废了、考试加油、终于放假、作业写不完、看不懂、上课打盹睡、晚修绝望、老师别抽我、开学恼',
+            couple: '情侣撩妻小动物表情包：想你想你想你、哪去了、快回来、不开心了哄我、老婆最棒、老公我爱你、亲一个、抱抱、谁让你生气了',
+            office: '职场生存小动物表情包：收到请回复、开会中、在线等、领导说得对、好的、收到、马上处理、已反馈、进度正常',
+            // 🎈 可爱动物专题
+            cat_special: '猫片人专属橘猫表情包：喂我、走开勿 cue、厌弃了、喜欢你才蹭你、睡了别吵、喜提喜提、被子适合我、赖上你了、辣么大的逼脸',
+            dog_special: '狗狗吧专属柴犬表情包：汪汪汪、摇尾巴、出去走走、给我给我、叫爸爸、秃头蕴大事、无辜大眼神、乖巧坐好、蹭蹭足球',
+            panda_special: '滚滚粉专属熊猫表情包：照图吃竹子、蹭蹭你、干嘴嘞、俯卧撑、满地打滚、被子给我、知道我可爱就行、发呆中、胖的多可爱',
+            bunny_special: '兔兔控专属白兔子表情包：吐舌头、揪耳朵、蹦蹦跳、抱胡萝卜、眼红红、吃吃吃、胖了一圈、缩成一团、躲起来了',
+            // 🎉 节日专题
+            spring: '新年快乐贺岁表情包：恭喜发财、红包拿来、大吉大利、过年好、年夜饭、拜年啦、新年快乐、龙年大吉、财源广进',
+            xmas: '圣诞节庆祝表情包：Merry Christmas、圣诞快乐、礼物呈上、圣诞老人来啦、叮叮当当、圣诞树、雪人、鹿鹿、袴子里有礼物',
+            birthday: '生日快乐表情包：Happy Birthday、生日快乐、吹蜡烛、许愿、吃蛋糕、越来越年轻、年年有今日、寿星高照、开心每一天',
+            valentine: '情人节特辑表情包：我爱你、心心、爱的魔力转圈圈、小甘蜜、在一起、单身狗、孤独、吃狗粮、原地结婚',
+            // 🎮 超生动表情
+            action_pack: '动作大片小动物表情包：放大招、上泵偷袭、踊跃转圈、全力冲刺、无敌倒地、弹开、大变身、超级赛亚人、飞踢',
+            reaction_pack: '奇怪反应小动物表情包：喝水喷出来、脸都绿了、我看看哪个小孩不睡觉、口吐芬芳、裂开了、翻跑、灭火器挑战、嘴都歪了、意味深长',
+            vibe_check: '氛围感小动物表情包：nice、vibe check、氛围到了、今天也很棒、就这样吧、摸鱼时到、没事啥事、平平无奇、就这样活着',
+            programmer: '程序员专属小动物表情包：在debug、bug又来了、代码跑了、上线成功、git push、呼叫同事、建议重构、又是甚么bug、优化中'
+        };
+        
+        // 🖼️ 多参考图状态
+        let refImageDataArray = [];  // 存储多个参考图
+
+        // 🖼️ 多参考图上传处理
+        function handleRefImageUpload(input) {
+            const files = input.files;
+            if (!files || files.length === 0) return;
+            
+            // 最多支持3张参考图
+            const remainingSlots = 3 - refImageDataArray.length;
+            if (remainingSlots <= 0) {
+                showToast('最多支持3张参考图');
+                input.value = '';
+                return;
+            }
+            
+            const filesToProcess = Array.from(files).slice(0, remainingSlots);
+            let processed = 0;
+            
+            filesToProcess.forEach((file, index) => {
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast(`图片 ${file.name} 大小不能超过10MB`);
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    refImageDataArray.push(e.target.result);
+                    processed++;
+                    
+                    if (processed === filesToProcess.length) {
+                        updateRefImageDisplay();
+                        showToast(`已上传 ${refImageDataArray.length} 张参考图`);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+            
+            input.value = '';
+        }
+        
+        // 更新参考图显示
+        function updateRefImageDisplay() {
+            const thumbsContainer = document.getElementById('refImageThumbs');
+            thumbsContainer.innerHTML = '';
+            
+            refImageDataArray.forEach((imgData, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'position:relative; width:100px; height:80px;';
+                
+                const img = document.createElement('img');
+                img.src = imgData;
+                img.style.cssText = 'width:100%; height:100%; object-fit:cover; border-radius:8px;';
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '×';
+                deleteBtn.style.cssText = 'position:absolute; top:2px; right:2px; width:20px; height:20px; border:none; background:rgba(0,0,0,0.7); color:#fff; border-radius:50%; cursor:pointer; font-size:14px; line-height:1;';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeRefImage(index);
+                };
+                
+                wrapper.appendChild(img);
+                wrapper.appendChild(deleteBtn);
+                thumbsContainer.appendChild(wrapper);
+            });
+            
+            if (refImageDataArray.length > 0) {
+                document.getElementById('refImagePreview').style.display = 'block';
+                document.getElementById('refImagePlaceholder').style.display = 'none';
+                document.getElementById('clearRefBtn').style.display = 'block';
+            } else {
+                document.getElementById('refImagePreview').style.display = 'none';
+                document.getElementById('refImagePlaceholder').style.display = 'block';
+                document.getElementById('clearRefBtn').style.display = 'none';
+            }
+        }
+        
+        // 删除单个参考图
+        function removeRefImage(index) {
+            refImageDataArray.splice(index, 1);
+            updateRefImageDisplay();
+            showToast('已删除参考图');
+        }
+
+        function clearRefImages() {
+            refImageDataArray = [];
+            updateRefImageDisplay();
+            showToast('所有参考图已清除');
+        }
+
+        function insertTag(tag) {
+            const input = document.getElementById('promptInput');
+            input.value = input.value ? input.value + '，' + tag : tag;
+        }
+
+        function useTemplate(templateKey) {
+            const template = stickerTemplates[templateKey];
+            if (template) {
+                document.getElementById('promptInput').value = template;
+                showToast('已填入模板，可自行修改');
+            }
+        }
+
+        function switchMode(mode) {
+            document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.mode-content').forEach(content => content.classList.remove('active'));
+
+            if (mode === 'generate') {
+                document.querySelector('.mode-tab:first-child').classList.add('active');
+                document.getElementById('generateMode').classList.add('active');
+            } else {
+                document.querySelector('.mode-tab:last-child').classList.add('active');
+                document.getElementById('splitMode').classList.add('active');
+            }
+        }
+
+        async function generateStickers() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) {
+                showToast('请输入表情包描述');
+                return;
+            }
+
+            const style = document.getElementById('styleSelect').value;
+            const count = parseInt(document.getElementById('countSelect').value);
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const resultSection = document.getElementById('resultSection');
+            const segmentSection = document.getElementById('segmentSection');
+
+            // ✅ 检查余额是否足够（不预扣费，后端成功后扣费）
+            // 🤖 根据选择的模型更新费用
+            updateModelCost();
+            if (userQuota < STICKER_COST) {
+                showToast(`余额不足，需要${STICKER_COST}胶片，请先充值`);
+                return;
+            }
+
+            // 🤖 获取选择的模型
+            const selectedModel = document.getElementById('modelSelect').value;
+            const isMidjourney = selectedModel && selectedModel.startsWith('midjourney-');
+            
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            resultSection.style.display = 'none';
+            segmentSection.style.display = 'none';
+
+            const styleMap = {
+                cute: 'cute chibi kawaii style, big head small body, round shapes',
+                realistic: 'realistic photo style, high detail, natural lighting',
+                anime: 'anime manga style, big eyes, soft lines, japanese animation',
+                pixel: 'pixel art 8bit retro game style, blocky',
+                '3d': 'Pixar 3D cartoon style, smooth render, vibrant colors',
+                sketch: 'hand drawn sketch doodle style, pencil lines, rough texture',
+                flat: 'flat illustration vector style, minimal shading, bold colors',
+                watercolor: 'watercolor painting style, soft edges, color bleeding'
+            };
+
+            // 构建9宫格提示词
+            let gridPrompt;
+            if (count === 9) {
+                document.getElementById('loadingText').textContent = '正在生成9宫格表情包...';
+                gridPrompt = `A 3x3 grid of 9 sticker emojis memes, ${prompt}, ${styleMap[style]}, each cell shows different expression or action with Chinese text caption, white background, expressive faces, simple design, high quality, grid layout, 9 panels`;
+            } else {
+                document.getElementById('loadingText').textContent = '正在生成表情包...';
+                gridPrompt = `A 2x2 grid of 4 sticker emojis memes, ${prompt}, ${styleMap[style]}, each cell shows different expression or action with Chinese text caption, white background, expressive faces, simple design, high quality, grid layout, 4 panels`;
+            }
+
+            try {
+                console.log('[sticker] 使用模型:', selectedModel, '费用:', STICKER_COST, '有参考图:', !!refImageData, 'MJ:', isMidjourney);
+
+                let response;
+                
+                // 🌟 Midjourney 走 yunwu API
+                if (isMidjourney) {
+                    document.getElementById('loadingText').textContent = '正在调用 Midjourney...（可能需要 1-2 分钟）';
+                    // 🎯 获取用户选择的 MJ 版本
+                    const mjVersionSelect = document.getElementById('mjVersion');
+                    const mjVersion = mjVersionSelect ? mjVersionSelect.value : '6.1';
+                    
+                    const mjBody = {
+                        action: 'midjourney',
+                        prompt: gridPrompt,
+                        model: selectedModel,
+                        aspect_ratio: '1:1',
+                        version: mjVersion,  // 🎯 传递版本参数（支持 niji7 等）
+                        userId: currentUser.id
+                    };
+                    // MJ 也支持参考图（图生图，但只支持单图）
+                    if (refImageDataArray.length > 0) {
+                        mjBody.image_url = refImageDataArray[0];  // MJ 只支持单图，取第一张
+                        if (refImageDataArray.length > 1) {
+                            showToast('🔔 MJ 仅支持单图，已使用第1张参考图');
+                        }
+                    }
+                    console.log('[sticker] MJ 请求:', { model: selectedModel, version: mjVersion });
+                    response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(mjBody)
+                    });
+                } else {
+                    // 其他模型走 banana2 API
+                    const requestBody = {
+                        prompt: gridPrompt,
+                        model: selectedModel,
+                        aspect_ratio: '1:1',
+                        userId: currentUser.id
+                    };
+                    
+                    // 🖼️ 如果有参考图，且模型支持，添加到请求中
+                    // 支持多图的模型：Banana, Qwen/万象MAX, doubao/星梦画师, jimeng/即梦
+                    const supportsMultipleImages = (
+                        selectedModel === 'nano-banana-2' || 
+                        selectedModel.startsWith('Qwen/') ||
+                        selectedModel.includes('doubao') || 
+                        selectedModel.includes('seedream') ||
+                        selectedModel.includes('jimeng')
+                    );
+                    
+                    if (refImageDataArray.length > 0) {
+                        if (supportsMultipleImages) {
+                            // 🌟 支持多图的模型
+                            if (refImageDataArray.length === 1) {
+                                requestBody.image_url = refImageDataArray[0];
+                                requestBody.strength = 0.5;
+                                console.log('[sticker] 添加单参考图到请求');
+                            } else {
+                                requestBody.image_urls = refImageDataArray;
+                                requestBody.strength = 0.5;
+                                console.log(`[sticker] 添加 ${refImageDataArray.length} 张参考图到请求`);
+                            }
+                        } else {
+                            // 其他模型只支持单图，取第一张
+                            requestBody.image_url = refImageDataArray[0];
+                            if (refImageDataArray.length > 1) {
+                                showToast(`🔔 ${selectedModel} 仅支持单图，已使用第1张参考图`);
+                            }
+                            console.log('[sticker] 添加单参考图到请求（模型仅支持单图）');
+                        }
+                    }
+
+                    response = await fetch('/api/banana2', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+                }
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.message || data.error);
+
+                // 💰 更新余额显示（后端已扣费）
+                if (data.billed && data.billed > 0) {
+                    userQuota = Math.max(0, userQuota - data.billed);
+                    console.log(`🎞️ 扣费: -${data.billed}胶片, 余额=${userQuota}`);
+                }
+
+                // 🌟 MJ/Niji 返回 gridBase64 或 imageUrl
+                if (isMidjourney) {
+                    // 优先使用 gridBase64（已转 base64 解决跨域问题）
+                    if (data.gridBase64) {
+                        currentImageUrl = data.gridBase64;
+                        console.log('[sticker] MJ 网格图获取成功 (base64)');
+                    } else if (data.imageUrl || data.url) {
+                        // 备用：直接使用 URL
+                        currentImageUrl = data.imageUrl || data.url;
+                        console.log('[sticker] MJ 网格图获取成功 (url)');
+                    } else {
+                        throw new Error('MJ 未返回图片');
+                    }
+                } else {
+                    // 其他模型
+                    currentImageUrl = data.url || data.image_url || data.imageUrl || data.data?.url || data.data?.image_url || '';
+                    if (!currentImageUrl && data.images && data.images.length > 0) {
+                        currentImageUrl = data.images[0].url || data.images[0];
+                    }
+                }
+                if (!currentImageUrl) throw new Error('未获取到图片');
+
+                document.getElementById('resultImage').src = currentImageUrl;
+                resultSection.style.display = 'block';
+                showToast('生成成功！点击分割按钮可拆分为单张');
+            } catch (error) {
+                // ✅ 后端成功才扣费，失败不扣费，无需退款
+                showToast('生成失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function regenerate() {
+            generateStickers();
+        }
+
+        function downloadFullImage() {
+            if (!currentImageUrl) {
+                showToast('没有可下载的图片');
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = currentImageUrl;
+            a.download = 'sticker_grid_' + Date.now() + '.png';
+            a.target = '_blank';
+            a.click();
+            showToast('开始下载');
+        }
+
+        async function splitImage() {
+            if (!currentImageUrl) {
+                showToast('请先生成图片');
+                return;
+            }
+
+            showToast('正在分割...');
+
+            try {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = currentImageUrl;
+                });
+
+                const count = parseInt(document.getElementById('countSelect').value);
+                const cols = count === 9 ? 3 : 2;
+                const rows = count === 9 ? 3 : 2;
+
+                segmentedImages = await splitImageToGrid(img, cols, rows);
+
+                const grid = document.getElementById('segmentGrid');
+                grid.innerHTML = segmentedImages.map((dataUrl, i) => `
+                    <div class="segment-item">
+                        <img src="${dataUrl}" alt="分割${i + 1}">
+                        <div class="seg-actions">
+                            <button onclick="downloadSegment(${i})">⬇️</button>
+                            <button onclick="shareSegment(${i})">📤</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('segmentSection').style.display = 'block';
+                showToast(`成功分割出 ${segmentedImages.length} 张表情包！`);
+            } catch (error) {
+                showToast('分割失败：' + error.message);
+            }
+        }
+
+        async function splitImageToGrid(img, cols, rows, forceSimple = false) {
+            // 使用图片的自然尺寸，避免浏览器缩放导致取样偏差
+            const W = img.naturalWidth || img.width;
+            const H = img.naturalHeight || img.height;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = W;
+            canvas.height = H;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, 0, 0, W, H);
+
+            // 🔧 如果强制简单模式，直接均分
+            if (forceSimple) {
+                console.log('[sticker] 使用简单均分模式');
+                return simpleGridSplit(canvas, cols, rows);
+            }
+
+            // 从图像中自动检测分割线（支持白色或黑色细分隔线/留白）
+            const imgData = ctx.getImageData(0, 0, W, H).data;
+
+            const getColUniformScore = (x) => {
+                let white = 0, black = 0, gray = 0;
+                for (let y = 0; y < H; y++) {
+                    const i = (y * W + x) * 4;
+                    const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2], a = imgData[i + 3];
+                    if (a < 16) { white++; continue; } // 透明按白处理
+                    if (r > 240 && g > 240 && b > 240) white++;
+                    else if (r < 15 && g < 15 && b < 15) black++;
+                    // 🔧 增加灰色检测（某些模型使用灰色分割线）
+                    else if (Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && r > 100 && r < 180) gray++;
+                }
+                return Math.max(white / H, black / H, gray / H * 0.8);
+            };
+
+            const getRowUniformScore = (y) => {
+                let white = 0, black = 0, gray = 0;
+                for (let x = 0; x < W; x++) {
+                    const i = (y * W + x) * 4;
+                    const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2], a = imgData[i + 3];
+                    if (a < 16) { white++; continue; }
+                    if (r > 240 && g > 240 && b > 240) white++;
+                    else if (r < 15 && g < 15 && b < 15) black++;
+                    else if (Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && r > 100 && r < 180) gray++;
+                }
+                return Math.max(white / W, black / W, gray / W * 0.8);
+            };
+
+            const colScore = new Array(W);
+            for (let x = 0; x < W; x++) colScore[x] = getColUniformScore(x);
+            const rowScore = new Array(H);
+            for (let y = 0; y < H; y++) rowScore[y] = getRowUniformScore(y);
+
+            // 找出连续高分（>=0.9）的列/行，作为候选分割线（降低阈值以适应更多模型）
+            function findRuns(scoreArr, threshold) {
+                const runs = [];
+                let s = -1;
+                for (let i = 0; i < scoreArr.length; i++) {
+                    if (scoreArr[i] >= threshold) {
+                        if (s === -1) s = i;
+                    } else if (s !== -1) {
+                        runs.push([s, i - 1]);
+                        s = -1;
+                    }
+                }
+                if (s !== -1) runs.push([s, scoreArr.length - 1]);
+                return runs;
+            }
+
+            // 🔧 尝试多个阈值，从严格到宽松
+            let colRuns = [], rowRuns = [];
+            for (const threshold of [0.95, 0.9, 0.8, 0.7]) {
+                colRuns = findRuns(colScore, threshold);
+                rowRuns = findRuns(rowScore, threshold);
+                // 如果找到足够的分割线，停止搜索
+                if (colRuns.length >= cols - 1 || rowRuns.length >= rows - 1) {
+                    console.log(`[sticker] 使用阈值 ${threshold} 检测到分割线: col=${colRuns.length}, row=${rowRuns.length}`);
+                    break;
+                }
+            }
+
+            // 🔧 如果找不到足够的分割线，回退到简单均分模式
+            if (colRuns.length < cols - 1 && rowRuns.length < rows - 1) {
+                console.log('[sticker] 未检测到明显分割线，回退到均分模式');
+                return simpleGridSplit(canvas, cols, rows);
+            }
+
+            // 将连续区段的中点作为候选分割线
+            const colCenters = colRuns.map(([l, r]) => Math.round((l + r) / 2));
+            const rowCenters = rowRuns.map(([l, r]) => Math.round((l + r) / 2));
+
+            // 期望分割位置（均分基准）
+            const expectCols = [];
+            for (let c = 1; c < cols; c++) expectCols.push(Math.round(W * c / cols));
+            const expectRows = [];
+            for (let r = 1; r < rows; r++) expectRows.push(Math.round(H * r / rows));
+
+            // 在候选分割线中为每个期望位置选择最近的一条（±5%宽/高内搜索，扩大范围）
+            function pickSeparators(centers, scores, expectList, span) {
+                const res = [];
+                for (const exp of expectList) {
+                    let best = null, bestDist = Infinity;
+                    for (const c of centers) {
+                        const d = Math.abs(c - exp);
+                        if (d <= span && d < bestDist) { best = c; bestDist = d; }
+                    }
+                    if (best === null) {
+                        // 在窗口内找分数最高的列/行
+                        const L = Math.max(0, exp - span);
+                        const R = Math.min(scores.length - 1, exp + span);
+                        let idx = exp, sc = -1; // 默认使用期望位置
+                        for (let i = L; i <= R; i++) {
+                            if (scores[i] > sc) { sc = scores[i]; idx = i; }
+                        }
+                        best = idx;
+                    }
+                    res.push(best);
+                }
+                // 去重并排序
+                return Array.from(new Set(res)).sort((a, b) => a - b);
+            }
+
+            // 🔧 扩大搜索范围到 5%
+            const sepX = pickSeparators(colCenters, colScore, expectCols, Math.round(W * 0.05));
+            const sepY = pickSeparators(rowCenters, rowScore, expectRows, Math.round(H * 0.05));
+
+            // 构造切割边界（包含左右上下边界）
+            const xCuts = [0, ...sepX, W];
+            const yCuts = [0, ...sepY, H];
+
+            const segments = [];
+            // 安全内边距，避免把分割线/边缘白边带进去
+            const basePad = Math.max(1, Math.floor(Math.min(W / (cols * 200), H / (rows * 200)))); // 随尺寸自适应 1-4 像素
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x0 = xCuts[c], x1 = xCuts[c + 1];
+                    const y0 = yCuts[r], y1 = yCuts[r + 1];
+                    const pad = basePad;
+                    const sx = Math.max(0, x0 + pad);
+                    const sy = Math.max(0, y0 + pad);
+                    const sw = Math.max(1, x1 - x0 - pad * 2);
+                    const sh = Math.max(1, y1 - y0 - pad * 2);
+
+                    const cellCanvas = document.createElement('canvas');
+                    const cellCtx = cellCanvas.getContext('2d');
+                    cellCanvas.width = sw;
+                    cellCanvas.height = sh;
+                    cellCtx.imageSmoothingEnabled = false;
+                    cellCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+                    segments.push(cellCanvas.toDataURL('image/png'));
+                }
+            }
+
+            return segments;
+        }
+        
+        // 🆕 简单均分模式 - 直接按网格均等分割
+        function simpleGridSplit(canvas, cols, rows) {
+            const W = canvas.width;
+            const H = canvas.height;
+            const cellW = Math.floor(W / cols);
+            const cellH = Math.floor(H / rows);
+            
+            const segments = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const sx = c * cellW;
+                    const sy = r * cellH;
+                    
+                    const cellCanvas = document.createElement('canvas');
+                    const cellCtx = cellCanvas.getContext('2d');
+                    cellCanvas.width = cellW;
+                    cellCanvas.height = cellH;
+                    cellCtx.imageSmoothingEnabled = false;
+                    cellCtx.drawImage(canvas, sx, sy, cellW, cellH, 0, 0, cellW, cellH);
+                    segments.push(cellCanvas.toDataURL('image/png'));
+                }
+            }
+            
+            console.log(`[sticker] 简单分割完成: ${cols}x${rows} = ${segments.length}张`);
+            return segments;
+        }
+
+        function downloadSegment(index) {
+            if (segmentedImages[index]) {
+                const a = document.createElement('a');
+                a.href = segmentedImages[index];
+                a.download = `sticker_${index + 1}_${Date.now()}.png`;
+                a.click();
+            }
+        }
+
+        function shareSegment(index) {
+            if (segmentedImages[index]) {
+                if (navigator.share) {
+                    // 将 base64 转为 blob 分享
+                    fetch(segmentedImages[index])
+                        .then(res => res.blob())
+                        .then(blob => {
+                            const file = new File([blob], `sticker_${index + 1}.png`, { type: 'image/png' });
+                            navigator.share({ files: [file], title: '表情包' });
+                        });
+                } else {
+                    navigator.clipboard.writeText(segmentedImages[index].substring(0, 100) + '...');
+                    showToast('已复制（完整数据过长）');
+                }
+            }
+        }
+
+        function downloadAllSegments() {
+            segmentedImages.forEach((dataUrl, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = `sticker_${i + 1}_${Date.now()}.png`;
+                    a.click();
+                }, i * 200);
+            });
+            showToast('开始批量下载...');
+        }
+
+        // ========== 分割模式 ==========
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedImageData = e.target.result;
+                document.getElementById('previewImg').src = uploadedImageData;
+                document.getElementById('previewArea').style.display = 'block';
+                document.getElementById('uploadArea').style.display = 'none';
+                document.getElementById('splitResults').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetUpload() {
+            uploadedImageData = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('previewArea').style.display = 'none';
+            document.getElementById('uploadArea').style.display = 'block';
+            document.getElementById('splitResults').style.display = 'none';
+        }
+
+        async function splitUploadedImage() {
+            if (!uploadedImageData) {
+                showToast('请先上传图片');
+                return;
+            }
+
+            const loading = document.getElementById('splitLoading');
+            loading.style.display = 'block';
+
+            try {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = uploadedImageData;
+                });
+
+                // 智能检测宫格布局
+                const ratio = img.width / img.height;
+                let cols, rows;
+
+                if (Math.abs(ratio - 1) < 0.1) {
+                    // 接近正方形，尝试3x3或2x2
+                    cols = 3;
+                    rows = 3;
+                } else if (ratio > 1.3) {
+                    // 横向，可能是1x3或1x4
+                    cols = Math.round(ratio * 3);
+                    rows = 1;
+                } else if (ratio < 0.7) {
+                    // 纵向，可能是3x1或4x1
+                    cols = 1;
+                    rows = Math.round(3 / ratio);
+                } else {
+                    cols = 3;
+                    rows = 3;
+                }
+
+                splitSegments = await splitImageToGrid(img, cols, rows);
+
+                const grid = document.getElementById('splitGrid');
+                grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                grid.innerHTML = splitSegments.map((dataUrl, i) => `
+                    <div class="segment-item">
+                        <img src="${dataUrl}" alt="分割${i + 1}">
+                        <div class="seg-actions">
+                            <button onclick="downloadSplitSegment(${i})">⬇️</button>
+                            <button onclick="shareSplitSegment(${i})">📤</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('splitResults').style.display = 'block';
+                showToast(`成功分割出 ${splitSegments.length} 张表情包！`);
+            } catch (error) {
+                showToast('分割失败：' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function downloadSplitSegment(index) {
+            if (splitSegments[index]) {
+                const a = document.createElement('a');
+                a.href = splitSegments[index];
+                a.download = `sticker_split_${index + 1}_${Date.now()}.png`;
+                a.click();
+            }
+        }
+
+        function shareSplitSegment(index) {
+            if (splitSegments[index]) {
+                if (navigator.share) {
+                    fetch(splitSegments[index])
+                        .then(res => res.blob())
+                        .then(blob => {
+                            const file = new File([blob], `sticker_${index + 1}.png`, { type: 'image/png' });
+                            navigator.share({ files: [file], title: '表情包' });
+                        });
+                } else {
+                    showToast('当前浏览器不支持分享');
+                }
+            }
+        }
+
+        function downloadAllSplitSegments() {
+            splitSegments.forEach((dataUrl, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = `sticker_split_${i + 1}_${Date.now()}.png`;
+                    a.click();
+                }, i * 200);
+            });
+            showToast('开始批量下载...');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+
+</html>

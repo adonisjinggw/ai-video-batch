@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户中心 - RollRoll AI</title>
+    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Supabase SDK （同源代理） -->
+    <script src="/api/supabase-sdk?version=2.45.1&v=7.11.94"></script>
+
+    <style>
+        /* 🔧 覆盖全局样式，允许滚动 */
+        html,
+        body {
+            overflow: auto !important;
+            height: auto !important;
+        }
+
+        .user-page {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            padding: 20px;
+            padding-bottom: 60px;
+        }
+
+        .user-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* 顶部导航 */
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .user-header h1 {
+            font-size: 24px;
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-back {
+            padding: 10px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-back:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .btn-logout {
+            padding: 10px 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* 用户卡片 */
+        .user-profile-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .user-email {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .user-badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-free {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+        }
+
+        .badge-vip {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(249, 115, 22, 0.2));
+            color: var(--accent-gold);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .badge-pro {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2));
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* 功能区块 */
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        /* 邀请码区域 */
+        .invite-section {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .invite-code-display {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px dashed var(--accent-gold);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .invite-code {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent-gold);
+            letter-spacing: 2px;
+            font-family: monospace;
+        }
+
+        .invite-code-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .invite-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn-copy,
+        .btn-share {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-copy {
+            background: var(--accent-gold);
+            color: #000;
+        }
+
+        .btn-share {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-copy:hover,
+        .btn-share:hover {
+            transform: translateY(-2px);
+        }
+
+        .invite-stats {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .invite-stat {
+            text-align: center;
+        }
+
+        .invite-stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent-gold);
+        }
+
+        .invite-stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* 同步区域 */
+        .sync-section {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .sync-card {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .sync-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .sync-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .sync-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .btn-sync {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            border: none;
+            border-radius: 6px;
+            color: #000;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-sync:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(251, 191, 36, 0.3);
+        }
+
+        .btn-sync:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 额度记录 */
+        .quota-logs {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .quota-log-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .quota-log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-info {
+            flex: 1;
+        }
+
+        .log-action {
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .log-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .log-amount {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .log-amount.positive {
+            color: var(--success-color);
+        }
+
+        .log-amount.negative {
+            color: var(--error-color);
+        }
+
+        /* 加载状态 */
+        .loading-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 未登录状态 */
+        .not-logged-in {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .not-logged-in h2 {
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+
+        .not-logged-in p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .btn-login {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            border-radius: 8px;
+            color: #000;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(251, 191, 36, 0.3);
+        }
+
+        /* 响应式 */
+        @media (max-width: 640px) {
+            .user-profile-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .user-badges {
+                justify-content: center;
+            }
+
+            .invite-section {
+                flex-direction: column;
+            }
+
+            .invite-code-display {
+                width: 100%;
+            }
+
+            .invite-actions {
+                flex-direction: row;
+                width: 100%;
+            }
+
+            .invite-actions button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="user-page">
+        <div class="user-container">
+            <!-- 加载状态 -->
+            <div id="loadingState" class="loading-state">
+                <div class="loading-spinner"></div>
+                <p>加载中...</p>
+            </div>
+
+            <!-- 未登录状态 -->
+            <div id="notLoggedIn" class="not-logged-in" style="display: none;">
+                <h2>🔐 请先登录</h2>
+                <p>登录后可查看用户中心、同步数据、管理会员</p>
+                <a href="auth.html" class="btn-login">立即登录</a>
+            </div>
+
+            <!-- 已登录内容 -->
+            <div id="userContent" style="display: none;">
+                <!-- 顶部导航 -->
+                <div class="user-header">
+                    <h1>🎬 用户中心</h1>
+                    <div class="header-actions">
+                        <a href="javascript:goBack()" class="btn-back">← 返回应用</a>
+                        <button class="btn-logout" onclick="handleLogout()">退出登录</button>
+                    </div>
+                </div>
+
+                <!-- 用户卡片 -->
+                <div class="user-profile-card">
+                    <div class="user-avatar" id="userAvatar">👤</div>
+                    <div class="user-info">
+                        <div class="user-name" id="userName">加载中...</div>
+                        <div class="user-email" id="userEmail">-</div>
+                        <div class="user-badges">
+                            <span class="badge badge-free" id="membershipBadge">免费用户</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 统计卡片 -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎞️</div>
+                        <div class="stat-value" id="quotaBalance">-</div>
+                        <div class="stat-label">剩余胶片</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-value" id="quotaUsed">-</div>
+                        <div class="stat-label">已使用</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-value" id="inviteCount">-</div>
+                        <div class="stat-label">邀请人数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-value" id="memberDays">-</div>
+                        <div class="stat-label">注册天数</div>
+                    </div>
+                </div>
+
+                <!-- 邀请码 -->
+                <div class="section-title">🎁 邀请好友</div>
+                <div class="section-card">
+                    <div class="invite-section">
+                        <div class="invite-code-display">
+                            <div class="invite-code" id="inviteCode">-</div>
+                            <div class="invite-code-label">我的邀请码</div>
+                        </div>
+                        <div class="invite-actions">
+                            <button class="btn-copy" onclick="copyInviteCode()">📋 复制邀请码</button>
+                            <button class="btn-share" onclick="shareInviteLink()">🔗 分享链接</button>
+                        </div>
+                    </div>
+                    <div class="invite-stats">
+                        <div class="invite-stat">
+                            <div class="invite-stat-value">+50</div>
+                            <div class="invite-stat-label">每邀请1人奖励</div>
+                        </div>
+                        <div class="invite-stat">
+                            <div class="invite-stat-value" id="inviteBonusTotal">0</div>
+                            <div class="invite-stat-label">累计获得奖励</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🎞️ 胶片充值 -->
+                <div class="section-title">🎞️ 胶片充值</div>
+                <div class="section-card">
+                    <!-- 🔥 内测提示 -->
+                    <div
+                        style="background: linear-gradient(135deg, rgba(255,69,0,0.2), rgba(255,140,0,0.15)); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(255,140,0,0.4);">
+                        <div style="color: #ff8c00; font-weight: bold; font-size: 14px; text-align: center;">
+                            🎁 <strong>内测专享价</strong> · 感谢您参与产品内测，当前为限时体验价格，正式版将根据实际成本调整定价
+                        </div>
+                    </div>
+
+                    <div class="recharge-info"
+                        style="margin-bottom: 16px; padding: 12px; background: rgba(251, 191, 36, 0.1); border-radius: 8px; font-size: 13px;">
+                        <p style="margin: 0 0 8px 0; color: var(--accent-gold); font-weight: 600;">💡 胶片消耗参考</p>
+                        <div
+                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: var(--text-secondary); line-height: 1.8;">
+                            <span>📝 文本生成：<strong style="color:#fff;">1胶片/次 (¥0.30)</strong></span>
+                            <span>🖼️ 图片生成：<strong style="color:#fff;">6-10胶片/张 (¥1.80-3.00)</strong></span>
+                            <span>🎨 Midjourney：<strong style="color:#fff;">2胶片/张 (¥0.60)</strong></span>
+                            <span>🔍 MJ放大：<strong style="color:#fff;">1胶片/次 (¥0.30)</strong></span>
+                            <span>🎬 视频生成(15秒)：<strong style="color:#fff;">15胶片/个 (¥4.50)</strong></span>
+                            <span>✨ 星梦/即梦：<strong style="color:#fff;">7胶片/张 (¥2.10)</strong></span>
+                        </div>
+                        <p
+                            style="margin: 12px 0 0 0; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); color: #4ade80; font-size: 12px;">
+                            🎁 新用户注册即赠送 <strong>10万锁定积分</strong>，可解锁100积分用来体验
+                        </p>
+                    </div>
+                    <div class="recharge-packages"
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+                        <div class="package-card" onclick="selectPackage('starter')"
+                            style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s;">
+                            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">🎬 体验包</div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--accent-gold);">¥9</div>
+                            <div style="font-size: 12px; color: #fff; margin: 8px 0;">30 胶片</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">约4个视频流程</div>
+                        </div>
+                        <div class="package-card" onclick="selectPackage('basic')"
+                            style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s;">
+                            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">🥉 小包</div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--accent-gold);">¥29</div>
+                            <div style="font-size: 12px; color: #fff; margin: 8px 0;">100 胶片</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">约14个视频流程</div>
+                        </div>
+                        <div class="package-card popular" onclick="selectPackage('standard')"
+                            style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(249, 115, 22, 0.1)); border: 2px solid var(--accent-gold); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s; position: relative;">
+                            <div
+                                style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--accent-gold); color: #000; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold;">
+                                最受欢迎</div>
+                            <div
+                                style="font-size: 14px; color: var(--accent-gold); margin-bottom: 4px; font-weight: 600;">
+                                🥈 中包</div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--accent-gold);">¥99</div>
+                            <div style="font-size: 12px; color: #fff; margin: 8px 0;">350 胶片</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">约50个视频流程</div>
+                        </div>
+                        <div class="package-card" onclick="selectPackage('premium')"
+                            style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s;">
+                            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">🥇 大包</div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--accent-gold);">¥299</div>
+                            <div style="font-size: 12px; color: #fff; margin: 8px 0;">1100 胶片</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">约157个视频流程</div>
+                        </div>
+                        <div class="package-card" onclick="selectPackage('ultimate')"
+                            style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s;">
+                            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">💎 豪华包</div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--accent-gold);">¥999</div>
+                            <div style="font-size: 12px; color: #fff; margin: 8px 0;">4000 胶片</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">约571个视频流程</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 16px; text-align: center;">
+                        <button class="btn-sync" onclick="openRechargeModal()"
+                            style="width: auto; padding: 12px 40px;">💳 立即充值</button>
+                    </div>
+
+                    <!-- 🎟️ 卡密兑换区域 -->
+                    <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--accent-gold);">
+                            🎟️ 卡密兑换</div>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <input type="text" id="cardCodeInput" placeholder="输入卡密 (如 FILM-XXXX-XXXX-1000-校验)"
+                                style="flex: 1; min-width: 200px; padding: 12px 16px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; font-size: 14px; font-family: monospace; text-transform: uppercase;"
+                                onkeypress="if(event.key==='Enter') redeemCardCode()">
+                            <button onclick="redeemCardCode()"
+                                style="padding: 12px 24px; background: linear-gradient(135deg, #4ade80, #22c55e); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+                                ✨ 立即兑换
+                            </button>
+                        </div>
+                        <div id="redeemResult" style="margin-top: 12px; font-size: 13px; display: none;"></div>
+                        <p style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                            💡 卡密可在闲鱼购买：<a href="https://m.tb.cn/h.Sxthj3M?tk=MzLhfM3Id3fCZ005" target="_blank"
+                                style="color: var(--accent-gold);">点击购买</a>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 数据同步 -->
+                <div class="section-title">☁️ 云端同步</div>
+                <div class="section-card">
+                    <div class="sync-section">
+                        <div class="sync-card">
+                            <div class="sync-icon">📤</div>
+                            <div class="sync-title">上传到云端</div>
+                            <div class="sync-desc">将本地数据同步到云端</div>
+                            <button class="btn-sync" onclick="uploadToCloud()">上传数据</button>
+                        </div>
+                        <div class="sync-card">
+                            <div class="sync-icon">📥</div>
+                            <div class="sync-title">从云端下载</div>
+                            <div class="sync-desc">从云端恢复数据到本地</div>
+                            <button class="btn-sync" onclick="downloadFromCloud()">下载数据</button>
+                        </div>
+                        <div class="sync-card">
+                            <div class="sync-icon">🔄</div>
+                            <div class="sync-title">双向同步</div>
+                            <div class="sync-desc">智能合并本地和云端数据</div>
+                            <button class="btn-sync" onclick="syncBidirectional()">开始同步</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 额度记录 -->
+                <div class="section-title">📜 额度记录</div>
+                <div class="section-card">
+                    <div class="quota-logs" id="quotaLogs">
+                        <div class="loading-state">
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase 配置 -->
+    <script src="js/supabase-config.js"></script>
+
+    <script>
+        let currentUser = null;
+        let userProfile = null;
+
+        // 🔙 返回工作页（智能判断移动端/PC端）
+        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            const referrer = document.referrer || '';
+            
+            // 判断来源
+            const isMobileReferrer = referrer.includes('mobile.html');
+            const isMobileScreen = window.innerWidth <= 768;
+            
+            if (fromMobile || isMobileReferrer || (isMobileScreen && !referrer.includes('index.html'))) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        // 🔄 同步胶片余额到云端
+        async function syncFilmToCloud(balance) {
+            try {
+                if (typeof NVAuth === 'undefined') return;
+                const client = NVAuth.getSupabase();
+                const user = await NVAuth.getCurrentUser();
+                if (client && user) {
+                    await client
+                        .from('user_profiles')
+                        .update({ quota_balance: balance })
+                        .eq('id', user.id);
+                    console.log(`✅ 胶片余额已同步到云端: ${balance}`);
+                }
+            } catch (e) {
+                console.warn('云端同步失败:', e);
+            }
+        }
+
+        // 初始化
+        async function init() {
+            try {
+                currentUser = await NVAuth.getCurrentUser();
+
+                if (!currentUser) {
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('notLoggedIn').style.display = 'block';
+                    return;
+                }
+
+                // 获取用户配置
+                userProfile = await NVAuth.getUserProfile();
+
+                // 显示用户内容
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('userContent').style.display = 'block';
+
+                // 填充数据
+                renderUserInfo();
+                loadQuotaLogs();
+
+            } catch (error) {
+                console.error('初始化失败:', error);
+                document.getElementById('loadingState').innerHTML = `
+                    <p style="color: #ef4444;">加载失败: ${error.message}</p>
+                    <button onclick="location.reload()" style="margin-top: 16px; padding: 10px 20px; background: var(--accent-gold); border: none; border-radius: 8px; cursor: pointer;">重试</button>
+                `;
+            }
+        }
+
+        // 渲染用户信息
+        function renderUserInfo() {
+            if (!userProfile) return;
+
+            // 头像（取昵称首字）
+            const nickname = userProfile.nickname || currentUser.email.split('@')[0];
+            document.getElementById('userAvatar').textContent = nickname.charAt(0).toUpperCase();
+
+            // 名字和邮箱
+            document.getElementById('userName').textContent = nickname;
+            document.getElementById('userEmail').textContent = currentUser.email;
+
+            // 会员等级
+            const badge = document.getElementById('membershipBadge');
+            switch (userProfile.membership_type) {
+                case 'vip':
+                    badge.textContent = 'VIP会员';
+                    badge.className = 'badge badge-vip';
+                    break;
+                case 'pro':
+                    badge.textContent = 'PRO会员';
+                    badge.className = 'badge badge-pro';
+                    break;
+                default:
+                    badge.textContent = '免费用户';
+                    badge.className = 'badge badge-free';
+            }
+
+            // 统计数据 - 以云端数据为准（实时同步的权威来源）
+            const cloudFilmBalance = userProfile.quota_balance || 0;
+            document.getElementById('quotaBalance').textContent = cloudFilmBalance;
+
+            // 同步云端数据到本地缓存（确保主页面也能读到最新值）
+            localStorage.setItem('film_balance', String(cloudFilmBalance));
+            localStorage.setItem('cloud_film_balance', String(cloudFilmBalance));
+            console.log(`🔄 从云端同步胶片余额到本地: ${cloudFilmBalance}`);
+
+            document.getElementById('quotaUsed').textContent = userProfile.quota_used || 0;
+            document.getElementById('inviteCount').textContent = userProfile.invite_count || 0;
+
+            // 注册天数
+            const createdAt = new Date(userProfile.created_at);
+            const days = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+            document.getElementById('memberDays').textContent = days;
+
+            // 邀请码
+            document.getElementById('inviteCode').textContent = userProfile.invite_code || '-';
+
+            // 邀请奖励总计
+            document.getElementById('inviteBonusTotal').textContent = (userProfile.invite_count || 0) * 50;
+        }
+
+        // 加载额度记录
+        async function loadQuotaLogs() {
+            try {
+                const logs = await NVAuth.getQuotaLogs(20);
+                const container = document.getElementById('quotaLogs');
+
+                if (logs.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无记录</p>';
+                    return;
+                }
+
+                container.innerHTML = logs.map(log => {
+                    const isPositive = log.amount > 0;
+                    const actionText = {
+                        'consume': '消耗',
+                        'refund': '退还',
+                        'recharge': '充值',
+                        'invite_bonus': '邀请奖励'
+                    }[log.action_type] || log.action_type;
+
+                    return `
+                        <div class="quota-log-item">
+                            <div class="log-info">
+                                <div class="log-action">${actionText}: ${log.description || '-'}</div>
+                                <div class="log-time">${new Date(log.created_at).toLocaleString()}</div>
+                            </div>
+                            <div class="log-amount ${isPositive ? 'positive' : 'negative'}">
+                                ${isPositive ? '+' : ''}${log.amount}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('加载额度记录失败:', error);
+                document.getElementById('quotaLogs').innerHTML = '<p style="color: #ef4444; text-align: center;">加载失败</p>';
+            }
+        }
+
+        // 复制邀请码
+        function copyInviteCode() {
+            const code = userProfile?.invite_code;
+            if (!code) return;
+
+            navigator.clipboard.writeText(code).then(() => {
+                alert('✅ 邀请码已复制！');
+            }).catch(() => {
+                // 降级方案
+                const input = document.createElement('input');
+                input.value = code;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                alert('✅ 邀请码已复制！');
+            });
+        }
+
+        // 分享邀请链接
+        function shareInviteLink() {
+            const code = userProfile?.invite_code;
+            if (!code) return;
+
+            const link = `${window.location.origin}/auth.html?invite=${code}`;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: 'RollRoll AI - AI视频创作平台',
+                    text: `使用我的邀请码 ${code} 注册，即可获得额外50胶片奖励！`,
+                    url: link
+                });
+            } else {
+                navigator.clipboard.writeText(link).then(() => {
+                    alert('✅ 邀请链接已复制！\n\n' + link);
+                });
+            }
+        }
+
+        // 上传到云端
+        async function uploadToCloud(evt) {
+            if (!confirm('确定要将本地数据上传到云端吗？\n这将覆盖云端已有数据。')) return;
+
+            const btn = evt?.target || document.querySelector('button[onclick="uploadToCloud()"]') || document.querySelector('button[onclick^="uploadToCloud"]');
+            btn.disabled = true;
+            btn.textContent = '上传中...';
+
+            try {
+                // 获取本地数据
+                const tasks = JSON.parse(localStorage.getItem('ideas_history') || '[]');
+                const characters = JSON.parse(localStorage.getItem('character_library') || '[]');
+                const settings = JSON.parse(localStorage.getItem('nv_settings') || '{}');
+
+                // 同步到云端
+                if (tasks.length > 0) {
+                    await NVAuth.syncTasksToCloud(tasks);
+                }
+                if (characters.length > 0) {
+                    await NVAuth.syncCharactersToCloud(characters);
+                }
+                if (Object.keys(settings).length > 0) {
+                    await NVAuth.syncSettingsToCloud(settings);
+                }
+
+                alert(`✅ 上传成功！
+
+📋 任务: ${tasks.length} 个
+🎭 角色: ${characters.length} 个
+⚙️ 设置: 已同步`);
+
+            } catch (error) {
+                console.error('上传失败:', error);
+                alert('❌ 上传失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '上传数据';
+            }
+        }
+
+        // 从云端下载
+        async function downloadFromCloud(evt) {
+            if (!confirm('确定要从云端下载数据吗？\n这将覆盖本地已有数据。')) return;
+
+            const btn = evt?.target || document.querySelector('button[onclick="downloadFromCloud()"]') || document.querySelector('button[onclick^="downloadFromCloud"]');
+            btn.disabled = true;
+            btn.textContent = '下载中...';
+
+            try {
+                // 从云端获取数据
+                const tasks = await NVAuth.getTasksFromCloud();
+                const characters = await NVAuth.getCharactersFromCloud();
+                const settings = await NVAuth.getSettingsFromCloud();
+
+                // 保存到本地
+                if (tasks.length > 0) {
+                    localStorage.setItem('ideas_history', JSON.stringify(tasks));
+                }
+                if (characters.length > 0) {
+                    localStorage.setItem('character_library', JSON.stringify(characters));
+                }
+                if (Object.keys(settings).length > 0) {
+                    localStorage.setItem('nv_settings', JSON.stringify(settings));
+                }
+
+                alert(`✅ 下载成功！
+
+📋 任务: ${tasks.length} 个
+🎭 角色: ${characters.length} 个
+⚙️ 设置: 已同步
+
+刷新页面后生效。`);
+
+            } catch (error) {
+                console.error('下载失败:', error);
+                alert('❌ 下载失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '下载数据';
+            }
+        }
+
+        // 双向同步
+        async function syncBidirectional(evt) {
+            const btn = evt?.target || document.querySelector('button[onclick="syncBidirectional()"]') || document.querySelector('button[onclick^="syncBidirectional"]');
+            btn.disabled = true;
+            btn.textContent = '同步中...';
+
+            try {
+                // 获取本地数据
+                const localTasks = JSON.parse(localStorage.getItem('ideas_history') || '[]');
+                const localChars = JSON.parse(localStorage.getItem('character_library') || '[]');
+
+                // 获取云端数据
+                const cloudTasks = await NVAuth.getTasksFromCloud();
+                const cloudChars = await NVAuth.getCharactersFromCloud();
+
+                // 合并任务（以本地为主，云端补充）
+                const mergedTasks = [...localTasks];
+                cloudTasks.forEach(ct => {
+                    if (!mergedTasks.find(lt => lt.id === ct.id)) {
+                        mergedTasks.push(ct);
+                    }
+                });
+
+                // 合并角色（以名字去重）
+                const charNames = new Set(localChars.map(c => c.name));
+                const mergedChars = [...localChars];
+                cloudChars.forEach(cc => {
+                    if (!charNames.has(cc.name)) {
+                        mergedChars.push(cc);
+                        charNames.add(cc.name);
+                    }
+                });
+
+                // 保存到本地
+                localStorage.setItem('ideas_history', JSON.stringify(mergedTasks));
+                localStorage.setItem('character_library', JSON.stringify(mergedChars));
+
+                // 上传到云端
+                await NVAuth.syncTasksToCloud(mergedTasks);
+                await NVAuth.syncCharactersToCloud(mergedChars);
+
+                alert(`✅ 同步完成！
+
+📋 任务: ${mergedTasks.length} 个
+🎭 角色: ${mergedChars.length} 个
+
+刷新页面后生效。`);
+
+            } catch (error) {
+                console.error('同步失败:', error);
+                alert('❌ 同步失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '开始同步';
+            }
+        }
+
+        // 退出登录
+        async function handleLogout() {
+            if (!confirm('确定要退出登录吗？')) return;
+
+            try {
+                await NVAuth.signOut();
+                window.location.href = 'auth.html';
+            } catch (error) {
+                console.error('退出失败:', error);
+                alert('退出失败: ' + error.message);
+            }
+        }
+
+        // 🎞️ 胶片充值相关（与index.html统一）
+        let selectedPackage = 'standard';
+
+        // 🔧 统一定价：胶片单价 ¥0.3/个
+        const RECHARGE_PACKAGES = {
+            starter: { name: '体验包', price: 9, quota: 30, videos: 4 },
+            basic: { name: '小包', price: 29, quota: 100, videos: 14 },
+            standard: { name: '中包', price: 99, quota: 350, videos: 50 },
+            premium: { name: '大包', price: 299, quota: 1100, videos: 157 },
+            ultimate: { name: '豪华包', price: 999, quota: 4000, videos: 571 }
+        };
+
+        // 闲鱼购买链接
+        const XIANYU_LINK = 'https://m.tb.cn/h.Sxthj3M?tk=MzLhfM3Id3fCZ005';
+        // 微信号（仅供联系，不收款）
+        const WECHAT_ID = 'jingguangwei';
+
+        function selectPackage(packageId) {
+            selectedPackage = packageId;
+            // 更新UI选中状态
+            document.querySelectorAll('.package-card').forEach(card => {
+                card.style.borderColor = 'var(--border-color)';
+                card.style.borderWidth = '1px';
+            });
+            event.currentTarget.style.borderColor = 'var(--accent-gold)';
+            event.currentTarget.style.borderWidth = '2px';
+        }
+
+        /**
+         * 🛒 打开充值（统一走闲鱼）
+         * 预留支付接口：后续接入支付宝/微信支付
+         */
+        function openRechargeModal() {
+            const pkg = RECHARGE_PACKAGES[selectedPackage];
+
+            const message = `🎞️ 充值确认\n\n` +
+                `套餐：${pkg.name}\n` +
+                `价格：¥${pkg.price}\n` +
+                `获得：${pkg.quota} 胶片\n` +
+                `可生成：约 ${pkg.videos} 个15秒视频流程\n\n` +
+                `📱 购买方式：\n` +
+                `1. 点击确认前往闲鱼购买\n` +
+                `2. 购买时备注您的注册邮箱\n` +
+                `3. 支付后即可获得卡密\n` +
+                `4. 在上方输入卡密即可充值\n\n` +
+                `💬 如需帮助请联系微信: ${WECHAT_ID}\n\n` +
+                `是否前往闲鱼购买？`;
+
+            if (confirm(message)) {
+                // 🔧 预留支付接口：后续可替换为 initPayment(pkg)
+                window.open(XIANYU_LINK, '_blank');
+            }
+        }
+
+        /**
+         * 🔮 预留支付接口（后期接入支付宝/微信）
+         * @param {Object} pkg - 套餐信息
+         */
+        async function initPayment(pkg) {
+            // TODO: 接入支付宝/微信支付
+            // const paymentResult = await PaymentAPI.createOrder({
+            //     productId: pkg.id,
+            //     amount: pkg.price,
+            //     description: `RollRoll ${pkg.name} - ${pkg.quota}胶片`
+            // });
+            console.log('🔮 支付接口预留，后续接入');
+        }
+
+        /**
+         * 🎟️ 卡密兑换功能 - 支持 ROLL- 和 FILM- 两种格式
+         */
+        async function redeemCardCode() {
+            const input = document.getElementById('cardCodeInput');
+            const resultDiv = document.getElementById('redeemResult');
+            const cardCode = input.value.trim().toUpperCase();
+
+            if (!cardCode) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.color = '#ef4444';
+                resultDiv.textContent = '❌ 请输入卡密码';
+                return;
+            }
+
+            // 显示加载状态
+            resultDiv.style.display = 'block';
+            resultDiv.style.color = 'var(--accent-gold)';
+            resultDiv.textContent = '⏳ 兑换中...';
+
+            try {
+                // 🎬 FILM- 格式：FILM-XXXX-XXXX-数量-校验码（新格式，直接云端充值）
+                const filmMatch = cardCode.match(/^FILM-([A-Z0-9]{4})-([A-Z0-9]{4})-(\d+)-([A-Z0-9]+)$/);
+                if (filmMatch) {
+                    const filmAmount = parseInt(filmMatch[3], 10);
+                    if (isNaN(filmAmount) || filmAmount <= 0) {
+                        resultDiv.style.color = '#ef4444';
+                        resultDiv.textContent = '❌ 卡密胶片数量无效';
+                        return;
+                    }
+
+                    // 调用云端充值代理
+                    const newBalance = await rechargeFilmToCloud(filmAmount);
+
+                    resultDiv.style.color = '#4ade80';
+                    resultDiv.textContent = `✅ 充值成功！+${filmAmount} 胶片，当前余额: ${newBalance}`;
+
+                    // 更新页面显示
+                    document.getElementById('quotaBalance').textContent = newBalance;
+                    userProfile.quota_balance = newBalance;
+                    localStorage.setItem('film_balance', String(newBalance));
+                    localStorage.setItem('cloud_film_balance', String(newBalance));
+
+                    input.value = '';
+                    loadQuotaLogs();
+
+                    setTimeout(() => { resultDiv.style.display = 'none'; }, 5000);
+                    return;
+                }
+
+                // 👑 VIP- 新格式：VIP-LV等级-类型-随机-校验（LV1-LV10会员码）
+                const vipLvMatch = cardCode.match(/^VIP-LV(\d{1,2})-([MQYP])-([A-Z0-9]+)-([A-Z0-9]+)$/);
+                if (vipLvMatch) {
+                    const levelNum = parseInt(vipLvMatch[1], 10);
+                    const typeCode = vipLvMatch[2];
+
+                    // LV等级映射到membership_type（使用lv格式）
+                    const membershipType = `lv${levelNum}`;
+                    const membershipLevel = levelNum;
+                    const typeMap = { 'M': 'monthly', 'Q': 'quarterly', 'Y': 'yearly', 'P': 'permanent' };
+                    const typeNames = { 'M': '月卡', 'Q': '季卡', 'Y': '年卡', 'P': '永久' };
+                    const levelNames = {
+                        1: 'LV1 入门会员', 2: 'LV2 初级会员', 3: 'LV3 中级会员',
+                        4: 'LV4 高级会员', 5: 'LV5 专业会员', 6: 'LV6 资深会员',
+                        7: 'LV7 精英会员', 8: 'LV8 大师会员', 9: 'LV9 至尊会员', 10: 'LV10 传奇会员'
+                    };
+
+                    const duration = typeMap[typeCode] || 'yearly';
+
+                    // 调用云端激活VIP（传递等级信息）
+                    const result = await activateVipToCloud(membershipType, duration, membershipLevel);
+
+                    resultDiv.style.color = '#4ade80';
+                    resultDiv.textContent = `✅ VIP激活成功！${levelNames[levelNum] || 'LV' + levelNum} (${typeNames[typeCode]})`;
+
+                    // 更新页面显示
+                    const badge = document.getElementById('membershipBadge');
+                    if (badge) {
+                        badge.textContent = `LV${levelNum}会员`;
+                        badge.className = levelNum >= 7 ? 'badge badge-pro' : 'badge badge-vip';
+                    }
+                    userProfile.membership_type = membershipType;
+                    userProfile.membership_level = membershipLevel;
+                    localStorage.setItem('membership_type', membershipType);
+                    localStorage.setItem('membership_level', String(membershipLevel));
+
+                    input.value = '';
+                    loadQuotaLogs();
+
+                    setTimeout(() => { resultDiv.style.display = 'none'; }, 5000);
+                    return;
+                }
+
+                // 👑 VIP- 旧格式：VIP-等级-类型-随机-校验（兼容旧版B/M/P会员码）
+                const vipMatch = cardCode.match(/^VIP-([BMP])-([MQYP])-([A-Z0-9]+)-([A-Z0-9]+)$/);
+                if (vipMatch) {
+                    const levelCode = vipMatch[1];
+                    const typeCode = vipMatch[2];
+
+                    // 🔧 修复：levelMap的值必须是数据库允许的membership_type
+                    // 数据库约束允许: free, creator, vip, pro, studio
+                    const levelMap = { 'B': 'creator', 'M': 'vip', 'P': 'pro' };
+                    const typeMap = { 'M': 'monthly', 'Q': 'quarterly', 'Y': 'yearly', 'P': 'permanent' };
+                    const levelNames = { 'B': '🥉 创作者会员', 'M': '🥈 VIP会员', 'P': '🥇 专业会员' };
+                    const typeNames = { 'M': '月卡', 'Q': '季卡', 'Y': '年卡', 'P': '永久' };
+
+                    const membershipType = levelMap[levelCode] || 'vip';
+                    const duration = typeMap[typeCode] || 'monthly';
+
+                    // 调用云端激活VIP
+                    const result = await activateVipToCloud(membershipType, duration);
+
+                    resultDiv.style.color = '#4ade80';
+                    resultDiv.textContent = `✅ VIP激活成功！${levelNames[levelCode]} (${typeNames[typeCode]})`;
+
+                    // 更新页面显示
+                    const badge = document.getElementById('membershipBadge');
+                    if (badge) {
+                        badge.textContent = membershipType === 'pro' ? 'PRO会员' : 'VIP会员';
+                        badge.className = membershipType === 'pro' ? 'badge badge-pro' : 'badge badge-vip';
+                    }
+                    userProfile.membership_type = membershipType;
+
+                    input.value = '';
+                    loadQuotaLogs();
+
+                    setTimeout(() => { resultDiv.style.display = 'none'; }, 5000);
+                    return;
+                }
+
+                // 🎁 COMBO- 新格式：COMBO-LV等级-类型-胶片-随机-校验（LV1-LV10组合套餐）
+                const comboLvMatch = cardCode.match(/^COMBO-LV(\d{1,2})-([MQYP])-(\d+)-([A-Z0-9]+)-([A-Z0-9]+)$/);
+                if (comboLvMatch) {
+                    const levelNum = parseInt(comboLvMatch[1], 10);
+                    const typeCode = comboLvMatch[2];
+                    const filmAmount = parseInt(comboLvMatch[3], 10);
+
+                    const membershipType = `lv${levelNum}`;
+                    const membershipLevel = levelNum;
+                    const typeMap = { 'M': 'monthly', 'Q': 'quarterly', 'Y': 'yearly', 'P': 'permanent' };
+                    const typeNames = { 'M': '月卡', 'Q': '季卡', 'Y': '年卡', 'P': '永久' };
+                    const levelNames = {
+                        1: 'LV1 入门会员', 2: 'LV2 初级会员', 3: 'LV3 中级会员',
+                        4: 'LV4 高级会员', 5: 'LV5 专业会员', 6: 'LV6 资深会员',
+                        7: 'LV7 精英会员', 8: 'LV8 大师会员', 9: 'LV9 至尊会员', 10: 'LV10 传奇会员'
+                    };
+
+                    const duration = typeMap[typeCode] || 'yearly';
+
+                    // 1. 先激活VIP
+                    await activateVipToCloud(membershipType, duration, membershipLevel);
+
+                    // 2. 再充值胶片
+                    const newBalance = await rechargeFilmToCloud(filmAmount);
+
+                    resultDiv.style.color = '#4ade80';
+                    resultDiv.textContent = `✅ 组合套餐激活成功！${levelNames[levelNum] || 'LV' + levelNum} (${typeNames[typeCode]}) + ${filmAmount}胶片`;
+
+                    // 更新页面显示
+                    const badge = document.getElementById('membershipBadge');
+                    if (badge) {
+                        badge.textContent = `LV${levelNum}会员`;
+                        badge.className = levelNum >= 7 ? 'badge badge-pro' : 'badge badge-vip';
+                    }
+                    document.getElementById('quotaBalance').textContent = newBalance;
+                    userProfile.membership_type = membershipType;
+                    userProfile.membership_level = membershipLevel;
+                    userProfile.quota_balance = newBalance;
+                    localStorage.setItem('membership_type', membershipType);
+                    localStorage.setItem('membership_level', String(membershipLevel));
+                    localStorage.setItem('film_balance', String(newBalance));
+                    localStorage.setItem('cloud_film_balance', String(newBalance));
+
+                    input.value = '';
+                    loadQuotaLogs();
+
+                    setTimeout(() => { resultDiv.style.display = 'none'; }, 5000);
+                    return;
+                }
+
+                // 🎁 COMBO- 旧格式：COMBO-等级-类型-胶片-随机-校验（兼容旧版组合套餐）
+                const comboMatch = cardCode.match(/^COMBO-([BMP])-([MQYP])-(\d+)-([A-Z0-9]+)-([A-Z0-9]+)$/);
+                if (comboMatch) {
+                    const levelCode = comboMatch[1];
+                    const typeCode = comboMatch[2];
+                    const filmAmount = parseInt(comboMatch[3], 10);
+
+                    // 🔧 修复：levelMap的值必须是数据库允许的membership_type
+                    const levelMap = { 'B': 'creator', 'M': 'vip', 'P': 'pro' };
+                    const typeMap = { 'M': 'monthly', 'Q': 'quarterly', 'Y': 'yearly', 'P': 'permanent' };
+                    const levelNames = { 'B': '🥉 创作者会员', 'M': '🥈 VIP会员', 'P': '🥇 专业会员' };
+                    const typeNames = { 'M': '月卡', 'Q': '季卡', 'Y': '年卡', 'P': '永久' };
+
+                    const membershipType = levelMap[levelCode] || 'vip';
+                    const duration = typeMap[typeCode] || 'monthly';
+
+                    // 1. 先激活VIP
+                    await activateVipToCloud(membershipType, duration);
+
+                    // 2. 再充值胶片
+                    const newBalance = await rechargeFilmToCloud(filmAmount);
+
+                    resultDiv.style.color = '#4ade80';
+                    resultDiv.textContent = `✅ 组合套餐激活成功！${levelNames[levelCode]} (${typeNames[typeCode]}) + ${filmAmount}胶片`;
+
+                    // 更新页面显示
+                    const badge = document.getElementById('membershipBadge');
+                    if (badge) {
+                        badge.textContent = membershipType === 'pro' ? 'PRO会员' : 'VIP会员';
+                        badge.className = membershipType === 'pro' ? 'badge badge-pro' : 'badge badge-vip';
+                    }
+                    document.getElementById('quotaBalance').textContent = newBalance;
+                    userProfile.membership_type = membershipType;
+                    userProfile.quota_balance = newBalance;
+                    localStorage.setItem('film_balance', String(newBalance));
+                    localStorage.setItem('cloud_film_balance', String(newBalance));
+
+                    input.value = '';
+                    loadQuotaLogs();
+
+                    setTimeout(() => { resultDiv.style.display = 'none'; }, 5000);
+                    return;
+                }
+
+                // 🎫 ROLL- 格式：ROLL-XXXX-XXXX（旧格式，走 NVAuth.redeemCard）
+                if (/^ROLL-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(cardCode)) {
+                    const result = await NVAuth.redeemCard(cardCode);
+
+                    if (result.success) {
+                        resultDiv.style.color = '#4ade80';
+                        resultDiv.textContent = `✅ ${result.message}`;
+                        document.getElementById('quotaBalance').textContent = result.newBalance;
+                        userProfile.quota_balance = result.newBalance;
+                        input.value = '';
+                        loadQuotaLogs();
+                        setTimeout(() => { resultDiv.style.display = 'none'; }, 5000);
+                    } else {
+                        resultDiv.style.color = '#ef4444';
+                        resultDiv.textContent = `❌ ${result.message}`;
+                    }
+                    return;
+                }
+
+                // 格式不匹配
+                resultDiv.style.color = '#ef4444';
+                resultDiv.textContent = '❌ 卡密格式不正确，支持 FILM-/VIP-/COMBO-/ROLL- 格式';
+
+            } catch (error) {
+                console.error('兑换失败:', error);
+                resultDiv.style.color = '#ef4444';
+                resultDiv.textContent = `❌ 兑换失败: ${error.message}`;
+            }
+        }
+
+        /**
+         * ☁️ 云端充值（通过代理）
+         */
+        async function rechargeFilmToCloud(amount) {
+            if (!currentUser) {
+                throw new Error('请先登录后再充值');
+            }
+
+            const response = await fetch('/api/supabase-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'addQuota',
+                    amount: amount,
+                    description: '卡密充值',
+                    userId: currentUser.id
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || result.error) {
+                throw new Error(result.message || result.error || '充值请求失败');
+            }
+
+            return result.newBalance;
+        }
+
+        /**
+         * 👑 云端激活VIP（通过代理）
+         * @param {string} membershipType - 会员类型 (lv1-lv10 或 vip/pro/creator)
+         * @param {string} duration - 有效期 (monthly/quarterly/yearly/permanent)
+         * @param {number} membershipLevel - 会员等级数字 (1-10)，可选
+         */
+        async function activateVipToCloud(membershipType, duration, membershipLevel = null) {
+            if (!currentUser) {
+                throw new Error('请先登录后再激活VIP');
+            }
+
+            const requestBody = {
+                action: 'activateVip',
+                membershipType: membershipType,
+                duration: duration,
+                userId: currentUser.id
+            };
+
+            // 如果传递了等级数字，也发送到后端
+            if (membershipLevel !== null) {
+                requestBody.membershipLevel = membershipLevel;
+            }
+
+            const response = await fetch('/api/supabase-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || result.error) {
+                throw new Error(result.message || result.error || 'VIP激活失败');
+            }
+
+            // 同步到本地
+            const vipInfo = {
+                type: membershipType,
+                level: membershipLevel,
+                expiry: result.expiresAt || new Date(Date.now() + 36500 * 24 * 3600 * 1000).toISOString(),
+                activatedAt: new Date().toISOString()
+            };
+            localStorage.setItem('vip_info', JSON.stringify(vipInfo));
+            localStorage.setItem('is_vip', 'true');
+            localStorage.setItem('vip_type', membershipType);
+            localStorage.setItem('membership_type', membershipType);
+            if (membershipLevel !== null) {
+                localStorage.setItem('membership_level', String(membershipLevel));
+            }
+
+            return result;
+        }
+
+        // 启动
+        init();
+
+        // ==================== 页面状态持久化 ====================
+        // user.html 主要是用户中心，不需要复杂状态持久化
+        // 但保留一个简单的框架以便后续扩展
+        function saveUserState() {
+            try {
+                const state = {
+                    cardInput: document.getElementById('cardInput')?.value || '',
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_user_state', JSON.stringify(state));
+            } catch (e) { /* ignore */ }
+        }
+
+        function restoreUserState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_user_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_user_state');
+                    return;
+                }
+                if (state.cardInput) document.getElementById('cardInput').value = state.cardInput;
+            } catch (e) { /* ignore */ }
+        }
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden) saveUserState(); });
+        window.addEventListener('beforeunload', saveUserState);
+        window.addEventListener('pagehide', saveUserState);
+        window.addEventListener('load', () => setTimeout(restoreUserState, 200));
+    </script>
+</body>
+
+</html>

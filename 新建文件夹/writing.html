@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>✍️ AI写作 - RollRoll</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .type-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .type-tab {
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 20px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .type-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 120px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-text {
+            font-size: 15px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            color: var(--text);
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-dark);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .history-section {
+            margin-top: 32px;
+            border-top: 1px solid #222;
+            padding-top: 20px;
+        }
+
+        .history-item {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+        }
+
+        .history-item-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--accent);
+        }
+
+        .history-item-preview {
+            font-size: 13px;
+            color: var(--text-dim);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>✍️ AI写作</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <div class="type-tabs">
+            <button class="type-tab active" data-type="story" onclick="switchType('story')">📖 故事</button>
+            <button class="type-tab" data-type="article" onclick="switchType('article')">📝 文章</button>
+            <button class="type-tab" data-type="script" onclick="switchType('script')">🎬 剧本</button>
+            <button class="type-tab" data-type="poem" onclick="switchType('poem')">🌸 诗词</button>
+            <button class="type-tab" data-type="copy" onclick="switchType('copy')">📢 文案</button>
+            <button class="type-tab" data-type="continue" onclick="switchType('continue')">✨ 续写</button>
+        </div>
+
+        <div class="input-section">
+            <label class="input-label" id="inputLabel">✨ 输入故事主题或大纲</label>
+            <textarea class="input-box" id="contentInput" placeholder="例如：一个程序员穿越到古代，用现代知识改变历史..."></textarea>
+        </div>
+
+        <div class="settings-row">
+            <div class="setting-item">
+                <label>写作风格</label>
+                <select id="styleSelect">
+                    <option value="normal">📝 正常</option>
+                    <option value="humorous">😂 幽默</option>
+                    <option value="literary">📚 文艺</option>
+                    <option value="professional">💼 专业</option>
+                    <option value="simple">🎯 简洁</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>内容长度</label>
+                <select id="lengthSelect">
+                    <option value="short">短篇 (~300字)</option>
+                    <option value="medium" selected>中篇 (~800字)</option>
+                    <option value="long">长篇 (~1500字)</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="generate-btn" id="generateBtn" onclick="generateContent()">
+            ⚡ 开始创作
+        </button>
+
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <div>AI正在创作中...</div>
+        </div>
+
+        <div class="result-section" id="resultSection" style="display:none;">
+            <div class="result-title">
+                <span>📄 创作结果</span>
+                <span id="wordCount" style="font-size:12px;"></span>
+            </div>
+            <div class="result-text" id="resultText"></div>
+            <div class="result-actions">
+                <button class="result-btn" onclick="copyResult()">📋 复制</button>
+                <button class="result-btn" onclick="shareResult()">📤 分享</button>
+                <button class="result-btn primary" onclick="regenerate()">🔄 重新生成</button>
+            </div>
+        </div>
+
+        <div class="history-section" id="historySection">
+            <div class="result-title">📚 历史记录</div>
+            <div id="historyList"></div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 返回函数 - 检测来源页面并正确返回
+        function goBack() {
+            // 检查URL参数判断来源
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            // 如果有历史记录且来自同域名，使用history.back()
+            if (window.history.length > 1 && document.referrer && document.referrer.includes(location.host)) {
+                history.back();
+            } else if (fromMobile) {
+                // 从mobile.html跳转来的，返回mobile.html
+                location.href = 'mobile.html';
+            } else {
+                // 默认返回index.html
+                location.href = 'index.html';
+            }
+        }
+
+        let currentType = 'story';
+        let currentResult = '';
+        let history = [];
+
+        const typeConfig = {
+            story: { label: '✨ 输入故事主题或大纲', placeholder: '例如：一个程序员穿越到古代，用现代知识改变历史...' },
+            article: { label: '✨ 输入文章主题', placeholder: '例如：人工智能如何改变我们的生活...' },
+            script: { label: '✨ 输入剧本场景或大纲', placeholder: '例如：一对情侣在咖啡厅重逢，气氛微妙...' },
+            poem: { label: '✨ 输入诗词主题或意境', placeholder: '例如：春天的江南，烟雨朦胧...' },
+            copy: { label: '✨ 输入产品或活动信息', placeholder: '例如：新品咖啡上市，主打健康低糖...' },
+            continue: { label: '✨ 粘贴需要续写的内容', placeholder: '粘贴你的文章开头，AI将帮你续写...' }
+        };
+
+        function switchType(type) {
+            currentType = type;
+            document.querySelectorAll('.type-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.type === type);
+            });
+            const config = typeConfig[type];
+            document.getElementById('inputLabel').textContent = config.label;
+            document.getElementById('contentInput').placeholder = config.placeholder;
+        }
+
+        function loadHistory() {
+            try {
+                history = JSON.parse(localStorage.getItem('writing_history') || '[]');
+                renderHistory();
+            } catch (e) { }
+        }
+
+        function saveHistory() {
+            localStorage.setItem('writing_history', JSON.stringify(history.slice(0, 20)));
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (history.length === 0) {
+                list.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;">暂无历史记录</div>';
+                return;
+            }
+            list.innerHTML = history.map((item, i) => `
+                <div class="history-item" onclick="viewHistory(${i})">
+                    <div class="history-item-title">${item.type === 'story' ? '📖' : item.type === 'article' ? '📝' : item.type === 'script' ? '🎬' : item.type === 'poem' ? '🌸' : item.type === 'copy' ? '📢' : '✨'} ${item.input.slice(0, 20)}...</div>
+                    <div class="history-item-preview">${item.result.slice(0, 50)}...</div>
+                </div>
+            `).join('');
+        }
+
+        function viewHistory(index) {
+            const item = history[index];
+            currentType = item.type;
+            switchType(item.type);
+            document.getElementById('contentInput').value = item.input;
+            currentResult = item.result;
+            document.getElementById('resultText').textContent = item.result;
+            document.getElementById('wordCount').textContent = `${item.result.length}字`;
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        async function generateContent() {
+            const input = document.getElementById('contentInput').value.trim();
+            if (!input) {
+                showToast('请输入内容');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('resultSection');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            const style = document.getElementById('styleSelect').value;
+            const length = document.getElementById('lengthSelect').value;
+
+            const styleMap = {
+                normal: '正常风格',
+                humorous: '幽默风趣',
+                literary: '文艺优美',
+                professional: '专业严谨',
+                simple: '简洁明了'
+            };
+
+            const lengthMap = {
+                short: '约300字',
+                medium: '约800字',
+                long: '约1500字'
+            };
+
+            const typePromptMap = {
+                story: `请根据以下主题创作一个故事：\n\n${input}\n\n要求：${styleMap[style]}，${lengthMap[length]}`,
+                article: `请根据以下主题写一篇文章：\n\n${input}\n\n要求：${styleMap[style]}，${lengthMap[length]}`,
+                script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：${styleMap[style]}，${lengthMap[length]}，包含角色对话和场景描述`,
+                poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：${styleMap[style]}，可以是现代诗或古诗词`,
+                copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：${styleMap[style]}，吸引人，有创意`,
+                continue: `请续写以下内容：\n\n${input}\n\n要求：${styleMap[style]}，${lengthMap[length]}，保持风格一致`
+            };
+
+            try {
+                const response = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'text',
+                        model: 'gemini-2.5-flash',
+                        prompt: typePromptMap[currentType]
+                    })
+                });
+
+                const data = await response.json();
+                currentResult = data.content || data.response || data.text || '';
+
+                if (currentResult) {
+                    document.getElementById('resultText').textContent = currentResult;
+                    document.getElementById('wordCount').textContent = `${currentResult.length}字`;
+                    result.style.display = 'block';
+
+                    history.unshift({ type: currentType, input, result: currentResult, time: Date.now() });
+                    saveHistory();
+                    renderHistory();
+
+                    showToast('创作完成！');
+                } else {
+                    showToast('创作失败，请重试');
+                }
+            } catch (error) {
+                showToast('创作失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function regenerate() {
+            generateContent();
+        }
+
+        function copyResult() {
+            if (!currentResult) return;
+            navigator.clipboard.writeText(currentResult);
+            showToast('已复制到剪贴板');
+        }
+
+        function shareResult() {
+            if (!currentResult) return;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'AI写作',
+                    text: currentResult
+                });
+            } else {
+                copyResult();
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        loadHistory();
+    </script>
+</body>
+
+</html>

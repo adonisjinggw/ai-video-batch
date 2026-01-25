@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>✍️ AI写作 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .type-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .type-tab {
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 20px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .type-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 120px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-text {
+            font-size: 15px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            color: var(--text);
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-dark);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        /* 🎬 转视频/漫画弹窗样式 */
+        .convert-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .convert-modal {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 360px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .convert-modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--accent);
+        }
+
+        .convert-option-group {
+            margin-bottom: 16px;
+        }
+
+        .convert-option-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .convert-option-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .convert-option-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border-radius: 10px;
+            border: 2px solid #333;
+            background: var(--bg-dark);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .convert-option-btn.active {
+            border-color: var(--accent);
+            background: rgba(250,204,21,0.15);
+            color: var(--accent);
+        }
+
+        .convert-option-btn:hover {
+            border-color: #555;
+        }
+
+        .convert-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .convert-modal-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .convert-modal-btn.cancel {
+            background: #333;
+            color: #999;
+        }
+
+        .convert-modal-btn.confirm {
+            background: linear-gradient(135deg, #facc15, #eab308);
+            color: #000;
+        }
+
+        .convert-modal-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .history-section {
+            margin-top: 32px;
+            border-top: 1px solid #222;
+            padding-top: 20px;
+        }
+
+        .history-item {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+        }
+
+        .history-item-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--accent);
+        }
+
+        .history-item-preview {
+            font-size: 13px;
+            color: var(--text-dim);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 🆕 批量模式样式 */
+        .batch-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .batch-toggle-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .batch-toggle-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .batch-item {
+            position: relative;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+        }
+        .batch-item textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 100px;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 13px;
+            padding: 10px;
+            resize: none;
+            line-height: 1.5;
+        }
+        .batch-item textarea:focus {
+            outline: none;
+        }
+        .batch-item-params {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            padding: 4px 5px;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid #222;
+        }
+        .batch-item-params select {
+            flex: 1;
+            min-width: 45%;
+            padding: 3px 2px;
+            font-size: 9px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .batch-item.generating {
+            border-color: var(--accent);
+        }
+        .batch-item.generating::before {
+            content: '✍️';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 16px;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .batch-item.done {
+            border-color: #22c55e;
+        }
+        .batch-item.error {
+            border-color: #ef4444;
+        }
+        .batch-result-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+        .batch-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .batch-result-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: var(--accent);
+        }
+        .batch-result-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .batch-action-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .batch-action-btn:hover {
+            border-color: var(--accent);
+        }
+        .batch-action-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+        .batch-result-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .batch-result-item {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #333;
+        }
+        .batch-result-item.selected {
+            border-color: #22c55e;
+        }
+        .batch-result-item.error {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .batch-result-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .batch-result-item-index {
+            background: var(--accent);
+            color: #000;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .batch-result-item-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .batch-result-item-actions button {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            cursor: pointer;
+        }
+        .batch-result-item-text {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre-wrap;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>✍️ AI写作</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <div class="type-tabs">
+            <button class="type-tab active" data-type="story" onclick="switchType('story')">📖 故事</button>
+            <button class="type-tab" data-type="article" onclick="switchType('article')">📝 文章</button>
+            <button class="type-tab" data-type="script" onclick="switchType('script')">🎬 剧本</button>
+            <button class="type-tab" data-type="poem" onclick="switchType('poem')">🌸 诗词</button>
+            <button class="type-tab" data-type="copy" onclick="switchType('copy')">📢 文案</button>
+            <button class="type-tab" data-type="continue" onclick="switchType('continue')">✨ 续写</button>
+        </div>
+
+        <!-- 🆕 单篇/批量模式切换 -->
+        <div class="batch-toggle">
+            <button class="batch-toggle-btn active" onclick="setBatchMode(false)" id="singleModeBtn">📝 单篇模式</button>
+            <button class="batch-toggle-btn" onclick="setBatchMode(true)" id="batchModeBtn">📚 批量模式 (8格)</button>
+        </div>
+
+        <!-- 单篇模式输入区 -->
+        <div class="input-section" id="singleInputSection">
+            <label class="input-label" id="inputLabel">✨ 输入故事主题或大纲</label>
+            <textarea class="input-box" id="contentInput" placeholder="例如：一个程序员穿越到古代，用现代知识改变历史..."></textarea>
+        </div>
+
+        <!-- 🆕 批量模式输入区 (9宫格，每个可独立配置) -->
+        <div class="input-section" id="batchInputSection" style="display:none;">
+            <label class="input-label">✨ 批量输入主题 (每个可单独配置风格/长度)</label>
+            <div class="batch-grid" id="batchGrid"></div>
+        </div>
+
+        <div class="settings-row">
+            <div class="setting-item">
+                <label>写作风格</label>
+                <select id="styleSelect">
+                    <option value="normal">📝 正常</option>
+                    <option value="humorous">😂 幽默</option>
+                    <option value="literary">📚 文艺</option>
+                    <option value="professional">💼 专业</option>
+                    <option value="simple">🎯 简洁</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>内容长度</label>
+                <select id="lengthSelect">
+                    <option value="short">短篇 (~300字)</option>
+                    <option value="medium" selected>中篇 (~800字)</option>
+                    <option value="long">长篇 (~1500字)</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>写作模型</label>
+                <select id="writerModelSelect">
+                    <option value="mimo" selected>⚡ MIMO（默认）</option>
+                    <option value="yunwu:qwen-plus">☁️ 云雾 qwen-plus</option>
+                    <option value="roll">🆓 魔塔 roll（需配置）</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="generate-btn" id="generateBtn" onclick="handleGenerate()">
+            ⚡ 开始创作
+        </button>
+
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <div>AI正在创作中...</div>
+        </div>
+
+        <!-- 单篇结果区域 -->
+        <div class="result-section" id="resultSection" style="display:none;">
+            <div class="result-title">
+                <span>📄 创作结果</span>
+                <span id="wordCount" style="font-size:12px;"></span>
+            </div>
+            <div class="result-text" id="resultText"></div>
+            <div class="result-actions">
+                <button class="result-btn" onclick="copyResult()">📋 复制</button>
+                <button class="result-btn" onclick="shareResult()">📤 分享</button>
+                <button class="result-btn primary" onclick="regenerate()">🔄 重新生成</button>
+            </div>
+            <!-- 🎬 转视频/漫画/生图按钮 -->
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #333;">
+                <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px;">📤 导出到</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="result-btn" onclick="pushToImageGen()" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); border-color: rgba(34,197,94,0.5);">
+                        🖼️ 生成AI图片
+                    </button>
+                    <button class="result-btn" onclick="showConvertModal('video')" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.5);">
+                        🎬 生成AI视频
+                    </button>
+                    <button class="result-btn" onclick="showConvertModal('comic')" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5);">
+                        📚 生成AI漫画
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🆕 批量结果区域 -->
+        <div class="batch-result-section" id="batchResultSection" style="display:none;">
+            <div class="batch-result-header">
+                <h3>📚 批量创作结果</h3>
+                <div class="batch-result-actions">
+                    <button class="batch-action-btn" onclick="copyAllBatchResults()">📋 复制</button>
+                    <button class="batch-action-btn" onclick="selectAllBatch()">✅ 全选</button>
+                </div>
+            </div>
+            <div class="batch-result-list" id="batchResultList"></div>
+            <!-- 📤 批量推送按钮 -->
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #333;">
+                <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">📤 批量推送选中内容到</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                    <button class="batch-action-btn" onclick="pushBatchToImageGen()" style="background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); border-color: rgba(34,197,94,0.5); padding: 12px;">
+                        🖼️ 批量生图
+                    </button>
+                    <button class="batch-action-btn" onclick="pushBatchToVideo()" style="background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.5); padding: 12px;">
+                        🎬 批量视频
+                    </button>
+                    <button class="batch-action-btn" onclick="pushBatchToComic()" style="background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5); padding: 12px;">
+                        📚 批量漫画
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="history-section" id="historySection">
+            <div class="result-title">📚 历史记录</div>
+            <div id="historyList"></div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 🎬 转视频/漫画弹窗 -->
+    <div class="convert-modal-overlay" id="convertModal" style="display:none;" onclick="hideConvertModal(event)">
+        <div class="convert-modal" onclick="event.stopPropagation()">
+            <div class="convert-modal-title" id="convertModalTitle">🎬 生成AI视频</div>
+            
+            <!-- 目标产品选择 -->
+            <div class="convert-option-group">
+                <span class="convert-option-label">选择目标产品</span>
+                <div class="convert-option-row">
+                    <button class="convert-option-btn active" data-target="video" onclick="selectConvertTarget('video')">
+                        🎬 AI视频
+                    </button>
+                    <button class="convert-option-btn" data-target="comic" onclick="selectConvertTarget('comic')">
+                        📚 AI漫画
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 操作模式选择 -->
+            <div class="convert-option-group">
+                <span class="convert-option-label">选择操作模式</span>
+                <div class="convert-option-row">
+                    <button class="convert-option-btn active" data-mode="full-auto" onclick="selectConvertMode('full-auto')">
+                        🚀 全自动
+                    </button>
+                    <button class="convert-option-btn" data-mode="semi-auto" onclick="selectConvertMode('semi-auto')">
+                        ⚡ 半自动
+                    </button>
+                    <button class="convert-option-btn" data-mode="manual" onclick="selectConvertMode('manual')">
+                        🎛️ 手动
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 模式说明 -->
+            <div id="convertModeDesc" style="font-size: 11px; color: var(--text-dim); padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 8px; line-height: 1.5;">
+                🚀 <b>全自动</b>：一键启动，AI自动完成全部流程
+            </div>
+            
+            <!-- 操作按钮 -->
+            <div class="convert-modal-actions">
+                <button class="convert-modal-btn cancel" onclick="hideConvertModal()">取消</button>
+                <button class="convert-modal-btn confirm" onclick="confirmConvert()">确认生成</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 计费配置（使用 NVAuth 模块）
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        const WRITING_COST = 1;
+
+        // 返回函数 - 直接返回工作区（带参数跳过欢迎页）
+        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                // 从mobile.html跳转来的，直接返回mobile.html
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                // 默认返回index.html（带参数跳过欢迎页）
+                location.href = 'index.html?skip_welcome=1';
+            }
+        }
+
+        let currentType = 'story';
+        let currentResult = '';
+        let history = [];
+        
+        // 🆕 批量模式状态
+        let batchMode = false;
+        let batchResults = [];  // { index, input, result, error, selected }
+
+        const typeConfig = {
+            story: { label: '✨ 输入故事主题或大纲', placeholder: '例如：一个程序员穿越到古代，用现代知识改变历史...' },
+            article: { label: '✨ 输入文章主题', placeholder: '例如：人工智能如何改变我们的生活...' },
+            script: { label: '✨ 输入剧本场景或大纲', placeholder: '例如：一对情侣在咖啡厅重逢，气氛微妙...' },
+            poem: { label: '✨ 输入诗词主题或意境', placeholder: '例如：春天的江南，烟雨朦胧...' },
+            copy: { label: '✨ 输入产品或活动信息', placeholder: '例如：新品咖啡上市，主打健康低糖...' },
+            continue: { label: '✨ 粘贴需要续写的内容', placeholder: '粘贴你的文章开头，AI将帮你续写...' }
+        };
+
+        function switchType(type) {
+            currentType = type;
+            document.querySelectorAll('.type-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.type === type);
+            });
+            const config = typeConfig[type];
+            document.getElementById('inputLabel').textContent = config.label;
+            document.getElementById('contentInput').placeholder = config.placeholder;
+            // 🆕 更新批量模式的占位符
+            for (let i = 0; i < 8; i++) {
+                const input = document.getElementById(`batchInput${i}`);
+                if (input) {
+                    input.placeholder = `${['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'][i]} ${config.placeholder.substring(0, 20)}...`;
+                }
+            }
+        }
+
+        // 🆕 初始化批量输入框（带独立参数：类型、风格、长度、模型）
+        function initBatchGrid() {
+            const grid = document.getElementById('batchGrid');
+            const emojis = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
+            grid.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                grid.innerHTML += `
+                    <div class="batch-item" id="batchItem${i}">
+                        <textarea id="batchInput${i}" placeholder="${emojis[i]} 主题..."></textarea>
+                        <div class="batch-item-params">
+                            <select id="batchType${i}">
+                                <option value="">--类型--</option>
+                                <option value="story">📖故事</option>
+                                <option value="article">📝文章</option>
+                                <option value="script">🎬剧本</option>
+                                <option value="poem">🌸诗词</option>
+                                <option value="copy">📢文案</option>
+                                <option value="continue">✨续写</option>
+                            </select>
+                            <select id="batchStyle${i}">
+                                <option value="">--风格--</option>
+                                <option value="normal">📝正常</option>
+                                <option value="humorous">😂幽默</option>
+                                <option value="literary">📚文艺</option>
+                                <option value="professional">💼专业</option>
+                                <option value="simple">🎯简洁</option>
+                            </select>
+                            <select id="batchLength${i}">
+                                <option value="">--长度--</option>
+                                <option value="short">短~300</option>
+                                <option value="medium">中~800</option>
+                                <option value="long">长~1500</option>
+                            </select>
+                            <select id="batchModel${i}">
+                                <option value="">--模型--</option>
+                                <option value="mimo">⚡MIMO</option>
+                                <option value="yunwu:qwen-plus">☁️云雾</option>
+                                <option value="roll">🆓魔塔</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // 🆕 切换单篇/批量模式
+        function setBatchMode(isBatch) {
+            batchMode = isBatch;
+            const singleInput = document.getElementById('singleInputSection');
+            const batchInput = document.getElementById('batchInputSection');
+            const singleBtn = document.getElementById('singleModeBtn');
+            const batchBtn = document.getElementById('batchModeBtn');
+            const resultSection = document.getElementById('resultSection');
+            const batchResultSection = document.getElementById('batchResultSection');
+            
+            if (isBatch) {
+                singleInput.style.display = 'none';
+                batchInput.style.display = 'block';
+                singleBtn.classList.remove('active');
+                batchBtn.classList.add('active');
+                resultSection.style.display = 'none';
+                document.getElementById('generateBtn').textContent = '⚡ 批量创作';
+                initBatchGrid();  // 初始化批量输入框
+            } else {
+                singleInput.style.display = 'block';
+                batchInput.style.display = 'none';
+                singleBtn.classList.add('active');
+                batchBtn.classList.remove('active');
+                batchResultSection.style.display = 'none';
+                document.getElementById('generateBtn').textContent = '⚡ 开始创作';
+            }
+        }
+
+        // 🆕 生成入口（根据模式分发）
+        function handleGenerate() {
+            if (batchMode) {
+                generateBatchContent();
+            } else {
+                generateContent();
+            }
+        }
+
+        function loadHistory() {
+            try {
+                history = JSON.parse(localStorage.getItem('writing_history') || '[]');
+                renderHistory();
+            } catch (e) { }
+        }
+
+        function saveHistory() {
+            localStorage.setItem('writing_history', JSON.stringify(history.slice(0, 20)));
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (history.length === 0) {
+                list.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;">暂无历史记录</div>';
+                return;
+            }
+            list.innerHTML = history.map((item, i) => `
+                <div class="history-item" onclick="viewHistory(${i})">
+                    <div class="history-item-title">${item.type === 'story' ? '📖' : item.type === 'article' ? '📝' : item.type === 'script' ? '🎬' : item.type === 'poem' ? '🌸' : item.type === 'copy' ? '📢' : '✨'} ${item.input.slice(0, 20)}...</div>
+                    <div class="history-item-preview">${item.result.slice(0, 50)}...</div>
+                </div>
+            `).join('');
+        }
+
+        function viewHistory(index) {
+            const item = history[index];
+            currentType = item.type;
+            switchType(item.type);
+            document.getElementById('contentInput').value = item.input;
+            currentResult = item.result;
+            document.getElementById('resultText').textContent = item.result;
+            document.getElementById('wordCount').textContent = `${item.result.length}字`;
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        async function generateContent() {
+            // ✅ 检查登录状态
+            if (!currentUser) {
+                showToast('请先登录后再使用此功能');
+                return;
+            }
+
+            const input = document.getElementById('contentInput').value.trim();
+            if (!input) {
+                showToast('请输入内容');
+                return;
+            }
+
+            // ✅ 检查余额是否足够（不预扣费，后端成功后扣费）
+            if (userQuota < WRITING_COST) {
+                showToast('余额不足，请先充值');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('resultSection');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            const style = document.getElementById('styleSelect').value;
+            const length = document.getElementById('lengthSelect').value;
+
+            const styleMap = {
+                normal: '正常风格',
+                humorous: '幽默风趣',
+                literary: '文艺优美',
+                professional: '专业严谨',
+                simple: '简洁明了'
+            };
+
+            const lengthMap = {
+                short: '约300字',
+                medium: '约800字',
+                long: '约1500字'
+            };
+
+            // 🔧 优化后的提示词：要求简洁、无冗余、符合人类阅读习惯
+            const typePromptMap = {
+                story: `请根据以下主题创作一个故事：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出故事正文，不要任何标题、选项、方案说明\n3. 语言简洁流畅，避免冗余修饰\n4. 不要分多个版本或选项`,
+                article: `请根据以下主题写一篇文章：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出文章正文，不要分析说明或多个版本\n3. 结构清晰，段落分明，易于阅读`,
+                script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出剧本，包含角色对话和简洁的场景描述\n3. 不要写创意分析或多个版本`,
+                poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，可以是现代诗或古诗词\n2. 直接输出诗词正文\n3. 不要写解析或多个版本`,
+                copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，吸引人，有创意\n2. 直接输出一个精炼的文案，不要多个版本或选项\n3. 简洁有力，避免冗长`,
+                continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明`
+            };
+
+            try {
+                const selectedModel = document.getElementById('writerModelSelect').value;
+                const response = await fetch('/api/writer-llm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        prompt: typePromptMap[currentType],
+                        userId: currentUser.id
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.message || data?.error || '服务调用失败');
+                }
+                currentResult = data.content || data.response || data.text || '';
+
+                if (currentResult) {
+                    document.getElementById('resultText').textContent = currentResult;
+                    document.getElementById('wordCount').textContent = `${currentResult.length}字`;
+                    result.style.display = 'block';
+
+                    history.unshift({ type: currentType, input, result: currentResult, time: Date.now() });
+                    saveHistory();
+                    renderHistory();
+
+                    showToast('创作完成！');
+                } else {
+                    // ✅ 后端成功才扣费，失败不扣费，无需退款
+                    showToast('创作失败，请重试');
+                }
+            } catch (error) {
+                // ✅ 后端成功才扣费，失败不扣费，无需退款
+                showToast('创作失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function regenerate() {
+            handleGenerate();
+        }
+
+        // 🆕 批量生成内容
+        async function generateBatchContent() {
+            if (!currentUser) {
+                showToast('请先登录后再使用此功能');
+                return;
+            }
+
+            // 收集非空输入（包括独立参数：类型、风格、长度、模型）
+            const inputs = [];
+            const globalType = currentType;
+            const globalStyle = document.getElementById('styleSelect').value;
+            const globalLength = document.getElementById('lengthSelect').value;
+            const globalModel = document.getElementById('writerModelSelect').value;
+            
+            for (let i = 0; i < 8; i++) {
+                const val = document.getElementById(`batchInput${i}`)?.value.trim();
+                if (val) {
+                    // 获取独立参数，如未设置则使用全局参数
+                    const itemType = document.getElementById(`batchType${i}`)?.value || globalType;
+                    const itemStyle = document.getElementById(`batchStyle${i}`)?.value || globalStyle;
+                    const itemLength = document.getElementById(`batchLength${i}`)?.value || globalLength;
+                    const itemModel = document.getElementById(`batchModel${i}`)?.value || globalModel;
+                    inputs.push({ index: i, input: val, type: itemType, style: itemStyle, length: itemLength, model: itemModel });
+                }
+            }
+            
+            if (inputs.length === 0) {
+                showToast('请至少输入一个主题');
+                return;
+            }
+
+            const totalCost = inputs.length * WRITING_COST;
+            if (userQuota < totalCost) {
+                showToast(`胶片不足，需要${totalCost}胶片`);
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            
+            btn.disabled = true;
+            loading.style.display = 'block';
+            document.getElementById('resultSection').style.display = 'none';
+            
+            // 重置状态
+            batchResults = [];
+            let completed = 0;
+            
+            // 更新加载提示
+            const updateLoading = () => {
+                document.querySelector('#loading div:last-child').textContent = `AI正在批量创作 ${completed}/${inputs.length}...`;
+            };
+            updateLoading();
+
+            // 重置格子状态
+            for (let i = 0; i < 8; i++) {
+                const item = document.getElementById(`batchItem${i}`);
+                if (item) item.classList.remove('generating', 'done', 'error');
+            }
+            
+            // 标记正在生成的格子
+            inputs.forEach(item => {
+                document.getElementById(`batchItem${item.index}`).classList.add('generating');
+            });
+
+            const styleMap = {
+                normal: '正常风格',
+                humorous: '幽默风趣',
+                literary: '文艺优美',
+                professional: '专业严谨',
+                simple: '简洁明了'
+            };
+
+            const lengthMap = {
+                short: '约300字',
+                medium: '约800字',
+                long: '约1500字'
+            };
+
+            // 🔧 优化后的提示词生成函数（支持独立参数：类型、风格、长度）
+            const buildPrompt = (input, type, style, length) => {
+                const basePrompts = {
+                    story: `请根据以下主题创作一个故事：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出故事正文，不要任何标题、选项、方案说明\n3. 语言简洁流畅，避免冗余修饰\n4. 不要分多个版本或选项`,
+                    article: `请根据以下主题写一篇文章：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出文章正文，不要分析说明或多个版本\n3. 结构清晰，段落分明，易于阅读`,
+                    script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出剧本，包含角色对话和简洁的场景描述\n3. 不要写创意分析或多个版本`,
+                    poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，可以是现代诗或古诗词\n2. 直接输出诗词正文\n3. 不要写解析或多个版本`,
+                    copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，吸引人，有创意\n2. 直接输出一个精炼的文案，不要多个版本或选项\n3. 简洁有力，避免冗长`,
+                    continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明`
+                };
+                return basePrompts[type] || basePrompts.story;
+            };
+
+            // 🚀 并发生成（每个格子可用独立模型）
+            const promises = inputs.map(async (item) => {
+                const gridItem = document.getElementById(`batchItem${item.index}`);
+                
+                try {
+                    const response = await fetch('/api/writer-llm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: item.model,
+                            prompt: buildPrompt(item.input, item.type, item.style, item.length),
+                            userId: currentUser.id
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data?.message || data?.error || '服务调用失败');
+                    }
+                    
+                    const result = data.content || data.response || data.text || '';
+                    
+                    gridItem.classList.remove('generating');
+                    gridItem.classList.add('done');
+                    
+                    batchResults.push({
+                        index: item.index,
+                        input: item.input,
+                        result: result,
+                        error: null,
+                        selected: true
+                    });
+                } catch (error) {
+                    gridItem.classList.remove('generating');
+                    gridItem.classList.add('error');
+                    
+                    batchResults.push({
+                        index: item.index,
+                        input: item.input,
+                        result: '',
+                        error: error.message,
+                        selected: false
+                    });
+                }
+                
+                completed++;
+                updateLoading();
+            });
+
+            await Promise.all(promises);
+            
+            // 按index排序
+            batchResults.sort((a, b) => a.index - b.index);
+            
+            // 显示结果
+            renderBatchResults();
+            
+            btn.disabled = false;
+            loading.style.display = 'none';
+            
+            const successCount = batchResults.filter(r => !r.error).length;
+            showToast(`批量创作完成！成功 ${successCount}/${inputs.length}`);
+            
+            // 保存到历史
+            batchResults.filter(r => !r.error).forEach(r => {
+                history.unshift({ type: currentType, input: r.input, result: r.result, time: Date.now() });
+            });
+            saveHistory();
+            renderHistory();
+        }
+
+        // 🆕 渲染批量结果
+        function renderBatchResults() {
+            const container = document.getElementById('batchResultList');
+            container.innerHTML = batchResults.map((item, idx) => `
+                <div class="batch-result-item ${item.error ? 'error' : ''} ${item.selected ? 'selected' : ''}" data-index="${item.index}">
+                    <div class="batch-result-item-header">
+                        <span class="batch-result-item-index">#${item.index + 1} ${item.input.substring(0, 15)}...</span>
+                        <div class="batch-result-item-actions">
+                            ${!item.error ? `
+                                <button onclick="toggleBatchSelect(${idx})">${item.selected ? '✅' : '⬜'}</button>
+                                <button onclick="copyBatchItem(${idx})">📋</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="batch-result-item-text">${item.error ? '❌ ' + item.error : item.result}</div>
+                </div>
+            `).join('');
+            
+            document.getElementById('batchResultSection').style.display = 'block';
+        }
+
+        // 🆕 切换选中状态
+        function toggleBatchSelect(idx) {
+            batchResults[idx].selected = !batchResults[idx].selected;
+            renderBatchResults();
+        }
+
+        // 🆕 全选
+        function selectAllBatch() {
+            const allSelected = batchResults.filter(r => !r.error).every(r => r.selected);
+            batchResults.forEach(r => {
+                if (!r.error) r.selected = !allSelected;
+            });
+            renderBatchResults();
+        }
+
+        // 🆕 复制单个结果
+        function copyBatchItem(idx) {
+            if (batchResults[idx] && batchResults[idx].result) {
+                navigator.clipboard.writeText(batchResults[idx].result);
+                showToast('已复制');
+            }
+        }
+
+        // 🆕 复制全部结果
+        function copyAllBatchResults() {
+            const text = batchResults
+                .filter(r => !r.error && r.selected)
+                .map((r, i) => `【${i + 1}】${r.input}\n${r.result}`)
+                .join('\n\n---\n\n');
+            if (text) {
+                navigator.clipboard.writeText(text);
+                showToast('已复制选中的结果');
+            } else {
+                showToast('没有选中的内容');
+            }
+        }
+
+        // 🆕 批量推送通用函数
+        function getSelectedBatchResults() {
+            const selected = batchResults.filter(r => !r.error && r.selected);
+            if (selected.length === 0) {
+                showToast('请先选择要推送的内容');
+                return null;
+            }
+            return selected;
+        }
+        
+        // 🖼️ 批量推送到生图
+        function pushBatchToImageGen() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                prompts: selected.map(r => r.result),  // 完整内容
+                scenes: selected.map(r => r.result),   // 完整内容
+                target: 'batch-image',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_image', JSON.stringify(transferData));
+            localStorage.setItem('knolling_batch_prompts', JSON.stringify(selected.map(r => r.result)));  // 完整内容
+            
+            showToast('正在跳转到批量生图...');
+            setTimeout(() => {
+                location.href = `banana.html?batch=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+        
+        // 🎬 批量推送到视频
+        function pushBatchToVideo() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                scripts: selected.map(r => ({ content: r.result, input: r.input })),
+                mode: 'batch-video',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_video', JSON.stringify(transferData));
+            // 同时存储为 video_batch_prompts 格式供 video-tools.html 使用
+            localStorage.setItem('video_batch_prompts', JSON.stringify(selected.map(r => r.result)));
+            
+            showToast('正在跳转到批量视频...');
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            setTimeout(() => {
+                location.href = fromMobile 
+                    ? `video-tools.html?force=mobile&batch=1&from_writing=1&skip_welcome=1`
+                    : `video-tools.html?batch=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+        
+        // 📚 批量推送到漫画
+        function pushBatchToComic() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                scripts: selected.map(r => ({ content: r.result, input: r.input })),
+                mode: 'batch-comic',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_comic', JSON.stringify(transferData));
+            
+            showToast('正在跳转到批量漫画...');
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            setTimeout(() => {
+                // 批量漫画跳转到 mobile.html
+                location.href = `mobile.html?batch_comic=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+        
+        // 🌟 批量推送到表情包
+        function pushBatchToSticker() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                prompts: selected.map(r => r.result),  // 完整内容
+                mode: 'batch-sticker',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_sticker', JSON.stringify(transferData));
+            localStorage.setItem('sticker_batch_prompts', JSON.stringify(selected.map(r => r.result)));  // 完整内容
+            
+            showToast('正在跳转到批量表情包...');
+            setTimeout(() => {
+                location.href = `sticker.html?batch=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+
+        function copyResult() {
+            if (!currentResult) return;
+            navigator.clipboard.writeText(currentResult);
+            showToast('已复制到剪贴板');
+        }
+
+        function shareResult() {
+            if (!currentResult) return;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'AI写作',
+                    text: currentResult
+                });
+            } else {
+                copyResult();
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ============ 🎬 转视频/漫画功能 ============
+        let convertTarget = 'video';  // 'video' | 'comic'
+        let convertMode = 'full-auto'; // 'full-auto' | 'semi-auto' | 'manual'
+
+        const modeDescriptions = {
+            'full-auto': '🚀 <b>全自动</b>：一键启动，AI自动完成全部流程（剧本→角色→分镜→提示词→生成）',
+            'semi-auto': '⚡ <b>半自动</b>：关键步骤暂停等待确认，可审核修改后再继续',
+            'manual': '🎛️ <b>手动</b>：每个步骤都需手动触发，完全掌控每个环节'
+        };
+
+        function showConvertModal(target = 'video') {
+            if (!currentResult) {
+                showToast('请先生成写作内容');
+                return;
+            }
+            convertTarget = target;
+            selectConvertTarget(target);
+            document.getElementById('convertModal').style.display = 'flex';
+        }
+
+        function hideConvertModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('convertModal').style.display = 'none';
+        }
+
+        function selectConvertTarget(target) {
+            convertTarget = target;
+            // 更新按钮状态
+            document.querySelectorAll('.convert-option-btn[data-target]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.target === target);
+            });
+            // 更新标题
+            const titleEl = document.getElementById('convertModalTitle');
+            titleEl.textContent = target === 'video' ? '🎬 生成AI视频' : '📚 生成AI漫画';
+        }
+
+        function selectConvertMode(mode) {
+            convertMode = mode;
+            // 更新按钮状态
+            document.querySelectorAll('.convert-option-btn[data-mode]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            // 更新模式说明
+            const descEl = document.getElementById('convertModeDesc');
+            descEl.innerHTML = modeDescriptions[mode];
+        }
+
+        // 🖼️ 推送到生图功能
+        function pushToImageGen() {
+            if (!currentResult) {
+                showToast('请先生成写作内容');
+                return;
+            }
+            
+            // 从文本中提取场景描述（按段落分割）
+            const paragraphs = currentResult.split(/\n+/).filter(p => p.trim().length > 10);
+            
+            // 保存数据到 localStorage
+            const transferData = {
+                content: currentResult,
+                scenes: paragraphs.slice(0, 8),  // 最多8个场景
+                target: 'image',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_to_image', JSON.stringify(transferData));
+            
+            // 检查是否从手机版来的
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            showToast('正在跳转到AI生图页面...');
+            setTimeout(() => {
+                if (fromMobile) {
+                    location.href = `banana.html?from_writing=1&skip_welcome=1`;
+                } else {
+                    location.href = `banana.html?from_writing=1&skip_welcome=1`;
+                }
+            }, 500);
+        }
+
+        function confirmConvert() {
+            if (!currentResult) {
+                showToast('请先生成写作内容');
+                return;
+            }
+
+            // 将写作内容和设置保存到 localStorage，供目标页面读取
+            const transferData = {
+                content: currentResult,
+                target: convertTarget,  // 'video' | 'comic'
+                mode: convertMode,      // 'full-auto' | 'semi-auto' | 'manual'
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_to_generation', JSON.stringify(transferData));
+
+            hideConvertModal();
+            
+            // 检查是否从手机版来的
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            showToast(`正在跳转到AI${convertTarget === 'video' ? '视频' : '漫画'}工作台...`);
+            setTimeout(() => {
+                if (fromMobile) {
+                    // 手机用户跳转到 mobile.html
+                    location.href = `mobile.html?from_writing=1&target=${convertTarget}&mode=${convertMode}&skip_welcome=1`;
+                } else {
+                    // 桌面用户跳转到 index.html
+                    location.href = `index.html?from_writing=1&target=${convertTarget}&mode=${convertMode}&skip_welcome=1`;
+                }
+            }, 500);
+        }
+
+        // 预扣费函数
+        async function preDeduct(cost, description) {
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
+            cost = Math.ceil(cost);
+            
+            // 等待认证初始化完成
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) { showToast('请先登录'); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+                
+                // 🔧 修复：先检查 HTTP 状态码
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('余额不足，请先充值');
+                    }
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
+                }
+                
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    return true;
+                }
+                throw new Error(data.message || data.error || '扣费失败');
+            } catch (e) { showToast('扣费失败: ' + e.message); return false; }
+        }
+
+        // ✅ 已移除退款函数 - 后端成功扣费后不再退款，避免成本损耗
+
+        // 初始化（使用 NVAuth 模块）
+        let authInitialized = false;
+        
+        async function initAuth() {
+            console.log('[writing] 开始初始化认证...');
+            
+            // 等待 NVAuth 模块加载
+            const authTimeout = 5000;
+            const startTime = Date.now();
+            while (typeof NVAuth === 'undefined' && (Date.now() - startTime) < authTimeout) {
+                await new Promise(r => setTimeout(r, 200));
+            }
+            
+            if (typeof NVAuth === 'undefined') {
+                console.error('[writing] NVAuth 模块加载超时');
+                return;
+            }
+            
+            console.log('[writing] NVAuth 模块已加载');
+            
+            // 等待认证状态就绪
+            try {
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+                console.log('[writing] 认证状态已就绪');
+            } catch (e) { 
+                console.warn('[writing] 等待认证状态超时');
+            }
+            
+            // 获取当前用户
+            try {
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[writing] 用户已登录:', currentUser.email);
+                    // 获取用户配置
+                    const profile = await NVAuth.getUserProfile(currentUser.id);
+                    userQuota = profile?.quota_balance || 0;
+                    console.log('[writing] 用户胶片:', userQuota);
+                } else {
+                    console.log('[writing] 用户未登录');
+                }
+            } catch (e) {
+                console.error('[writing] 获取用户信息失败:', e);
+            }
+            
+            authInitialized = true;
+            console.log('[writing] 认证初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadHistory();
+            await initAuth();
+        });
+    </script>
+</body>
+
+</html>

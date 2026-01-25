@@ -1,0 +1,3224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RollRoll 移动版 V8.7.1</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <!-- 💻 电脑端自动跳转 -->
+    <script>
+        (function () {
+            // 如果URL中有 force=mobile 参数，则不跳转（允许强制访问移动版）
+            if (location.search.includes('force=mobile')) return;
+            // 如果URL中有 force=pc 参数，则强制跳转到电脑版
+            if (location.search.includes('force=pc')) {
+                location.replace('index.html');
+                return;
+            }
+            // 检测是否是电脑设备
+            var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            var isSmallScreen = window.innerWidth <= 768;
+            // 电脑设备自动跳转到电脑版，避免电脑设备访问移动版
+            if (!isMobile && !isSmallScreen) {
+                location.replace('index.html');
+            }
+        })();
+    </script>
+    <!-- Supabase SDK -->
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #141419;
+            --bg-input: #1a1a22;
+            --accent: #fbbf24;
+            --accent-glow: rgba(251, 191, 36, 0.3);
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --radius: 16px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* 顶部导航 */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: linear-gradient(to bottom, var(--bg-dark) 60%, transparent);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .logo svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .user-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            text-decoration: none;
+        }
+
+        /* 主内容区 */
+        .main {
+            padding: 0 20px 100px;
+        }
+
+        /* 模式切换 */
+        .mode-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 16px;
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            border: 2px solid transparent;
+            color: var(--text-dim);
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .mode-tab.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .mode-tab svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        /* 输入区域 */
+        .input-section {
+            margin-bottom: 24px;
+        }
+
+        .input-label {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .input-box {
+            width: 100%;
+            min-height: 120px;
+            padding: 16px;
+            border-radius: var(--radius);
+            background: var(--bg-input);
+            border: 2px solid #2a2a35;
+            color: var(--text);
+            font-size: 16px;
+            line-height: 1.6;
+            resize: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .input-box::placeholder {
+            color: #555;
+        }
+
+        /* 快捷输入 */
+        .quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .quick-tag {
+            padding: 8px 14px;
+            border-radius: 20px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-tag:active {
+            background: var(--accent);
+            color: #000;
+        }
+
+        /* 选项区域 */
+        .options-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid #2a2a35;
+        }
+
+        .option-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .option-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .option-group {
+            flex: 1;
+        }
+
+        .option-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .option-group select,
+        .option-group input[type="number"],
+        .option-group input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: var(--bg-input);
+            border: 1px solid #2a2a35;
+            color: var(--text);
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .option-group select:focus,
+        .option-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .option-group select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+        }
+
+        .option-group input[type="number"]::-webkit-inner-spin-button,
+        .option-group input[type="number"]::-webkit-outer-spin-button {
+            opacity: 0.5;
+        }
+
+        /* 生成按钮 */
+        .generate-btn {
+            width: 100%;
+            padding: 18px;
+            border-radius: var(--radius);
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            color: #000;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .generate-btn:active {
+            transform: scale(0.98);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* 历史任务 */
+        .history-section {
+            margin-top: 32px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-card {
+            padding: 16px;
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            border: 1px solid #222;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .task-theme {
+            font-size: 15px;
+            font-weight: 600;
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .task-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+
+        .task-status.pending {
+            background: #333;
+            color: #888;
+        }
+
+        .task-status.processing {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .task-status.completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+
+        .task-status.failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .task-preview {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-top: 12px;
+        }
+
+        .task-preview img,
+        .task-preview video {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .task-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .task-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+            font-weight: 600;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        /* 底部导航 */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border-top: 1px solid #222;
+            display: flex;
+            padding: 8px 0;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 11px;
+            transition: color 0.2s;
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* 加载状态 */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* 提示切换到电脑版 */
+        .pc-hint {
+            text-align: center;
+            padding: 16px;
+            background: rgba(251, 191, 36, 0.1);
+            border-radius: var(--radius);
+            margin-top: 24px;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .pc-hint a {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Toast提示 */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: var(--bg-card);
+            border: 1px solid #333;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 1000;
+            transition: transform 0.3s;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* 胶片余额显示 */
+        .quota-display {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .quota-display .film-icon {
+            font-size: 16px;
+        }
+
+        /* ==================== 手势操作样式 ==================== */
+
+        /* 下拉刷新 */
+        .pull-refresh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-dark);
+            transform: translateY(-100%);
+            transition: transform 0.3s;
+            z-index: 99;
+        }
+
+        .pull-refresh.pulling {
+            transform: translateY(0);
+        }
+
+        .pull-refresh .refresh-icon {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+        }
+
+        .pull-refresh.refreshing .refresh-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        /* 左滑删除 */
+        .task-card {
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+
+        .task-card-inner {
+            position: relative;
+            z-index: 2;
+            background: var(--bg-card);
+            transition: transform 0.3s;
+        }
+
+        .task-card.swiping .task-card-inner {
+            transition: none;
+        }
+
+        .swipe-actions {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            z-index: 1;
+        }
+
+        .swipe-btn {
+            width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .swipe-btn.delete {
+            background: #ef4444;
+        }
+
+        .swipe-btn.share {
+            background: #3b82f6;
+        }
+
+        /* 长按菜单 */
+        .context-menu {
+            position: fixed;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 8px 0;
+            min-width: 160px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: none;
+            animation: menuFadeIn 0.15s ease;
+        }
+
+        @keyframes menuFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .context-menu.show {
+            display: block;
+        }
+
+        .context-menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .context-menu-item:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .context-menu-item.danger {
+            color: #ef4444;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: #333;
+            margin: 8px 0;
+        }
+
+        /* 图片预览（双指缩放） */
+        .image-viewer {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-viewer.show {
+            display: flex;
+        }
+
+        .image-viewer img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            touch-action: pinch-zoom;
+        }
+
+        .image-viewer-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .image-viewer-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+
+        /* 触摸反馈 */
+        .touch-feedback {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .touch-feedback::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at var(--touch-x, 50%) var(--touch-y, 50%), rgba(255, 255, 255, 0.3) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .touch-feedback:active::after {
+            opacity: 1;
+        }
+
+        /* 欢迎页样式（移动端适配） */
+        .welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            z-index: 9999;
+            background-image: url('../images/welcome-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .welcome-screen.show {
+            display: flex;
+        }
+
+        .welcome-screen::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg,
+                    oklch(0.15 0.05 250 / 0.95) 0%,
+                    oklch(0.20 0.08 260 / 0.9) 50%,
+                    oklch(0.25 0.12 270 / 0.95) 100%);
+            filter: brightness(0.7) blur(1px);
+        }
+
+        .welcome-screen.fade-out {
+            animation: welcomeFadeOut 0.5s ease-in-out forwards;
+        }
+
+        @keyframes welcomeFadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+
+        .welcome-bg-text {
+            position: fixed;
+            top: 45%;
+            right: 5%;
+            transform: translateY(-50%) rotate(-8deg);
+            z-index: 1;
+            opacity: 0.8;
+            width: fit-content;
+            pointer-events: none;
+        }
+
+        .welcome-bg-text img {
+            max-width: 200px;
+            height: auto;
+            transform: rotate(3deg) scale(1.2);
+            filter: drop-shadow(8px 10px 20px rgba(0, 0, 0, 0.8)) contrast(7.5) saturate(0) brightness(0.35) hue-rotate(-120deg) invert(0.35);
+            opacity: 0.6;
+            mix-blend-mode: screen;
+            border: none;
+            background: none;
+        }
+
+        .welcome-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 24px;
+            margin: 0 4%;
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .welcome-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(168, 85, 247, 0.15));
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            border-radius: 20px;
+            color: #fbbf24;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .welcome-promo {
+            margin: 0 auto 20px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(168, 85, 247, 0.12));
+            border: 1px solid rgba(251, 191, 36, 0.35);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            max-width: 100%;
+        }
+
+        .welcome-promo-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: #fbbf24;
+            margin-bottom: 8px;
+            line-height: 1.25;
+        }
+
+        .welcome-promo-desc {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.75);
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .welcome-promo-action {
+            display: inline-block;
+            padding: 6px 14px;
+            background: rgba(251, 191, 36, 0.15);
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            border-radius: 18px;
+            color: #fbbf24;
+            font-size: 12px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .welcome-promo-action:active {
+            background: rgba(251, 191, 36, 0.3);
+            transform: scale(0.95);
+        }
+
+        .welcome-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            line-height: 1.2;
+        }
+
+        .welcome-subtitle {
+            font-size: 16px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 16px;
+        }
+
+        .welcome-desc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .welcome-quote-box {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .quote-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 6px;
+            font-style: italic;
+        }
+
+        .quote-author {
+            font-size: 12px;
+            color: rgba(251, 191, 36, 0.8);
+        }
+
+        .btn-start-journey {
+            display: inline-block;
+            padding: 16px 36px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-radius: 30px;
+            color: #000;
+            font-size: 17px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 8px 30px rgba(251, 191, 36, 0.4);
+            transition: all 0.3s;
+        }
+
+        .btn-start-journey:active {
+            transform: scale(0.95);
+            box-shadow: 0 4px 20px rgba(251, 191, 36, 0.3);
+        }
+
+        /* 📱 移动端欢迎页适配 */
+        @media (max-width: 768px) {
+            .welcome-screen {
+                overflow-y: auto !important;
+                overflow-x: hidden;
+                align-items: flex-start;
+                padding-top: 60px;
+                padding-bottom: 40px;
+            }
+
+            .welcome-content {
+                max-width: 95vw;
+                padding: 20px;
+                margin-left: 0;
+                margin-bottom: 40px;
+            }
+
+            .welcome-title {
+                font-size: 24px !important;
+            }
+
+            .welcome-subtitle {
+                font-size: 14px !important;
+            }
+
+            .welcome-desc {
+                font-size: 13px !important;
+            }
+
+            .welcome-quote-box {
+                padding: 15px !important;
+                margin: 20px 0 !important;
+            }
+
+            .btn-start-journey {
+                padding: 16px 36px !important;
+                font-size: 16px !important;
+                margin-top: 20px;
+            }
+
+            .welcome-bg-text {
+                display: none;
+                /* 移动端隐藏背景大图 */
+            }
+
+            .welcome-user-bar {
+                top: 10px;
+                right: 10px;
+            }
+
+            .welcome-promo {
+                margin: 10px auto 14px;
+                padding: 12px 12px;
+                max-width: 92vw;
+            }
+
+            .welcome-promo-title {
+                font-size: 16px;
+            }
+
+            .welcome-promo-desc {
+                font-size: 14px;
+            }
+
+            .welcome-promo-action {
+                width: 100%;
+                max-width: 360px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 欢迎页 -->
+    <div id="welcomeScreen" class="welcome-screen">
+        <div class="welcome-bg-text">
+            <img src="images/yanbudouyanle.png" alt="演都不演了" />
+        </div>
+        <div class="welcome-content">
+            <div class="welcome-badge">🚀 AI 驱动创作平台</div>
+            <div class="welcome-promo">
+                <div class="welcome-promo-title">🎁 新用户注册就送 10 万胶片</div>
+                <div class="welcome-promo-desc">
+                    第八代全自动生成式AI内容创作平台爆肝登场，特别鸣谢未来股东们的大力支持。
+                </div>
+                <a class="welcome-promo-action" href="#welcomeEnterBtn">查看入口</a>
+            </div>
+            <h1 class="welcome-title">你就是导演</h1>
+            <h2 class="welcome-subtitle">重新定义视频创作的无限可能</h2>
+            <p class="welcome-desc">
+                从灵感闪现到成片出炉，让AI成为你的专业创作伙伴。<br>
+                智能剧本生成、精美图片创作、专业视频制作——<br>
+                每个人都能成为自己故事的导演。
+            </p>
+            <div class="welcome-quote-box">
+                <div class="quote-text">梦想可以放下，但是不要放弃</div>
+                <div class="quote-author">—— 荆广伟</div>
+            </div>
+            <a id="welcomeEnterBtn" href="auth.html?force=mobile&no_redirect=true" class="btn-start-journey">🔒 登录 / 注册开始创作</a>
+        </div>
+    </div>
+
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            RollRoll
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="quota-display" id="quotaDisplay">
+                <span class="film-icon">🎞️</span>
+                <span id="quotaValue">--</span>
+            </div>
+            <a href="auth.html?force=mobile&no_redirect=true" class="user-btn" id="userBtn">👤</a>
+        </div>
+    </header>
+
+    <div id="mobileDebugBar"
+        style="padding:6px 12px;font-size:11px;color:#fff;background:red;border-bottom:1px solid rgba(255,255,255,0.06);display:block;">
+        调试信息加载中...
+    </div>
+
+    <!-- 主内容 -->
+    <main class="main">
+        <!-- 🛠️ 工具入口 -->
+        <div class="tools-grid"
+            style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+            <a href="knolling.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">📝</span>
+                <span style="font-size:11px;color:var(--text-dim);">提示词</span>
+            </a>
+            <a href="banana.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🎨</span>
+                <span style="font-size:11px;color:var(--text-dim);">画图</span>
+            </a>
+            <a href="music.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🎵</span>
+                <span style="font-size:11px;color:var(--text-dim);">音乐</span>
+            </a>
+            <a href="video-tools.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🎬</span>
+                <span style="font-size:11px;color:var(--text-dim);">视频</span>
+            </a>
+            <a href="chat.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">💬</span>
+                <span style="font-size:11px;color:var(--text-dim);">对话</span>
+            </a>
+            <a href="writing.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">✍️</span>
+                <span style="font-size:11px;color:var(--text-dim);">写作</span>
+            </a>
+            <a href="sticker.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🏷️</span>
+                <span style="font-size:11px;color:var(--text-dim);">贴纸</span>
+            </a>
+            <a href="video-continuity.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🎞️</span>
+                <span style="font-size:11px;color:var(--text-dim);">分镜</span>
+            </a>
+            <a href="sketchpad.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">✏️</span>
+                <span style="font-size:11px;color:var(--text-dim);">涂鸦</span>
+            </a>
+            <a href="prompt-fill.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🧩</span>
+                <span style="font-size:11px;color:var(--text-dim);">填空</span>
+            </a>
+            <a href="library.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">📚</span>
+                <span style="font-size:11px;color:var(--text-dim);">素材库</span>
+            </a>
+        </div>
+
+        <!-- 模式切换 -->
+        <div class="mode-tabs">
+            <button class="mode-tab active" data-type="video" onclick="switchMode('video')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                AI视频
+            </button>
+            <button class="mode-tab" data-type="comic" onclick="switchMode('comic')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="9" y1="21" x2="9" y2="9" />
+                </svg>
+                AI漫画
+            </button>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-section">
+            <label class="input-label">✨ 输入你的创意主题</label>
+            <textarea class="input-box" id="themeInput" placeholder="例如：一只猫咪学习编程的故事..."></textarea>
+
+            <div class="quick-tags">
+                <span class="quick-tag" onclick="insertTag('科幻冒险')">🚀 科幻</span>
+                <span class="quick-tag" onclick="insertTag('甜蜜爱情')">💕 爱情</span>
+                <span class="quick-tag" onclick="insertTag('搞笑日常')">😂 搞笑</span>
+                <span class="quick-tag" onclick="insertTag('悬疑推理')">🔍 悬疑</span>
+                <span class="quick-tag" onclick="insertTag('治愈温馨')">🌸 治愈</span>
+            </div>
+
+            <div style="margin-top: 12px;">
+                <label class="input-label">🎯 快速模板</label>
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+                    <div class="quick-tag" onclick="useTemplate('portrait')" style="text-align:center;">👤 人物</div>
+                    <div class="quick-tag" onclick="useTemplate('landscape')" style="text-align:center;">🏞️ 风景</div>
+                    <div class="quick-tag" onclick="useTemplate('product')" style="text-align:center;">📦 产品</div>
+                    <div class="quick-tag" onclick="useTemplate('anime')" style="text-align:center;">🎌 动漫</div>
+                    <div class="quick-tag" onclick="useTemplate('food')" style="text-align:center;">🍔 美食</div>
+                    <div class="quick-tag" onclick="useTemplate('architecture')" style="text-align:center;">🏛️ 建筑</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px;">
+                <label class="input-label">🧩 填空模板</label>
+                <select id="fillTemplateSelect" onchange="useFillTemplate()"
+                    style="width:100%; background:var(--bg-input); border:1px solid #2a2a35; border-radius:10px; padding:12px; color:var(--text); font-size:14px;">
+                    <option value="">-- 选择填空模板 --</option>
+                    <optgroup label="🎯 热门填空">
+                        <option value="fill_1">✨ 梦幻光效人物</option>
+                        <option value="fill_2">🎨 动漫风格转换</option>
+                        <option value="fill_3">🌸 樱花树下场景</option>
+                        <option value="fill_4">🔥 史诗战斗场景</option>
+                        <option value="fill_5">🌙 月光夜景</option>
+                        <option value="fill_6">🎭 多重身份展示</option>
+                        <option value="fill_7">🏠 房间场景设计</option>
+                        <option value="fill_8">🎪 Q版可爱化</option>
+                        <option value="fill_9">🌈 彩虹渐变效果</option>
+                        <option value="fill_10">📸 复古胶片风</option>
+                        <option value="fill_11">🎮 像素游戏风格</option>
+                        <option value="fill_12">🌊 水下奇幻世界</option>
+                        <option value="fill_13">⚡ 赛博朋克风格</option>
+                        <option value="fill_14">🍃 森林精灵氛围</option>
+                        <option value="fill_15">🎨 油画艺术效果</option>
+                        <option value="fill_16">🦸 超级英雄变身</option>
+                        <option value="fill_17">🎪 马戏团表演场景</option>
+                        <option value="fill_18">🏰 中世纪幻想</option>
+                        <option value="fill_19">🌸 中国风工笔画</option>
+                        <option value="fill_20">🎭 表情包生成器</option>
+                    </optgroup>
+                    <optgroup label="🎬 专业模板">
+                        <option value="knolling">🧩 Knolling万物拆解</option>
+                        <option value="journal_relations">📔 手帐人物关系图</option>
+                        <option value="y2k_poster">✨ Y2K毛玻璃海报</option>
+                        <option value="minimal_bw_illust">🖤 极简黑白插画</option>
+                        <option value="character_card">🪪 人物名片卡</option>
+                        <option value="keychain_merch">🔑 可爱挂件/钥匙扣</option>
+                        <option value="cosplay_photo">📸 Cosplay还原</option>
+                        <option value="character_sheet">📋 角色设定全套</option>
+                        <option value="figure_scene">🎨 手办场景图</option>
+                        <option value="line_sticker_pack">💬 LINE表情包套图</option>
+                    </optgroup>
+                    <optgroup label="🍌 产品展示类">
+                        <option value="product_packaging">📦 产品包装设计</option>
+                        <option value="product_ad">🎬 产品广告海报</option>
+                        <option value="product_exploded">🔧 产品爆炸图</option>
+                    </optgroup>
+                    <optgroup label="🍌 艺术风格转换类">
+                        <option value="ghibli_style">🏯 吉卜力风格</option>
+                        <option value="pixar_3d">🎪 Pixar 3D风格</option>
+                        <option value="cyberpunk_style">🌆 赛博朋克风格</option>
+                        <option value="watercolor_art">🎨 水彩艺术风格</option>
+                        <option value="oil_painting">🖼️ 油画风格</option>
+                        <option value="pixel_retro">👾 像素复古风格</option>
+                    </optgroup>
+                    <optgroup label="🍌 照片处理类">
+                        <option value="photo_to_anime">🎌 照片转动漫</option>
+                        <option value="photo_enhancement">✨ 照片艺术增强</option>
+                        <option value="vintage_photo">📷 复古胶片风格</option>
+                    </optgroup>
+                    <optgroup label="🍌 游戏/UI类">
+                        <option value="game_ui_status">🎮 RPG角色状态界面</option>
+                        <option value="game_card">🃏 游戏卡牌设计</option>
+                        <option value="app_icon">📱 App图标设计</option>
+                    </optgroup>
+                    <optgroup label="🍌 设计工具类">
+                        <option value="text_shape_art">🔤 文字形状艺术</option>
+                        <option value="pictogram">🚻 象形图转换</option>
+                        <option value="infographic">📊 信息图表设计</option>
+                    </optgroup>
+                    <optgroup label="🍌 场景/空间类">
+                        <option value="room_makeover">🏠 房间改造设计</option>
+                        <option value="miniature_world">🔍 微缩世界</option>
+                    </optgroup>
+                    <optgroup label="🍌 人物处理类">
+                        <option value="age_transform">👶👴 年龄变换</option>
+                        <option value="inner_child">💝 内心小孩治愈</option>
+                        <option value="fashion_model">👗 时尚模特照</option>
+                    </optgroup>
+                    <optgroup label="🍌 周边/衍生品类">
+                        <option value="plush_toy">🧸 毛绒玩具设计</option>
+                        <option value="enamel_pin">📍 珐琅徽章设计</option>
+                        <option value="tattoo_design">💉 纹身设计</option>
+                    </optgroup>
+                    <optgroup label="🎄 节日主题">
+                        <option value="fill_101">🎄 圣诞夜温馨场景</option>
+                        <option value="fill_102">🧧 春节年味大片</option>
+                        <option value="fill_103">🎄 圣诞贺卡（竖版）</option>
+                        <option value="fill_104">🎁 圣诞红包封面（竖版）</option>
+                        <option value="fill_105">🧧 春节贺卡（竖版）</option>
+                        <option value="fill_106">🧧 春节红包封面（竖版）</option>
+                        <option value="fill_107">🎁 圣诞红包内页（开红包页面）</option>
+                        <option value="fill_108">🧧 春节红包内页（开红包页面）</option>
+                    </optgroup>
+                    <optgroup label="📅 日历卡片模版">
+                        <option value="calendar_art_simple">📅 AI日历卡片（简约版）</option>
+                        <option value="calendar_art_creative">📅 AI日历卡片（创意版）</option>
+                        <option value="calendar_art_chinese">📅 中国风日历卡片</option>
+                        <option value="calendar_art_festival">📅 节日主题日历卡片</option>
+                        <option value="calendar_art_motivational">📅 励志日历卡片</option>
+                        <option value="calendar_art_minimal">📅 极简日历卡片</option>
+                        <option value="calendar_art_photo">📅 摄影日历卡片</option>
+                        <option value="calendar_art_cute">📅 可爱日历卡片</option>
+                        <option value="calendar_birthday">🎂 生日日历卡片</option>
+                        <option value="calendar_solar_term">🌿 节气日历卡片</option>
+                    </optgroup>
+                </select>
+                <div id="fillPreview"
+                    style="display:none; background:var(--bg-card); border-radius:10px; padding:12px; margin-top:12px; font-size:13px; line-height:1.6; color:var(--text-dim); border:1px solid #2a2a35;">
+                </div>
+            </div>
+        </div>
+
+        <!-- 视频选项区域 -->
+        <div class="options-section" id="videoOptionsSection">
+            <div class="option-row">
+                <div class="option-group">
+                    <label for="quickGenMode">🎯 生成模式</label>
+                    <select id="quickGenMode" title="选择生成模式" onchange="onGenModeChange(this.value)">
+                        <option value="text-to-video">Sora-2 (文生视频)</option>
+                        <option value="image-to-video">Flux + Sora-2 (图生视频)</option>
+                        <option value="banana-image-to-video">Gemini-3 + Sora-2 (图生视频)</option>
+                        <option value="banana-grid-to-video">🎯 网格图省费版 (1图切N分镜)</option>
+                        <option value="veo3.1">Veo-3.1 (快速+音频)</option>
+                        <option value="grok-video-3-text">Grok Video 3 (文生视频)</option>
+                        <option value="grok-video-3">Grok Video 3 (图生视频)</option>
+                        <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="option-row">
+                <div class="option-group">
+                    <label for="quickDuration">⏱️ 时长 (秒)</label>
+                    <input type="number" id="quickDuration" placeholder="自动分析" min="0" max="60" title="0或留空为自动分析">
+                </div>
+                <div class="option-group">
+                    <label for="quickScenes">📽️ 分镜数</label>
+                    <input type="number" id="quickScenes" placeholder="自动分析" min="0" max="20" title="0或留空为自动分析">
+                </div>
+            </div>
+        </div>
+
+        <!-- 漫画选项区域 -->
+        <div class="options-section" id="comicOptionsSection" style="display: none;">
+            <div class="option-row">
+                <div class="option-group">
+                    <label for="comicStyle">🎨 漫画风格</label>
+                    <select id="comicStyle">
+                        <option value="anime">日系动漫</option>
+                        <option value="realistic">写实风格</option>
+                        <option value="chinese">国风水墨</option>
+                        <option value="comic">美漫风格</option>
+                    </select>
+                </div>
+            </div>
+            <div class="option-row">
+                <div class="option-group">
+                    <label for="comicPages">📄 页数</label>
+                    <input type="number" id="comicPages" value="4" min="1" max="10">
+                </div>
+                <div class="option-group">
+                    <label for="comicPanels">🖼️ 每页格数</label>
+                    <input type="number" id="comicPanels" value="4" min="2" max="8">
+                </div>
+            </div>
+        </div>
+
+        <!-- 图片上传区域（图生视频模式显示） -->
+        <div class="input-section" id="imageUploadSection" style="display: none;">
+            <label class="input-label">🖼️ 上传参考图片</label>
+            <input type="file" id="i2vImageInput" accept="image/*" style="display: none;"
+                onchange="previewI2VImage(this)">
+            <div class="upload-area" id="i2vUploadArea" onclick="document.getElementById('i2vImageInput').click()"
+                style="border: 2px dashed #2a2a35; border-radius: var(--radius); padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.3s;">
+                <div style="font-size: 32px; margin-bottom: 8px;">📷</div>
+                <div style="color: var(--text-dim); font-size: 14px;" id="i2vUploadText">点击上传图片</div>
+                <img id="i2vPreview" src="" alt="预览"
+                    style="display: none; max-width: 100%; max-height: 200px; margin-top: 12px; border-radius: 8px;">
+            </div>
+        </div>
+
+        <!-- 生成按钮 -->
+        <button class="generate-btn" id="generateBtn" onclick="startGenerate()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            开始生成
+        </button>
+
+        <!-- 历史任务 -->
+        <section class="history-section">
+            <h2 class="section-title">📋 我的作品</h2>
+            <div class="task-list" id="taskList">
+                <!-- 动态填充 -->
+            </div>
+        </section>
+
+        <!-- 切换到电脑版提示 -->
+        <div class="pc-hint">
+            💡 需要更多功能？<a href="index.html?force=pc">切换到电脑版</a>体验节点编辑、角色库等高级功能
+        </div>
+    </main>
+
+    <!-- 底部导航 -->
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active" onclick="showTab('create')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14" />
+            </svg>
+            创作
+        </a>
+        <a href="#" class="nav-item" onclick="showTab('works')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            作品
+        </a>
+        <a href="user.html" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+            </svg>
+            我的
+        </a>
+    </nav>
+
+    <!-- 加载状态 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loadingText">正在生成中...</div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 下拉刷新指示器 -->
+    <div class="pull-refresh" id="pullRefresh">
+        <div class="refresh-icon"></div>
+        <span style="margin-left: 10px; color: var(--text-dim); font-size: 13px;" id="pullRefreshText">下拉刷新</span>
+    </div>
+
+    <!-- 长按上下文菜单 -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="contextMenuAction('view')">
+            <span>👁️</span> 查看详情
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('share')">
+            <span>📤</span> 分享
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('retry')">
+            <span>🔄</span> 重新生成
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" onclick="contextMenuAction('delete')">
+            <span>🗑️</span> 删除
+        </div>
+    </div>
+
+    <!-- 图片预览（支持双指缩放） -->
+    <div class="image-viewer" id="imageViewer" onclick="closeImageViewer(event)">
+        <button class="image-viewer-close" onclick="closeImageViewer()">×</button>
+        <img id="viewerImage" src="" alt="预览">
+        <div class="image-viewer-hint">双指缩放 · 点击关闭</div>
+    </div>
+
+    <script>
+        // ==================== 全局变量 ====================
+        let currentMode = 'video';
+        let currentGenMode = 'text-to-video';
+        let ideas = [];
+        let userQuota = 0;
+        let isLoggedIn = false;
+        let supabase = null;
+        let __mobileAuthInitialized = false;
+        let i2vImageData = '';
+
+        // ==================== 填空模板库（与桌面版完全对齐） ====================
+        const fillTemplates = {
+            fill_1: { name: '✨ 梦幻光效人物', desc: '给人物加梦幻光效', template: '一个______（人物/动物），周围环绕着闪亮的魔法光粒子和蝴蝶，梦幻氛围，电影感打光，4K高清' },
+            fill_2: { name: '🎨 动漫风格转换', desc: '照片转日系动漫', template: '将照片中的______（人物/场景）转换为精美日本动漫风格，大眼睛，柔和色彩，动漫质感，高清细节' },
+            fill_3: { name: '🌸 樱花树下场景', desc: '浪漫樱花场景', template: '______（人物）站在盛开的樱花树下，花瓣飘落，温柔粉色氛围，电影级构图，柔和光影' },
+            fill_4: { name: '🔥 史诗战斗场景', desc: '热血战斗画面', template: '______（角色）正在激烈战斗，动作帅气，火焰/闪电特效环绕，史诗级构图，动态模糊，电影感' },
+            fill_5: { name: '🌙 月光夜景', desc: '唯美月夜氛围', template: '______（人物/场景）在月光下，星空璀璨，宁静唯美氛围，冷色调，电影级画质' },
+            fill_6: { name: '🎭 多重身份展示', desc: '一人多角色', template: '同一个______（人物）展示多种职业/风格：左边是______（职业1），中间是______（职业2），右边是______（职业3），创意拼贴风格' },
+            fill_7: { name: '🏠 房间场景设计', desc: '室内场景氛围', template: '温馨的______（卧室/客厅/书房），______（风格：北欧/日式/工业风），自然光透过窗户，植物装饰，室内设计杂志质感' },
+            fill_8: { name: '🎪 Q版可爱化', desc: '角色Q版萌化', template: '将______（人物/角色）变成超级可爱的Q版风格，大头小身体，圆润线条，糖果色系，适合做贴纸' },
+            fill_9: { name: '🌈 彩虹渐变效果', desc: '梦幻彩虹色彩', template: '______（主体）被彩虹色光芒包围，渐变色彩流动，梦幻氛围，Instagram风格，高饱和度' },
+            fill_10: { name: '📸 复古胶片风', desc: '老照片怀旧感', template: '______（场景/人物）呈现80年代胶片照片风格，颗粒质感，褪色效果，暖色调，怀旧氛围' },
+            fill_11: { name: '🎮 像素游戏风格', desc: '8-bit像素艺术', template: '将______（人物/场景）转换为8-bit像素游戏风格，复古红白机画面，清晰像素，怀旧游戏感' },
+            fill_12: { name: '🌊 水下奇幻世界', desc: '梦幻海底场景', template: '______（人物/生物）在神秘的水下世界，周围有发光的水母和珊瑚，蓝绿色调，梦幻光线' },
+            fill_13: { name: '⚡ 赛博朋克风格', desc: '未来科技霓虹', template: '______（人物/场景）处于赛博朋克未来城市，霓虹灯光，雨夜氛围，紫色和青色主色调，科幻感' },
+            fill_14: { name: '🍃 森林精灵氛围', desc: '奇幻森林场景', template: '______（人物）在茂密的魔法森林中，阳光透过树叶，小精灵飞舞，奇幻氛围，绿色主调' },
+            fill_15: { name: '🎨 油画艺术效果', desc: '古典油画质感', template: '将______（主体）转换为古典油画风格，厚重笔触，丰富色彩层次，伦勃朗式打光，博物馆级艺术品质感' },
+            fill_16: { name: '🦸 超级英雄变身', desc: '英雄装扮转换', template: '______（人物）变成超级英雄，帅气的______（颜色）战服，动作姿势帅气，电影海报风格，史诗感' },
+            fill_17: { name: '🎪 马戏团表演场景', desc: '复古马戏团氛围', template: '______（人物/动物）在复古马戏团舞台表演，红色帷幕，聚光灯，观众席，怀旧风格，欢乐氛围' },
+            fill_18: { name: '🏰 中世纪幻想', desc: '欧洲奇幻风格', template: '______（人物）身穿中世纪服装，站在古堡前，史诗奇幻氛围，电影级画质，戏剧性光影' },
+            fill_19: { name: '🌸 中国风工笔画', desc: '传统工笔画风', template: '______（主体）呈现中国传统工笔画风格，细腻线条，淡雅色彩，留白艺术，古典美学' },
+            fill_20: { name: '🎭 表情包生成器', desc: '聊天表情包', template: '为______（角色）设计一组表情包，包含______（数量）个不同表情：开心、生气、哭泣、疑惑、比心等，Q版风格，简洁背景' },
+            fill_21: { name: '🎨 印象派画风', desc: '莫奈风格转换', template: '将______（场景）转换为印象派画风，点彩笔触，柔和光影，莫奈风格，艺术感强烈' },
+            fill_22: { name: '🎭 京剧脸谱', desc: '中国京剧妆容', template: '______（人物）画上京剧脸谱，______（角色：花旦/武生/丑角），精致妆容，传统戏曲服装，中国风' },
+            fill_23: { name: '🦸‍♀️ 女超人装扮', desc: '女英雄战服', template: '______（人物）变成女超人，红色斗篷，紧身战衣，飞行姿态，城市天际线背景，英雄气概' },
+            fill_24: { name: '🌙 月亮公主', desc: '月光女神风格', template: '______（人物）扮演月亮公主，银色长发，月亮冠冕，星空长裙，梦幻优雅，童话氛围' },
+            fill_25: { name: '☀️ 太阳神', desc: '金色太阳神', template: '______（人物）变成太阳神，金色盔甲，太阳光环，火焰翅膀，威严气势，暖色调' },
+            fill_26: { name: '🎪 小丑女Harley Quinn', desc: '哈莉奎因风格', template: '______（人物）装扮成小丑女Harley Quinn，双马尾彩色头发，棒球棍，俏皮表情，朋克风' },
+            fill_27: { name: '🌟 星际战士', desc: '科幻战士装备', template: '______（人物）穿着未来星际战士装备，激光武器，科幻背景，金属质感，史诗科幻感' },
+            fill_28: { name: '🦇 蝙蝠侠风格', desc: '黑暗骑士装扮', template: '______（人物）变成蝙蝠侠风格角色，黑色斗篷，哥特风城市，夜晚氛围，黑暗英雄感' },
+            fill_29: { name: '🕷️ 蜘蛛侠变身', desc: '红蓝战衣', template: '______（人物）变成蜘蛛侠，红蓝战衣，吐丝动作，摩天大楼间穿梭，动作场景' },
+            fill_30: { name: '🐱 猫耳娘', desc: '可爱猫耳装扮', template: '______（人物）长出可爱猫耳和猫尾巴，俏皮表情，______（颜色）猫耳，萌系风格' },
+            fill_31: { name: '🦊 狐狸精', desc: '九尾狐狸精', template: '______（人物）变成______尾狐狸精，狐狸耳朵，多条尾巴，东方神话风格，妖艳美丽' },
+            fill_32: { name: '🐺 狼人变身', desc: '月圆之夜狼人', template: '______（人物）在月圆之夜变身狼人，利爪獠牙，野性眼神，恐怖氛围，暗色调' },
+            fill_33: { name: '🧛 吸血鬼伯爵', desc: '哥特吸血鬼', template: '______（人物）变成吸血鬼伯爵，尖牙，红色眼睛，黑色斗篷，哥特城堡背景，神秘感' },
+            fill_34: { name: '👻 幽灵少女', desc: '透明幽灵效果', template: '______（人物）变成半透明幽灵，白色长裙飘动，冷色调，神秘氛围，灵异感' },
+            fill_35: { name: '🤖 机器人改造', desc: '机械义体化', template: '______（人物）被改造成半机械生命体，机械手臂，电子眼，科幻风格，赛博朋克感' },
+            fill_36: { name: '🎀 Lolita洋装', desc: '甜美洋装风格', template: '______（人物）穿着______（颜色）Lolita洋装，蕾丝花边，蝴蝶结，公主卷发，少女甜美风' },
+            fill_37: { name: '🎸 摇滚音乐会', desc: '摇滚乐队表演', template: '______（人物）在摇滚音乐会舞台表演，电吉他，舞台灯光，观众热情，摇滚范儿十足' },
+            fill_38: { name: '📚 图书馆学霸', desc: '文艺书香气息', template: '______（人物）在古老的图书馆，书籍环绕，复古台灯，温暖光线，学院风，文艺氛围' },
+            fill_39: { name: '☕ 咖啡馆悠闲', desc: '慵懒咖啡时光', template: '______（人物）在温馨咖啡馆，手捧咖啡杯，窗外阳光，慵懒氛围，温暖色调，治愈系' },
+            fill_40: { name: '🌈 彩虹独角兽', desc: '梦幻独角兽', template: '______（主体）搭配彩虹独角兽，梦幻云朵，粉色天空，童话般的甜美氛围，少女心满满' },
+            fill_41: { name: '🎨 印象派画风', desc: '莫奈风格转换', template: '将______（场景）转换为印象派画风，点彩笔触，柔和光影，莫奈风格，艺术感强烈' },
+            fill_42: { name: '🎭 京剧脸谱', desc: '中国京剧妆容', template: '______（人物）画上京剧脸谱，______（角色：花旦/武生/丑角），精致妆容，传统戏曲服装，中国风' },
+            fill_43: { name: '🦸‍♀️ 女超人装扮', desc: '女英雄战服', template: '______（人物）变成女超人，红色斗篷，紧身战衣，飞行姿态，城市天际线背景，英雄气概' },
+            fill_44: { name: '🌙 月亮公主', desc: '月光女神风格', template: '______（人物）扮演月亮公主，银色长发，月亮冠冕，星空长裙，梦幻优雅，童话氛围' },
+            fill_45: { name: '☀️ 太阳神', desc: '金色太阳神', template: '______（人物）变成太阳神，金色盔甲，太阳光环，火焰翅膀，威严气势，暖色调' },
+            fill_46: { name: '🎪 小丑女Harley Quinn', desc: '哈莉奎因风格', template: '______（人物）装扮成小丑女Harley Quinn，双马尾彩色头发，棒球棍，俏皮表情，朋克风' },
+            fill_47: { name: '🌟 星际战士', desc: '科幻战士装备', template: '______（人物）穿着未来星际战士装备，激光武器，科幻背景，金属质感，史诗科幻感' },
+            fill_48: { name: '🦇 蝙蝠侠风格', desc: '黑暗骑士装扮', template: '______（人物）变成蝙蝠侠风格角色，黑色斗篷，哥特风城市，夜晚氛围，黑暗英雄感' },
+            fill_49: { name: '🕷️ 蜘蛛侠变身', desc: '红蓝战衣', template: '______（人物）变成蜘蛛侠，红蓝战衣，吐丝动作，摩天大楼间穿梭，动作场景' },
+            fill_50: { name: '🐱 猫耳娘', desc: '可爱猫耳装扮', template: '______（人物）长出可爱猫耳和猫尾巴，俏皮表情，______（颜色）猫耳，萌系风格' },
+            fill_51: { name: '🦊 狐狸精', desc: '九尾狐狸精', template: '______（人物）变成______尾狐狸精，狐狸耳朵，多条尾巴，东方神话风格，妖艳美丽' },
+            fill_52: { name: '🐺 狼人变身', desc: '月圆之夜狼人', template: '______（人物）在月圆之夜变身狼人，利爪獠牙，野性眼神，恐怖氛围，暗色调' },
+            fill_53: { name: '🧛 吸血鬼伯爵', desc: '哥特吸血鬼', template: '______（人物）变成吸血鬼伯爵，尖牙，红色眼睛，黑色斗篷，哥特城堡背景，神秘感' },
+            fill_54: { name: '👻 幽灵少女', desc: '透明幽灵效果', template: '______（人物）变成半透明幽灵，白色长裙飘动，冷色调，神秘氛围，灵异感' },
+            fill_55: { name: '🤖 机器人改造', desc: '机械义体化', template: '______（人物）被改造成半机械生命体，机械手臂，电子眼，科幻风格，赛博朋克感' },
+            fill_56: { name: '🎀 Lolita洋装', desc: '甜美洋装风格', template: '______（人物）穿着______（颜色）Lolita洋装，蕾丝花边，蝴蝶结，公主卷发，少女甜美风' },
+            fill_57: { name: '⚔️ 女武士', desc: '飒爽女剑客', template: '______（人物）变成古代女武士，手持______（武器：剑/刀/枪），英姿飒爽，武侠风' },
+            fill_58: { name: '🏹 精灵弓箭手', desc: '森林精灵射手', template: '______（人物）扮演精灵弓箭手，尖耳朵，绿色斗篷，森林背景，奇幻风格' },
+            fill_59: { name: '🪄 魔法少女', desc: '变身魔法少女', template: '______（人物）变身魔法少女，魔法杖，闪亮变身特效，______（颜色）服装，星星魔法光' },
+            fill_60: { name: '🎩 绅士礼帽', desc: '复古绅士装扮', template: '______（人物）戴着绅士礼帽，西装，手持拐杖，复古欧洲街道，优雅绅士范' },
+            fill_61: { name: '👑 皇室贵族', desc: '华丽宫廷装扮', template: '______（人物）穿着华丽宫廷服装，王冠/头饰，珠宝首饰，宫殿背景，贵族气质' },
+            fill_62: { name: '🎓 毕业纪念', desc: '毕业典礼场景', template: '______（人物）穿学士服，戴学士帽，抛帽子动作，校园背景，青春纪念氛围' },
+            fill_63: { name: '💼 职场精英', desc: '商务职业装', template: '______（人物）穿着专业职业装，办公室/会议室背景，自信姿态，职场精英范' },
+            fill_64: { name: '🍰 甜品师', desc: '烘焙厨师装扮', template: '______（人物）穿着甜品师服装，围裙，厨师帽，周围是蛋糕和甜点，温馨甜蜜氛围' },
+            fill_65: { name: '🌻 向日葵田', desc: '金色花田场景', template: '______（人物）站在向日葵花田，阳光明媚，金黄色调，温暖治愈氛围，夏日清新感' },
+            fill_66: { name: '🌾 麦田守望者', desc: '金色麦浪场景', template: '______（人物）在金色麦田中，麦浪随风摇曳，夕阳余晖，田园诗意，温暖氛围' },
+            fill_67: { name: '🌵 沙漠探险', desc: '沙漠场景', template: '______（人物）在广阔沙漠，沙丘起伏，骆驼，夕阳，异域风情，冒险感' },
+            fill_68: { name: '🏔️ 雪山登顶', desc: '雪山攀登场景', template: '______（人物）登上雪山之巅，雪峰连绵，登山装备，胜利姿态，壮阔景观' },
+            fill_69: { name: '🌋 火山背景', desc: '火山熔岩场景', template: '______（人物/主体）在火山前，岩浆流动，火光冲天，热浪氛围，暖色调，史诗感' },
+            fill_70: { name: '🌀 时空漩涡', desc: '穿越时空效果', template: '______（人物）被时空漩涡包围，扭曲空间，时间碎片，科幻特效，穿越感' },
+            fill_71: { name: '🎆 烟花节日', desc: '绚丽烟花背景', template: '______（人物/场景）夜空中绽放绚丽烟花，五彩斑斓，节日氛围，欢庆场景' },
+            fill_72: { name: '🌃 城市楼顶', desc: '俯瞰城市夜景', template: '______（人物）站在高楼楼顶，俯瞰城市夜景，霓虹灯海，风吹动衣服，电影感' },
+            fill_73: { name: '🚂 蒸汽朋克', desc: '蒸汽机械风格', template: '______（主体）呈现蒸汽朋克风格，齿轮机械，铜色金属，维多利亚时代，复古科幻' },
+            fill_74: { name: '🎪 马戏团小丑', desc: '欢乐小丑表演', template: '______（人物）装扮成欢乐小丑，彩色假发，红鼻子，杂耍道具，马戏团舞台，欢乐氛围' },
+            fill_75: { name: '🎠 旋转木马', desc: '梦幻旋转木马', template: '______（人物）坐在旋转木马上，游乐园，彩灯装饰，童话梦幻氛围，温馨治愈' },
+            fill_76: { name: '🎡 摩天轮剪影', desc: '摩天轮背景', template: '______（人物）在摩天轮前的剪影，夕阳/夜晚，浪漫氛围，暖色调' },
+            fill_77: { name: '🎢 过山车刺激', desc: '游乐园过山车', template: '______（人物）坐过山车，惊险刺激表情，动态模糊，速度感，欢乐刺激氛围' },
+            fill_78: { name: '🎪 杂技演员', desc: '空中杂技表演', template: '______（人物）表演空中杂技，吊环/绸缎，优美动作，聚光灯，马戏团舞台' },
+            fill_79: { name: '🎯 射箭运动', desc: '专注射箭姿态', template: '______（人物）拉弓射箭，专注眼神，运动服装，靶场背景，动作定格' },
+            fill_80: { name: '⚽ 足球明星', desc: '足球运动场景', template: '______（人物）在足球场踢球，动作帅气，球场背景，运动氛围，活力四射' },
+            fill_81: { name: '🏀 篮球灌篮', desc: '篮球运动场景', template: '______（人物）篮球灌篮动作，飞跃空中，球场，动态感强，运动激情' },
+            fill_82: { name: '🎾 网球比赛', desc: '网球运动场景', template: '______（人物）打网球，挥拍动作，网球场，运动装，活力阳光' },
+            fill_83: { name: '🏊 游泳健将', desc: '游泳运动场景', template: '______（人物）在泳池游泳，水花飞溅，运动泳装，健康活力，蓝色调' },
+            fill_84: { name: '🚴 自行车骑行', desc: '骑行运动场景', template: '______（人物）骑自行车，郊外风景，阳光，运动装备，自由惬意氛围' },
+            fill_85: { name: '🧘 瑜伽冥想', desc: '瑜伽姿势', template: '______（人物）做瑜伽动作，______（具体姿势），瑜伽垫，室内/户外，平静氛围' },
+            fill_86: { name: '💆 SPA放松', desc: 'SPA美容场景', template: '______（人物）在SPA馆享受护理，花瓣浴/按摩，蜡烛，放松惬意，温馨氛围' },
+            fill_87: { name: '💅 美甲艺术', desc: '精致美甲展示', template: '展示______（人物）的精致美甲，______（图案/颜色），特写镜头，时尚感，少女心' },
+            fill_88: { name: '💄 化妆教程', desc: '化妆步骤展示', template: '______（人物）化妆过程，______（妆容类型），化妆品道具，镜子前，时尚美妆感' },
+            fill_89: { name: '👗 时装走秀', desc: 'T台走秀场景', template: '______（人物）在T台走秀，时尚服装，专业姿态，聚光灯，时装周氛围' },
+            fill_90: { name: '📷 摄影师视角', desc: '摄影师工作场景', template: '______（人物）作为摄影师，手持相机，工作状态，摄影棚/户外，专业范' },
+            fill_91: { name: '🎬 导演片场', desc: '电影导演场景', template: '______（人物）作为电影导演，手持导演板，片场，工作状态，电影氛围' },
+            fill_92: { name: '🎤 歌手舞台', desc: '演唱会舞台', template: '______（人物）在演唱会舞台唱歌，手持麦克风，舞台灯光，观众欢呼，明星气场' },
+            fill_93: { name: '🎹 钢琴演奏', desc: '钢琴演奏场景', template: '______（人物）弹钢琴，优雅姿态，音乐厅/家中，艺术氛围，柔和光线' },
+            fill_94: { name: '🎻 小提琴演奏', desc: '小提琴表演', template: '______（人物）拉小提琴，专注表情，音乐厅，古典优雅氛围' },
+            fill_95: { name: '🥁 架子鼓表演', desc: '打鼓场景', template: '______（人物）打架子鼓，动作帅气，音乐工作室，摇滚氛围，动态感' },
+            fill_96: { name: '🎧 DJ打碟', desc: 'DJ现场', template: '______（人物）作为DJ打碟，电音派对，灯光效果，夜店氛围，潮流感' },
+            fill_97: { name: '🍜 拉面师傅', desc: '日式拉面店', template: '______（人物）作为拉面师傅，制作拉面，日式拉面店，传统装束，匠人精神' },
+            fill_98: { name: '🍣 寿司大师', desc: '寿司料理场景', template: '______（人物）制作寿司，寿司刀，料理台，日式料理店，专业匠人' },
+            fill_99: { name: '🎂 蛋糕装饰', desc: '蛋糕师装饰', template: '______（人物）装饰蛋糕，裱花袋，精美蛋糕，烘焙坊，甜蜜温馨' },
+            fill_100: { name: '🍕 披萨制作', desc: '披萨师傅', template: '______（人物）制作披萨，抛起面团，意式餐厅，欢乐氛围，美食诱惑' },
+            fill_101: { name: '🎄 圣诞夜温馨场景', desc: '圣诞节主题', template: '______（人物/家庭）在圣诞树旁拆礼物，彩灯闪烁，雪花窗景，温暖壁炉，红绿配色，毛衣质感，电影感灯光，温馨治愈' },
+            fill_102: { name: '🧧 春节年味大片', desc: '春节/新年主题', template: '______（人物/家庭）在中国春节氛围中，红灯笼与春联，烟花绽放，年夜饭桌面，金色点缀，喜庆热闹，电影级构图，暖色调' },
+            fill_103: { name: '🎄 圣诞贺卡（竖版）', desc: '圣诞节贺卡海报/社媒图', template: '圣诞节贺卡设计，1080x1920 竖版，主视觉：______（主题：圣诞老人/麋鹿/圣诞树/雪景小屋/姜饼人），红绿金配色，纸张质感与轻微压纹，烫金字体与光泽点缀，留出文案区：标题"_____（Merry Christmas/圣诞快乐）"，副标题"______（祝福语/署名）"，干净背景，高清细节，无水印' },
+            fill_104: { name: '🎁 圣诞红包封面（竖版）', desc: '微信红包封面/电子红包封面', template: '圣诞主题红包封面设计，1080x1920 竖版，主视觉：______（主题：圣诞树礼盒/雪花/圣诞老人/麋鹿/铃铛），金色烫金与浮雕质感，红绿金节日配色，四周预留安全区留白（不要贴边），中部留出祝福文案"______（祝福语）"，底部留出署名/品牌位"______（署名/品牌）"，干净高级，高清细节，无水印' },
+            fill_105: { name: '🧧 春节贺卡（竖版）', desc: '春节贺卡海报/朋友圈海报', template: '春节贺卡设计，1080x1920 竖版，中国红+金色点缀，国风插画风格，主视觉：______（主题：龙/蛇/生肖/财神/灯笼/烟花），祥云纹样与金粉散景，烫金标题"______（新年快乐/恭喜发财/大吉大利）"，副标题"______（祝福语/署名）"，四周留安全区留白，高清细节，无水印' },
+            fill_106: { name: '🧧 春节红包封面（竖版）', desc: '微信红包封面/电子红包封面', template: '微信红包封面设计（春节主题），1080x1920 竖版，中国红底+金色烫金浮雕，主视觉：______（生肖/财神/舞狮/灯笼/年货），背景暗纹：祥云/回纹/剪纸纹理，四周预留安全区留白（不要贴边），中部留出祝福文案"______（祝福语）"，底部留出署名/品牌位"______（署名/品牌）"，高清细节，无水印' },
+            fill_107: { name: '🎁 圣诞红包内页（开红包页面）', desc: '微信红包打开后内部页面/金额与祝福文案页', template: '微信红包内页设计（圣诞主题/开红包页面），1080x1920 竖版，整体高级简洁，顶部保留安全区留白。背景氛围：圣诞树枝、雪花、暖光灯串、金粉散景bokeh（不要遮挡主体信息）。信息区域排版清晰：1) 顶部：发送者/品牌署名"______（From/品牌名/昵称）"；2) 中部：祝福语大字"______（祝福语）"，字形清晰可读，烫金或金属质感；3) 下方：金额展示区域"______（金额/如 8.88）元"或"______（口令/福利）"，留出醒目空间；4) 底部：小字说明/活动规则"______（说明）"，并预留一个二维码/Logo 占位区（用空白框表示，不要生成真实二维码）。配色：深绿+金 或 红绿金；材质：丝绒/磨砂卡纸/局部UV；整体干净、无水印、无乱码文字、四周留安全区。' },
+            fill_108: { name: '🧧 春节红包内页（开红包页面）', desc: '微信红包打开后内部页面/金额与祝福文案页', template: '微信红包内页设计（春节主题/开红包页面），1080x1920 竖版，中国红底+金色点缀，高级克制国风（不过度花哨），顶部保留安全区留白。背景暗纹：祥云/回纹/锦缎纹理/剪纸暗纹，金粉散景bokeh（不要遮挡主体信息）。信息区域排版清晰：1) 顶部：发送者/品牌署名"______（品牌名/昵称/From）"；2) 中部：祝福语大字"______（祝福语）"，烫金浮雕质感，字形清晰可读；3) 下方：金额展示区域"______（金额/如 88.88）元"或"______（口令/福利）"，留出醒目空间；4) 底部：小字说明/活动规则"______（说明）"，并预留一个二维码/Logo 占位区（用空白框表示，不要生成真实二维码）。主视觉可点缀：灯笼、舞狮、金元宝、福字、烟花；整体干净高级、无水印、无乱码文字、四周留安全区。' },
+            knolling: { name: '🧩 Knolling 万物拆解', desc: '物品整齐摆放俯视图', template: 'Knolling layout of ______（填写物品名称），neatly arranged components, top-down view, organized flat lay, professional product photography, white background, soft shadows, 8K detail' },
+            journal_relations: { name: '📔 手帐人物关系图', desc: '剧本角色关系可视化', template: '手帐风格人物关系图，展示______（填写角色们）的关系网络，每个人物有可爱头像，势力派系用不同颜色区分，连接线标注关系类型，温馨插画风格，16:9横版构图' },
+            y2k_poster: { name: '✨ Y2K毛玻璃海报', desc: '照片转现代设计海报', template: '将主体精确抠出作为核心，背景替换为毛玻璃质感抽象背景保留原色调，主体后方添加醒目纯色矩形色块，添加粗大无衬线字体标题置于主体后方形成遮挡层次，添加信息性小字和透明胶带素材，Y2K酸性设计美学，丰富纹理层次感' },
+            minimal_bw_illust: { name: '🖤 极简黑白插画', desc: '多人物统一风格化', template: '黑白极简风插画，______（填写角色们）变成可爱卡通形象，保持各自特点，配上合适小道具，优美线条，头发为黑色块，所有人物在同一张图中，统一风格' },
+            character_card: { name: '🪪 人物名片卡', desc: '角色信息卡片设计', template: '按照名片设计构图和质感，为______（填写角色）生成卡片，右上角可爱卡通形象突出于卡片，Name: ______（姓名）, Occupation: ______（职业）, Company: ______（公司/组织）, 精致材质感' },
+            keychain_merch: { name: '🔑 可爱挂件/钥匙扣', desc: '照片转周边产品', template: '将照片人物变成可爱______（类型：亚克力/橡胶）挂件，扁平设计，挂在______（包包类型）包包上，亚克力/橡胶材质质感，产品摄影风格' },
+            cosplay_photo: { name: '📸 Cosplay还原', desc: '插画转真人Cos', template: 'Generate a highly detailed photo of a girl cosplaying this illustration, at Comiket. Exactly replicate the same pose, body posture, hand gestures, facial expression, and camera framing as in the original illustration. Keep the same angle, perspective, and composition' },
+            character_sheet: { name: '📋 角色设定全套', desc: '三视图/表情/动作/服装', template: '为______（填写角色）生成完整角色设定：比例设定（头身比对比），三视图（正面侧面背面），表情设定（多种情绪），动作设定（常见姿势），服装设定（不同造型），专业角色设计稿风格' },
+            figure_scene: { name: '🎨 手办场景图', desc: '角色转3D手办展示', template: 'Turn this into a character figure. Behind it, place a box with the character image printed on it, and a computer showing Blender modeling process. In front of the box, add a round plastic base with the figure standing on it. Indoor scene, product photography' },
+            line_sticker_pack: { name: '💬 LINE表情包套图', desc: 'Q版半身像表情包4x6布局', template: '为______（填写角色）生成Q版LINE风格半身像表情包，彩色手绘风格，头饰正确还原，4x6网格布局（共24个表情），涵盖常用聊天表情和娱乐meme，每个表情配手写简体中文标注，不要原图复制要重新绘制，4K分辨率16:9画幅，表情丰富可爱实用' },
+            ghibli: { name: '🏯 吉卜力风格', desc: '宫崎骏动画风格转换', template: '将______转换为吉卜力工作室动画风格，柔和水彩质感，温暖色调，梦幻氛围，细腻背景细节，宫崎骏电影美学，手绘动画质感' },
+            pixar: { name: '🎪 Pixar 3D风格', desc: '皮克斯动画风格', template: '生成______的3D头像，Pixar动画风格，灿烂笑容，干净白色背景，概念数字艺术，高质量渲染，柔和光照，光滑纹理，色彩鲜明，卡通感但比例真实' },
+            cyberpunk: { name: '🌆 赛博朋克风格', desc: '未来科幻霓虹美学', template: '将______转换为赛博朋克风格，霓虹灯光，雨夜城市背景，全息投影元素，机械增强细节，紫色和青色主色调，高对比度，未来科技感' },
+            watercolor: { name: '🎨 水彩艺术风格', desc: '传统水彩画效果', template: '将______转换为水彩画风格，柔和色彩渐变，纸张纹理质感，颜料晕染效果，留白艺术，传统手绘美感，艺术画廊品质' },
+            oil_painting: { name: '🖼️ 油画风格', desc: '古典油画艺术效果', template: '将______转换为古典油画风格，厚重笔触，丰富色彩层次，戏剧性光影，伦勃朗式打光，博物馆级艺术品质感，金色画框效果' },
+            pixel_retro: { name: '👾 像素复古风格', desc: '8-bit游戏像素艺术', template: '将______转换为像素艺术风格，8-bit复古游戏美学，有限调色板，清晰像素边缘，怀旧游戏机画面感，适合游戏素材使用' },
+            photo_to_anime: { name: '🎌 照片转动漫', desc: '真人照片动漫化', template: '将照片中的人物转换为日本动漫风格，保持面部特征和表情，动漫大眼睛，柔和皮肤，动漫发型处理，背景虚化或纯色，高质量动漫插画' },
+            photo_enhancement: { name: '✨ 照片艺术增强', desc: '照片添加魔法效果', template: '增强照片{subject}，添加魔法粒子/光效/蝴蝶/花瓣等梦幻元素，保持主体清晰，背景添加氛围光效，童话般的视觉效果，Instagram风格' },
+            vintage_photo: { name: '📷 复古胶片风格', desc: '老照片/胶片效果', template: '将{subject}转换为复古胶片照片风格，添加颗粒感、褪色效果、暖色调偏移，模拟柯达/富士胶片色彩，怀旧氛围，轻微漏光效果' },
+            portrait_photo: { name: '📷 专业人像', template: '______的专业人像摄影，85mm镜头，F1.4浅景深，伦勃朗式打光，奶油散景bokeh，8K高清' },
+            street_photo: { name: '🏙️ 街头摄影', template: '______在城市街头，35mm纪实风格，自然光线，人文气息，真实瞬间，胶片质感' },
+            film_photo: { name: '🎞️ 胶片质感', template: '______拍摄于胶片相机，Kodak Portra 400色调，颗粒感，怀旧复古，柔和色彩，90年代氛围' },
+            macro_photo: { name: '🔍 微距特写', template: '______的微距摄影，极致细节，水珠/纹理特写，浅景深，自然光，8K超高清' },
+            christmas: { name: '🎄 圣诞节', template: '______在圣诞节氛围中，圣诞树和灯串，温暖壁炉，红绿金配色，雪花飘落，温馨治愈' },
+            spring_festival: { name: '🧧 春节', template: '______庆祝春节，红灯笼和春联，中国红配金色，烟花璀璨，喜庆热闹，年味浓厚' },
+            valentines: { name: '💕 情人节', template: '______在情人节氛围中，玫瑰花瓣，心形元素，粉红色调，浪漫烛光，甜蜜梦幻' },
+            halloween: { name: '🎃 万圣节', template: '______在万圣节之夜，南瓜灯，蝙蝠和蜘蛛网，紫黑色调，神秘恐怖氛围，月光下的剪影' },
+            impressionism: { name: '🖼️ 印象派', template: '将______转换为印象派油画风格，莫奈式光影变化，柔和笔触，户外写生感，色彩斑斓' },
+            surrealism: { name: '🌀 超现实主义', template: '______的超现实主义画作，达利风格，梦境元素，非理性组合，融化的时钟，潜意识表达' },
+            pop_art: { name: '🎨 波普艺术', template: '将______转换为安迪·沃霍尔波普艺术风格，大胆色彩，重复图案，商业美学，高对比度' },
+            ink_wash: { name: '🖌️ 水墨画', template: '______的中国水墨画风格，黑白灰层次，留白意境，泼墨写意，东方美学，禅意空灵' },
+            game_ui_status: { name: '🎮 RPG角色状态界面', desc: '游戏角色属性面板', template: '使用{character}创建RPG游戏角色状态界面，幻想RPG风格服装，展示角色参数、技能、图标等信息，丰富直观的布局，幻想风格背景，2025年高质量游戏界面设计' },
+            game_card: { name: '🃏 游戏卡牌设计', desc: 'TCG卡牌风格', template: '为{character}设计TCG游戏卡牌，包含角色立绘、属性数值、技能描述、稀有度标识，精美边框装饰，全息闪卡效果，收藏级卡牌设计' },
+            app_icon: { name: '📱 App图标设计', desc: '应用图标设计', template: '为{app_name}设计App图标，{icon_style}风格，圆角方形，简洁醒目，渐变色彩，扁平化/3D立体感，iOS/Android规范，1024x1024分辨率' },
+            text_shape_art: { name: '🔤 文字形状艺术', desc: '文字构成图形', template: '创建{object}形状的文字插画，文字本身构成该形状，粗体活泼字体填满轮廓，文字沿曲线自然排列，鲜明对比色彩，纯色背景，矢量风格，海报格式，1:1比例' },
+            pictogram: { name: '🚻 象形图转换', desc: '图片转象形标识', template: '将{subject}转换为象形图/图标风格，极简线条，单色或双色，国际通用标识风格，清晰易读，适合指示牌使用' },
+            infographic: { name: '📊 信息图表设计', desc: '数据可视化图表', template: '为{topic}创建信息图表，包含统计数据、流程图、对比图表，现代扁平设计，品牌色彩方案，清晰的视觉层次，适合社交媒体分享，16:9比例' },
+            room_makeover: { name: '🏠 房间改造设计', desc: '室内设计效果图', template: '将房间改造为{style}风格，保持原有空间结构，更换家具和装饰，添加植物和艺术品，自然光照，温馨氛围，室内设计杂志质感' },
+            miniature_world: { name: '🔍 微缩世界', desc: '移轴摄影效果', template: '将{scene}转换为微缩模型效果，移轴摄影风格，浅景深，饱和色彩增强，玩具般的质感，俯视角度，城市/风景微缩效果' },
+            age_transform: { name: '👶👴 年龄变换', desc: '人物年龄转换', template: '将照片中的人物转换为{age}岁的样子，保持面部特征可识别，自然的年龄变化效果，真实皮肤纹理，专业人像摄影质感' },
+            inner_child: { name: '💝 内心小孩治愈', desc: '成人与童年自己对话', template: '超逼真极简主义治疗室场景：浅色墙面，灰色沙发，木质咖啡桌。同一人以成年和儿童两种状态并排而坐：成年人双手打开交谈，儿童微微低头倾听。两人穿相同{clothing}。干净工作室氛围，50mm镜头，4K纵向3:4' },
+            fashion_model: { name: '👗 时尚模特照', desc: '时尚杂志风格', template: '将{character}转换为时尚杂志封面风格，高端服装造型，专业模特姿势，工作室打光，时尚摄影后期，Vogue/Elle杂志美学' },
+            plush_toy: { name: '🧸 毛绒玩具设计', desc: '角色毛绒公仔', template: '将{character}设计为可爱毛绒玩具，Q版比例，柔软面料质感，精致刺绣细节，产品摄影风格，白色背景，适合量产的玩具设计' },
+            enamel_pin: { name: '📍 珐琅徽章设计', desc: '金属徽章效果', template: '为{subject}设计珐琅徽章，金属边框，鲜艳填充色，简化的可爱造型，光泽质感，适合收藏的徽章设计，产品展示角度' },
+            tattoo_design: { name: '🖋️ 纹身设计', desc: '纹身图案设计', template: '为{subject}设计纹身图案，{style}风格（传统/日式/几何/水彩/线条），黑白或彩色，清晰线条，适合人体曲线，专业纹身手稿' }
+        };
+
+        const templates = {
+            portrait: '一个人物肖像，',
+            landscape: '一幅风景画面，',
+            product: '产品展示图，',
+            anime: '动漫风格插画，',
+            food: '美食摄影，',
+            architecture: '建筑设计图，'
+        };
+
+        // ==================== 胶片扣费配置（50%利润定价，¥0.3/胶片） ====================
+        // 计算公式：售价 = 成本 × 2，胶片数 = 售价 ÷ 0.3
+        const QUOTA_COSTS = {
+            // 📝 文本生成 - 成本¥0.026 → 售价¥0.052 → 0.2胶片
+            text_generation: 0.2,
+            text_gemini3: 0.2,
+            text_story: 0.2,
+            text_character: 0.2,
+            text_scene: 0.2,
+            text_free: 0,
+
+            // 🖼️ 图片生成 - 成本¥0.17 → 售价¥0.34 → 1.1胶片
+            image_generation: 1.1,
+            image_2k: 1.1,
+            // 4K图(seedream) - 成本¥0.22 → 售价¥0.44 → 1.5胶片
+            image_4k: 1.5,
+            image_free: 0,
+
+            // 🎬 视频生成（Sora2）- 成本¥1.08/15秒 → 售价¥2.16 → 7.2胶片
+            video_generation: 7,
+            video_sora2_1s: 2.5,      // 约1/6的15秒成本
+            video_sora2_8s: 5,        // 约1/2的15秒成本
+            video_sora2_15s: 7,       // 7胶片/15秒
+            video_sora2_pro_15s: 14,  // pro版2倍价格
+
+            // 🎬 视频连续性生成
+            video_continuity_per_segment: 7,
+
+            // 🎭 角色相关
+            character_image: 1.1,
+            character_motion: 8,      // 含视频+转换成本
+
+            // 📖 漫画相关
+            comic_text: 0.2,
+            comic_page_free: 0,
+            comic_page_hd: 1.1,
+            comic_character: 1.1,
+            comic_cover: 1.1,
+        };
+
+        // 🎬 视频模型名称标准化
+        function __normalizeVideoModelName(model) {
+            const m = String(model || '').toLowerCase().trim();
+            if (m.includes('pro')) return 'sora-2-pro';
+            if (m.includes('grok')) return 'grok-video-3';
+            if (m.includes('veo')) return 'veo3';
+            return 'sora-2';
+        }
+
+        // 🎬 计算视频胶片费用（与PC版完全对齐）
+        function __estimateSoraVideoFilmCost(model, duration, hd) {
+            try {
+                const m = __normalizeVideoModelName(model);
+                const dur = parseInt(duration, 10) || 15;
+
+                if (m === 'sora-2-pro') {
+                    const base = Number(QUOTA_COSTS.video_sora2_pro_15s || 0);
+                    if (!(base > 0)) return 0;
+                    return (dur <= 15) ? base : Math.ceil(base * (dur / 15));
+                }
+
+                if (dur <= 1) return Number(QUOTA_COSTS.video_sora2_1s || QUOTA_COSTS.video_sora2_15s || 0);
+                if (dur <= 8) return Number(QUOTA_COSTS.video_sora2_8s || QUOTA_COSTS.video_sora2_15s || 0);
+                return Number(QUOTA_COSTS.video_sora2_15s || 0);
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        // 🖼️ 计算图片胶片费用
+        function __estimateImageFilmCost(model, is4k) {
+            if (is4k || String(model || '').includes('4k')) {
+                return Number(QUOTA_COSTS.image_4k || 3);
+            }
+            return Number(QUOTA_COSTS.image_generation || 1.6);
+        }
+
+        // 📖 计算漫画胶片费用
+        function __estimateComicFilmCost(pageCount) {
+            const textCost = Number(QUOTA_COSTS.comic_text || 0.25);
+            const pageCost = Number(QUOTA_COSTS.comic_page_hd || 1.6);
+            const pages = parseInt(pageCount, 10) || 4;
+            return textCost + (pageCost * pages);
+        }
+
+        // 🔎 版本标识：用于确认线上是否已更新到最新 mobile.html
+        // （只打 log，不影响功能）
+        const __MOBILE_FIX_BUILD = 'mobile-login-fix-2025-12-27-1';
+        console.log('[mobile] BUILD=', __MOBILE_FIX_BUILD, 'ts=', Date.now());
+
+        // 🔧 与电脑版对齐：等待 NVAuth 加载完成
+        async function waitForNVAuth(maxRetries = 20, delayMs = 500) {
+            for (let i = 0; i < maxRetries; i++) {
+                if (typeof NVAuth !== 'undefined') {
+                    console.log(`[mobile] NVAuth 已加载 (第${i + 1}次检查)`);
+                    return true;
+                }
+                console.log(`[mobile] 等待 NVAuth 加载... (${i + 1}/${maxRetries})`);
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+            console.warn('[mobile] NVAuth 加载超时');
+            return false;
+        }
+
+        // ✅ 统一登录态判定：只以 supabase session.user 为准（避免 nv_user_profile 导致误判）
+        // 🔧 增强：增加 localStorage rollroll-auth 作为备用判断，解决刷新后 session 未及时恢复的问题
+        async function getMobileAuthState(options = {}) {
+            const {
+                retries = 5,
+                delayMs = 300,
+                reason = ''
+            } = options;
+
+            const result = {
+                loggedIn: false,
+                user: null,
+                session: null,
+                reason
+            };
+
+            // 🔧 备用检查：localStorage 有 rollroll-auth 表明用户曾登录过
+            const hasRollrollAuth = (() => {
+                try { return !!localStorage.getItem('rollroll-auth'); } catch (e) { return false; }
+            })();
+
+            if (!supabase) {
+                try { supabase = getSupabase(); } catch (e) { }
+            }
+            if (!supabase) return result;
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    result.session = session || null;
+                    result.user = session?.user || null;
+                    result.loggedIn = !!session?.user;
+                    if (result.loggedIn) {
+                        // 🔧 与电脑版对齐：记住最后登录的用户ID
+                        try { localStorage.setItem('last_logged_user_id', result.user.id); } catch (e) { }
+                        return result;
+                    }
+                } catch (e) {
+                    console.warn('[mobile] getSession 失败:', e?.message);
+                }
+                if (i < retries - 1) {
+                    await new Promise(r => setTimeout(r, delayMs));
+                }
+            }
+
+            // 🔧 如果 session 获取失败，但 localStorage 有 rollroll-auth，尝试通过 NVAuth 获取用户
+            if (!result.loggedIn && hasRollrollAuth) {
+                console.log('[mobile] getMobileAuthState: session未恢复，尝试通过NVAuth获取用户...');
+                try {
+                    if (typeof NVAuth !== 'undefined') {
+                        const user = await NVAuth.getCurrentUser();
+                        if (user) {
+                            result.loggedIn = true;
+                            result.user = user;
+                            result.reason = result.reason + '_nvauth_fallback';
+                            console.log('[mobile] 通过NVAuth成功获取用户:', user.email || user.id);
+                            return result;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[mobile] NVAuth获取用户失败:', e?.message);
+                }
+                
+                // 最后的备用方案：如果有 rollroll-auth，视为已登录
+                console.log('[mobile] getMobileAuthState: 使用rollroll-auth备用判断');
+                result.loggedIn = true;
+                result.reason = result.reason + '_storage_fallback';
+            }
+
+            return result;
+        }
+
+        async function updateMobileDebugBar(extra = {}) {
+            try {
+                const el = document.getElementById('mobileDebugBar');
+                if (!el) return;
+
+                // 🔧 临时：始终显示调试信息
+                const debugOn = true;
+                if (!debugOn) {
+                    el.style.display = 'none';
+                    return;
+                }
+
+                const hasRollrollAuth = (() => {
+                    try { return !!localStorage.getItem('rollroll-auth'); } catch (e) { return false; }
+                })();
+                const hasNvProfile = (() => {
+                    try { return !!localStorage.getItem('nv_user_profile'); } catch (e) { return false; }
+                })();
+
+                let sessionUserId = '';
+                try {
+                    const st = await getMobileAuthState({ retries: 1, delayMs: 0, reason: 'debug' });
+                    sessionUserId = st.user?.id ? String(st.user.id).slice(0, 8) : '';
+                } catch (e) { }
+
+                el.style.display = 'block';
+                el.textContent = `[debug] build=${__MOBILE_FIX_BUILD} loggedIn=${isLoggedIn} sessionUser=${sessionUserId || '-'} rollroll-auth=${hasRollrollAuth ? 'Y' : 'N'} nv_profile=${hasNvProfile ? 'Y' : 'N'} ${extra.note ? 'note=' + extra.note : ''}`;
+            } catch (e) { }
+        }
+
+        // 页面加载时强制重新登录（刷新后必须重新认证）
+        (function forceReAuthOnRefresh() {
+            const forceReAuth = new URLSearchParams(window.location.search).get('force_reauth') === 'true';
+            if (!forceReAuth) {
+                console.log('[mobile] 正常访问，保留登录状态');
+                return;
+            }
+
+            console.log('[mobile] 检测到force_reauth参数，强制清除登录状态');
+            localStorage.removeItem('nv_user_profile');
+            // 项目实际使用 supabase storageKey=rollroll-auth，这里不要清理 nv_auth_session，避免误伤其它逻辑
+
+            const client = typeof getSupabase === 'function' ? getSupabase() : null;
+            if (client) {
+                client.auth.signOut().then(() => {
+                    console.log('[mobile] 已清除登录状态，刷新后需重新登录');
+                }).catch(e => {
+                    console.warn('[mobile] 清除session失败:', e.message);
+                });
+            }
+        })();
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            supabase = getSupabase();
+
+            // 🔧 与电脑版对齐：等待 NVAuth 加载完成
+            await waitForNVAuth(20, 500);
+
+            // 🔧 登录回跳后，强制尝试恢复 session（避免“登录页显示已登录，但回到首页变未登录”）
+            try {
+                const urlParams = new URLSearchParams(location.search);
+                const postLogin = urlParams.get('post_login') === '1';
+                let loginOk = false;
+                let loginTs = 0;
+                try {
+                    loginOk = localStorage.getItem('nv_mobile_login_ok') === '1';
+                    loginTs = Number(localStorage.getItem('nv_mobile_login_ts') || '0');
+                } catch (e) { }
+
+                // 🔧 修复：如果是登录回跳，等待session完全保存后再检查登录状态
+                if (postLogin && loginOk) {
+                    console.log('[mobile] 检测到登录回跳，等待session完全保存...');
+                    const now = Date.now();
+                    const elapsed = now - loginTs;
+                    const waitTime = Math.max(0, 3000 - elapsed);
+                    if (waitTime > 0) {
+                        console.log(`[mobile] 已等待 ${waitTime}ms，确保session保存完成`);
+                        await new Promise(r => setTimeout(r, waitTime));
+                    }
+                }
+
+                // 🔧 与电脑版对齐：轮询等待 session 就绪（最多10次，每次300ms）
+                let sessionReady = false;
+                for (let i = 0; i < 10; i++) {
+                    try {
+                        const u = await NVAuth.getCurrentUser();
+                        if (u) {
+                            console.log(`[mobile] session 已就绪 (第${i + 1}次检查)`);
+                            isLoggedIn = true;
+                            // 🔧 与电脑版对齐：获取用户资料并保存到 localStorage
+                            if (typeof NVAuth.getUserProfile === 'function') {
+                                try {
+                                    const profile = await NVAuth.getUserProfile();
+                                    if (profile) {
+                                        localStorage.setItem('nv_user_profile', JSON.stringify(profile));
+                                        localStorage.setItem('last_logged_user_id', u.id);
+                                        if (profile.quota !== undefined) {
+                                            userQuota = profile.quota;
+                                        }
+                                        console.log('[mobile] 用户资料已保存到 localStorage');
+                                    }
+                                } catch (e) {
+                                    console.warn('[mobile] 获取用户资料失败:', e?.message);
+                                }
+                            }
+                            sessionReady = true;
+                            break;
+                        }
+                    } catch (e) { }
+                    if (i < 9) {
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+                }
+                if (!sessionReady) {
+                    console.log('[mobile] session 轮询超时，继续执行');
+                    isLoggedIn = false;
+                }
+            } catch (e) {
+                console.warn('[mobile] NVAuth 登录态同步失败:', e?.message || e);
+            }
+
+            try {
+                const st = await getMobileAuthState({ retries: 5, delayMs: 250, reason: 'DOMContentLoaded' });
+                isLoggedIn = st.loggedIn;
+                await updateMobileDebugBar({ note: 'dom' });
+            } catch (e) { }
+
+            // 加载历史任务
+            loadHistory();
+
+            // 🎯 初始化手势操作
+            initGestures();
+
+            // 🔧 初始化认证状态监听（和电脑端一样）- 必须先初始化
+            try {
+                await initMobileAuthFallback();
+            } catch (e) { }
+
+            // 🔧 初始化欢迎页检查 - 必须在认证初始化之后
+            await checkWelcomeScreen();
+
+            // 🔧 更新用户显示 - 在欢迎页检查之后
+            try {
+                await updateMobileUserDisplay();
+            } catch (e) { }
+
+            // 🎯 处理URL参数，自动导航到指定工具
+            const urlParams = new URLSearchParams(window.location.search);
+            const tool = urlParams.get('tool');
+            if (tool) {
+                handleToolNavigation(tool);
+            }
+        });
+
+        // 🔧 页面可见性变化监听：返回页面时强制检查登录状态
+        document.addEventListener('visibilitychange', async () => {
+            if (!document.hidden) {
+                console.log('[mobile] 页面重新可见，强制检查登录状态');
+                await checkWelcomeScreen();
+            }
+        });
+
+        // 🔧 pageshow事件：从缓存恢复时强制检查登录状态
+        window.addEventListener('pageshow', async (event) => {
+            if (event.persisted) {
+                console.log('[mobile] 页面从缓存恢复，强制检查登录状态');
+                await checkWelcomeScreen();
+            }
+        });
+
+        // ==================== 欢迎页控制 ====================
+        
+        /**
+         * 🏠 关闭欢迎页并记住状态
+         */
+        function closeWelcomeScreen() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) {
+                welcomeScreen.style.transition = 'opacity 0.5s ease-out';
+                welcomeScreen.style.opacity = '0';
+                setTimeout(() => {
+                    welcomeScreen.classList.remove('show');
+                    welcomeScreen.style.display = 'none';
+                }, 500);
+                // 🔧 记住用户已进入工作区，刷新时跳过欢迎页
+                sessionStorage.setItem('skip_welcome', 'true');
+            }
+        }
+
+        /**
+         * 🏠 检查是否应该显示欢迎页
+         * 🔐 已登录用户自动跳过欢迎页直接进入工作区
+         */
+        async function checkWelcomeScreen() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            console.log('[mobile] checkWelcomeScreen 开始执行, welcomeScreen:', !!welcomeScreen);
+
+            // 🔧 检测登录状态并更新全局变量
+            try {
+                if (typeof NVAuth !== 'undefined' && NVAuth && typeof NVAuth.getCurrentUser === 'function') {
+                    let u = null;
+                    for (let i = 0; i < 10; i++) {
+                        try {
+                            u = await NVAuth.getCurrentUser();
+                            if (u) {
+                                console.log(`[mobile] checkWelcomeScreen: 检测到用户 (第${i + 1}次)`);
+                                break;
+                            }
+                        } catch (e) { }
+                        await new Promise(r => setTimeout(r, 120));
+                    }
+                    if (u) {
+                        // 更新全局状态
+                        isLoggedIn = true;
+                        try { localStorage.setItem('last_logged_user_id', u.id); } catch (e) { }
+                        // 获取用户资料
+                        try {
+                            if (typeof NVAuth.getUserProfile === 'function') {
+                                const profile = await NVAuth.getUserProfile(u.id);
+                                if (profile) {
+                                    localStorage.setItem('nv_user_profile', JSON.stringify(profile));
+                                    userQuota = profile.quota_balance || 0;
+                                }
+                            }
+                        } catch (e) { }
+                        console.log('[mobile] 已登录用户');
+                    }
+                }
+            } catch (e) {
+                console.warn('[mobile] checkWelcomeScreen NVAuth检测失败:', e);
+            }
+
+            // 始终显示欢迎页
+            if (welcomeScreen) {
+                try {
+                    welcomeScreen.classList.add('show');
+                    welcomeScreen.style.display = 'flex';
+                    welcomeScreen.style.opacity = '1';
+                } catch (e) { }
+            }
+            console.log('[mobile] 显示欢迎页');
+            return true;
+        }
+
+        // 监听来自iframe的消息
+        window.addEventListener('message', function (event) {
+            if (event.data === 'closeWelcome') {
+                closeWelcomeScreen();
+            }
+        });
+
+        window.closeWelcomeScreen = closeWelcomeScreen;
+        window.checkWelcomeScreen = checkWelcomeScreen;
+
+        // ==================== 🔧 与电脑版完全对齐的认证初始化 ====================
+        async function initMobileAuthFallback() {
+            // 🔧 与电脑版一样：使用 NVAuth.onAuthStateChange
+            if (typeof NVAuth === 'undefined') {
+                console.warn('[mobile] NVAuth 未加载，跳过认证初始化');
+                return;
+            }
+
+            // 🔧 与电脑版一样：绑定 onAuthStateChange 监听器
+            try {
+                if (!window.__mobileAuthListenerBound) {
+                    window.__mobileAuthListenerBound = true;
+                    NVAuth.onAuthStateChange(async (event, session) => {
+                        console.log('[mobile] NVAuth状态变化:', event, session?.user?.id);
+
+                        if (event === 'SIGNED_OUT') {
+                            isLoggedIn = false;
+                            userQuota = 0;
+                            sessionStorage.removeItem('skip_welcome');
+                            await updateMobileUserDisplay();
+                            return;
+                        }
+
+                        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+                            const u = session?.user;
+                            if (u) {
+                                try { localStorage.setItem('last_logged_user_id', u.id); } catch (e) { }
+                                await __mobileHandleSignedIn(u);
+                            } else {
+                                // session.user 不一定同步到位，兜底再取一次
+                                try {
+                                    const u2 = await NVAuth.getCurrentUser();
+                                    if (u2) await __mobileHandleSignedIn(u2);
+                                } catch (e) { }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('[mobile] 绑定认证监听器失败:', e);
+            }
+
+            // 🔧 与电脑版一样：轮询等待 session 就绪
+            try {
+                let user = null;
+                for (let i = 0; i < 10; i++) {
+                    try {
+                        user = await NVAuth.getCurrentUser();
+                        if (user) break;
+                    } catch (e) { }
+                    await new Promise(r => setTimeout(r, 300));
+                }
+
+                if (user) {
+                    await __mobileHandleSignedIn(user);
+                } else {
+                    // 未登录
+                    isLoggedIn = false;
+                    await updateMobileUserDisplay();
+                }
+            } catch (e) {
+                console.error('[mobile] 用户状态初始化失败:', e);
+            }
+        }
+
+        // 🔧 与电脑版 __rrHandleSignedIn 对齐
+        async function __mobileHandleSignedIn(user) {
+            if (!user) return;
+            console.log('[mobile] __mobileHandleSignedIn:', user.email || user.id);
+
+            isLoggedIn = true;
+
+            let profile = null;
+            try {
+                profile = await NVAuth.getUserProfile(user.id);
+            } catch (e) {
+                try {
+                    profile = JSON.parse(localStorage.getItem('nv_user_profile') || 'null');
+                } catch (err) {
+                    profile = null;
+                }
+            }
+
+            if (profile && typeof profile === 'object') {
+                localStorage.setItem('nv_user_profile', JSON.stringify(profile));
+                if (profile.quota_balance !== undefined) {
+                    userQuota = Number(profile.quota_balance) || 0;
+                    localStorage.setItem('film_balance', String(userQuota));
+                }
+            }
+
+            await updateMobileUserDisplay();
+        }
+
+        // ==================== 更新移动端用户显示（与电脑端一致） ====================
+        async function updateMobileUserDisplay() {
+            try {
+                // 🔧 修复：先检查是否已登录，再决定显示内容
+                let loggedIn = false;
+                // ⚠️ 这里不要用 userQuota 这个变量名，避免遮蔽全局 userQuota，导致全局胶片永远不更新
+                let quotaBalance = 0;
+                let nickname = '用户';
+                let memberLevel = 0;
+
+                try {
+                    // 🔧 优先使用 NVAuth.getCurrentUser() 检测登录状态
+                    if (typeof NVAuth !== 'undefined' && typeof NVAuth.getCurrentUser === 'function') {
+                        const user = await NVAuth.getCurrentUser();
+                        if (user) {
+                            loggedIn = true;
+                            if (supabase) {
+                                const { data: profile } = await supabase
+                                    .from('user_profiles')
+                                    .select('quota_balance, membership_level, membership_type, nickname')
+                                    .eq('id', user.id)
+                                    .single();
+
+                                if (profile) {
+                                    quotaBalance = profile.quota_balance || 0;
+                                    nickname = profile.nickname || user.email?.split('@')[0] || '用户';
+                                    memberLevel = profile.membership_level || 0;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 备用：使用 getMobileAuthState
+                    if (!loggedIn) {
+                        const st = await getMobileAuthState({ retries: 3, delayMs: 200, reason: 'updateMobileUserDisplay' });
+                        loggedIn = st.loggedIn;
+
+                        if (loggedIn && supabase && st.user) {
+                            const { data: profile } = await supabase
+                                .from('user_profiles')
+                                .select('quota_balance, membership_level, membership_type, nickname')
+                                .eq('id', st.user.id)
+                                .single();
+
+                            if (profile) {
+                                quotaBalance = profile.quota_balance || 0;
+                                nickname = profile.nickname || st.user.email?.split('@')[0] || '用户';
+                                memberLevel = profile.membership_level || 0;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[mobile] 获取用户信息失败:', e.message);
+                }
+
+                // 🔧 修复：同步更新全局登录状态
+                isLoggedIn = loggedIn;
+                if (quotaBalance > 0) {
+                    userQuota = quotaBalance;
+                }
+                await updateMobileDebugBar({ note: loggedIn ? 'ud_in' : 'ud_out' });
+
+                // 更新胶片显示
+                const quotaValueEl = document.getElementById('quotaValue');
+                const userBtnEl = document.getElementById('userBtn');
+                if (!quotaValueEl || !userBtnEl) return;
+
+                if (!loggedIn) {
+                    quotaValueEl.textContent = '--';
+                    userBtnEl.innerHTML = '👤';
+                    userBtnEl.style.width = '40px';
+                    userBtnEl.style.padding = '0';
+                    userBtnEl.style.fontSize = '18px';
+                } else {
+                    // 更新胶片显示
+                    quotaValueEl.textContent = quotaBalance.toFixed(1);
+
+                    // 更新用户按钮显示
+                    const levelNames = ['', 'VIP1', 'VIP2', 'VIP3', 'VIP4', 'VIP5', 'VIP6', 'VIP7', 'VIP8', 'VIP9', 'VIP10'];
+                    const levelBadge = memberLevel > 0
+                        ? `<span style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#000;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:4px;">${levelNames[memberLevel] || 'VIP'}</span>`
+                        : '';
+
+                    userBtnEl.innerHTML = nickname.slice(0, 2) + levelBadge;
+                    userBtnEl.style.width = 'auto';
+                    userBtnEl.style.padding = '0 10px';
+                    userBtnEl.style.fontSize = '12px';
+                }
+
+                console.log('[mobile] 用户显示已更新:', { nickname, userQuota, memberLevel, loggedIn });
+            } catch (e) {
+                console.error('[mobile] 更新用户显示失败:', e);
+            }
+        }
+
+        // ==================== 手势操作 ====================
+        let contextMenuTargetId = null;
+        let pullStartY = 0;
+        let isPulling = false;
+
+        function initGestures() {
+            // 1. 下拉刷新
+            initPullToRefresh();
+
+            // 2. 关闭上下文菜单（点击其他地方）
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.context-menu')) {
+                    document.getElementById('contextMenu').classList.remove('show');
+                }
+            });
+
+            // 3. 禁用默认长按菜单
+            document.addEventListener('contextmenu', (e) => {
+                if (e.target.closest('.task-card')) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // 下拉刷新
+        function initPullToRefresh() {
+            const main = document.querySelector('.main');
+            const pullRefresh = document.getElementById('pullRefresh');
+            const pullText = document.getElementById('pullRefreshText');
+
+            let startY = 0;
+            let currentY = 0;
+            let pulling = false;
+
+            main.addEventListener('touchstart', (e) => {
+                if (window.scrollY === 0) {
+                    startY = e.touches[0].clientY;
+                    pulling = true;
+                }
+            }, { passive: true });
+
+            main.addEventListener('touchmove', (e) => {
+                if (!pulling) return;
+                currentY = e.touches[0].clientY;
+                const diff = currentY - startY;
+
+                if (diff > 0 && diff < 150) {
+                    pullRefresh.classList.add('pulling');
+                    pullRefresh.style.transform = `translateY(${Math.min(diff - 60, 0)}px)`;
+                    pullText.textContent = diff > 80 ? '松开刷新' : '下拉刷新';
+                }
+            }, { passive: true });
+
+            main.addEventListener('touchend', async () => {
+                if (!pulling) return;
+                pulling = false;
+
+                const diff = currentY - startY;
+                if (diff > 80) {
+                    // 触发刷新
+                    pullText.textContent = '刷新中...';
+                    pullRefresh.classList.add('refreshing');
+
+                    await loadUserStatus();
+                    loadHistory();
+
+                    setTimeout(() => {
+                        pullRefresh.classList.remove('pulling', 'refreshing');
+                        pullRefresh.style.transform = '';
+                        showToast('刷新成功');
+                    }, 500);
+                } else {
+                    pullRefresh.classList.remove('pulling');
+                    pullRefresh.style.transform = '';
+                }
+
+                startY = 0;
+                currentY = 0;
+            });
+        }
+
+        // 长按处理
+        function handleLongPress(ideaId, event) {
+            contextMenuTargetId = ideaId;
+            const menu = document.getElementById('contextMenu');
+
+            // 计算菜单位置
+            let x = event.touches ? event.touches[0].clientX : event.clientX;
+            let y = event.touches ? event.touches[0].clientY : event.clientY;
+
+            // 防止超出屏幕
+            const menuWidth = 160;
+            const menuHeight = 200;
+            if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+            if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            menu.classList.add('show');
+
+            // 震动反馈（如果支持）
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        }
+
+        // 上下文菜单操作
+        function contextMenuAction(action) {
+            document.getElementById('contextMenu').classList.remove('show');
+
+            if (!contextMenuTargetId) return;
+
+            switch (action) {
+                case 'view':
+                    viewTask(contextMenuTargetId);
+                    break;
+                case 'share':
+                    shareTask(contextMenuTargetId);
+                    break;
+                case 'retry':
+                    retryTask(contextMenuTargetId);
+                    break;
+                case 'delete':
+                    deleteTask(contextMenuTargetId);
+                    break;
+            }
+
+            contextMenuTargetId = null;
+        }
+
+        // 左滑删除处理
+        function initSwipeForCard(cardElement, ideaId) {
+            let startX = 0;
+            let currentX = 0;
+            let swiping = false;
+            const inner = cardElement.querySelector('.task-card-inner');
+
+            cardElement.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                swiping = true;
+                cardElement.classList.add('swiping');
+            }, { passive: true });
+
+            cardElement.addEventListener('touchmove', (e) => {
+                if (!swiping) return;
+                currentX = e.touches[0].clientX;
+                const diff = currentX - startX;
+
+                // 只允许左滑
+                if (diff < 0 && diff > -160) {
+                    inner.style.transform = `translateX(${diff}px)`;
+                }
+            }, { passive: true });
+
+            cardElement.addEventListener('touchend', () => {
+                if (!swiping) return;
+                swiping = false;
+                cardElement.classList.remove('swiping');
+
+                const diff = currentX - startX;
+                if (diff < -80) {
+                    // 显示操作按钮
+                    inner.style.transform = 'translateX(-160px)';
+                } else {
+                    // 恢复
+                    inner.style.transform = '';
+                }
+
+                startX = 0;
+                currentX = 0;
+            });
+        }
+
+        // 图片预览（支持双指缩放）
+        function openImageViewer(src) {
+            const viewer = document.getElementById('imageViewer');
+            const img = document.getElementById('viewerImage');
+            img.src = src;
+            viewer.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImageViewer(event) {
+            if (event && event.target.tagName === 'IMG') return;
+            document.getElementById('imageViewer').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // ==================== 用户状态 ====================
+        async function loadUserStatus() {
+            try {
+                if (!supabase) {
+                    console.log('[mobile] Supabase客户端未初始化');
+                    return;
+                }
+
+                const timeoutMs = 1200;
+                await Promise.race([
+                    (__nvAuthReadyPromise || Promise.resolve(true)),
+                    new Promise(resolve => setTimeout(resolve, timeoutMs))
+                ]);
+
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    isLoggedIn = true;
+                    console.log('[mobile] 用户已登录:', session.user.email);
+                    const { data: profile, error } = await supabase
+                        .from('user_profiles')
+                        .select('quota_balance, membership_level, membership_type, nickname, first_login_bonus_claimed')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (error) {
+                        console.error('[mobile] 获取用户资料失败:', error);
+                        // 如果表不存在或错误，使用默认配额
+                        userQuota = 100; // 默认给予100胶片
+                    } else if (profile) {
+                        userQuota = profile.quota_balance || 0;
+                    }
+
+                    document.getElementById('quotaValue').textContent = userQuota.toFixed(1);
+
+                    const nickname = profile?.nickname || session.user.email?.split('@')[0] || '用户';
+                    const memberLevel = profile?.membership_level || 0;
+                    const levelNames = ['', 'VIP1', 'VIP2', 'VIP3', 'VIP4', 'VIP5', 'VIP6', 'VIP7', 'VIP8', 'VIP9', 'VIP10'];
+                    const levelBadge = memberLevel > 0 ? `<span style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#000;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:4px;">${levelNames[memberLevel] || 'VIP'}</span>` : '';
+
+                    document.getElementById('userBtn').innerHTML = nickname.slice(0, 2) + levelBadge;
+                    document.getElementById('userBtn').style.width = 'auto';
+                    document.getElementById('userBtn').style.padding = '0 10px';
+                    document.getElementById('userBtn').style.fontSize = '12px';
+
+                    if (profile && !profile.first_login_bonus_claimed) {
+                        await claimFirstLoginBonus(session.user.id);
+                    }
+                } else {
+                    isLoggedIn = false;
+                    userQuota = 0;
+                    document.getElementById('quotaValue').textContent = '--';
+                    document.getElementById('userBtn').innerHTML = '👤';
+                    document.getElementById('userBtn').style.width = '40px';
+                    document.getElementById('userBtn').style.padding = '0';
+                }
+            } catch (e) {
+                console.error('加载用户状态失败:', e);
+                userQuota = 0;
+                document.getElementById('quotaValue').textContent = '--';
+            }
+        }
+
+        // 🎁 新用户首次登录奖励（一次性发放）
+        async function claimFirstLoginBonus(userId) {
+            try {
+                // 新用户不再直接赠送胶片，而是通过赠送胶片福利系统（总额10万）解锁
+                // 等级0即可解锁100胶片，升级会员可解锁更多
+
+                const { error } = await supabase
+                    .from('user_profiles')
+                    .update({
+                        first_login_bonus_claimed: true
+                    })
+                    .eq('id', userId);
+
+                if (!error) {
+                    showToast(`🎉 欢迎新用户！已解锁100胶片，升级会员可解锁更多（总额10万）`);
+                    console.log(`🎁 新用户首次登录奖励已激活: 解锁100胶片`);
+                }
+            } catch (e) {
+                console.error('首次登录奖励发放失败:', e);
+            }
+        }
+
+        // ==================== 模式切换 ====================
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.type === mode);
+            });
+            
+            // 切换选项区域显示
+            const videoOptions = document.getElementById('videoOptionsSection');
+            const comicOptions = document.getElementById('comicOptionsSection');
+            const imageUpload = document.getElementById('imageUploadSection');
+            
+            if (mode === 'video') {
+                if (videoOptions) videoOptions.style.display = 'block';
+                if (comicOptions) comicOptions.style.display = 'none';
+            } else {
+                if (videoOptions) videoOptions.style.display = 'none';
+                if (comicOptions) comicOptions.style.display = 'block';
+                if (imageUpload) imageUpload.style.display = 'none';
+            }
+        }
+
+        // ==================== 生成模式切换 ====================
+        function onGenModeChange(mode) {
+            currentGenMode = mode;
+            console.log('生成模式已切换:', mode);
+
+            const imageUploadSection = document.getElementById('imageUploadSection');
+            if (imageUploadSection) {
+                const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3';
+                imageUploadSection.style.display = isImageMode ? 'block' : 'none';
+            }
+
+            const hintEl = document.getElementById('continuityModeHint');
+            if (hintEl) {
+                hintEl.style.display = mode === 'video-continuity' ? 'block' : 'none';
+            }
+        }
+
+        // ==================== 图片上传预览 ====================
+        function previewI2VImage(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.getElementById('i2vPreview');
+                    const uploadText = document.getElementById('i2vUploadText');
+                    const uploadArea = document.getElementById('i2vUploadArea');
+
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    uploadText.textContent = file.name;
+                    uploadArea.style.borderColor = 'var(--accent)';
+                    uploadArea.style.background = 'rgba(251, 191, 36, 0.1)';
+
+                    i2vImageData = e.target.result;
+                    console.log('[mobile] 图片已加载，数据长度:', i2vImageData.length);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // ==================== 快捷标签 ====================
+        function insertTag(tag) {
+            const input = document.getElementById('themeInput');
+            input.value = input.value ? input.value + '，' + tag : tag;
+            input.focus();
+        }
+
+        function useTemplate(type) {
+            const input = document.getElementById('themeInput');
+            input.value = templates[type] + input.value;
+            input.focus();
+        }
+
+        function useFillTemplate() {
+            const select = document.getElementById('fillTemplateSelect');
+            const preview = document.getElementById('fillPreview');
+            const input = document.getElementById('themeInput');
+            const key = select.value;
+
+            if (!key || !fillTemplates[key]) {
+                preview.style.display = 'none';
+                return;
+            }
+
+            const tpl = fillTemplates[key];
+            preview.innerHTML = '<b>' + tpl.name + '</b><br>' + tpl.template.replace('______', '<span style="color:var(--accent);font-weight:bold;">[在上方输入主题]</span>');
+            preview.style.display = 'block';
+
+            input.value = tpl.template;
+            input.focus();
+            showToast('已选择模板，请替换______为你的主题');
+        }
+
+        // ==================== 开始生成 ====================
+        async function startGenerate() {
+            const theme = document.getElementById('themeInput').value.trim();
+            if (!theme) {
+                showToast('请输入创意主题');
+                return;
+            }
+
+            // 检查登录状态（使用全局状态，确保与首页显示一致）
+            try {
+                const st = await getMobileAuthState({ retries: 3, delayMs: 200, reason: 'startGenerate' });
+                isLoggedIn = st.loggedIn;
+                await updateMobileDebugBar({ note: isLoggedIn ? 'gen_in' : 'gen_out' });
+                if (isLoggedIn && typeof NVAuth !== 'undefined' && typeof NVAuth.getUserProfile === 'function') {
+                    try { await NVAuth.getUserProfile(); } catch (e) { }
+                }
+            } catch (e) { }
+
+            if (!isLoggedIn) {
+                showToast('请先登录');
+                setTimeout(() => location.href = 'auth.html?force=mobile&no_redirect=true', 1000);
+                return;
+            }
+
+            // 检查图生视频模式是否上传了图片
+            const isImageMode = currentGenMode === 'image-to-video' || currentGenMode === 'banana-image-to-video' || currentGenMode === 'grok-video-3';
+            if (isImageMode && !i2vImageData) {
+                showToast('请先上传参考图片');
+                return;
+            }
+
+            // 🎬 计算实际所需胶片（与PC版完全对齐）
+            let requiredQuota = 0;
+            if (currentMode === 'video') {
+                // 获取视频参数
+                const videoModel = currentGenMode.includes('pro') ? 'sora-2-pro' : 
+                                   currentGenMode.includes('grok') ? 'grok-video-3' :
+                                   currentGenMode.includes('veo') ? 'veo3' : 'sora-2';
+                const videoDuration = 15; // 默认15秒
+                const videoHd = false;
+                requiredQuota = __estimateSoraVideoFilmCost(videoModel, videoDuration, videoHd);
+                // 加上文本生成费用
+                requiredQuota += Number(QUOTA_COSTS.text_generation || 0.25);
+            } else {
+                // 漫画模式：文本 + 4页图片
+                requiredQuota = __estimateComicFilmCost(4);
+            }
+            requiredQuota = Math.round(requiredQuota * 100) / 100;
+
+            if (userQuota < requiredQuota) {
+                showToast(`胶片不足，需要${requiredQuota}胶片`);
+                return;
+            }
+
+            // 显示加载
+            showLoading(currentMode === 'video' ? '正在生成视频...' : '正在生成漫画...');
+
+            // 创建任务
+            const idea = {
+                id: Date.now(),
+                theme: theme,
+                type: currentMode,
+                genMode: currentGenMode,
+                status: 'processing',
+                createTime: new Date().toISOString(),
+                estimatedCost: requiredQuota
+            };
+
+            ideas.unshift(idea);
+            saveHistory();
+            renderTaskList();
+
+            try {
+                // 调用API生成
+                if (currentMode === 'video') {
+                    await generateVideo(idea);
+                } else {
+                    await generateComic(idea);
+                }
+
+                idea.status = 'completed';
+
+                // 🎬 扣减胶片 - 使用实际计算的费用（与PC版完全对齐）
+                const actualCost = idea.estimatedCost || requiredQuota;
+                console.log(`🎞️ [胶片扣减] 模式=${currentMode}, 费用=${actualCost}胶片`);
+                
+                // 所有功能都必须计费，即使是0也要记录
+                const result = await NVAuth.consumeFilmQuota(actualCost, `${currentMode === 'video' ? '视频' : '漫画'}生成`, false);
+                if (!result.success) {
+                    showToast(`生成成功，但扣减胶片失败：${result.message}`);
+                } else {
+                    userQuota = result.newBalance;
+                    document.getElementById('quotaValue').textContent = userQuota.toFixed(1);
+                    console.log(`🎞️ [胶片扣减成功] -${actualCost}胶片, 余额=${userQuota}`);
+                }
+
+                showToast('生成完成！🎉');
+            } catch (error) {
+                console.error('生成失败:', error);
+                idea.status = 'failed';
+                idea.error = error.message;
+                showToast('生成失败：' + error.message);
+            }
+
+            hideLoading();
+            saveHistory();
+            renderTaskList();
+
+            // 清空输入
+            document.getElementById('themeInput').value = '';
+        }
+
+        // ==================== 视频生成 ====================
+        async function generateVideo(idea) {
+            const genMode = idea.genMode || 'text-to-video';
+            console.log('[mobile] 开始生成视频，生成模式:', genMode);
+
+            // 根据生成模式选择不同的API端点
+            let apiEndpoint, requestBody;
+
+            switch (genMode) {
+                case 'text-to-video':
+                    apiEndpoint = '/api/sora2';
+                    requestBody = {
+                        action: 'text-to-video',
+                        prompt: idea.theme,
+                        model: 'sora-2',
+                        duration: 15,
+                        aspect_ratio: '16:9',
+                        hd: false
+                    };
+                    break;
+
+                case 'image-to-video':
+                    apiEndpoint = '/api/sora2';
+                    requestBody = {
+                        action: 'image-to-video',
+                        prompt: idea.theme,
+                        model: 'sora-2',
+                        duration: 15,
+                        aspect_ratio: '16:9',
+                        hd: false,
+                        image_url: i2vImageData
+                    };
+                    break;
+
+                case 'veo3.1':
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = {
+                        action: 'veo3',
+                        prompt: idea.theme,
+                        duration: 15,
+                        with_audio: true
+                    };
+                    break;
+
+                case 'grok-video-3-text':
+                    apiEndpoint = '/api/sora2';
+                    requestBody = {
+                        action: 'text-to-video',
+                        prompt: idea.theme,
+                        model: 'grok-video-3',
+                        duration: 15
+                    };
+                    break;
+
+                case 'grok-video-3':
+                    apiEndpoint = '/api/sora2';
+                    requestBody = {
+                        action: 'image-to-video',
+                        prompt: idea.theme,
+                        model: 'grok-video-3',
+                        duration: 15,
+                        image_url: i2vImageData
+                    };
+                    break;
+
+                case 'video-continuity':
+                    apiEndpoint = '/api/sora2';
+                    requestBody = {
+                        action: 'video-continuity',
+                        prompt: idea.theme,
+                        model: 'sora-2',
+                        duration: 15,
+                        aspect_ratio: '16:9',
+                        hd: false
+                    };
+                    break;
+
+                default:
+                    console.warn('[mobile] 未知的生成模式，使用默认Sora-2:', genMode);
+                    apiEndpoint = '/api/sora2';
+                    requestBody = {
+                        action: 'text-to-video',
+                        prompt: idea.theme,
+                        model: 'sora-2',
+                        duration: 15,
+                        aspect_ratio: '16:9',
+                        hd: false
+                    };
+            }
+
+            // 1. 调用AI生成剧本
+            const scriptResponse = await fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'text',
+                    prompt: `请为以下主题创作一个15秒短视频的剧本，包含场景描述和台词：\n${idea.theme}\n\n直接输出剧本内容，不要解释。`
+                })
+            });
+            const scriptData = await scriptResponse.json();
+            idea.script = scriptData.content || scriptData.response || scriptData.text;
+
+            // 2. 调用相应的API生成视频
+            console.log('[mobile] 调用视频生成API:', apiEndpoint);
+            const videoResponse = await fetch(apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!videoResponse.ok) {
+                const error = await videoResponse.json();
+                throw new Error(error.message || '视频生成失败');
+            }
+
+            const videoData = await videoResponse.json();
+            idea.taskId = videoData.task_id || videoData.id;
+            idea._source = videoData._source || 'yunmeng';
+            idea._endpoint = videoData._endpoint || '';
+            idea._apiEndpoint = apiEndpoint;
+
+            // 3. 轮询等待视频生成完成
+            const maxAttempts = 90;
+            const pollInterval = 5000;
+            let lastErrorMsg = '';
+            let consecutiveErrors = 0;
+
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+                try {
+                    const pollEndpoint = idea._apiEndpoint || '/api/sora2';
+                    const pollRequestBody = {
+                        action: 'poll',
+                        task_id: idea.taskId
+                    };
+
+                    // 不同API可能需要不同的轮询参数
+                    if (pollEndpoint === '/api/sora2') {
+                        pollRequestBody._source = idea._source;
+                        pollRequestBody._endpoint = idea._endpoint;
+                    } else if (pollEndpoint === '/api/yunwu') {
+                        pollRequestBody.model = 'veo3';
+                    }
+
+                    const pollResponse = await fetch(pollEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(pollRequestBody)
+                    });
+
+                    if (!pollResponse.ok) {
+                        consecutiveErrors++;
+                        const errorText = await pollResponse.text().catch(() => '无法获取错误详情');
+                        console.log(`[mobile] 轮询 ${i + 1}/${maxAttempts}: HTTP ${pollResponse.status}, 连续错误: ${consecutiveErrors}`);
+
+                        // 连续3次HTTP错误才提示用户
+                        if (consecutiveErrors >= 3) {
+                            showToast(`网络不稳定 (${pollResponse.status})，正在重试...`);
+                            consecutiveErrors = 0;
+                        }
+                        continue;
+                    }
+
+                    consecutiveErrors = 0;
+
+                    const pollData = await pollResponse.json();
+                    const status = (pollData.status || pollData.state || pollData.progress_state || '').toUpperCase();
+                    const progress = pollData.progress || pollData.percentage || 0;
+                    console.log(`[mobile] 轮询 ${i + 1}/${maxAttempts}: status=${status}, progress=${progress}%, data=`, JSON.stringify(pollData).substring(0, 200));
+
+                    if (status === 'COMPLETED' || status === 'SUCCEEDED') {
+                        console.log('[mobile] 视频生成完成，完整响应数据:', JSON.stringify(pollData));
+
+                        const videoUrl = pollData.output_url || pollData.video_url || pollData.url ||
+                            pollData.data?.output_url || pollData.data?.video_url || pollData.data?.url ||
+                            pollData.results?.[0]?.url || pollData.result?.url ||
+                            pollData.data?.results?.[0]?.url || pollData.data?.result?.url ||
+                            pollData.output?.video_url || pollData.output?.url ||
+                            pollData.data?.output?.video_url || pollData.data?.output?.url;
+
+                        if (!videoUrl) {
+                            console.error('[mobile] ❌ 无法从响应中提取视频URL，响应数据:', JSON.stringify(pollData));
+                            throw new Error('视频生成完成但未返回视频URL，请重试');
+                        }
+
+                        idea.videoUrl = videoUrl;
+                        idea.previewImages = pollData.preview_images || pollData.data?.preview_images || [idea.videoUrl];
+                        idea.progress = 100;
+                        console.log('[mobile] ✅ 成功获取视频URL:', idea.videoUrl);
+                        return;
+                    }
+
+                    if (status === 'FAILED' || status === 'ERROR') {
+                        const errorMsg = pollData.error || pollData.message || pollData.data?.error || pollData.reason || '视频生成失败';
+                        lastErrorMsg = errorMsg;
+                        console.error('[mobile] ❌ 视频生成失败:', errorMsg, '完整响应:', JSON.stringify(pollData));
+                        throw new Error(errorMsg);
+                    }
+
+                    // 处理处理中状态
+                    if (status === 'PROCESSING' || status === 'PENDING' || status === 'IN_PROGRESS') {
+                        idea.progress = Math.min(progress + (i * 2), 95);
+                    }
+
+                } catch (pollError) {
+                    console.error('[mobile] 轮询异常:', pollError);
+                    if (pollError.message !== lastErrorMsg) {
+                        throw pollError;
+                    }
+                }
+            }
+
+            throw new Error(`视频生成超时（等待超过${Math.floor(maxAttempts * pollInterval / 60)}分钟），请稍后重试`);
+        }
+
+        // ==================== 漫画生成 ====================
+        async function generateComic(idea) {
+            // 1. 生成故事分镜
+            const storyResponse = await fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'text',
+                    prompt: `请为以下主题创作4格漫画的分镜脚本：\n${idea.theme}\n\n输出格式：\n第1格：场景描述\n第2格：场景描述\n第3格：场景描述\n第4格：场景描述`
+                })
+            });
+            const storyData = await storyResponse.json();
+            idea.story = storyData.content || storyData.response || storyData.text;
+
+            // 2. 解析分镜描述
+            const panels = [];
+            const lines = idea.story.split('\n');
+            for (const line of lines) {
+                const match = line.match(/第(\d+)格[：:]\s*(.+)/);
+                if (match) {
+                    panels.push({
+                        index: parseInt(match[1]),
+                        description: match[2].trim()
+                    });
+                }
+            }
+
+            // 如果没有解析到分镜，使用默认描述
+            if (panels.length === 0) {
+                for (let i = 1; i <= 4; i++) {
+                    panels.push({
+                        index: i,
+                        description: `${idea.theme} - 场景${i}`
+                    });
+                }
+            }
+
+            // 3. 为每个分镜生成图片
+            idea.panelImages = [];
+            for (const panel of panels) {
+                const imageResponse = await fetch('/api/banana2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: `manga panel, ${panel.description}, ${idea.theme}, black and white, comic style, detailed`,
+                        model: 'nano-banana-2',
+                        aspect_ratio: '1:1'
+                    })
+                });
+                const imageData = await imageResponse.json();
+                idea.panelImages.push({
+                    index: panel.index,
+                    description: panel.description,
+                    url: imageData.url || imageData.image_url
+                });
+            }
+
+            // 4. 生成封面
+            const coverResponse = await fetch('/api/banana2', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: `comic book cover, ${idea.theme}, manga style, vibrant colors, professional`,
+                    model: 'nano-banana-2',
+                    aspect_ratio: '3:4'
+                })
+            });
+            const coverData = await coverResponse.json();
+            idea.coverImage = coverData.url || coverData.image_url;
+            idea.previewImages = [idea.coverImage, ...idea.panelImages.map(p => p.url)];
+        }
+
+        // ==================== 历史记录 ====================
+        function loadHistory() {
+            try {
+                const saved = localStorage.getItem('rollroll_mobile_ideas');
+                if (saved) {
+                    ideas = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('加载历史失败:', e);
+            }
+            renderTaskList();
+        }
+
+        function saveHistory() {
+            try {
+                localStorage.setItem('rollroll_mobile_ideas', JSON.stringify(ideas.slice(0, 50)));
+            } catch (e) {
+                console.error('保存历史失败:', e);
+            }
+        }
+
+        function renderTaskList() {
+            const container = document.getElementById('taskList');
+
+            if (ideas.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="9" y1="21" x2="9" y2="9"/>
+                        </svg>
+                        <p>还没有作品，开始创作吧！</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = ideas.map(idea => {
+                const statusMap = {
+                    'pending': '等待中',
+                    'processing': '生成中',
+                    'completed': '已完成',
+                    'failed': '失败'
+                };
+
+                // 图片预览支持点击放大
+                const previewHTML = (idea.previewImages || []).map(img =>
+                    `<img src="${img}" alt="预览" onclick="openImageViewer('${img}')" onerror="this.style.display='none'">`
+                ).join('');
+
+                return `
+                    <div class="task-card" id="task-${idea.id}" data-id="${idea.id}">
+                        <!-- 左滑显示的操作按钮 -->
+                        <div class="swipe-actions">
+                            <div class="swipe-btn share" onclick="shareTask(${idea.id})">📤 分享</div>
+                            <div class="swipe-btn delete" onclick="deleteTask(${idea.id})">🗑️ 删除</div>
+                        </div>
+                        
+                        <!-- 卡片内容（可左滑） -->
+                        <div class="task-card-inner" style="padding: 16px; background: var(--bg-card);">
+                            <div class="task-header">
+                                <div class="task-theme">${idea.theme || '未命名任务'}</div>
+                                <span class="task-status ${idea.status}">${statusMap[idea.status] || idea.status}</span>
+                            </div>
+                            ${previewHTML ? `<div class="task-preview">${previewHTML}</div>` : ''}
+                            <div class="task-actions">
+                                ${idea.status === 'completed' ? `
+                                    <button class="task-btn" onclick="shareTask(${idea.id})">分享</button>
+                                    <button class="task-btn primary" onclick="viewTask(${idea.id})">查看</button>
+                                ` : idea.status === 'failed' ? `
+                                    <button class="task-btn primary" onclick="retryTask(${idea.id})">重试</button>
+                                ` : ''}
+                                <button class="task-btn" onclick="deleteTask(${idea.id})">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 🎯 为每个卡片初始化手势
+            ideas.forEach(idea => {
+                const card = document.getElementById(`task-${idea.id}`);
+                if (card) {
+                    // 初始化左滑
+                    initSwipeForCard(card, idea.id);
+
+                    // 初始化长按
+                    let longPressTimer = null;
+                    card.addEventListener('touchstart', (e) => {
+                        longPressTimer = setTimeout(() => {
+                            handleLongPress(idea.id, e);
+                        }, 500);
+                    }, { passive: true });
+
+                    card.addEventListener('touchend', () => {
+                        clearTimeout(longPressTimer);
+                    });
+
+                    card.addEventListener('touchmove', () => {
+                        clearTimeout(longPressTimer);
+                    });
+                }
+            });
+        }
+
+        // ==================== 任务操作 ====================
+        function viewTask(id) {
+            const idea = ideas.find(i => i.id === id);
+            if (!idea) return;
+
+            if (idea.type === 'video' && idea.videoUrl) {
+                window.open(idea.videoUrl, '_blank');
+            } else if (idea.type === 'comic') {
+                if (idea.panelImages && idea.panelImages.length > 0) {
+                    const firstPanel = idea.panelImages[0];
+                    openImageViewer(firstPanel.url);
+                } else if (idea.coverImage) {
+                    openImageViewer(idea.coverImage);
+                }
+            } else if (idea.coverImage) {
+                openImageViewer(idea.coverImage);
+            }
+        }
+
+        function shareTask(id) {
+            const idea = ideas.find(i => i.id === id);
+            if (!idea) return;
+
+            const shareUrl = idea.videoUrl || idea.coverImage;
+            if (navigator.share) {
+                navigator.share({
+                    title: idea.theme,
+                    text: `我用RollRoll生成的${idea.type === 'video' ? '视频' : '漫画'}`,
+                    url: shareUrl
+                });
+            } else {
+                navigator.clipboard.writeText(shareUrl);
+                showToast('链接已复制');
+            }
+        }
+
+        function deleteTask(id) {
+            if (!confirm('确定删除这个作品吗？')) return;
+            ideas = ideas.filter(i => i.id !== id);
+            saveHistory();
+            renderTaskList();
+            showToast('已删除');
+        }
+
+        function retryTask(id) {
+            const idea = ideas.find(i => i.id === id);
+            if (!idea) return;
+
+            document.getElementById('themeInput').value = idea.theme;
+            currentMode = idea.type || 'video';
+            switchMode(currentMode);
+
+            deleteTask(id);
+        }
+
+        // ==================== Tab切换 ====================
+        function showTab(tab) {
+            document.querySelectorAll('.nav-item').forEach((item, i) => {
+                item.classList.toggle('active',
+                    (tab === 'create' && i === 0) || (tab === 'works' && i === 1)
+                );
+            });
+
+            if (tab === 'works') {
+                document.querySelector('.input-section').style.display = 'none';
+                document.querySelector('.generate-btn').style.display = 'none';
+                document.querySelector('.history-section').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                document.querySelector('.input-section').style.display = 'block';
+                document.querySelector('.generate-btn').style.display = 'flex';
+            }
+        }
+
+        // ==================== 工具导航 ====================
+        function handleToolNavigation(tool) {
+            const toolMap = {
+                'knolling': 'knolling.html',
+                'banana': 'banana.html?force=mobile',
+                'music': 'music.html',
+                'sticker': 'sticker.html',
+                'prompt-fill': 'prompt-fill.html',
+                'sketchpad': 'sketchpad.html',
+                'library': 'library.html'
+            };
+
+            if (toolMap[tool]) {
+                window.location.href = toolMap[tool];
+            }
+        }
+
+        // ==================== UI工具函数 ====================
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text || '加载中...';
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+
+</html>

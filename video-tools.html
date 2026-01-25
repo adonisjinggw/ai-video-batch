@@ -1,0 +1,2349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 视频工具 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .tabs {
+            display: flex;
+            padding: 12px 20px;
+            gap: 8px;
+            border-bottom: 1px solid #222;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: #000;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 100px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select,
+        .setting-item input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .upload-area {
+            background: var(--bg-card);
+            border: 2px dashed #333;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .upload-area .icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+        }
+
+        .upload-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            display: none;
+        }
+
+        .result-title {
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .result-video {
+            width: 100%;
+            border-radius: 12px;
+            background: #000;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+            display: none;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>🎬 视频工具</h1>
+        <div style="width:50px;"></div>
+    </header>
+    <div class="tabs">
+        <button class="tab active" onclick="switchPanel('t2v')">📝 文生</button>
+        <button class="tab" onclick="switchPanel('i2v')">🖼️ 图生</button>
+        <button class="tab" onclick="switchPanel('batch')">🎯 批量</button>
+        <button class="tab" onclick="switchPanel('ref')">🔗 克隆</button>
+        <button class="tab" onclick="switchPanel('gif')">🎞️ 转GIF</button>
+    </div>
+    <main class="main">
+        <div class="panel active" id="panel-t2v">
+            <div class="input-section">
+                <label class="input-label">✨ 描述你想要的视频内容</label>
+                <textarea class="input-box" id="t2vPrompt" placeholder="例如：一只可爱的猫咪在草地上奔跑..."></textarea>
+            </div>
+            <div class="settings-row">
+                <div class="setting-item"><label>模型</label>
+                    <select id="t2vModel">
+                        <option value="sora-2-all">Sora-2 (15秒)</option>
+                        <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                        <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                            <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                            <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                            <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 5秒">
+                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+                            <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                            <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 10秒">
+                            <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
+                            <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+                            <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+                            <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+                            <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                        </optgroup>
+                        <option value="grok-video-3">Grok Video (6秒)</option>
+                    </select>
+                </div>
+                <div class="setting-item"><label>比例</label>
+                    <select id="t2vRatio">
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                    </select>
+                </div>
+            </div>
+            <button class="generate-btn" onclick="generateT2V()">⚡ 生成视频</button>
+            <div class="loading" id="t2vLoading">
+                <div class="spinner"></div>
+                <div>视频生成中，大约需要1-3分钟...</div>
+            </div>
+            <div class="result-section" id="t2vResult">
+                <div class="result-title">🎬 生成结果</div><video class="result-video" id="t2vVideo" controls
+                    playsinline></video>
+                <div class="result-actions"><button class="result-btn" onclick="downloadVideo('t2v')">⬇️
+                        下载</button><button class="result-btn primary" onclick="generateT2V()">🔄 重新生成</button></div>
+            </div>
+        </div>
+        <div class="panel" id="panel-i2v">
+            <div class="input-section">
+                <label class="input-label">🖼️ 上传参考图片</label>
+                <input type="file" id="i2vImageInput" accept="image/*" style="display:none"
+                    onchange="previewI2VImage(this)">
+                <div class="upload-area" onclick="document.getElementById('i2vImageInput').click()">
+                    <div class="icon">📷</div>
+                    <div>点击上传图片</div><img class="upload-preview" id="i2vPreview">
+                </div>
+            </div>
+            <div class="input-section"><label class="input-label">✨ 动作描述（可选）</label><textarea class="input-box"
+                    id="i2vPrompt" placeholder="例如：图片中的人物转头微笑..." style="min-height:60px;"></textarea></div>
+            <div class="settings-row">
+                <div class="setting-item"><label>模型</label><select id="i2vModel">
+                        <option value="sora-2-all">Sora-2 (15秒)</option>
+                        <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                        <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                            <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                            <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                            <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                        </optgroup>
+                        <option value="grok-video-3">Grok Video (6秒)</option>
+                    </select></div>
+                <div class="setting-item"><label>比例</label><select id="i2vRatio">
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                    </select></div>
+            </div>
+            <button class="generate-btn" onclick="generateI2V()">⚡ 生成视频</button>
+            <div class="loading" id="i2vLoading">
+                <div class="spinner"></div>
+                <div>视频生成中...</div>
+            </div>
+            <div class="result-section" id="i2vResult">
+                <div class="result-title">🎬 生成结果</div><video class="result-video" id="i2vVideo" controls
+                    playsinline></video>
+                <div class="result-actions"><button class="result-btn" onclick="downloadVideo('i2v')">⬇️
+                        下载</button><button class="result-btn primary" onclick="generateI2V()">🔄 重新生成</button></div>
+            </div>
+        </div>
+        <!-- 🎯 批量视频生成面板 -->
+        <div class="panel" id="panel-batch">
+            <div class="input-section">
+                <label class="input-label">🎯 批量生成模式</label>
+                <select id="batchMode" onchange="onBatchModeChange()" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;">
+                    <option value="t2v">📝 文生视频 - 多个提示词并发生成</option>
+                    <option value="i2v">🖼️ 图生视频 - 多张图片并发生成</option>
+                </select>
+            </div>
+            
+            <!-- 文生视频批量输入 -->
+            <div id="batchT2vSection">
+                <div class="input-section">
+                    <label class="input-label">✨ 输入多个提示词（每行一个）</label>
+                    <textarea class="input-box" id="batchPrompts" placeholder="例如：
+一只可爱的猫咪在草地上奔跑
+日落时分的海边，海浪轻轻拍打沙滩
+城市夜景，霉虹灯闪烁，车流不息" style="min-height:150px;"></textarea>
+                    <div style="font-size:11px;color:#888;margin-top:4px;">💡 每行一个提示词，最多支持 6 个并发</div>
+                </div>
+            </div>
+            
+            <!-- 图生视频批量输入 - 九宫格布局 -->
+            <div id="batchI2vSection" style="display:none;">
+                <div class="input-section">
+                    <label class="input-label">🖼️ 上传多张图片（无限制）</label>
+                    <input type="file" id="batchImageInput" accept="image/*" multiple style="display:none" onchange="handleBatchImageUpload(this)">
+                    <div class="upload-area" onclick="document.getElementById('batchImageInput').click()" style="min-height:80px;padding:16px;">
+                        <div class="icon">📷</div>
+                        <div>点击上传多张图片</div>
+                    </div>
+                </div>
+                <!-- 九宫格图片预览，每张图片有独立提示词输入 -->
+                <div id="batchImagePreview" style="display:none;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <label class="input-label" style="margin:0;">🎯 为每张图片设置提示词（留空则智能生成）</label>
+                        <button onclick="clearBatchImages()" style="padding:6px 12px;background:#ef4444;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">❌ 清空</button>
+                    </div>
+                    <div id="batchImageGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+                </div>
+            </div>
+            
+            <div class="settings-row">
+                <div class="setting-item"><label>模型</label>
+                    <select id="batchModel">
+                        <option value="sora-2-all">Sora-2 (15秒)</option>
+                        <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                        <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                            <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                            <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                            <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 5秒">
+                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+                            <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                            <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 10秒">
+                            <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
+                            <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+                            <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+                            <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+                            <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                        </optgroup>
+                        <option value="grok-video-3">Grok Video (6秒)</option>
+                    </select>
+                </div>
+                <div class="setting-item"><label>比例</label>
+                    <select id="batchRatio">
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button class="generate-btn" onclick="generateBatch()">🚀 并发生成视频</button>
+            
+            <!-- 批量生成进度 -->
+            <div id="batchProgress" style="display:none;margin-top:20px;padding:16px;background:var(--bg-card);border-radius:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span id="batchProgressText">🚀 批量生成中...</span>
+                    <span id="batchProgressCount">0/0</span>
+                </div>
+                <div style="height:6px;background:#333;border-radius:3px;overflow:hidden;">
+                    <div id="batchProgressBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div>
+                </div>
+            </div>
+            
+            <!-- 批量生成结果 -->
+            <div id="batchResult" style="display:none;margin-top:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div class="result-title" style="margin:0;">🎬 批量生成结果</div>
+                    <button onclick="downloadAllBatchVideos()" style="padding:8px 16px;background:var(--accent);border:none;border-radius:6px;color:#000;font-size:12px;cursor:pointer;">📦 下载全部</button>
+                </div>
+                <div id="batchVideoGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;"></div>
+            </div>
+        </div>
+        
+        <div class="panel" id="panel-ref">
+            <div class="input-section">
+                <label class="input-label">📁 上传参考视频或输入URL</label>
+                <input type="file" id="refVideoInput" accept="video/*" onchange="previewRefVideo(this)"
+                    style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:12px;">
+                <input type="text" id="refUrl" placeholder="或输入视频URL..."
+                    style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:12px;">
+                <video id="refPreviewVideo" controls style="width:100%;display:none;border-radius:8px;"></video>
+            </div>
+            <div class="input-section"><label class="input-label">✨ 克隆提示词</label><textarea class="input-box"
+                    id="refPrompt" placeholder="例如：保持视频风格，但把主角换成一只熊猫..." style="min-height:80px;"></textarea></div>
+            <div class="settings-row">
+                <div class="setting-item"><label>模型</label><select id="refModel">
+                        <option value="sora-2-all">Sora-2 (15秒)</option>
+                        <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                        <option value="veo3.1">Veo 3.1 4K (8秒)</option>
+                        <option value="grok-video-3">Grok Video (6秒)</option>
+                    </select></div>
+                <div class="setting-item"><label>比例</label><select id="refRatio">
+                        <option value="16:9">16:9</option>
+                        <option value="9:16">9:16</option>
+                        <option value="1:1">1:1</option>
+                    </select></div>
+            </div>
+            <button class="generate-btn" onclick="generateRef()">⚡ 克隆视频</button>
+            <div class="loading" id="refLoading">
+                <div class="spinner"></div>
+                <div>视频克隆中...</div>
+            </div>
+            <div class="result-section" id="refResult">
+                <div class="result-title">🎬 克隆结果</div><video class="result-video" id="refVideo" controls
+                    playsinline></video>
+                <div class="result-actions"><button class="result-btn" onclick="downloadVideo('ref')">⬇️
+                        下载</button><button class="result-btn primary" onclick="generateRef()">🔄 重新克隆</button></div>
+            </div>
+        </div>
+        
+        <!-- 🎞️ 视频转 GIF 面板 -->
+        <div class="panel" id="panel-gif">
+            <div class="input-section">
+                <label class="input-label">🎬 上传视频（支持 MP4/WebM/MOV）</label>
+                <input type="file" id="gifVideoInput" accept="video/*" style="display:none" onchange="previewGifVideo(this)">
+                <div class="upload-area" onclick="document.getElementById('gifVideoInput').click()">
+                    <div class="icon">🎬</div>
+                    <div>点击上传视频</div>
+                </div>
+                <video id="gifVideoPreview" controls playsinline style="width:100%;display:none;border-radius:8px;margin-top:12px;max-height:300px;"></video>
+            </div>
+            
+            <!-- 视频片段选择 -->
+            <div id="gifTimeRange" style="display:none;">
+                <div class="input-section">
+                    <label class="input-label">✂️ 选择转换片段（建议不超过10秒）</label>
+                    <div class="settings-row">
+                        <div class="setting-item">
+                            <label>开始时间 (秒)</label>
+                            <input type="number" id="gifStartTime" value="0" min="0" step="0.1" oninput="updateGifPreviewTime()">
+                        </div>
+                        <div class="setting-item">
+                            <label>结束时间 (秒)</label>
+                            <input type="number" id="gifEndTime" value="5" min="0.5" step="0.1" oninput="updateGifPreviewTime()">
+                        </div>
+                    </div>
+                    <div style="font-size:11px;color:#888;margin-top:4px;">
+                        💡 视频时长: <span id="gifDuration">0</span> 秒 | 当前片段: <span id="gifClipDuration">5</span> 秒
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>输出宽度</label>
+                    <select id="gifWidth">
+                        <option value="320">320px (表情包)</option>
+                        <option value="480" selected>480px (标准)</option>
+                        <option value="640">640px (高清)</option>
+                        <option value="800">800px (超清)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>帧率 (FPS)</label>
+                    <select id="gifFps">
+                        <option value="8">8 FPS (超小)</option>
+                        <option value="10" selected>10 FPS (标准)</option>
+                        <option value="15">15 FPS (流畅)</option>
+                        <option value="20">20 FPS (高质量)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>质量模式</label>
+                    <select id="gifQuality">
+                        <option value="low">低质量 (最小体积)</option>
+                        <option value="medium" selected>中质量 (推荐)</option>
+                        <option value="high">高质量 (超清晰)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>循环播放</label>
+                    <select id="gifLoop">
+                        <option value="0" selected>无限循环</option>
+                        <option value="1">播放1次</option>
+                        <option value="3">播放3次</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button class="generate-btn" onclick="convertToGif()">🎞️ 开始转换</button>
+            
+            <div class="loading" id="gifLoading">
+                <div class="spinner"></div>
+                <div id="gifLoadingText">正在转换中...</div>
+                <div id="gifProgress" style="margin-top:8px;font-size:12px;color:var(--accent);"></div>
+            </div>
+            
+            <div class="result-section" id="gifResult">
+                <div class="result-title">🎞️ GIF 结果</div>
+                <img id="gifOutput" style="width:100%;border-radius:12px;background:#000;">
+                <div style="margin-top:8px;font-size:12px;color:var(--text-dim);" id="gifInfo"></div>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadGif()">⬇️ 下载GIF</button>
+                    <button class="result-btn primary" onclick="convertToGif()">🔄 重新转换</button>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px;padding:16px;background:var(--bg-card);border-radius:12px;">
+                <div style="font-size:14px;font-weight:600;margin-bottom:8px;">💡 使用技巧</div>
+                <ul style="font-size:12px;color:var(--text-dim);padding-left:16px;line-height:1.8;">
+                    <li>表情包建议：320px宽度 + 10FPS + 3-5秒</li>
+                    <li>微信/QQ分享：保持文件小于5MB</li>
+                    <li>片段越长、分辨率越高，文件越大</li>
+                    <li>全程浏览器本地处理，不上传视频</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+    <div class="toast" id="toast"></div>
+    <script>
+        // 返回函数 - 优先使用历史记录，否则跳转到主页
+        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        // 使用 NVAuth 模块
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        let authInitialized = false;
+
+        // 视频生成费用（成本×2，1胶片=￥0.1）
+        const VIDEO_COST = {
+            'sora-2-all': 7,
+            'sora-2-pro-all': 14,
+            'veo3.1': 30,           // Veo 3.1 4K 版本
+            'grok-video-3': 5,      // Grok Video 3 (6秒)
+            // Vidu 模型 - 5秒版本
+            'vidu-q2-5s-720p': 25,
+            'vidu-q2-5s-1080p': 36,
+            'vidu-q2-pro-5s-720p': 27,
+            'vidu-q2-pro-5s-1080p': 54,
+            'vidu-q2-turbo-5s-720p': 19,
+            'vidu-q2-turbo-5s-1080p': 36,
+            // Vidu 模型 - 10秒版本
+            'vidu-q2-10s-720p': 50,
+            'vidu-q2-10s-1080p': 72,
+            'vidu-q2-pro-10s-720p': 54,
+            'vidu-q2-pro-10s-1080p': 108,
+            'vidu-q2-turbo-10s-720p': 38,
+            'vidu-q2-turbo-10s-1080p': 72,
+            // 兼容旧模型名称（默认5秒）
+            'vidu-q2-720p': 25,
+            'vidu-q2-1080p': 36,
+            'vidu-q2-pro-720p': 27,
+            'vidu-q2-pro-1080p': 54,
+            'vidu-q2-turbo-720p': 19,
+            'vidu-q2-turbo-1080p': 36
+        };
+
+        // 🔧 图片压缩函数（防止413错误）
+        function compressImage(dataUrl, maxWidth = 1200, quality = 0.8) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.width, h = img.height;
+                    if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => resolve(dataUrl);
+                img.src = dataUrl;
+            });
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[video-tools] 页面加载完成，开始初始化...');
+            
+            // 🔧 修复：确保所有生成按钮事件正确绑定（支持移动端触摸）
+            // 文生视频按钮
+            const t2vBtns = document.querySelectorAll('#panel-t2v .generate-btn');
+            t2vBtns.forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', function(e) {
+                    console.log('[video-tools] 文生视频按钮被点击 (click)');
+                    generateT2V();
+                });
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[video-tools] 文生视频按钮被点击 (touchend)');
+                    generateT2V();
+                });
+            });
+            
+            // 图生视频按钮
+            const i2vBtns = document.querySelectorAll('#panel-i2v .generate-btn');
+            i2vBtns.forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', function(e) {
+                    console.log('[video-tools] 图生视频按钮被点击 (click)');
+                    generateI2V();
+                });
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[video-tools] 图生视频按钮被点击 (touchend)');
+                    generateI2V();
+                });
+            });
+            
+            // 视频克隆按钮
+            const refBtns = document.querySelectorAll('#panel-ref .generate-btn');
+            refBtns.forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', function(e) {
+                    console.log('[video-tools] 视频克隆按钮被点击 (click)');
+                    generateRef();
+                });
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[video-tools] 视频克隆按钮被点击 (touchend)');
+                    generateRef();
+                });
+            });
+            
+            console.log('[video-tools] 按钮事件已绑定');
+            
+            if (typeof NVAuth !== 'undefined') {
+                await checkUser();
+            }
+            
+            // 🎬 从 localStorage 读取提示词（从提示词填空页面跳转过来）
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('prompt') === '1') {
+                const savedPrompt = localStorage.getItem('video_prompt');
+                if (savedPrompt) {
+                    document.getElementById('t2vPrompt').value = savedPrompt;
+                    localStorage.removeItem('video_prompt'); // 清除已使用的提示词
+                    showToast('提示词已加载');
+                    console.log('[video-tools] 从 localStorage 加载提示词');
+                }
+            }
+            
+            // 🎬 从 banana.html 单个模式跳转过来（图生视频）
+            if (urlParams.get('from_banana') === '1' && urlParams.get('batch') !== '1') {
+                const bananaData = localStorage.getItem('banana_to_video');
+                if (bananaData) {
+                    try {
+                        const data = JSON.parse(bananaData);
+                        if (data.imageUrl) {
+                            // 切换到图生视频面板
+                            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                            document.querySelector('.tab:nth-child(2)').classList.add('active');
+                            document.getElementById('panel-i2v').classList.add('active');
+                            
+                            // 加载图片到预览
+                            i2vImageData = data.imageUrl;
+                            document.getElementById('i2vPreview').src = data.imageUrl;
+                            document.getElementById('i2vPreview').style.display = 'block';
+                            
+                            // 填充提示词
+                            if (data.prompt) {
+                                document.getElementById('i2vPrompt').value = data.prompt;
+                            }
+                            
+                            localStorage.removeItem('banana_to_video');
+                            showToast('图片已加载，点击生成视频');
+                            console.log('[video-tools] 从 banana.html 加载单张图片');
+                        }
+                    } catch (e) {
+                        console.error('[video-tools] 解析 banana 数据失败:', e);
+                    }
+                }
+            }
+            
+            // 🎬 从 localStorage 读取批量图片（从 banana.html 跳转过来）
+            if (urlParams.get('batch') === '1') {
+                // 🆕 先检查是否有文字提示词批量（从 prompt-fill.html / writing.html 跳转过来）
+                const promptBatchData = localStorage.getItem('video_batch_prompts');
+                if (promptBatchData && (urlParams.get('from_promptfill') === '1' || urlParams.get('from_writing') === '1')) {
+                    try {
+                        const prompts = JSON.parse(promptBatchData);
+                        if (prompts && prompts.length > 0) {
+                            // 切换到批量面板
+                            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                            document.querySelector('.tab:nth-child(3)').classList.add('active');
+                            document.getElementById('panel-batch').classList.add('active');
+                            
+                            // 切换到文生视频模式
+                            document.getElementById('batchMode').value = 't2v';
+                            onBatchModeChange();
+                            
+                            // 填充提示词（每行一个）
+                            document.getElementById('batchPrompts').value = prompts.join('\n');
+                            
+                            localStorage.removeItem('video_batch_prompts');
+                            showToast(`已加载 ${prompts.length} 个提示词，点击批量生成`);
+                            console.log('[video-tools] 从 prompt-fill/writing 加载了', prompts.length, '个提示词');
+                        }
+                    } catch (e) {
+                        console.error('[video-tools] 解析提示词失败:', e);
+                    }
+                } else {
+                    // 🔧 图片批量模式：尝试新格式 (banana_batch_to_video)，再尝试旧格式 (banana_batch_images)
+                    let batchData = localStorage.getItem('banana_batch_to_video');
+                    let isNewFormat = !!batchData;
+                    
+                    if (!batchData) {
+                        batchData = localStorage.getItem('banana_batch_images');
+                    }
+                    
+                    if (batchData) {
+                        try {
+                            const data = JSON.parse(batchData);
+                            let images = [];
+                            let prompts = [];
+                            
+                            if (isNewFormat && data.images) {
+                                // 新格式：{ images: [{ imageUrl, prompt }], mode, timestamp }
+                                images = data.images.map(item => item.imageUrl);
+                                prompts = data.images.map(item => item.prompt || '');
+                                localStorage.removeItem('banana_batch_to_video');
+                            } else if (Array.isArray(data)) {
+                                // 旧格式：纯URL数组
+                                images = data;
+                                prompts = data.map(() => '');
+                                localStorage.removeItem('banana_batch_images');
+                            }
+                            
+                            if (images.length > 0) {
+                                batchImages = images;
+                                batchImagePrompts = prompts;
+                                
+                                // 切换到批量面板
+                                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                                document.querySelector('.tab:nth-child(3)').classList.add('active');
+                                document.getElementById('panel-batch').classList.add('active');
+                                
+                                // 切换到图生视频模式
+                                document.getElementById('batchMode').value = 'i2v';
+                                onBatchModeChange();
+                                
+                                // 渲染图片预览
+                                renderBatchImageGrid();
+                                document.getElementById('batchImagePreview').style.display = 'block';
+                                
+                                showToast(`已加载 ${images.length} 张图片，点击批量生成`);
+                                console.log('[video-tools] 从 banana.html 加载了', images.length, '张批量图片');
+                            }
+                        } catch (e) {
+                            console.error('[video-tools] 解析批量图片失败:', e);
+                        }
+                    }
+                }
+            }
+            
+            console.log('[video-tools] 初始化完成');
+        });
+
+        async function checkUser() {
+            try {
+                // 等待认证状态就绪
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+                
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[video-tools] 用户已登录:', currentUser.email);
+                    await loadUserQuota();
+                } else {
+                    console.log('[video-tools] 用户未登录');
+                }
+            } catch (e) { console.error('检查用户失败:', e); }
+            
+            // 标记认证初始化完成
+            authInitialized = true;
+            console.log('[video-tools] 认证初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                console.log('[video-tools] 用户胶片:', userQuota);
+            } catch (e) { console.error('加载配额失败:', e); }
+        }
+
+        // 预扣费函数
+        async function preDeduct(cost, description) {
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
+            cost = Math.ceil(cost);
+            
+            // 等待认证初始化完成
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) { showToast('请先登录'); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+                
+                // 🔧 修复：先检查 HTTP 状态码
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('余额不足，请先充值');
+                    }
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
+                }
+                
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    console.log(`🎞️ 预扣费成功: -${cost}胶片, 余额=${userQuota}`);
+                    return true;
+                }
+                throw new Error(data.message || data.error || '扣费失败');
+            } catch (e) { showToast('扣费失败: ' + e.message); return false; }
+        }
+
+        // ✅ 已移除退款函数 - 后端成功扣费后不再退款，避免成本损耗
+
+        let currentVideoUrls = { t2v: '', i2v: '', ref: '' };
+        let i2vImageData = '', refVideoData = '';
+        function switchPanel(panel) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); event.target.classList.add('active'); document.getElementById('panel-' + panel).classList.add('active'); }
+        function previewI2VImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = async (e) => { const compressed = await compressImage(e.target.result, 1200, 0.8); document.getElementById('i2vPreview').src = compressed; document.getElementById('i2vPreview').style.display = 'block'; i2vImageData = compressed; }; reader.readAsDataURL(input.files[0]); } }
+        // 上传视频到图床获取URL
+        async function uploadVideoToHost(base64Data) {
+            try {
+                showToast('正在上传视频...');
+                const base64 = base64Data.replace(/^data:video\/\w+;base64,/, '');
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const blob = new Blob([bytes], { type: 'video/mp4' });
+                
+                const formData = new FormData();
+                formData.append('reqtype', 'fileupload');
+                formData.append('fileToUpload', blob, 'video.mp4');
+                
+                const res = await fetch('https://catbox.moe/user/api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (res.ok) {
+                    const url = await res.text();
+                    if (url && url.startsWith('http')) {
+                        console.log('[video-tools] 视频上传成功:', url);
+                        return url.trim();
+                    }
+                }
+                throw new Error('上传失败');
+            } catch (e) {
+                console.error('[video-tools] 视频上传失败:', e);
+                return null;
+            }
+        }
+        
+        let refVideoFile = null;
+        function previewRefVideo(input) { 
+            if (input.files && input.files[0]) { 
+                const file = input.files[0];
+                if (file.size > 50 * 1024 * 1024) {
+                    showToast('视频文件不能超过50MB');
+                    input.value = '';
+                    return;
+                }
+                refVideoFile = file;
+                const url = URL.createObjectURL(file); 
+                document.getElementById('refPreviewVideo').src = url; 
+                document.getElementById('refPreviewVideo').style.display = 'block'; 
+                document.getElementById('refUrl').value = ''; 
+                showToast('视频已选择，点击生成时会自动上传');
+            } 
+        }
+        function getFixedDuration(model) { 
+            if (model.includes('grok')) return 6; 
+            if (model.includes('veo')) return 8; 
+            // Vidu模型：从模型名提取时长 (vidu-q2-5s-720p -> 5, vidu-q2-10s-1080p -> 10)
+            if (model.includes('vidu')) {
+                const durationMatch = model.match(/-(\d+)s-/i);
+                return durationMatch ? parseInt(durationMatch[1]) : 5;  // 默认5秒
+            }
+            return 15; 
+        }
+        // 🎬 判断是否是Veo模型（需要特殊API处理）
+        function isVeoModel(model) { return model && (model.includes('veo') || model.startsWith('veo')); }
+        // 🎬 判断是否是Vidu模型
+        function isViduModel(model) { return model && model.startsWith('vidu-'); }
+        // 🎬 解析Vidu模型参数 (vidu-q2-5s-720p -> { version: 'q2', duration: 5, resolution: '720P' })
+        function parseViduModel(model) {
+            // 新格式: vidu-{version}-{duration}s-{resolution}
+            const newMatch = model.match(/vidu-(q2-pro|q2-turbo|q2)-(\d+)s-(720p|1080p)/i);
+            if (newMatch) {
+                return {
+                    version: newMatch[1],                    // q2, q2-pro, q2-turbo
+                    duration: parseInt(newMatch[2]),         // 5, 10
+                    resolution: newMatch[3].toUpperCase()    // 720P, 1080P
+                };
+            }
+            // 兼容旧格式: vidu-{version}-{resolution}
+            const oldMatch = model.match(/vidu-(q2-pro|q2-turbo|q2)-(720p|1080p)/i);
+            if (oldMatch) {
+                return {
+                    version: oldMatch[1],
+                    duration: 5,  // 旧格式默认5秒
+                    resolution: oldMatch[2].toUpperCase()
+                };
+            }
+            return { version: 'q2', duration: 5, resolution: '720P' };
+        }
+        
+        // 🎨 将图片转换为线稿风格（规避 Sora2/Veo 内容审核）
+        // 统一使用 banana2 的 Gemini-3 模型进行图生图转换
+        async function convertToSketch(imageUrl) {
+            if (!imageUrl) return imageUrl;
+            // 🎨 线稿转换提示词（去除真人特征，保留结构）
+            const sketchPrompt = `Convert this image into a clean LINE SKETCH / LINE ART style:
+★ OUTPUT: Black and white line drawing, pencil sketch style
+★ LINES: Clean outlines, simple strokes, no shading or colors
+★ STYLE: Technical sketch, architectural drawing style, minimal details
+★ REMOVE: All colors, textures, skin details, realistic features
+★ KEEP: Basic shapes, poses, composition, structural outlines only
+The result should look like a simple black-and-white pencil sketch or blueprint.`;
+            try {
+                console.log('[video-tools] 开始使用 Banana2 转换为线稿...');
+                showToast('✏️ 正在转换为线稿...');
+                const res = await fetch('/api/banana2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: sketchPrompt,
+                        model: 'nano-banana-2',
+                        image_url: imageUrl,
+                        aspect_ratio: '16:9',
+                        userId: currentUser?.id
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.success) {
+                    const sketchUrl = data.url || (data.urls && data.urls[0]) || (data.data && data.data[0] && data.data[0].url);
+                    if (sketchUrl) {
+                        console.log('[video-tools] ✅ 线稿转换成功');
+                        return sketchUrl;
+                    }
+                }
+                console.warn('[video-tools] 线稿转换失败:', data.message || data.error || '未知错误');
+                console.warn('[video-tools] 转换失败，使用原图继续');
+                return imageUrl;
+            } catch (e) {
+                console.warn('[video-tools] 线稿转换异常:', e.message);
+                return imageUrl;
+            }
+        }
+        // 🎯 处理提示词：添加中文语音指令 + 强制语音在视频结束前1秒结束
+        function ensureChineseAudio(prompt, duration = 15) {
+            // 🔧 计算语音必须结束的时间点（视频时长-1秒）
+            const audioEndTime = Math.max(duration - 1, 3);
+            const audioDurationHint = `【重要】所有语音/旁白/对话必须在第${audioEndTime}秒前结束，最后1秒保持静音画面`;
+            
+            if (!prompt) return `让图片动起来，平滑过渡，使用中文配音。${audioDurationHint}`;
+            const lower = prompt.toLowerCase();
+            // 检测用户是否明确要求英文
+            const wantsEnglish = lower.includes('english') || lower.includes('in english') || lower.includes('英文配音') || lower.includes('英语旁白');
+            // 检测是否已包含中文语音指令
+            const hasChineseAudio = prompt.includes('中文配音') || prompt.includes('中文旁白') || prompt.includes('普通话');
+            // 检测是否已包含时长控制指令
+            const hasTimeControl = prompt.includes('秒前结束') || prompt.includes('静音画面') || prompt.includes('结束语音');
+            
+            let result = prompt;
+            // 添加中文语音指令（如果用户没要求英文且未包含）
+            if (!wantsEnglish && !hasChineseAudio) {
+                result += '，使用中文配音';
+            }
+            // 添加时长控制指令（如果未包含）
+            if (!hasTimeControl) {
+                result += `。${audioDurationHint}`;
+            }
+            return result;
+        }
+        async function generateT2V() { 
+            const rawPrompt = document.getElementById('t2vPrompt').value.trim(); 
+            if (!rawPrompt) { showToast('请输入视频描述'); return; } 
+            const model = document.getElementById('t2vModel').value; 
+            const ratio = document.getElementById('t2vRatio').value; 
+            const duration = getFixedDuration(model);
+            const prompt = ensureChineseAudio(rawPrompt, duration);  // 🎯 确保中文配音+时长控制
+            const cost = VIDEO_COST[model] || 8; 
+            if (!await preDeduct(cost, '文生视频')) return; 
+            document.getElementById('t2vLoading').style.display = 'block'; 
+            document.getElementById('t2vResult').style.display = 'none'; 
+            try { 
+                // 🎬 Veo/Vidu模型使用yunwu API，其他使用sora2
+                const isVeo = isVeoModel(model);
+                const isVidu = isViduModel(model);
+                let apiEndpoint, requestBody;
+                
+                if (isVidu) {
+                    // Vidu模型
+                    const viduParams = parseViduModel(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'vidu', 
+                        prompt, 
+                        model_version: viduParams.version,
+                        aspect_ratio: ratio, 
+                        duration: duration,
+                        resolution: viduParams.resolution,
+                        userId: currentUser?.id 
+                    };
+                } else if (isVeo) {
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { action: 'veo3', prompt, model, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id };
+                } else {
+                    apiEndpoint = '/api/sora2';
+                    requestBody = { action: 'text-to-video', prompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                }
+                
+                const response = await fetch(apiEndpoint, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(requestBody) 
+                }); 
+                if (!response.ok) throw new Error('API错误: ' + response.status); 
+                const data = await response.json(); 
+                if (data.error) throw new Error(data.message || data.error); 
+                if (data.task_id || data.id) { 
+                    showToast('视频生成中，请稍候...'); 
+                    const taskId = data.task_id || data.id; 
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, isVeo || isVidu); 
+                    if (videoUrl) { 
+                        currentVideoUrls.t2v = videoUrl; 
+                        document.getElementById('t2vVideo').src = videoUrl; 
+                        document.getElementById('t2vResult').style.display = 'block'; 
+                        showToast('视频生成成功！'); 
+                    } else { throw new Error('未获取到视频'); } 
+                } else if (data.video_url || data.url) {
+                    currentVideoUrls.t2v = data.video_url || data.url; 
+                    document.getElementById('t2vVideo').src = currentVideoUrls.t2v; 
+                    document.getElementById('t2vResult').style.display = 'block'; 
+                    showToast('视频生成成功！'); 
+                } else { throw new Error('未获取到视频'); } 
+            } catch (error) { 
+                showToast('生成失败：' + error.message); 
+            } finally { 
+                document.getElementById('t2vLoading').style.display = 'none'; 
+            } 
+        }
+        async function generateI2V() { 
+            if (!i2vImageData) { showToast('请先上传图片'); return; } 
+            const rawPrompt = document.getElementById('i2vPrompt').value.trim(); 
+            const model = document.getElementById('i2vModel').value; 
+            const ratio = document.getElementById('i2vRatio').value; 
+            const duration = getFixedDuration(model);
+            const prompt = ensureChineseAudio(rawPrompt, duration);  // 🎯 确保中文配音+时长控制
+            const cost = VIDEO_COST[model] || 8; 
+            if (!await preDeduct(cost, '图生视频')) return; 
+            document.getElementById('i2vLoading').style.display = 'block'; 
+            document.getElementById('i2vResult').style.display = 'none'; 
+            try { 
+                // 🎬 Veo/Vidu模型使用yunwu API，其他使用sora2
+                const isVeo = isVeoModel(model);
+                const isVidu = isViduModel(model);
+                
+                // 🎨 直接使用原图（线稿转换会丢失结构，已禁用）
+                let finalImageUrl = i2vImageData;
+                
+                let apiEndpoint, requestBody;
+                
+                if (isVidu) {
+                    // Vidu模型 - 支持图生视频
+                    const viduParams = parseViduModel(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'vidu', 
+                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        image_url: finalImageUrl,
+                        model_version: viduParams.version,
+                        aspect_ratio: ratio, 
+                        duration: duration,
+                        resolution: viduParams.resolution,
+                        userId: currentUser?.id 
+                    };
+                } else if (isVeo) {
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { action: 'veo3', prompt, model, image_url: finalImageUrl, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id };
+                } else {
+                    apiEndpoint = '/api/sora2';
+                    requestBody = { action: 'image-to-video', prompt, image_url: finalImageUrl, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                }
+                
+                const response = await fetch(apiEndpoint, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(requestBody) 
+                }); 
+                if (!response.ok) throw new Error('API错误: ' + response.status); 
+                const data = await response.json(); 
+                if (data.error) throw new Error(data.message || data.error); 
+                if (data.task_id || data.id) { 
+                    showToast('视频生成中，请稍候...'); 
+                    const taskId = data.task_id || data.id; 
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, isVeo || isVidu); 
+                    if (videoUrl) { 
+                        currentVideoUrls.i2v = videoUrl; 
+                        document.getElementById('i2vVideo').src = videoUrl; 
+                        document.getElementById('i2vResult').style.display = 'block'; 
+                        showToast('视频生成成功！'); 
+                    } else { throw new Error('未获取到视频'); } 
+                } else if (data.video_url || data.url) {
+                    currentVideoUrls.i2v = data.video_url || data.url; 
+                    document.getElementById('i2vVideo').src = currentVideoUrls.i2v; 
+                    document.getElementById('i2vResult').style.display = 'block'; 
+                    showToast('视频生成成功！'); 
+                } else { throw new Error('未获取到视频'); } 
+            } catch (error) { 
+                showToast('生成失败：' + error.message); 
+            } finally { 
+                document.getElementById('i2vLoading').style.display = 'none'; 
+            } 
+        }
+        async function generateRef() { 
+            let refUrl = document.getElementById('refUrl').value.trim(); 
+            
+            // 如果有本地文件，先上传获取URL
+            if (refVideoFile && !refUrl) {
+                const reader = new FileReader();
+                const base64 = await new Promise((resolve) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(refVideoFile);
+                });
+                refUrl = await uploadVideoToHost(base64);
+                if (!refUrl) {
+                    showToast('视频上传失败，请直接输入URL');
+                    return;
+                }
+            }
+            
+            if (!refUrl) { showToast('请上传视频或输入URL'); return; } 
+            if (!refUrl.startsWith('http')) { showToast('请输入有效的视频URL'); return; } 
+            const rawPrompt = document.getElementById('refPrompt').value.trim(); 
+            if (!rawPrompt) { showToast('请输入视频描述'); return; } 
+            const model = document.getElementById('refModel').value; 
+            const ratio = document.getElementById('refRatio').value; 
+            const duration = getFixedDuration(model);
+            const prompt = ensureChineseAudio(rawPrompt, duration);  // 🎯 确保中文配音+时长控制
+            const cost = VIDEO_COST[model] || 8; 
+            if (!await preDeduct(cost, '视频克隆')) return; 
+            document.getElementById('refLoading').style.display = 'block'; 
+            document.getElementById('refResult').style.display = 'none'; 
+            try { 
+                // 🎬 Veo模型使用yunwu API，其他使用sora2
+                const isVeo = isVeoModel(model);
+                const apiEndpoint = isVeo ? '/api/yunwu' : '/api/sora2';
+                const requestBody = isVeo 
+                    ? { action: 'veo3', prompt, video_url: refUrl, aspect_ratio: ratio, duration, with_audio: true, userId: currentUser?.id }
+                    : { action: 'text-to-video', prompt, video_url: refUrl, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                
+                const response = await fetch(apiEndpoint, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(requestBody) 
+                }); 
+                if (!response.ok) throw new Error('API错误: ' + response.status); 
+                const data = await response.json(); 
+                if (data.error) throw new Error(data.message || data.error); 
+                if (data.task_id || data.id) { 
+                    showToast('视频生成中，请稍候...'); 
+                    const taskId = data.task_id || data.id; 
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, isVeo); 
+                    if (videoUrl) { 
+                        currentVideoUrls.ref = videoUrl; 
+                        document.getElementById('refVideo').src = videoUrl; 
+                        document.getElementById('refResult').style.display = 'block'; 
+                        showToast('视频克隆成功！'); 
+                    } else { throw new Error('未获取到视频'); } 
+                } else if (data.video_url || data.url) { 
+                    currentVideoUrls.ref = data.video_url || data.url; 
+                    document.getElementById('refVideo').src = currentVideoUrls.ref; 
+                    document.getElementById('refResult').style.display = 'block'; 
+                    showToast('视频克隆成功！'); 
+                } else { throw new Error('未获取到视频'); } 
+            } catch (error) { 
+                showToast('克隆失败：' + error.message); 
+            } finally { 
+                document.getElementById('refLoading').style.display = 'none'; 
+                refVideoFile = null;
+            } 
+        }
+        
+        // 轮询视频生成结果
+        async function pollVideoResult(taskId, source, endpoint, isVeo = false) {
+            const maxAttempts = 60;
+            // 🎬 Veo使用yunwu API轮询，其他使用sora2
+            const pollEndpoint = isVeo ? '/api/yunwu' : '/api/sora2';
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 5000));
+                try {
+                    // 🔧 修复：轮询请求必须包含 userId，否则后端返回 401
+                    // 🔧 2026-01-23：Veo 和 Sora2 都使用统一的 action: 'poll'
+                    const pollBody = isVeo 
+                        ? { action: 'poll', task_id: taskId, userId: currentUser?.id }
+                        : { action: 'poll', task_id: taskId, _source: source, _endpoint: endpoint, userId: currentUser?.id };
+                    const res = await fetch(pollEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(pollBody)
+                    });
+                    if (!res.ok) {
+                        console.warn(`[轮询] 第${i+1}次失败: ${res.status}`);
+                        continue;
+                    }
+                    const data = await res.json();
+                    const status = (data.status || data.state || '').toUpperCase();
+                    if (status === 'COMPLETED' || status === 'SUCCEEDED' || status === 'SUCCESS' || status === 'DONE') {
+                        return data.output_url || data.video_url || data.url || data.data?.output_url || data.data?.video_url;
+                    }
+                    if (status === 'FAILED' || status === 'ERROR') {
+                        throw new Error(data.error || data.message || '视频生成失败');
+                    }
+                    console.log(`[轮询] 第${i+1}次, 状态: ${status || 'PENDING'}`);
+                } catch (e) { if (e.message.includes('失败')) throw e; }
+            }
+            throw new Error('视频生成超时');
+        }
+        function downloadVideo(type) { const url = currentVideoUrls[type]; if (!url) return; const a = document.createElement('a'); a.href = url; a.download = 'video_' + Date.now() + '.mp4'; a.target = '_blank'; a.click(); showToast('开始下载'); }
+        function showToast(msg) { const toast = document.getElementById('toast'); toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500); }
+        
+        // ==================== 🎯 批量视频生成功能 ====================
+        let batchImages = [];  // 存储批量上传的图片
+        let batchVideoResults = [];  // 存储批量生成结果
+        let batchGenerating = false;  // 是否正在生成中
+        
+        // ==================== 页面状态持久化 ====================
+        function saveVideoToolsState() {
+            try {
+                const state = {
+                    // 批量生成面板状态
+                    batchImages,
+                    batchImagePrompts,
+                    batchVideoResults,
+                    batchGenerating,
+                    batchMode: document.getElementById('batchMode')?.value,
+                    batchModel: document.getElementById('batchModel')?.value,
+                    batchRatio: document.getElementById('batchRatio')?.value,
+                    batchPrompts: document.getElementById('batchPrompts')?.value,
+                    batchProgressVisible: document.getElementById('batchProgress')?.style.display === 'block',
+                    batchResultVisible: document.getElementById('batchResult')?.style.display === 'block',
+                    // 文生视频面板状态
+                    t2vPrompt: document.getElementById('t2vPrompt')?.value || '',
+                    t2vModel: document.getElementById('t2vModel')?.value || '',
+                    t2vRatio: document.getElementById('t2vRatio')?.value || '',
+                    t2vVideoUrl: currentVideoUrls.t2v || '',
+                    t2vResultVisible: document.getElementById('t2vResult')?.style.display === 'block',
+                    // 图生视频面板状态
+                    i2vPrompt: document.getElementById('i2vPrompt')?.value || '',
+                    i2vModel: document.getElementById('i2vModel')?.value || '',
+                    i2vRatio: document.getElementById('i2vRatio')?.value || '',
+                    i2vImageData: i2vImageData || '',
+                    i2vVideoUrl: currentVideoUrls.i2v || '',
+                    i2vResultVisible: document.getElementById('i2vResult')?.style.display === 'block',
+                    // 视频克隆面板状态
+                    refPrompt: document.getElementById('refPrompt')?.value || '',
+                    refModel: document.getElementById('refModel')?.value || '',
+                    refRatio: document.getElementById('refRatio')?.value || '',
+                    refUrl: document.getElementById('refUrl')?.value || '',
+                    refVideoUrl: currentVideoUrls.ref || '',
+                    refResultVisible: document.getElementById('refResult')?.style.display === 'block',
+                    // 当前激活的面板
+                    activePanel: document.querySelector('.tab.active')?.textContent || '',
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_videotools_state', JSON.stringify(state));
+                console.log('[video-tools] 状态已保存');
+            } catch (e) {
+                console.warn('[video-tools] 保存状态失败:', e);
+            }
+        }
+        
+        // 兼容旧函数名
+        function saveBatchState() { saveVideoToolsState(); }
+        
+        function restoreVideoToolsState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_videotools_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                // 检查是否过期（30分钟）
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_videotools_state');
+                    return;
+                }
+                console.log('[video-tools] 恢复状态...');
+                
+                // 恢复批量生成面板
+                batchImages = state.batchImages || [];
+                batchImagePrompts = state.batchImagePrompts || [];
+                batchVideoResults = state.batchVideoResults || [];
+                batchGenerating = state.batchGenerating || false;
+                
+                if (state.batchMode) document.getElementById('batchMode').value = state.batchMode;
+                if (state.batchModel) document.getElementById('batchModel').value = state.batchModel;
+                if (state.batchRatio) document.getElementById('batchRatio').value = state.batchRatio;
+                if (state.batchPrompts) document.getElementById('batchPrompts').value = state.batchPrompts;
+                onBatchModeChange();
+                
+                if (batchImages.length > 0) {
+                    while (batchImagePrompts.length < batchImages.length) {
+                        batchImagePrompts.push('');
+                    }
+                    renderBatchImageGrid();
+                    document.getElementById('batchImagePreview').style.display = 'block';
+                }
+                
+                if (batchVideoResults.length > 0) {
+                    document.getElementById('batchVideoGrid').innerHTML = '';
+                    batchVideoResults.forEach(r => addBatchVideoToGrid(r));
+                    document.getElementById('batchResult').style.display = 'block';
+                }
+                
+                if (state.batchProgressVisible && batchGenerating) {
+                    document.getElementById('batchProgress').style.display = 'block';
+                    document.getElementById('batchProgressText').textContent = '⏳ 任务进行中...';
+                }
+                
+                // 恢复文生视频面板
+                if (state.t2vPrompt) document.getElementById('t2vPrompt').value = state.t2vPrompt;
+                if (state.t2vModel) document.getElementById('t2vModel').value = state.t2vModel;
+                if (state.t2vRatio) document.getElementById('t2vRatio').value = state.t2vRatio;
+                if (state.t2vVideoUrl) {
+                    currentVideoUrls.t2v = state.t2vVideoUrl;
+                    document.getElementById('t2vVideo').src = state.t2vVideoUrl;
+                    document.getElementById('t2vResult').style.display = 'block';
+                }
+                
+                // 恢复图生视频面板
+                if (state.i2vPrompt) document.getElementById('i2vPrompt').value = state.i2vPrompt;
+                if (state.i2vModel) document.getElementById('i2vModel').value = state.i2vModel;
+                if (state.i2vRatio) document.getElementById('i2vRatio').value = state.i2vRatio;
+                if (state.i2vImageData) {
+                    i2vImageData = state.i2vImageData;
+                    document.getElementById('i2vPreview').src = state.i2vImageData;
+                    document.getElementById('i2vPreview').style.display = 'block';
+                }
+                if (state.i2vVideoUrl) {
+                    currentVideoUrls.i2v = state.i2vVideoUrl;
+                    document.getElementById('i2vVideo').src = state.i2vVideoUrl;
+                    document.getElementById('i2vResult').style.display = 'block';
+                }
+                
+                // 恢复视频克隆面板
+                if (state.refPrompt) document.getElementById('refPrompt').value = state.refPrompt;
+                if (state.refModel) document.getElementById('refModel').value = state.refModel;
+                if (state.refRatio) document.getElementById('refRatio').value = state.refRatio;
+                if (state.refUrl) document.getElementById('refUrl').value = state.refUrl;
+                if (state.refVideoUrl) {
+                    currentVideoUrls.ref = state.refVideoUrl;
+                    document.getElementById('refVideo').src = state.refVideoUrl;
+                    document.getElementById('refResult').style.display = 'block';
+                }
+                
+                console.log('[video-tools] 状态恢复完成');
+            } catch (e) {
+                console.error('[video-tools] 恢复状态失败:', e);
+            }
+        }
+        
+        // 兼容旧函数名
+        function restoreBatchState() { restoreVideoToolsState(); }
+        
+        // 页面可见性变化时保存状态
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                saveVideoToolsState();
+            }
+        });
+        
+        // 页面卸载前保存
+        window.addEventListener('beforeunload', saveVideoToolsState);
+        window.addEventListener('pagehide', saveVideoToolsState);
+        
+        // 页面加载时恢复
+        window.addEventListener('load', () => {
+            setTimeout(restoreVideoToolsState, 100);
+        });
+        
+        // 切换批量模式
+        function onBatchModeChange() {
+            const mode = document.getElementById('batchMode').value;
+            document.getElementById('batchT2vSection').style.display = mode === 't2v' ? 'block' : 'none';
+            document.getElementById('batchI2vSection').style.display = mode === 'i2v' ? 'block' : 'none';
+        }
+        
+        // 处理批量图片上传 - 九宫格布局，每张图片有独立提示词
+        let batchImagePrompts = [];  // 存储每张图片的独立提示词
+        
+        async function handleBatchImageUpload(input) {
+            if (!input.files || input.files.length === 0) return;
+            
+            const files = Array.from(input.files);  // 无限制
+            batchImages = [];
+            batchImagePrompts = [];
+            
+            showToast(`正在处理 ${files.length} 张图片...`);
+            
+            for (const file of files) {
+                const reader = new FileReader();
+                const dataUrl = await new Promise(resolve => {
+                    reader.onload = e => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+                // 压缩图片
+                const compressed = await compressImage(dataUrl, 1200, 0.8);
+                batchImages.push(compressed);
+                batchImagePrompts.push('');  // 默认空提示词
+            }
+            
+            // 显示九宫格预览，每张图片下面有提示词输入框
+            renderBatchImageGrid();
+            document.getElementById('batchImagePreview').style.display = 'block';
+            showToast(`已上传 ${batchImages.length} 张图片`);
+        }
+        
+        // 渲染九宫格图片列表
+        function renderBatchImageGrid() {
+            const grid = document.getElementById('batchImageGrid');
+            grid.innerHTML = batchImages.map((img, i) => `
+                <div style="background:var(--bg-input);border-radius:10px;overflow:hidden;border:1px solid #333;">
+                    <div style="position:relative;aspect-ratio:1;">
+                        <img src="${img}" style="width:100%;height:100%;object-fit:cover;">
+                        <div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;">#${i+1}</div>
+                        <button onclick="removeBatchImage(${i})" style="position:absolute;top:4px;right:4px;background:rgba(239,68,68,0.9);color:#fff;border:none;width:20px;height:20px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+                    </div>
+                    <div style="padding:6px;">
+                        <input type="text" 
+                            placeholder="描述动作..." 
+                            value="${batchImagePrompts[i] || ''}"
+                            onchange="updateBatchImagePrompt(${i}, this.value)"
+                            style="width:100%;padding:6px;background:var(--bg-card);border:1px solid #444;border-radius:6px;color:#fff;font-size:11px;box-sizing:border-box;"
+                        >
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 更新单张图片的提示词
+        function updateBatchImagePrompt(index, value) {
+            batchImagePrompts[index] = value;
+        }
+        
+        // 删除单张图片
+        function removeBatchImage(index) {
+            batchImages.splice(index, 1);
+            batchImagePrompts.splice(index, 1);
+            if (batchImages.length === 0) {
+                clearBatchImages();
+            } else {
+                renderBatchImageGrid();
+            }
+        }
+        
+        // 清空批量图片
+        function clearBatchImages() {
+            batchImages = [];
+            batchImagePrompts = [];
+            document.getElementById('batchImageGrid').innerHTML = '';
+            document.getElementById('batchImagePreview').style.display = 'none';
+            document.getElementById('batchImageInput').value = '';
+        }
+        
+        // 批量生成主函数
+        async function generateBatch() {
+            const mode = document.getElementById('batchMode').value;
+            let model = document.getElementById('batchModel').value;
+            const ratio = document.getElementById('batchRatio').value;
+            
+            // 🔧 修复：规范化 Veo 模型名称（下划线转点号），在获取duration之前处理
+            if (model && model.includes('veo_')) {
+                const oldModel = model;
+                model = model.replace(/_/g, '.');
+                console.log('[batch] 规范化Veo模型名:', oldModel, '->', model);
+            }
+            
+            const duration = getFixedDuration(model);
+            const cost = VIDEO_COST[model] || VIDEO_COST['veo3.1'] || 30;
+            const isVeo = isVeoModel(model);
+            const isVidu = model && model.toLowerCase().includes('vidu');
+            
+            let tasks = [];
+            
+            if (mode === 't2v') {
+                // 文生视频模式：解析多行提示词
+                const prompts = document.getElementById('batchPrompts').value
+                    .split('\n')
+                    .map(p => p.trim())
+                    .filter(p => p.length > 0);  // 无限制
+                
+                if (prompts.length === 0) {
+                    showToast('请输入至少一个提示词');
+                    return;
+                }
+                tasks = prompts.map(prompt => ({ type: 't2v', prompt }));
+            } else {
+                // 图生视频模式 - 每张图片使用独立提示词
+                if (batchImages.length === 0) {
+                    showToast('请先上传图片');
+                    return;
+                }
+                // 每张图片使用独立提示词，留空则智能生成
+                tasks = batchImages.map((img, i) => ({ 
+                    type: 'i2v', 
+                    image: img, 
+                    prompt: batchImagePrompts[i]?.trim() || ''  // 留空表示智能生成
+                }));
+            }
+            
+            const totalCost = tasks.length * cost;
+            
+            // 🔧 修复：等待认证初始化完成后再检查登录状态
+            if (!authInitialized) {
+                showToast('正在初始化，请稍候...');
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 5000) {
+                    await new Promise(r => setTimeout(r, 200));
+                }
+                // 重新检查用户状态
+                if (!currentUser) {
+                    await checkUser();
+                }
+            }
+            
+            // 检查登录和余额
+            if (!currentUser) {
+                showToast('请先登录');
+                return;
+            }
+            if (userQuota < totalCost) {
+                showToast(`胶片不足，需要 ${totalCost} 胶片`);
+                return;
+            }
+            
+            // 确认
+            const modelName = isVidu ? 'Vidu' : model.includes('veo') ? 'Veo 3.1 4K' : model.includes('grok') ? 'Grok Video' : 'Sora-2';
+            if (!confirm(`将使用 ${modelName} 并发生成 ${tasks.length} 个视频\n共需 ${totalCost} 胶片，确认继续？`)) {
+                return;
+            }
+            
+            // 预扣费
+            if (!await preDeduct(totalCost, `批量${mode === 't2v' ? '文' : '图'}生视频x${tasks.length}`)) {
+                return;
+            }
+            
+            // 显示进度
+            batchGenerating = true;
+            document.getElementById('batchProgress').style.display = 'block';
+            document.getElementById('batchResult').style.display = 'none';
+            document.getElementById('batchVideoGrid').innerHTML = '';
+            batchVideoResults = [];
+            saveBatchState();
+            
+            let completed = 0;
+            const total = tasks.length;
+            
+            function updateProgress(text, subText = '') {
+                document.getElementById('batchProgressText').textContent = text || `🚀 批量生成中...`;
+                document.getElementById('batchProgressCount').textContent = `${completed}/${total}`;
+                document.getElementById('batchProgressBar').style.width = `${(completed/total)*100}%`;
+            }
+            updateProgress(`🚀 已提交 ${total} 个任务，等待生成中...`);
+            
+            // 🎨 2026-01-23：非Vidu模型的图生视频先并发转线稿（规避 Veo/Sora2 内容审核）
+            // Vidu 模型不需要转换，直接使用原图
+            if (mode === 'i2v' && !isVidu) {
+                updateProgress(`🎨 正在并发转换${total}张图片为线稿风格...`);
+                const sketchPromises = tasks.map(async (task) => {
+                    if (task.image) {
+                        task.image = await convertToSketch(task.image);
+                    }
+                });
+                await Promise.all(sketchPromises);
+                console.log(`[video-tools] ✅ ${total}张图片线稿转换完成`);
+                updateProgress(`🚀 线稿转换完成，开始生成视频...`);
+            }
+            
+            // 🚀 并发执行所有任务
+            // Vidu 和 Veo 都走 yunwu API，其他走 sora2 API
+            const apiEndpoint = (isVeo || isVidu) ? '/api/yunwu' : '/api/sora2';
+            
+            // 🎯 处理提示词：添加中文语音指令 + 强制语音在视频结束前1秒结束
+            const audioEndTime = Math.max(duration - 1, 3);
+            const audioDurationHint = `【重要】所有语音/旁白/对话必须在第${audioEndTime}秒前结束，最后1秒保持静音画面`;
+            
+            const processPrompt = (prompt, isI2v = false) => {
+                // 如果是图生视频且提示词为空，让AI智能生成
+                if (isI2v && !prompt) {
+                    return `根据图片内容智能生成动画，使用中文配音。${audioDurationHint}`;
+                }
+                if (!prompt) return `使用中文配音。${audioDurationHint}`;
+                const lower = prompt.toLowerCase();
+                // 检测用户是否明确要求英文
+                const wantsEnglish = lower.includes('english') || lower.includes('in english') || lower.includes('英文配音') || lower.includes('英语旁白');
+                // 检测是否已包含中文语音指令
+                const hasChineseAudio = prompt.includes('中文配音') || prompt.includes('中文旁白') || prompt.includes('普通话');
+                // 检测是否已包含时长控制指令
+                const hasTimeControl = prompt.includes('秒前结束') || prompt.includes('静音画面') || prompt.includes('结束语音');
+                
+                let result = prompt;
+                // 添加中文语音指令
+                if (!wantsEnglish && !hasChineseAudio) {
+                    result += '，使用中文配音';
+                }
+                // 添加时长控制指令
+                if (!hasTimeControl) {
+                    result += `。${audioDurationHint}`;
+                }
+                return result;
+            };
+            
+            // 🎬 Vidu模型需要解析参数
+            const viduParams = isVidu ? parseViduModel(model) : null;
+            
+            const promises = tasks.map(async (task, index) => {
+                try {
+                    let requestBody;
+                    const finalPrompt = processPrompt(task.prompt, task.type === 'i2v');
+                    
+                    if (task.type === 't2v') {
+                        // 文生视频
+                        if (isVidu) {
+                            requestBody = { 
+                                action: 'vidu', 
+                                prompt: finalPrompt, 
+                                model_version: viduParams.version,
+                                aspect_ratio: ratio, 
+                                duration: duration,
+                                resolution: viduParams.resolution,
+                                userId: currentUser?.id 
+                            };
+                        } else if (isVeo) {
+                            requestBody = { action: 'veo3', prompt: finalPrompt, model, aspect_ratio: ratio, duration, with_audio: true, userId: currentUser?.id };
+                        } else {
+                            requestBody = { action: 'text-to-video', prompt: finalPrompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                        }
+                    } else {
+                        // 图生视频
+                        if (isVidu) {
+                            requestBody = { 
+                                action: 'vidu', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡', 
+                                image_url: task.image,
+                                model_version: viduParams.version,
+                                aspect_ratio: ratio, 
+                                duration: duration,
+                                resolution: viduParams.resolution,
+                                userId: currentUser?.id 
+                            };
+                        } else if (isVeo) {
+                            requestBody = { action: 'veo3', prompt: finalPrompt, model, image_url: task.image, aspect_ratio: ratio, duration, with_audio: true, image_weight: 0.9, userId: currentUser?.id };
+                        } else {
+                            requestBody = { action: 'image-to-video', prompt: finalPrompt, image_url: task.image, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                        }
+                    }
+                    
+                    const response = await fetch(apiEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+                    
+                    const data = await response.json();
+                    if (!response.ok || data.error) {
+                        throw new Error(data.message || data.error || 'API错误');
+                    }
+                    
+                    // 获取视频URL
+                    let videoUrl = data.video_url || data.url;
+                    if (!videoUrl && (data.task_id || data.id)) {
+                        // 需要轮询（Vidu和Veo都需要）
+                        videoUrl = await pollVideoResult(data.task_id || data.id, data._source, data._endpoint, isVeo || isVidu);
+                    }
+                    
+                    if (videoUrl) {
+                        return { index, success: true, videoUrl, prompt: task.prompt };
+                    }
+                    throw new Error('未获取到视频');
+                } catch (err) {
+                    console.error(`[批量] 第${index + 1}个失败:`, err);
+                    return { index, success: false, error: err.message, prompt: task.prompt };
+                }
+            });
+            
+            // 等待所有任务完成，实时更新进度
+            const results = await Promise.all(promises.map(async (p) => {
+                const result = await p;
+                completed++;
+                if (result.success) {
+                    batchVideoResults.push(result);
+                    addBatchVideoToGrid(result);
+                } else {
+                    addBatchVideoToGrid(result);
+                }
+                updateProgress(`已完成 ${completed}/${total}`);
+                saveBatchState();  // 每完成一个任务保存状态
+                return result;
+            }));
+            
+            // 完成
+            batchGenerating = false;
+            document.getElementById('batchProgress').style.display = 'none';
+            document.getElementById('batchResult').style.display = 'block';
+            saveBatchState();
+            
+            const successCount = results.filter(r => r.success).length;
+            if (successCount > 0) {
+                showToast(`✅ 成功生成 ${successCount}/${total} 个视频！`);
+            } else {
+                showToast('✖ 所有视频生成失败');
+            }
+        }
+        
+        // 添加批量视频到网格
+        function addBatchVideoToGrid(result) {
+            const grid = document.getElementById('batchVideoGrid');
+            const item = document.createElement('div');
+            item.style.cssText = 'background:var(--bg-card);border-radius:12px;overflow:hidden;';
+            
+            if (result.success) {
+                item.innerHTML = `
+                    <video src="${result.videoUrl}" style="width:100%;aspect-ratio:16/9;object-fit:cover;" controls playsinline></video>
+                    <div style="padding:8px;">
+                        <div style="font-size:11px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px;">${result.prompt ? result.prompt.substring(0, 30) + '...' : '🤖 智能生成'}</div>
+                        <button onclick="downloadBatchVideo('${result.videoUrl}', ${result.index})" style="width:100%;padding:8px;background:var(--accent);border:none;border-radius:6px;color:#000;font-size:12px;cursor:pointer;">⬇️ 下载</button>
+                    </div>
+                `;
+            } else {
+                item.innerHTML = `
+                    <div style="aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:#1a1a1a;color:#666;font-size:12px;text-align:center;padding:16px;">
+                        #${result.index + 1} 失败<br>${result.error || ''}
+                    </div>
+                `;
+            }
+            grid.appendChild(item);
+        }
+        
+        // 下载单个批量视频
+        function downloadBatchVideo(url, index) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `batch_video_${index + 1}_${Date.now()}.mp4`;
+            a.target = '_blank';
+            a.click();
+        }
+        
+        // 下载所有批量视频
+        function downloadAllBatchVideos() {
+            if (batchVideoResults.length === 0) {
+                showToast('没有可下载的视频');
+                return;
+            }
+            batchVideoResults.forEach((item, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = item.videoUrl;
+                    a.download = `batch_video_${item.index + 1}_${Date.now()}.mp4`;
+                    a.target = '_blank';
+                    a.click();
+                }, i * 500);
+            });
+            showToast(`开始下载 ${batchVideoResults.length} 个视频...`);
+        }
+        
+        // ========== 🎞️ 视频转 GIF 功能 ==========
+        let gifVideoFile = null;
+        let gifBlobUrl = null;
+        
+        // 预览上传的视频
+        function previewGifVideo(input) {
+            if (!input.files || !input.files[0]) return;
+            gifVideoFile = input.files[0];
+            
+            const video = document.getElementById('gifVideoPreview');
+            const url = URL.createObjectURL(gifVideoFile);
+            video.src = url;
+            video.style.display = 'block';
+            
+            video.onloadedmetadata = () => {
+                const duration = video.duration;
+                document.getElementById('gifDuration').textContent = duration.toFixed(1);
+                document.getElementById('gifEndTime').value = Math.min(5, duration).toFixed(1);
+                document.getElementById('gifEndTime').max = duration;
+                document.getElementById('gifStartTime').max = duration - 0.5;
+                document.getElementById('gifTimeRange').style.display = 'block';
+                updateGifPreviewTime();
+            };
+            
+            // 隐藏上传区域
+            input.parentElement.querySelector('.upload-area').style.display = 'none';
+            showToast('视频已加载，请设置转换参数');
+        }
+        
+        // 更新预览时间
+        function updateGifPreviewTime() {
+            const start = parseFloat(document.getElementById('gifStartTime').value) || 0;
+            let end = parseFloat(document.getElementById('gifEndTime').value) || 5;
+            const duration = parseFloat(document.getElementById('gifDuration').textContent) || 0;
+            
+            // 确保结束时间不超过视频时长
+            if (end > duration) {
+                end = duration;
+                document.getElementById('gifEndTime').value = end.toFixed(1);
+            }
+            // 确保开始时间小于结束时间
+            if (start >= end) {
+                document.getElementById('gifStartTime').value = Math.max(0, end - 0.5).toFixed(1);
+            }
+            
+            const clipDuration = Math.max(0.5, end - start);
+            document.getElementById('gifClipDuration').textContent = clipDuration.toFixed(1);
+            
+            // 跳转到开始时间预览
+            const video = document.getElementById('gifVideoPreview');
+            if (video.readyState >= 1) {
+                video.currentTime = start;
+            }
+        }
+        
+        // 主转换函数
+        async function convertToGif() {
+            if (!gifVideoFile) {
+                showToast('请先上传视频');
+                return;
+            }
+            
+            const video = document.getElementById('gifVideoPreview');  // 直接使用预览视频
+            const startTime = parseFloat(document.getElementById('gifStartTime').value) || 0;
+            const endTime = parseFloat(document.getElementById('gifEndTime').value) || 5;
+            const width = parseInt(document.getElementById('gifWidth').value);
+            const fps = parseInt(document.getElementById('gifFps').value);
+            const quality = document.getElementById('gifQuality').value;
+            const loop = parseInt(document.getElementById('gifLoop').value);
+            
+            if (endTime - startTime > 15) {
+                showToast('片段过长，建议不超过10秒');
+            }
+            
+            // 显示加载状态
+            document.getElementById('gifLoading').style.display = 'block';
+            document.getElementById('gifResult').style.display = 'none';
+            document.getElementById('gifProgress').textContent = '准备中...';
+            
+            try {
+                // 等待视频加载完成
+                if (video.readyState < 2) {
+                    document.getElementById('gifProgress').textContent = '等待视频加载...';
+                    await new Promise((resolve, reject) => {
+                        const check = () => {
+                            if (video.readyState >= 2) resolve();
+                            else setTimeout(check, 100);
+                        };
+                        check();
+                        setTimeout(() => resolve(), 5000); // 5秒超时强制继续
+                    });
+                }
+                
+                // 创建离屏canvas - 确保所有尺寸是整数
+                const vw = video.videoWidth || 640;
+                const vh = video.videoHeight || 360;
+                if (!vw || !vh) {
+                    throw new Error('无法获取视频尺寸');
+                }
+                const w = Math.floor(width);
+                const h = Math.floor(w * vh / vw);
+                if (h <= 0) {
+                    throw new Error('视频尺寸异常');
+                }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                
+                // 提取帧
+                const frames = [];
+                const frameDuration = 1000 / fps;
+                const totalFrames = Math.ceil((endTime - startTime) * fps);
+                
+                document.getElementById('gifLoadingText').textContent = '正在提取帧...';
+                
+                // 封装seek函数 - 等待帧渲染完成
+                const seekAndCapture = (time) => {
+                    return new Promise((resolve) => {
+                        video.currentTime = time;
+                        
+                        // 使用 requestVideoFrameCallback 确保帧已渲染（如果支持）
+                        if ('requestVideoFrameCallback' in video) {
+                            video.requestVideoFrameCallback(() => {
+                                ctx.drawImage(video, 0, 0, w, h);
+                                resolve();
+                            });
+                            // 超时保护
+                            setTimeout(() => {
+                                ctx.drawImage(video, 0, 0, w, h);
+                                resolve();
+                            }, 300);
+                        } else {
+                            // 回退方案：等待seeked事件 + 额外延迟
+                            const onSeeked = () => {
+                                video.removeEventListener('seeked', onSeeked);
+                                // 额外等待100ms让帧渲染
+                                setTimeout(() => {
+                                    ctx.drawImage(video, 0, 0, w, h);
+                                    resolve();
+                                }, 100);
+                            };
+                            video.addEventListener('seeked', onSeeked);
+                            setTimeout(onSeeked, 400);
+                        }
+                    });
+                };
+                
+                for (let i = 0; i < totalFrames; i++) {
+                    const time = startTime + i / fps;
+                    await seekAndCapture(time);
+                    
+                    // 获取像素数据
+                    try {
+                        const imageData = ctx.getImageData(0, 0, w, h);
+                        frames.push(imageData);
+                    } catch (e) {
+                        console.warn('帧提取失败，跳过:', e.message);
+                    }
+                    
+                    document.getElementById('gifProgress').textContent = `提取帧: ${i + 1}/${totalFrames}`;
+                    
+                    // 让UI更新
+                    await new Promise(r => setTimeout(r, 0));
+                }
+                
+                if (frames.length === 0) {
+                    throw new Error('未能提取任何帧，请尝试其他视频');
+                }
+                
+                // 生成GIF
+                document.getElementById('gifLoadingText').textContent = '正在生成GIF...';
+                document.getElementById('gifProgress').textContent = '编码中...';
+                
+                const gifBlob = await createGifFromFrames(frames, w, h, frameDuration, quality, loop, (progress) => {
+                    document.getElementById('gifProgress').textContent = `编码: ${Math.round(progress * 100)}%`;
+                });
+                
+                // 显示结果
+                if (gifBlobUrl) URL.revokeObjectURL(gifBlobUrl);
+                gifBlobUrl = URL.createObjectURL(gifBlob);
+                
+                document.getElementById('gifOutput').src = gifBlobUrl;
+                document.getElementById('gifInfo').textContent = `尺寸: ${w}×${h} | 帧数: ${frames.length} | 大小: ${(gifBlob.size / 1024 / 1024).toFixed(2)} MB`;
+                document.getElementById('gifLoading').style.display = 'none';
+                document.getElementById('gifResult').style.display = 'block';
+                
+                showToast('🎉 GIF生成成功！');
+                
+            } catch (err) {
+                console.error('GIF转换失败:', err);
+                document.getElementById('gifLoading').style.display = 'none';
+                showToast('转换失败: ' + err.message);
+            }
+        }
+        
+        // 使用纯JS生成GIF（简化版GIF编码器）
+        async function createGifFromFrames(frames, width, height, delay, quality, loop, onProgress) {
+            // 质量映射到颜色数量
+            const colorBits = { low: 4, medium: 6, high: 8 }[quality] || 6;
+            const colorCount = 1 << colorBits;
+            
+            const encoder = new GifEncoder(width, height, loop);
+            
+            for (let i = 0; i < frames.length; i++) {
+                encoder.addFrame(frames[i].data, delay, colorBits);
+                if (onProgress) onProgress((i + 1) / frames.length);
+                // 让UI更新
+                await new Promise(r => setTimeout(r, 0));
+            }
+            
+            return encoder.finish();
+        }
+        
+        // 简化版GIF编码器
+        class GifEncoder {
+            constructor(width, height, loop) {
+                this.width = width;
+                this.height = height;
+                this.loop = loop;
+                this.frames = [];
+                this.data = [];
+            }
+            
+            addFrame(pixels, delay, colorBits) {
+                // 量化颜色
+                const colorCount = 1 << colorBits;
+                const { palette, indexed } = this.quantize(pixels, colorCount);
+                this.frames.push({ palette, indexed, delay: Math.round(delay / 10), colorBits });
+            }
+            
+            // 简单的中位切分颜色量化
+            quantize(pixels, colorCount) {
+                // 收集所有颜色
+                const colors = [];
+                for (let i = 0; i < pixels.length; i += 4) {
+                    colors.push([pixels[i], pixels[i + 1], pixels[i + 2]]);
+                }
+                
+                // 使用简单的均匀采样生成调色板
+                const palette = this.buildPalette(colors, colorCount);
+                
+                // 将像素映射到调色板索引
+                const indexed = new Uint8Array(this.width * this.height);
+                for (let i = 0; i < colors.length; i++) {
+                    indexed[i] = this.findClosestColor(colors[i], palette);
+                }
+                
+                return { palette, indexed };
+            }
+            
+            buildPalette(colors, count) {
+                // 简单采样生成调色板
+                const step = Math.max(1, Math.floor(colors.length / count));
+                const palette = [];
+                const seen = new Set();
+                
+                for (let i = 0; i < colors.length && palette.length < count; i += step) {
+                    const key = colors[i].join(',');
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        palette.push(colors[i]);
+                    }
+                }
+                
+                // 填充剩余
+                while (palette.length < count) {
+                    palette.push([0, 0, 0]);
+                }
+                
+                return palette.slice(0, count);
+            }
+            
+            findClosestColor(color, palette) {
+                let minDist = Infinity, minIdx = 0;
+                for (let i = 0; i < palette.length; i++) {
+                    const d = Math.pow(color[0] - palette[i][0], 2) + 
+                              Math.pow(color[1] - palette[i][1], 2) + 
+                              Math.pow(color[2] - palette[i][2], 2);
+                    if (d < minDist) { minDist = d; minIdx = i; }
+                }
+                return minIdx;
+            }
+            
+            finish() {
+                const stream = [];
+                
+                // GIF Header
+                this.writeString(stream, 'GIF89a');
+                
+                // Logical Screen Descriptor
+                this.writeShort(stream, this.width);
+                this.writeShort(stream, this.height);
+                stream.push(0x70); // No global color table
+                stream.push(0);    // Background color
+                stream.push(0);    // Pixel aspect ratio
+                
+                // Netscape Extension for looping
+                if (this.loop !== 1) {
+                    stream.push(0x21, 0xFF, 0x0B);
+                    this.writeString(stream, 'NETSCAPE2.0');
+                    stream.push(0x03, 0x01);
+                    this.writeShort(stream, this.loop === 0 ? 0 : this.loop);
+                    stream.push(0x00);
+                }
+                
+                // Write frames
+                for (const frame of this.frames) {
+                    this.writeFrame(stream, frame);
+                }
+                
+                // Trailer
+                stream.push(0x3B);
+                
+                return new Blob([new Uint8Array(stream)], { type: 'image/gif' });
+            }
+            
+            writeFrame(stream, frame) {
+                // Graphic Control Extension
+                stream.push(0x21, 0xF9, 0x04);
+                stream.push(0x04); // Disposal: restore to background
+                this.writeShort(stream, frame.delay);
+                stream.push(0x00); // No transparent color
+                stream.push(0x00);
+                
+                // Image Descriptor
+                stream.push(0x2C);
+                this.writeShort(stream, 0); // Left
+                this.writeShort(stream, 0); // Top
+                this.writeShort(stream, this.width);
+                this.writeShort(stream, this.height);
+                stream.push(0x80 | (frame.colorBits - 1)); // Local color table
+                
+                // Local Color Table
+                for (const color of frame.palette) {
+                    stream.push(color[0], color[1], color[2]);
+                }
+                
+                // LZW Minimum Code Size
+                stream.push(frame.colorBits);
+                
+                // LZW Compressed Data
+                const lzw = this.lzwEncode(frame.indexed, frame.colorBits);
+                
+                // Write in sub-blocks
+                for (let i = 0; i < lzw.length; i += 255) {
+                    const chunk = lzw.slice(i, i + 255);
+                    stream.push(chunk.length);
+                    for (const b of chunk) stream.push(b);
+                }
+                stream.push(0x00); // Block terminator
+            }
+            
+            // LZW编码
+            lzwEncode(data, minCodeSize) {
+                const clearCode = 1 << minCodeSize;
+                const eoiCode = clearCode + 1;
+                let codeSize = minCodeSize + 1;
+                let nextCode = eoiCode + 1;
+                const maxCode = 4096;
+                
+                const output = [];
+                let bits = 0, bitCount = 0;
+                
+                const writeBits = (code, size) => {
+                    bits |= code << bitCount;
+                    bitCount += size;
+                    while (bitCount >= 8) {
+                        output.push(bits & 0xFF);
+                        bits >>= 8;
+                        bitCount -= 8;
+                    }
+                };
+                
+                // Initialize dictionary
+                let dict = new Map();
+                const resetDict = () => {
+                    dict = new Map();
+                    for (let i = 0; i < clearCode; i++) {
+                        dict.set(String(i), i);
+                    }
+                    codeSize = minCodeSize + 1;
+                    nextCode = eoiCode + 1;
+                };
+                
+                resetDict();
+                writeBits(clearCode, codeSize);
+                
+                let current = String(data[0]);
+                for (let i = 1; i < data.length; i++) {
+                    const next = String(data[i]);
+                    const combined = current + ',' + next;
+                    
+                    if (dict.has(combined)) {
+                        current = combined;
+                    } else {
+                        writeBits(dict.get(current), codeSize);
+                        
+                        if (nextCode < maxCode) {
+                            dict.set(combined, nextCode++);
+                            if (nextCode > (1 << codeSize) && codeSize < 12) {
+                                codeSize++;
+                            }
+                        } else {
+                            writeBits(clearCode, codeSize);
+                            resetDict();
+                        }
+                        
+                        current = next;
+                    }
+                }
+                
+                writeBits(dict.get(current), codeSize);
+                writeBits(eoiCode, codeSize);
+                
+                if (bitCount > 0) {
+                    output.push(bits & 0xFF);
+                }
+                
+                return output;
+            }
+            
+            writeString(stream, str) {
+                for (let i = 0; i < str.length; i++) {
+                    stream.push(str.charCodeAt(i));
+                }
+            }
+            
+            writeShort(stream, val) {
+                stream.push(val & 0xFF);
+                stream.push((val >> 8) & 0xFF);
+            }
+        }
+        
+        // 下载GIF
+        function downloadGif() {
+            if (!gifBlobUrl) {
+                showToast('没有可下载的GIF');
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = gifBlobUrl;
+            a.download = `video_to_gif_${Date.now()}.gif`;
+            a.click();
+            showToast('GIF下载中...');
+        }
+    </script>
+</body>
+
+</html>

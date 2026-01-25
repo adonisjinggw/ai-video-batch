@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>验证中... - RollRoll AI</title>
+    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+    
+    <!-- Supabase SDK （同源代理） -->
+    <script src="/api/supabase-sdk?version=2.45.1&v=7.11.94"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --accent-gold: #fbbf24;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --success-color: #22c55e;
+            --error-color: #ef4444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .callback-container {
+            text-align: center;
+            padding: 40px;
+            max-width: 400px;
+        }
+        
+        .callback-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+        
+        .callback-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .callback-message {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: var(--accent-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 24px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .btn-primary {
+            display: inline-block;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(251, 191, 36, 0.3);
+        }
+        
+        .success { color: var(--success-color); }
+        .error { color: var(--error-color); }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="callback-container">
+        <!-- 加载状态 -->
+        <div id="loadingState">
+            <div class="spinner"></div>
+            <h1 class="callback-title">正在验证...</h1>
+            <p class="callback-message">请稍候，正在确认您的邮箱</p>
+        </div>
+        
+        <!-- 成功状态 -->
+        <div id="successState" class="hidden">
+            <div class="callback-icon">✅</div>
+            <h1 class="callback-title success">验证成功！</h1>
+            <p class="callback-message">
+                您的邮箱已验证成功<br>
+                现在可以开始使用 RollRoll AI 了
+            </p>
+            <a href="index.html" class="btn-primary">🎬 开始创作</a>
+        </div>
+        
+        <!-- 失败状态 -->
+        <div id="errorState" class="hidden">
+            <div class="callback-icon">❌</div>
+            <h1 class="callback-title error">验证失败</h1>
+            <p class="callback-message" id="errorMessage">
+                验证链接可能已过期或无效<br>
+                请尝试重新注册
+            </p>
+            <a href="auth.html" class="btn-primary">返回登录</a>
+        </div>
+    </div>
+    
+    <script src="js/supabase-config.js"></script>
+    <script>
+        // 处理Supabase认证回调
+        async function handleAuthCallback() {
+            const loadingEl = document.getElementById('loadingState');
+            const successEl = document.getElementById('successState');
+            const errorEl = document.getElementById('errorState');
+            const errorMsgEl = document.getElementById('errorMessage');
+            
+            try {
+                // 获取URL中的参数
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const queryParams = new URLSearchParams(window.location.search);
+                
+                // 检查是否有错误
+                const error = hashParams.get('error') || queryParams.get('error');
+                const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
+                
+                if (error) {
+                    throw new Error(errorDescription || error);
+                }
+                
+                // 检查是否有access_token（验证成功）
+                const accessToken = hashParams.get('access_token');
+                const refreshToken = hashParams.get('refresh_token');
+                
+                if (accessToken) {
+                    // 验证成功，设置session
+                    const client = NVAuth.getSupabase();
+                    if (client) {
+                        await client.auth.setSession({
+                            access_token: accessToken,
+                            refresh_token: refreshToken
+                        });
+                    }
+                    
+                    // 显示成功状态
+                    loadingEl.classList.add('hidden');
+                    successEl.classList.remove('hidden');
+                    
+                    // 3秒后自动跳转（带登录参数跳过欢迎页）
+                    setTimeout(() => {
+                        window.location.href = 'index.html?logged_in=1';
+                    }, 3000);
+                    
+                } else {
+                    // 检查是否已经登录
+                    const user = await NVAuth.getCurrentUser();
+                    if (user) {
+                        loadingEl.classList.add('hidden');
+                        successEl.classList.remove('hidden');
+                        setTimeout(() => {
+                            window.location.href = 'index.html?logged_in=1';
+                        }, 2000);
+                    } else {
+                        // 可能是type=signup的确认
+                        const type = queryParams.get('type');
+                        if (type === 'signup' || type === 'email') {
+                            // 等待一下让Supabase处理
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            
+                            const userAfterWait = await NVAuth.getCurrentUser();
+                            if (userAfterWait) {
+                                loadingEl.classList.add('hidden');
+                                successEl.classList.remove('hidden');
+                                setTimeout(() => {
+                                    window.location.href = 'index.html?logged_in=1';
+                                }, 2000);
+                            } else {
+                                // 显示成功但需要登录
+                                loadingEl.classList.add('hidden');
+                                successEl.classList.remove('hidden');
+                                document.querySelector('#successState .callback-message').innerHTML = 
+                                    '您的邮箱已验证成功<br>请返回登录页面登录';
+                                document.querySelector('#successState .btn-primary').href = 'auth.html';
+                                document.querySelector('#successState .btn-primary').textContent = '去登录';
+                            }
+                        } else {
+                            throw new Error('无效的验证链接');
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                console.error('验证失败:', error);
+                loadingEl.classList.add('hidden');
+                errorEl.classList.remove('hidden');
+                errorMsgEl.innerHTML = `${error.message}<br>请尝试重新注册或联系客服`;
+            }
+        }
+        
+        // 页面加载时执行
+        handleAuthCallback();
+    </script>
+</body>
+</html>
+

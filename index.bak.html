@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI视频批量创作平台 V6.5 (2025 Pro)</title>
+    <link rel="stylesheet" href="css/style.css?v=6.5">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 左侧控制栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                    <span>AI视频工坊</span>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- 模式选择 -->
+                <div class="mode-toggle">
+                    <label>
+                        <input type="radio" name="autoMode" value="full-auto" checked onchange="onModeChange(this.value)">
+                        全自动
+                    </label>
+                    <label>
+                        <input type="radio" name="autoMode" value="semi-auto" onchange="onModeChange(this.value)">
+                        半自动
+                    </label>
+                    <label>
+                        <input type="radio" name="autoMode" value="manual" onchange="onModeChange(this.value)">
+                        手动
+                    </label>
+            </div>
+
+                <!-- 并发控制 -->
+                <div class="task-limit-control">
+                    <span>并发任务数</span>
+                    <div class="limit-input">
+                        <button onclick="adjustTaskCount(-1)" title="减少任务数">-</button>
+                        <span id="taskCountDisplay">3</span>
+                        <button onclick="adjustTaskCount(1)" title="增加任务数">+</button>
+                    </div>
+                </div>
+
+                <!-- 快速输入区域 -->
+                <div class="quick-input-section">
+                    <div class="section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                        快速输入
+            </div>
+            
+                    <div class="file-upload-bar" style="margin-bottom: 10px; display: flex; justify-content: flex-end;">
+                        <input type="file" id="quickScriptUpload" accept=".txt,.md,.doc,.docx" style="display: none;" onchange="handleQuickScriptUpload(this)">
+                        <button onclick="document.getElementById('quickScriptUpload').click()" class="btn-text" style="font-size: 12px; color: var(--accent-gold); display: flex; align-items: center; gap: 4px; cursor: pointer; border: 1px dashed #444; padding: 4px 8px; border-radius: 4px;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            上传剧本/文档
+                </button>
+                    </div>
+
+                    <textarea id="quickIdeaInput" class="quick-textarea" placeholder="输入您的创意主题..."></textarea>
+                    
+                    <button id="voiceInputBtn" class="voice-btn" onclick="toggleVoiceInput()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        <span id="voiceBtnText">点击开始语音输入</span>
+                    </button>
+                    <div id="voiceStatus" class="voice-status">支持连续对话，试试说出创意...</div>
+                    
+                    <div class="voice-commands-hint">
+                        <span class="hint-icon">🏷️</span> 语音控制指令：
+                        <div class="commands-list">
+                            <span>• "添加任务"</span>
+                            <span>• "开始生成"</span>
+                            <span>• "清空输入"</span>
+                            <span>• "清空列表"</span>
+                        </div>
+                </div>
+                
+                    <div class="quick-options">
+                        <div class="option-group">
+                            <label for="quickGenMode">模式</label>
+                            <select id="quickGenMode" title="选择生成模式">
+                                <option value="text-to-video">Sora-2 (文生视频)</option>
+                                <option value="image-to-video">Flux + Sora-2 (图生视频)</option>
+                                <option value="banana-image-to-video">Gemini-3 + Sora-2 (图生视频)</option>
+                                <option value="veo-3">Veo-3 (文生视频)</option>
+                    </select>
+                </div>
+                        <div class="option-row">
+                            <div class="option-group">
+                                <label for="quickDuration">时长 (秒)</label>
+                                <input type="number" id="quickDuration" placeholder="自动分析" min="0" max="60" title="0或留空为自动分析">
+                                <div class="hint-text" style="font-size: 10px; color: #666; margin-top: 2px;">0为自动分析</div>
+                            </div>
+                            <div class="option-group">
+                                <label for="quickScenes">分镜数</label>
+                                <input type="number" id="quickScenes" placeholder="自动分析" min="0" max="20" title="0或留空为自动分析">
+                    </div>
+                    </div>
+                </div>
+                
+                    <button class="btn-add-task" onclick="quickAddIdea()">
+                        添加任务到队列
+                </button>
+            </div>
+            
+                <!-- 任务队列 -->
+                <div class="tasks-section">
+                    <div class="section-title">
+                        <span>任务队列</span>
+                        <button class="btn-icon" onclick="clearHistory()" title="清空历史">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+            <div id="ideasList" class="ideas-list">
+                        <!-- 任务列表由JS动态渲染 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部按钮 -->
+            <div class="sidebar-footer">
+                <div id="quotaDisplay" class="quota-info"></div>
+                <button id="startBatchBtn" class="btn-primary-large" onclick="startBatchGeneration()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>开始批量创作</span>
+                </button>
+                <button class="btn-secondary-large" onclick="clearAllIdeas()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>清空历史记录</span>
+                </button>
+                
+                <div class="footer-links">
+                    <button class="btn-link" onclick="openSettingsModal()">⚙️ 设置</button>
+                    <button class="btn-link" onclick="openMemberModal()">👑 会员</button>
+                    <button class="btn-link" onclick="openHelpModal()">❓ 帮助</button>
+                </div>
+                
+                <div class="copyright">
+                    © 2025 NanoVideo 版权所有<br>
+                    官方微信: jingguangwei
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右侧主内容区 (单页面布局) -->
+        <main class="content-area">
+            <!-- 顶部栏 -->
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="btn-back" onclick="openLibrary()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                        角色库和资产库
+                    </button>
+                    </div>
+                <div class="top-bar-right">
+                    <div class="status-tag">
+                        <span class="status-dot"></span>
+                        API 就绪
+                    </div>
+                    <div class="stats-tag">
+                        已生产: <strong id="totalGenerated">0</strong>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 进度统计栏 -->
+            <div class="progress-dashboard">
+                <div class="progress-header">
+                    <h2 class="dashboard-title">
+                        <button class="btn-back-icon" onclick="window.history.back()" title="返回">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        </button>
+                        生成状态
+                    </h2>
+                    <div class="filter-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> 全选
+                        </label>
+                    </div>
+                    <div class="status-filters">
+                        <button class="status-filter success">已完成 <span id="successCount">0</span></button>
+                        <button class="status-filter processing">进行中 <span id="processingCount">0</span></button>
+                        <button class="status-filter failed">失败 <span id="failedCount">0</span></button>
+                    </div>
+                </div>
+                
+                <div class="progress-track">
+                    <div class="progress-info">
+                        <span>进度: <span id="progressText">0/0</span></span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div id="progressBar" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+                </div>
+
+            <!-- 结果展示区 (无限画布容器) -->
+            <div class="canvas-container" id="taskCanvasContainer">
+                <!-- 缩放控制 -->
+                <div class="canvas-controls">
+                    <span class="zoom-level">90%</span>
+                    <button onclick="zoomIn()" title="放大">+</button>
+                    <button onclick="zoomOut()" title="缩小">-</button>
+                    <button onclick="resetZoom()" title="重置">↺</button>
+                </div>
+
+                <!-- 无限画布内容 -->
+                <div class="infinite-canvas" id="taskCanvas">
+                    <!-- 连线层 -->
+                    <svg id="connections"></svg>
+                    
+                    <!-- 任务卡片容器 -->
+                    <div id="taskCards" class="cards-grid">
+                        <!-- 任务卡片由 JS 动态生成 -->
+            </div>
+
+                    <!-- 结果卡片容器 (合并显示) -->
+                    <div id="resultCards" class="cards-grid" style="display: none;">
+                        <!-- 结果卡片由 JS 动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 隐藏的兼容性元素 (JS可能调用) -->
+    <div id="welcomeScreen" style="display: none;"></div>
+    <div id="progressScreen" style="display: none;"></div>
+    <div id="resultScreen" style="display: none;"></div>
+
+    <!-- 光影时刻遮罩 -->
+    <div id="creativeOverlay" class="creative-overlay" style="display: none;">
+        <div class="creative-content">
+            <div class="creative-text" id="creativeText">AI正在创作...</div>
+            <button onclick="stopCreativeScreen()">后台运行</button>
+        </div>
+    </div>
+
+    <!-- 模态框: 设置 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-backdrop" onclick="closeSettingsModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ 系统设置</h3>
+                <button class="btn-close" onclick="closeSettingsModal()" title="关闭">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>贞贞工坊 API Key (用于Sora2/Veo/Gemini)</label>
+                    <input type="password" id="settingZhenzhenKey" placeholder="sk-...">
+                </div>
+                <div class="form-group">
+                    <label>RunningHub API Key (用于Flux)</label>
+                    <input type="password" id="settingRhKey" placeholder="sk-...">
+                </div>
+                    <div class="form-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="settingCharacterSheets">
+                        <span>启用角色设定图（Banana2 自动生成）</span>
+                    </label>
+                    <div class="hint-text">生成剧本后自动抽取主角，固定人物形象，让分镜不跑偏</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="saveSettings()">保存配置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 会员 -->
+    <div id="memberModal" class="modal">
+        <div class="modal-backdrop" onclick="closeMemberModal()"></div>
+        <div class="modal-content member-modal-content">
+            <div class="modal-header">
+                <h3>👑 会员中心</h3>
+                <button class="btn-close" onclick="closeMemberModal()" title="关闭">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="member-status-card">
+                    <div class="status-info">
+                        <div class="status-label">当前身份</div>
+                        <div id="memberStatus" class="status-value">普通用户</div>
+                        <div id="memberExpiry" class="status-expiry">未开通会员服务</div>
+                    </div>
+                </div>
+
+                <div class="activation-section">
+                    <h4>🔑 激活码兑换</h4>
+                    <div class="activation-input-group">
+                        <input type="text" id="activationCode" placeholder="请输入激活码...">
+                        <button class="btn-secondary" onclick="redeemCode()">立即激活</button>
+                    </div>
+                    <div class="buy-link">
+                        <a href="#" onclick="showRecharge(); return false;">没有激活码？点击购买</a>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+    <!-- 模态框: 支付 (Mock) -->
+    <div id="paymentModal" class="modal" style="z-index: 10002;">
+        <div class="modal-backdrop" onclick="closePaymentModal()"></div>
+        <div class="modal-content payment-content">
+            <div class="modal-header">
+                <h3>💎 开通会员</h3>
+                <button class="btn-close" onclick="closePaymentModal()" title="关闭">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="plans-grid">
+                    <div class="plan-card" onclick="selectPlan('basic', this)">
+                        <div class="plan-name">基础会员</div>
+                        <div class="plan-price">¥199/月</div>
+                        <div class="plan-desc">
+                            每日 50 个任务<br>
+                            单任务 Max 12 分镜
+                        </div>
+                    </div>
+                    <div class="plan-card selected" onclick="selectPlan('medium', this)" style="border: 1px solid var(--accent-gold); background: rgba(212, 175, 55, 0.1);">
+                        <div class="recommend-badge" style="position: absolute; top: -10px; right: -10px; background: var(--accent-gold); color: #000; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">推荐</div>
+                        <div class="plan-name">中级会员</div>
+                        <div class="plan-price">¥599/月</div>
+                        <div class="plan-desc">
+                            每日 100 个任务<br>
+                            单任务 Max 24 分镜
+                        </div>
+                    </div>
+                    <div class="plan-card" onclick="selectPlan('advanced', this)">
+                        <div class="plan-name">高级会员</div>
+                        <div class="plan-price">¥999/月</div>
+                        <div class="plan-desc">
+                            每日 200 个任务<br>
+                            单任务 Max 36 分镜
+                        </div>
+                    </div>
+                    <div class="plan-card" onclick="selectPlan('pro', this)">
+                        <div class="plan-name">顶级会员</div>
+                        <div class="plan-price">¥9999/年</div>
+                        <div class="plan-desc">
+                            ♾️ 无限任务<br>
+                            ♾️ 无限分镜
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="manual-pay-link">
+                    <a href="#" onclick="toggleManualPay(); return false;">无法支付？点击手动转账</a>
+                </div>
+                
+                <div id="manualPayArea" style="display: none; margin-top: 15px; text-align: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                    <img src="images/wx.jpg" style="width: 150px; height: 150px; border-radius: 4px;">
+                    <p style="font-size: 12px; color: #aaa; margin-top: 5px;">扫码支付后请联系管理员获取激活码</p>
+                    <button class="btn-text" onclick="copyWeChatId()">复制管理员微信号</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" style="width: 100%;" onclick="buyCurrentPlan()">立即支付</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 编辑任务 (JS调用) -->
+    <div id="ideaModal" class="modal" style="display: none;">
+        <!-- 内容由JS生成 -->
+    </div>
+    
+    <!-- 模态框: 图片编辑 (JS调用) -->
+    <div id="imageEditModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeImageEditModal()"></div>
+        <div class="modal-content" style="width: 800px; max-width: 95vw;">
+            <div class="modal-header">
+                <h3>🪄 AI图片修饰 (Gemini Vision)</h3>
+                <button class="btn-close" onclick="closeImageEditModal()" title="关闭">×</button>
+            </div>
+            <div class="modal-body" style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <div style="margin-bottom: 8px; color: #888;">原图预览</div>
+                    <img id="editImagePreview" src="" style="width: 100%; border-radius: 8px; border: 1px solid #333;">
+                    </div>
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="form-group">
+                        <label>修改指令 (例如: "把衣服改成红色", "增加一些科幻元素")</label>
+                        <textarea id="editPromptInput" style="width: 100%; height: 100px; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 4px;" placeholder="请描述您想如何修改这张图片..."></textarea>
+                    </div>
+                    <button class="btn-primary" onclick="executeImageEdit()" style="margin-top: 10px;">✨ 开始AI修图</button>
+                    
+                    <div id="editResultArea" style="margin-top: 20px; display: none; border-top: 1px solid #333; padding-top: 20px;">
+                        <!-- 结果显示区 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑工作室嵌入 -->
+    <div id="editingStudioFrame" style="display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #111; z-index: 2000;">
+        <button onclick="closeEditingStudio()" style="position: absolute; top: 10px; left: 10px; z-index: 2001; padding: 8px 16px; background: var(--accent-gold); color: #000; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">← 返回创作中心</button>
+        <iframe src="../app/storyboard-master.html" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
+
+    <!-- 角色库和资产库蒙层 -->
+    <div id="libraryOverlay" class="library-overlay" style="display: none;">
+        <div class="library-header">
+            <div class="lib-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                角色库与资产管理
+            </div>
+            <button class="btn-close-lib" onclick="closeLibrary()">×</button>
+        </div>
+        <div class="library-content">
+            <div class="lib-tabs">
+                <button class="lib-tab active" onclick="switchLibTab('tasks')">我的任务 (资产)</button>
+                <button class="lib-tab" onclick="switchLibTab('chars')">角色库</button>
+            </div>
+            <div id="libTasksPanel" class="lib-panel active">
+                <div id="libTasksGrid" class="lib-grid"></div>
+            </div>
+            <div id="libCharsPanel" class="lib-panel">
+                <div id="libCharsGrid" class="lib-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 电影感生成动画蒙层 -->
+    <div id="cinematicOverlay" class="cinematic-overlay" style="display: none;">
+        <div class="cinematic-bg"></div>
+        <div class="cinematic-content">
+            <div class="cine-loader">
+                <svg class="film-reel" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke="var(--accent-gold)" stroke-width="4" fill="none" stroke-dasharray="10 5" />
+                    <circle cx="50" cy="50" r="30" stroke="#fff" stroke-width="2" fill="none" />
+                    <path d="M50 20 L50 80 M20 50 L80 50" stroke="#333" stroke-width="4" />
+                </svg>
+            </div>
+            <div class="quote-container glass-effect">
+                <div class="quote-text" id="cineQuote">“电影是每秒24格的真理。”</div>
+                <div class="quote-author" id="cineAuthor">— 让-吕克·戈达尔</div>
+            </div>
+            <div class="cine-status" id="cineStatus">正在为您的创意注入灵魂...</div>
+        </div>
+    </div>
+
+    <!-- 模态框: 帮助与API -->
+    <div id="helpModal" class="modal">
+        <div class="modal-backdrop" onclick="closeHelpModal()"></div>
+        <div class="modal-content" style="width: 700px;">
+            <div class="modal-header">
+                <h3>❓ 使用帮助 & 功能介绍</h3>
+                <button class="btn-close" onclick="closeHelpModal()">×</button>
+            </div>
+            <div class="modal-body help-content" style="max-height: 600px; overflow-y: auto;">
+                <h4>🔑 如何获取 API Key？</h4>
+                <p>本项目支持多种 AI 模型，请前往以下平台获取 Key：</p>
+                <ul>
+                    <li><strong>贞贞工坊 (Sora-2 / Veo-3 / Gemini)：</strong><br>
+                        访问 <a href="https://ai.t8star.cn/register?aff=33d95943347" target="_blank" style="color:var(--accent-gold);">api.t8star.cn (邀请注册)</a> 获取 Key。<br>
+                        <code>支持模型：Sora-2, Veo-3, Gemini-1.5-Pro</code>
+                    </li>
+                    <li><strong>RunningHub (Flux / Kling)：</strong><br>
+                        访问 <a href="https://www.runninghub.cn" target="_blank" style="color:var(--accent-gold);">RunningHub</a> 获取。<br>
+                        <code>支持模型：Flux-Pro, Kling-1.5</code>
+                    </li>
+                </ul>
+
+                <h4>🚀 核心功能介绍</h4>
+                <p><strong>1. 智能批量生成：</strong> 输入一个创意，AI 自动完成“写剧本 -> 绘分镜 -> 生成视频 -> 剪辑”全流程。</p>
+                <p><strong>2. 角色一致性 (Banana2)：</strong> 开启“角色设定图”功能，AI 会先设计角色三视图，确保分镜中人物长相统一。</p>
+                <p><strong>3. 交互式画板 (Sketch)：</strong> 在画布上右键创建“绘图节点”，手绘草图或上传参考图，连线到任务卡片，精准控制画面构图。</p>
+                <p><strong>4. 自动发布 (会员)：</strong> 支持一键将生成的视频发布到抖音、B站、小红书等平台（Web版需手动上传，本地版支持全自动）。</p>
+
+                <h4>🖱️ 画布操作指南</h4>
+                <ul>
+                    <li><strong>平移：</strong> 空格+左键拖拽，或鼠标中键拖拽。</li>
+                    <li><strong>缩放：</strong> 鼠标滚轮 (Ctrl+滚轮)。</li>
+                    <li><strong>连线：</strong> 拖拽节点右侧的“输出点”到任务卡片，即可传递参考图。</li>
+                </ul>
+                
+                <div class="help-btn-row">
+                    <button class="btn-primary" onclick="openSettingsModal()">前往设置填入 Key</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 发布视频 (Playwright) -->
+    <div id="publishModal" class="modal">
+        <div class="modal-backdrop" onclick="closePublishModal()"></div>
+        <div class="modal-content" style="width: 600px;">
+            <div class="modal-header">
+                <h3>🚀 一键发布 (自动分发)</h3>
+                <button class="btn-close" onclick="closePublishModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="publish-form">
+                    <div class="form-group">
+                        <label>选择发布平台</label>
+                        <div class="platform-grid">
+                            <label class="platform-item">
+                                <input type="checkbox" value="douyin" checked>
+                                <span class="platform-icon">🎵</span> 抖音
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="bilibili" checked>
+                                <span class="platform-icon">📺</span> B站
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="xiaohongshu" checked>
+                                <span class="platform-icon">📕</span> 小红书
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="kuaishou">
+                                <span class="platform-icon">⚡</span> 快手
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="weixin">
+                                <span class="platform-icon">💬</span> 视频号
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="weibo">
+                                <span class="platform-icon">🧣</span> 微博
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>标题</label>
+                        <input type="text" id="pubTitle" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="pubDesc" class="form-input" rows="4"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>标签 (空格分隔)</label>
+                        <input type="text" id="pubTags" class="form-input">
+                </div>
+
+                    <div id="publishLog" class="publish-log" style="display:none;">
+                        <div class="log-title">执行日志:</div>
+                        <div id="publishLogContent" class="log-content"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closePublishModal()">取消</button>
+                <button class="btn-primary" onclick="startPublishing()">开始自动发布</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/batch.js?v=6.3"></script>
+    <script src="js/help_modal.js"></script>
+    <script>
+        // 页面加载完成后初始化画布
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof setupInfiniteCanvas === 'function') {
+                setupInfiniteCanvas('taskCanvasContainer', 'taskCanvas');
+            }
+        });
+    </script>
+</body>
+</html>

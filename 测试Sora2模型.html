@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试T8星辰Sora2模型</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+        }
+        .test-item {
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .test-item h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 T8星辰 Sora2 模型测试工具</h1>
+        
+        <div class="info">
+            <strong>📝 说明：</strong><br>
+            点击下方按钮测试不同的Sora2模型名称，找到可用的模型。<br>
+            <strong>⚠️ 注意：</strong>确保本地服务器（启动服务器.bat）正在运行！
+        </div>
+
+        <!-- 测试1 -->
+        <div class="test-item">
+            <h3>测试 1: sora-1.0-turbo (当前使用)</h3>
+            <button onclick="testModel('sora-1.0-turbo', 1)">🧪 测试此模型</button>
+            <div id="result-1"></div>
+        </div>
+
+        <!-- 测试2 -->
+        <div class="test-item">
+            <h3>测试 2: sora-turbo-2024-12-17</h3>
+            <button onclick="testModel('sora-turbo-2024-12-17', 2)">🧪 测试此模型</button>
+            <div id="result-2"></div>
+        </div>
+
+        <!-- 测试3 -->
+        <div class="test-item">
+            <h3>测试 3: video-01</h3>
+            <button onclick="testModel('video-01', 3)">🧪 测试此模型</button>
+            <div id="result-3"></div>
+        </div>
+
+        <!-- 测试4 -->
+        <div class="test-item">
+            <h3>测试 4: sora-v1</h3>
+            <button onclick="testModel('sora-v1', 4)">🧪 测试此模型</button>
+            <div id="result-4"></div>
+        </div>
+
+        <!-- 测试5 -->
+        <div class="test-item">
+            <h3>测试 5: openai-sora</h3>
+            <button onclick="testModel('openai-sora', 5)">🧪 测试此模型</button>
+            <div id="result-5"></div>
+        </div>
+
+        <!-- 测试6 - 自定义 -->
+        <div class="test-item">
+            <h3>测试 6: 自定义模型名</h3>
+            <input type="text" id="custom-model" placeholder="输入模型名" style="width: 300px; padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
+            <button onclick="testCustomModel()">🧪 测试自定义模型</button>
+            <div id="result-6"></div>
+        </div>
+
+        <!-- 测试全部 -->
+        <div style="text-align: center; margin-top: 30px;">
+            <button onclick="testAllModels()" style="font-size: 16px; padding: 12px 30px;">
+                🚀 测试所有模型
+            </button>
+        </div>
+    </div>
+
+    <script>
+        async function testModel(modelName, testId) {
+            const resultDiv = document.getElementById(`result-${testId}`);
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = '⏳ 测试中，请稍候...';
+
+            try {
+                console.log(`🧪 测试模型: ${modelName}`);
+
+                const response = await fetch('/api/proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        targetUrl: 'https://ai.t8star.cn/v1/video/generations',
+                        apiType: 't8star',
+                        body: {
+                            model: modelName,
+                            prompt: '测试提示词：一个美丽的日落场景',
+                            size: '1280x720'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.data && data.data[0]) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>成功！此模型可用！</strong><br>
+                        模型名: <code>${modelName}</code><br>
+                        视频URL: ${data.data[0].url ? '已生成' : '无'}<br>
+                        <strong>👉 请使用此模型名更新代码！</strong>
+                    `;
+                    console.log(`✅ 成功: ${modelName}`, data);
+                } else {
+                    const errorMsg = data.error?.message || JSON.stringify(data);
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        ❌ <strong>失败</strong><br>
+                        模型名: <code>${modelName}</code><br>
+                        错误: ${errorMsg}
+                    `;
+                    console.error(`❌ 失败: ${modelName}`, data);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    ❌ <strong>请求失败</strong><br>
+                    模型名: <code>${modelName}</code><br>
+                    错误: ${error.message}
+                `;
+                console.error(`❌ 异常: ${modelName}`, error);
+            }
+        }
+
+        async function testCustomModel() {
+            const customModel = document.getElementById('custom-model').value.trim();
+            if (!customModel) {
+                alert('请输入模型名！');
+                return;
+            }
+            await testModel(customModel, 6);
+        }
+
+        async function testAllModels() {
+            for (let i = 1; i <= 5; i++) {
+                await new Promise(resolve => setTimeout(resolve, 2000)); // 每次间隔2秒
+                const button = document.querySelectorAll('button')[i-1];
+                button.click();
+            }
+        }
+    </script>
+</body>
+</html>
+

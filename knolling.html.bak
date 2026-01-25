@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 提示词工坊 - RollRoll</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 80px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .template-section {
+            margin-bottom: 20px;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .template-item {
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .template-item:active {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .template-item .icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+
+        .result-text {
+            font-size: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="history.back()">← 返回</button>
+        <h1>📝 提示词工坊</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <div class="input-section">
+            <label class="input-label">✨ 输入你想要的创意概念</label>
+            <textarea class="input-box" id="conceptInput" placeholder="例如：赛博朋克风格的猫咪战士..."></textarea>
+        </div>
+
+        <div class="template-section">
+            <label class="input-label">🎯 快速模板</label>
+            <div class="template-grid">
+                <div class="template-item" onclick="useTemplate('portrait')">
+                    <div class="icon">👤</div>
+                    <div>人物肖像</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('landscape')">
+                    <div class="icon">🏞️</div>
+                    <div>风景场景</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('product')">
+                    <div class="icon">📦</div>
+                    <div>产品展示</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('anime')">
+                    <div class="icon">🎌</div>
+                    <div>动漫插画</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('food')">
+                    <div class="icon">🍜</div>
+                    <div>美食摄影</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('architecture')">
+                    <div class="icon">🏛️</div>
+                    <div>建筑设计</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-row">
+            <div class="setting-item">
+                <label>风格倾向</label>
+                <select id="styleSelect">
+                    <option value="realistic">写实摄影</option>
+                    <option value="artistic">艺术绘画</option>
+                    <option value="anime">动漫风格</option>
+                    <option value="3d">3D渲染</option>
+                    <option value="abstract">抽象艺术</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>详细程度</label>
+                <select id="detailSelect">
+                    <option value="simple">简洁</option>
+                    <option value="medium" selected>适中</option>
+                    <option value="detailed">详细</option>
+                    <option value="ultra">超详细</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="generate-btn" id="generateBtn" onclick="generatePrompt()">
+            ⚡ 生成提示词
+        </button>
+
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <div>正在优化提示词...</div>
+        </div>
+
+        <div class="result-section" id="resultSection" style="display:none;">
+            <div class="result-title">✨ 优化后的提示词</div>
+            <div class="result-text" id="resultText"></div>
+            <div class="result-actions">
+                <button class="result-btn" onclick="copyPrompt()">📋 复制</button>
+                <button class="result-btn primary" onclick="usePrompt()">🎨 去生图</button>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentPrompt = '';
+
+        const templates = {
+            portrait: '一个人物肖像，',
+            landscape: '一幅风景画面，',
+            product: '产品展示图，',
+            anime: '动漫风格插画，',
+            food: '美食摄影，',
+            architecture: '建筑设计图，'
+        };
+
+        function useTemplate(type) {
+            const input = document.getElementById('conceptInput');
+            input.value = templates[type] + input.value;
+            input.focus();
+        }
+
+        async function generatePrompt() {
+            const concept = document.getElementById('conceptInput').value.trim();
+            if (!concept) {
+                showToast('请输入创意概念');
+                return;
+            }
+
+            const style = document.getElementById('styleSelect').value;
+            const detail = document.getElementById('detailSelect').value;
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('resultSection');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            const styleMap = {
+                realistic: '写实摄影风格，高清细节，专业打光',
+                artistic: '艺术绘画风格，油画质感，大师级构图',
+                anime: '日本动漫风格，精致线条，鲜艳色彩',
+                '3d': '3D渲染风格，Octane渲染，体积光',
+                abstract: '抽象艺术风格，几何构成，色彩碰撞'
+            };
+
+            const detailMap = {
+                simple: '',
+                medium: '，细节丰富，画面精致',
+                detailed: '，超高细节，8K分辨率，精雕细琢',
+                ultra: '，极致细节，16K超清，每个元素都精心设计，award winning'
+            };
+
+            try {
+                const response = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'text',
+                        model: 'gemini-2.5-flash',
+                        prompt: `你是一个专业的AI绘画提示词专家。请将以下创意概念优化成一个专业的英文提示词，用于AI图像生成。
+
+创意概念：${concept}
+风格要求：${styleMap[style]}
+详细程度：${detailMap[detail]}
+
+要求：
+1. 输出纯英文提示词
+2. 包含主体描述、风格、光影、构图等元素
+3. 使用逗号分隔各个描述词
+4. 不要解释，直接输出提示词`
+                    })
+                });
+
+                const data = await response.json();
+                currentPrompt = data.content || data.response || data.text || '';
+
+                document.getElementById('resultText').textContent = currentPrompt;
+                result.style.display = 'block';
+                showToast('提示词生成成功！');
+            } catch (error) {
+                showToast('生成失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function copyPrompt() {
+            if (!currentPrompt) {
+                showToast('没有可复制的提示词');
+                return;
+            }
+            navigator.clipboard.writeText(currentPrompt);
+            showToast('已复制到剪贴板');
+        }
+
+        function usePrompt() {
+            if (!currentPrompt) {
+                showToast('请先生成提示词');
+                return;
+            }
+            localStorage.setItem('knolling_prompt', currentPrompt);
+            location.href = 'banana.html';
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 检查是否有传递过来的提示词
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedPrompt = localStorage.getItem('knolling_prompt');
+            if (savedPrompt) {
+                localStorage.removeItem('knolling_prompt');
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,2748 @@
+/**
+ * AI视频批量创作工具 - 批量页脚本（适配 V5.1 单页 UI）
+ * 说明：只负责逻辑，不改 HTML/CSS
+ */
+
+// ==================== 基础配置 ====================
+
+// 代理端点（本地 / 线上统一用这一条）
+const PROXY_ENDPOINT =
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.protocol === 'file:'
+    ? 'http://127.0.0.1:8899/api/proxy'
+    : '/api/proxy';
+
+// ==================== 光影等待遮罩 ====================
+
+let creativeTimer = null;
+const creativePhrases = [
+  '正在编织光影梦境...',
+  'AI 导演正在构思分镜...',
+  '电影是每秒 24 格的真理。',
+  '生活就像一盒巧克力，你永远不知道下一颗是什么味道。',
+  '能力越大，责任越大。',
+  '愿原力与你同在。',
+  '飞向无限，浩瀚无垠！',
+  '我命由我不由天。',
+  '念念不忘，必有回响。',
+  '做人如果没有梦想，跟咸鱼有什么区别？'
+];
+
+function startCreativeScreen() {
+  const overlay = document.getElementById('creativeOverlay');
+  const textEl = document.getElementById('creativeText');
+
+  if (!overlay) return;
+
+  overlay.style.display = 'flex';
+  setTimeout(() => {
+    overlay.classList.add('active');
+  }, 10);
+
+  if (creativeTimer) clearInterval(creativeTimer);
+  creativeTimer = setInterval(() => {
+    if (!textEl) return;
+    const random = creativePhrases[Math.floor(Math.random() * creativePhrases.length)];
+    textEl.style.opacity = '0';
+    setTimeout(() => {
+      textEl.textContent = random;
+      textEl.style.opacity = '1';
+    }, 400);
+  }, 3000);
+}
+
+function stopCreativeScreen() {
+  const overlay = document.getElementById('creativeOverlay');
+  if (overlay) {
+    overlay.classList.remove('active');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 400);
+  }
+  if (creativeTimer) {
+    clearInterval(creativeTimer);
+    creativeTimer = null;
+  }
+}
+
+function updateCreativeScreenText(text) {
+  const textEl = document.getElementById('creativeText');
+  if (!textEl || !text) return;
+  textEl.style.opacity = '0';
+  setTimeout(() => {
+    textEl.textContent = text;
+    textEl.style.opacity = '1';
+  }, 300);
+}
+
+// ==================== 全局状态 & 配额 ====================
+
+let ideas = [];
+let currentEditingId = null;
+let isGenerating = false;
+let totalGenerated = 0;
+
+let currentInputMode = 'text'; // 'text' | 'script'
+let uploadedScript = null;
+
+let autoMode = 'full-auto'; // full-auto / semi-auto / manual
+let maxConcurrentTasks = 3;
+
+const CHARACTER_POSTER_TEMPLATE =
+  '角色设计海报：海报上部居中放置角色名称与设计主题，中心区域展示人物三视图（正视、左视、后视），左侧标注比例设定，右侧列表情设定，底部展示动作设定，背景淡化服装与道具。整体构图干净、光影高级，突出角色个性。';
+
+const CHARACTER_STYLE_HINT = {
+  cartoon: '3D cartoon character design, pixar lighting, vibrant colors, soft shadows',
+  realistic: 'cinematic portrait lighting, realistic details, 4k texture',
+  anime: 'anime cel shading, delicate line art, clean gradients',
+  scifi: 'futuristic cyber lighting, neon rim light, sci-fi costume details',
+  cyberpunk: 'cyberpunk neon city glow, holographic elements, edgy fashion',
+  fantasy: 'epic fantasy illustration, ornate costume, dramatic rim light'
+};
+
+// 简单配额（本地存储）
+function getUsageStats() {
+  const today = getTodayKey();
+  const lastDate = localStorage.getItem('usage_date');
+  if (lastDate !== today) {
+    localStorage.setItem('usage_date', today);
+    localStorage.setItem('usage_count', '0');
+    localStorage.setItem('daily_limit', '3');
+  }
+  return {
+    count: parseInt(localStorage.getItem('usage_count') || '0', 10),
+    limit: parseInt(localStorage.getItem('daily_limit') || '3', 10),
+    isVip: localStorage.getItem('is_vip') === 'true'
+  };
+}
+
+function updateUsageDisplay() {
+  const stats = getUsageStats();
+  const el = document.getElementById('quotaDisplay');
+  if (!el) return;
+  if (stats.isVip) {
+    el.innerHTML =
+      '<div class="quota-status vip">♾️ 已解锁无限使用</div>' +
+      '<div class="quota-actions">' +
+      '<button class="quota-btn" onclick="openMemberModal()">管理会员</button>' +
+      '</div>';
+  } else {
+    const remaining = Math.max(0, stats.limit - stats.count);
+    el.innerHTML =
+      `<div class="quota-status">今日剩余 <span>${remaining}</span> / ${stats.limit}</div>` +
+      '<div class="quota-actions">' +
+      '<button class="quota-btn" onclick="shareForQuota()">📣 分享 +3 次</button>' +
+      '<button class="quota-btn" onclick="openMemberModal()">👑 开通会员</button>' +
+      '</div>' +
+      (remaining === 0
+        ? '<div class="quota-warning">额度用完啦，可点击上方按钮继续创作</div>'
+        : '');
+  }
+}
+
+function checkQuota() {
+  const stats = getUsageStats();
+  if (stats.isVip) return true;
+  if (stats.count >= stats.limit) {
+    alert('今日免费额度已用完啦~\n\n可以分享到朋友圈 / 群聊\n或者开通会员解锁无限次使用。');
+    return false;
+  }
+  return true;
+}
+
+function consumeQuota() {
+  const stats = getUsageStats();
+  if (!stats.isVip) {
+    localStorage.setItem('usage_count', String(stats.count + 1));
+    updateUsageDisplay();
+  }
+}
+
+function getTodayKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
+async function shareForQuota() {
+  const today = getTodayKey();
+  if (localStorage.getItem('share_bonus_date') === today) {
+    alert('今天已经通过分享领取过额度啦，明天再来一次吧～');
+    return;
+  }
+
+  const shareData = {
+    title: 'NanoVideo AI视频工坊',
+    text: '【NanoVideo 批量AI视频生成器】0成本批量创作黑金风格AI短片，Sora2 / Veo3 / Flux / Banana2 全支持！',
+    url: window.location.href // 使用当前页面地址，支持自定义域名
+  };
+
+  try {
+    // 1. 优先尝试 Web Share API (移动端/部分浏览器支持)
+    // 这可以唤起原生分享菜单，用户完成分享后 Promise 才会 resolve (部分浏览器)
+    if (navigator.share) {
+      await navigator.share(shareData);
+      // 如果代码执行到这里，说明分享面板被成功唤起并完成了交互（或浏览器认为成功）
+      applyShareBonus(today);
+    } else {
+      // 2. 降级方案：复制到剪贴板 + 弹窗确认
+      // 无法直接检测分享结果，只能让用户确认
+      const shareText = `${shareData.text} ${shareData.url}`;
+      
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(shareText);
+      }
+      
+      // 模拟“真实分享”的流程：先复制 -> 用户去粘贴 -> 回来确认
+      const userConfirmed = confirm(
+        '分享文案已复制到剪贴板！\n\n' +
+        '请前往微信朋友圈、群聊或社交平台粘贴并发布。\n\n' +
+        '👉 真实分享后，点击【确定】即可领取今日额外额度。'
+      );
+      
+      if (userConfirmed) {
+        applyShareBonus(today);
+      }
+    }
+  } catch (err) {
+    console.error('Share failed/cancelled:', err);
+    // 用户取消分享或 API 错误，不增加额度
+    if (err.name !== 'AbortError') {
+        // 只有非用户取消的错误才提示
+        // alert('分享似乎遇到了问题，请重试'); 
+    }
+  }
+}
+
+function applyShareBonus(today) {
+    const currentLimit = parseInt(localStorage.getItem('daily_limit') || '3', 10);
+    localStorage.setItem('daily_limit', String(currentLimit + 3));
+    localStorage.setItem('share_bonus_date', today);
+    alert('🎉 分享成功！今天已赠送 3 次额外额度！');
+    updateUsageDisplay();
+}
+
+// ==================== 设置 & API Key ====================
+
+const DEFAULT_SETTINGS = {
+  zhenzhenKey: '',
+  rhKey: '',
+  enableCharacterSheet: false
+};
+
+function loadSettings() {
+  const stored = localStorage.getItem('batch_settings');
+  if (!stored) {
+    return { ...DEFAULT_SETTINGS };
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    return { ...DEFAULT_SETTINGS, ...parsed };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function saveSettings() {
+  const settings = {
+    zhenzhenKey: (document.getElementById('settingZhenzhenKey').value || '').trim(),
+    rhKey: (document.getElementById('settingRhKey').value || '').trim(),
+    enableCharacterSheet: document.getElementById('settingCharacterSheets').checked
+  };
+  localStorage.setItem('batch_settings', JSON.stringify(settings));
+  alert('配置已保存');
+  closeSettingsModal();
+}
+
+function getSetting(key) {
+  const settings = loadSettings();
+  return settings[key] || '';
+}
+
+function isCharacterSheetEnabled() {
+  const settings = loadSettings();
+  return !!settings.enableCharacterSheet;
+}
+
+function openSettingsModal() {
+  const settings = loadSettings();
+  const m = document.getElementById('settingsModal');
+  if (!m) return;
+  document.getElementById('settingZhenzhenKey').value = settings.zhenzhenKey || '';
+  document.getElementById('settingRhKey').value = settings.rhKey || '';
+  const toggle = document.getElementById('settingCharacterSheets');
+  if (toggle) toggle.checked = !!settings.enableCharacterSheet;
+  m.style.display = 'flex';
+}
+
+function closeSettingsModal() {
+  const m = document.getElementById('settingsModal');
+  if (m) m.style.display = 'none';
+}
+
+// ==================== 模式 & 并发控制 ====================
+
+function onModeChange(mode) {
+  autoMode = mode;
+}
+
+function adjustTaskCount(delta) {
+  maxConcurrentTasks = Math.min(10, Math.max(1, maxConcurrentTasks + delta));
+  const el = document.getElementById('taskCountDisplay');
+  if (el) el.textContent = String(maxConcurrentTasks);
+}
+
+// ==================== 快速输入 & 队列 ====================
+
+function updateBatchButton() {
+  const btn = document.getElementById('startBatchBtn');
+  if (!btn) return;
+  const span = btn.querySelector('span');
+  if (!span) return;
+  const selectedCount = ideas.filter(i => i.selected).length;
+  span.textContent =
+    selectedCount > 0 ? `开始生成选中的 ${selectedCount} 个任务` : '开始批量创作';
+}
+
+function quickAddIdea() {
+  const theme = (document.getElementById('quickIdeaInput').value || '').trim();
+    if (!theme) {
+    alert('请先在左侧输入创意主题');
+        return;
+    }
+    const mode = document.getElementById('quickGenMode').value;
+  let duration = parseInt(document.getElementById('quickDuration').value || '0', 10);
+  let scenes = parseInt(document.getElementById('quickScenes').value || '0', 10);
+
+  if (isNaN(duration) || duration < 0) duration = 0;
+  if (isNaN(scenes) || scenes < 0) scenes = 0;
+    
+    const idea = {
+    id: Date.now() + Math.random(),
+        theme,
+    generationMode: mode,
+    style: 'cartoon',
+        duration,
+        scenes,
+    imageAspectRatio: '16:9 landscape 1344x768',
+    inputMode: 'text',
+        status: 'pending',
+        result: null,
+        error: null,
+    steps: [],
+    selected: false
+    };
+    
+    ideas.push(idea);
+  document.getElementById('quickIdeaInput').value = '';
+    renderIdeasList();
+  saveIdeasToHistory();
+  updateBatchButton();
+}
+
+function toggleIdeaSelection(id) {
+  const idea = ideas.find(i => i.id === id);
+  if (!idea) return;
+  idea.selected = !idea.selected;
+  renderIdeasList();
+  updateBatchButton();
+}
+
+function toggleAllSelection() {
+  const allSelected = ideas.length > 0 && ideas.every(i => i.selected);
+  ideas.forEach(i => {
+    i.selected = !allSelected;
+  });
+  renderIdeasList();
+  updateBatchButton();
+}
+
+function clearAllIdeas() {
+  if (!confirm('确认清空所有任务和历史记录吗？')) return;
+        ideas = [];
+  localStorage.removeItem('ideas_history');
+        renderIdeasList();
+  updateBatchButton();
+}
+
+function renderIdeasList() {
+  const container = document.getElementById('ideasList');
+  if (!container) return;
+
+  if (ideas.length === 0) {
+    container.innerHTML =
+      '<div style="text-align:center;padding:2rem;color:var(--text-secondary);">' +
+      '<p>还没有创意</p>' +
+      '<p style="font-size:0.9rem;margin-top:0.5rem;">在上方输入主题后点击“添加任务到队列”</p>' +
+      '</div>';
+    return;
+  }
+
+  const styleLabels = {
+    cartoon: '卡通',
+    realistic: '真人',
+    scifi: '科幻',
+    anime: '动漫',
+    cyberpunk: '赛博朋克',
+    fantasy: '奇幻'
+  };
+  const isAllSelected = ideas.length > 0 && ideas.every(i => i.selected);
+
+  let html =
+    '<div style="padding:0 12px 8px 12px;border-bottom:1px solid rgba(255,255,255,0.08);' +
+    'margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">' +
+    '<label style="display:flex;align-items:center;font-size:12px;color:#888;cursor:pointer;">' +
+    `<input type="checkbox" ${isAllSelected ? 'checked' : ''} ` +
+    'onclick="event.stopPropagation();" ' +
+    'onchange="toggleAllSelection()" style="margin-right:6px;">' +
+    `全选 (${ideas.filter(i => i.selected).length}/${ideas.length})` +
+    '</label>' +
+    '<button onclick="clearAllIdeas()" ' +
+    'style="background:none;border:none;color:#888;font-size:12px;cursor:pointer;">清空</button>' +
+    '</div>';
+
+  html += ideas
+    .map((idea, index) => {
+      return (
+        `<div class="idea-item ${idea.selected ? 'selected' : ''}" onclick="editIdea(${idea.id})">` +
+        '<div class="idea-item-header">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+        `<input type="checkbox" class="idea-checkbox" ` +
+        `${idea.selected ? 'checked' : ''} ` +
+        `onclick="event.stopPropagation();" onchange="event.stopPropagation();toggleIdeaSelection(${idea.id})">` +
+        `<span class="idea-number">${index + 1}</span>` +
+        '</div>' +
+        `<button class="idea-remove" onclick="event.stopPropagation();removeIdea(${idea.id})">×</button>` +
+        '</div>' +
+        `<div class="idea-theme">${idea.theme}</div>` +
+        '<div class="idea-meta">' +
+        `<span class="meta-tag">🎨 ${styleLabels[idea.style] || idea.style}</span>` +
+        `<span class="meta-tag">⏱ ${idea.duration}秒</span>` +
+        `<span class="meta-tag">🎬 ${idea.scenes}镜</span>` +
+        '</div>' +
+        '</div>'
+      );
+    })
+    .join('');
+
+  container.innerHTML = html;
+}
+
+// ==================== 创意编辑模态框 ====================
+
+function showIdeaModal() {
+  const modal = document.getElementById('ideaModal');
+  if (!modal) return;
+
+  // 这里直接内嵌结构，兼容旧版逻辑
+  modal.innerHTML =
+    '<div class="modal-backdrop" onclick="closeIdeaModal()"></div>' +
+    '<div class="modal-content" style="max-width:720px;">' +
+    '<div class="modal-header">' +
+    `<h3>${currentEditingId ? '编辑任务' : '新建任务'}</h3>` +
+    '<button class="btn-close" onclick="closeIdeaModal()">×</button>' +
+    '</div>' +
+    '<div class="modal-body">' +
+    '<div class="form-group">' +
+    '<label>创意主题 <span style="font-size:11px;color:#666;margin-left:8px;">(点击下方角色可快速植入)</span></label>' +
+    '<input id="ideaTheme" type="text" placeholder="例如：一个小朋友在未来城市冒险的故事">' +
+    '<div id="charLibSelection"></div>' +
+    '</div>' +
+    '<div class="form-row">' +
+    '<div class="form-group">' +
+    '<label>生成模式</label>' +
+    '<select id="generationMode">' +
+    '<option value="text-to-video">Sora-2 文生视频</option>' +
+    '<option value="image-to-video">Flux + Sora-2 图生视频</option>' +
+    '<option value="banana-image-to-video">Gemini-3 + Sora-2 图生视频</option>' +
+    '<option value="veo-3">Veo-3 文生视频</option>' +
+    '</select>' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label>风格</label>' +
+    '<select id="ideaStyle">' +
+    '<option value="cartoon">卡通</option>' +
+    '<option value="realistic">真人</option>' +
+    '<option value="anime">动漫</option>' +
+    '<option value="scifi">科幻</option>' +
+    '<option value="cyberpunk">赛博朋克</option>' +
+    '<option value="fantasy">奇幻</option>' +
+    '</select>' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-row">' +
+    '<div class="form-group">' +
+    '<label>时长（秒）</label>' +
+    '<input id="ideaDuration" type="number" min="0" max="60" value="15" placeholder="0或留空为自动分析">' +
+    '<div class="hint-text">0为自动分析，Sora2 固定 15 秒/镜头</div>' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label>分镜数</label>' +
+    '<input id="ideaScenes" type="number" min="0" max="20" value="4" placeholder="0或留空为自动分析">' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label>画幅比例（用于生图）</label>' +
+    '<select id="imageAspectRatio">' +
+    '<option value="16:9 landscape 1344x768">16:9 横屏 1344x768</option>' +
+    '<option value="9:16 portrait 768x1344">9:16 竖屏 768x1344</option>' +
+    '<option value="1:1 square 1024x1024">1:1 正方形 1024x1024</option>' +
+    '</select>' +
+    '</div>' +
+    '</div>' +
+    '<div class="modal-footer">' +
+    '<button class="btn-secondary" onclick="closeIdeaModal()">取消</button>' +
+    '<button class="btn-primary" onclick="saveIdea()">保存</button>' +
+    '</div>' +
+    '</div>';
+
+  modal.style.display = 'flex';
+
+  // 如果是编辑模式，填充数据
+  if (currentEditingId) {
+    const idea = ideas.find(i => i.id === currentEditingId);
+    if (idea) {
+      document.getElementById('ideaTheme').value = idea.theme;
+      document.getElementById('generationMode').value =
+        idea.generationMode || 'text-to-video';
+      document.getElementById('ideaStyle').value = idea.style || 'cartoon';
+      document.getElementById('ideaDuration').value = idea.duration || 15;
+      document.getElementById('ideaScenes').value = idea.scenes || 4;
+      document.getElementById('imageAspectRatio').value =
+        idea.imageAspectRatio || '16:9 landscape 1344x768';
+    }
+  }
+  
+  // 渲染角色库选择
+  setTimeout(renderCharacterSelection, 0);
+}
+
+function closeIdeaModal() {
+  const modal = document.getElementById('ideaModal');
+  if (modal) modal.style.display = 'none';
+  currentEditingId = null;
+  uploadedScript = null;
+}
+
+function addNewIdea() {
+    currentEditingId = null;
+    currentInputMode = 'text';
+    uploadedScript = null;
+    showIdeaModal();
+}
+
+function editIdea(id) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) return;
+    currentEditingId = id;
+    showIdeaModal();
+}
+
+function saveIdea() {
+    const generationMode = document.getElementById('generationMode').value;
+    const style = document.getElementById('ideaStyle').value;
+  let duration = parseInt(document.getElementById('ideaDuration').value || '0', 10);
+  let scenes = parseInt(document.getElementById('ideaScenes').value || '0', 10);
+    const imageAspectRatio = document.getElementById('imageAspectRatio').value;
+  let theme = (document.getElementById('ideaTheme').value || '').trim();
+    
+        if (!theme) {
+    alert('请输入创意主题');
+            return;
+        }
+  if (isNaN(duration) || duration < 0) duration = 0;
+  if (isNaN(scenes) || scenes < 0) scenes = 0;
+    
+    if (currentEditingId) {
+        const idea = ideas.find(i => i.id === currentEditingId);
+        if (idea) {
+            idea.theme = theme;
+            idea.generationMode = generationMode;
+            idea.style = style;
+            idea.duration = duration;
+            idea.scenes = scenes;
+            idea.imageAspectRatio = imageAspectRatio;
+        }
+    } else {
+        ideas.push({
+            id: Date.now() + Math.random(),
+            theme, 
+            generationMode,
+            style, 
+            duration, 
+            scenes,
+            imageAspectRatio,
+      inputMode: 'text',
+            status: 'pending',
+            result: null,
+      error: null,
+      steps: [],
+      selected: false
+        });
+    }
+    
+  saveIdeasToHistory();
+    renderIdeasList();
+    closeIdeaModal();
+}
+
+function removeIdea(id) {
+    if (isGenerating) {
+    alert('生成进行中，暂时不能删除任务');
+        return;
+    }
+    ideas = ideas.filter(i => i.id !== id);
+  saveIdeasToHistory();
+    renderIdeasList();
+  updateBatchButton();
+}
+
+// ==================== 语音输入 ====================
+
+let recognition = null;
+let isVoiceActive = false;
+
+function toggleVoiceInput() {
+  const btn = document.getElementById('voiceInputBtn');
+  const statusEl = document.getElementById('voiceStatus');
+  const btnText = document.getElementById('voiceBtnText');
+
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('当前浏览器不支持语音识别，请使用最新版 Chrome。');
+        return;
+    }
+    
+  if (isVoiceActive) {
+    if (recognition) recognition.stop();
+    isVoiceActive = false;
+    if (btn) btn.classList.remove('recording');
+    if (statusEl) {
+      statusEl.textContent = '已停止录音';
+      statusEl.className = 'voice-status';
+    }
+    if (btnText) btnText.textContent = '点击开始语音输入';
+        return;
+    }
+    
+  recognition = new SpeechRecognition();
+  recognition.lang = 'zh-CN';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    isVoiceActive = true;
+    if (btn) btn.classList.add('recording');
+    if (statusEl) {
+      statusEl.textContent = '🔴 正在聆听，请说出创意或指令';
+      statusEl.className = 'voice-status active';
+    }
+    if (btnText) btnText.textContent = '停止录音';
+  };
+
+  recognition.onresult = event => {
+    const transcript = Array.from(event.results)
+      .map(r => r[0].transcript)
+      .join('');
+    const input = document.getElementById('quickIdeaInput');
+    if (input) input.value = transcript;
+
+    if (transcript.includes('开始生成')) {
+      startBatchGeneration();
+    } else if (transcript.includes('清空输入')) {
+      if (input) input.value = '';
+    } else if (transcript.includes('清空列表')) {
+      clearAllIdeas();
+    } else if (transcript.includes('添加任务')) {
+      quickAddIdea();
+    }
+  };
+
+  recognition.onerror = e => {
+    console.error('语音识别错误:', e.error);
+    if (statusEl) statusEl.textContent = '语音识别出错，请重试';
+    isVoiceActive = false;
+    if (btn) btn.classList.remove('recording');
+    if (btnText) btnText.textContent = '点击开始语音输入';
+  };
+
+  recognition.onend = () => {
+    if (!isVoiceActive) return;
+    // 可选：自动重启
+  };
+
+  recognition.start();
+}
+
+// ==================== 批量生成主流程 ====================
+
+let waitingForConfirmation = null;
+
+function quickStartGeneration() {
+    if (ideas.length === 0) {
+    alert('请先添加至少一个任务');
+        return;
+    }
+    startBatchGeneration();
+}
+
+async function startBatchGeneration() {
+  const selected = ideas.filter(i => i.selected);
+  const tasksToRun = selected.length > 0 ? selected : ideas;
+  if (tasksToRun.length === 0) {
+    alert('请先添加任务');
+        return;
+    }
+    
+  const zzKey = getSetting('zhenzhenKey');
+  if (!zzKey) {
+    alert(
+      '请先在左下角“设置”中配置贞贞工坊 API Key（用于 Sora2 / Veo / Gemini）。'
+    );
+    return;
+  }
+
+  if (!checkQuota()) return;
+    if (isGenerating) return;
+    isGenerating = true;
+    
+  tasksToRun.forEach(idea => {
+        idea.status = 'pending';
+        idea.result = null;
+        idea.error = null;
+    idea.steps = [];
+    });
+    
+    document.getElementById('startBatchBtn').disabled = true;
+  showProgressScreen();
+
+  // 分组：区分 RunningHub 任务（需限流）和 贞贞任务（无限并发）
+  const rhTasks = [];
+  const zzTasks = [];
+
+  tasksToRun.forEach(task => {
+    const mode = task.generationMode;
+    // 图生视频且非 Banana 模式通常走 Flux(RH)
+    if (mode === 'image-to-video') {
+      rhTasks.push(task);
+    } else {
+      zzTasks.push(task);
+    }
+  });
+
+  const promises = [];
+
+  // 1. 贞贞任务：无限并发 (实际上限设为 100 或更多，取决于浏览器)
+  if (zzTasks.length > 0) {
+    // 直接全部启动，不通过 processConcurrently 限制
+    const p = Promise.all(zzTasks.map(task => processIdea(task)));
+    promises.push(p);
+  }
+
+  // 2. RunningHub 任务：走最大并发限制
+  if (rhTasks.length > 0) {
+    const p = processConcurrently(rhTasks, maxConcurrentTasks);
+    promises.push(p);
+  }
+
+  await Promise.all(promises);
+
+  isGenerating = false;
+  document.getElementById('startBatchBtn').disabled = false;
+  consumeQuota();
+  showResultScreen();
+
+  const completedCount = ideas.filter(i => i.status === 'completed').length;
+  totalGenerated += completedCount;
+  const tg = document.getElementById('totalGenerated');
+  if (tg) tg.textContent = String(totalGenerated);
+}
+
+async function processConcurrently(tasks, maxConcurrent) {
+    const processing = [];
+    for (let i = 0; i < tasks.length; i++) {
+        while (processing.length >= maxConcurrent) {
+            await Promise.race(processing);
+        }
+    const p = processIdea(tasks[i]).then(() => {
+      const idx = processing.indexOf(p);
+      if (idx >= 0) processing.splice(idx, 1);
+    });
+    processing.push(p);
+    await sleep(200);
+  }
+    await Promise.all(processing);
+}
+
+// ==================== 暂停/取消控制 ====================
+
+async function checkStatus(idea) {
+  if (idea.status === 'cancelled') {
+    throw new Error('TaskCancelled');
+  }
+  while (idea.status === 'paused') {
+    await sleep(500); // 轮询检查
+    if (idea.status === 'cancelled') {
+      throw new Error('TaskCancelled');
+    }
+  }
+}
+
+function pauseTask(id) {
+  const idea = ideas.find(i => i.id === id);
+  if (idea && idea.status === 'processing') {
+    idea.status = 'paused';
+    renderTaskCard(idea);
+  }
+}
+
+function resumeTask(id) {
+  const idea = ideas.find(i => i.id === id);
+  if (idea && (idea.status === 'paused' || idea.status === 'failed')) {
+    idea.status = 'processing';
+    renderTaskCard(idea);
+    processIdea(idea); // 重新启动处理（内部会有断点续传逻辑）
+  }
+}
+
+function cancelTask(id) {
+  const idea = ideas.find(i => i.id === id);
+  if (idea) {
+    if (idea.status === 'processing' || idea.status === 'paused' || idea.status === 'pending') {
+      idea.status = 'cancelled';
+      renderTaskCard(idea);
+    }
+  }
+}
+
+async function processIdea(idea) {
+    try {
+        idea.status = 'processing';
+        updateProgress();
+        renderTaskCard(idea);
+        
+    const result = await generateWithAI(idea);
+        
+        idea.status = 'completed';
+        idea.result = result;
+        updateProgress();
+        renderTaskCard(idea);
+  } catch (err) {
+    if (err.message === 'TaskCancelled') {
+       idea.status = 'cancelled';
+       idea.error = '任务已手动取消';
+    } else {
+       console.error('生成失败:', err);
+        idea.status = 'failed';
+       idea.error = err.message || String(err);
+    }
+        updateProgress();
+        renderTaskCard(idea);
+  }
+}
+
+// ========== 5 步流程：剧本 → 中文分镜 → Sora2 提示词 → 配图提示词 → 生成视频 ==========
+
+async function generateWithAI(idea) {
+  await checkStatus(idea);
+  const mode = idea.generationMode || 'text-to-video';
+
+  if (mode === 'image-to-video' || mode === 'banana-image-to-video') {
+    // 图生视频模式：先文生图，再图生视频
+    return await generateTextToImageToVideo(idea, mode);
+  }
+  // 文生视频（Sora2 / Veo）
+  return await generateTextToVideo(idea);
+}
+
+function addStepLog(idea, text, status) {
+  if (!idea.steps) idea.steps = [];
+  idea.steps.push({ text, status: status || 'processing' });
+  renderTaskCard(idea);
+}
+
+function updateStepLog(idea, index, text, status) {
+  if (!idea.steps || !idea.steps[index]) return;
+  idea.steps[index].text = text;
+  if (status) idea.steps[index].status = status;
+  renderTaskCard(idea);
+}
+
+async function maybeGenerateCharacterSheets(idea, script) {
+  if (!isCharacterSheetEnabled()) return null;
+  if (idea.characterSheets && idea.characterSheets.length > 0) return idea.characterSheets;
+  addStepLog(idea, '🎭 正在抽取角色设定...', 'processing');
+  const stepIndex = idea.steps.length - 1;
+  try {
+    const characters = await extractCharacterDescriptors(idea, script);
+    if (!characters || characters.length === 0) {
+      throw new Error('未识别到主要角色');
+    }
+    const targets = characters.slice(0, 2);
+    const sheets = [];
+    for (const char of targets) {
+      const prompt = buildCharacterImagePrompt(idea, char);
+      const imageUrl = await callBanana2ImageAPI(prompt, '1:1 square 1024x1024');
+      sheets.push({
+        name: char.name,
+        summary: char.summary,
+        english: char.english,
+        prompt,
+        imageUrl
+      });
+    }
+    idea.characterSheets = sheets;
+    idea.characterContext = buildCharacterContext(sheets);
+
+    // 非全自动模式：允许用户检查/编辑角色设定
+    if (autoMode !== 'full-auto') {
+      const r = await waitForUserConfirmation(idea, 'characters', sheets);
+      if (r.edited && Array.isArray(r.content)) {
+        // 如果用户修改了设定（通常是文案），更新回去
+        // 注意：这里简化处理，暂不支持直接替换图片，主要修改名字和描述
+        idea.characterSheets = r.content;
+        idea.characterContext = buildCharacterContext(r.content);
+      }
+    }
+
+    // 更新进度，带上图片预览
+    let charHtml = `✅ 角色设定已锁定：${idea.characterSheets.map(s => s.name).join('、')}`;
+    if (idea.characterSheets.length > 0) {
+      charHtml += '<div style="display:flex;gap:8px;margin-top:4px;">';
+      idea.characterSheets.forEach(s => {
+        charHtml += `<img src="${s.imageUrl}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;border:1px solid #333;">`;
+      });
+      charHtml += '</div>';
+    }
+
+    updateStepLog(
+      idea,
+      stepIndex,
+      charHtml,
+      'completed'
+    );
+    return idea.characterSheets;
+  } catch (error) {
+    console.error('角色设定图生成失败:', error);
+    updateStepLog(
+      idea,
+      stepIndex,
+      `⚠️ 角色设定图生成失败：${error.message || '稍后重试'}`,
+      'failed'
+    );
+    return null;
+  }
+}
+
+async function extractCharacterDescriptors(idea, script) {
+  const prompt =
+    '请阅读以下短视频剧本，提取1-2个最重要的角色，使用JSON数组输出，每个元素包含 name（角色名），summary（50字以内中文外形+性格描述），english（40词以内的英文外形描述，便于英文提示词使用）：\n\n' +
+    script;
+  const raw = await callZhenzhenTextAPI(prompt);
+  const parsed = tryParseJSON(raw);
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter(item => item && (item.name || item.summary))
+    .map(item => ({
+      name: item.name || '主角',
+      summary: item.summary || item.description || idea.theme,
+      english: item.english || item.eng || ''
+    }));
+}
+
+function buildCharacterImagePrompt(idea, character) {
+  const styleHint =
+    CHARACTER_STYLE_HINT[idea.style] ||
+    'cinematic character sheet, dramatic lighting, ultra detailed, 8k render';
+  return (
+    `角色：${character.name}\n` +
+    `主题：${idea.theme}\n` +
+    `角色设定：${character.summary}\n\n` +
+    CHARACTER_POSTER_TEMPLATE +
+    '\n\n艺术风格：' +
+    styleHint +
+    (character.english ? `\nEnglish keywords: ${character.english}` : '') +
+    '\n要求：1:1 比例，高级感光影，干净背景，单角色完整展示。'
+  );
+}
+
+function buildCharacterContext(sheets) {
+  if (!Array.isArray(sheets)) return '';
+  return sheets
+    .map(
+      (sheet, idx) =>
+        `Character ${idx + 1}: ${sheet.name} - ${sheet.english || sheet.summary}`
+    )
+    .join('\n');
+}
+
+function tryParseJSON(text) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\[[\s\S]+\]/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+async function analyzeContentStructure(idea) {
+  const prompt = 
+    `请分析以下视频创意内容，推荐最合适的【单镜头时长(duration)】(5-15秒之间) 和 【分镜数量(scenes)】(4-15个之间)。\n` +
+    `如果你觉得内容很长，需要更多分镜来表现，请增加分镜数。如果内容较短，保持默认即可。\n\n` +
+    `内容：${idea.theme}\n\n` +
+    `请只返回 JSON 格式，不要其他废话，格式：{"duration": 10, "scenes": 6}`;
+
+  try {
+    addStepLog(idea, '🧠 正在分析内容结构以确定最佳时长和分镜...', 'processing');
+    const raw = await callZhenzhenTextAPI(prompt);
+    const parsed = tryParseJSON(raw);
+    if (parsed && parsed.duration && parsed.scenes) {
+      if (idea.duration === 0) idea.duration = Math.min(15, Math.max(5, parsed.duration));
+      if (idea.scenes === 0) idea.scenes = Math.min(20, Math.max(3, parsed.scenes));
+      addStepLog(idea, `✅ 智能分析完成：推荐 ${idea.scenes} 个分镜，单镜 ${idea.duration} 秒`, 'completed');
+    }
+  } catch (e) {
+    console.error('智能分析失败，使用默认值', e);
+    if (idea.duration === 0) idea.duration = 15;
+    if (idea.scenes === 0) idea.scenes = 4;
+  }
+}
+
+async function generateTextToVideo(idea) {
+    let script;
+    
+    // 智能分析：如果用户设置为自动（0），或者内容超长且参数为默认
+    if (idea.duration === 0 || idea.scenes === 0 || (idea.theme.length > 100 && idea.scenes <= 4)) {
+       await analyzeContentStructure(idea);
+    }
+    // 兜底默认值
+    if (!idea.duration || idea.duration <= 0) idea.duration = 15;
+    if (!idea.scenes || idea.scenes <= 0) idea.scenes = 4;
+    
+    await checkStatus(idea);
+
+  // 第 1 步：完整故事剧本
+    if (idea.inputMode === 'script' && idea.scriptContent) {
+        script = idea.scriptContent;
+    addStepLog(idea, '📄 使用上传的剧本（完整故事已就绪）', 'completed');
+    } else {
+    addStepLog(idea, '📝 正在生成完整故事剧本...', 'processing');
+    updateCreativeScreenText('📝 AI 正在编写完整故事...');
+    renderTaskCard(idea);
+
+    await checkStatus(idea);
+    const prompt = generateScriptPrompt(idea);
+    script = await callZhenzhenTextAPI(prompt);
+    idea.generatedScript = script;
+    updateStepLog(idea, idea.steps.length - 1, '✅ 完整故事生成完成', 'completed');
+
+    if (autoMode !== 'full-auto') {
+      const r = await waitForUserConfirmation(idea, 'script', script);
+      if (r.edited) {
+        script = r.content;
+        idea.generatedScript = script;
+      }
+    }
+  }
+
+  await checkStatus(idea);
+  await maybeGenerateCharacterSheets(idea, script);
+
+  await checkStatus(idea);
+  // 第 2 步：正常分镜（中文）
+  const normalScenes = parsePromptsSmart(script, idea.scenes);
+  let storyDetail = '✅ 正常分镜（中文）\n\n';
+  normalScenes.forEach((s, i) => {
+    storyDetail += `分镜${i + 1}: ${s}\n\n`;
+  });
+  addStepLog(idea, storyDetail, 'completed');
+
+  await checkStatus(idea);
+  // 第 3 步：Sora2 英文提示词
+  let videoPrompts;
+  if (idea.generatedVideoPrompts && idea.generatedVideoPrompts.length > 0) {
+      videoPrompts = idea.generatedVideoPrompts;
+      addStepLog(idea, '✅ 使用已生成的 Sora2 提示词', 'completed');
+  } else {
+      addStepLog(idea, '🎬 正在生成 Sora2 英文分镜提示词...', 'processing');
+      updateCreativeScreenText('🎬 正在为 Sora2 生成英文分镜提示词...');
+      renderTaskCard(idea);
+
+      const videoPromptReq = generateVideoPromptRequest(
+        idea,
+        script,
+        idea.characterContext
+      );
+      const videoText = await callZhenzhenTextAPI(videoPromptReq);
+      videoPrompts = parsePrompts(videoText, idea.scenes);
+      idea.generatedVideoPrompts = videoPrompts;
+
+      if (autoMode !== 'full-auto') {
+        const r = await waitForUserConfirmation(idea, 'prompts', videoPrompts);
+        if (r.edited && Array.isArray(r.content)) videoPrompts = r.content;
+        idea.generatedVideoPrompts = videoPrompts;
+      }
+  }
+
+  let vpDetail = '✅ Sora2 英文分镜提示词\n\n';
+  videoPrompts.forEach((p, i) => {
+    vpDetail += `分镜${i + 1}: ${p}\n\n`;
+  });
+  updateStepLog(idea, idea.steps.length - 1, vpDetail, 'completed');
+
+  await checkStatus(idea);
+  // 第 4 步：配图提示词（给你参考和后续剪辑用）
+  let imagePrompts;
+  if (idea.generatedImagePrompts && idea.generatedImagePrompts.length > 0) {
+      imagePrompts = idea.generatedImagePrompts;
+      addStepLog(idea, '✅ 使用已生成的配图提示词', 'completed');
+  } else {
+      addStepLog(idea, '🎨 正在生成配图提示词...', 'processing');
+      updateCreativeScreenText('🎨 正在生成配图提示词...');
+      const imgPromptReq = generateImagePromptRequest(
+        idea,
+        script,
+        idea.characterContext
+      );
+      const imgText = await callZhenzhenTextAPI(imgPromptReq);
+      imagePrompts = parsePrompts(imgText, idea.scenes);
+      idea.generatedImagePrompts = imagePrompts;
+
+      if (autoMode !== 'full-auto') {
+        const r2 = await waitForUserConfirmation(idea, 'prompts', imagePrompts);
+        if (r2.edited && Array.isArray(r2.content)) imagePrompts = r2.content;
+        idea.generatedImagePrompts = imagePrompts;
+      }
+  }
+
+  let ipDetail = '✅ 配图提示词\n\n';
+  imagePrompts.forEach((p, i) => {
+    ipDetail += `图片${i + 1}: ${p}\n\n`;
+  });
+  updateStepLog(idea, idea.steps.length - 1, ipDetail, 'completed');
+
+  await checkStatus(idea);
+  // 第 5 步：调用 Sora2 / Veo 生成视频
+  addStepLog(
+    idea,
+    `🎥 正在生成视频 (0/${videoPrompts.length})...`,
+    'processing'
+  );
+  updateCreativeScreenText('🎥 Sora2 / Veo 正在渲染视频片段...');
+
+  const videoResults = await generateClipsConcurrently(idea, videoPrompts);
+
+  addStepLog(
+    idea,
+    '🎞 所有视频片段已就绪，可以在右上角返回剪辑工作室中进行拼接和剪辑',
+    'completed'
+  );
+    
+    return { 
+        script, 
+    videoPrompts,
+    imagePrompts,
+    videoResults,
+    characterSheets: idea.characterSheets || []
+  };
+}
+
+async function generateClipsConcurrently(idea, videoPrompts) {
+  // 初始化结果数组
+  if (!idea.videoResults) idea.videoResults = [];
+
+  // 视频生成统一走贞贞接口 (Sora2 / Veo)，支持高并发
+  const promises = videoPrompts.map((prompt, index) => {
+    return (async () => {
+      try {
+        // 1. 检查是否已经生成成功
+        const existing = idea.videoResults.find(r => r.index === index && r.url);
+        if (existing) {
+            return existing; // 直接返回已有结果
+        }
+
+        await checkStatus(idea); // 检查暂停/取消
+
+        const pContent = typeof prompt === 'string' ? prompt : prompt.prompt;
+        // 确保单镜头时长按用户指定 (API 参数已在 callSora2... 中处理)
+        const url = await callSora2TextToVideoAPI(pContent, {
+          model: idea.generationMode === 'veo-3' ? 'veo-3' : 'sora-2',
+          duration: idea.duration
+        });
+        
+        await checkStatus(idea); // 生成完也检查一下
+
+        // 实时更新进度日志
+        updateStepLog(
+          idea, 
+          idea.steps.length - 1, // 最后一个是视频生成步骤
+          `🎥 视频片段 ${index + 1}/${videoPrompts.length} 生成成功`, 
+          'processing'
+        );
+        
+        const result = { index, url, prompt: pContent };
+        // 保存结果，防止重试时重复生成
+        idea.videoResults.push(result);
+        saveIdeasToHistory(); // 实时存盘
+        return result;
+      } catch (err) {
+        if (err.message === 'TaskCancelled') throw err;
+        console.error(`分镜 ${index + 1} 生成失败:`, err);
+        return { index, error: err.message, prompt: typeof prompt === 'string' ? prompt : prompt.prompt };
+      }
+    })();
+  });
+
+  const results = await Promise.all(promises);
+  // 按顺序排序
+  return results.sort((a, b) => a.index - b.index);
+}
+
+async function generateTextToImageToVideo(idea, mode) {
+  // 这里为了节省篇幅，逻辑简化：剧本 -> 配图提示词 -> Flux/Gemini 图片 -> Sora2 图生视频
+    let script;
+    if (idea.inputMode === 'script' && idea.scriptContent) {
+        script = idea.scriptContent;
+    } else {
+    const prompt = generateScriptPrompt(idea);
+    script = await callZhenzhenTextAPI(prompt);
+  }
+
+  await maybeGenerateCharacterSheets(idea, script);
+
+  const imgPromptReq = generateImagePromptRequest(
+    idea,
+    script,
+    idea.characterContext
+  );
+  const imgText = await callZhenzhenTextAPI(imgPromptReq);
+  const imagePrompts = parsePrompts(imgText, idea.scenes);
+
+  const generatedImages =
+    mode === 'banana-image-to-video'
+      ? await Promise.all(
+          imagePrompts.map(prompt =>
+            callBanana2ImageAPI(prompt, idea.imageAspectRatio)
+          )
+        )
+      : await generateFluxImagesSequential(imagePrompts, idea.imageAspectRatio);
+
+  const videoPrompts = await Promise.all(
+    generatedImages.map((img, idx) =>
+      (async () => {
+        const url = await callSora2ImageToVideoAPI(img, imagePrompts[idx]);
+        return {
+          prompt: imagePrompts[idx],
+          imageUrl: img,
+          videoUrl: url
+        };
+      })()
+    )
+  );
+  
+  return {
+    script,
+    videoPrompts,
+    imagePrompts,
+    generatedImages,
+    characterSheets: idea.characterSheets || []
+  };
+}
+
+// ==================== T8 / RH / Gemini API 封装 ====================
+
+async function callZhenzhenTextAPI(prompt, model = 'gemini-3-pro-preview-thinking-free') {
+  const apiKey = getSetting('zhenzhenKey');
+  const authHeader = apiKey ? `Bearer ${apiKey}` : undefined;
+
+  const body = {
+                targetUrl: 'https://ai.t8star.cn/v1/chat/completions',
+    apiType: 't8star',
+    authorization: authHeader,
+                body: {
+      model,
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.7,
+                    max_tokens: 2000,
+      stream: false
+    }
+  };
+
+  const res = await fetch(PROXY_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`文本 API 失败: ${res.status} ${err.slice(0, 100)}`);
+  }
+  const data = await res.json();
+  if (!data.choices || !data.choices[0]?.message?.content) {
+    throw new Error('文本 API 返回格式异常');
+  }
+        return data.choices[0].message.content.trim();
+}
+
+async function callFluxImageAPI(prompt, aspectRatio) {
+  const apiKey = getSetting('rhKey');
+  const ratio = aspectRatio || '16:9 landscape 1344x768';
+  const res = await fetch(PROXY_ENDPOINT, {
+            method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                targetUrl: 'https://www.runninghub.cn/task/openapi/ai-app/run',
+      apiType: 'rh-flux',
+      apiKey,
+                body: {
+                    nodeInfoList: [
+          { nodeId: '53', fieldName: 'text', fieldValue: prompt },
+          { nodeId: '52', fieldName: 'aspect_ratio', fieldValue: ratio }
+                    ]
+                }
+            })
+        });
+  if (!res.ok) {
+    throw new Error(`Flux 生图请求失败: ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.data && data.data.taskId) {
+    return await pollFluxTaskStatus(data.data.taskId);
+  }
+  if (data.data && data.data.url) return data.data.url;
+  throw new Error('Flux 生图返回缺少 URL');
+}
+
+async function pollFluxTaskStatus(taskId) {
+  const apiKey = getSetting('rhKey');
+  for (let i = 0; i < 60; i++) {
+    await sleep(2000);
+    const res = await fetch(PROXY_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetUrl: `https://www.runninghub.cn/task/openapi/tasks/${taskId}`,
+        apiType: 'rh-flux-poll',
+        method: 'GET',
+        authorization: apiKey ? `Bearer ${apiKey}` : undefined
+      })
+    });
+    if (!res.ok) continue;
+    const data = await res.json();
+    if (data.code === 0 && data.data) {
+      const status = data.data.status;
+      if (status === 'SUCCESS') {
+        if (data.data.fileUrl) return data.data.fileUrl;
+        if (data.data.outputs && data.data.outputs[0]?.fileUrl) {
+          return data.data.outputs[0].fileUrl;
+        }
+      } else if (status === 'FAILURE') {
+        throw new Error(data.data.errorMsg || 'Flux 任务失败');
+      }
+    }
+  }
+  throw new Error('Flux 生图超时');
+}
+
+async function callBanana2ImageAPI(prompt, aspectRatio) {
+  const apiKey = getSetting('zhenzhenKey');
+  if (!apiKey) throw new Error('未配置贞贞工坊 Key');
+  const ratioMap = {
+    '16:9 landscape 1344x768': '16:9',
+    '9:16 portrait 768x1344': '9:16',
+    '1:1 square 1024x1024': '1:1'
+  };
+  const ratio = ratioMap[aspectRatio] || '16:9';
+
+  const res = await fetch(PROXY_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+      targetUrl: 'https://ai.t8star.cn/v1/chat/completions',
+      apiType: 't8star',
+      authorization: `Bearer ${apiKey}`,
+      body: {
+        model: 'gemini-3-pro-image-preview',
+        messages: [{ role: 'user', content: prompt }],
+        stream: false,
+        image_size: ratio
+      }
+                })
+            });
+  if (!res.ok) throw new Error(`Gemini 文生图失败: ${res.status}`);
+  const data = await res.json();
+  const msg = data.choices?.[0]?.message?.content || '';
+  const m = msg.match(/https?:\/\/[^\s)]+/i);
+  if (m) return m[0];
+  if (msg.startsWith('http')) return msg;
+  throw new Error('Gemini 文生图返回格式异常');
+}
+
+async function callSora2TextToVideoAPI(prompt, options = {}) {
+  const apiKey = getSetting('zhenzhenKey');
+  const { model = 'sora-2', aspectRatio = '16:9', hd = false } = options;
+
+  const body = {
+    model: model === 'veo-3' ? 'veo3.1' : model,
+    prompt,
+    aspect_ratio: aspectRatio
+  };
+
+  if (model === 'veo-3') {
+    body.enhance_prompt = true;
+                    } else {
+    body.duration = '15';
+    if (hd) body.hd = true;
+  }
+
+  const res = await fetch(PROXY_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      targetUrl: 'https://ai.t8star.cn/v2/videos/generations',
+      apiType: 't8star',
+      authorization: apiKey ? `Bearer ${apiKey}` : undefined,
+      body
+    })
+  });
+  if (!res.ok) throw new Error(`Sora2/Veo 文生视频失败: ${res.status}`);
+  const data = await res.json();
+  if (!data.task_id) throw new Error('未返回 task_id');
+  return await pollSora2Task(data.task_id);
+}
+
+async function callSora2ImageToVideoAPI(imageUrl, prompt, options = {}) {
+  const apiKey = getSetting('zhenzhenKey');
+  const { model = 'sora-2', aspectRatio = '16:9', hd = false } = options;
+
+  const body = {
+    model: model === 'veo-3' ? 'veo3.1' : model,
+    prompt,
+    images: [imageUrl]
+  };
+
+  if (model === 'veo-3') {
+    body.enhance_prompt = true;
+  } else {
+    body.aspect_ratio = aspectRatio;
+    body.duration = '15';
+    if (hd) body.hd = true;
+  }
+
+  const res = await fetch(PROXY_ENDPOINT, {
+            method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+      targetUrl: 'https://ai.t8star.cn/v2/videos/generations',
+                apiType: 't8star',
+      authorization: apiKey ? `Bearer ${apiKey}` : undefined,
+      body
+            })
+        });
+  if (!res.ok) throw new Error(`Sora2 图生视频失败: ${res.status}`);
+  const data = await res.json();
+  if (!data.task_id) throw new Error('未返回 task_id');
+  return await pollSora2Task(data.task_id);
+}
+
+async function pollSora2Task(taskId) {
+  const apiKey = getSetting('zhenzhenKey');
+  for (let i = 0; i < 120; i++) {
+    await sleep(2000);
+    const res = await fetch(PROXY_ENDPOINT, {
+            method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+        targetUrl: `https://ai.t8star.cn/v2/videos/generations/${taskId}`,
+        apiType: 't8star',
+        method: 'GET',
+        authorization: apiKey ? `Bearer ${apiKey}` : undefined
+            })
+        });
+    if (!res.ok) continue;
+    const data = await res.json();
+    const status = data.status;
+    if (status === 'SUCCESS') {
+      if (data.data?.output) return data.data.output;
+      if (Array.isArray(data.data) && data.data[0]?.url) return data.data[0].url;
+    } else if (status === 'FAILURE') {
+      throw new Error(data.fail_reason || '视频生成失败');
+    }
+  }
+  throw new Error('视频生成超时');
+}
+
+// ==================== 提示词生成辅助 ====================
+
+function generateScriptPrompt(idea) {
+    const styleMap = {
+    cartoon: '卡通风格',
+    realistic: '写实真人',
+    scifi: '科幻',
+    anime: '动漫',
+    cyberpunk: '赛博朋克',
+    fantasy: '奇幻'
+  };
+  return (
+    `你是一名专业短视频编剧。\n` +
+    `任务：基于创意主题「${idea.theme}」，创作一个完整的短视频剧本。\n` +
+    `规格：总时长约 ${idea.duration} 秒，共 ${idea.scenes} 个分镜。\n` +
+    `风格：${styleMap[idea.style] || '卡通风格'}。\n\n` +
+    `要求：\n` +
+    `1. 即使输入的主题很简单，也要扩写成有起承转合的完整故事。\n` +
+    `2. 严格按照 ${idea.scenes} 个分镜来设计，不要多也不要少。\n` +
+    `3. 每个分镜必须包含【画面】(包含镜头语言、光影、动作) 和 【对白】(或旁白)。\n` +
+    `4. 不要只返回设置或大纲，要具体的拍摄脚本。\n\n` +
+    `标准输出格式示例（请严格遵守）：\n` +
+    `分镜1\n画面：一只可爱的小猫在阳光下伸懒腰，毛发金光闪闪，特写镜头。\n对白：今天天气真好呀！\n\n` +
+    `分镜2\n画面：...\n对白：...\n`
+  );
+}
+
+function generateVideoPromptRequest(idea, script) {
+    const styleMap = {
+    cartoon: 'cartoon style',
+    realistic: 'realistic',
+    scifi: 'sci-fi',
+    anime: 'anime style',
+    cyberpunk: 'cyberpunk',
+    fantasy: 'fantasy style'
+  };
+  return (
+    `Based on the following Chinese script, generate ${idea.scenes} detailed English prompts for Sora2 or Veo video.\n` +
+    `Each prompt should describe a single shot with camera movement, lighting, environment and character action.\n\n` +
+    `${script}\n\n` +
+    `Style: ${styleMap[idea.style] || 'cartoon style'}\n\n` +
+    `Format:\n` +
+    `Prompt 1: ...\nPrompt 2: ...\n...`
+  );
+}
+
+function generateImagePromptRequest(idea, script) {
+    const styleMap = {
+    cartoon: 'cartoon illustration',
+    realistic: 'realistic photo',
+    scifi: 'sci-fi art',
+    anime: 'anime art',
+    cyberpunk: 'cyberpunk art',
+    fantasy: 'fantasy illustration'
+  };
+  return (
+    `Based on the following Chinese script, design ${idea.scenes} English prompts for still images.\n` +
+    `Each prompt should match one shot of the story and be suitable for high-quality AI image generation.\n\n` +
+    `${script}\n\n` +
+    `Style: ${styleMap[idea.style] || 'cartoon illustration'}\n\n` +
+    `Format:\n` +
+    `Image 1: ...\nImage 2: ...\n...`
+  );
+}
+
+// 更智能的中文 + 英文提示词解析
+function parsePrompts(text, count) {
+  const lines = text.split('\n');
+  let prompts = [];
+
+  // 1) 匹配 "Prompt 1:" / "Image 1:"
+  lines.forEach(line => {
+        const trimmed = line.trim();
+    if (/^(Prompt|Image|Shot|Scene)\s+\d+[:：]/i.test(trimmed)) {
+      prompts.push(
+        trimmed.replace(/^(Prompt|Image|Shot|Scene)\s+\d+[:：]\s*/i, '')
+      );
+    }
+  });
+
+  // 2) 如果没有，按 "分镜1：" / "场景1：" 匹配
+  if (prompts.length === 0) {
+    lines.forEach(line => {
+      const t = line.trim();
+      if (/^(分镜|图片|场景|镜头)\s*\d+[:：]/.test(t)) {
+        prompts.push(t.replace(/^(分镜|图片|场景|镜头)\s*\d+[:：]\s*/, ''));
+      }
+    });
+  }
+
+  // 3) 还没有就按有内容的长句子拆
+  if (prompts.length === 0) {
+    const sentences = text
+      .split(/[\n。!?]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 15);
+    prompts = sentences;
+  }
+    
+    while (prompts.length < count) {
+    prompts.push(
+      prompts[prompts.length - 1] ||
+        'A cinematic shot with beautiful lighting and rich details'
+    );
+  }
+  return prompts.slice(0, count);
+}
+
+function parsePromptsSmart(text, count) {
+  return parsePrompts(text, count);
+}
+
+// ==================== 进度 & 卡片渲染 ====================
+
+function updateProgress() {
+  const total = ideas.length || 1;
+    const completed = ideas.filter(i => i.status === 'completed').length;
+    const failed = ideas.filter(i => i.status === 'failed').length;
+    const processing = ideas.filter(i => i.status === 'processing').length;
+    const progress = ((completed + failed) / total) * 100;
+
+  const bar = document.getElementById('progressBar');
+  const text = document.getElementById('progressText');
+  const sc = document.getElementById('successCount');
+  const pc = document.getElementById('processingCount');
+  const fc = document.getElementById('failedCount');
+
+  if (bar) bar.style.width = `${progress}%`;
+  if (text)
+    text.textContent = `${completed + failed}/${total}  |  成功 ${completed}  |  失败 ${failed}`;
+  if (sc) sc.textContent = String(completed);
+  if (pc) pc.textContent = String(processing);
+  if (fc) fc.textContent = String(failed);
+}
+
+function renderTaskCard(idea) {
+    const container = document.getElementById('taskCards');
+  if (!container) return;
+
+  // 同时刷新右侧画布（主要展示区域）
+  renderCanvas();
+
+    let card = container.querySelector(`[data-idea-id="${idea.id}"]`);
+    
+  const statusIcons = {
+    pending: '⏱',
+    processing: '⏳',
+    paused: '⏸',
+    cancelled: '⏹',
+    completed: '✅',
+    failed: '❌'
+  };
+  
+  const statusTexts = {
+    pending: '等待中',
+    processing: '生成中...',
+    paused: '已暂停',
+    cancelled: '已取消',
+    completed: '已完成',
+    failed: '生成失败'
+  };
+
+  // --- Controls ---
+  let controls = '';
+  if (idea.status === 'processing') {
+      controls = `
+        <button onclick="event.stopPropagation();pauseTask(${idea.id})" class="btn-icon" title="暂停" style="color:var(--accent-gold);background:none;border:none;cursor:pointer;font-size:14px;">⏸</button>
+        <button onclick="event.stopPropagation();cancelTask(${idea.id})" class="btn-icon" title="取消" style="color:#f44336;background:none;border:none;cursor:pointer;font-size:14px;">⏹</button>
+      `;
+  } else if (idea.status === 'paused') {
+      controls = `
+        <button onclick="event.stopPropagation();resumeTask(${idea.id})" class="btn-icon" title="继续" style="color:var(--success-color);background:none;border:none;cursor:pointer;font-size:14px;">▶️</button>
+        <button onclick="event.stopPropagation();cancelTask(${idea.id})" class="btn-icon" title="取消" style="color:#f44336;background:none;border:none;cursor:pointer;font-size:14px;">⏹</button>
+      `;
+  }
+
+  // --- Detailed Task Steps (Restored) ---
+  // 恢复详细的步骤显示，显示所有步骤状态
+  let stepsHTML = '';
+  if (idea.steps && idea.steps.length > 0) {
+      stepsHTML = '<div class="task-steps">';
+      idea.steps.forEach(step => {
+          // 根据状态设置样式类
+          let statusClass = '';
+          if (step.status === 'processing') statusClass = 'processing';
+          else if (step.status === 'completed') statusClass = 'completed';
+          else if (step.status === 'failed') statusClass = 'failed';
+          
+          stepsHTML += `<div class="step-item ${statusClass}">${step.text}</div>`;
+      });
+      stepsHTML += '</div>';
+  } else {
+      // 如果没有步骤（刚开始），显示一个初始等待提示
+      if (idea.status === 'pending') {
+           stepsHTML = '<div class="task-steps"><div class="step-item">⏳ 等待开始...</div></div>';
+      }
+  }
+
+  const checkboxHTML =
+    '<div class="task-select" style="margin-right:8px;">' +
+    `<input type="checkbox" ${idea.selected ? 'checked' : ''} ` +
+    `onclick="event.stopPropagation();" ` +
+    `onchange="event.stopPropagation();toggleIdeaSelection(${idea.id})">` +
+    '</div>';
+
+  const html =
+    `<div class="task-card ${idea.status}" data-idea-id="${idea.id}" onclick="scrollToCanvasCard(${idea.id})">` +
+    `<div class="task-header" style="display:flex;align-items:flex-start;justify-content:space-between;">` +
+        `<div style="display:flex;align-items:flex-start;">` +
+            checkboxHTML +
+            `<div>` +
+                `<div style="display:flex;align-items:center;gap:6px;">` +
+                    `<div class="task-icon">${statusIcons[idea.status] || '❓'}</div>` +
+                    `<div class="task-title" style="font-weight:bold;font-size:13px;color:#fff;">${idea.theme}</div>` +
+                `</div>` +
+                `<div class="task-status-text" style="font-size:11px;color:#666;margin-top:2px;">${statusTexts[idea.status]}</div>` +
+            `</div>` +
+        `</div>` +
+        `<div class="task-controls" style="display:flex;gap:2px;">${controls}</div>` +
+    `</div>` +
+    stepsHTML + // 插入详细步骤
+    '</div>';
+    
+    if (!card) {
+    container.insertAdjacentHTML('beforeend', html);
+    } else {
+    card.outerHTML = html;
+  }
+}
+
+// ==================== 画布渲染 (Mind Map Style) ====================
+
+function renderCanvas() {
+  const container = document.getElementById('resultCards');
+  if (!container) return;
+  
+  // 显示所有非 pending 的任务，或者全部任务
+  // 这里显示 processing, paused, completed, failed
+  const activeIdeas = ideas.filter(i => i.status !== 'pending');
+  
+  if (activeIdeas.length === 0) {
+    container.innerHTML = '<div style="color:#666;text-align:center;margin-top:100px;">暂无生成中的任务</div>';
+        return;
+    }
+    
+  container.style.display = 'grid';
+
+  container.innerHTML = activeIdeas.map(idea => renderDetailedFlow(idea)).join('');
+}
+
+function renderDetailedFlow(idea) {
+  const r = idea.result || {};
+  // Get all data
+  const script = idea.generatedScript || r.script || '';
+  const characters = idea.characterSheets || r.characterSheets || [];
+  const videoPrompts = idea.generatedVideoPrompts || r.videoPrompts || [];
+  const videoResults = idea.videoResults || r.videoResults || [];
+  const scenesCount = Math.max(idea.scenes, videoPrompts.length, videoResults.length);
+
+  // --- Column 1: 完整故事 (Script) ---
+  let scriptCard = '';
+  if (script) {
+      scriptCard = `
+        <div class="flow-card script-card">
+            <div class="card-header">
+                <span class="icon">📝</span> 完整故事
+                <div class="card-actions">
+                    <button class="btn-xs" onclick="editScript(${idea.id})">✏️ 编辑</button>
+                    <button class="btn-xs" onclick="retryScript(${idea.id})">🔄 重试</button>
+                </div>
+            </div>
+            <div class="card-content text-content custom-scroll">
+                ${script}
+            </div>
+        </div>`;
+  } else {
+      scriptCard = `
+        <div class="flow-card script-card empty">
+            <div class="card-header"><span class="icon">📝</span> 完整故事</div>
+            <div class="empty-text">等待生成...</div>
+        </div>`;
+  }
+
+  // --- Column 2: 角色 (Characters) ---
+  let charCards = '';
+  if (characters.length > 0) {
+      charCards = characters.map((c, idx) => `
+        <div class="flow-card char-card">
+            <div class="card-header">
+                <span class="icon">🎭</span> 角色 ${idx + 1}
+                <div class="card-actions">
+                    <button class="btn-xs" onclick="saveCharacterToLibrary('${c.name}', '${(c.summary||'').replace(/['"\n\r]/g, '')}', '${c.imageUrl}')">❤️ 存库</button>
+                </div>
+            </div>
+            <div class="card-content">
+                <img src="${c.imageUrl}" class="char-img" onclick="window.open('${c.imageUrl}')">
+                <div class="char-name">${c.name}</div>
+                <div class="char-desc">${c.summary}</div>
+            </div>
+        </div>
+      `).join('');
+  }
+
+  // --- Column 3 & 4 & 5: Scenes Flow (Normal Storyboard -> Prompt -> Video) ---
+  // Since we don't have distinct "Normal Storyboard" text separate from prompt generation usually,
+  // we will show: [分镜描述/提示词] -> [Video]
+  // User asked for: "每个剧情分镜一个卡牌，每个sora2规则优化后的分镜一个卡牌"
+  // We will try to simulate "Normal Storyboard" if we can, but for now we'll show the Prompt as the "Sora2 Optimized" one.
+  // If we assume the prompt generation input was the "Normal Storyboard", we might not have saved it.
+  // We'll create a vertical list of rows, each row is a scene flow.
+
+  let scenesHTML = '';
+  for (let i = 0; i < scenesCount; i++) {
+      const promptObj = videoPrompts[i] || {};
+      const promptText = typeof promptObj === 'string' ? promptObj : promptObj.prompt || '';
+      const videoRes = videoResults.find(v => v.index === i);
+      
+      // Sora2 Prompt Card
+      let promptCard = '';
+      if (promptText) {
+          promptCard = `
+            <div class="flow-card prompt-card">
+                <div class="card-header">
+                    <span class="icon">🎨</span> Sora2 分镜 ${i + 1}
+                    <div class="card-actions">
+                        <button class="btn-xs" onclick="editPrompt(${idea.id}, ${i})">✏️</button>
+                        <button class="btn-xs" onclick="retryPrompt(${idea.id}, ${i})">🔄</button>
+                    </div>
+                </div>
+                <div class="card-content text-content custom-scroll">
+                    ${promptText}
+                </div>
+            </div>`;
+      } else {
+          promptCard = `<div class="flow-card prompt-card empty"><div class="empty-text">等待提示词...</div></div>`;
+      }
+
+      // Video Card
+      let videoCard = '';
+      if (videoRes && videoRes.url) {
+          videoCard = `
+            <div class="flow-card video-card">
+                <div class="card-header">
+                    <span class="icon">🎬</span> 视频 ${i + 1}
+                    <div class="card-actions">
+                        <button class="btn-xs" onclick="retryVideo(${idea.id}, ${i})">🔄 重试</button>
+                    </div>
+                </div>
+                <div class="card-content video-content">
+                    <video src="${videoRes.url}" controls loop></video>
+                </div>
+            </div>`;
+      } else if (videoRes && videoRes.error) {
+          videoCard = `
+            <div class="flow-card video-card error">
+                <div class="card-header"><span class="icon">⚠️</span> 失败</div>
+                <div class="error-text">${videoRes.error}</div>
+                <div class="card-actions center">
+                    <button class="btn-xs" onclick="retryVideo(${idea.id}, ${i})">🔄 重试</button>
+                </div>
+            </div>`;
+      } else {
+          videoCard = `<div class="flow-card video-card empty"><div class="empty-text">等待生成...</div></div>`;
+      }
+
+      // Combine into a row
+      scenesHTML += `
+        <div class="scene-flow-row">
+            <div class="scene-label">镜头 ${i + 1}</div>
+            ${promptCard}
+            <div class="flow-arrow">→</div>
+            ${videoCard}
+        </div>`;
+  }
+
+  // --- Final Column: Result ---
+  let finalCard = '';
+  const hasVideos = videoResults.some(r => r.url);
+  if (hasVideos) {
+     finalCard = `
+        <div class="flow-card final-card">
+            <div class="card-header">
+                <span class="icon">🎥</span> 最终成片
+                <div class="card-actions">
+                    <button class="btn-xs" onclick="downloadAll(${idea.id})">⬇️</button>
+                </div>
+            </div>
+            <div class="card-content">
+                <video id="previewPlayer-${idea.id}" class="final-player" controls poster="images/poster_placeholder.png"></video>
+                <div class="final-actions">
+                    <button onclick="replayAll(${idea.id})" class="btn-primary-sm">▶️ 播放全片</button>
+                </div>
+            </div>
+        </div>`;
+  } else {
+      finalCard = `<div class="flow-card final-card empty"><div class="empty-text">等待合成...</div></div>`;
+  }
+
+  // Assemble the whole flow
+  return `
+    <div class="detailed-flow-container" id="canvas-card-${idea.id}">
+        <div class="flow-meta-header">
+            <h3>🎬 ${idea.theme} <span class="status-tag ${idea.status}">${idea.status}</span></h3>
+            <div class="meta-controls">
+                ${idea.status === 'processing' ? `<button onclick="pauseTask(${idea.id})">⏸️ 暂停</button>` : ''}
+                ${idea.status === 'paused' ? `<button onclick="resumeTask(${idea.id})">▶️ 继续</button>` : ''}
+                ${idea.status !== 'completed' && idea.status !== 'cancelled' ? `<button onclick="cancelTask(${idea.id})">⏹️ 取消</button>` : ''}
+                <button onclick="removeIdea(${idea.id})">🗑️ 删除</button>
+            </div>
+        </div>
+        
+        <div class="horizontal-scroll-area custom-scroll">
+            <div class="flow-stages">
+                <!-- Stage 1: Story -->
+                <div class="flow-stage">
+                    <div class="stage-title">1. 完整故事</div>
+                    ${scriptCard}
+                </div>
+                
+                <div class="flow-arrow-large">→</div>
+
+                <!-- Stage 2: Characters (Optional) -->
+                ${characters.length > 0 ? `
+                <div class="flow-stage">
+                    <div class="stage-title">角色设定</div>
+                    <div class="vertical-stack">
+                        ${charCards}
+                    </div>
+                </div>
+                <div class="flow-arrow-large">→</div>
+                ` : ''}
+
+                <!-- Stage 3 & 4: Scenes & Videos -->
+                <div class="flow-stage wide-stage">
+                    <div class="stage-title">分镜制作 (Sora2 提示词 → 视频)</div>
+                    <div class="vertical-stack">
+                        ${scenesHTML}
+                    </div>
+                </div>
+
+                <div class="flow-arrow-large">→</div>
+
+                <!-- Stage 5: Final -->
+                <div class="flow-stage">
+                    <div class="stage-title">最终成片</div>
+                    ${finalCard}
+                </div>
+            </div>
+        </div>
+    </div>
+  `;
+}
+
+// --- Edit / Retry Helpers ---
+
+async function editScript(id) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) return;
+    
+    const newScript = prompt('编辑完整故事:', idea.generatedScript);
+    if (newScript && newScript !== idea.generatedScript) {
+        idea.generatedScript = newScript;
+        renderCanvas(); // Re-render to show changes
+    }
+}
+
+async function retryScript(id) {
+    if (!confirm('确定要重写生成剧本吗？后续分镜也将重置。')) return;
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) return;
+    
+    idea.status = 'processing';
+    idea.generatedScript = '';
+    idea.generatedVideoPrompts = [];
+    idea.videoResults = [];
+    idea.steps = []; // Reset steps
+    renderCanvas();
+    processIdea(idea); // Restart from scratch
+}
+
+async function editPrompt(id, index) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) return;
+    
+    const oldPrompt = idea.generatedVideoPrompts[index];
+    const oldText = typeof oldPrompt === 'string' ? oldPrompt : oldPrompt.prompt;
+    
+    const newText = prompt(`编辑第 ${index + 1} 镜提示词:`, oldText);
+    if (newText && newText !== oldText) {
+        if (typeof idea.generatedVideoPrompts[index] === 'string') {
+            idea.generatedVideoPrompts[index] = newText;
+        } else {
+            idea.generatedVideoPrompts[index].prompt = newText;
+        }
+        renderCanvas();
+    }
+}
+
+async function retryPrompt(id, index) {
+    if (!confirm('重试提示词将重新生成所有分镜提示词，确定吗？')) return;
+    const idea = ideas.find(i => i.id === id);
+    idea.generatedVideoPrompts = [];
+    idea.videoResults = []; 
+    idea.status = 'processing';
+    processIdea(idea);
+}
+
+async function retryVideo(id, index) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) return;
+    
+    const existingResIndex = idea.videoResults.findIndex(r => r.index === index);
+    if (existingResIndex !== -1) {
+        idea.videoResults.splice(existingResIndex, 1);
+    }
+    
+    idea.status = 'processing';
+    renderCanvas();
+    processIdea(idea); 
+}
+
+
+function scrollToCanvasCard(id) {
+    const el = document.getElementById(`canvas-card-${id}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function showProgressScreen() {
+  // 旧版进度屏，现在统一用 renderCanvas
+  renderCanvas();
+  updateProgress();
+}
+
+function showResultScreen() {
+  // 旧版结果屏，现在统一用 renderCanvas
+  renderCanvas();
+}
+
+function formatResult(idea) {
+  const r = idea.result || {};
+    const styleLabels = {
+    cartoon: '卡通',
+    realistic: '真人',
+    scifi: '科幻',
+    anime: '动漫',
+    cyberpunk: '赛博朋克',
+    fantasy: '奇幻'
+  };
+  const script = r.script || '';
+  const vp = Array.isArray(r.videoPrompts) ? r.videoPrompts : [];
+  const ip = Array.isArray(r.imagePrompts) ? r.imagePrompts : [];
+
+  const vpText = vp
+    .map((p, i) =>
+      typeof p === 'string' ? `分镜${i + 1}:\n${p}` : `分镜${i + 1}:\n${p.prompt || ''}`
+    )
+    .join('\n\n');
+  const ipText = ip
+    .map((p, i) => `配图${i + 1}:\n${p}`)
+    .join('\n\n');
+
+  return (
+    `【创意主题】\n${idea.theme}\n\n` +
+    `【参数配置】\n风格：${styleLabels[idea.style] || idea.style}\n时长：${
+      idea.duration
+    } 秒\n分镜数：${idea.scenes} 个\n\n` +
+    `【剧本】\n${script}\n\n` +
+    `【视频分镜提示词】\n${vpText}\n\n` +
+    `【配图提示词】\n${ipText}\n\n` +
+    `生成时间：${new Date().toLocaleString()}`
+  );
+}
+
+function downloadResult(id) {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea || !idea.result) return;
+    const content = formatResult(idea);
+    downloadTextFile(`${idea.theme}.txt`, content);
+}
+
+function downloadAll() {
+  const completed = ideas.filter(i => i.status === 'completed');
+  if (completed.length === 0) {
+    alert('没有可下载的内容');
+        return;
+  }
+  const all = completed
+    .map(
+      idea =>
+        `${'='.repeat(60)}\n${idea.theme}\n${'='.repeat(60)}\n\n${formatResult(
+          idea
+        )}`
+    )
+    .join('\n\n\n');
+  downloadTextFile('AI视频批量创作结果.txt', all);
+}
+
+function downloadTextFile(filename, content) {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ==================== 会员 / 支付 / 激活码 ====================
+
+let currentPlan = 'year';
+const PLAN_LINKS = {
+  month: 'https://mbd.pub/o/your-month-link',
+  year: 'https://mbd.pub/o/your-year-link',
+  perm: 'https://mbd.pub/o/your-perm-link'
+};
+
+function openMemberModal() {
+  const modal = document.getElementById('memberModal');
+  if (!modal) return;
+  const isVip = localStorage.getItem('is_vip') === 'true';
+  const vipType = localStorage.getItem('vip_type');
+  const expiry = localStorage.getItem('vip_expiry') || '永久有效';
+  let text = '普通用户';
+  if (isVip) {
+    if (vipType === 'VIP_MONTH') text = '月卡会员';
+    else if (vipType === 'VIP_YEAR') text = '年卡会员';
+    else if (vipType === 'VIP_PERM') text = '永久会员';
+  }
+  document.getElementById('memberStatus').textContent = text;
+  document.getElementById('memberStatus').style.color = isVip
+    ? 'var(--accent-gold)'
+    : '#fff';
+  document.getElementById('memberExpiry').textContent = isVip
+    ? `有效期至：${expiry}`
+    : '未开通会员服务';
+  modal.style.display = 'flex';
+}
+
+function closeMemberModal() {
+  const modal = document.getElementById('memberModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function selectPlan(type, el) {
+  currentPlan = type;
+  document.querySelectorAll('.plan-card').forEach(c => {
+    c.classList.remove('selected');
+    c.style.border = '1px solid #333';
+    c.style.background = 'rgba(255,255,255,0.02)';
+  });
+  el.classList.add('selected');
+  el.style.border = '1px solid var(--accent-gold)';
+  el.style.background = 'rgba(212,175,55,0.1)';
+}
+
+function buyCurrentPlan() {
+  const link = PLAN_LINKS[currentPlan];
+  if (!link || link.includes('your-')) {
+    alert('请先在 js/batch.js 中配置真实发卡链接');
+            return;
+        }
+  window.open(link, '_blank');
+}
+
+function toggleManualPay() {
+  const area = document.getElementById('manualPayArea');
+  if (!area) return;
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+}
+
+function closePaymentModal() {
+  const modal = document.getElementById('paymentModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function showRecharge() {
+  const modal = document.getElementById('paymentModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function copyWeChatId() {
+  navigator.clipboard.writeText('jingguangwei').then(() => {
+    alert('已复制微信号：jingguangwei');
+  });
+}
+
+async function redeemCode() {
+  const code = (document.getElementById('activationCode').value || '').trim();
+  if (!code) {
+    alert('请输入激活码');
+    return;
+  }
+  const btn = document.querySelector('#memberModal .btn-secondary');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '验证中...';
+  }
+  try {
+    const res = await fetch(PROXY_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiType: 'verify-vip', code })
+    });
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem('is_vip', 'true');
+      localStorage.setItem('vip_type', data.type);
+      localStorage.setItem('vip_expiry', data.expiryDate);
+      alert(`激活成功！有效期至 ${data.expiryDate}`);
+      openMemberModal();
+      document.getElementById('activationCode').value = '';
+      updateUsageDisplay();
+    } else {
+      alert('激活失败：' + (data.message || '激活码无效'));
+    }
+  } catch (e) {
+    console.error('验证激活码失败:', e);
+    alert('验证服务异常，请稍后再试');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '立即激活';
+    }
+  }
+}
+
+// ==================== 图片修图 (Gemini Vision) ====================
+
+let currentEditImage = null;
+
+function openImageEditModal(imageUrl) {
+  currentEditImage = imageUrl;
+  const modal = document.getElementById('imageEditModal');
+  if (!modal) return;
+  const img = document.getElementById('editImagePreview');
+  if (img) img.src = imageUrl;
+  document.getElementById('editPromptInput').value = '';
+  document.getElementById('editResultArea').style.display = 'none';
+  modal.style.display = 'flex';
+}
+
+function closeImageEditModal() {
+  const modal = document.getElementById('imageEditModal');
+  if (modal) modal.style.display = 'none';
+  currentEditImage = null;
+}
+
+async function executeImageEdit() {
+  const prompt = (document.getElementById('editPromptInput').value || '').trim();
+  if (!prompt) {
+    alert('请输入修改指令');
+            return;
+        }
+  const apiKey = getSetting('zhenzhenKey');
+  if (!apiKey) {
+    alert('请先在设置中配置贞贞工坊 Key');
+    return;
+  }
+
+  const btn = document.querySelector('#imageEditModal .btn-primary');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'AI思考中...';
+  }
+  try {
+    const res = await fetch(PROXY_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetUrl: 'https://api.t8star.cn/v1/chat/completions',
+        apiType: 't8star',
+        authorization: `Bearer ${apiKey}`,
+        body: {
+          model: 'gemini-3-pro-preview-image-preview',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text:
+                    '请根据这张图片和以下修改指令，生成一个新的稳定扩散绘图提示词，或者详细描述修改之后的画面：\n\n指令：' +
+                    prompt
+                },
+                { type: 'image_url', image_url: { url: currentEditImage } }
+              ]
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 800
+        }
+      })
+    });
+    if (!res.ok) throw new Error(`Gemini Vision 请求失败: ${res.status}`);
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content?.trim() || '';
+    const area = document.getElementById('editResultArea');
+    area.style.display = 'block';
+    area.innerHTML =
+      '<div style="margin-bottom:8px;font-weight:bold;">AI 建议 / 新提示词：</div>' +
+      `<div style="background:#111;padding:10px;border-radius:4px;font-family:monospace;white-space:pre-wrap;">${content}</div>`;
+  } catch (e) {
+  console.error('AI修图失败:', e);
+    alert('AI 修图失败：' + e.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✨ 开始AI修图';
+    }
+  }
+}
+
+// ==================== 半自动 / 手动确认弹窗 ====================
+
+function waitForUserConfirmation(idea, type, content) {
+  return new Promise(resolve => {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '9999';
+
+    let bodyHTML = '';
+    if (type === 'script') {
+      bodyHTML =
+        '<textarea id="editContent" style="width:100%;min-height:260px;background:#111;color:#fff;border:1px solid #333;border-radius:6px;padding:10px;font-family:monospace;">' +
+        content.replace(/</g, '&lt;') +
+        '</textarea>';
+    } else if (type === 'prompts') {
+      bodyHTML =
+        '<div style="max-height:380px;overflow:auto;">' +
+        content
+          .map(
+            (p, i) =>
+              '<div style="margin-bottom:12px;padding:10px;background:#111;border-radius:6px;">' +
+              `<div style="color:var(--accent-gold);margin-bottom:6px;">分镜 ${
+                i + 1
+              }</div>` +
+              `<textarea class="prompt-edit" data-index="${i}" style="width:100%;min-height:60px;background:#000;color:#fff;border:1px solid #333;border-radius:4px;padding:6px;font-size:12px;">${String(
+                p
+              ).replace(/</g, '&lt;')}</textarea>` +
+              '</div>'
+          )
+          .join('') +
+        '</div>';
+    } else if (type === 'characters') {
+      // 角色设定编辑
+      bodyHTML = '<div style="max-height:380px;overflow:auto;">' +
+        content.map((char, i) => 
+          '<div class="char-edit-item" style="display:flex;gap:10px;margin-bottom:12px;padding:10px;background:#111;border-radius:6px;">' +
+            `<div style="width:80px;height:80px;flex-shrink:0;"><img src="${char.imageUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;"></div>` +
+            '<div style="flex:1;">' +
+              `<input class="char-name-edit" value="${char.name}" style="width:100%;background:#000;color:#fff;border:1px solid #333;margin-bottom:5px;padding:4px;">` +
+              `<textarea class="char-desc-edit" style="width:100%;height:60px;background:#000;color:#ddd;border:1px solid #333;font-size:12px;padding:4px;">${char.summary}</textarea>` +
+            '</div>' +
+          '</div>'
+        ).join('') + '</div>';
+    }
+
+    modal.innerHTML =
+      '<div class="modal-backdrop"></div>' +
+      '<div class="modal-content" style="max-width:760px;">' +
+      '<div class="modal-header"><h3>检查并可修改这一步的内容</h3></div>' +
+      '<div class="modal-body">' +
+      '<div style="margin-bottom:10px;font-size:13px;color:#ccc;">' +
+      '你可以直接点击“继续”使用当前内容，也可以先修改再继续下一步。' +
+      '</div>' +
+      bodyHTML +
+      '</div>' +
+      '<div class="modal-footer">' +
+      '<button class="btn-secondary" id="btnSkip">直接使用</button>' +
+      '<button class="btn-primary" id="btnSave">保存修改并继续</button>' +
+      '</div>' +
+      '</div>';
+
+    modal.querySelector('#btnSkip').onclick = () => {
+      document.body.removeChild(modal);
+      resolve({ edited: false, content });
+    };
+    modal.querySelector('#btnSave').onclick = () => {
+      let edited = content;
+      if (type === 'script') {
+        edited = modal.querySelector('#editContent').value;
+      } else if (type === 'prompts') {
+        edited = Array.from(
+          modal.querySelectorAll('.prompt-edit')
+        ).map(t => t.value);
+      } else if (type === 'characters') {
+        // 保存角色修改
+        const names = modal.querySelectorAll('.char-name-edit');
+        const descs = modal.querySelectorAll('.char-desc-edit');
+        edited = content.map((c, i) => ({
+          ...c,
+          name: names[i].value,
+          summary: descs[i].value
+        }));
+      }
+      document.body.removeChild(modal);
+      resolve({ edited: true, content: edited });
+    };
+
+    document.body.appendChild(modal);
+  });
+}
+
+// ==================== 历史记录 ====================
+
+function saveIdeasToHistory() {
+  try {
+    localStorage.setItem('ideas_history', JSON.stringify(ideas));
+  } catch (e) {
+    console.error('保存历史失败:', e);
+  }
+}
+
+function loadIdeasFromHistory() {
+  try {
+    const stored = localStorage.getItem('ideas_history');
+    if (stored) return JSON.parse(stored);
+  } catch (e) {
+    console.error('加载历史失败:', e);
+  }
+  return [];
+}
+
+function clearHistory() {
+  if (!confirm('确认清空历史记录吗？')) return;
+  ideas = [];
+  localStorage.removeItem('ideas_history');
+        renderIdeasList();
+  updateBatchButton();
+}
+
+// ==================== 无限画布 ====================
+
+function setupInfiniteCanvas(containerId, contentId) {
+  const container = document.getElementById(containerId);
+  const content = document.getElementById(contentId);
+  if (!container || !content) return;
+
+  const state = {
+    scale: 0.9,
+    panning: false,
+    x: 0,
+    y: 0,
+    startX: 0,
+    startY: 0
+  };
+
+  function apply() {
+    content.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+  }
+
+  container.style.cursor = 'grab';
+
+  container.addEventListener('mousedown', e => {
+    if (
+      e.target.closest('button') ||
+      e.target.closest('input') ||
+      e.target.closest('textarea') ||
+      e.target.closest('.task-card') ||
+      e.target.closest('.result-card') ||
+      e.target.closest('.idea-item')
+    ) {
+      return;
+    }
+    state.panning = true;
+    state.startX = e.clientX - state.x;
+    state.startY = e.clientY - state.y;
+    container.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mouseup', () => {
+    state.panning = false;
+    container.style.cursor = 'grab';
+  });
+
+  container.addEventListener('mousemove', e => {
+    if (!state.panning) return;
+    state.x = e.clientX - state.startX;
+    state.y = e.clientY - state.startY;
+    apply();
+  });
+
+  container.addEventListener('wheel', e => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const delta = -e.deltaY;
+    const factor = delta > 0 ? 1.1 : 0.9;
+    state.scale = Math.min(3, Math.max(0.3, state.scale * factor));
+    apply();
+  });
+
+  window.zoomIn = function () {
+    state.scale = Math.min(3, state.scale * 1.1);
+    apply();
+  };
+  window.zoomOut = function () {
+    state.scale = Math.max(0.3, state.scale / 1.1);
+    apply();
+  };
+  window.resetZoom = function () {
+    state.scale = 0.9;
+    state.x = 0;
+    state.y = 0;
+    apply();
+  };
+
+  apply();
+}
+
+// ==================== 角色库 & 视频合成播放器 ====================
+
+let characterLibrary = [];
+
+function loadCharacterLibrary() {
+  try {
+    const stored = localStorage.getItem('character_library');
+    if (stored) characterLibrary = JSON.parse(stored);
+  } catch (e) {
+    console.error('加载角色库失败:', e);
+    characterLibrary = [];
+  }
+}
+
+function saveCharacterToLibrary(name, summary, imageUrl) {
+  loadCharacterLibrary();
+  const character = { name, summary, imageUrl, id: Date.now() };
+  
+  // 查重（按名字）
+  const existingIndex = characterLibrary.findIndex(c => c.name === character.name);
+  if (existingIndex >= 0) {
+    if (!confirm(`角色 "${character.name}" 已存在角色库中，要覆盖吗？`)) return;
+    characterLibrary[existingIndex] = character;
+  } else {
+    characterLibrary.push(character);
+  }
+  localStorage.setItem('character_library', JSON.stringify(characterLibrary));
+  alert(`角色 "${character.name}" 已保存到角色库！`);
+  
+  // 如果当前在编辑弹窗，刷新一下
+  const modal = document.getElementById('ideaModal');
+  if (modal && modal.style.display !== 'none') {
+     renderCharacterSelection();
+  }
+}
+
+function deleteCharacterFromLibrary(index) {
+  if (!confirm('确定从角色库删除该角色吗？')) return;
+  characterLibrary.splice(index, 1);
+  localStorage.setItem('character_library', JSON.stringify(characterLibrary));
+  renderCharacterSelection();
+}
+
+function renderCharacterSelection() {
+  const container = document.getElementById('charLibSelection');
+  if (!container) return;
+  
+  loadCharacterLibrary();
+  
+  if (characterLibrary.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:#666;padding:10px;text-align:center;border:1px dashed #333;border-radius:4px;">暂无角色，请在生成结果中保存角色</div>';
+    return;
+  }
+  
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;">';
+  characterLibrary.forEach((char, idx) => {
+    html += `
+      <div class="char-lib-item" onclick="selectCharacterForIdea(${idx})" style="width:70px;cursor:pointer;transition:transform 0.2s;">
+        <div style="position:relative;width:70px;height:70px;">
+            <img src="${char.imageUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;border:1px solid #444;">
+            <div onclick="event.stopPropagation();deleteCharacterFromLibrary(${idx})" style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.6);color:#fff;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:0 4px 0 4px;font-size:14px;line-height:1;">×</div>
+        </div>
+        <div style="font-size:10px;color:#ccc;text-align:center;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${char.name}</div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function selectCharacterForIdea(index) {
+  const char = characterLibrary[index];
+  if (!char) return;
+  
+  const themeInput = document.getElementById('ideaTheme');
+  if (themeInput) {
+      if (!themeInput.value.includes(char.name)) {
+          const appendText = ` (主角：${char.name}，${char.summary})`;
+          themeInput.value = themeInput.value + appendText;
+          // 闪烁提示
+          themeInput.style.borderColor = 'var(--accent-gold)';
+          setTimeout(() => themeInput.style.borderColor = '', 500);
+      } else {
+          alert('该角色似乎已在主题中。');
+      }
+  }
+}
+
+function renderVideoPlayer(ideaId, videoUrls) {
+    if (!videoUrls || videoUrls.length === 0) return '';
+    
+    // 序列化 URL 数组以便传递
+    const urlsJson = JSON.stringify(videoUrls).replace(/"/g, '&quot;');
+    
+    return `
+      <div class="mind-node">
+        <div class="mind-node-title" style="color:var(--accent-gold);">▶️ 视频合成预览</div>
+        <div class="mind-node-content">
+           <div class="video-player-container" id="player-${ideaId}" style="background:#000;border-radius:8px;overflow:hidden;margin-top:10px;border:1px solid #333;">
+              <video id="v-${ideaId}" src="${videoUrls[0]}" controls style="width:100%;aspect-ratio:16/9;display:block;" onended="playNextClip('${ideaId}', this)"></video>
+              <div style="padding:8px 12px;background:#111;font-size:12px;color:#888;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #222;">
+                 <span id="p-status-${ideaId}">正在播放第 1 / ${videoUrls.length} 片段</span>
+                 <button class="btn-secondary" onclick="replayAll('${ideaId}')" style="padding:2px 8px;font-size:11px;height:24px;line-height:20px;">↺ 重播全片</button>
+              </div>
+              <div style="display:none;" id="playlist-${ideaId}" data-urls="${urlsJson}"></div>
+           </div>
+        </div>
+      </div>
+    `;
+}
+
+window.playNextClip = function(ideaId, videoEl) {
+    const playlistEl = document.getElementById(`playlist-${ideaId}`);
+    if (!playlistEl) return;
+    
+    const urls = JSON.parse(playlistEl.getAttribute('data-urls'));
+    // 获取当前播放的 URL（由于 src 可能是绝对路径，这里简化判断）
+    const currentSrc = videoEl.src;
+    
+    // 简单遍历找到当前索引
+    let idx = -1;
+    for(let i=0; i<urls.length; i++) {
+        if (currentSrc.includes(urls[i]) || urls[i].includes(currentSrc)) {
+            idx = i;
+            break;
+        }
+    }
+    
+    if (idx === -1) idx = 0;
+    
+    if (idx < urls.length - 1) {
+        const nextUrl = urls[idx + 1];
+        videoEl.src = nextUrl;
+        videoEl.play();
+        document.getElementById(`p-status-${ideaId}`).textContent = `正在播放第 ${idx + 2} / ${urls.length} 片段`;
+    } else {
+        document.getElementById(`p-status-${ideaId}`).textContent = `全片播放结束`;
+    }
+};
+
+window.replayAll = function(ideaId) {
+    const playlistEl = document.getElementById(`playlist-${ideaId}`);
+    if (!playlistEl) return;
+    const urls = JSON.parse(playlistEl.getAttribute('data-urls'));
+    const videoEl = document.getElementById(`v-${ideaId}`);
+    if (urls.length > 0 && videoEl) {
+        videoEl.src = urls[0];
+        videoEl.play();
+        document.getElementById(`p-status-${ideaId}`).textContent = `正在播放第 1 / ${urls.length} 片段`;
+    }
+};
+
+// ==================== 工具函数 & 初始化 ====================
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const settings = loadSettings();
+  document.getElementById('settingZhenzhenKey').value = settings.zhenzhenKey || '';
+  document.getElementById('settingRhKey').value = settings.rhKey || '';
+
+  ideas = loadIdeasFromHistory();
+  
+  // 恢复未完成任务的状态
+  let hasRecoveredTasks = false;
+  ideas.forEach(idea => {
+      if (idea.status === 'processing') {
+          idea.status = 'paused'; // 页面刷新后，原本运行的任务被迫中断，置为暂停
+          if (!idea.error) idea.error = '页面刷新，任务已暂停';
+          hasRecoveredTasks = true;
+      }
+  });
+  if (hasRecoveredTasks) {
+      saveIdeasToHistory();
+  }
+
+  renderIdeasList();
+  renderCanvas(); // 确保刷新后显示右侧内容
+  updateUsageDisplay();
+  updateBatchButton();
+
+  // 默认尝试开启语音（浏览器会弹权限框）
+  setTimeout(() => {
+    try {
+      toggleVoiceInput();
+    } catch {
+      // 忽略失败
+    }
+  }, 600);
+});
+
+function openEditingStudio() {
+    const studio = document.getElementById('editingStudioFrame');
+    const main = document.querySelector('.content-area');
+    if (studio && main) {
+        main.style.display = 'none';
+        studio.style.display = 'block';
+    }
+}
+
+function closeEditingStudio() {
+    const studio = document.getElementById('editingStudioFrame');
+    const main = document.querySelector('.content-area');
+    if (studio && main) {
+        studio.style.display = 'none';
+        main.style.display = 'flex'; // flex for sidebar layout
+        // 重新渲染可能更新的内容
+        renderCanvas();
+    }
+}
+
+// ==================== 导出到全局，给 HTML 调用 ====================
+
+window.onModeChange = onModeChange;
+window.adjustTaskCount = adjustTaskCount;
+window.quickAddIdea = quickAddIdea;
+window.toggleVoiceInput = toggleVoiceInput;
+window.startBatchGeneration = startBatchGeneration;
+window.clearAllIdeas = clearAllIdeas;
+window.clearHistory = clearHistory;
+window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.openMemberModal = openMemberModal;
+window.closeMemberModal = closeMemberModal;
+window.selectPlan = selectPlan;
+window.buyCurrentPlan = buyCurrentPlan;
+window.toggleManualPay = toggleManualPay;
+window.showRecharge = showRecharge;
+window.closePaymentModal = closePaymentModal;
+window.copyWeChatId = copyWeChatId;
+window.redeemCode = redeemCode;
+window.openImageEditModal = openImageEditModal;
+window.closeImageEditModal = closeImageEditModal;
+window.executeImageEdit = executeImageEdit;
+window.setupInfiniteCanvas = setupInfiniteCanvas;
+window.downloadAll = downloadAll;
+window.downloadResult = downloadResult;
+window.addNewIdea = addNewIdea;
+window.editIdea = editIdea;
+window.saveIdea = saveIdea;
+window.removeIdea = removeIdea;
+window.closeIdeaModal = closeIdeaModal;
+window.quickStartGeneration = quickStartGeneration;
+window.stopCreativeScreen = stopCreativeScreen;
+window.shareForQuota = shareForQuota;
+window.saveCharacterToLibrary = saveCharacterToLibrary;
+window.deleteCharacterFromLibrary = deleteCharacterFromLibrary;
+window.selectCharacterForIdea = selectCharacterForIdea;
+window.playNextClip = playNextClip;
+window.replayAll = replayAll;
+window.openEditingStudio = openEditingStudio;
+window.closeEditingStudio = closeEditingStudio;
+
+

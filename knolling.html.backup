@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 提示词工坊 - RollRoll</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 80px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .template-section {
+            margin-bottom: 20px;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .template-item {
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .template-item:active {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .template-item .icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+
+        .result-text {
+            font-size: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        /* 填空模式样式 */
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .mode-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .fill-section {
+            display: none;
+        }
+
+        .fill-section.active {
+            display: block;
+        }
+
+        .fill-row {
+            margin-bottom: 12px;
+        }
+
+        .fill-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .fill-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .fill-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .fill-preview {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-dim);
+        }
+
+        .fill-preview strong {
+            color: var(--accent);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="history.back()">← 返回</button>
+        <h1>📝 提示词工坊</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <div class="input-section">
+            <label class="input-label">✨ 输入你想要的创意概念</label>
+            <textarea class="input-box" id="conceptInput" placeholder="例如：赛博朋克风格的猫咪战士..."></textarea>
+        </div>
+
+        <div class="template-section">
+            <label class="input-label">✏️ 一键填空模板</label>
+            <select id="fillTemplateSelect" onchange="useFillTemplate()"
+                style="width:100%; background:var(--bg-input); border:1px solid #333; border-radius:8px; padding:12px; color:var(--text); font-size:14px; margin-bottom:12px;">
+                <option value="">-- 选择填空模板 --</option>
+                <optgroup label="🎯 热门填空">
+                    <option value="fill_1">✨ 梦幻光效人物</option>
+                    <option value="fill_2">🎨 动漫风格转换</option>
+                    <option value="fill_3">🌸 樱花树下场景</option>
+                    <option value="fill_4">🔥 史诗战斗场景</option>
+                    <option value="fill_5">🌙 月光夜景</option>
+                    <option value="fill_6">🎭 多重身份展示</option>
+                    <option value="fill_7">🏠 房间场景设计</option>
+                    <option value="fill_8">🎪 Q版可爱化</option>
+                    <option value="fill_9">🌈 彩虹渐变效果</option>
+                    <option value="fill_10">📸 复古胶片风</option>
+                    <option value="fill_11">🎮 像素游戏风格</option>
+                    <option value="fill_12">🌊 水下奇幻世界</option>
+                    <option value="fill_13">⚡ 赛博朋克风格</option>
+                    <option value="fill_14">🍃 森林精灵氛围</option>
+                    <option value="fill_15">🎨 油画艺术效果</option>
+                    <option value="fill_16">🦸 超级英雄变身</option>
+                    <option value="fill_17">🎪 马戏团表演场景</option>
+                    <option value="fill_18">🏰 中世纪幻想</option>
+                    <option value="fill_19">🌸 中国风工笔画</option>
+                    <option value="fill_20">🎭 表情包生成器</option>
+                </optgroup>
+                <optgroup label="✨ 更多填空">
+                    <option value="fill_21">🌟 星空下的场景</option>
+                    <option value="fill_22">🔮 水晶质感效果</option>
+                    <option value="fill_23">🎨 街头涂鸦风格</option>
+                    <option value="fill_24">🌺 热带度假氛围</option>
+                    <option value="fill_25">❄️ 冰雪奇缘风格</option>
+                    <option value="fill_26">🎭 二次元idol</option>
+                    <option value="fill_27">🌆 都市夜景霓虹</option>
+                    <option value="fill_28">🎃 万圣节主题</option>
+                    <option value="fill_29">🎄 圣诞节氛围</option>
+                    <option value="fill_30">🌸 和服写真</option>
+                    <option value="fill_31">🎪 小丑马戏团</option>
+                    <option value="fill_32">🦋 蝴蝶仙子</option>
+                    <option value="fill_33">🐉 东方龙元素</option>
+                    <option value="fill_34">🔥 火焰战神</option>
+                    <option value="fill_35">⚡ 闪电超能力</option>
+                    <option value="fill_36">🌊 海浪冲浪</option>
+                    <option value="fill_37">🎸 摇滚音乐会</option>
+                    <option value="fill_38">📚 图书馆学霸</option>
+                    <option value="fill_39">☕ 咖啡馆悠闲</option>
+                    <option value="fill_40">🌈 彩虹独角兽</option>
+                    <option value="fill_41">🎨 印象派画风</option>
+                    <option value="fill_42">🎭 京剧脸谱</option>
+                    <option value="fill_43">🦸‍♀️ 女超人装扮</option>
+                    <option value="fill_44">🌙 月亮公主</option>
+                    <option value="fill_45">☀️ 太阳神</option>
+                    <option value="fill_46">🎪 小丑女Harley Quinn</option>
+                    <option value="fill_47">🌟 星际战士</option>
+                    <option value="fill_48">🦇 蝙蝠侠风格</option>
+                    <option value="fill_49">🕷️ 蜘蛛侠变身</option>
+                    <option value="fill_50">🐱 猫耳娘</option>
+                    <option value="fill_51">🦊 狐狸精</option>
+                    <option value="fill_52">🐺 狼人变身</option>
+                    <option value="fill_53">🧛 吸血鬼伯爵</option>
+                    <option value="fill_54">👻 幽灵少女</option>
+                    <option value="fill_55">🤖 机器人改造</option>
+                    <option value="fill_56">🎀 Lolita洋装</option>
+                    <option value="fill_57">⚔️ 女武士</option>
+                    <option value="fill_58">🏹 精灵弓箭手</option>
+                    <option value="fill_59">🪄 魔法少女</option>
+                    <option value="fill_60">🎩 绅士礼帽</option>
+                    <option value="fill_61">👑 皇室贵族</option>
+                    <option value="fill_62">🎓 毕业纪念</option>
+                    <option value="fill_63">💼 职场精英</option>
+                    <option value="fill_64">🍰 甜品师</option>
+                    <option value="fill_65">🌻 向日葵田</option>
+                    <option value="fill_66">🌾 麦田守望者</option>
+                    <option value="fill_67">🌵 沙漠探险</option>
+                    <option value="fill_68">🏔️ 雪山登顶</option>
+                    <option value="fill_69">🌋 火山背景</option>
+                    <option value="fill_70">🌀 时空漩涡</option>
+                    <option value="fill_71">🎆 烟花节日</option>
+                    <option value="fill_72">🌃 城市楼顶</option>
+                    <option value="fill_73">🚂 蒸汽朋克</option>
+                    <option value="fill_74">🎪 马戏团小丑</option>
+                    <option value="fill_75">🎠 旋转木马</option>
+                    <option value="fill_76">🎡 摩天轮剪影</option>
+                    <option value="fill_77">🎢 过山车刺激</option>
+                    <option value="fill_78">🎪 杂技演员</option>
+                    <option value="fill_79">🎯 射箭运动</option>
+                    <option value="fill_80">⚽ 足球明星</option>
+                    <option value="fill_81">🏀 篮球灌篮</option>
+                    <option value="fill_82">🎾 网球比赛</option>
+                    <option value="fill_83">🏊 游泳健将</option>
+                    <option value="fill_84">🚴 自行车骑行</option>
+                    <option value="fill_85">🧘 瑜伽冥想</option>
+                    <option value="fill_86">💆 SPA放松</option>
+                    <option value="fill_87">💅 美甲艺术</option>
+                    <option value="fill_88">💄 化妆教程</option>
+                    <option value="fill_89">👗 时装走秀</option>
+                    <option value="fill_90">📷 摄影师视角</option>
+                    <option value="fill_91">🎬 导演片场</option>
+                    <option value="fill_92">🎤 歌手舞台</option>
+                    <option value="fill_93">🎹 钢琴演奏</option>
+                    <option value="fill_94">🎻 小提琴演奏</option>
+                    <option value="fill_95">🥁 架子鼓表演</option>
+                    <option value="fill_96">🎧 DJ打碟</option>
+                    <option value="fill_97">🍜 拉面师傅</option>
+                    <option value="fill_98">🍣 寿司大师</option>
+                    <option value="fill_99">🎂 蛋糕装饰</option>
+                    <option value="fill_100">🍕 披萨制作</option>
+                    <option value="fill_101">🎄 圣诞夜温馨场景</option>
+                    <option value="fill_102">🧧 春节年味大片</option>
+                    <option value="fill_103">🎄 圣诞贺卡（竖版）</option>
+                    <option value="fill_104">🎁 圣诞红包封面（竖版）</option>
+                    <option value="fill_105">🧧 春节贺卡（竖版）</option>
+                    <option value="fill_106">🧧 春节红包封面（竖版）</option>
+                    <option value="fill_107">🎁 圣诞红包内页（开红包页面）</option>
+                    <option value="fill_108">🧧 春节红包内页（开红包页面）</option>
+                </optgroup>
+                <optgroup label="🎬 专业模板">
+                    <option value="knolling">🧩 Knolling万物拆解</option>
+                    <option value="ghibli_style">🏯 吉卜力风格</option>
+                    <option value="pixar_3d">🎪 Pixar 3D风格</option>
+                    <option value="watercolor_art">🎨 水彩艺术风格</option>
+                    <option value="cyberpunk_style">🌆 赛博朋克风格</option>
+                    <option value="oil_painting">🖼️ 油画风格</option>
+                </optgroup>
+                <optgroup label="📸 摄影风格">
+                    <option value="portrait_photo">📷 专业人像</option>
+                    <option value="street_photo">🏙️ 街头摄影</option>
+                    <option value="film_photo">🎞️ 胶片质感</option>
+                    <option value="macro_photo">🔍 微距特写</option>
+                </optgroup>
+                <optgroup label="🎄 节日主题">
+                    <option value="fill_101">🎄 圣诞节</option>
+                    <option value="fill_102">🧧 春节</option>
+                    <option value="valentines">💕 情人节</option>
+                    <option value="fill_28">🎃 万圣节</option>
+                </optgroup>
+                <optgroup label="✨ 艺术风格">
+                    <option value="impressionism">🖼️ 印象派</option>
+                    <option value="surrealism">🌀 超现实主义</option>
+                    <option value="pop_art">🎨 波普艺术</option>
+                    <option value="ink_wash">🖌️ 水墨画</option>
+                </optgroup>
+            </select>
+
+            <div id="fillPreview"
+                style="display:none; background:var(--bg-card); border-radius:8px; padding:12px; margin-bottom:12px; font-size:13px; line-height:1.6; color:var(--text-dim);">
+            </div>
+        </div>
+
+        <div class="template-section">
+            <label class="input-label">🎯 快速模板</label>
+            <div class="template-grid">
+                <div class="template-item" onclick="useTemplate('portrait')">
+                    <div class="icon">👤</div>
+                    <div>人物肖像</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('landscape')">
+                    <div class="icon">🏞️</div>
+                    <div>风景场景</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('product')">
+                    <div class="icon">📦</div>
+                    <div>产品展示</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('anime')">
+                    <div class="icon">🎌</div>
+                    <div>动漫插画</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('food')">
+                    <div class="icon">🍜</div>
+                    <div>美食摄影</div>
+                </div>
+                <div class="template-item" onclick="useTemplate('architecture')">
+                    <div class="icon">🏛️</div>
+                    <div>建筑设计</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-row">
+            <div class="setting-item">
+                <label>风格倾向</label>
+                <select id="styleSelect">
+                    <option value="realistic">写实摄影</option>
+                    <option value="artistic">艺术绘画</option>
+                    <option value="anime">动漫风格</option>
+                    <option value="3d">3D渲染</option>
+                    <option value="abstract">抽象艺术</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>详细程度</label>
+                <select id="detailSelect">
+                    <option value="simple">简洁</option>
+                    <option value="medium" selected>适中</option>
+                    <option value="detailed">详细</option>
+                    <option value="ultra">超详细</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="generate-btn" id="generateBtn" onclick="generatePrompt()">
+            ⚡ 生成提示词
+        </button>
+
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <div>正在优化提示词...</div>
+        </div>
+
+        <div class="result-section" id="resultSection" style="display:none;">
+            <div class="result-title">✨ 优化后的提示词</div>
+            <div class="result-text" id="resultText"></div>
+            <div class="result-actions">
+                <button class="result-btn" onclick="copyPrompt()">📋 复制</button>
+                <button class="result-btn primary" onclick="usePrompt()">🎨 去生图</button>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentPrompt = '';
+
+        const templates = {
+            portrait: '一个人物肖像，',
+            landscape: '一幅风景画面，',
+            product: '产品展示图，',
+            anime: '动漫风格插画，',
+            food: '美食摄影，',
+            architecture: '建筑设计图，'
+        };
+
+        // 填空模板库
+        const fillTemplates = {
+            fill_1: { name: '梦幻光效人物', template: '一个______，周围环绕着闪亮的魔法光粒子和蝴蝶，梦幻氛围，电影感打光，4K高清' },
+            fill_2: { name: '动漫风格转换', template: '将______转换为精美日本动漫风格，大眼睛，柔和色彩，动漫质感，高清细节' },
+            fill_3: { name: '樱花树下场景', template: '______站在盛开的樱花树下，花瓣飘落，温柔粉色氛围，电影级构图，柔和光影' },
+            fill_4: { name: '史诗战斗场景', template: '______正在激烈战斗，动作帅气，火焰/闪电特效环绕，史诗级构图，动态模糊，电影感' },
+            fill_5: { name: '月光夜景', template: '______在月光下，星空璀璨，宁静唯美氛围，冷色调，电影级画质' },
+            fill_6: { name: '多重身份展示', template: '同一个______（人物）展示多种职业/风格：左边是______（职业1），中间是______（职业2），右边是______（职业3），创意拼贴风格' },
+            fill_7: { name: '房间场景设计', template: '温馨的______（卧室/客厅/书房），______（风格：北欧/日式/工业风），自然光透过窗户，植物装饰，室内设计杂志质感' },
+            fill_8: { name: 'Q版可爱化', template: '将______（人物/角色）变成超级可爱的Q版风格，大头小身体，圆润线条，糖果色系，适合做贴纸' },
+            fill_9: { name: '彩虹渐变效果', template: '______（主体）被彩虹色光芒包围，渐变色彩流动，梦幻氛围，Instagram风格，高饱和度' },
+            fill_10: { name: '复古胶片风', template: '______（场景/人物）呈现80年代胶片照片风格，颗粒质感，褪色效果，暖色调，怀旧氛围' },
+            fill_11: { name: '像素游戏风格', template: '将______（人物/场景）转换为8-bit像素游戏风格，复古红白机画面，清晰像素，怀旧游戏感' },
+            fill_12: { name: '水下奇幻世界', template: '______（人物/生物）在神秘的水下世界，周围有发光的水母和珊瑚，蓝绿色调，梦幻光线' },
+            fill_13: { name: '赛博朋克风格', template: '______（人物/场景）处于赛博朋克未来城市，霓虹灯光，雨夜氛围，紫色和青色主色调，科幻感' },
+            fill_14: { name: '森林精灵氛围', template: '______（人物）在茂密的魔法森林中，阳光透过树叶，小精灵飞舞，奇幻氛围，绿色主调' },
+            fill_15: { name: '油画艺术效果', template: '将______（主体）转换为古典油画风格，厚重笔触，丰富色彩层次，伦勃朗式打光，博物馆级艺术品质感' },
+            fill_16: { name: '超级英雄变身', template: '______（人物）变成超级英雄，帅气的______（颜色）战服，动作姿势帅气，电影海报风格，史诗感' },
+            fill_17: { name: '马戏团表演场景', template: '______（人物/动物）在复古马戏团舞台表演，红色帷幕，聚光灯，观众席，怀旧风格，欢乐氛围' },
+            fill_18: { name: '中世纪幻想', template: '______（人物）身穿中世纪服装，站在古堡前，史诗奇幻氛围，电影级画质，戏剧性光影' },
+            fill_19: { name: '中国风工笔画', template: '______（主体）呈现中国传统工笔画风格，细腻线条，淡雅色彩，留白艺术，古典美学' },
+            fill_20: { name: '表情包生成器', template: '为______（角色）设计一组表情包，包含______（数量）个不同表情：开心、生气、哭泣、疑惑、比心等，Q版风格，简洁背景' },
+            fill_21: { name: '星空下的场景', template: '______（人物/场景）在璀璨星空下，银河清晰可见，流星划过，浪漫梦幻氛围，深蓝紫色调' },
+            fill_22: { name: '水晶质感效果', template: '将______（主体）变成透明水晶材质，内部有彩虹光线折射，晶莹剔透，高光明显，宝石质感' },
+            fill_23: { name: '街头涂鸦风格', template: '______（主体）被转换为街头涂鸦风格，鲜艳色彩，喷漆质感，城市墙面背景，街头艺术风' },
+            fill_24: { name: '热带度假氛围', template: '______（人物）在热带海滩度假，椰子树，碧蓝海水，阳光明媚，度假风情，轻松氛围' },
+            fill_25: { name: '冰雪奇缘风格', template: '______（人物/场景）在冰雪覆盖的世界，雪花飘落，冰晶闪烁，冷色调，童话般的冰雪氛围' },
+            fill_26: { name: '二次元idol', template: '______（角色）作为二次元idol在舞台上表演，闪亮服装，舞台灯光，粉丝应援棒，青春活力' },
+            fill_27: { name: '都市夜景霓虹', template: '______（人物）站在繁华都市的夜晚，霓虹灯招牌，车水马龙，现代都市氛围，电影感构图' },
+            fill_28: { name: '万圣节主题', template: '______（人物）的万圣节装扮，南瓜灯，蝙蝠，月亮，神秘氛围，橙色和紫色主色调' },
+            fill_29: { name: '圣诞节氛围', template: '______（人物/场景）在温馨的圣诞节，圣诞树，礼物盒，雪花，红绿配色，节日欢乐氛围' },
+            fill_30: { name: '和服写真', template: '______（人物）穿着精美______（颜色）和服，传统日式庭院背景，樱花或枫叶点缀，优雅姿态' },
+            fill_31: { name: '小丑马戏团', template: '______（人物）装扮成小丑，马戏团帐篷背景，红色鼻子，夸张妆容，戏剧性光影，Tim Burton风格' },
+            fill_32: { name: '蝴蝶仙子', template: '______（人物）变成蝴蝶仙子，背后有漂亮的蝴蝶翅膀，花丛中，梦幻光效，奇幻氛围' },
+            fill_33: { name: '东方龙元素', template: '______（主体）搭配中国龙元素，金色龙纹环绕，祥云背景，红色和金色主色调，东方神话气质' },
+            fill_34: { name: '火焰战神', template: '______（人物）被熊熊火焰包围，战斗姿态，眼神锐利，火焰特效逼真，热血氛围，暖色调' },
+            fill_35: { name: '闪电超能力', template: '______（人物）释放闪电超能力，手上有电流环绕，雷电特效，紫蓝色光芒，动态感强烈' },
+            fill_36: { name: '海浪冲浪', template: '______（人物）正在巨大海浪上冲浪，动作帅气，水花飞溅，蓝天白云，运动感十足' },
+            fill_37: { name: '摇滚音乐会', template: '______（人物）在摇滚音乐会舞台表演，电吉他，舞台灯光，观众热情，摇滚范儿十足' },
+            fill_38: { name: '图书馆学霸', template: '______（人物）在古老的图书馆，书籍环绕，复古台灯，温暖光线，学院风，文艺氛围' },
+            fill_39: { name: '咖啡馆悠闲', template: '______（人物）在温馨咖啡馆，手捧咖啡杯，窗外阳光，慵懒氛围，温暖色调，治愈系' },
+            fill_40: { name: '彩虹独角兽', template: '______（主体）搭配彩虹独角兽，梦幻云朵，粉色天空，童话般的甜美氛围，少女心满满' },
+            fill_41: { name: '印象派画风', template: '将______（场景）转换为印象派画风，点彩笔触，柔和光影，莫奈风格，艺术感强烈' },
+            fill_42: { name: '京剧脸谱', template: '______（人物）画上京剧脸谱，______（角色：花旦/武生/丑角），精致妆容，传统戏曲服装，中国风' },
+            fill_43: { name: '女超人装扮', template: '______（人物）变成女超人，红色斗篷，紧身战衣，飞行姿态，城市天际线背景，英雄气概' },
+            fill_44: { name: '月亮公主', template: '______（人物）扮演月亮公主，银色长发，月亮冠冕，星空长裙，梦幻优雅，童话氛围' },
+            fill_45: { name: '太阳神', template: '______（人物）变成太阳神，金色盔甲，太阳光环，火焰翅膀，威严气势，暖色调' },
+            fill_46: { name: '小丑女Harley Quinn', template: '______（人物）装扮成小丑女Harley Quinn，双马尾彩色头发，棒球棍，俏皮表情，朋克风' },
+            fill_47: { name: '星际战士', template: '______（人物）穿着未来星际战士装备，激光武器，科幻背景，金属质感，史诗科幻感' },
+            fill_48: { name: '蝙蝠侠风格', template: '______（人物）变成蝙蝠侠风格角色，黑色斗篷，哥特风城市，夜晚氛围，黑暗英雄感' },
+            fill_49: { name: '蜘蛛侠变身', template: '______（人物）变成蜘蛛侠，红蓝战衣，吐丝动作，摩天大楼间穿梭，动作场景' },
+            fill_50: { name: '猫耳娘', template: '______（人物）长出可爱猫耳和猫尾巴，俏皮表情，______（颜色）猫耳，萌系风格' },
+            fill_51: { name: '狐狸精', template: '______（人物）变成______尾狐狸精，狐狸耳朵，多条尾巴，东方神话风格，妖艳美丽' },
+            fill_52: { name: '狼人变身', template: '______（人物）在月圆之夜变身狼人，利爪獠牙，野性眼神，恐怖氛围，暗色调' },
+            fill_53: { name: '吸血鬼伯爵', template: '______（人物）变成吸血鬼伯爵，尖牙，红色眼睛，黑色斗篷，哥特城堡背景，神秘感' },
+            fill_54: { name: '幽灵少女', template: '______（人物）变成半透明幽灵，白色长裙飘动，冷色调，神秘氛围，灵异感' },
+            fill_55: { name: '机器人改造', template: '______（人物）被改造成半机械生命体，机械手臂，电子眼，科幻风格，赛博朋克感' },
+            fill_56: { name: 'Lolita洋装', template: '______（人物）穿着______（颜色）Lolita洋装，蕾丝花边，蝴蝶结，公主卷发，少女甜美风' },
+            fill_57: { name: '女武士', template: '______（人物）变成古代女武士，手持______（武器：剑/刀/枪），英姿飒爽，武侠风' },
+            fill_58: { name: '精灵弓箭手', template: '______（人物）扮演精灵弓箭手，尖耳朵，绿色斗篷，森林背景，奇幻风格' },
+            fill_59: { name: '魔法少女', template: '______（人物）变身魔法少女，魔法杖，闪亮变身特效，______（颜色）服装，星星魔法光' },
+            fill_60: { name: '绅士礼帽', template: '______（人物）戴着绅士礼帽，西装，手持拐杖，复古欧洲街道，优雅绅士范' },
+            fill_61: { name: '皇室贵族', template: '______（人物）穿着华丽宫廷服装，王冠/头饰，珠宝首饰，宫殿背景，贵族气质' },
+            fill_62: { name: '毕业纪念', template: '______（人物）穿学士服，戴学士帽，抛帽子动作，校园背景，青春纪念氛围' },
+            fill_63: { name: '职场精英', template: '______（人物）穿着专业职业装，办公室/会议室背景，自信姿态，职场精英范' },
+            fill_64: { name: '甜品师', template: '______（人物）穿着甜品师服装，围裙，厨师帽，周围是蛋糕和甜点，温馨甜蜜氛围' },
+            fill_65: { name: '向日葵田', template: '______（人物）站在向日葵花田，阳光明媚，金黄色调，温暖治愈氛围，夏日清新感' },
+            fill_66: { name: '麦田守望者', template: '______（人物）在金色麦田中，麦浪随风摇曳，夕阳余晖，田园诗意，温暖氛围' },
+            fill_67: { name: '沙漠探险', template: '______（人物）在广阔沙漠，沙丘起伏，骆驼，夕阳，异域风情，冒险感' },
+            fill_68: { name: '雪山登顶', template: '______（人物）登上雪山之巅，雪峰连绵，登山装备，胜利姿态，壮阔景观' },
+            fill_69: { name: '火山背景', template: '______（人物/主体）在火山前，岩浆流动，火光冲天，热浪氛围，暖色调，史诗感' },
+            fill_70: { name: '时空漩涡', template: '______（人物）被时空漩涡包围，扭曲空间，时间碎片，科幻特效，穿越感' },
+            fill_71: { name: '烟花节日', template: '______（人物/场景）夜空中绽放绚丽烟花，五彩斑斓，节日氛围，欢庆场景' },
+            fill_72: { name: '城市楼顶', template: '______（人物）站在高楼楼顶，俯瞰城市夜景，霓虹灯海，风吹动衣服，电影感' },
+            fill_73: { name: '蒸汽朋克', template: '______（主体）呈现蒸汽朋克风格，齿轮机械，铜色金属，维多利亚时代，复古科幻' },
+            fill_74: { name: '马戏团小丑', template: '______（人物）装扮成欢乐小丑，彩色假发，红鼻子，杂耍道具，马戏团舞台，欢乐氛围' },
+            fill_75: { name: '旋转木马', template: '______（人物）坐在旋转木马上，游乐园，彩灯装饰，童话梦幻氛围，温馨治愈' },
+            fill_76: { name: '摩天轮剪影', template: '______（人物）在摩天轮前的剪影，夕阳/夜晚，浪漫氛围，暖色调' },
+            fill_77: { name: '过山车刺激', template: '______（人物）坐过山车，惊险刺激表情，动态模糊，速度感，欢乐刺激氛围' },
+            fill_78: { name: '杂技演员', template: '______（人物）表演空中杂技，吊环/绸缎，优美动作，聚光灯，马戏团舞台' },
+            fill_79: { name: '射箭运动', template: '______（人物）拉弓射箭，专注眼神，运动服装，靶场背景，动作定格' },
+            fill_80: { name: '足球明星', template: '______（人物）在足球场踢球，动作帅气，球场背景，运动氛围，活力四射' },
+            fill_81: { name: '篮球灌篮', template: '______（人物）篮球灌篮动作，飞跃空中，球场，动态感强，运动激情' },
+            fill_82: { name: '网球比赛', template: '______（人物）打网球，挥拍动作，网球场，运动装，活力阳光' },
+            fill_83: { name: '游泳健将', template: '______（人物）在泳池游泳，水花飞溅，运动泳装，健康活力，蓝色调' },
+            fill_84: { name: '自行车骑行', template: '______（人物）骑自行车，郊外风景，阳光，运动装备，自由惬意氛围' },
+            fill_85: { name: '瑜伽冥想', template: '______（人物）做瑜伽动作，______（具体姿势），瑜伽垫，室内/户外，平静氛围' },
+            fill_86: { name: 'SPA放松', template: '______（人物）在SPA馆享受护理，花瓣浴/按摩，蜡烛，放松惬意，温馨氛围' },
+            fill_87: { name: '美甲艺术', template: '展示______（人物）的精致美甲，______（图案/颜色），特写镜头，时尚感，少女心' },
+            fill_88: { name: '化妆教程', template: '______（人物）化妆过程，______（妆容类型），化妆品道具，镜子前，时尚美妆感' },
+            fill_89: { name: '时装走秀', template: '______（人物）在T台走秀，时尚服装，专业姿态，聚光灯，时装周氛围' },
+            fill_90: { name: '摄影师视角', template: '______（人物）作为摄影师，手持相机，工作状态，摄影棚/户外，专业范' },
+            fill_91: { name: '导演片场', template: '______（人物）作为电影导演，手持导演板，片场，工作状态，电影氛围' },
+            fill_92: { name: '歌手舞台', template: '______（人物）在演唱会舞台唱歌，手持麦克风，舞台灯光，观众欢呼，明星气场' },
+            fill_93: { name: '钢琴演奏', template: '______（人物）弹钢琴，优雅姿态，音乐厅/家中，艺术氛围，柔和光线' },
+            fill_94: { name: '小提琴演奏', template: '______（人物）拉小提琴，专注表情，音乐厅，古典优雅氛围' },
+            fill_95: { name: '架子鼓表演', template: '______（人物）打架子鼓，动作帅气，音乐工作室，摇滚氛围，动态感' },
+            fill_96: { name: 'DJ打碟', template: '______（人物）作为DJ打碟，电音派对，灯光效果，夜店氛围，潮流感' },
+            fill_97: { name: '拉面师傅', template: '______（人物）作为拉面师傅，制作拉面，日式拉面店，传统装束，匠人精神' },
+            fill_98: { name: '寿司大师', template: '______（人物）制作寿司，寿司刀，料理台，日式料理店，专业匠人' },
+            fill_99: { name: '蛋糕装饰', template: '______（人物）装饰蛋糕，裱花袋，精美蛋糕，烘焙坊，甜蜜温馨' },
+            fill_100: { name: '披萨制作', template: '______（人物）制作披萨，抛起面团，意式餐厅，欢乐氛围，美食诱惑' },
+            fill_101: { name: '圣诞夜温馨场景', template: '______（人物/家庭）在圣诞树旁拆礼物，彩灯闪烁，雪花窗景，温暖壁炉，红绿配色，毛衣质感，电影感灯光，温馨治愈' },
+            fill_102: { name: '春节年味大片', template: '______（人物/家庭）在中国春节氛围中，红灯笼与春联，烟花绽放，年夜饭桌面，金色点缀，喜庆热闹，电影级构图，暖色调' },
+            fill_103: { name: '圣诞贺卡（竖版）', template: '圣诞节贺卡设计，1080x1920 竖版，主视觉：______（主题：圣诞老人/麋鹿/圣诞树/雪景小屋/姜饼人），红绿金配色，纸张质感与轻微压纹，烫金字体与光泽点缀，留出文案区：标题“_____（Merry Christmas/圣诞快乐）”，副标题“______（祝福语/署名）”，干净背景，高清细节，无水印' },
+            fill_104: { name: '圣诞红包封面（竖版）', template: '圣诞主题红包封面设计，1080x1920 竖版，主视觉：______（主题：圣诞树礼盒/雪花/圣诞老人/麋鹿/铃铛），金色烫金与浮雕质感，红绿金节日配色，四周预留安全区留白（不要贴边），中部留出祝福文案“______（祝福语）”，底部留出署名/品牌位“______（署名/品牌）”，干净高级，高清细节，无水印' },
+            fill_105: { name: '春节贺卡（竖版）', template: '春节贺卡设计，1080x1920 竖版，中国红+金色点缀，国风插画风格，主视觉：______（主题：龙/蛇/生肖/财神/灯笼/烟花），祥云纹样与金粉散景，烫金标题“______（新年快乐/恭喜发财/大吉大利）”，副标题“______（祝福语/署名）”，四周留安全区留白，高清细节，无水印' },
+            fill_106: { name: '春节红包封面（竖版）', template: '微信红包封面设计（春节主题），1080x1920 竖版，中国红底+金色烫金浮雕，主视觉：______（生肖/财神/舞狮/灯笼/年货），背景暗纹：祥云/回纹/剪纸纹理，四周预留安全区留白（不要贴边），中部留出祝福文案“______（祝福语）”，底部留出署名/品牌位“______（署名/品牌）”，高清细节，无水印' },
+            fill_107: { name: '圣诞红包内页（开红包页面）', template: '微信红包内页设计（圣诞主题/开红包页面），1080x1920 竖版，整体高级简洁，顶部保留安全区留白。背景氛围：圣诞树枝、雪花、暖光灯串、金粉散景bokeh（不要遮挡主体信息）。信息区域排版清晰：1) 顶部：发送者/品牌署名“______（From/品牌名/昵称）”；2) 中部：祝福语大字“______（祝福语）”，字形清晰可读，烫金或金属质感；3) 下方：金额展示区域“______（金额/如 8.88）元”或“______（口令/福利）”，留出醒目空间；4) 底部：小字说明/活动规则“______（说明）”，并预留一个二维码/Logo 占位区（用空白框表示，不要生成真实二维码）。配色：深绿+金 或 红绿金；材质：丝绒/磨砂卡纸/局部UV；整体干净、无水印、无乱码文字、四周留安全区。' },
+            fill_108: { name: '春节红包内页（开红包页面）', template: '微信红包内页设计（春节主题/开红包页面），1080x1920 竖版，中国红底+金色点缀，高级克制国风（不过度花哨），顶部保留安全区留白。背景暗纹：祥云/回纹/锦缎纹理/剪纸暗纹，金粉散景bokeh（不要遮挡主体信息）。信息区域排版清晰：1) 顶部：发送者/品牌署名"______（品牌名/昵称/From）"；2) 中部：祝福语大字"______（祝福语）"，烫金浮雕质感，字形清晰可读；3) 下方：金额展示区域"______（金额/如 88.88）元"或"______（口令/福利）"，留出醒目空间；4) 底部：小字说明/活动规则"______（说明）"，并预留一个二维码/Logo 占位区（用空白框表示，不要生成真实二维码）。主视觉可点缀：灯笼、舞狮、金元宝、福字、烟花；整体干净高级、无水印、无乱码文字、四周留安全区。' },
+            knolling: { name: 'Knolling万物拆解', template: 'Knolling layout of ______（填写物品名称），neatly arranged components, top-down view, organized flat lay, professional product photography, white background, soft shadows, 8K detail' },
+            ghibli_style: { name: '吉卜力风格', template: '将{subject}转换为吉卜力工作室动画风格，柔和水彩质感，温暖色调，梦幻氛围，细腻背景细节，宫崎骏电影美学，手绘动画质感' },
+            pixar_3d: { name: 'Pixar 3D风格', template: '生成{character}的3D头像，Pixar动画风格，灿烂笑容，干净白色背景，概念数字艺术，高质量渲染，柔和光照，光滑纹理，色彩鲜明，卡通感但比例真实' },
+            cyberpunk_style: { name: '赛博朋克风格', template: '将{subject}转换为赛博朋克风格，霓虹灯光，雨夜城市背景，全息投影元素，机械增强细节，紫色和青色主色调，高对比度，未来科技感' },
+            watercolor_art: { name: '水彩艺术风格', template: '将{subject}转换为水彩画风格，柔和色彩渐变，纸张纹理质感，颜料晕染效果，留白艺术，传统手绘美感，艺术画廊品质' },
+            oil_painting: { name: '油画风格', template: '将{subject}转换为古典油画风格，厚重笔触，丰富色彩层次，戏剧性光影，伦勃朗式打光，博物馆级艺术品质感，金色画框效果' },
+            valentines: { name: '情人节主题', template: '【主题】情人节 / Valentine\'s Day\n【主体】{subject}\n【场景】{scene}\n【氛围】{mood}\n【色彩】{color}\n【元素】{elements}\n【质量】8K高清，浪漫唯美，光影柔和' },
+            impressionism: { name: '印象派', template: '将______（场景）转换为印象派画风，点彩笔触，柔和光影，莫奈风格，艺术感强烈' },
+            surrealism: { name: '超现实主义', template: '______的超现实主义画作，达利风格，梦境元素，非理性组合，融化的时钟，潜意识表达' },
+            pop_art: { name: '波普艺术', template: '将______转换为安迪·沃霍尔波普艺术风格，大胆色彩，重复图案，商业美学，高对比度' },
+            ink_wash: { name: '水墨画', template: '______的中国水墨画风格，黑白灰层次，留白意境，泼墨写意，东方美学，禅意空灵' }
+        };
+
+        function useFillTemplate() {
+            const select = document.getElementById('fillTemplateSelect');
+            const preview = document.getElementById('fillPreview');
+            const input = document.getElementById('conceptInput');
+            const key = select.value;
+
+            if (!key || !fillTemplates[key]) {
+                preview.style.display = 'none';
+                return;
+            }
+
+            const tpl = fillTemplates[key];
+            preview.innerHTML = '<b>' + tpl.name + '</b><br>' + tpl.template.replace('______', '<span style="color:var(--accent);font-weight:bold;">[在上方输入主题]</span>');
+            preview.style.display = 'block';
+
+            // 自动填充模板到输入框
+            input.value = tpl.template;
+            input.focus();
+            showToast('已选择模板，请替换______为你的主题');
+        }
+
+        function useTemplate(type) {
+            const input = document.getElementById('conceptInput');
+            input.value = templates[type] + input.value;
+            input.focus();
+        }
+
+        async function generatePrompt() {
+            const concept = document.getElementById('conceptInput').value.trim();
+            if (!concept) {
+                showToast('请输入创意概念');
+                return;
+            }
+
+            const style = document.getElementById('styleSelect').value;
+            const detail = document.getElementById('detailSelect').value;
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('resultSection');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            const styleMap = {
+                realistic: '写实摄影风格，高清细节，专业打光',
+                artistic: '艺术绘画风格，油画质感，大师级构图',
+                anime: '日本动漫风格，精致线条，鲜艳色彩',
+                '3d': '3D渲染风格，Octane渲染，体积光',
+                abstract: '抽象艺术风格，几何构成，色彩碰撞'
+            };
+
+            const detailMap = {
+                simple: '',
+                medium: '，细节丰富，画面精致',
+                detailed: '，超高细节，8K分辨率，精雕细琢',
+                ultra: '，极致细节，16K超清，每个元素都精心设计，award winning'
+            };
+
+            try {
+                const response = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'text',
+                        model: 'gemini-2.5-flash',
+                        prompt: `你是一个专业的AI绘画提示词专家。请将以下创意概念优化成一个专业的英文提示词，用于AI图像生成。
+
+创意概念：${concept}
+风格要求：${styleMap[style]}
+详细程度：${detailMap[detail]}
+
+要求：
+1. 输出纯英文提示词
+2. 包含主体描述、风格、光影、构图等元素
+3. 使用逗号分隔各个描述词
+4. 不要解释，直接输出提示词`
+                    })
+                });
+
+                const data = await response.json();
+                currentPrompt = data.content || data.response || data.text || '';
+
+                document.getElementById('resultText').textContent = currentPrompt;
+                result.style.display = 'block';
+                showToast('提示词生成成功！');
+            } catch (error) {
+                showToast('生成失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function copyPrompt() {
+            if (!currentPrompt) {
+                showToast('没有可复制的提示词');
+                return;
+            }
+            navigator.clipboard.writeText(currentPrompt);
+            showToast('已复制到剪贴板');
+        }
+
+        function usePrompt() {
+            if (!currentPrompt) {
+                showToast('请先生成提示词');
+                return;
+            }
+            localStorage.setItem('knolling_prompt', currentPrompt);
+            location.href = 'banana.html';
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 检查是否有传递过来的提示词
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedPrompt = localStorage.getItem('knolling_prompt');
+            if (savedPrompt) {
+                localStorage.removeItem('knolling_prompt');
+            }
+        });
+    </script>
+</body>
+
+</html>

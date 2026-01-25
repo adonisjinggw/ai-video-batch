@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 AI画图 - RollRoll</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .quota-badge {
+            background: var(--bg-card);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 14px;
+            color: var(--text);
+            font-size: 15px;
+            resize: none;
+            min-height: 100px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .model-info {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .result-image {
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .history-section {
+            margin-top: 30px;
+        }
+
+        .history-title {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-dim);
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .history-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .history-item img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .login-tip {
+            background: #2d1f1f;
+            border: 1px solid #f87171;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .login-tip a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="history.back()">← 返回</button>
+        <h1>🎨 AI画图</h1>
+        <div class="quota-badge" id="quotaBadge">🎞️ --</div>
+    </header>
+    <main class="main">
+        <div class="login-tip" id="loginTip" style="display:none;">
+            <p>⚠️ 请先 <a href="auth.html">登录</a> 后使用画图功能</p>
+        </div>
+        <div class="input-section">
+            <label class="input-label">✨ 描述你想画的内容</label>
+            <textarea class="input-box" id="promptInput" placeholder="例如：一只可爱的橘猫在阳光下打盹..."></textarea>
+        </div>
+        <div class="settings-row">
+            <div class="setting-item">
+                <label class="input-label">🎨 模型</label>
+                <select id="modelSelect" onchange="updateModelInfo()">
+                    <option value="modelscope">🧠 智能绘图引擎（0.5胶片）</option>
+                    <option value="nano-banana-2" selected>🍌 Banana 标准版 (0.7胶片)</option>
+                    <option value="nano-banana-2-2k">🌟 Banana 2K高清 (0.7胶片)</option>
+                    <option value="nano-banana-2-4k">💎 Banana 4K超清 (1.2胶片)</option>
+                    <option value="doubao-seedream-4-5-251128">✨ 星梦画师 (0.7胶片)</option>
+                    <option value="jimeng-4.5">🎨 即梦4.5 (0.6胶片)</option>
+                </select>
+                <div class="model-info" id="modelInfo">消耗 0.7 胶片</div>
+            </div>
+            <div class="setting-item">
+                <label class="input-label">📐 比例</label>
+                <select id="ratioSelect">
+                    <option value="1:1">1:1 方形</option>
+                    <option value="16:9">16:9 横屏</option>
+                    <option value="9:16">9:16 竖屏</option>
+                    <option value="4:3">4:3 标准</option>
+                    <option value="3:4">3:4 竖版</option>
+                </select>
+            </div>
+        </div>
+        <button class="generate-btn" id="generateBtn" onclick="generateImage()">⚡ 开始生成</button>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div id="loadingText">正在生成...</div>
+        </div>
+        <div class="result-section" id="resultSection">
+            <img class="result-image" id="resultImage" src="" alt="生成结果">
+            <div class="result-actions">
+                <button class="result-btn" onclick="downloadImage()">💾 下载</button>
+                <button class="result-btn" onclick="shareImage()">📤 分享</button>
+                <button class="result-btn primary" onclick="regenerate()">🔄 重新生成</button>
+            </div>
+        </div>
+        <div class="history-section">
+            <div class="history-title">📋 生成历史</div>
+            <div class="history-grid" id="historyGrid"></div>
+        </div>
+    </main>
+    <div class="toast" id="toast"></div>
+    <script>
+        const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkb3F1eHZzbHN1aHdnaXF3YnJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2NzgyMDYsImV4cCI6MjA2NDI1NDIwNn0.S4VQtMlvNcdjKGnrJjCVPn4Red7wHzcGdFdPPjgBbIc';
+        let supabase = null, currentUser = null, userQuota = 0, currentImageUrl = '', imageHistory = [];
+
+        // 扣费标准（50%利润定价，¥0.3/胶片）
+        // 成本¥0.17 → 售价¥0.34 → 1.1胶片
+        // 4K成本¥0.22 → 售价¥0.44 → 1.5胶片
+        const FILM_COST = { 
+            'modelscope': 0,                    // 免费模型
+            'nano-banana-2': 1.1,               // 普通图
+            'nano-banana-2-2k': 1.1,            // 2K图
+            'nano-banana-2-4k': 1.5,            // 4K图
+            'doubao-seedream-4-5-251128': 1.5,  // 豆包4K
+            'jimeng-4.5': 1.1                   // 即梦
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                await checkUser();
+            } else {
+                document.getElementById('loginTip').style.display = 'block';
+                document.getElementById('quotaBadge').textContent = '🎞️ 未登录';
+            }
+            const knollingPrompt = localStorage.getItem('knolling_prompt');
+            if (knollingPrompt) { document.getElementById('promptInput').value = knollingPrompt; localStorage.removeItem('knolling_prompt'); }
+            loadHistory();
+            updateModelInfo();
+        });
+
+        async function checkUser() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                currentUser = user;
+                if (user) {
+                    document.getElementById('loginTip').style.display = 'none';
+                    await loadUserQuota();
+                } else {
+                    document.getElementById('loginTip').style.display = 'block';
+                    document.getElementById('quotaBadge').textContent = '🎞️ 未登录';
+                }
+            } catch (e) {
+                console.error('检查用户失败:', e);
+                document.getElementById('loginTip').style.display = 'block';
+            }
+        }
+
+        async function loadUserQuota() {
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'getProfile', userId: currentUser.id })
+                });
+                const data = await res.json();
+                if (data.profile) {
+                    userQuota = data.profile.quota_balance || 0;
+                    localStorage.setItem('film_balance', userQuota);
+                    document.getElementById('quotaBadge').textContent = `🎞️ ${userQuota}`;
+                }
+            } catch (e) { console.error('加载配额失败:', e); }
+        }
+
+        function updateModelInfo() {
+            const model = document.getElementById('modelSelect').value;
+            const cost = FILM_COST[model] || 0.7;
+            document.getElementById('modelInfo').textContent = `消耗 ${cost} 胶片`;
+        }
+
+        async function generateImage() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) { showToast('请输入描述内容'); return; }
+
+            // 必须登录
+            if (!currentUser) { showToast('请先登录后使用'); return; }
+
+            const model = document.getElementById('modelSelect').value;
+            const ratio = document.getElementById('ratioSelect').value;
+            const filmCost = FILM_COST[model] || 0.7;
+
+            // 配额检查
+            if (userQuota < filmCost) { showToast(`胶片不足，需要${filmCost}胶片`); return; }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const resultSection = document.getElementById('resultSection');
+            btn.disabled = true;
+            loading.style.display = 'block';
+            resultSection.style.display = 'none';
+
+            try {
+                let response;
+                if (model === 'modelscope') {
+                    response = await fetch('/api/modelscope', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'image', prompt, aspect_ratio: ratio })
+                    });
+                } else {
+                    response = await fetch('/api/banana2', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt, model, aspect_ratio: ratio, userId: currentUser.id })
+                    });
+                }
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                currentImageUrl = data.url || data.image_url || data.data?.url || data.data?.image_url || '';
+                if (!currentImageUrl && data.images && data.images.length > 0) {
+                    currentImageUrl = data.images[0].url || data.images[0];
+                }
+                if (!currentImageUrl) throw new Error('未获取到图片地址');
+
+                document.getElementById('resultImage').src = currentImageUrl;
+                resultSection.style.display = 'block';
+
+                // 扣费
+                userQuota = Math.max(0, userQuota - filmCost);
+                localStorage.setItem('film_balance', userQuota);
+                document.getElementById('quotaBadge').textContent = `🎞️ ${userQuota}`;
+
+                saveToHistory(prompt, currentImageUrl);
+                showToast('生成成功！');
+            } catch (error) {
+                console.error('生成失败:', error);
+                showToast('生成失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function regenerate() { generateImage(); }
+        function downloadImage() { if (!currentImageUrl) { showToast('没有可下载的图片'); return; } const a = document.createElement('a'); a.href = currentImageUrl; a.download = 'rollroll_' + Date.now() + '.png'; a.click(); showToast('开始下载'); }
+        function shareImage() { if (!currentImageUrl) { showToast('没有可分享的图片'); return; } if (navigator.share) { navigator.share({ title: 'RollRoll AI画图', text: '看看我用AI画的图！', url: currentImageUrl }); } else { navigator.clipboard.writeText(currentImageUrl); showToast('链接已复制'); } }
+        function saveToHistory(prompt, url) { imageHistory.unshift({ prompt, url, time: Date.now() }); if (imageHistory.length > 20) imageHistory.pop(); localStorage.setItem('banana_history', JSON.stringify(imageHistory)); renderHistory(); }
+        function loadHistory() { try { imageHistory = JSON.parse(localStorage.getItem('banana_history') || '[]'); renderHistory(); } catch (e) { imageHistory = []; } }
+        function renderHistory() { const grid = document.getElementById('historyGrid'); grid.innerHTML = imageHistory.map(item => `<div class="history-item" onclick="useHistory('${item.url}')"><img src="${item.url}" alt="历史图片"></div>`).join(''); }
+        function useHistory(url) { currentImageUrl = url; document.getElementById('resultImage').src = url; document.getElementById('resultSection').style.display = 'block'; }
+        function showToast(msg) { const toast = document.getElementById('toast'); toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500); }
+    </script>
+</body>
+
+</html>
