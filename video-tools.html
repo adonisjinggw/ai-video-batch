@@ -1409,7 +1409,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         aspect_ratio: ratio, 
                         duration: duration,
                         resolution: viduParams.resolution,
-                        userId: currentUser?.id 
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
                     };
                 } else if (isHailuo) {
                     // 🐚 Hailuo海螺模型
@@ -1421,7 +1422,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         model_version: hailuoParams.version,
                         duration: hailuoParams.duration,
                         resolution: hailuoParams.resolution,
-                        userId: currentUser?.id 
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
                     };
                 } else if (isKling) {
                     // ✨ Kling可灵模型
@@ -1434,11 +1436,12 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         aspect_ratio: ratio,
                         duration: klingParams.duration,
                         resolution: klingParams.resolution,
-                        userId: currentUser?.id 
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
                     };
                 } else if (isVeo) {
                     apiEndpoint = '/api/yunwu';
-                    requestBody = { action: 'veo3', prompt, model, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id };
+                    requestBody = { action: 'veo3', prompt, model, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id, skip_billing: true };
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'text-to-video', prompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
@@ -1513,7 +1516,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         aspect_ratio: ratio, 
                         duration: duration,
                         resolution: viduParams.resolution,
-                        userId: currentUser?.id 
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
                     };
                     // 🖼️ 多图模式: 使用 image_urls 数组
                     if (useMultiImage) {
@@ -1533,7 +1537,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         model_version: hailuoParams.version,
                         duration: hailuoParams.duration,
                         resolution: hailuoParams.resolution,
-                        userId: currentUser?.id 
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
                     };
                 } else if (isKling) {
                     // ✨ Kling可灵模型 - 支持图生视频
@@ -1547,11 +1552,12 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         aspect_ratio: ratio,
                         duration: klingParams.duration,
                         resolution: klingParams.resolution,
-                        userId: currentUser?.id 
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
                     };
                 } else if (isVeo) {
                     apiEndpoint = '/api/yunwu';
-                    requestBody = { action: 'veo3', prompt, model, image_url: finalImageUrl, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id };
+                    requestBody = { action: 'veo3', prompt, model, image_url: finalImageUrl, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id, skip_billing: true };
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'image-to-video', prompt, image_url: finalImageUrl, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
