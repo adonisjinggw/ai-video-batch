@@ -511,16 +511,18 @@ module.exports = async function handler(req, res) {
 
             try {
                 // 根据 aspect_ratio 计算 size
+                // 🔧 修复：ModelScope/万象Max API 的 size 格式是 "高*宽"（与常规相反）
                 let size = '1328*1328';  // 默认正方形
                 if (aspect_ratio === '16:9') {
-                    size = '1328*768';
+                    size = '768*1328';   // 横屏：高768 x 宽1328
                 } else if (aspect_ratio === '9:16') {
-                    size = '768*1328';
+                    size = '1328*768';   // 竖屏：高1328 x 宽768
                 } else if (aspect_ratio === '4:3') {
-                    size = '1328*1024';
+                    size = '1024*1328';  // 横屏标准
                 } else if (aspect_ratio === '3:4') {
-                    size = '1024*1328';
+                    size = '1328*1024';  // 竖屏标准
                 }
+                console.log(`[banana2] 🎨 万象Max size: ${size} (aspect_ratio=${aspect_ratio})`);
 
                 // 🎨 万象Max 2512 本身支持画面控制（用文字改图），直接传参考图
                 const refImage = (image_urls && Array.isArray(image_urls) && image_urls.length > 0) ? image_urls : (image_url || null);
