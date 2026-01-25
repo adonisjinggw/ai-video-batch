@@ -368,13 +368,16 @@
         </div>
         <div class="panel" id="panel-i2v">
             <div class="input-section">
-                <label class="input-label">🖼️ 上传参考图片</label>
-                <input type="file" id="i2vImageInput" accept="image/*" style="display:none"
-                    onchange="previewI2VImage(this)">
-                <div class="upload-area" onclick="document.getElementById('i2vImageInput').click()">
+                <label class="input-label">🖼️ 上传参考图片 <span id="i2vImageCount" style="color:#888;font-size:12px;"></span></label>
+                <input type="file" id="i2vImageInput" accept="image/*" multiple style="display:none"
+                    onchange="previewI2VImages(this)">
+                <div class="upload-area" onclick="document.getElementById('i2vImageInput').click()" style="min-height:100px;">
                     <div class="icon">📷</div>
-                    <div>点击上传图片</div><img class="upload-preview" id="i2vPreview">
+                    <div>点击上传图片（支持多选）</div>
+                    <div id="i2vPreviewContainer" style="display:none;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px;"></div>
+                    <img class="upload-preview" id="i2vPreview" style="display:none;">
                 </div>
+                <div id="i2vImageTip" style="display:none;font-size:11px;color:#fbbf24;margin-top:6px;">💡 Vidu q2 模型支持最多7张参考图，其他模型仅使用第1张</div>
             </div>
             <div class="input-section"><label class="input-label">✨ 动作描述（可选）</label><textarea class="input-box"
                     id="i2vPrompt" placeholder="例如：图片中的人物转头微笑..." style="min-height:60px;"></textarea></div>
@@ -389,16 +392,16 @@
                             <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
                         </optgroup>
                         <optgroup label="🎬 Vidu 系列 - 5秒">
-                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
-                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片/支持7图)</option>
+                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片/支持7图)</option>
                             <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
                             <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
                             <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
                             <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
                         </optgroup>
                         <optgroup label="🎬 Vidu 系列 - 10秒">
-                            <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
-                            <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片/支持7图)</option>
+                            <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片/支持7图)</option>
                             <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
                             <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
                             <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
@@ -1070,8 +1073,118 @@
 
         let currentVideoUrls = { t2v: '', i2v: '', ref: '' };
         let i2vImageData = '', refVideoData = '';
+        let i2vImageDataList = [];  // 多图上传列表
         function switchPanel(panel) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); event.target.classList.add('active'); document.getElementById('panel-' + panel).classList.add('active'); }
-        function previewI2VImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = async (e) => { const compressed = await compressImage(e.target.result, 1200, 0.8); document.getElementById('i2vPreview').src = compressed; document.getElementById('i2vPreview').style.display = 'block'; i2vImageData = compressed; }; reader.readAsDataURL(input.files[0]); } }
+        // 旧版单图上传函数（已废弃，保留兼容）
+        function previewI2VImage(input) { previewI2VImages(input); }
+        // 新版多图上传函数
+        async function previewI2VImages(input) {
+            if (!input.files || input.files.length === 0) return;
+            const files = Array.from(input.files);
+            const maxImages = 7;  // Vidu q2 最多支持 7 张
+            
+            // 清空之前的图片
+            i2vImageDataList = [];
+            i2vImageData = '';
+            
+            // 显示加载提示
+            showToast(`正在处理 ${Math.min(files.length, maxImages)} 张图片...`);
+            
+            for (let i = 0; i < Math.min(files.length, maxImages); i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                const dataUrl = await new Promise(resolve => {
+                    reader.onload = e => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+                const compressed = await compressImage(dataUrl, 1200, 0.8);
+                i2vImageDataList.push(compressed);
+            }
+            
+            // 第一张作为主图（兼容旧逻辑）
+            i2vImageData = i2vImageDataList[0] || '';
+            
+            // 渲染预览
+            renderI2VPreview();
+            updateI2VImageTip();
+            
+            if (files.length > maxImages) {
+                showToast(`已选择前 ${maxImages} 张图片（最多支持7张）`);
+            } else {
+                showToast(`已上传 ${i2vImageDataList.length} 张图片`);
+            }
+        }
+        // 渲染图片预览
+        function renderI2VPreview() {
+            const container = document.getElementById('i2vPreviewContainer');
+            const singlePreview = document.getElementById('i2vPreview');
+            const countSpan = document.getElementById('i2vImageCount');
+            
+            if (i2vImageDataList.length === 0) {
+                container.style.display = 'none';
+                singlePreview.style.display = 'none';
+                countSpan.textContent = '';
+                return;
+            }
+            
+            if (i2vImageDataList.length === 1) {
+                // 单图模式
+                container.style.display = 'none';
+                singlePreview.src = i2vImageDataList[0];
+                singlePreview.style.display = 'block';
+                countSpan.textContent = '(1张)';
+            } else {
+                // 多图模式
+                singlePreview.style.display = 'none';
+                container.style.display = 'flex';
+                countSpan.textContent = `(${i2vImageDataList.length}张)`;
+                container.innerHTML = i2vImageDataList.map((img, idx) => `
+                    <div style="position:relative;">
+                        <img src="${img}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid ${idx === 0 ? '#fbbf24' : '#333'};">
+                        <div style="position:absolute;top:-4px;left:-4px;background:${idx === 0 ? '#fbbf24' : '#666'};color:${idx === 0 ? '#000' : '#fff'};font-size:9px;padding:1px 4px;border-radius:3px;">${idx + 1}</div>
+                        <button onclick="event.stopPropagation();removeI2VImage(${idx})" style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border:none;width:16px;height:16px;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+                    </div>
+                `).join('');
+            }
+        }
+        // 删除单张图片
+        function removeI2VImage(idx) {
+            i2vImageDataList.splice(idx, 1);
+            i2vImageData = i2vImageDataList[0] || '';
+            renderI2VPreview();
+            updateI2VImageTip();
+            if (i2vImageDataList.length === 0) {
+                document.getElementById('i2vImageInput').value = '';
+            }
+        }
+        // 更新多图提示
+        function updateI2VImageTip() {
+            const tip = document.getElementById('i2vImageTip');
+            const model = document.getElementById('i2vModel').value;
+            // 只有 Vidu q2 (不是 pro/turbo) 才支持多图
+            const supportsMulti = model.match(/vidu-q2-(5s|10s)/i) && !model.includes('pro') && !model.includes('turbo');
+            
+            if (i2vImageDataList.length > 1) {
+                if (supportsMulti) {
+                    tip.style.display = 'block';
+                    tip.innerHTML = `✅ Vidu q2 模型将使用全部 ${i2vImageDataList.length} 张参考图`;
+                    tip.style.color = '#22c55e';
+                } else {
+                    tip.style.display = 'block';
+                    tip.innerHTML = `⚠️ 当前模型仅支持单图，将只使用第1张图片`;
+                    tip.style.color = '#f59e0b';
+                }
+            } else {
+                tip.style.display = i2vImageDataList.length > 0 ? 'none' : 'none';
+            }
+        }
+        // 模型选择变化时更新提示
+        document.addEventListener('DOMContentLoaded', () => {
+            const modelSelect = document.getElementById('i2vModel');
+            if (modelSelect) {
+                modelSelect.addEventListener('change', updateI2VImageTip);
+            }
+        });
         // 上传视频到图床获取URL
         async function uploadVideoToHost(base64Data) {
             try {
@@ -1362,7 +1475,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             } 
         }
         async function generateI2V() { 
-            if (!i2vImageData) { showToast('请先上传图片'); return; } 
+            if (!i2vImageData && i2vImageDataList.length === 0) { showToast('请先上传图片'); return; } 
             const rawPrompt = document.getElementById('i2vPrompt').value.trim(); 
             const model = document.getElementById('i2vModel').value; 
             const ratio = document.getElementById('i2vRatio').value; 
@@ -1381,7 +1494,11 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 const useYunwu = isVeo || isVidu || isHailuo || isKling;
                 
                 // 🎨 直接使用原图（线稿转换会丢失结构，已禁用）
-                let finalImageUrl = i2vImageData;
+                let finalImageUrl = i2vImageData || i2vImageDataList[0];
+                
+                // 🖼️ 检查是否支持多图 (Vidu q2 不带 pro/turbo)
+                const supportsMultiImage = isVidu && model.match(/vidu-q2-(5s|10s)/i) && !model.includes('pro') && !model.includes('turbo');
+                const useMultiImage = supportsMultiImage && i2vImageDataList.length > 1;
                 
                 let apiEndpoint, requestBody;
                 
@@ -1392,13 +1509,19 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     requestBody = { 
                         action: 'vidu', 
                         prompt: prompt || '让图片动起来，平滑过渡', 
-                        image_url: finalImageUrl,
                         model_version: viduParams.version,
                         aspect_ratio: ratio, 
                         duration: duration,
                         resolution: viduParams.resolution,
                         userId: currentUser?.id 
                     };
+                    // 🖼️ 多图模式: 使用 image_urls 数组
+                    if (useMultiImage) {
+                        requestBody.image_urls = i2vImageDataList;
+                        console.log(`[i2v] Vidu q2 多图模式: ${i2vImageDataList.length} 张参考图`);
+                    } else {
+                        requestBody.image_url = finalImageUrl;
+                    }
                 } else if (isHailuo) {
                     // 🐚 Hailuo海螺模型 - 支持图生视频
                     const hailuoParams = parseHailuoModel(model);
