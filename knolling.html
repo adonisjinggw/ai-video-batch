@@ -894,9 +894,11 @@
         <div class="result-section" id="resultSection" style="display:none;">
             <div class="result-title">✨ 优化后的提示词</div>
             <div class="result-text" id="resultText"></div>
-            <div class="result-actions">
-                <button class="result-btn" onclick="copyPrompt()">📋 复制</button>
-                <button class="result-btn primary" onclick="usePrompt()">🎨 去生图</button>
+            <div class="result-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button class="result-btn" onclick="copyPrompt()" style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #333; color:var(--text);">📋 复制</button>
+                <button class="result-btn" onclick="usePromptForVideo()" style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #8b5cf6; color:#8b5cf6;">🎬 去生视频</button>
+                <button class="result-btn" onclick="usePromptForSticker()" style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #f59e0b; color:#f59e0b;">⭐ 去生表情包</button>
+                <button class="result-btn primary" onclick="usePrompt()" style="flex:1; min-width:80px; background:var(--accent); border-color:var(--accent); color:#000;">🎨 去生图</button>
             </div>
         </div>
 
@@ -904,11 +906,11 @@
         <div class="result-section" id="batchResultSection" style="display:none;">
             <div class="result-title">✨ 批量生成结果 (点击选择，再次点击取消)</div>
             <div class="batch-result-grid" id="batchResultGrid"></div>
-            <div class="batch-actions">
-                <button class="result-btn" onclick="copySelectedPrompts()" style="background:var(--bg-input);border:1px solid #333;color:var(--text);">📋 复制选中</button>
-                <button class="result-btn" onclick="copyAllPrompts()" style="background:var(--bg-input);border:1px solid #333;color:var(--text);">📋 复制全部</button>
-                <button class="result-btn" onclick="useSelectedPromptsForVideo()" style="background:var(--bg-input);border:1px solid #8b5cf6;color:#8b5cf6;">🎬 批量生视频</button>
-                <button class="result-btn primary" onclick="useSelectedPrompts()" style="background:var(--accent);border-color:var(--accent);color:#000;">🎨 批量生图</button>
+            <div class="batch-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button class="result-btn" onclick="copySelectedPrompts()" style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #333; color:var(--text);">📋 复制选中</button>
+                <button class="result-btn" onclick="copyAllPrompts()" style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #333; color:var(--text);">📋 复制全部</button>
+                <button class="result-btn" onclick="useSelectedPromptsForVideo()" style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #8b5cf6; color:#8b5cf6;">🎬 批量生视频</button>
+                <button class="result-btn primary" onclick="useSelectedPrompts()" style="flex:1; min-width:80px; background:var(--accent); border-color:var(--accent); color:#000;">🎨 批量生图</button>
             </div>
         </div>
     </main>
@@ -1317,6 +1319,34 @@
             }
             localStorage.setItem('knolling_prompt', currentPrompt);
             location.href = 'banana.html';
+        }
+
+        // 🎬 单个去生视频
+        function usePromptForVideo() {
+            if (!currentPrompt) {
+                showToast('请先生成提示词');
+                return;
+            }
+            // 存储到 localStorage 供 video-continuity.html 读取
+            localStorage.setItem('video_batch_prompts', JSON.stringify([currentPrompt]));
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            const targetUrl = fromMobile ? 'video-continuity.html?force=mobile&batch=1' : 'video-continuity.html?batch=1';
+            location.href = targetUrl;
+        }
+
+        // ⭐ 单个去生表情包
+        function usePromptForSticker() {
+            if (!currentPrompt) {
+                showToast('请先生成提示词');
+                return;
+            }
+            // 存储到 localStorage 供 sticker.html 读取
+            localStorage.setItem('sticker_prompt', currentPrompt);
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            const targetUrl = fromMobile ? 'sticker.html?force=mobile' : 'sticker.html';
+            location.href = targetUrl;
         }
 
         // 🆕 ==================== 批量模式函数 ====================

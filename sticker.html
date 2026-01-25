@@ -1038,7 +1038,7 @@
             // 🌟 从 prompt-fill.html / writing.html 跳转过来时加载提示词
             const urlParams = new URLSearchParams(window.location.search);
             
-            // 单个模式：从 prompt-fill 跳转过来
+            // 单个模式：从 prompt-fill 或 knolling 跳转过来
             if (urlParams.get('from_promptfill') === '1' && urlParams.get('batch') !== '1') {
                 const stickerPrompt = localStorage.getItem('promptfill_to_sticker');
                 if (stickerPrompt) {
@@ -1047,6 +1047,15 @@
                     showToast('已加载提示词，点击生成');
                     console.log('[sticker] 从 prompt-fill 加载单个提示词');
                 }
+            }
+            
+            // 🆕 从 knolling.html 跳转过来（使用 sticker_prompt）
+            const knollingPrompt = localStorage.getItem('sticker_prompt');
+            if (knollingPrompt) {
+                document.getElementById('stickerPrompt').value = knollingPrompt;
+                localStorage.removeItem('sticker_prompt');
+                showToast('已加载提示词，点击生成');
+                console.log('[sticker] 从 knolling 加载单个提示词');
             }
             
             // 批量模式：从 prompt-fill 或 writing 跳转过来
