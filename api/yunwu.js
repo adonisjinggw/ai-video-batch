@@ -2318,7 +2318,7 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        // ========== 轮询视频任务状态 ==========
+        // ========== 轮询视频任务状态 (Veo等) ==========
         if (action === 'poll') {
             const { task_id } = body;
             
@@ -2344,6 +2344,79 @@ module.exports = async function handler(req, res) {
 
             const data = await response.json();
             json(200, { success: true, ...data });
+            return;
+        }
+        
+        // ========== 🆕 轮询腾讯VOD视频任务状态 (Vidu/Hailuo/Kling) ==========
+        if (action === 'poll-vod') {
+            const { task_id } = body;
+            
+            if (!task_id) {
+                json(400, { error: 'MISSING_TASK_ID' });
+                return;
+            }
+
+            console.log('[yunwu] 📽️ 轮询腾讯VOD任务:', task_id);
+
+            try {
+                const response = await fetchWithFallbackWithTimeout(`/tencent-vod/v1/query/${task_id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                        'Accept': 'application/json'
+                    }
+                }, 15000);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[yunwu] VOD轮询错误:', response.status, errorText);
+                    json(200, { success: false, status: 'PENDING', error: `轮询失败: ${response.status}` });
+                    return;
+                }
+
+                const data = await response.json();
+                console.log('[yunwu] VOD轮询返回:', JSON.stringify(data).substring(0, 500));
+                
+                // 解析腾讯VOD的返回结构
+                // Response.Status: FINISH / PROCESSING / FAIL
+                // Response.AigcVideoTask.Output.VideoInfos[0].FileUrl
+                const vodResponse = data?.Response || data;
+                const status = vodResponse?.Status || vodResponse?.AigcVideoTask?.Status || '';
+                
+                if (status === 'FINISH') {
+                    // 成功完成
+                    const videoInfos = vodResponse?.AigcVideoTask?.Output?.VideoInfos || [];
+                    const videoUrl = videoInfos[0]?.FileUrl || '';
+                    
+                    if (videoUrl) {
+                        console.log('[yunwu] ✅ VOD视频生成成功:', videoUrl);
+                        json(200, { 
+                            success: true, 
+                            status: 'COMPLETED',
+                            video_url: videoUrl,
+                            url: videoUrl,
+                            output_url: videoUrl,
+                            data: vodResponse
+                        });
+                    } else {
+                        console.warn('[yunwu] VOD任务完成但无视频URL');
+                        json(200, { success: false, status: 'FAILED', error: '未获取到视频URL' });
+                    }
+                } else if (status === 'FAIL' || status === 'FAILED') {
+                    // 失败
+                    const errMsg = vodResponse?.AigcVideoTask?.ErrCodeExt || vodResponse?.Error?.Message || '视频生成失败';
+                    console.error('[yunwu] ❌ VOD视频生成失败:', errMsg);
+                    json(200, { success: false, status: 'FAILED', error: errMsg });
+                } else {
+                    // 进行中
+                    const progress = vodResponse?.AigcVideoTask?.Progress || 0;
+                    console.log(`[yunwu] ⏳ VOD视频生成中... ${progress}%`);
+                    json(200, { success: false, status: 'PENDING', progress });
+                }
+            } catch (err) {
+                console.error('[yunwu] VOD轮询异常:', err.message);
+                json(200, { success: false, status: 'PENDING', error: err.message });
+            }
             return;
         }
 

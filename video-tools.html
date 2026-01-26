@@ -1458,7 +1458,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 if (data.task_id || data.id) { 
                     showToast('视频生成中，请稍候...'); 
                     const taskId = data.task_id || data.id; 
-                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, useYunwu); 
+                    const isVodModel = isVidu || isHailuo || isKling;  // 腾讯VOD轮询
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, useYunwu, isVodModel);
                     if (videoUrl) { 
                         currentVideoUrls.t2v = videoUrl; 
                         document.getElementById('t2vVideo').src = videoUrl; 
@@ -1574,9 +1575,10 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 if (data.task_id || data.id) { 
                     showToast('视频生成中，请稍候...'); 
                     const taskId = data.task_id || data.id; 
-                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, useYunwu); 
+                    const isVodModel = isVidu || isHailuo || isKling;  // 腾讯VOD轮询
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, useYunwu, isVodModel); 
                     if (videoUrl) { 
-                        currentVideoUrls.i2v = videoUrl; 
+                        currentVideoUrls.i2v = videoUrl;
                         document.getElementById('i2vVideo').src = videoUrl; 
                         document.getElementById('i2vResult').style.display = 'block'; 
                         showToast('视频生成成功！'); 
@@ -1663,18 +1665,26 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
         }
         
         // 轮询视频生成结果
-        async function pollVideoResult(taskId, source, endpoint, isVeo = false) {
+        // 🆕 isVod 参数用于区分 Vidu/Hailuo/Kling (腾讯VOD) 和 Veo
+        async function pollVideoResult(taskId, source, endpoint, isYunwu = false, isVod = false) {
             const maxAttempts = 60;
-            // 🎬 Veo使用yunwu API轮询，其他使用sora2
-            const pollEndpoint = isVeo ? '/api/yunwu' : '/api/sora2';
+            // 🎬 腾讯VOD模型使用 poll-vod，Veo使用 poll，其他使用 sora2
+            const pollEndpoint = (isYunwu || isVod) ? '/api/yunwu' : '/api/sora2';
             for (let i = 0; i < maxAttempts; i++) {
                 await new Promise(r => setTimeout(r, 5000));
                 try {
-                    // 🔧 修复：轮询请求必须包含 userId，否则后端返回 401
-                    // 🔧 2026-01-23：Veo 和 Sora2 都使用统一的 action: 'poll'
-                    const pollBody = isVeo 
-                        ? { action: 'poll', task_id: taskId, userId: currentUser?.id }
-                        : { action: 'poll', task_id: taskId, _source: source, _endpoint: endpoint, userId: currentUser?.id };
+                    // 🆕 区分 VOD 和 Veo 的轮询 action
+                    let pollBody;
+                    if (isVod) {
+                        // Vidu/Hailuo/Kling 使用腾讯VOD轮询接口
+                        pollBody = { action: 'poll-vod', task_id: taskId, userId: currentUser?.id };
+                    } else if (isYunwu) {
+                        // Veo 使用普通轮询
+                        pollBody = { action: 'poll', task_id: taskId, userId: currentUser?.id };
+                    } else {
+                        // Sora2
+                        pollBody = { action: 'poll', task_id: taskId, _source: source, _endpoint: endpoint, userId: currentUser?.id };
+                    }
                     const res = await fetch(pollEndpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1686,13 +1696,14 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     }
                     const data = await res.json();
                     const status = (data.status || data.state || '').toUpperCase();
-                    if (status === 'COMPLETED' || status === 'SUCCEEDED' || status === 'SUCCESS' || status === 'DONE') {
+                    if (status === 'COMPLETED' || status === 'SUCCEEDED' || status === 'SUCCESS' || status === 'DONE' || status === 'FINISH') {
                         return data.output_url || data.video_url || data.url || data.data?.output_url || data.data?.video_url;
                     }
-                    if (status === 'FAILED' || status === 'ERROR') {
+                    if (status === 'FAILED' || status === 'ERROR' || status === 'FAIL') {
                         throw new Error(data.error || data.message || '视频生成失败');
                     }
-                    console.log(`[轮询] 第${i+1}次, 状态: ${status || 'PENDING'}`);
+                    const progress = data.progress || 0;
+                    console.log(`[轮询] 第${i+1}次, 状态: ${status || 'PENDING'}${progress ? ` ${progress}%` : ''}`);
                 } catch (e) { if (e.message.includes('失败')) throw e; }
             }
             throw new Error('视频生成超时');
@@ -1958,7 +1969,9 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             const duration = getFixedDuration(model);
             const cost = VIDEO_COST[model] || VIDEO_COST['veo3.1'] || 30;
             const isVeo = isVeoModel(model);
-            const isVidu = model && model.toLowerCase().includes('vidu');
+            const isVidu = isViduModel(model);
+            const isHailuo = isHailuoModel(model);
+            const isKling = isKlingModel(model);
             
             let tasks = [];
             
@@ -2057,8 +2070,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             }
             
             // 🚀 并发执行所有任务
-            // Vidu 和 Veo 都走 yunwu API，其他走 sora2 API
-            const apiEndpoint = (isVeo || isVidu) ? '/api/yunwu' : '/api/sora2';
+            // Vidu/Hailuo/Kling/Veo 都走 yunwu API，其他走 sora2 API
+            const apiEndpoint = (isVeo || isVidu || isHailuo || isKling) ? '/api/yunwu' : '/api/sora2';
             
             // 🎯 处理提示词：添加中文语音指令 + 强制语音在视频结束前1秒结束
             const audioEndTime = Math.max(duration - 1, 3);
@@ -2149,8 +2162,9 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     // 获取视频URL
                     let videoUrl = data.video_url || data.url;
                     if (!videoUrl && (data.task_id || data.id)) {
-                        // 需要轮询（Vidu和Veo都需要）
-                        videoUrl = await pollVideoResult(data.task_id || data.id, data._source, data._endpoint, isVeo || isVidu);
+                        // 需要轮询（Vidu/Hailuo/Kling/Veo都需要）
+                        const isVodModel = isVidu || isHailuo || isKling;  // 腾讯VOD轮询
+                        videoUrl = await pollVideoResult(data.task_id || data.id, data._source, data._endpoint, isVeo || isVidu || isHailuo || isKling, isVodModel);
                     }
                     
                     if (videoUrl) {
