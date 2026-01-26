@@ -292,9 +292,13 @@
             overflow: hidden;
             aspect-ratio: 1;
         }
+        .batch-item {
+            display: flex;
+            flex-direction: column;
+        }
         .batch-item textarea {
+            flex: 1;
             width: 100%;
-            height: 100%;
             background: transparent;
             border: none;
             color: var(--text);
@@ -304,6 +308,47 @@
         }
         .batch-item textarea:focus {
             outline: none;
+        }
+        .batch-item-config {
+            display: flex;
+            gap: 2px;
+            padding: 4px;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid #333;
+        }
+        .batch-item-config select {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 9px;
+            padding: 3px 2px;
+            min-width: 0;
+        }
+        .batch-item-ref {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #444;
+            cursor: pointer;
+            background: var(--bg-input);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        .batch-item-ref img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .batch-item-ref:hover {
+            border-color: var(--accent);
         }
         .batch-item.generating {
             border-color: var(--accent);
@@ -1097,20 +1142,13 @@
             <textarea class="input-box" id="promptInput" placeholder="例如：一只可爱的橘猫在阳光下打盹..."></textarea>
         </div>
 
-        <!-- 🆕 批量模式输入区 (9宫格) -->
+        <!-- 🆕 批量模式输入区 (9宫格) - 每格独立配置 -->
         <div class="input-section" id="batchInputSection" style="display:none;">
-            <label class="input-label">✨ 批量输入提示词 (点击格子编辑，空格子将跳过)</label>
-            <div class="batch-grid" id="batchGrid">
-                <div class="batch-item"><textarea id="batchInput0" placeholder="1️⃣"></textarea></div>
-                <div class="batch-item"><textarea id="batchInput1" placeholder="2️⃣"></textarea></div>
-                <div class="batch-item"><textarea id="batchInput2" placeholder="3️⃣"></textarea></div>
-                <div class="batch-item"><textarea id="batchInput3" placeholder="4️⃣"></textarea></div>
-                <div class="batch-item"><textarea id="batchInput4" placeholder="5️⃣"></textarea></div>
-                <div class="batch-item"><textarea id="batchInput5" placeholder="6️⃣"></textarea></div>
-                <div class="batch-item"><textarea id="batchInput6" placeholder="7️⃣"></textarea></div>
-                <div class="batch-item"><textarea id="batchInput7" placeholder="8️⃣"></textarea></div>
-                <div class="batch-item"><textarea id="batchInput8" placeholder="9️⃣"></textarea></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <label class="input-label" style="margin:0;">✨ 批量生图 (每格独立配置，点击🖼️可设置参考图)</label>
+                <button onclick="applyGlobalConfigToBatch()" style="padding:4px 8px;background:var(--bg-card);border:1px solid #444;border-radius:4px;color:var(--text-dim);font-size:10px;cursor:pointer;">📋 应用全局配置</button>
             </div>
+            <div class="batch-grid" id="batchGrid"></div>
             <!-- 🆕 批量结果区域（在批量输入区内部） -->
             <div class="batch-result-section" id="batchResultSection">
                 <div class="batch-result-header">
@@ -2744,6 +2782,167 @@
 
         // ==================== 批量模式功能 ====================
         
+        // 🆕 批量格子配置数据
+        const batchCellConfigs = [];
+        for (let i = 0; i < 9; i++) {
+            batchCellConfigs.push({
+                model: 'nano-banana-2',
+                ratio: '1:1',
+                refImage: null  // 每个格子独立的参考图
+            });
+        }
+        
+        // 🆕 初始化批量格子
+        function initBatchGrid() {
+            const grid = document.getElementById('batchGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            const modelOptions = `
+                <option value="nano-banana-2">🍌 Banana</option>
+                <option value="nano-banana-2-2k">🌟 2K</option>
+                <option value="nano-banana-2-4k">💎 4K</option>
+                <option value="doubao-seedream-4-5-251128">✨ 星梦</option>
+                <option value="Qwen/Qwen-Image-2512">🎭 万象</option>
+                <option value="midjourney-fast">🌟 MJ</option>
+                <option value="modelscope">🧠 免费</option>
+            `;
+            const ratioOptions = `
+                <option value="1:1">1:1</option>
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+            `;
+            
+            for (let i = 0; i < 9; i++) {
+                const div = document.createElement('div');
+                div.className = 'batch-item';
+                div.innerHTML = `
+                    <textarea id="batchInput${i}" placeholder="${i+1}️⃣"></textarea>
+                    <div class="batch-item-ref" onclick="setBatchCellRef(${i})" id="batchRef${i}" title="点击设置参考图">🖼️</div>
+                    <div class="batch-item-config">
+                        <select id="batchModel${i}" onchange="updateBatchCellConfig(${i})">${modelOptions}</select>
+                        <select id="batchRatio${i}" onchange="updateBatchCellConfig(${i})">${ratioOptions}</select>
+                    </div>
+                `;
+                grid.appendChild(div);
+            }
+        }
+        
+        // 🆕 更新格子配置
+        function updateBatchCellConfig(idx) {
+            const model = document.getElementById(`batchModel${idx}`)?.value || 'nano-banana-2';
+            const ratio = document.getElementById(`batchRatio${idx}`)?.value || '1:1';
+            batchCellConfigs[idx].model = model;
+            batchCellConfigs[idx].ratio = ratio;
+        }
+        
+        // 🆕 设置格子参考图（支持同一图片多次使用）
+        function setBatchCellRef(idx) {
+            // 创建选择弹窗
+            const picker = document.createElement('div');
+            picker.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:2000;display:flex;flex-direction:column;padding:20px;';
+            picker.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3 style="color:#fff;margin:0;">🖼️ 选择格子 ${idx+1} 的参考图</h3>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;">×</button>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:16px;">
+                    <button onclick="uploadBatchCellRef(${idx}, this.parentElement.parentElement)" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:8px;color:#000;font-weight:600;cursor:pointer;">📷 上传新图片</button>
+                    <button onclick="clearBatchCellRef(${idx});this.parentElement.parentElement.remove();" style="flex:1;padding:12px;background:#333;border:1px solid #555;border-radius:8px;color:#fff;cursor:pointer;">❌ 清除参考图</button>
+                </div>
+                <div style="color:#888;font-size:12px;margin-bottom:8px;">💡 点击下方已上传的图片可复用到这个格子</div>
+                <div id="batchRefPickerGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;overflow-y:auto;flex:1;"></div>
+            `;
+            document.body.appendChild(picker);
+            
+            // 填充已有的参考图
+            const pickerGrid = picker.querySelector('#batchRefPickerGrid');
+            const allRefs = getAllBatchRefImages();
+            allRefs.forEach((img, i) => {
+                const item = document.createElement('div');
+                item.style.cssText = 'aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid #333;cursor:pointer;';
+                item.innerHTML = `<img src="${img}" style="width:100%;height:100%;object-fit:cover;">`;
+                item.onclick = () => {
+                    batchCellConfigs[idx].refImage = img;
+                    renderBatchCellRef(idx);
+                    picker.remove();
+                    showToast(`格子 ${idx+1} 已设置参考图`);
+                };
+                pickerGrid.appendChild(item);
+            });
+            
+            if (allRefs.length === 0) {
+                pickerGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">还没有上传参考图，请先上传</div>';
+            }
+        }
+        
+        // 🆕 上传格子参考图
+        function uploadBatchCellRef(idx, picker) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    batchCellConfigs[idx].refImage = ev.target.result;
+                    renderBatchCellRef(idx);
+                    if (picker) picker.remove();
+                    showToast(`格子 ${idx+1} 参考图已设置`);
+                };
+                reader.readAsDataURL(file);
+            };
+            input.click();
+        }
+        
+        // 🆕 清除格子参考图
+        function clearBatchCellRef(idx) {
+            batchCellConfigs[idx].refImage = null;
+            renderBatchCellRef(idx);
+            showToast(`格子 ${idx+1} 参考图已清除`);
+        }
+        
+        // 🆕 渲染格子参考图显示
+        function renderBatchCellRef(idx) {
+            const refDiv = document.getElementById(`batchRef${idx}`);
+            if (!refDiv) return;
+            if (batchCellConfigs[idx].refImage) {
+                refDiv.innerHTML = `<img src="${batchCellConfigs[idx].refImage}" alt="参考图">`;
+                refDiv.title = '点击更换参考图';
+            } else {
+                refDiv.innerHTML = '🖼️';
+                refDiv.title = '点击设置参考图';
+            }
+        }
+        
+        // 🆕 获取所有已设置的参考图（去重）
+        function getAllBatchRefImages() {
+            const refs = new Set();
+            batchCellConfigs.forEach(c => {
+                if (c.refImage) refs.add(c.refImage);
+            });
+            // 也加入全局参考图
+            if (window.referenceImageUrl) refs.add(window.referenceImageUrl);
+            if (window.multiRefImages) window.multiRefImages.forEach(r => refs.add(r));
+            return Array.from(refs);
+        }
+        
+        // 🆕 应用全局配置到所有格子
+        function applyGlobalConfigToBatch() {
+            const globalModel = document.getElementById('modelSelect').value;
+            const globalRatio = document.getElementById('ratioSelect').value;
+            for (let i = 0; i < 9; i++) {
+                batchCellConfigs[i].model = globalModel;
+                batchCellConfigs[i].ratio = globalRatio;
+                const modelSel = document.getElementById(`batchModel${i}`);
+                const ratioSel = document.getElementById(`batchRatio${i}`);
+                if (modelSel) modelSel.value = globalModel;
+                if (ratioSel) ratioSel.value = globalRatio;
+            }
+            showToast('已应用全局配置到所有格子');
+        }
+        
         // 切换批量/单个模式
         function setBatchMode(isBatch) {
             batchMode = isBatch;
@@ -2757,8 +2956,9 @@
                 batchInput.style.display = 'block';
                 singleBtn.classList.remove('active');
                 batchBtn.classList.add('active');
-                // 更新按钮文本
                 document.getElementById('generateBtn').textContent = '⚡ 批量生成';
+                // 🆕 初始化批量格子
+                initBatchGrid();
             } else {
                 singleInput.style.display = 'block';
                 batchInput.style.display = 'none';
@@ -2766,7 +2966,6 @@
                 batchBtn.classList.remove('active');
                 document.getElementById('generateBtn').textContent = '⚡ 开始生成';
             }
-            // 切换时隐藏结果区
             document.getElementById('resultSection').style.display = 'none';
             document.getElementById('batchResultSection').style.display = 'none';
         }
@@ -2811,11 +3010,25 @@
                 return;
             }
             
-            // 收集非空输入
+            // 🆕 收集非空输入，并读取每个格子的独立配置
             const inputs = [];
+            let totalCost = 0;
             for (let i = 0; i < 9; i++) {
-                const val = document.getElementById(`batchInput${i}`).value.trim();
-                if (val) inputs.push({ index: i, prompt: val });
+                const val = document.getElementById(`batchInput${i}`)?.value.trim();
+                if (val) {
+                    const cellModel = batchCellConfigs[i].model || 'nano-banana-2';
+                    const cellRatio = batchCellConfigs[i].ratio || '1:1';
+                    const cellRef = batchCellConfigs[i].refImage || null;
+                    const cellCost = FILM_COST[cellModel] || 0;
+                    inputs.push({ 
+                        index: i, 
+                        prompt: val,
+                        model: cellModel,
+                        ratio: cellRatio,
+                        refImage: cellRef
+                    });
+                    totalCost += cellCost;
+                }
             }
             
             if (inputs.length === 0) {
@@ -2823,13 +3036,8 @@
                 return;
             }
             
-            const model = document.getElementById('modelSelect').value;
-            const ratio = document.getElementById('ratioSelect').value;
-            const filmCost = FILM_COST[model] || 0;
-            const totalCost = inputs.length * filmCost;
-            
             // 配额检查
-            if (filmCost > 0 && userQuota < totalCost) {
+            if (totalCost > 0 && userQuota < totalCost) {
                 showToast(`胶片不足，需要${totalCost}胶片`);
                 return;
             }
@@ -2849,18 +3057,26 @@
             batchResults = [];
             let completed = 0;
             
-            // 🎨 收集参考图信息
-            const refImages = window.multiRefImages && window.multiRefImages.length > 0 ? window.multiRefImages : null;
-            const singleRefImage = window.referenceImageUrl || null;
-            
-            // 并发生成
+            // 并发生成（每个格子使用独立配置）
             try {
                 const promises = inputs.map(async (item) => {
                     const gridItem = document.querySelector(`#batchGrid .batch-item:nth-child(${item.index + 1})`);
                     if (gridItem) gridItem.classList.add('generating');
                     
+                    // 🆕 使用每个格子的独立配置
+                    const cellModel = item.model;
+                    const cellRatio = item.ratio;
+                    const cellRef = item.refImage;  // 格子独立参考图
+                    
+                    // 全局参考图作为备用
+                    const globalMultiRef = window.multiRefImages && window.multiRefImages.length > 0 ? window.multiRefImages : null;
+                    const globalSingleRef = window.referenceImageUrl || null;
+                    
+                    // 优先使用格子独立参考图，否则使用全局参考图
+                    const finalRef = cellRef || globalSingleRef;
+                    
                     try {
-                        const result = await generateSingleImageAPI(item.prompt, model, ratio, refImages, singleRefImage);
+                        const result = await generateSingleImageAPI(item.prompt, cellModel, cellRatio, globalMultiRef, finalRef);
                         if (gridItem) {
                             gridItem.classList.remove('generating');
                             gridItem.classList.add('has-result');
