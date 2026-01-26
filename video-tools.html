@@ -2027,7 +2027,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             }
             
             // 确认
-            const modelName = isVidu ? 'Vidu' : model.includes('veo') ? 'Veo 3.1 4K' : model.includes('grok') ? 'Grok Video' : 'Sora-2';
+            const modelName = isVidu ? 'Vidu' : isHailuo ? 'Hailuo海螺' : isKling ? 'Kling可灵' : model.includes('veo') ? 'Veo 3.1 4K' : model.includes('grok') ? 'Grok Video' : 'Sora-2';
             if (!confirm(`将使用 ${modelName} 并发生成 ${tasks.length} 个视频\n共需 ${totalCost} 胶片，确认继续？`)) {
                 return;
             }
@@ -2055,9 +2055,9 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             }
             updateProgress(`🚀 已提交 ${total} 个任务，等待生成中...`);
             
-            // 🎨 2026-01-23：非Vidu模型的图生视频先并发转线稿（规避 Veo/Sora2 内容审核）
-            // Vidu 模型不需要转换，直接使用原图
-            if (mode === 'i2v' && !isVidu) {
+            // 🎨 2026-01-23：非Vidu/Hailuo/Kling模型的图生视频先并发转线稿（规避 Veo/Sora2 内容审核）
+            // Vidu/Hailuo/Kling 模型不需要转换，直接使用原图
+            if (mode === 'i2v' && !isVidu && !isHailuo && !isKling) {
                 updateProgress(`🎨 正在并发转换${total}张图片为线稿风格...`);
                 const sketchPromises = tasks.map(async (task) => {
                     if (task.image) {
@@ -2103,8 +2103,10 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 return result;
             };
             
-            // 🎬 Vidu模型需要解析参数
+            // 🎬 解析各模型参数
             const viduParams = isVidu ? parseViduModel(model) : null;
+            const hailuoParams = isHailuo ? parseHailuoModel(model) : null;
+            const klingParams = isKling ? parseKlingModel(model) : null;
             
             const promises = tasks.map(async (task, index) => {
                 try {
@@ -2121,10 +2123,34 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                                 aspect_ratio: ratio, 
                                 duration: duration,
                                 resolution: viduParams.resolution,
-                                userId: currentUser?.id 
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (isHailuo) {
+                            // 🐚 Hailuo海螺模型
+                            requestBody = { 
+                                action: 'hailuo', 
+                                prompt: finalPrompt, 
+                                model_version: hailuoParams.version,
+                                duration: hailuoParams.duration,
+                                resolution: hailuoParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (isKling) {
+                            // ✨ Kling可灵模型
+                            requestBody = { 
+                                action: 'kling', 
+                                prompt: finalPrompt, 
+                                model_version: klingParams.version,
+                                aspect_ratio: ratio,
+                                duration: klingParams.duration,
+                                resolution: klingParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true
                             };
                         } else if (isVeo) {
-                            requestBody = { action: 'veo3', prompt: finalPrompt, model, aspect_ratio: ratio, duration, with_audio: true, userId: currentUser?.id };
+                            requestBody = { action: 'veo3', prompt: finalPrompt, model, aspect_ratio: ratio, duration, with_audio: true, userId: currentUser?.id, skip_billing: true };
                         } else {
                             requestBody = { action: 'text-to-video', prompt: finalPrompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
                         }
@@ -2139,10 +2165,36 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                                 aspect_ratio: ratio, 
                                 duration: duration,
                                 resolution: viduParams.resolution,
-                                userId: currentUser?.id 
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (isHailuo) {
+                            // 🐚 Hailuo海螺模型 - 图生视频
+                            requestBody = { 
+                                action: 'hailuo', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡', 
+                                image_url: task.image,
+                                model_version: hailuoParams.version,
+                                duration: hailuoParams.duration,
+                                resolution: hailuoParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (isKling) {
+                            // ✨ Kling可灵模型 - 图生视频
+                            requestBody = { 
+                                action: 'kling', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡', 
+                                image_url: task.image,
+                                model_version: klingParams.version,
+                                aspect_ratio: ratio,
+                                duration: klingParams.duration,
+                                resolution: klingParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true
                             };
                         } else if (isVeo) {
-                            requestBody = { action: 'veo3', prompt: finalPrompt, model, image_url: task.image, aspect_ratio: ratio, duration, with_audio: true, image_weight: 0.9, userId: currentUser?.id };
+                            requestBody = { action: 'veo3', prompt: finalPrompt, model, image_url: task.image, aspect_ratio: ratio, duration, with_audio: true, image_weight: 0.9, userId: currentUser?.id, skip_billing: true };
                         } else {
                             requestBody = { action: 'image-to-video', prompt: finalPrompt, image_url: task.image, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
                         }
