@@ -769,7 +769,12 @@
             if (typeof supabase !== 'undefined' && typeof NVAuth !== 'undefined') {
                 console.log('[Auth] SDK已就绪');
             } else {
-                setTimeout(() => ensurePluginReady(false), 300);
+                // 较短延迟检查，不弹出提示（不弱澜forceShow）
+                setTimeout(() => {
+                    // 如果已加载则不处理
+                    if (typeof supabase !== 'undefined' && typeof NVAuth !== 'undefined') return;
+                    ensurePluginReady(false);
+                }, 150);
             }
         });
         
@@ -796,8 +801,8 @@
             document.head.appendChild(script);
         }
 
-        // 🚀 快速检查SDK状态
-        async function waitForAuthReady(timeoutMs = 500) {
+        // 🚀 快速检查SDK状态（优化：超短超时，快速失败）
+        async function waitForAuthReady(timeoutMs = 200) {
             // 已加载则立即返回
             if (typeof supabase !== 'undefined' && typeof NVAuth !== 'undefined') {
                 return true;
@@ -805,7 +810,7 @@
             const start = Date.now();
             while (Date.now() - start < timeoutMs) {
                 if (typeof supabase !== 'undefined' && typeof NVAuth !== 'undefined') return true;
-                await new Promise(r => setTimeout(r, 50));
+                await new Promise(r => setTimeout(r, 30));  // 更快的检查间隔
             }
             return (typeof supabase !== 'undefined') && (typeof NVAuth !== 'undefined');
         }
@@ -931,14 +936,15 @@
 
             setLoading(loginForm, true);
             
-            // 🚀 快速检查，SDK已就绪则不等待
+            // 🚀 SDK已就绪则立即登录，不等待
             if (typeof NVAuth === 'undefined') {
-                showMessage('正在连接服务器...', 'info');
-                try { await waitForAuthReady(500); } catch (err) {}
+                // 仅等待很短时间，快速失败
+                try { await waitForAuthReady(100); } catch (err) {}
             }
             
-            if (!ensurePluginReady(true)) {
-                showMessage('检测到浏览器插件阻止了登录脚本，请先按提示解除拦截后再试。');
+            // 🚀 快速检查，不弹窗只检测
+            if (typeof NVAuth === 'undefined') {
+                showMessage('无法连接会员系统，请检查网络或关闭广告拦截插件后重试');
                 setLoading(loginForm, false);
                 isLoginSubmitting = false;
                 return;
@@ -1037,17 +1043,15 @@
             }
             
             setLoading(document.getElementById('registerForm'), true);
-            
-            // 🚀 快速检查
-            if (typeof NVAuth === 'undefined') {
-                showMessage('正在连接服务器...', 'info');
-                try { await waitForAuthReady(500); } catch (err) {}
-            }
-            
             const registerForm = document.getElementById('registerForm');
             
-            if (!ensurePluginReady(true)) {
-                showMessage('检测到浏览器插件阻止了注册脚本，请先按提示解除拦截后再试。');
+            // 🚀 快速检查，仅短暂等待
+            if (typeof NVAuth === 'undefined') {
+                try { await waitForAuthReady(100); } catch (err) {}
+            }
+            
+            if (typeof NVAuth === 'undefined') {
+                showMessage('无法连接会员系统，请检查网络或关闭广告拦截插件后重试');
                 setLoading(registerForm, false);
                 isRegisterSubmitting = false;
                 return;
@@ -1148,12 +1152,14 @@
             }
 
             setLoading(e.target, true);
-            showMessage('正在连接服务器...', 'info');
             
-            try { await waitForAuthReady(2000); } catch (e) {}
+            // 🚀 快速检查
+            if (typeof NVAuth === 'undefined') {
+                try { await waitForAuthReady(100); } catch (err) {}
+            }
             
-            if (!ensurePluginReady(true)) {
-                showMessage('检测到浏览器插件阻止了邮件脚本，请先按提示解除拦截后再试。');
+            if (typeof NVAuth === 'undefined') {
+                showMessage('无法连接会员系统，请检查网络后重试');
                 setLoading(e.target, false);
                 return;
             }
