@@ -158,7 +158,10 @@ async function __billing(billingAction, userId, amount, description) {
 const YUNWU_API_KEY = process.env.YUNWU_API_KEY || '';
 
 // ========== DubbingX TTS 配置 ==========
-const TTS_API_KEY = process.env.TTS_API_KEY || 'NWY1NmUxM20tYjAxZi00YTkzLTgzYjkt';
+// DubbingX 需要两个 key 拼接使用
+const TTS_API_KEY_1 = process.env.TTS_API_KEY_1 || 'NWY1NmUxM2QtYjAxZi00YTkzLTgzYjkt';
+const TTS_API_KEY_2 = process.env.TTS_API_KEY_2 || 'NDJkODRhN2YtOTk1My00NjgwLWEzYTMt';
+const TTS_API_KEY = TTS_API_KEY_1 + TTS_API_KEY_2;
 const TTS_BASE_URL = 'https://tts-api.dubbingx.com';
 const TTS_MAX_CONCURRENT = 5;  // 最大并发数
 let ttsCurrentConcurrent = 0;  // 当前并发数
