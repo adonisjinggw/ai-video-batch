@@ -52,7 +52,19 @@ const FILM_COST = {
     'kling-1.6-720p-5s': 8,       // 1.6版本 - 估算略高于2.0
     'kling-1.6-720p-10s': 16,
     'kling-1.6-1080p-5s': 14,
-    'kling-1.6-1080p-10s': 28
+    'kling-1.6-1080p-10s': 28,
+    // TTS 语音合成模型
+    'tts-dubbingx': 2,             // DubbingX TTS 2胶片/次 (成5并发限制)
+    'tts-gemini-flash': 1,         // Gemini Flash TTS 1胶片/次 (便宜快速)
+    'tts-gemini-pro': 2,           // Gemini Pro TTS 2胶片/次 (高质量)
+    'tts-kling': 1,                // Kling TTS 1胶片/次 (语音合成)
+    'tts-kling-custom-voice': 2    // Kling 自定义音色 2胶片/次
+};
+    'tts-dubbingx': 2,             // DubbingX TTS 2胶片/次
+    'tts-gemini-flash': 1,         // Gemini Flash TTS 1胶片/次 (便宜快速)
+    'tts-gemini-pro': 3,           // Gemini Pro TTS 3胶片/次 (高质量)
+    'tts-kling': 2,                // Kling TTS 2胶片/次
+    'tts-kling-custom-voice': 5    // Kling 自定义音色 5胶片/次
 };
 
 /**
@@ -150,6 +162,13 @@ async function __billing(billingAction, userId, amount, description) {
 }
 
 const YUNWU_API_KEY = process.env.YUNWU_API_KEY || '';
+
+// ========== DubbingX TTS 配置 ==========
+const TTS_API_KEY = process.env.TTS_API_KEY || 'NWY1NmUxM20tYjAxZi00YTkzLTgzYjkt';
+const TTS_BASE_URL = 'https://tts-api.dubbingx.com';
+const TTS_MAX_CONCURRENT = 5;  // 最大并发数
+let ttsCurrentConcurrent = 0;  // 当前并发数
+let ttsQueue = [];  // 等待队列
 
 /**
  * 云雾API多线路配置（按优先级排序）
@@ -2416,6 +2435,492 @@ module.exports = async function handler(req, res) {
             } catch (err) {
                 console.error('[yunwu] VOD轮询异常:', err.message);
                 json(200, { success: false, status: 'PENDING', error: err.message });
+            }
+            return;
+        }
+
+        // ========== 🎵 TTS 配音功能 ==========
+        
+        // 获取音色列表
+        if (action === 'tts-voices') {
+            const { grade, gender, pageIndex, pageSize, keyword } = body;
+            
+            try {
+                const requestBody = {
+                    pageIndex: pageIndex || 1,
+                    pageSize: pageSize || 100,
+                    grade: grade || 'premium'
+                };
+                if (gender !== undefined && gender !== '') requestBody.gender = parseInt(gender);
+                if (keyword) requestBody.keyword = keyword;
+                
+                const response = await fetch(`${TTS_BASE_URL}/v2/getTTSTimbreList`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${TTS_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data?.list) {
+                    json(200, { 
+                        success: true, 
+                        voices: data.data.list,
+                        total: data.data.total
+                    });
+                } else {
+                    json(200, { success: false, error: data.msg || '获取音色失败' });
+                }
+            } catch (err) {
+                console.error('[yunwu] TTS音色列表错误:', err.message);
+                json(500, { success: false, error: err.message });
+            }
+            return;
+        }
+        
+        // TTS生成（带队列控制）
+        if (action === 'tts-generate') {
+            const { voiceId, text, language, audioSpeed, audioPitch, audioVolume, fileFormat, emotion, userId } = body;
+            
+            if (!voiceId || !text) {
+                json(400, { error: 'MISSING_PARAMS', message: '缺少voiceId或text' });
+                return;
+            }
+            
+            // 检查并发数
+            if (ttsCurrentConcurrent >= TTS_MAX_CONCURRENT) {
+                // 返回队列位置
+                const queuePosition = ttsQueue.length + 1;
+                console.log(`[yunwu] TTS队列已满，当前位置: ${queuePosition}`);
+                json(200, { 
+                    success: false, 
+                    queuePosition,
+                    message: `当前排队位置: ${queuePosition}，请稍后重试`
+                });
+                return;
+            }
+            
+            ttsCurrentConcurrent++;
+            console.log(`[yunwu] TTS并发: ${ttsCurrentConcurrent}/${TTS_MAX_CONCURRENT}`);
+            
+            try {
+                const requestBody = {
+                    voiceId: voiceId,
+                    text: text,
+                    language: language || 'zh',
+                    fileFormat: fileFormat || 'mp3'
+                };
+                if (audioSpeed) requestBody.audioSpeed = audioSpeed;
+                if (audioPitch) requestBody.audioPitch = audioPitch;
+                if (audioVolume) requestBody.audioVolume = audioVolume;
+                if (emotion) requestBody.emotion = emotion;
+                
+                const response = await fetch(`${TTS_BASE_URL}/v1/addTtsTask`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${TTS_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data?.id) {
+                    // 扣费
+                    const cost = 2;  // TTS固定2胶片
+                    if (userId) {
+                        await __billing('consume', userId, cost, 'TTS配音');
+                    }
+                    
+                    json(200, { 
+                        success: true, 
+                        taskId: data.data.id,
+                        message: '任务已提交'
+                    });
+                } else {
+                    json(200, { success: false, error: data.msg || 'TTS任务创建失败' });
+                }
+            } catch (err) {
+                console.error('[yunwu] TTS生成错误:', err.message);
+                json(500, { success: false, error: err.message });
+            } finally {
+                ttsCurrentConcurrent--;
+            }
+            return;
+        }
+        
+        // Gemini TTS生成（实时返回音频）
+        // 支持 flash 和 pro 两个版本
+        if (action === 'gemini-tts') {
+            const { text, voiceName, model, userId } = body;
+            // model: 'flash' 或 'pro'，默认 flash
+            
+            if (!text) {
+                json(400, { error: 'MISSING_TEXT', message: '缺少text参数' });
+                return;
+            }
+            
+            // 检查并发数
+            if (ttsCurrentConcurrent >= TTS_MAX_CONCURRENT) {
+                const queuePosition = ttsQueue.length + 1;
+                json(200, { 
+                    success: false, 
+                    queuePosition,
+                    message: `当前排队位置: ${queuePosition}，请稍后重试`
+                });
+                return;
+            }
+            
+            ttsCurrentConcurrent++;
+            
+            // 选择模型：flash(便宜快速) 或 pro(高质量)
+            const isProModel = model === 'pro';
+            const ttsModel = isProModel ? 'gemini-2.5-pro-preview-tts' : 'gemini-2.5-flash-preview-tts';
+            const cost = isProModel ? FILM_COST['tts-gemini-pro'] : FILM_COST['tts-gemini-flash'];
+            
+            console.log(`[yunwu] Gemini TTS并发: ${ttsCurrentConcurrent}/${TTS_MAX_CONCURRENT}, 模型: ${ttsModel}`);
+            
+            try {
+                const requestBody = {
+                    contents: [{
+                        parts: [{ text: text }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ['AUDIO'],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: {
+                                    voiceName: voiceName || 'Kore'
+                                }
+                            }
+                        }
+                    }
+                };
+                
+                const response = await fetch(`${YUNWU_BASE_URL}/v1beta/models/${ttsModel}:generateContent?key=${YUNWU_API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error('[yunwu] Gemini TTS错误:', response.status, errText);
+                    throw new Error(`Gemini TTS失败: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // 解析音频数据
+                const audioData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                const mimeType = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/mp3';
+                
+                if (audioData) {
+                    // 扣费
+                    if (userId) {
+                        await __billing('consume', userId, cost, `Gemini ${isProModel ? 'Pro' : 'Flash'} TTS配音`);
+                    }
+                    
+                    json(200, { 
+                        success: true, 
+                        audioData: audioData,  // base64编码的音频
+                        mimeType: mimeType,
+                        model: ttsModel,
+                        message: '生成成功'
+                    });
+                } else {
+                    throw new Error('未获取到音频数据');
+                }
+            } catch (err) {
+                console.error('[yunwu] Gemini TTS错误:', err.message);
+                json(500, { success: false, error: err.message });
+            } finally {
+                ttsCurrentConcurrent--;
+            }
+            return;
+        }
+        
+        // TTS轮询状态
+        if (action === 'tts-poll') {
+            const { taskId } = body;
+            
+            if (!taskId) {
+                json(400, { error: 'MISSING_TASK_ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${TTS_BASE_URL}/v1/getTtsTaskInfo/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${TTS_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const taskInfo = data.data;
+                    json(200, {
+                        success: true,
+                        status: taskInfo.status,
+                        fileUrl: taskInfo.fileUrl,
+                        fileName: taskInfo.fileName
+                    });
+                } else {
+                    json(200, { success: false, status: 'Pending' });
+                }
+            } catch (err) {
+                console.error('[yunwu] TTS轮询错误:', err.message);
+                json(200, { success: false, status: 'Pending', error: err.message });
+            }
+            return;
+        }
+        
+        // ========== 🎵 可灵 Kling TTS 语音合成 ==========
+        if (action === 'kling-tts') {
+            const { text, voiceId, voiceLanguage, voiceSpeed, userId } = body;
+            
+            if (!text || !voiceId) {
+                json(400, { error: 'MISSING_PARAMS', message: '缺少text或voiceId参数' });
+                return;
+            }
+            
+            // 检查并发数
+            if (ttsCurrentConcurrent >= TTS_MAX_CONCURRENT) {
+                const queuePosition = ttsQueue.length + 1;
+                json(200, { 
+                    success: false, 
+                    queuePosition,
+                    message: `当前排队位置: ${queuePosition}，请稍后重试`
+                });
+                return;
+            }
+            
+            ttsCurrentConcurrent++;
+            console.log(`[yunwu] Kling TTS并发: ${ttsCurrentConcurrent}/${TTS_MAX_CONCURRENT}`);
+            
+            try {
+                const requestBody = {
+                    text: text,
+                    voice_id: voiceId,
+                    voice_language: voiceLanguage || 'zh'
+                };
+                if (voiceSpeed) requestBody.voice_speed = voiceSpeed;
+                
+                const response = await fetchWithFallbackWithTimeout(`/kling/v1/audio/tts`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                }, 60000);
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error('[yunwu] Kling TTS错误:', response.status, errText);
+                    throw new Error(`Kling TTS失败: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[yunwu] Kling TTS返回:', JSON.stringify(data).substring(0, 300));
+                
+                // 检查返回结果
+                if (data?.data?.task_id || data?.task_id) {
+                    const taskId = data?.data?.task_id || data?.task_id;
+                    
+                    // 扣费
+                    const cost = 2;  // Kling TTS 2胶片
+                    if (userId) {
+                        await __billing('consume', userId, cost, 'Kling TTS配音');
+                    }
+                    
+                    json(200, { 
+                        success: true, 
+                        taskId: taskId,
+                        message: '任务已提交'
+                    });
+                } else if (data?.data?.works?.[0]?.resource?.resource) {
+                    // 直接返回音频URL
+                    const audioUrl = data.data.works[0].resource.resource;
+                    
+                    const cost = 2;
+                    if (userId) {
+                        await __billing('consume', userId, cost, 'Kling TTS配音');
+                    }
+                    
+                    json(200, { 
+                        success: true, 
+                        audioUrl: audioUrl,
+                        message: '生成成功'
+                    });
+                } else {
+                    throw new Error('未获取到任务ID或音频');
+                }
+            } catch (err) {
+                console.error('[yunwu] Kling TTS错误:', err.message);
+                json(500, { success: false, error: err.message });
+            } finally {
+                ttsCurrentConcurrent--;
+            }
+            return;
+        }
+        
+        // 可灵 Kling TTS 轮询任务状态
+        if (action === 'kling-tts-poll') {
+            const { taskId } = body;
+            
+            if (!taskId) {
+                json(400, { error: 'MISSING_TASK_ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetchWithFallbackWithTimeout(`/kling/v1/audio/tts/${taskId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`
+                    }
+                }, 15000);
+                
+                if (!response.ok) {
+                    json(200, { success: false, status: 'processing' });
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('[yunwu] Kling TTS轮询返回:', JSON.stringify(data).substring(0, 300));
+                
+                const taskStatus = data?.data?.task_status || data?.task_status;
+                
+                if (taskStatus === 'succeed') {
+                    const audioUrl = data?.data?.task_result?.works?.[0]?.resource?.resource || 
+                                    data?.data?.works?.[0]?.resource?.resource;
+                    json(200, {
+                        success: true,
+                        status: 'completed',
+                        audioUrl: audioUrl
+                    });
+                } else if (taskStatus === 'failed') {
+                    json(200, { success: false, status: 'failed', error: '生成失败' });
+                } else {
+                    json(200, { success: false, status: 'processing' });
+                }
+            } catch (err) {
+                console.error('[yunwu] Kling TTS轮询错误:', err.message);
+                json(200, { success: false, status: 'processing', error: err.message });
+            }
+            return;
+        }
+        
+        // ========== 🎤 可灵自定义音色 ==========
+        if (action === 'kling-custom-voice') {
+            const { voiceName, voiceUrl, videoId, userId } = body;
+            
+            if (!voiceName) {
+                json(400, { error: 'MISSING_VOICE_NAME', message: '缺少音色名称' });
+                return;
+            }
+            
+            if (!voiceUrl && !videoId) {
+                json(400, { error: 'MISSING_SOURCE', message: '需要提供音频URL或视频ID' });
+                return;
+            }
+            
+            try {
+                const requestBody = { voice_name: voiceName };
+                if (voiceUrl) requestBody.voice_url = voiceUrl;
+                if (videoId) requestBody.video_id = videoId;
+                
+                const response = await fetchWithFallbackWithTimeout(`/kling/v1/general/custom-voices`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                }, 60000);
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error('[yunwu] Kling自定义音色错误:', response.status, errText);
+                    throw new Error(`创建自定义音色失败: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[yunwu] Kling自定义音色返回:', JSON.stringify(data).substring(0, 300));
+                
+                const taskId = data?.data?.task_id || data?.task_id;
+                if (taskId) {
+                    // 扣费
+                    const cost = 5;  // 自定义音色 5胶片
+                    if (userId) {
+                        await __billing('consume', userId, cost, 'Kling自定义音色');
+                    }
+                    
+                    json(200, { 
+                        success: true, 
+                        taskId: taskId,
+                        message: '音色创建任务已提交'
+                    });
+                } else {
+                    throw new Error('未获取到任务ID');
+                }
+            } catch (err) {
+                console.error('[yunwu] Kling自定义音色错误:', err.message);
+                json(500, { success: false, error: err.message });
+            }
+            return;
+        }
+        
+        // 查询可灵自定义音色状态
+        if (action === 'kling-custom-voice-query') {
+            const { voiceId } = body;
+            
+            if (!voiceId) {
+                json(400, { error: 'MISSING_VOICE_ID' });
+                return;
+            }
+            
+            try {
+                const response = await fetchWithFallbackWithTimeout(`/kling/v1/general/custom-voices/${voiceId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`
+                    }
+                }, 15000);
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`查询失败: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[yunwu] Kling音色查询返回:', JSON.stringify(data).substring(0, 300));
+                
+                const voiceData = data?.data || data;
+                const status = voiceData?.task_status || voiceData?.status;
+                
+                json(200, {
+                    success: true,
+                    status: status,
+                    voiceId: voiceData?.voice_id || voiceId,
+                    voiceName: voiceData?.voice_name,
+                    data: voiceData
+                });
+            } catch (err) {
+                console.error('[yunwu] Kling音色查询错误:', err.message);
+                json(500, { success: false, error: err.message });
             }
             return;
         }

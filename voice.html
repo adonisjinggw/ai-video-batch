@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎙️ AI配音 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+            --accent-orange: #f97316;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+        .header h1 { font-size: 18px; }
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--accent);
+        }
+        .tabs {
+            display: flex;
+            padding: 12px 20px;
+            gap: 8px;
+            overflow-x: auto;
+            border-bottom: 1px solid #222;
+        }
+        .tab {
+            flex-shrink: 0;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .tab.active {
+            background: var(--accent);
+            color: #000;
+        }
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .input-section { margin-bottom: 20px; }
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 120px;
+        }
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .setting-item { flex: 1; min-width: 120px; }
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+        .setting-item select,
+        .setting-item input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), var(--accent-orange));
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .upload-area {
+            background: var(--bg-card);
+            border: 2px dashed #333;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover { border-color: var(--accent); }
+        .upload-area .icon { font-size: 40px; margin-bottom: 8px; }
+        .upload-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            display: none;
+        }
+        .result-title { font-size: 16px; margin-bottom: 16px; }
+        .result-audio {
+            width: 100%;
+            margin-bottom: 16px;
+        }
+        .result-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .result-btn.primary {
+            background: var(--accent);
+            color: #000;
+            border: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .loading.show { display: block; }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .queue-info {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--text-dim);
+            display: none;
+        }
+        .queue-info.show { display: block; }
+        .queue-info .queue-pos {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .voice-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+        .voice-item {
+            background: var(--bg-input);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .voice-item:hover { border-color: #444; }
+        .voice-item.selected { border-color: var(--accent); background: rgba(251, 191, 36, 0.1); }
+        .voice-item .name { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+        .voice-item .desc { font-size: 11px; color: var(--text-dim); }
+        .voice-item .play-btn {
+            margin-top: 8px;
+            padding: 4px 10px;
+            background: var(--accent);
+            border: none;
+            border-radius: 4px;
+            color: #000;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        /* 滑块样式 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .slider-value {
+            text-align: center;
+            font-size: 12px;
+            color: var(--accent);
+            margin-top: 4px;
+        }
+        /* 批量宫格样式 */
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .batch-cell {
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 12px;
+            position: relative;
+        }
+        .batch-cell .cell-num {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            color: #000;
+            border-radius: 50%;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .batch-cell textarea {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px;
+            color: var(--text);
+            font-size: 12px;
+            resize: none;
+            min-height: 60px;
+            margin-top: 20px;
+        }
+        .batch-cell select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 6px;
+            color: var(--text);
+            font-size: 11px;
+            margin-top: 8px;
+        }
+        .batch-cell .cell-status {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 6px;
+            text-align: center;
+        }
+        .batch-cell .cell-status.success { color: #22c55e; }
+        .batch-cell .cell-status.error { color: #ef4444; }
+        .batch-cell .cell-status.loading { color: var(--accent); }
+        .batch-cell audio {
+            width: 100%;
+            height: 32px;
+            margin-top: 8px;
+        }
+        .batch-progress {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+        .batch-progress-bar {
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .batch-progress-bar .fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="mobile.html" class="back-btn">← 返回</a>
+        <h1>🎙️ AI配音</h1>
+        <div class="user-info">
+            <span id="userQuota">--</span> 胶片
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-panel="tts">📝 文字转语音</button>
+        <button class="tab" data-panel="batch">📚 批量配音</button>
+        <button class="tab" data-panel="img2voice">🖼️ 图片配音</button>
+        <button class="tab" data-panel="video2voice">🎬 视频配音</button>
+    </div>
+
+    <div class="main">
+        <!-- 🎙️ 文字转语音面板 -->
+        <div class="panel active" id="panel-tts">
+            <div class="input-section">
+                <label class="input-label">✍️ 输入要转换的文字</label>
+                <textarea class="input-box" id="ttsText" placeholder="请输入要转换为语音的文字内容...&#10;&#10;支持最多5000字"></textarea>
+                <div style="text-align:right;font-size:12px;color:#666;margin-top:4px;">
+                    <span id="ttsCharCount">0</span>/5000
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">🔊 选择TTS引擎</label>
+                <div class="settings-row">
+                    <div class="setting-item" style="flex:2;">
+                        <select id="ttsEngine" onchange="switchTTSEngine()">
+                            <option value="dubbingx">DubbingX 专业配音 (2胶片)</option>
+                            <option value="gemini-flash">Gemini Flash TTS (1胶片)</option>
+                            <option value="gemini-pro">Gemini Pro TTS (3胶片)</option>
+                            <option value="kling">Kling 可灵TTS (2胶片)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DubbingX 音色选择 -->
+            <div class="input-section" id="dubbingxVoiceSection">
+                <label class="input-label">🎤 选择音色</label>
+                <div class="settings-row" style="margin-bottom:8px;">
+                    <div class="setting-item">
+                        <select id="voiceGender" onchange="filterVoices()">
+                            <option value="">全部性别</option>
+                            <option value="1">男声</option>
+                            <option value="0">女声</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <select id="voiceGrade" onchange="filterVoices()">
+                            <option value="premium">全情绪音色</option>
+                            <option value="ordinary">单情绪音色</option>
+                            <option value="custom">多情绪音色</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="voice-list" id="voiceList">
+                    <div style="text-align:center;padding:20px;color:#666;">加载音色中...</div>
+                </div>
+            </div>
+
+            <!-- Gemini TTS 音色选择 -->
+            <div class="input-section" id="geminiVoiceSection" style="display:none;">
+                <label class="input-label">🎤 选择Gemini音色</label>
+                <select id="geminiVoice" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <option value="Kore">🗣️ Kore - 女声 (英语)</option>
+                    <option value="Charon">🗣️ Charon - 男声 (英语)</option>
+                    <option value="Fenrir">🗣️ Fenrir - 男声 (英语)</option>
+                    <option value="Aoede">🗣️ Aoede - 女声 (英语)</option>
+                    <option value="Puck">🗣️ Puck - 男声 (英语)</option>
+                    <option value="Leda">🗣️ Leda - 女声 (英语)</option>
+                    <option value="Orus">🗣️ Orus - 男声 (英语)</option>
+                    <option value="Zephyr">🗣️ Zephyr - 男声 (英语)</option>
+                </select>
+                <div style="font-size:11px;color:#666;margin-top:6px;">ℹ️ Gemini TTS 支持多语言输入，自动识别语言</div>
+            </div>
+
+            <!-- Kling TTS 音色选择 -->
+            <div class="input-section" id="klingVoiceSection" style="display:none;">
+                <label class="input-label">🎤 选择可灵音色</label>
+                <select id="klingVoice" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <option value="genshin_vindi2">🎮 原神-温蒂</option>
+                    <option value="genshin_keqing">🎮 原神-刻晴</option>
+                    <option value="genshin_hutao">🎮 原神-胡桃</option>
+                    <option value="genshin_zhongli">🎮 原神-钟离</option>
+                    <option value="narrator_male">🗣️ 男声旁白</option>
+                    <option value="narrator_female">🗣️ 女声旁白</option>
+                </select>
+                <div class="settings-row" style="margin-top:12px;">
+                    <div class="setting-item">
+                        <label>语言</label>
+                        <select id="klingLanguage">
+                            <option value="zh">中文</option>
+                            <option value="en">英文</option>
+                            <option value="ja">日语</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>语速</label>
+                    <input type="range" id="ttsSpeed" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSliderValue(this, 'speedValue')">
+                    <div class="slider-value" id="speedValue">1.0x</div>
+                </div>
+                <div class="setting-item">
+                    <label>语调</label>
+                    <input type="range" id="ttsPitch" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSliderValue(this, 'pitchValue')">
+                    <div class="slider-value" id="pitchValue">1.0x</div>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>输出格式</label>
+                    <select id="ttsFormat">
+                        <option value="mp3">MP3</option>
+                        <option value="wav">WAV (高质量)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>语言</label>
+                    <select id="ttsLanguage">
+                        <option value="zh">中文</option>
+                        <option value="en">英文</option>
+                        <option value="yue">粤语</option>
+                        <option value="jp">日语</option>
+                        <option value="ko">韩语</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="queue-info" id="queueInfo">
+                ⏳ 当前排队位置: <span class="queue-pos" id="queuePos">--</span>，预计等待 <span id="queueWait">--</span>
+            </div>
+
+            <button class="generate-btn" id="ttsBtn" onclick="generateTTS()">🎙️ 生成语音 (2胶片)</button>
+
+            <div class="loading" id="ttsLoading">
+                <div class="spinner"></div>
+                <div id="ttsLoadingText">语音生成中...</div>
+            </div>
+
+            <div class="result-section" id="ttsResult">
+                <div class="result-title">🎵 生成结果</div>
+                <audio class="result-audio" id="ttsAudio" controls></audio>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadAudio('tts')">⬇️ 下载</button>
+                    <button class="result-btn primary" onclick="generateTTS()">🔄 重新生成</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🖼️ 图片配音面板 -->
+        <div class="panel" id="panel-img2voice">
+            <div class="input-section">
+                <label class="input-label">📷 上传图片（自动识别文字后配音）</label>
+                <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="previewImage(this)">
+                <div class="upload-area" onclick="document.getElementById('imgInput').click()">
+                    <div class="icon">🖼️</div>
+                    <div>点击上传图片</div>
+                    <div style="font-size:12px;color:#666;margin-top:8px;">支持 JPG、PNG、WebP</div>
+                </div>
+                <img id="imgPreview" class="upload-preview" style="display:none;">
+            </div>
+
+            <div class="input-section" id="imgTextSection" style="display:none;">
+                <label class="input-label">📝 识别到的文字（可编辑）</label>
+                <textarea class="input-box" id="imgText" placeholder="图片文字识别中..."></textarea>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">🎤 选择音色</label>
+                <select id="imgVoiceSelect" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <option value="">请先加载音色列表</option>
+                </select>
+            </div>
+
+            <button class="generate-btn" id="imgBtn" onclick="generateImgVoice()">🎙️ 识别并配音 (3胶片)</button>
+
+            <div class="loading" id="imgLoading">
+                <div class="spinner"></div>
+                <div id="imgLoadingText">处理中...</div>
+            </div>
+
+            <div class="result-section" id="imgResult">
+                <div class="result-title">🎵 配音结果</div>
+                <audio class="result-audio" id="imgAudio" controls></audio>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadAudio('img')">⬇️ 下载</button>
+                    <button class="result-btn primary" onclick="generateImgVoice()">🔄 重新生成</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎬 视频配音面板 -->
+        <div class="panel" id="panel-video2voice">
+            <div class="input-section">
+                <label class="input-label">🎬 视频配音方式</label>
+                <select id="videoMode" onchange="toggleVideoMode()" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;margin-bottom:12px;">
+                    <option value="text">📝 输入文案配音</option>
+                    <option value="upload">📤 上传视频识别配音</option>
+                </select>
+            </div>
+
+            <!-- 文案配音模式 -->
+            <div id="videoTextMode">
+                <div class="input-section">
+                    <label class="input-label">✍️ 输入配音文案</label>
+                    <textarea class="input-box" id="videoText" placeholder="输入要为视频配音的文案..."></textarea>
+                </div>
+            </div>
+
+            <!-- 视频上传模式 -->
+            <div id="videoUploadMode" style="display:none;">
+                <div class="input-section">
+                    <label class="input-label">📤 上传视频（自动识别内容配音）</label>
+                    <input type="file" id="videoInput" accept="video/*" style="display:none" onchange="previewVideo(this)">
+                    <div class="upload-area" onclick="document.getElementById('videoInput').click()">
+                        <div class="icon">🎬</div>
+                        <div>点击上传视频</div>
+                        <div style="font-size:12px;color:#666;margin-top:8px;">支持 MP4、WebM（最大100MB）</div>
+                    </div>
+                    <video id="videoPreview" class="upload-preview" style="display:none;" controls></video>
+                </div>
+
+                <div class="input-section" id="videoTextSection" style="display:none;">
+                    <label class="input-label">📝 识别到的内容（可编辑）</label>
+                    <textarea class="input-box" id="videoRecognizedText" placeholder="视频内容识别中..."></textarea>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">🎤 选择音色</label>
+                <select id="videoVoiceSelect" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <option value="">请先加载音色列表</option>
+                </select>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>语速</label>
+                    <input type="range" id="videoSpeed" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSliderValue(this, 'videoSpeedValue')">
+                    <div class="slider-value" id="videoSpeedValue">1.0x</div>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="videoBtn" onclick="generateVideoVoice()">🎙️ 生成配音 (3胶片)</button>
+
+            <div class="loading" id="videoLoading">
+                <div class="spinner"></div>
+                <div id="videoLoadingText">配音生成中...</div>
+            </div>
+
+            <div class="result-section" id="videoResult">
+                <div class="result-title">🎵 配音结果</div>
+                <audio class="result-audio" id="videoAudio" controls></audio>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadAudio('video')">⬇️ 下载</button>
+                    <button class="result-btn primary" onclick="generateVideoVoice()">🔄 重新生成</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== 全局变量 ====================
+        let currentUser = null;
+        let userQuota = 0;
+        let voiceList = [];  // 音色列表缓存
+        let selectedVoiceId = null;
+        let currentAudioUrls = { tts: null, img: null, video: null };
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 检查登录
+            await checkUser();
+            // 加载音色列表
+            await loadVoiceList();
+            // 绑定标签切换
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+                });
+            });
+            // 字数统计
+            document.getElementById('ttsText').addEventListener('input', function() {
+                document.getElementById('ttsCharCount').textContent = this.value.length;
+            });
+        });
+
+        // ==================== 用户认证 ====================
+        async function checkUser() {
+            try {
+                if (typeof NVAuth === 'undefined') {
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                const { user, quota } = await NVAuth.getCurrentUserAndQuota();
+                if (user) {
+                    currentUser = user;
+                    userQuota = quota || 0;
+                    document.getElementById('userQuota').textContent = userQuota;
+                } else {
+                    showToast('请先登录');
+                    setTimeout(() => {
+                        window.location.href = 'auth.html?return_to=voice.html';
+                    }, 1500);
+                }
+            } catch (e) {
+                console.error('认证检查失败:', e);
+            }
+        }
+
+        // ==================== 音色列表 ====================
+        async function loadVoiceList() {
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'tts-voices', grade: 'premium' })
+                });
+                const data = await res.json();
+                if (data.success && data.voices) {
+                    voiceList = data.voices;
+                    renderVoiceList(voiceList);
+                    updateVoiceSelects(voiceList);
+                } else {
+                    document.getElementById('voiceList').innerHTML = '<div style="text-align:center;padding:20px;color:#f66;">加载失败，请刷新重试</div>';
+                }
+            } catch (e) {
+                console.error('加载音色失败:', e);
+                document.getElementById('voiceList').innerHTML = '<div style="text-align:center;padding:20px;color:#f66;">网络错误</div>';
+            }
+        }
+
+        function renderVoiceList(voices) {
+            const container = document.getElementById('voiceList');
+            if (!voices || voices.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">暂无音色</div>';
+                return;
+            }
+            container.innerHTML = voices.slice(0, 20).map(v => `
+                <div class="voice-item ${selectedVoiceId === v.id ? 'selected' : ''}" data-id="${v.id}" onclick="selectVoice('${v.id}')">
+                    <div class="name">${v.name}</div>
+                    <div class="desc">${v.description || (v.gender === 1 ? '男声' : '女声')}</div>
+                    ${v.voiceUrl ? `<button class="play-btn" onclick="event.stopPropagation();playVoiceSample('${v.voiceUrl}')">▶ 试听</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function filterVoices() {
+            const gender = document.getElementById('voiceGender').value;
+            const grade = document.getElementById('voiceGrade').value;
+            
+            // 重新请求筛选后的音色
+            fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'tts-voices', 
+                    grade: grade || 'premium',
+                    gender: gender || undefined
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.voices) {
+                    voiceList = data.voices;
+                    renderVoiceList(voiceList);
+                }
+            });
+        }
+
+        function selectVoice(voiceId) {
+            selectedVoiceId = voiceId;
+            document.querySelectorAll('.voice-item').forEach(item => {
+                item.classList.toggle('selected', item.dataset.id === voiceId);
+            });
+            // 同步更新下拉选择
+            document.getElementById('imgVoiceSelect').value = voiceId;
+            document.getElementById('videoVoiceSelect').value = voiceId;
+        }
+
+        function updateVoiceSelects(voices) {
+            const options = voices.map(v => `<option value="${v.id}">${v.name} (${v.gender === 1 ? '男' : '女'})</option>`).join('');
+            document.getElementById('imgVoiceSelect').innerHTML = '<option value="">选择音色</option>' + options;
+            document.getElementById('videoVoiceSelect').innerHTML = '<option value="">选择音色</option>' + options;
+        }
+
+        let sampleAudio = null;
+        function playVoiceSample(url) {
+            if (sampleAudio) {
+                sampleAudio.pause();
+            }
+            sampleAudio = new Audio(url);
+            sampleAudio.play();
+        }
+
+        // ==================== 文字转语音 ====================
+        async function generateTTS() {
+            const text = document.getElementById('ttsText').value.trim();
+            if (!text) {
+                showToast('请输入文字内容');
+                return;
+            }
+            if (text.length > 5000) {
+                showToast('文字不能超过5000字');
+                return;
+            }
+            if (!selectedVoiceId) {
+                showToast('请选择音色');
+                return;
+            }
+            if (userQuota < 2) {
+                showToast('胶片不足');
+                return;
+            }
+
+            const btn = document.getElementById('ttsBtn');
+            const loading = document.getElementById('ttsLoading');
+            const result = document.getElementById('ttsResult');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'tts-generate',
+                        voiceId: selectedVoiceId,
+                        text: text,
+                        language: document.getElementById('ttsLanguage').value,
+                        audioSpeed: parseFloat(document.getElementById('ttsSpeed').value),
+                        audioPitch: parseFloat(document.getElementById('ttsPitch').value),
+                        fileFormat: document.getElementById('ttsFormat').value,
+                        userId: currentUser?.id
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success && data.taskId) {
+                    // 开始轮询
+                    document.getElementById('ttsLoadingText').textContent = '语音合成中...';
+                    const audioUrl = await pollTTSResult(data.taskId);
+                    
+                    if (audioUrl) {
+                        currentAudioUrls.tts = audioUrl;
+                        document.getElementById('ttsAudio').src = audioUrl;
+                        result.style.display = 'block';
+                        showToast('生成成功！');
+                        // 更新余额
+                        userQuota -= 2;
+                        document.getElementById('userQuota').textContent = userQuota;
+                    } else {
+                        throw new Error('未获取到音频');
+                    }
+                } else if (data.queuePosition) {
+                    // 排队中
+                    document.getElementById('queueInfo').classList.add('show');
+                    document.getElementById('queuePos').textContent = data.queuePosition;
+                    document.getElementById('queueWait').textContent = `${data.queuePosition * 10}秒`;
+                    showToast(`排队中，位置: ${data.queuePosition}`);
+                    
+                    // 延迟后重试
+                    setTimeout(() => generateTTS(), data.queuePosition * 5000);
+                    return;
+                } else {
+                    throw new Error(data.message || data.error || '生成失败');
+                }
+            } catch (e) {
+                showToast('生成失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+                document.getElementById('queueInfo').classList.remove('show');
+            }
+        }
+
+        async function pollTTSResult(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-poll', taskId })
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'Completed' && data.fileUrl) {
+                        return data.fileUrl;
+                    } else if (data.status === 'Failed') {
+                        throw new Error('合成失败');
+                    }
+                    
+                    document.getElementById('ttsLoadingText').textContent = `语音合成中... (${i + 1}/${maxAttempts})`;
+                } catch (e) {
+                    console.warn('轮询错误:', e);
+                }
+            }
+            throw new Error('合成超时');
+        }
+
+        // ==================== 图片配音 ====================
+        let imgFile = null;
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                imgFile = input.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('imgPreview').src = e.target.result;
+                    document.getElementById('imgPreview').style.display = 'block';
+                };
+                reader.readAsDataURL(imgFile);
+            }
+        }
+
+        async function generateImgVoice() {
+            if (!imgFile) {
+                showToast('请先上传图片');
+                return;
+            }
+            const voiceId = document.getElementById('imgVoiceSelect').value || selectedVoiceId;
+            if (!voiceId) {
+                showToast('请选择音色');
+                return;
+            }
+            if (userQuota < 3) {
+                showToast('胶片不足');
+                return;
+            }
+
+            const btn = document.getElementById('imgBtn');
+            const loading = document.getElementById('imgLoading');
+            const result = document.getElementById('imgResult');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+
+            try {
+                // 1. 先上传图片并OCR识别
+                document.getElementById('imgLoadingText').textContent = '识别图片文字中...';
+                
+                const base64 = await fileToBase64(imgFile);
+                const ocrRes = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'vision',
+                        image_url: base64,
+                        prompt: '请识别图片中的所有文字内容，只返回文字，不要其他解释',
+                        userId: currentUser?.id
+                    })
+                });
+                const ocrData = await ocrRes.json();
+
+                if (!ocrData.success || !ocrData.text) {
+                    throw new Error('图片文字识别失败');
+                }
+
+                // 显示识别结果
+                document.getElementById('imgTextSection').style.display = 'block';
+                document.getElementById('imgText').value = ocrData.text;
+
+                // 2. 调用TTS
+                document.getElementById('imgLoadingText').textContent = '生成配音中...';
+                
+                const ttsRes = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'tts-generate',
+                        voiceId: voiceId,
+                        text: ocrData.text,
+                        language: 'zh',
+                        fileFormat: 'mp3',
+                        userId: currentUser?.id
+                    })
+                });
+
+                const ttsData = await ttsRes.json();
+
+                if (ttsData.success && ttsData.taskId) {
+                    const audioUrl = await pollTTSResultFor('img', ttsData.taskId);
+                    
+                    if (audioUrl) {
+                        currentAudioUrls.img = audioUrl;
+                        document.getElementById('imgAudio').src = audioUrl;
+                        result.style.display = 'block';
+                        showToast('配音生成成功！');
+                        userQuota -= 3;
+                        document.getElementById('userQuota').textContent = userQuota;
+                    }
+                } else {
+                    throw new Error(ttsData.message || '配音生成失败');
+                }
+            } catch (e) {
+                showToast('失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        async function pollTTSResultFor(type, taskId, maxAttempts = 30) {
+            const loadingTextEl = document.getElementById(type + 'LoadingText');
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-poll', taskId })
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'Completed' && data.fileUrl) {
+                        return data.fileUrl;
+                    } else if (data.status === 'Failed') {
+                        throw new Error('合成失败');
+                    }
+                    
+                    if (loadingTextEl) {
+                        loadingTextEl.textContent = `语音合成中... (${i + 1}/${maxAttempts})`;
+                    }
+                } catch (e) {
+                    console.warn('轮询错误:', e);
+                }
+            }
+            throw new Error('合成超时');
+        }
+
+        // ==================== 视频配音 ====================
+        let videoFile = null;
+
+        function toggleVideoMode() {
+            const mode = document.getElementById('videoMode').value;
+            document.getElementById('videoTextMode').style.display = mode === 'text' ? 'block' : 'none';
+            document.getElementById('videoUploadMode').style.display = mode === 'upload' ? 'block' : 'none';
+        }
+
+        function previewVideo(input) {
+            if (input.files && input.files[0]) {
+                videoFile = input.files[0];
+                if (videoFile.size > 100 * 1024 * 1024) {
+                    showToast('视频不能超过100MB');
+                    return;
+                }
+                const url = URL.createObjectURL(videoFile);
+                document.getElementById('videoPreview').src = url;
+                document.getElementById('videoPreview').style.display = 'block';
+            }
+        }
+
+        async function generateVideoVoice() {
+            const mode = document.getElementById('videoMode').value;
+            let text = '';
+            
+            if (mode === 'text') {
+                text = document.getElementById('videoText').value.trim();
+                if (!text) {
+                    showToast('请输入配音文案');
+                    return;
+                }
+            } else {
+                // 上传模式 - 暂时使用手动输入的识别文本
+                text = document.getElementById('videoRecognizedText').value.trim();
+                if (!text && !videoFile) {
+                    showToast('请上传视频或输入文案');
+                    return;
+                }
+                if (!text) {
+                    showToast('请先识别视频内容或手动输入文案');
+                    return;
+                }
+            }
+
+            const voiceId = document.getElementById('videoVoiceSelect').value || selectedVoiceId;
+            if (!voiceId) {
+                showToast('请选择音色');
+                return;
+            }
+            if (userQuota < 3) {
+                showToast('胶片不足');
+                return;
+            }
+
+            const btn = document.getElementById('videoBtn');
+            const loading = document.getElementById('videoLoading');
+            const result = document.getElementById('videoResult');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+
+            try {
+                document.getElementById('videoLoadingText').textContent = '生成配音中...';
+                
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'tts-generate',
+                        voiceId: voiceId,
+                        text: text,
+                        language: 'zh',
+                        audioSpeed: parseFloat(document.getElementById('videoSpeed').value),
+                        fileFormat: 'mp3',
+                        userId: currentUser?.id
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success && data.taskId) {
+                    const audioUrl = await pollTTSResultFor('video', data.taskId);
+                    
+                    if (audioUrl) {
+                        currentAudioUrls.video = audioUrl;
+                        document.getElementById('videoAudio').src = audioUrl;
+                        result.style.display = 'block';
+                        showToast('配音生成成功！');
+                        userQuota -= 3;
+                        document.getElementById('userQuota').textContent = userQuota;
+                    }
+                } else {
+                    throw new Error(data.message || '配音生成失败');
+                }
+            } catch (e) {
+                showToast('失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        // ==================== 工具函数 ====================
+        function updateSliderValue(slider, valueId) {
+            document.getElementById(valueId).textContent = slider.value + 'x';
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function downloadAudio(type) {
+            const url = currentAudioUrls[type];
+            if (!url) return;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `voice_${type}_${Date.now()}.mp3`;
+            a.target = '_blank';
+            a.click();
+            showToast('开始下载');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+</html>
