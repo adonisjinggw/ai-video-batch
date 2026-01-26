@@ -1389,7 +1389,7 @@ module.exports = async function handler(req, res) {
                     output_config: {
                         storage_mode: 'Temporary',
                         aspect_ratio: aspect_ratio,
-                        duration: String(duration),
+                        duration: parseInt(duration) || 5,
                         resolution: resolution,
                         person_generation: 'AllowAdult',
                         input_compliance_check: 'Enabled',
@@ -1598,7 +1598,7 @@ module.exports = async function handler(req, res) {
                     enhance_prompt: 'Enabled',
                     output_config: {
                         storage_mode: 'Temporary',
-                        duration: String(duration),
+                        duration: parseInt(duration) || 6,
                         resolution: resolution,
                         person_generation: 'AllowAdult',
                         input_compliance_check: 'Enabled',
@@ -1741,7 +1741,7 @@ module.exports = async function handler(req, res) {
                     output_config: {
                         storage_mode: 'Temporary',
                         aspect_ratio: aspect_ratio,
-                        duration: String(duration),
+                        duration: parseInt(duration) || 5,
                         resolution: resolution,
                         person_generation: 'AllowAdult',
                         input_compliance_check: 'Enabled',
