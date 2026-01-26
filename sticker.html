@@ -2604,24 +2604,52 @@ Output: A single square image containing ${panelCount} sticker panels in a clean
                     if (!pollResponse.ok) continue;
 
                     const pollData = await pollResponse.json();
-                    const status = (pollData.status || pollData.state || '').toUpperCase();
+                    console.log(`[动态表情] 轮询响应 (${i+1}/${maxAttempts}):`, JSON.stringify(pollData).substring(0, 500));
+                    
+                    const status = (pollData.status || pollData.state || pollData.task_status || '').toUpperCase();
 
                     if (status === 'COMPLETED' || status === 'SUCCEEDED' || status === 'SUCCESS' || status === 'DONE') {
-                        const videoUrl = pollData.output_url || pollData.video_url || pollData.url ||
-                            pollData.data?.output_url || pollData.data?.video_url || pollData.data?.url ||
-                            pollData.results?.[0]?.url || pollData.result?.url;
-                        if (videoUrl) return videoUrl;
+                        // 🔧 健壮的URL提取（兼容多种API返回格式）
+                        const videoUrl =
+                            pollData.video_url ||
+                            pollData.videoUrl ||
+                            pollData.output_url ||
+                            pollData.url ||
+                            pollData.data?.output ||
+                            pollData.data?.video_url ||
+                            pollData.data?.url ||
+                            (Array.isArray(pollData.data) && pollData.data[0]?.url) ||
+                            (Array.isArray(pollData.data) && pollData.data[0]?.video_url) ||
+                            pollData.result?.url ||
+                            pollData.result?.video_url ||
+                            pollData.results?.[0]?.url ||
+                            pollData.output?.video_url ||
+                            pollData.output?.url;
+                        
+                        if (videoUrl) {
+                            console.log(`[动态表情] ✅ 获取到视频URL: ${videoUrl}`);
+                            return videoUrl;
+                        }
+                        console.error('[动态表情] 任务完成但未找到视频URL:', pollData);
                         throw new Error('未返回视频URL');
                     }
 
-                    if (status === 'FAILED' || status === 'ERROR') {
-                        throw new Error(pollData.error || pollData.message || '生成失败');
+                    if (status === 'FAILED' || status === 'ERROR' || status === 'FAILURE' || status === 'FAIL') {
+                        const errorMsg = pollData.fail_reason || pollData.error || pollData.message || pollData.error_message || '生成失败';
+                        throw new Error(errorMsg);
+                    }
+                    
+                    // 🔧 检查data内部的失败状态
+                    if (pollData.data?.status && ['FAILURE', 'FAILED', 'ERROR', 'FAIL'].includes(String(pollData.data.status).toUpperCase())) {
+                        const errorMsg = pollData.data.fail_reason || pollData.data.error || pollData.data.message || '任务执行失败';
+                        throw new Error(errorMsg);
                     }
                 } catch (err) {
-                    if (err.message.includes('失败') || err.message.includes('URL')) {
+                    if (err.message.includes('失败') || err.message.includes('URL') || err.message.includes('执行')) {
                         throw err;
                     }
                     // 网络错误继续重试
+                    console.warn(`[动态表情] 轮询异常 (${i+1}/${maxAttempts}):`, err.message);
                 }
             }
 

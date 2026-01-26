@@ -121,7 +121,8 @@ const ZHENZHEN_API_URL = process.env.IMAGE_API_URL || 'https://ai.t8star.cn';
 const API_BASE_URL = ZHENZHEN_API_URL;
 
 // 🆕 魔塔 ModelScope API 配置（qwen-image-max 模型）
-const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || '';
+// ✅ 优先用 MODELSCOPE_API_KEY，否则回退到 YUNMENG_API_KEY
+const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || process.env.YUNMENG_API_KEY || '';
 const MODELSCOPE_BASE_URL = 'https://api-inference.modelscope.cn';
 
 // 🆕 云梦/云雾API配置（主力优先）- 支持多个 API Key
@@ -290,14 +291,16 @@ async function callQwenImageMax(prompt, options = {}) {
     if (!submitResponse.ok) {
         const errorText = await submitResponse.text();
         console.error(`[banana2] ModelScope qwen-image-max 提交失败: ${submitResponse.status}`, errorText);
+        console.error(`[banana2] 请求体:`, JSON.stringify(requestBody));
+        console.error(`[banana2] API Key 前8位: ${MODELSCOPE_API_KEY.substring(0, 8)}...`);
         let errorDetail = '';
         try {
             const errorJson = JSON.parse(errorText);
-            errorDetail = errorJson?.message || errorJson?.error?.message || errorJson?.code || '';
+            errorDetail = errorJson?.message || errorJson?.error?.message || errorJson?.code || errorJson?.errors?.message || '';
         } catch (e) {
-            errorDetail = errorText.substring(0, 200);
+            errorDetail = errorText.substring(0, 300);
         }
-        throw new Error(`qwen-image-max 提交失败: ${submitResponse.status} - ${errorDetail}`);
+        throw new Error(`万象Max生成失败: ${errorDetail || submitResponse.status}`);
     }
 
     const submitData = await submitResponse.json();
@@ -308,64 +311,110 @@ async function callQwenImageMax(prompt, options = {}) {
 
     console.log(`[banana2] 🎯 qwen-image-max 任务已提交, task_id: ${taskId}`);
 
-    // 第二步：轮询任务状态
-    const maxAttempts = 30;  // 最多轮询 30 次，每次 2 秒，共 60 秒
+    // 第二步：轮询任务状态（增强容错）
+    const maxAttempts = 45;  // 增加到 45 次，每次 2 秒，共 90 秒
+    let consecutiveFailures = 0;
+    
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        const pollResponse = await fetchWithTimeout(
-            `${MODELSCOPE_BASE_URL}/v1/tasks/${taskId}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${MODELSCOPE_API_KEY}`,
-                    'X-ModelScope-Task-Type': 'image_generation'
-                }
-            },
-            15000
-        );
-
-        if (!pollResponse.ok) {
-            console.warn(`[banana2] 轮询失败 (attempt ${attempt + 1}): ${pollResponse.status}`);
-            continue;
-        }
-
-        const pollData = await pollResponse.json();
-        console.log(`[banana2] 🔄 轮询 (${attempt + 1}/${maxAttempts}): ${pollData.task_status}`);
-
-        if (pollData.task_status === 'SUCCEED') {
-            const images = pollData.output_images || [];
-            if (images.length > 0) {
-                const imageUrl = images[0];
-                console.log(`[banana2] ✅ qwen-image-max 生成成功: ${imageUrl.substring(0, 80)}...`);
-                
-                // 🔧 如果是 OSS URL，需要在服务端转换为 base64，避免前端 CORS 问题
-                if (imageUrl.includes('aliyuncs.com') || imageUrl.includes('oss-cn-') || imageUrl.includes('modelscope')) {
-                    try {
-                        console.log(`[banana2] 🔄 转换图片 URL 为 base64...`);
-                        const imgResponse = await fetchWithTimeout(imageUrl, {}, 30000);
-                        if (imgResponse.ok) {
-                            const arrayBuffer = await imgResponse.arrayBuffer();
-                            const base64 = Buffer.from(arrayBuffer).toString('base64');
-                            const contentType = imgResponse.headers.get('content-type') || 'image/png';
-                            return `data:${contentType};base64,${base64}`;
-                        }
-                        console.warn(`[banana2] ⚠️ 获取图片失败: ${imgResponse.status}, 返回原始 URL`);
-                    } catch (e) {
-                        console.warn(`[banana2] ⚠️ 转换 base64 失败: ${e.message}, 返回原始 URL`);
+        try {
+            const pollResponse = await fetchWithTimeout(
+                `${MODELSCOPE_BASE_URL}/v1/tasks/${taskId}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${MODELSCOPE_API_KEY}`,
+                        'X-ModelScope-Task-Type': 'image_generation'
                     }
-                }
-                return imageUrl;
-            }
-        }
+                },
+                20000  // 增加超时时间
+            );
 
-        if (pollData.task_status === 'FAILED') {
-            const errorMsg = pollData?.error_msg || '图片生成失败';
-            throw new Error(`qwen-image-max 生成失败: ${errorMsg}`);
+            if (!pollResponse.ok) {
+                consecutiveFailures++;
+                console.warn(`[banana2] 轮询失败 (attempt ${attempt + 1}): ${pollResponse.status}, 连续失败${consecutiveFailures}次`);
+                if (consecutiveFailures >= 5) {
+                    throw new Error(`轮询连续失败${consecutiveFailures}次`);
+                }
+                continue;
+            }
+            
+            consecutiveFailures = 0;  // 重置连续失败计数
+            
+            const pollText = await pollResponse.text();
+            let pollData;
+            try {
+                pollData = JSON.parse(pollText);
+            } catch (e) {
+                console.warn(`[banana2] 轮询返回非 JSON: ${pollText.substring(0, 100)}`);
+                continue;
+            }
+            
+            console.log(`[banana2] 🔄 轮询 (${attempt + 1}/${maxAttempts}): ${pollData.task_status}`);
+
+            if (pollData.task_status === 'SUCCEED') {
+                // 🔧 多种方式提取图片URL
+                let imageUrl = '';
+                const images = pollData.output_images || pollData.images || [];
+                if (images.length > 0) {
+                    imageUrl = images[0];
+                }
+                if (!imageUrl && pollData.output?.url) {
+                    imageUrl = pollData.output.url;
+                }
+                if (!imageUrl && pollData.data?.url) {
+                    imageUrl = pollData.data.url;
+                }
+                if (!imageUrl && pollData.url) {
+                    imageUrl = pollData.url;
+                }
+                if (!imageUrl && pollData.result?.url) {
+                    imageUrl = pollData.result.url;
+                }
+                
+                if (imageUrl) {
+                    console.log(`[banana2] ✅ qwen-image-max 生成成功: ${imageUrl.substring(0, 80)}...`);
+                    
+                    // 🔧 如果是 OSS URL，需要在服务端转换为 base64，避免前端 CORS 问题
+                    if (imageUrl.includes('aliyuncs.com') || imageUrl.includes('oss-cn-') || imageUrl.includes('modelscope')) {
+                        try {
+                            console.log(`[banana2] 🔄 转换图片 URL 为 base64...`);
+                            const imgResponse = await fetchWithTimeout(imageUrl, {}, 30000);
+                            if (imgResponse.ok) {
+                                const arrayBuffer = await imgResponse.arrayBuffer();
+                                const base64 = Buffer.from(arrayBuffer).toString('base64');
+                                const contentType = imgResponse.headers.get('content-type') || 'image/png';
+                                return `data:${contentType};base64,${base64}`;
+                            }
+                            console.warn(`[banana2] ⚠️ 获取图片失败: ${imgResponse.status}, 返回原始 URL`);
+                        } catch (e) {
+                            console.warn(`[banana2] ⚠️ 转换 base64 失败: ${e.message}, 返回原始 URL`);
+                        }
+                    }
+                    return imageUrl;
+                } else {
+                    console.warn(`[banana2] SUCCEED 但未找到图片URL:`, JSON.stringify(pollData).substring(0, 300));
+                }
+            }
+
+            if (pollData.task_status === 'FAILED') {
+                const errorMsg = pollData?.error_msg || pollData?.message || '图片生成失败';
+                throw new Error(`万象Max生成失败: ${errorMsg}`);
+            }
+        } catch (err) {
+            if (err.message.includes('轮询连续失败') || err.message.includes('生成失败')) {
+                throw err;
+            }
+            console.warn(`[banana2] 轮询异常 (attempt ${attempt + 1}): ${err.message}`);
+            consecutiveFailures++;
+            if (consecutiveFailures >= 5) {
+                throw new Error(`轮询连续异常${consecutiveFailures}次: ${err.message}`);
+            }
         }
     }
 
-    throw new Error('qwen-image-max 生成超时，请稍后重试');
+    throw new Error('万象Max生成超时，请稍后重试');
 }
 
 module.exports = async function handler(req, res) {
@@ -455,8 +504,10 @@ module.exports = async function handler(req, res) {
         }
         
         if (isQwenModel && !MODELSCOPE_API_KEY) {
-            json(500, { error: 'SERVER_CONFIG_ERROR', message: '服务器未配置 MODELSCOPE_API_KEY' });
-            return;
+            console.error('[banana2] ❗ MODELSCOPE_API_KEY 未配置，尝试使用云梦API替代');
+            // 改用云梦API的Gemini-3替代
+            mappedModel = 'gemini-3-pro-image-preview';
+            useModelScopeAPI = false;
         }
 
         console.log(`[banana2] 🔑 可用API Key数量: 云梦=${YUNMENG_API_KEYS.length}, 魔塔=${MODELSCOPE_API_KEY ? 1 : 0}`);
@@ -492,8 +543,8 @@ module.exports = async function handler(req, res) {
         // ✅ modelscope 映射后会是 gemini-3，所以要用 actualModel 或 mappedModel 判断
         const isGemini3 = (actualModel && actualModel.includes('gemini-3-pro-image-preview')) || (mappedModel && mappedModel.includes('gemini-3-pro-image-preview'));
         const isNanoBanana = model && (model.includes('nano-banana-2') || model === 'banana2' || model === 'modelscope');
-        // 🆕 只有明确使用ModelScope API时才走qwen-image-max分支
-        const isQwenImageMax = useModelScopeAPI;
+        // 🆕 只有配置了MODELSCOPE_API_KEY且明确使用ModelScope API时才走qwen-image-max分支
+        const isQwenImageMax = useModelScopeAPI && MODELSCOPE_API_KEY;
 
         let response;
 

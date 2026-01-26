@@ -1446,3 +1446,490 @@ if (typeof document !== 'undefined') {
     }, 10 * 60 * 1000);  // 10分钟
 }
 
+// ==================== 🤖 AI 语音控制助手 ====================
+/**
+ * RollRoll AI Agent - 语音/文字控制助手
+ * 使用免费模型，不计费
+ * - STT: Whisper (via yunwu API)
+ * - Intent: Qwen/roll 免费模型
+ */
+(function() {
+    'use strict';
+    
+    // 配置
+    const AGENT_CONFIG = {
+        enabled: true,
+        showButton: true,  // 默认显示悬浮按钮
+        position: 'bottom-right'  // 按钮位置
+    };
+    
+    // 从localStorage读取用户设置
+    const STORAGE_KEY = 'rollroll_agent_enabled';
+    function isAgentEnabled() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved === null ? true : saved === 'true';  // 默认开启
+    }
+    function setAgentEnabled(val) {
+        localStorage.setItem(STORAGE_KEY, val ? 'true' : 'false');
+    }
+    
+    // 状态
+    let isListening = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    
+    // 🎤 开始录音
+    async function startListening() {
+        if (isListening) return;
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) audioChunks.push(e.data);
+            };
+            
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                stream.getTracks().forEach(t => t.stop());
+                await processVoiceInput(audioBlob);
+            };
+            
+            mediaRecorder.start();
+            isListening = true;
+            updateAgentUI('listening');
+            console.log('[🎤 Agent] 开始录音...');
+        } catch (err) {
+            console.error('[🎤 Agent] 麦克风访问失败:', err);
+            showAgentMessage('需要麦克风权限才能使用语音功能');
+        }
+    }
+    
+    // 🛑 停止录音
+    function stopListening() {
+        if (!isListening || !mediaRecorder) return;
+        mediaRecorder.stop();
+        isListening = false;
+        updateAgentUI('processing');
+        console.log('[🎤 Agent] 停止录音，开始识别...');
+    }
+    
+    // 🌐 语音转文字 (STT)
+    async function speechToText(audioBlob) {
+        try {
+            const base64 = await blobToBase64(audioBlob);
+            const response = await fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'stt',
+                    audio: base64,
+                    userId: null  // 免费，不计费
+                })
+            });
+            const data = await response.json();
+            if (data.success && data.text) {
+                return data.text;
+            }
+            throw new Error(data.error || '语音识别失败');
+        } catch (err) {
+            console.error('[🎤 Agent] STT失败:', err);
+            return null;
+        }
+    }
+    
+    // 🧠 意图识别
+    async function recognizeIntent(text) {
+        try {
+            const prompt = `你是RollRoll AI网站的语音助手。用户说："${text}"
+
+请分析用户意图，返回JSON格式：
+{
+  "intent": "意图类型",  // navigate(跳转页面), generate(生成内容), config(修改配置), action(执行操作), chat(闲聊)
+  "target": "目标",  // 页面名/功能名
+  "params": {},  // 参数
+  "reply": "回复用户的话"  // 简短友好的回复
+}
+
+可用页面: home(首页), banana(画图), video-tools(视频工具), music(音乐), voice(配音), chat(对话), sticker(贴纸/表情包), writing(写作)
+可用操作: generate-image(生成图片), generate-video(生成视频), generate-music(生成音乐)
+
+只返回JSON，不要其他内容。`;
+            
+            const response = await fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'text',
+                    prompt: prompt,
+                    model: 'roll',  // 免费模型
+                    userId: null
+                })
+            });
+            const data = await response.json();
+            const content = data.content || data.text || '';
+            
+            // 提取JSON
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+            return { intent: 'chat', reply: '抱歉，我没听懂您的意思。请再说一遍？' };
+        } catch (err) {
+            console.error('[🎤 Agent] 意图识别失败:', err);
+            return { intent: 'chat', reply: '网络开小差了，请稍后再试。' };
+        }
+    }
+    
+    // 🚀 执行意图
+    async function executeIntent(intent) {
+        const { intent: type, target, params, reply } = intent;
+        
+        // 显示回复
+        if (reply) showAgentMessage(reply);
+        
+        switch (type) {
+            case 'navigate':
+                navigateToPage(target);
+                break;
+            case 'generate':
+                if (target === 'generate-image' || target === 'image') {
+                    navigateToPage('banana');
+                    setTimeout(() => {
+                        const input = document.getElementById('promptInput');
+                        if (input && params?.prompt) {
+                            input.value = params.prompt;
+                        }
+                    }, 500);
+                } else if (target === 'generate-video' || target === 'video') {
+                    navigateToPage('video-tools');
+                }
+                break;
+            case 'action':
+                // 执行特定操作
+                console.log('[🎤 Agent] 执行操作:', target, params);
+                break;
+            case 'config':
+                console.log('[🎤 Agent] 修改配置:', target, params);
+                break;
+            default:
+                // 闲聊或未知意图
+                break;
+        }
+    }
+    
+    // 📍 页面跳转
+    function navigateToPage(page) {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        const suffix = isMobile ? '?force=mobile' : '';
+        
+        const pages = {
+            'home': 'index.html',
+            '首页': 'index.html',
+            'banana': 'banana.html',
+            '画图': 'banana.html',
+            '绘画': 'banana.html',
+            'video-tools': 'video-tools.html',
+            '视频': 'video-tools.html',
+            'music': 'music.html',
+            '音乐': 'music.html',
+            'voice': 'voice.html',
+            '配音': 'voice.html',
+            'chat': 'chat.html',
+            '对话': 'chat.html',
+            'sticker': 'sticker.html',
+            '贴纸': 'sticker.html',
+            '表情包': 'sticker.html',
+            'writing': 'writing.html',
+            '写作': 'writing.html'
+        };
+        
+        const url = pages[page] || pages[page.toLowerCase()];
+        if (url) {
+            window.location.href = url + suffix;
+        }
+    }
+    
+    // 🎯 处理语音输入
+    async function processVoiceInput(audioBlob) {
+        updateAgentUI('processing');
+        
+        // 1. 语音转文字
+        const text = await speechToText(audioBlob);
+        if (!text) {
+            showAgentMessage('没有听清您说的内容，请再试一次');
+            updateAgentUI('idle');
+            return;
+        }
+        
+        console.log('[🎤 Agent] 识别结果:', text);
+        showAgentMessage(`您说: "${text}"`, 'user');
+        
+        // 2. 意图识别
+        const intent = await recognizeIntent(text);
+        console.log('[🎤 Agent] 意图:', intent);
+        
+        // 3. 执行意图
+        await executeIntent(intent);
+        
+        updateAgentUI('idle');
+    }
+    
+    // 💬 处理文字输入
+    async function processTextInput(text) {
+        if (!text || !text.trim()) return;
+        
+        updateAgentUI('processing');
+        showAgentMessage(`您说: "${text}"`, 'user');
+        
+        const intent = await recognizeIntent(text);
+        await executeIntent(intent);
+        
+        updateAgentUI('idle');
+    }
+    
+    // 📦 工具函数
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+    
+    // 🎨 UI 更新
+    function updateAgentUI(state) {
+        const btn = document.getElementById('aiAgentBtn');
+        if (!btn) return;
+        
+        btn.className = 'ai-agent-btn ' + state;
+        switch (state) {
+            case 'listening':
+                btn.innerHTML = '🔴';
+                btn.title = '点击停止录音';
+                break;
+            case 'processing':
+                btn.innerHTML = '⏳';
+                btn.title = '正在处理...';
+                break;
+            default:
+                btn.innerHTML = '🎤';
+                btn.title = '点击说话或输入文字';
+        }
+    }
+    
+    function showAgentMessage(msg, type = 'agent') {
+        // 创建浮动消息
+        let msgBox = document.getElementById('aiAgentMsg');
+        if (!msgBox) {
+            msgBox = document.createElement('div');
+            msgBox.id = 'aiAgentMsg';
+            msgBox.style.cssText = 'position:fixed;bottom:80px;right:20px;max-width:280px;padding:12px 16px;background:rgba(20,20,25,0.95);border:1px solid #333;border-radius:12px;color:#fff;font-size:14px;z-index:10000;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+            document.body.appendChild(msgBox);
+        }
+        msgBox.textContent = msg;
+        msgBox.style.display = 'block';
+        
+        // 3秒后自动隐藏
+        setTimeout(() => { msgBox.style.display = 'none'; }, 3000);
+    }
+    
+    // 🔧 初始化 UI
+    function initAgentUI() {
+        if (!AGENT_CONFIG.showButton) return;
+        
+        // 创建容器（包含主按钮+开关）
+        const container = document.createElement('div');
+        container.id = 'aiAgentContainer';
+        container.style.cssText = `
+            position: fixed;
+            ${AGENT_CONFIG.position === 'bottom-right' ? 'right: 20px; bottom: 20px;' : 'left: 20px; bottom: 20px;'}
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+            z-index: 9999;
+        `;
+        
+        // 创建开关按钮
+        const toggleBtn = document.createElement('button');
+        toggleBtn.id = 'aiAgentToggle';
+        toggleBtn.innerHTML = isAgentEnabled() ? '✕' : '🎤';
+        toggleBtn.title = isAgentEnabled() ? '关闭语音助手' : '开启语音助手';
+        toggleBtn.style.cssText = `
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: ${isAgentEnabled() ? 'rgba(239,68,68,0.8)' : 'rgba(102,126,234,0.8)'};
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        toggleBtn.onclick = () => {
+            if (isAgentEnabled()) {
+                disableAgent();
+            } else {
+                enableAgent();
+            }
+        };
+        container.appendChild(toggleBtn);
+        
+        // 创建主按钮（仅开启时显示）
+        if (isAgentEnabled()) {
+            const btn = document.createElement('button');
+            btn.id = 'aiAgentBtn';
+            btn.className = 'ai-agent-btn idle';
+            btn.innerHTML = '🎤';
+            btn.title = '点击说话，长按文字输入';
+            btn.style.cssText = `
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                border: none;
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: #fff;
+                font-size: 22px;
+                cursor: pointer;
+                box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            // 点击事件
+            btn.onclick = () => {
+                if (isListening) {
+                    stopListening();
+                } else {
+                    startListening();
+                }
+            };
+            
+            // 长按显示文字输入框
+            let longPressTimer = null;
+            btn.onmousedown = btn.ontouchstart = (e) => {
+                longPressTimer = setTimeout(() => {
+                    showTextInputDialog();
+                }, 500);
+            };
+            btn.onmouseup = btn.ontouchend = btn.onmouseleave = () => {
+                if (longPressTimer) clearTimeout(longPressTimer);
+            };
+            
+            container.appendChild(btn);
+        }
+        
+        document.body.appendChild(container);
+        
+        // 添加样式
+        const style = document.createElement('style');
+        style.id = 'aiAgentStyles';
+        style.textContent = `
+            .ai-agent-btn:hover { transform: scale(1.1); }
+            .ai-agent-btn.listening { background: linear-gradient(135deg, #ef4444, #dc2626); animation: pulse 1s infinite; }
+            .ai-agent-btn.processing { background: linear-gradient(135deg, #f59e0b, #d97706); }
+            @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 50% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } }
+            #aiAgentToggle:hover { transform: scale(1.1); opacity: 1; }
+        `;
+        if (!document.getElementById('aiAgentStyles')) {
+            document.head.appendChild(style);
+        }
+    }
+    
+    // 关闭助手
+    function disableAgent() {
+        setAgentEnabled(false);
+        // 移除主按钮，保留开关
+        document.getElementById('aiAgentBtn')?.remove();
+        document.getElementById('aiAgentMsg')?.remove();
+        // 更新开关按钮状态
+        const toggleBtn = document.getElementById('aiAgentToggle');
+        if (toggleBtn) {
+            toggleBtn.innerHTML = '🎤';
+            toggleBtn.title = '开启语音助手';
+            toggleBtn.style.background = 'rgba(102,126,234,0.8)';
+        }
+        showAgentMessage('语音助手已关闭');
+    }
+    
+    // 开启助手
+    function enableAgent() {
+        setAgentEnabled(true);
+        // 重新初始化UI
+        document.getElementById('aiAgentContainer')?.remove();
+        initAgentUI();
+        showAgentMessage('语音助手已开启');
+    }
+    
+    // 📝 文字输入对话框
+    function showTextInputDialog() {
+        let dialog = document.getElementById('aiAgentDialog');
+        if (dialog) {
+            dialog.style.display = 'flex';
+            dialog.querySelector('input')?.focus();
+            return;
+        }
+        
+        dialog = document.createElement('div');
+        dialog.id = 'aiAgentDialog';
+        dialog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10001;';
+        dialog.innerHTML = `
+            <div style="background:#1a1a22;border-radius:16px;padding:20px;width:90%;max-width:400px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <span style="color:#fff;font-size:16px;font-weight:600;">🤖 AI 助手</span>
+                    <button onclick="document.getElementById('aiAgentDialog').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;">×</button>
+                </div>
+                <input type="text" id="aiAgentInput" placeholder="输入您的指令..." style="width:100%;padding:12px;background:#0a0a0f;border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;">
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button onclick="window.RollAgent?.processTextInput(document.getElementById('aiAgentInput').value);document.getElementById('aiAgentDialog').style.display='none';" style="flex:1;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;">发送</button>
+                </div>
+                <div style="margin-top:12px;font-size:12px;color:#666;">
+                    示例: "打开画图页面"、"帮我生成一只猫咪"、"去配音"
+                </div>
+            </div>
+        `;
+        document.body.appendChild(dialog);
+        
+        // 回车发送
+        const input = dialog.querySelector('input');
+        input.focus();
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                window.RollAgent?.processTextInput(input.value);
+                dialog.style.display = 'none';
+            }
+        };
+    }
+    
+    // 🚀 导出 API
+    window.RollAgent = {
+        startListening,
+        stopListening,
+        processTextInput,
+        showTextInputDialog,
+        disable: disableAgent,
+        enable: enableAgent,
+        isEnabled: isAgentEnabled,
+        config: AGENT_CONFIG
+    };
+    
+    // 页面加载完成后初始化
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAgentUI);
+    } else {
+        initAgentUI();
+    }
+    
+    console.log('✅ RollRoll AI Agent 已加载');
+})();
+

@@ -280,8 +280,8 @@
         }
         .batch-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
             margin-bottom: 16px;
         }
         .batch-item {
@@ -291,6 +291,7 @@
             border-radius: 10px;
             overflow: hidden;
             aspect-ratio: 1;
+            min-height: 120px;
         }
         .batch-item {
             display: flex;
@@ -414,8 +415,8 @@
         }
         .batch-result-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
             margin-bottom: 16px;
         }
         .batch-result-item {
@@ -1133,7 +1134,7 @@
         <!-- 🆕 批量/单个模式切换 -->
         <div class="batch-toggle">
             <button class="batch-toggle-btn active" onclick="setBatchMode(false)" id="singleModeBtn">📝 单图模式</button>
-            <button class="batch-toggle-btn" onclick="setBatchMode(true)" id="batchModeBtn">🖼️ 批量模式 (9宫格)</button>
+            <button class="batch-toggle-btn" onclick="setBatchMode(true)" id="batchModeBtn">🖼️ 批量模式 (8宫格)</button>
         </div>
 
         <!-- 单图模式输入区 -->
@@ -2784,10 +2785,11 @@
         
         // 🆕 批量格子配置数据
         const batchCellConfigs = [];
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < 8; i++) {
             batchCellConfigs.push({
                 model: 'nano-banana-2',
                 ratio: '1:1',
+                mjVersion: '6.1',  // MJ 版本
                 refImage: null  // 每个格子独立的参考图
             });
         }
@@ -2804,7 +2806,9 @@
                 <option value="nano-banana-2-4k">💎 4K</option>
                 <option value="doubao-seedream-4-5-251128">✨ 星梦</option>
                 <option value="Qwen/Qwen-Image-2512">🎭 万象</option>
-                <option value="midjourney-fast">🌟 MJ</option>
+                <option value="midjourney-fast">🌟 MJ Fast</option>
+                <option value="midjourney-turbo">🚀 MJ Turbo</option>
+                <option value="midjourney-relax">🌙 MJ Relax</option>
                 <option value="modelscope">🧠 免费</option>
             `;
             const ratioOptions = `
@@ -2812,8 +2816,16 @@
                 <option value="16:9">16:9</option>
                 <option value="9:16">9:16</option>
             `;
+            const mjVersionOptions = `
+                <option value="7">v7</option>
+                <option value="6.1" selected>v6.1</option>
+                <option value="6">v6</option>
+                <option value="5.2">v5.2</option>
+                <option value="niji7">Niji7</option>
+                <option value="niji6">Niji6</option>
+            `;
             
-            for (let i = 0; i < 9; i++) {
+            for (let i = 0; i < 8; i++) {
                 const div = document.createElement('div');
                 div.className = 'batch-item';
                 div.innerHTML = `
@@ -2822,9 +2834,14 @@
                     <div class="batch-item-config">
                         <select id="batchModel${i}" onchange="updateBatchCellConfig(${i})">${modelOptions}</select>
                         <select id="batchRatio${i}" onchange="updateBatchCellConfig(${i})">${ratioOptions}</select>
+                        <select id="batchMjVersion${i}" onchange="updateBatchCellConfig(${i})" style="display:none;">${mjVersionOptions}</select>
                     </div>
                 `;
                 grid.appendChild(div);
+            }
+            // 初始化后检查每个格子的 MJ 版本选择器显示状态
+            for (let i = 0; i < 8; i++) {
+                updateBatchMjVersionVisibility(i);
             }
         }
         
@@ -2832,8 +2849,21 @@
         function updateBatchCellConfig(idx) {
             const model = document.getElementById(`batchModel${idx}`)?.value || 'nano-banana-2';
             const ratio = document.getElementById(`batchRatio${idx}`)?.value || '1:1';
+            const mjVersion = document.getElementById(`batchMjVersion${idx}`)?.value || '6.1';
             batchCellConfigs[idx].model = model;
             batchCellConfigs[idx].ratio = ratio;
+            batchCellConfigs[idx].mjVersion = mjVersion;
+            // 更新 MJ 版本选择器显示状态
+            updateBatchMjVersionVisibility(idx);
+        }
+        
+        // 🆕 更新 MJ 版本选择器显示/隐藏
+        function updateBatchMjVersionVisibility(idx) {
+            const model = document.getElementById(`batchModel${idx}`)?.value || '';
+            const mjVersionSel = document.getElementById(`batchMjVersion${idx}`);
+            if (mjVersionSel) {
+                mjVersionSel.style.display = model.startsWith('midjourney-') ? 'block' : 'none';
+            }
         }
         
         // 🆕 设置格子参考图（支持同一图片多次使用）
@@ -2932,13 +2962,19 @@
         function applyGlobalConfigToBatch() {
             const globalModel = document.getElementById('modelSelect').value;
             const globalRatio = document.getElementById('ratioSelect').value;
-            for (let i = 0; i < 9; i++) {
+            const globalMjVersion = document.getElementById('mjVersion')?.value || '6.1';
+            for (let i = 0; i < 8; i++) {
                 batchCellConfigs[i].model = globalModel;
                 batchCellConfigs[i].ratio = globalRatio;
+                batchCellConfigs[i].mjVersion = globalMjVersion;
                 const modelSel = document.getElementById(`batchModel${i}`);
                 const ratioSel = document.getElementById(`batchRatio${i}`);
+                const mjVersionSel = document.getElementById(`batchMjVersion${i}`);
                 if (modelSel) modelSel.value = globalModel;
                 if (ratioSel) ratioSel.value = globalRatio;
+                if (mjVersionSel) mjVersionSel.value = globalMjVersion;
+                // 更新 MJ 版本选择器显示状态
+                updateBatchMjVersionVisibility(i);
             }
             showToast('已应用全局配置到所有格子');
         }
