@@ -1573,23 +1573,103 @@ if (typeof document !== 'undefined') {
         console.log('[🎤 Agent] 停止语音识别');
     }
     
-    // 🧠 意图识别
+    // 📝 获取当前页面上下文（可操作的元素）
+    function getPageContext() {
+        const page = location.pathname.split('/').pop().replace('.html', '') || 'index';
+        const context = { page, elements: [] };
+        
+        // 通用元素选择器
+        const selectors = {
+            // 模型选择
+            models: '[data-model], .model-item, .model-card, select[id*="model"], [onclick*="selectModel"], [onclick*="Model"]',
+            // 尺寸/比例
+            ratios: '[data-ratio], [data-aspect], .ratio-btn, .aspect-item, [onclick*="Ratio"], [onclick*="ratio"]',
+            // 风格
+            styles: '[data-style], .style-item, .style-card, [onclick*="Style"], [onclick*="style"]',
+            // 输入框
+            inputs: 'textarea[id*="prompt"], input[id*="prompt"], #promptInput, #textInput',
+            // 生成按钮
+            buttons: 'button[onclick*="generate"], .generate-btn, [id*="generate"], [id*="submit"]',
+            // 其他配置
+            configs: 'input[type="range"], select:not([id*="model"])',
+        };
+        
+        // 收集模型
+        document.querySelectorAll(selectors.models).forEach(el => {
+            const name = el.dataset?.model || el.dataset?.name || el.textContent?.trim().substring(0, 30);
+            const id = el.id || el.dataset?.model || '';
+            if (name) context.elements.push({ type: 'model', name, id, selector: getSelector(el) });
+        });
+        
+        // 收集比例
+        document.querySelectorAll(selectors.ratios).forEach(el => {
+            const name = el.dataset?.ratio || el.dataset?.aspect || el.textContent?.trim();
+            if (name) context.elements.push({ type: 'ratio', name, selector: getSelector(el) });
+        });
+        
+        // 收集风格
+        document.querySelectorAll(selectors.styles).forEach(el => {
+            const name = el.dataset?.style || el.textContent?.trim().substring(0, 20);
+            if (name) context.elements.push({ type: 'style', name, selector: getSelector(el) });
+        });
+        
+        // 收集输入框
+        document.querySelectorAll(selectors.inputs).forEach(el => {
+            context.elements.push({ type: 'input', name: el.placeholder || '描述输入', id: el.id, selector: getSelector(el) });
+        });
+        
+        // 收集生成按钮
+        document.querySelectorAll(selectors.buttons).forEach(el => {
+            const name = el.textContent?.trim().substring(0, 20);
+            if (name) context.elements.push({ type: 'button', name, id: el.id, selector: getSelector(el) });
+        });
+        
+        // 限制数量避免过大
+        context.elements = context.elements.slice(0, 30);
+        return context;
+    }
+    
+    // 获取元素选择器
+    function getSelector(el) {
+        if (el.id) return '#' + el.id;
+        if (el.dataset?.model) return `[data-model="${el.dataset.model}"]`;
+        if (el.dataset?.ratio) return `[data-ratio="${el.dataset.ratio}"]`;
+        if (el.dataset?.style) return `[data-style="${el.dataset.style}"]`;
+        if (el.className) return '.' + el.className.split(' ')[0];
+        return el.tagName.toLowerCase();
+    }
+    
+    // 🧠 意图识别（增强版，带页面上下文）
     async function recognizeIntent(text) {
         try {
-            const prompt = `你是RollRoll AI网站的语音助手。用户说："${text}"
+            const pageContext = getPageContext();
+            const contextStr = pageContext.elements.length > 0 
+                ? `\n当前页面: ${pageContext.page}\n可操作元素: ${JSON.stringify(pageContext.elements.map(e => ({type: e.type, name: e.name})))}` 
+                : '';
+            
+            const prompt = `你是RollRoll AI网站的智能助手。用户说："${text}"${contextStr}
 
-请分析用户意图，返回JSON格式：
+请分析用户意图，返回JSON：
 {
-  "intent": "意图类型",  // navigate(跳转页面), generate(生成内容), config(修改配置), action(执行操作), chat(闲聊)
-  "target": "目标",  // 页面名/功能名
-  "params": {},  // 参数
-  "reply": "回复用户的话"  // 简短友好的回复
+  "intent": "意图类型",  // navigate(跳转), generate(生成), config(配置), action(操作), click(点击元素), input(输入内容), chat(闲聊)
+  "target": "目标",
+  "params": {
+    "elementType": "",  // model/ratio/style/input/button
+    "elementName": "",  // 元素名称(模糊匹配)
+    "value": ""  // 要输入的内容
+  },
+  "reply": "简短回复"
 }
 
-可用页面: home(首页), banana(画图), video-tools(视频工具), music(音乐), voice(配音), chat(对话), sticker(贴纸/表情包), writing(写作)
-可用操作: generate-image(生成图片), generate-video(生成视频), generate-music(生成音乐)
+可用页面: home, banana(画图), video-tools(视频), music(音乐), voice(配音), chat(对话), sticker(贴纸), writing(写作)
 
-只返回JSON，不要其他内容。`;
+示例:
+- "选择flux模型" -> {intent:"click", params:{elementType:"model", elementName:"flux"}}
+- "比例改成1:1" -> {intent:"click", params:{elementType:"ratio", elementName:"1:1"}}
+- "输入一只猫" -> {intent:"input", params:{elementType:"input", value:"一只猫"}}
+- "点击生成" -> {intent:"click", params:{elementType:"button", elementName:"生成"}}
+
+只返回JSON。`;
             
             const response = await fetch('/api/yunwu', {
                 method: 'POST',
@@ -1597,58 +1677,128 @@ if (typeof document !== 'undefined') {
                 body: JSON.stringify({
                     action: 'text',
                     prompt: prompt,
-                    model: 'roll',  // 免费模型
+                    model: 'roll',
                     userId: null
                 })
             });
             const data = await response.json();
             const content = data.content || data.text || '';
+            console.log('[🎙️ Agent] AI回复:', content);
             
-            // 提取JSON
             const jsonMatch = content.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
                 return JSON.parse(jsonMatch[0]);
             }
-            return { intent: 'chat', reply: '抱歉，我没听懂您的意思。请再说一遍？' };
+            return { intent: 'chat', reply: '抱歉，我没听懂。请试着说"选择XX模型"或"输入XXX"。' };
         } catch (err) {
-            console.error('[🎤 Agent] 意图识别失败:', err);
-            return { intent: 'chat', reply: '网络开小差了，请稍后再试。' };
+            console.error('[🎙️ Agent] 意图识别失败:', err);
+            return { intent: 'chat', reply: '网络错误，请重试。' };
         }
     }
     
-    // 🚀 执行意图
-    async function executeIntent(intent) {
-        const { intent: type, target, params, reply } = intent;
+    // 📌 查找并点击元素（模糊匹配）
+    function findAndClickElement(elementType, elementName) {
+        const context = getPageContext();
+        const nameL = (elementName || '').toLowerCase();
         
-        // 显示回复
+        // 先精确匹配，再模糊匹配
+        let found = context.elements.find(e => 
+            e.type === elementType && e.name.toLowerCase() === nameL
+        );
+        if (!found) {
+            found = context.elements.find(e => 
+                e.type === elementType && e.name.toLowerCase().includes(nameL)
+            );
+        }
+        if (!found) {
+            found = context.elements.find(e => 
+                e.name.toLowerCase().includes(nameL)
+            );
+        }
+        
+        if (found && found.selector) {
+            const el = document.querySelector(found.selector);
+            if (el) {
+                el.click();
+                console.log('[🎙️ Agent] 点击:', found.selector);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // 📝 输入内容
+    function inputContent(value) {
+        const inputs = document.querySelectorAll('textarea[id*="prompt"], input[id*="prompt"], #promptInput, #textInput, textarea.prompt-input');
+        for (const input of inputs) {
+            if (input.offsetParent !== null) {  // 可见
+                input.value = value;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                console.log('[🎙️ Agent] 输入:', value);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // 🚀 执行意图（增强版）
+    async function executeIntent(intent) {
+        const { intent: type, target, params = {}, reply } = intent;
+        
         if (reply) showAgentMessage(reply);
         
         switch (type) {
             case 'navigate':
                 navigateToPage(target);
                 break;
-            case 'generate':
-                if (target === 'generate-image' || target === 'image') {
-                    navigateToPage('banana');
-                    setTimeout(() => {
-                        const input = document.getElementById('promptInput');
-                        if (input && params?.prompt) {
-                            input.value = params.prompt;
-                        }
-                    }, 500);
-                } else if (target === 'generate-video' || target === 'video') {
-                    navigateToPage('video-tools');
+                
+            case 'click':
+                // 点击元素（模型/比例/风格/按钮）
+                const clickOk = findAndClickElement(params.elementType, params.elementName || target);
+                if (!clickOk) {
+                    showAgentMessage(`找不到"${params.elementName || target}"，请检查名称`);
                 }
                 break;
-            case 'action':
-                // 执行特定操作
-                console.log('[🎤 Agent] 执行操作:', target, params);
+                
+            case 'input':
+                // 输入内容
+                const inputOk = inputContent(params.value || target);
+                if (!inputOk) {
+                    showAgentMessage('找不到输入框');
+                }
                 break;
+                
+            case 'generate':
+                // 生成（先跳转，再填写）
+                if (target === 'image' || target === 'generate-image') {
+                    if (!location.pathname.includes('banana')) {
+                        navigateToPage('banana');
+                        await new Promise(r => setTimeout(r, 800));
+                    }
+                    if (params.value || params.prompt) {
+                        inputContent(params.value || params.prompt);
+                    }
+                } else if (target === 'video') {
+                    navigateToPage('video-tools');
+                } else if (target === 'music') {
+                    navigateToPage('music');
+                }
+                break;
+                
             case 'config':
-                console.log('[🎤 Agent] 修改配置:', target, params);
+                // 修改配置
+                findAndClickElement(params.elementType, params.elementName || target);
                 break;
+                
+            case 'action':
+                // 执行操作（如点击生成）
+                if (target === 'generate' || target === 'submit') {
+                    findAndClickElement('button', '生成');
+                }
+                break;
+                
             default:
-                // 闲聊或未知意图
+                // chat 或未知意图
                 break;
         }
     }
