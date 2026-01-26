@@ -54,12 +54,6 @@ const FILM_COST = {
     'kling-1.6-1080p-5s': 14,
     'kling-1.6-1080p-10s': 28,
     // TTS 语音合成模型
-    'tts-dubbingx': 2,             // DubbingX TTS 2胶片/次 (成5并发限制)
-    'tts-gemini-flash': 1,         // Gemini Flash TTS 1胶片/次 (便宜快速)
-    'tts-gemini-pro': 2,           // Gemini Pro TTS 2胶片/次 (高质量)
-    'tts-kling': 1,                // Kling TTS 1胶片/次 (语音合成)
-    'tts-kling-custom-voice': 2    // Kling 自定义音色 2胶片/次
-};
     'tts-dubbingx': 2,             // DubbingX TTS 2胶片/次
     'tts-gemini-flash': 1,         // Gemini Flash TTS 1胶片/次 (便宜快速)
     'tts-gemini-pro': 3,           // Gemini Pro TTS 3胶片/次 (高质量)

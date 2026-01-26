@@ -839,7 +839,7 @@
                 let audioUrl = null;
                 
                 if (engine === 'gemini-flash' || engine === 'gemini-pro') {
-                    // Gemini TTS - 实时返回
+                    // Gemini TTS - 实时返回 base64 音频
                     const voiceName = document.getElementById('geminiVoice').value;
                     document.getElementById('ttsLoadingText').textContent = 'Gemini语音生成中...';
                     
@@ -856,15 +856,19 @@
                     });
                     const data = await res.json();
                     
-                    if (data.success && data.audioUrl) {
+                    if (data.success && data.audioData) {
+                        // 转换 base64 为 data URL
+                        const mimeType = data.mimeType || 'audio/mp3';
+                        audioUrl = `data:${mimeType};base64,${data.audioData}`;
+                    } else if (data.success && data.audioUrl) {
                         audioUrl = data.audioUrl;
                     } else {
                         throw new Error(data.error || 'Gemini TTS失败');
                     }
                 } else if (engine === 'kling') {
                     // 可灵 TTS
-                    const voiceName = document.getElementById('klingVoice').value;
-                    const language = document.getElementById('klingLanguage').value;
+                    const voiceId = document.getElementById('klingVoice').value;
+                    const voiceLanguage = document.getElementById('klingLanguage').value;
                     document.getElementById('ttsLoadingText').textContent = '可灵语音生成中...';
                     
                     const res = await fetch('/api/yunwu', {
@@ -873,8 +877,8 @@
                         body: JSON.stringify({
                             action: 'kling-tts',
                             text: text,
-                            voiceName: voiceName,
-                            language: language,
+                            voiceId: voiceId,
+                            voiceLanguage: voiceLanguage,
                             userId: currentUser?.id
                         })
                     });
@@ -882,10 +886,14 @@
                     
                     if (data.success && data.audioUrl) {
                         audioUrl = data.audioUrl;
+                    } else if (data.success && data.taskId) {
+                        // 需要轮询
+                        document.getElementById('ttsLoadingText').textContent = '可灵语音处理中...';
+                        audioUrl = await pollKlingTTSResult(data.taskId);
                     } else {
                         throw new Error(data.error || '可灵TTS失败');
                     }
-                } else {
+                }
                     // DubbingX TTS - 需要轮询
                     if (!selectedVoiceId) {
                         showToast('请选择音色');
@@ -968,6 +976,33 @@
                 }
             }
             throw new Error('合成超时');
+        }
+
+        // 可灵 TTS 轮询
+        async function pollKlingTTSResult(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'kling-tts-poll', taskId })
+                    });
+                    const data = await res.json();
+
+                    if (data.success && data.audioUrl) {
+                        return data.audioUrl;
+                    } else if (data.status === 'failed') {
+                        throw new Error('可灵TTS合成失败');
+                    }
+                    
+                    document.getElementById('ttsLoadingText').textContent = `可灵语音处理中... (${i + 1}/${maxAttempts})`;
+                } catch (e) {
+                    console.warn('可灵TTS轮询错误:', e);
+                }
+            }
+            throw new Error('可灵TTS超时');
         }
 
         // ==================== 图片配音 ====================
