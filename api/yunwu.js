@@ -2445,6 +2445,13 @@ module.exports = async function handler(req, res) {
         if (action === 'tts-voices') {
             const { grade, gender, pageIndex, pageSize, keyword } = body;
             
+            // 检查TTS API KEY是否配置
+            if (!TTS_API_KEY || TTS_API_KEY.length < 20) {
+                console.error('[yunwu] TTS_API_KEY 未配置或无效');
+                json(200, { success: false, error: 'TTS服务未配置，请联系管理员' });
+                return;
+            }
+            
             try {
                 const requestBody = {
                     pageIndex: pageIndex || 1,
@@ -2454,29 +2461,41 @@ module.exports = async function handler(req, res) {
                 if (gender !== undefined && gender !== '') requestBody.gender = parseInt(gender);
                 if (keyword) requestBody.keyword = keyword;
                 
+                console.log('[yunwu] TTS请求音色列表:', TTS_BASE_URL, JSON.stringify(requestBody));
+                
                 const response = await fetch(`${TTS_BASE_URL}/v2/getTTSTimbreList`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${TTS_API_KEY}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify(requestBody),
+                    signal: AbortSignal.timeout(15000)  // 15秒超时
                 });
+                
+                if (!response.ok) {
+                    const errText = await response.text().catch(() => '');
+                    console.error(`[yunwu] TTS API返回 ${response.status}:`, errText.substring(0, 200));
+                    json(200, { success: false, error: `TTS服务异常(${response.status})` });
+                    return;
+                }
                 
                 const data = await response.json();
                 
                 if (data.success && data.data?.list) {
+                    console.log(`[yunwu] TTS音色列表成功，共${data.data.list.length}个`);
                     json(200, { 
                         success: true, 
                         voices: data.data.list,
                         total: data.data.total
                     });
                 } else {
+                    console.warn('[yunwu] TTS音色列表返回异常:', JSON.stringify(data).substring(0, 300));
                     json(200, { success: false, error: data.msg || '获取音色失败' });
                 }
             } catch (err) {
                 console.error('[yunwu] TTS音色列表错误:', err.message);
-                json(500, { success: false, error: err.message });
+                json(200, { success: false, error: 'TTS服务连接失败: ' + err.message });
             }
             return;
         }

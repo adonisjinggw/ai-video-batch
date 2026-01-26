@@ -575,6 +575,15 @@ async function checkAuthStatus(refreshQuota = true) {
 }
 
 /**
+ * 🆕 获取当前用户和胶片余额（兼容旧API）
+ * @returns {Promise<{user: Object|null, quota: number}>}
+ */
+async function getCurrentUserAndQuota() {
+    const result = await checkAuthStatus(true);
+    return { user: result.user, quota: result.quota };
+}
+
+/**
  * 监听认证状态变化
  * @param {Function} callback - 回调函数
  */
@@ -1362,6 +1371,7 @@ window.NVAuth = {
     refreshSession,      // 🆕 强制刷新Session
     checkAuthStatus,     // 🆕 检查登录状态（带重试）
     isLoggedInFast,      // 🚀 快速检查登录状态（本地缓存）
+    getCurrentUserAndQuota,  // 🆕 获取用户和胶片余额
 
     // 用户配置
     getUserProfile,
@@ -1475,69 +1485,92 @@ if (typeof document !== 'undefined') {
     
     // 状态
     let isListening = false;
-    let mediaRecorder = null;
-    let audioChunks = [];
+    let recognition = null;
     
-    // 🎤 开始录音
+    // 🎤 初始化语音识别（使用浏览器原生 Web Speech API）
+    function initSpeechRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            console.warn('[🎤 Agent] 浏览器不支持语音识别');
+            return null;
+        }
+        
+        const rec = new SpeechRecognition();
+        rec.lang = 'zh-CN';  // 中文
+        rec.continuous = false;  // 单次识别
+        rec.interimResults = false;  // 不要中间结果
+        rec.maxAlternatives = 1;
+        
+        rec.onresult = async (event) => {
+            const text = event.results[0][0].transcript;
+            console.log('[🎤 Agent] 识别结果:', text);
+            isListening = false;
+            updateAgentUI('processing');
+            
+            if (text && text.trim()) {
+                showAgentMessage(`您说: "${text}"`, 'user');
+                const intent = await recognizeIntent(text);
+                await executeIntent(intent);
+            } else {
+                showAgentMessage('没有听清，请再试一次');
+            }
+            updateAgentUI('idle');
+        };
+        
+        rec.onerror = (event) => {
+            console.error('[🎤 Agent] 识别错误:', event.error);
+            isListening = false;
+            updateAgentUI('idle');
+            if (event.error === 'no-speech') {
+                showAgentMessage('没有听到说话，请再试');
+            } else if (event.error === 'not-allowed') {
+                showAgentMessage('需要麦克风权限');
+            } else {
+                showAgentMessage('识别失败，请重试');
+            }
+        };
+        
+        rec.onend = () => {
+            if (isListening) {
+                isListening = false;
+                updateAgentUI('idle');
+            }
+        };
+        
+        return rec;
+    }
+    
+    // 🎤 开始语音识别
     async function startListening() {
         if (isListening) return;
         
+        if (!recognition) {
+            recognition = initSpeechRecognition();
+        }
+        
+        if (!recognition) {
+            showAgentMessage('浏览器不支持语音识别，请使用文字输入');
+            return;
+        }
+        
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            audioChunks = [];
-            
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) audioChunks.push(e.data);
-            };
-            
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                stream.getTracks().forEach(t => t.stop());
-                await processVoiceInput(audioBlob);
-            };
-            
-            mediaRecorder.start();
+            recognition.start();
             isListening = true;
             updateAgentUI('listening');
-            console.log('[🎤 Agent] 开始录音...');
+            console.log('[🎤 Agent] 开始语音识别...');
         } catch (err) {
-            console.error('[🎤 Agent] 麦克风访问失败:', err);
-            showAgentMessage('需要麦克风权限才能使用语音功能');
+            console.error('[🎤 Agent] 启动失败:', err);
+            showAgentMessage('语音识别启动失败');
         }
     }
     
-    // 🛑 停止录音
+    // 🛑 停止语音识别
     function stopListening() {
-        if (!isListening || !mediaRecorder) return;
-        mediaRecorder.stop();
+        if (!isListening || !recognition) return;
+        recognition.stop();
         isListening = false;
-        updateAgentUI('processing');
-        console.log('[🎤 Agent] 停止录音，开始识别...');
-    }
-    
-    // 🌐 语音转文字 (STT)
-    async function speechToText(audioBlob) {
-        try {
-            const base64 = await blobToBase64(audioBlob);
-            const response = await fetch('/api/yunwu', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'stt',
-                    audio: base64,
-                    userId: null  // 免费，不计费
-                })
-            });
-            const data = await response.json();
-            if (data.success && data.text) {
-                return data.text;
-            }
-            throw new Error(data.error || '语音识别失败');
-        } catch (err) {
-            console.error('[🎤 Agent] STT失败:', err);
-            return null;
-        }
+        updateAgentUI('idle');
+        console.log('[🎤 Agent] 停止语音识别');
     }
     
     // 🧠 意图识别
@@ -1652,31 +1685,6 @@ if (typeof document !== 'undefined') {
         }
     }
     
-    // 🎯 处理语音输入
-    async function processVoiceInput(audioBlob) {
-        updateAgentUI('processing');
-        
-        // 1. 语音转文字
-        const text = await speechToText(audioBlob);
-        if (!text) {
-            showAgentMessage('没有听清您说的内容，请再试一次');
-            updateAgentUI('idle');
-            return;
-        }
-        
-        console.log('[🎤 Agent] 识别结果:', text);
-        showAgentMessage(`您说: "${text}"`, 'user');
-        
-        // 2. 意图识别
-        const intent = await recognizeIntent(text);
-        console.log('[🎤 Agent] 意图:', intent);
-        
-        // 3. 执行意图
-        await executeIntent(intent);
-        
-        updateAgentUI('idle');
-    }
-    
     // 💬 处理文字输入
     async function processTextInput(text) {
         if (!text || !text.trim()) return;
@@ -1688,16 +1696,6 @@ if (typeof document !== 'undefined') {
         await executeIntent(intent);
         
         updateAgentUI('idle');
-    }
-    
-    // 📦 工具函数
-    function blobToBase64(blob) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
     }
     
     // 🎨 UI 更新
