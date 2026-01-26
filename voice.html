@@ -707,16 +707,25 @@
                     body: JSON.stringify({ action: 'tts-voices', grade: 'premium' })
                 });
                 const data = await res.json();
-                if (data.success && data.voices) {
+                if (data.success && data.voices && data.voices.length > 0) {
                     voiceList = data.voices;
                     renderVoiceList(voiceList);
                     updateVoiceSelects(voiceList);
                 } else {
-                    document.getElementById('voiceList').innerHTML = '<div style="text-align:center;padding:20px;color:#f66;">加载失败，请刷新重试</div>';
+                    const errMsg = data.error || '加载失败';
+                    document.getElementById('voiceList').innerHTML = `
+                        <div style="text-align:center;padding:20px;">
+                            <div style="color:#f66;margin-bottom:12px;">❌ ${errMsg}</div>
+                            <div style="color:#888;font-size:13px;">建议切换到 Gemini TTS 或 可灵 TTS</div>
+                        </div>`;
                 }
             } catch (e) {
                 console.error('加载音色失败:', e);
-                document.getElementById('voiceList').innerHTML = '<div style="text-align:center;padding:20px;color:#f66;">网络错误</div>';
+                document.getElementById('voiceList').innerHTML = `
+                    <div style="text-align:center;padding:20px;">
+                        <div style="color:#f66;margin-bottom:12px;">❌ 网络错误</div>
+                        <div style="color:#888;font-size:13px;">建议切换到 Gemini TTS 或 可灵 TTS</div>
+                    </div>`;
             }
         }
 
@@ -783,6 +792,20 @@
             sampleAudio.play();
         }
 
+        // ==================== TTS引擎切换 ====================
+        function switchTTSEngine() {
+            const engine = document.getElementById('ttsEngine').value;
+            // 显示/隐藏对应的音色选择区
+            document.getElementById('dubbingxVoiceSection').style.display = engine === 'dubbingx' ? 'block' : 'none';
+            document.getElementById('geminiVoiceSection').style.display = (engine === 'gemini-flash' || engine === 'gemini-pro') ? 'block' : 'none';
+            document.getElementById('klingVoiceSection').style.display = engine === 'kling' ? 'block' : 'none';
+            
+            // 更新按钮文字和价格
+            const btn = document.getElementById('ttsBtn');
+            const prices = { 'dubbingx': 2, 'gemini-flash': 1, 'gemini-pro': 3, 'kling': 2 };
+            btn.textContent = `🎙️ 生成语音 (${prices[engine] || 2}胶片)`;
+        }
+
         // ==================== 文字转语音 ====================
         async function generateTTS() {
             const text = document.getElementById('ttsText').value.trim();
@@ -794,11 +817,12 @@
                 showToast('文字不能超过5000字');
                 return;
             }
-            if (!selectedVoiceId) {
-                showToast('请选择音色');
-                return;
-            }
-            if (userQuota < 2) {
+
+            const engine = document.getElementById('ttsEngine').value;
+            const prices = { 'dubbingx': 2, 'gemini-flash': 1, 'gemini-pro': 3, 'kling': 2 };
+            const cost = prices[engine] || 2;
+            
+            if (userQuota < cost) {
                 showToast('胶片不足');
                 return;
             }
@@ -812,51 +836,104 @@
             result.style.display = 'none';
 
             try {
-                const res = await fetch('/api/yunwu', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'tts-generate',
-                        voiceId: selectedVoiceId,
-                        text: text,
-                        language: document.getElementById('ttsLanguage').value,
-                        audioSpeed: parseFloat(document.getElementById('ttsSpeed').value),
-                        audioPitch: parseFloat(document.getElementById('ttsPitch').value),
-                        fileFormat: document.getElementById('ttsFormat').value,
-                        userId: currentUser?.id
-                    })
-                });
-
-                const data = await res.json();
-
-                if (data.success && data.taskId) {
-                    // 开始轮询
-                    document.getElementById('ttsLoadingText').textContent = '语音合成中...';
-                    const audioUrl = await pollTTSResult(data.taskId);
+                let audioUrl = null;
+                
+                if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                    // Gemini TTS - 实时返回
+                    const voiceName = document.getElementById('geminiVoice').value;
+                    document.getElementById('ttsLoadingText').textContent = 'Gemini语音生成中...';
                     
-                    if (audioUrl) {
-                        currentAudioUrls.tts = audioUrl;
-                        document.getElementById('ttsAudio').src = audioUrl;
-                        result.style.display = 'block';
-                        showToast('生成成功！');
-                        // 更新余额
-                        userQuota -= 2;
-                        document.getElementById('userQuota').textContent = userQuota;
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'gemini-tts',
+                            text: text,
+                            voiceName: voiceName,
+                            model: engine === 'gemini-pro' ? 'pro' : 'flash',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success && data.audioUrl) {
+                        audioUrl = data.audioUrl;
                     } else {
-                        throw new Error('未获取到音频');
+                        throw new Error(data.error || 'Gemini TTS失败');
                     }
-                } else if (data.queuePosition) {
-                    // 排队中
-                    document.getElementById('queueInfo').classList.add('show');
-                    document.getElementById('queuePos').textContent = data.queuePosition;
-                    document.getElementById('queueWait').textContent = `${data.queuePosition * 10}秒`;
-                    showToast(`排队中，位置: ${data.queuePosition}`);
+                } else if (engine === 'kling') {
+                    // 可灵 TTS
+                    const voiceName = document.getElementById('klingVoice').value;
+                    const language = document.getElementById('klingLanguage').value;
+                    document.getElementById('ttsLoadingText').textContent = '可灵语音生成中...';
                     
-                    // 延迟后重试
-                    setTimeout(() => generateTTS(), data.queuePosition * 5000);
-                    return;
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'kling-tts',
+                            text: text,
+                            voiceName: voiceName,
+                            language: language,
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success && data.audioUrl) {
+                        audioUrl = data.audioUrl;
+                    } else {
+                        throw new Error(data.error || '可灵TTS失败');
+                    }
                 } else {
-                    throw new Error(data.message || data.error || '生成失败');
+                    // DubbingX TTS - 需要轮询
+                    if (!selectedVoiceId) {
+                        showToast('请选择音色');
+                        btn.disabled = false;
+                        loading.classList.remove('show');
+                        return;
+                    }
+                    
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'tts-generate',
+                            voiceId: selectedVoiceId,
+                            text: text,
+                            language: document.getElementById('ttsLanguage').value,
+                            audioSpeed: parseFloat(document.getElementById('ttsSpeed').value),
+                            audioPitch: parseFloat(document.getElementById('ttsPitch').value),
+                            fileFormat: document.getElementById('ttsFormat').value,
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+
+                    if (data.success && data.taskId) {
+                        document.getElementById('ttsLoadingText').textContent = '语音合成中...';
+                        audioUrl = await pollTTSResult(data.taskId);
+                    } else if (data.queuePosition) {
+                        document.getElementById('queueInfo').classList.add('show');
+                        document.getElementById('queuePos').textContent = data.queuePosition;
+                        document.getElementById('queueWait').textContent = `${data.queuePosition * 10}秒`;
+                        showToast(`排队中，位置: ${data.queuePosition}`);
+                        setTimeout(() => generateTTS(), data.queuePosition * 5000);
+                        return;
+                    } else {
+                        throw new Error(data.message || data.error || 'DubbingX生成失败');
+                    }
+                }
+                
+                if (audioUrl) {
+                    currentAudioUrls.tts = audioUrl;
+                    document.getElementById('ttsAudio').src = audioUrl;
+                    result.style.display = 'block';
+                    showToast('生成成功！');
+                    userQuota -= cost;
+                    document.getElementById('userQuota').textContent = userQuota;
+                } else {
+                    throw new Error('未获取到音频');
                 }
             } catch (e) {
                 showToast('生成失败: ' + e.message);
