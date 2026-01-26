@@ -1573,60 +1573,93 @@ if (typeof document !== 'undefined') {
         console.log('[🎤 Agent] 停止语音识别');
     }
     
-    // 📝 获取当前页面上下文（可操作的元素）
+    // 📝 获取当前页面完整上下文（所有可操作元素+函数）
     function getPageContext() {
         const page = location.pathname.split('/').pop().replace('.html', '') || 'index';
-        const context = { page, elements: [] };
+        const context = { page, elements: [], functions: [], selects: [] };
         
-        // 通用元素选择器
-        const selectors = {
-            // 模型选择
-            models: '[data-model], .model-item, .model-card, select[id*="model"], [onclick*="selectModel"], [onclick*="Model"]',
-            // 尺寸/比例
-            ratios: '[data-ratio], [data-aspect], .ratio-btn, .aspect-item, [onclick*="Ratio"], [onclick*="ratio"]',
-            // 风格
-            styles: '[data-style], .style-item, .style-card, [onclick*="Style"], [onclick*="style"]',
-            // 输入框
-            inputs: 'textarea[id*="prompt"], input[id*="prompt"], #promptInput, #textInput',
-            // 生成按钮
-            buttons: 'button[onclick*="generate"], .generate-btn, [id*="generate"], [id*="submit"]',
-            // 其他配置
-            configs: 'input[type="range"], select:not([id*="model"])',
-        };
-        
-        // 收集模型
-        document.querySelectorAll(selectors.models).forEach(el => {
-            const name = el.dataset?.model || el.dataset?.name || el.textContent?.trim().substring(0, 30);
-            const id = el.id || el.dataset?.model || '';
-            if (name) context.elements.push({ type: 'model', name, id, selector: getSelector(el) });
+        // 1️⃣ 收集所有 select 下拉框及其选项
+        document.querySelectorAll('select').forEach(sel => {
+            if (sel.offsetParent === null) return; // 不可见跳过
+            const selInfo = { id: sel.id, name: sel.name || sel.id, options: [] };
+            sel.querySelectorAll('option').forEach(opt => {
+                if (opt.value) selInfo.options.push({ value: opt.value, text: opt.textContent.trim() });
+            });
+            if (selInfo.options.length > 0) context.selects.push(selInfo);
         });
         
-        // 收集比例
-        document.querySelectorAll(selectors.ratios).forEach(el => {
-            const name = el.dataset?.ratio || el.dataset?.aspect || el.textContent?.trim();
-            if (name) context.elements.push({ type: 'ratio', name, selector: getSelector(el) });
+        // 2️⃣ 收集所有可点击元素（button, [onclick], .btn, etc）
+        document.querySelectorAll('button, [onclick], .btn, .generate-btn, .tab, .model-item, .ratio-btn, .style-item').forEach(el => {
+            if (el.offsetParent === null) return;
+            const text = el.textContent?.trim().substring(0, 40) || '';
+            const onclick = el.getAttribute('onclick') || '';
+            const id = el.id || '';
+            const cls = el.className || '';
+            if (text || onclick || id) {
+                context.elements.push({
+                    type: getElementType(el, onclick, cls),
+                    text,
+                    id,
+                    onclick: onclick.substring(0, 60),
+                    selector: getSelector(el)
+                });
+            }
         });
         
-        // 收集风格
-        document.querySelectorAll(selectors.styles).forEach(el => {
-            const name = el.dataset?.style || el.textContent?.trim().substring(0, 20);
-            if (name) context.elements.push({ type: 'style', name, selector: getSelector(el) });
+        // 3️⃣ 收集所有输入框
+        document.querySelectorAll('textarea, input[type="text"], input[type="search"], input:not([type])').forEach(el => {
+            if (el.offsetParent === null) return;
+            context.elements.push({
+                type: 'input',
+                text: el.placeholder || el.name || el.id || '输入框',
+                id: el.id,
+                selector: getSelector(el)
+            });
         });
         
-        // 收集输入框
-        document.querySelectorAll(selectors.inputs).forEach(el => {
-            context.elements.push({ type: 'input', name: el.placeholder || '描述输入', id: el.id, selector: getSelector(el) });
+        // 4️⃣ 收集滑块/range
+        document.querySelectorAll('input[type="range"]').forEach(el => {
+            if (el.offsetParent === null) return;
+            context.elements.push({
+                type: 'slider',
+                text: el.id || el.name || '滑块',
+                id: el.id,
+                min: el.min,
+                max: el.max,
+                selector: getSelector(el)
+            });
         });
         
-        // 收集生成按钮
-        document.querySelectorAll(selectors.buttons).forEach(el => {
-            const name = el.textContent?.trim().substring(0, 20);
-            if (name) context.elements.push({ type: 'button', name, id: el.id, selector: getSelector(el) });
+        // 5️⃣ 收集页面上的全局函数
+        const globalFuncs = [];
+        const commonFuncs = ['generateImage','generateVideo','generateMusic','generateStickers','generateTTS',
+            'generateContent','generateBatch','downloadImage','downloadVideo','downloadMusic','downloadAudio',
+            'selectModel','selectRatio','selectStyle','applyStyle','clearRefImage','clearRefImages',
+            'setBatchMode','goBack','regenerate','copyResult','shareImage','pushToVideoTool','pushToImageGen',
+            'filterVoices','selectVoice','playVoiceSample','generateVideoVoice','generateImgVoice',
+            'askQuestion','addMessage','clearLyrics','copyLyrics','generateLyrics','generateMusicWithLyrics'];
+        commonFuncs.forEach(fn => {
+            if (typeof window[fn] === 'function') globalFuncs.push(fn);
         });
+        context.functions = globalFuncs;
         
-        // 限制数量避免过大
-        context.elements = context.elements.slice(0, 30);
+        // 限制数量
+        context.elements = context.elements.slice(0, 50);
+        context.selects = context.selects.slice(0, 10);
         return context;
+    }
+    
+    // 判断元素类型
+    function getElementType(el, onclick, cls) {
+        if (onclick.includes('Model') || cls.includes('model')) return 'model';
+        if (onclick.includes('Ratio') || onclick.includes('ratio') || cls.includes('ratio')) return 'ratio';
+        if (onclick.includes('Style') || onclick.includes('style') || cls.includes('style')) return 'style';
+        if (onclick.includes('generate') || cls.includes('generate')) return 'generate';
+        if (onclick.includes('download') || cls.includes('download')) return 'download';
+        if (onclick.includes('Batch') || cls.includes('batch')) return 'batch';
+        if (el.tagName === 'BUTTON' || cls.includes('btn')) return 'button';
+        if (cls.includes('tab')) return 'tab';
+        return 'clickable';
     }
     
     // 获取元素选择器
@@ -1635,116 +1668,186 @@ if (typeof document !== 'undefined') {
         if (el.dataset?.model) return `[data-model="${el.dataset.model}"]`;
         if (el.dataset?.ratio) return `[data-ratio="${el.dataset.ratio}"]`;
         if (el.dataset?.style) return `[data-style="${el.dataset.style}"]`;
-        if (el.className) return '.' + el.className.split(' ')[0];
-        return el.tagName.toLowerCase();
+        // 生成唯一选择器
+        const tag = el.tagName.toLowerCase();
+        const cls = el.className ? '.' + el.className.split(' ').filter(c => c && !c.includes(':'))[0] : '';
+        const onclick = el.getAttribute('onclick');
+        if (onclick) return `[onclick*="${onclick.split('(')[0]}"]`;
+        if (cls) return tag + cls;
+        return tag;
     }
     
-    // 🧠 意图识别（增强版，带页面上下文）
+    // 🧠 AI 意图识别（全功能版）
     async function recognizeIntent(text) {
         try {
-            const pageContext = getPageContext();
-            const contextStr = pageContext.elements.length > 0 
-                ? `\n当前页面: ${pageContext.page}\n可操作元素: ${JSON.stringify(pageContext.elements.map(e => ({type: e.type, name: e.name})))}` 
-                : '';
+            const ctx = getPageContext();
+            // 简化上下文信息
+            const elementsInfo = ctx.elements.slice(0, 25).map(e => `${e.type}:"${e.text}"`);
+            const selectsInfo = ctx.selects.map(s => `${s.id}:[${s.options.slice(0,5).map(o=>o.text).join(',')}]`);
+            const funcsInfo = ctx.functions.join(',');
             
-            const prompt = `你是RollRoll AI网站的智能助手。用户说："${text}"${contextStr}
+            const prompt = `你是RollRoll AI网站的全能控制助手。
+当前页面: ${ctx.page}
+可点击元素: ${elementsInfo.join('; ')}
+下拉选项: ${selectsInfo.join('; ')}
+可调用函数: ${funcsInfo}
 
-请分析用户意图，返回JSON：
+用户说: "${text}"
+
+返回JSON:
 {
-  "intent": "意图类型",  // navigate(跳转), generate(生成), config(配置), action(操作), click(点击元素), input(输入内容), chat(闲聊)
-  "target": "目标",
+  "intent": "navigate|click|input|select|call|chat",
+  "target": "目标名称",
   "params": {
-    "elementType": "",  // model/ratio/style/input/button
-    "elementName": "",  // 元素名称(模糊匹配)
-    "value": ""  // 要输入的内容
+    "selector": "元素选择器(#id或.class)",
+    "selectId": "下拉框id",
+    "selectValue": "要选择的值",
+    "functionName": "函数名",
+    "functionArgs": [],
+    "inputValue": "输入内容"
   },
   "reply": "简短回复"
 }
 
-可用页面: home, banana(画图), video-tools(视频), music(音乐), voice(配音), chat(对话), sticker(贴纸), writing(写作)
+意图类型:
+- navigate: 跳转页面(home/banana/video-tools/music/voice/chat/sticker/writing)
+- click: 点击元素(通过selector)
+- input: 输入内容(找到输入框填写inputValue)
+- select: 选择下拉选项(通过selectId和selectValue)
+- call: 调用函数(通过functionName和functionArgs)
+- chat: 闲聊或无法处理
 
 示例:
-- "选择flux模型" -> {intent:"click", params:{elementType:"model", elementName:"flux"}}
-- "比例改成1:1" -> {intent:"click", params:{elementType:"ratio", elementName:"1:1"}}
-- "输入一只猫" -> {intent:"input", params:{elementType:"input", value:"一只猫"}}
-- "点击生成" -> {intent:"click", params:{elementType:"button", elementName:"生成"}}
+"选择flux模型" -> {intent:"select",params:{selectId:"modelSelect",selectValue:"flux"},reply:"已选择Flux"}
+"生成图片" -> {intent:"call",params:{functionName:"generateImage"},reply:"开始生成"}
+"输入一只猫" -> {intent:"input",params:{inputValue:"一只猫"},reply:"已输入"}
+"点击生成按钮" -> {intent:"click",params:{selector:".generate-btn"},reply:"点击生成"}
+"去画图页面" -> {intent:"navigate",target:"banana",reply:"正在跳转"}
 
 只返回JSON。`;
             
             const response = await fetch('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'text',
-                    prompt: prompt,
-                    model: 'roll',
-                    userId: null
-                })
+                body: JSON.stringify({ action: 'text', prompt, model: 'roll', userId: null })
             });
             const data = await response.json();
             const content = data.content || data.text || '';
-            console.log('[🎙️ Agent] AI回复:', content);
+            console.log('[🎙️ Agent] AI:', content);
             
             const jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
-            }
-            return { intent: 'chat', reply: '抱歉，我没听懂。请试着说"选择XX模型"或"输入XXX"。' };
+            if (jsonMatch) return JSON.parse(jsonMatch[0]);
+            return { intent: 'chat', reply: '抱歉，请试着说"选择XX模型"或"生成图片"。' };
         } catch (err) {
-            console.error('[🎙️ Agent] 意图识别失败:', err);
+            console.error('[🎙️ Agent] 错误:', err);
             return { intent: 'chat', reply: '网络错误，请重试。' };
         }
     }
     
-    // 📌 查找并点击元素（模糊匹配）
-    function findAndClickElement(elementType, elementName) {
-        const context = getPageContext();
-        const nameL = (elementName || '').toLowerCase();
-        
-        // 先精确匹配，再模糊匹配
-        let found = context.elements.find(e => 
-            e.type === elementType && e.name.toLowerCase() === nameL
-        );
-        if (!found) {
-            found = context.elements.find(e => 
-                e.type === elementType && e.name.toLowerCase().includes(nameL)
-            );
+    // 📌 点击元素（支持多种查找方式）
+    function clickElement(selector, targetText) {
+        // 1. 直接用selector
+        if (selector) {
+            let el = document.querySelector(selector);
+            if (el) { el.click(); console.log('[🎙️] 点击:', selector); return true; }
         }
-        if (!found) {
-            found = context.elements.find(e => 
-                e.name.toLowerCase().includes(nameL)
-            );
-        }
-        
-        if (found && found.selector) {
-            const el = document.querySelector(found.selector);
-            if (el) {
-                el.click();
-                console.log('[🎙️ Agent] 点击:', found.selector);
-                return true;
+        // 2. 通过文本匹配
+        if (targetText) {
+            const textL = targetText.toLowerCase();
+            const allClickable = document.querySelectorAll('button, [onclick], .btn, .tab, a');
+            for (const el of allClickable) {
+                if (el.offsetParent && el.textContent?.toLowerCase().includes(textL)) {
+                    el.click();
+                    console.log('[🎙️] 文本匹配点击:', el.textContent.trim());
+                    return true;
+                }
             }
         }
         return false;
     }
     
-    // 📝 输入内容
-    function inputContent(value) {
-        const inputs = document.querySelectorAll('textarea[id*="prompt"], input[id*="prompt"], #promptInput, #textInput, textarea.prompt-input');
+    // 📝 输入内容（找到第一个可见输入框）
+    function inputContent(value, selector) {
+        // 优先用selector
+        if (selector) {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.value = value;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('[🎙️] 输入:', value);
+                return true;
+            }
+        }
+        // 找第一个可见的prompt输入框
+        const inputs = document.querySelectorAll('textarea, input[type="text"], input:not([type])');
         for (const input of inputs) {
-            if (input.offsetParent !== null) {  // 可见
+            if (input.offsetParent !== null && (input.id?.includes('prompt') || input.placeholder?.includes('描述') || input.id?.includes('Input'))) {
                 input.value = value;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
-                console.log('[🎙️ Agent] 输入:', value);
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('[🎙️] 输入:', value);
+                return true;
+            }
+        }
+        // 实在找不到，用第一个可见textarea
+        for (const input of inputs) {
+            if (input.offsetParent !== null) {
+                input.value = value;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                console.log('[🎙️] 输入(回退):', value);
                 return true;
             }
         }
         return false;
     }
     
-    // 🚀 执行意图（增强版）
+    // 📥 选择下拉框选项
+    function selectOption(selectId, optionValue) {
+        // 通过id找
+        let sel = selectId ? document.getElementById(selectId) : null;
+        // 通过模糊匹配找
+        if (!sel) {
+            const selects = document.querySelectorAll('select');
+            const idL = (selectId || '').toLowerCase();
+            for (const s of selects) {
+                if (s.id?.toLowerCase().includes(idL) || s.name?.toLowerCase().includes(idL)) {
+                    sel = s; break;
+                }
+            }
+        }
+        if (!sel) return false;
+        
+        // 找到匹配的option
+        const valL = (optionValue || '').toLowerCase();
+        for (const opt of sel.options) {
+            if (opt.value.toLowerCase().includes(valL) || opt.textContent.toLowerCase().includes(valL)) {
+                sel.value = opt.value;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('[🎙️] 选择:', sel.id, '=', opt.value);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // 📞 调用全局函数
+    function callFunction(fnName, args = []) {
+        if (typeof window[fnName] === 'function') {
+            try {
+                window[fnName](...args);
+                console.log('[🎙️] 调用:', fnName, args);
+                return true;
+            } catch (e) {
+                console.error('[🎙️] 调用失败:', e);
+            }
+        }
+        return false;
+    }
+    
+    // 🚀 执行意图（全功能版）
     async function executeIntent(intent) {
         const { intent: type, target, params = {}, reply } = intent;
-        
         if (reply) showAgentMessage(reply);
         
         switch (type) {
@@ -1753,52 +1856,31 @@ if (typeof document !== 'undefined') {
                 break;
                 
             case 'click':
-                // 点击元素（模型/比例/风格/按钮）
-                const clickOk = findAndClickElement(params.elementType, params.elementName || target);
-                if (!clickOk) {
-                    showAgentMessage(`找不到"${params.elementName || target}"，请检查名称`);
+                if (!clickElement(params.selector, target)) {
+                    showAgentMessage(`找不到"${target}"，请检查名称`);
                 }
                 break;
                 
             case 'input':
-                // 输入内容
-                const inputOk = inputContent(params.value || target);
-                if (!inputOk) {
+                if (!inputContent(params.inputValue || target, params.selector)) {
                     showAgentMessage('找不到输入框');
                 }
                 break;
                 
-            case 'generate':
-                // 生成（先跳转，再填写）
-                if (target === 'image' || target === 'generate-image') {
-                    if (!location.pathname.includes('banana')) {
-                        navigateToPage('banana');
-                        await new Promise(r => setTimeout(r, 800));
-                    }
-                    if (params.value || params.prompt) {
-                        inputContent(params.value || params.prompt);
-                    }
-                } else if (target === 'video') {
-                    navigateToPage('video-tools');
-                } else if (target === 'music') {
-                    navigateToPage('music');
+            case 'select':
+                if (!selectOption(params.selectId, params.selectValue || target)) {
+                    showAgentMessage(`找不到下拉选项"${params.selectValue || target}"`);
                 }
                 break;
                 
-            case 'config':
-                // 修改配置
-                findAndClickElement(params.elementType, params.elementName || target);
-                break;
-                
-            case 'action':
-                // 执行操作（如点击生成）
-                if (target === 'generate' || target === 'submit') {
-                    findAndClickElement('button', '生成');
+            case 'call':
+                if (!callFunction(params.functionName, params.functionArgs || [])) {
+                    // 回退到点击
+                    clickElement(null, target);
                 }
                 break;
                 
             default:
-                // chat 或未知意图
                 break;
         }
     }
