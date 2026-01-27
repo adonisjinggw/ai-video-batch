@@ -158,11 +158,16 @@ async function __billing(billingAction, userId, amount, description) {
 const YUNWU_API_KEY = process.env.YUNWU_API_KEY || '';
 
 // ========== DubbingX TTS 配置 ==========
-// DubbingX 需要两个 key 拼接使用
-const TTS_API_KEY_1 = process.env.TTS_API_KEY_1 || 'NWY1NmUxM2QtYjAxZi00YTkzLTgzYjkt';
-const TTS_API_KEY_2 = process.env.TTS_API_KEY_2 || 'NDJkODRhN2YtOTk1My00NjgwLWEzYTMt';
-const TTS_API_KEY = TTS_API_KEY_1 + TTS_API_KEY_2;
+// DubbingX 需要 apiKey 和 apiSecret 生成签名
+const TTS_API_KEY = process.env.TTS_API_KEY || 'NWY1NmUxM2QtYjAxZi00YTkzLTgzYjkt';
+const TTS_API_SECRET = process.env.TTS_API_SECRET || 'NDJkODRhN2YtOTk1My00NjgwLWEzYTMt';
 const TTS_BASE_URL = 'https://tts-api.dubbingx.com';
+const VC_BASE_URL = 'https://vc-api.dubbingx.com';
+
+// DubbingX 文档要求 Bearer apiKey
+function getDubbingXBearerHeaders() {
+    return { Authorization: `Bearer ${TTS_API_KEY}` };
+}
 const TTS_MAX_CONCURRENT = 5;  // 最大并发数
 let ttsCurrentConcurrent = 0;  // 当前并发数
 let ttsQueue = [];  // 等待队列
@@ -1611,7 +1616,7 @@ module.exports = async function handler(req, res) {
                     model_name: 'Hailuo',
                     model_version: model_version,
                     prompt: prompt || '让图片动起来，平滑过渡',
-                    enhance_prompt: 'Enabled',
+                    enhance_prompt: 'Disabled',
                     output_config: {
                         storage_mode: 'Temporary',
                         duration: parseInt(duration) || 6,
@@ -1753,7 +1758,7 @@ module.exports = async function handler(req, res) {
                     model_name: 'Kling',
                     model_version: model_version,
                     prompt: prompt || '让图片动起来，平滑过渡',
-                    enhance_prompt: 'Enabled',
+                    enhance_prompt: 'Disabled',
                     output_config: {
                         storage_mode: 'Temporary',
                         aspect_ratio: aspect_ratio,
@@ -2460,14 +2465,15 @@ module.exports = async function handler(req, res) {
                 
                 console.log('[yunwu] TTS请求音色列表:', TTS_BASE_URL, JSON.stringify(requestBody));
                 
+                const authHeaders = getDubbingXBearerHeaders();
                 const response = await fetch(`${TTS_BASE_URL}/v2/getTTSTimbreList`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${TTS_API_KEY}`,
+                        'Authorization': authHeaders.Authorization,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(requestBody),
-                    signal: AbortSignal.timeout(15000)  // 15秒超时
+                    signal: AbortSignal.timeout(15000)
                 });
                 
                 if (!response.ok) {
@@ -2534,10 +2540,11 @@ module.exports = async function handler(req, res) {
                 if (audioVolume) requestBody.audioVolume = audioVolume;
                 if (emotion) requestBody.emotion = emotion;
                 
+                const ttsAuthHeaders = getDubbingXBearerHeaders();
                 const response = await fetch(`${TTS_BASE_URL}/v1/addTtsTask`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${TTS_API_KEY}`,
+                        'Authorization': ttsAuthHeaders.Authorization,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(requestBody)
@@ -2702,6 +2709,139 @@ module.exports = async function handler(req, res) {
             return;
         }
         
+        // ========== 🎤 VC 变声 ==========
+        
+        // 获取VC音色列表
+        if (action === 'vc-list') {
+            const { pageIndex, pageSize, isMyModel, keyword, gender, ageGroup } = body;
+            try {
+                const headers = { ...getDubbingXBearerHeaders(), 'Content-Type': 'application/json' };
+                const requestBody = {
+                    pageIndex: pageIndex || 1,
+                    pageSize: pageSize || 50,
+                    isMyModel: isMyModel ?? false,
+                    keyword,
+                    gender,
+                    ageGroup
+                };
+                console.log('[yunwu] VC音色列表请求:', VC_BASE_URL, JSON.stringify(requestBody));
+                
+                const response = await fetch(`${VC_BASE_URL}/v1/getVCTimbreList`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(requestBody),
+                    signal: AbortSignal.timeout(15000)
+                });
+                
+                if (!response.ok) {
+                    const errText = await response.text().catch(() => '');
+                    console.error(`[yunwu] VC API返回 ${response.status}:`, errText.substring(0, 300));
+                    json(200, { success: false, error: `VC服务异常(${response.status}): ${errText.substring(0, 100)}` });
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('[yunwu] VC音色列表返回:', JSON.stringify(data).substring(0, 300));
+                
+                if (data.success && data.data) {
+                    json(200, { success: true, voices: data.data, total: data.data.length || 0 });
+                } else {
+                    json(200, { success: false, voices: [], total: 0, error: data.msg || '获取音色失败' });
+                }
+            } catch (err) {
+                console.error('[yunwu] VC音色列表错误:', err.message);
+                json(500, { success: false, error: 'VC服务连接失败: ' + err.message });
+            }
+            return;
+        }
+        
+        // 创建VC变声任务（上传文件 + 创建任务）
+        if (action === 'vc-create') {
+            const { audioData, timbreId, pitch, userId } = body;
+            if (!audioData || !timbreId) {
+                json(400, { error: 'MISSING_PARAMS', message: '缺少audioData或timbreId参数' });
+                return;
+            }
+            try {
+                // 扣费（默认2胶片，可按需调整）
+                const cost = 2;
+                if (userId) {
+                    await __billing('consume', userId, cost, 'VC变声');
+                }
+                
+                // 解析base64
+                const match = audioData.match(/^data:(.+);base64,(.+)$/);
+                const mimeType = match ? match[1] : 'audio/wav';
+                const b64 = match ? match[2] : audioData;
+                const buffer = Buffer.from(b64, 'base64');
+                
+                // 上传文件
+                const form = new FormData();
+                form.append('file', new Blob([buffer], { type: mimeType }), 'voice.wav');
+                
+                const uploadRes = await fetch(`${VC_BASE_URL}/v1/uploadFile`, {
+                    method: 'POST',
+                    headers: getDubbingXBearerHeaders(),
+                    body: form
+                });
+                const uploadData = await uploadRes.json();
+                if (!uploadData.success || !uploadData.data?.key) {
+                    throw new Error(uploadData.msg || '上传音频失败');
+                }
+                
+                // 创建变声任务
+                const taskRes = await fetch(`${VC_BASE_URL}/v1/addVoiceConvertTask`, {
+                    method: 'POST',
+                    headers: { ...getDubbingXBearerHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        timbreId: timbreId,
+                        pitch: typeof pitch === 'number' ? pitch : 0,
+                        fileKey: uploadData.data.key
+                    })
+                });
+                const taskData = await taskRes.json();
+                if (taskData.success && taskData.data?.taskId) {
+                    json(200, { success: true, taskId: taskData.data.taskId });
+                } else {
+                    throw new Error(taskData.msg || '创建变声任务失败');
+                }
+            } catch (err) {
+                console.error('[yunwu] VC任务创建错误:', err.message);
+                json(500, { success: false, error: err.message });
+            }
+            return;
+        }
+        
+        // VC任务查询
+        if (action === 'vc-poll') {
+            const { taskId } = body;
+            if (!taskId) {
+                json(400, { error: 'MISSING_TASK_ID' });
+                return;
+            }
+            try {
+                const response = await fetch(`${VC_BASE_URL}/v1/getVoiceConvertTaskInfo/${taskId}`, {
+                    method: 'POST',
+                    headers: { ...getDubbingXBearerHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.success && data.data) {
+                    json(200, {
+                        success: true,
+                        status: data.data.status,
+                        audioUrl: data.data.audioUrl
+                    });
+                } else {
+                    json(200, { success: false, status: 'Pending', msg: data.msg });
+                }
+            } catch (err) {
+                console.error('[yunwu] VC任务查询错误:', err.message);
+                json(500, { success: false, error: err.message });
+            }
+            return;
+        }
+        
         // ========== 🎵 可灵 Kling TTS 语音合成 ==========
         if (action === 'kling-tts') {
             const { text, voiceId, voiceLanguage, voiceSpeed, userId } = body;
@@ -2835,6 +2975,85 @@ module.exports = async function handler(req, res) {
             } catch (err) {
                 console.error('[yunwu] Kling TTS轮询错误:', err.message);
                 json(200, { success: false, status: 'processing', error: err.message });
+            }
+            return;
+        }
+        
+        // ========== 🎙️ Whisper 语音识别（Speech-to-Text）==========
+        if (action === 'speech-to-text') {
+            const { audio, format, userId } = body;
+            
+            if (!audio) {
+                json(400, { error: 'MISSING_AUDIO', message: '缺少音频数据' });
+                return;
+            }
+            
+            try {
+                console.log('[yunwu] 开始语音识别，音频格式:', format || 'webm');
+                
+                // 将 base64 转换为 Buffer
+                const audioBuffer = Buffer.from(audio, 'base64');
+                console.log('[yunwu] 音频大小:', audioBuffer.length, 'bytes');
+                
+                // 使用 form-data 构建 multipart/form-data 请求
+                const FormData = require('form-data');
+                const formData = new FormData();
+                
+                // 添加音频文件
+                const mimeType = format === 'webm' ? 'audio/webm' : 
+                                 format === 'mp3' ? 'audio/mp3' : 
+                                 format === 'wav' ? 'audio/wav' : 'audio/webm';
+                formData.append('file', audioBuffer, {
+                    filename: `audio.${format || 'webm'}`,
+                    contentType: mimeType
+                });
+                formData.append('model', 'whisper-1');
+                formData.append('language', 'zh');  // 中文识别
+                
+                // 调用云雾 Whisper API
+                const response = await fetchWithFallbackWithTimeout(`/v1/audio/transcriptions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                        ...formData.getHeaders()
+                    },
+                    body: formData
+                }, 60000);  // 60秒超时
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error('[yunwu] Whisper识别错误:', response.status, errText);
+                    throw new Error(`语音识别失败: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[yunwu] Whisper返回:', JSON.stringify(data).substring(0, 200));
+                
+                // 提取识别文本
+                const text = data?.text || data?.content || data?.data?.text || '';
+                
+                if (text) {
+                    // 扣费 - 语音识别 1胶片/次
+                    const cost = 1;
+                    if (userId) {
+                        await __billing('consume', userId, cost, 'Whisper语音识别');
+                    }
+                    
+                    json(200, { 
+                        success: true, 
+                        text: text,
+                        message: '识别成功'
+                    });
+                } else {
+                    json(200, { 
+                        success: false, 
+                        text: '',
+                        message: '未识别到内容'
+                    });
+                }
+            } catch (err) {
+                console.error('[yunwu] Whisper语音识别错误:', err.message);
+                json(500, { error: err.message, success: false });
             }
             return;
         }

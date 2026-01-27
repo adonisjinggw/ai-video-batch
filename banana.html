@@ -280,18 +280,17 @@
         }
         .batch-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
             margin-bottom: 16px;
         }
         .batch-item {
             position: relative;
             background: var(--bg-input);
             border: 1px solid #333;
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
-            aspect-ratio: 1;
-            min-height: 120px;
+            min-height: 140px;
         }
         .batch-item {
             display: flex;
@@ -368,6 +367,37 @@
         }
         .batch-item.error {
             border-color: #ef4444;
+        }
+        .batch-item.error::after {
+            content: '❌ 生成失败';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            color: #ef4444;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 12px;
+            border-radius: 6px;
+            z-index: 5;
+        }
+        .batch-item-edit-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 4px;
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.7);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-size: 10px;
+            cursor: pointer;
+            z-index: 4;
+            transition: all 0.2s;
+        }
+        .batch-item-edit-btn:hover {
+            background: var(--accent);
+            color: #000;
         }
         .batch-result-section {
             display: none;
@@ -1819,19 +1849,18 @@
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('[banana] 页面加载完成，开始初始化...');
             
-            // 🔧 修复：绑定生成按钮事件（支持移动端触摸）
+            // 🔧 修复：绑定生成按钮事件（移除 touchend 避免重复触发）
             const generateBtn = document.getElementById('generateBtn');
             if (generateBtn) {
-                generateBtn.onclick = null;
-                generateBtn.addEventListener('click', function(e) {
-                    console.log('[banana] 生成按钮被点击 (click)');
+                // 只使用 click 事件，移动端会自动转换
+                generateBtn.onclick = function(e) {
+                    console.log('[banana] 生成按钮被点击');
+                    if (this.disabled) {
+                        console.log('[banana] 按钮已禁用，忽略');
+                        return;
+                    }
                     generateImage();
-                });
-                generateBtn.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    console.log('[banana] 生成按钮被点击 (touchend)');
-                    generateImage();
-                });
+                };
             }
             
             // 🔧 修复：返回按钮支持触摸事件
@@ -2020,30 +2049,26 @@
             const prompt = document.getElementById('promptInput').value.trim();
             if (!prompt) { showToast('请输入描述内容'); return; }
 
-            // 🔐 使用 NVAuth.checkAuthStatus 进行可靠的登录状态检查（带自动刷新胶片余额）
-            let authResult = { valid: false, user: null, quota: 0 };
+            // 🔐 简化认证检查：优先使用缓存的用户信息
             try {
-                if (typeof NVAuth !== 'undefined' && typeof NVAuth.checkAuthStatus === 'function') {
-                    authResult = await NVAuth.checkAuthStatus(true);  // true = 刷新胶片余额
-                } else if (currentUser) {
-                    // 兆底：使用缓存的用户信息
-                    authResult = { valid: true, user: currentUser, quota: userQuota };
+                // 如果没有缓存的用户，尝试获取
+                if (!currentUser && typeof NVAuth !== 'undefined') {
+                    currentUser = await NVAuth.getCurrentUser();
+                }
+                // 刷新胶片余额
+                if (currentUser && typeof NVAuth !== 'undefined' && typeof NVAuth.checkAuthStatus === 'function') {
+                    const authResult = await NVAuth.checkAuthStatus(true);
+                    if (authResult.quota !== undefined) {
+                        userQuota = authResult.quota;
+                        document.getElementById('quotaBadge').textContent = `🏞️ ${userQuota}`;
+                    }
                 }
             } catch (e) {
                 console.error('[banana] 认证检查异常:', e);
             }
             
-            // 🔄 同步更新登录状态和胶片余额
-            if (authResult.valid && authResult.user) {
-                currentUser = authResult.user;
-                if (authResult.quota !== undefined) {
-                    userQuota = authResult.quota;
-                    document.getElementById('quotaBadge').textContent = `🎞️ ${userQuota}`;
-                }
-            }
-            
             // 必须登录
-            if (!authResult.valid || !currentUser) { 
+            if (!currentUser) { 
                 showToast('请先登录后使用'); 
                 setTimeout(() => { window.location.href = 'auth.html'; }, 1000);
                 return; 
@@ -2220,9 +2245,20 @@
                     try {
                         const errData = await response.json();
                         errMsg = errData.message || errData.error || errMsg;
-                        debugInfo = errData.debug || '';
-                        console.error('[banana] API错误详情:', errData);
-                    } catch (e) {}
+                        debugInfo = errData.debug || JSON.stringify(errData).slice(0, 400);
+                        console.error('[banana] API错误详情(JSON):', errData);
+                    } catch (e) {
+                        try {
+                            const errText = await response.text();
+                            if (errText) {
+                                debugInfo = errText.slice(0, 400);
+                                // 尝试从纯文本中提取 message
+                                const m = errText.match(/message\"?\s*:\s*\"([^\"]+)/i);
+                                if (m && m[1]) errMsg = m[1];
+                            }
+                            console.error('[banana] API错误详情(TEXT):', debugInfo);
+                        } catch (e2) {}
+                    }
                     // 如果有debug信息，输出到控制台
                     if (debugInfo) {
                         console.error('[banana] 后端返回调试信息:', debugInfo);
@@ -3116,6 +3152,52 @@
                         if (gridItem) {
                             gridItem.classList.remove('generating');
                             gridItem.classList.add('has-result');
+                            
+                            // 🎨 直接在宫格内显示结果图片
+                            const textarea = gridItem.querySelector('textarea');
+                            if (textarea) textarea.style.display = 'none';
+                            
+                            // 删除旧的结果图片（如果有）
+                            const oldImg = gridItem.querySelector('.batch-result-img');
+                            if (oldImg) oldImg.remove();
+                            const oldEditBtn = gridItem.querySelector('.batch-item-edit-btn');
+                            if (oldEditBtn) oldEditBtn.remove();
+                            
+                            // 创建结果图片
+                            const imgUrl = (result && typeof result === 'object' && result.urls) ? result.urls[0] : result;
+                            if (imgUrl) {
+                                const img = document.createElement('img');
+                                img.className = 'batch-result-img';
+                                img.src = imgUrl;
+                                img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:1;cursor:pointer;';
+                                img.onclick = () => {
+                                    // 点击图片预览
+                                    window.open(imgUrl, '_blank');
+                                };
+                                gridItem.style.position = 'relative';
+                                gridItem.insertBefore(img, gridItem.firstChild);
+                                
+                                // 添加重新编辑按钮
+                                const editBtn = document.createElement('button');
+                                editBtn.className = 'batch-item-edit-btn';
+                                editBtn.textContent = '✏️ 重新编辑';
+                                editBtn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    // 移除结果图片和按钮，显示编辑区域
+                                    img.remove();
+                                    editBtn.remove();
+                                    if (textarea) textarea.style.display = 'block';
+                                    gridItem.classList.remove('has-result');
+                                    gridItem.classList.remove('error');
+                                };
+                                gridItem.appendChild(editBtn);
+                                
+                                // 调整配置区域的 z-index，确保在图片之上
+                                const configDiv = gridItem.querySelector('.batch-item-config');
+                                if (configDiv) configDiv.style.zIndex = '2';
+                                const refDiv = gridItem.querySelector('.batch-item-ref');
+                                if (refDiv) refDiv.style.zIndex = '3';
+                            }
                         }
                         
                         // 🎨 处理 MJ 网格图切图结果（返回多张图）
@@ -3144,9 +3226,31 @@
                             });
                         }
                     } catch (error) {
+                        console.error(`❌ 格子 ${item.index + 1} 生成失败:`, error);
                         if (gridItem) {
                             gridItem.classList.remove('generating');
                             gridItem.classList.add('error');
+                            
+                            // 添加重新编辑按钮（错误情况）
+                            const oldEditBtn = gridItem.querySelector('.batch-item-edit-btn');
+                            if (oldEditBtn) oldEditBtn.remove();
+                            
+                            const editBtn = document.createElement('button');
+                            editBtn.className = 'batch-item-edit-btn';
+                            editBtn.textContent = '✏️ 重试';
+                            editBtn.style.bottom = '50px'; // 调整位置避开错误提示
+                            editBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                // 清除错误状态，显示编辑区域
+                                gridItem.classList.remove('error');
+                                editBtn.remove();
+                                const textarea = gridItem.querySelector('textarea');
+                                if (textarea) {
+                                    textarea.style.display = 'block';
+                                    textarea.focus();
+                                }
+                            };
+                            gridItem.appendChild(editBtn);
                         }
                         batchResults.push({
                             index: item.index,

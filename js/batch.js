@@ -25282,6 +25282,7 @@ const PT_PRESET_TEMPLATES = {
             '【场景环境】{{environment}}\n' +
             '【情绪氛围】{{mood}}\n' +
             '【运镜方式】{{camera_movement}}\n' +
+            '【镜头位置/拍摄角度】{{camera_position}}\n' +
             '【音乐配乐】{{music_feel}}\n' +
             '【特殊要求】{{special_requirements}}',
         defaultVars: {
@@ -25504,6 +25505,84 @@ const PT_PRESET_TEMPLATES = {
                     '工业音乐/Industrial，机械噪音，黑暗氛围'
                 ],
                 value: '钢琴独奏，情感细腻，简约优雅'
+            },
+            camera_position: {
+                options: [
+                    // === 标准视角 Standard Perspectives ===
+                    '平视角度 Eye Level，与主体视线齐平，自然亲切',
+                    '标准正面 Front View，直接面向主体，正式规矩',
+                    '侧面视角 Profile View，90度侧面，轮廓清晰',
+                    '斜侧面 Three-Quarter View，45度角，立体生动',
+                    '背面视角 Rear View，从背后拍摄，神秘感',
+                    '过肩镜头 Over-the-Shoulder，肩膀遮挡画面边缘，对话场景',
+                    // === 仰拍角度 Low Angle Shots ===
+                    '低角度仰拍 Low Angle，相机低于主体，威严高大',
+                    '极低角度 Extreme Low Angle，贴近地面向上，夸张透视',
+                    '虫视角 Worm\'s Eye View，地面水平仰拍，渺小感强烈',
+                    '膝盖高度 Knee Level，膝盖位置仰拍，儿童视角',
+                    '腰部高度 Waist Level，腰部位置，轻微仰拍',
+                    '地面镜头 Ground Level Shot，相机紧贴地面，戏剧化视角',
+                    // === 俯拍角度 High Angle Shots ===
+                    '高角度俯拍 High Angle，相机高于主体，渺小弱势',
+                    '鸟瞰视角 Bird\'s Eye View，垂直向下90度，上帝视角',
+                    '天花板视角 Ceiling View，从顶部向下，监控感',
+                    '楼梯俯拍 Staircase Shot，从楼梯上方向下，建筑感',
+                    '航拍高度 Aerial Height，无人机高空俯瞰，全景气势',
+                    // === 特殊高度 Special Heights ===
+                    '桌面高度 Tabletop Height，桌面水平，美食产品',
+                    '儿童身高 Child Height，1米左右，儿童主观视角',
+                    '巨人视角 Giant Perspective，超高视点向下，压迫感',
+                    '蚂蚁视角 Ant Perspective，微观世界仰视，奇幻感',
+                    // === 创意位置 Creative Positions ===
+                    '门缝偷窥 Door Gap，从门缝狭窄空间，窥视感',
+                    '窗户外侧 Window Outside，透过玻璃拍摄，距离感',
+                    '镜子反射 Mirror Reflection，通过镜面反射，双重空间',
+                    '水面倒影 Water Reflection，水中倒影视角，梦幻唯美',
+                    '车内视角 Car Interior，从车内向外，旅行感',
+                    '后备箱镜头 Trunk Shot，从后备箱向外，独特视角',
+                    '冰箱内部 Refrigerator Shot，从冰箱内向外，创意广告',
+                    // === 运动中位置 Moving Positions ===
+                    '跑步者POV Running POV，奔跑中的第一人称，动感沉浸',
+                    '骑行视角 Cycling View，自行车/摩托车骑行视角',
+                    '驾驶舱视角 Cockpit View，飞机/赛车驾驶员视角',
+                    '滑雪者视角 Skier POV，高速滑行第一人称',
+                    '过山车视角 Roller Coaster，快速旋转起伏，刺激感',
+                    // === 隐蔽位置 Hidden Positions ===
+                    '草丛中 Through Grass，从草丛缝隙拍摄，野生纪实',
+                    '树枝遮挡 Branch Obstruction，树叶遮挡前景，层次感',
+                    '人群中 Through Crowd，人群缝隙中拍摄，紧张感',
+                    '角落位置 Corner Position，房间角落，压抑感',
+                    // === 下方视角 Below Perspectives ===
+                    '台阶下方 Below Stairs，从楼梯下方向上，建筑透视',
+                    '舞台下方 Below Stage，从舞台下观众席，仰视表演',
+                    '玻璃地板下 Below Glass Floor，从透明地板下方，创意视角',
+                    '桥底视角 Under Bridge，从桥下向上，结构美感',
+                    '树冠下方 Under Tree Canopy，从树下仰视树冠，自然氛围',
+                    // === 上方视角 Above Perspectives ===
+                    '二楼走廊 Second Floor，从楼上走廊俯视大厅',
+                    '阳台俯视 Balcony View，从阳台向下看街道',
+                    '屋顶视角 Rooftop View，从屋顶边缘向下，城市全景',
+                    // === 环境特殊位置 Environmental Positions ===
+                    '水下视角 Underwater，潜入水中向上看水面',
+                    '水面平视 Water Level，相机半浸水中，分割视角',
+                    '雾中拍摄 In Fog，浓雾中拍摄，神秘朦胧',
+                    '雨中低角 Rain Low Angle，雨天低角度，水花四溅',
+                    // === 建筑位置 Architectural Positions ===
+                    '门框视角 Doorway Frame，从门框内向外或向内',
+                    '拱门视角 Archway View，透过拱门看远景',
+                    '走廊尽头 Corridor End，从长走廊一端拍摄',
+                    '螺旋楼梯 Spiral Staircase，螺旋楼梯中心向上/下',
+                    // === 动态追踪位置 Dynamic Tracking Positions ===
+                    '肩扛跟拍 Shoulder Carry，扛着相机跟随',
+                    '头盔相机 Helmet Cam，第一人称极限运动视角',
+                    '胸前固定 Chest Mount，运动相机胸前固定',
+                    // === 构图位置 Composition Positions ===
+                    '中轴线 Central Axis，严格中心对称构图',
+                    '黄金分割点 Golden Ratio Point，画面黄金分割位置',
+                    '三分法 Rule of Thirds，三分法构图位置',
+                    '对角线 Diagonal Line，对角线构图位置'
+                ],
+                value: '平视角度 Eye Level，与主体视线齐平，自然亲切'
             },
             special_requirements: {
                 options: [

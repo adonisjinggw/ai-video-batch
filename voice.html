@@ -377,7 +377,7 @@
 </head>
 <body>
     <div class="header">
-        <a href="mobile.html" class="back-btn">← 返回</a>
+        <a href="mobile.html?skip_welcome=1" class="back-btn">← 返回</a>
         <h1>🎙️ AI配音</h1>
         <div class="user-info">
             <span id="userQuota">--</span> 胶片
@@ -386,6 +386,7 @@
 
     <div class="tabs">
         <button class="tab active" data-panel="tts">📝 文字转语音</button>
+        <button class="tab" data-panel="vc">🎤 VC变声</button>
         <button class="tab" data-panel="batch">📚 批量配音</button>
         <button class="tab" data-panel="img2voice">🖼️ 图片配音</button>
         <button class="tab" data-panel="video2voice">🎬 视频配音</button>
@@ -533,6 +534,86 @@
             </div>
         </div>
 
+        <!-- 🎤 声音克隆面板 -->
+        <div class="panel" id="panel-vc">
+            <div class="input-section">
+                <label class="input-label">🎵 上传音频样本（5-20秒）</label>
+                <input type="file" id="cloneAudioInput" accept="audio/*" style="display:none" onchange="loadCloneAudio(this)">
+                <div class="upload-area" onclick="document.getElementById('cloneAudioInput').click()">
+                    <div class="icon">🎵</div>
+                    <div>点击上传音频样本</div>
+                    <div style="font-size:12px;color:#666;margin-top:8px;">建议5-20秒，支持 MP3、WAV</div>
+                </div>
+                <audio id="cloneAudioPreview" class="upload-preview" controls style="display:none;"></audio>
+                <div id="cloneAudioInfo" style="display:none;font-size:12px;color:#666;margin-top:8px;">
+                    <span id="cloneAudioDuration">0</span>秒 | <span id="cloneAudioSize">0</span>MB
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">⚙️ 音调调整 (Pitch)</label>
+                <div class="settings-row">
+                    <div class="setting-item">
+                        <label>音调偏移 (-12~12)</label>
+                        <input type="number" id="cloneVoiceName" value="0" min="-12" max="12" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;">
+                        <div style="font-size:11px;color:#666;margin-top:4px;">男转女建议10-12，女转男建议-10~-12</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">🎤 选择目标音色</label>
+                <div id="cloneVoiceList" style="max-height:300px;overflow-y:auto;">
+                    <div style="text-align:center;padding:20px;color:#666;">加载中...</div>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="cloneCreateBtn" onclick="createVoiceClone()">🎙️ 开始变声 (2胶片)</button>
+
+            <div class="loading" id="cloneLoading">
+                <div class="spinner"></div>
+                <div id="cloneLoadingText">声音克隆中...</div>
+            </div>
+
+            <div class="result-section" id="cloneResult">
+                <div class="result-title">✅ 变声成功</div>
+                <div id="cloneTestResult">
+                    <audio id="cloneTestAudio" controls style="width:100%;margin-bottom:16px;"></audio>
+                    <div style="display:flex;gap:12px;">
+                        <button class="result-btn" onclick="downloadClonedAudio()">⬇️ 下载</button>
+                        <button class="result-btn primary" onclick="createVoiceClone()">🔄 重新变声</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📚 批量配音面板 -->
+        <div class="panel" id="panel-batch">
+            <div class="input-section">
+                <label class="input-label">📝 批量宫格配音（9个独立格子）</label>
+                <div class="batch-grid" id="batchVoiceGrid">
+                    <!-- 9个宫格 -->
+                </div>
+            </div>
+
+            <div class="batch-progress" id="batchProgress" style="display:none;">
+                <div style="display:flex;justify-content:space-between;font-size:13px;">
+                    <span>生成进度</span>
+                    <span id="batchProgressText">0/9</span>
+                </div>
+                <div class="batch-progress-bar">
+                    <div class="fill" id="batchProgressFill"></div>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="batchBtn" onclick="generateBatchVoice()">🎙️ 批量生成 (2胶片/条)</button>
+
+            <div class="loading" id="batchLoading">
+                <div class="spinner"></div>
+                <div id="batchLoadingText">批量生成中...</div>
+            </div>
+        </div>
+
         <!-- 🖼️ 图片配音面板 -->
         <div class="panel" id="panel-img2voice">
             <div class="input-section">
@@ -657,10 +738,14 @@
 
         // ==================== 初始化 ====================
         document.addEventListener('DOMContentLoaded', async () => {
+            // 初始化批量配音宫格
+            initBatchVoiceGrid();
             // 检查登录
             await checkUser();
             // 加载音色列表
             await loadVoiceList();
+            // 加载VC音色列表
+            await loadVCTimbreList();
             // 绑定标签切换
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -680,14 +765,25 @@
         async function checkUser() {
             try {
                 if (typeof NVAuth === 'undefined') {
-                    await new Promise(r => setTimeout(r, 500));
+                    await new Promise(r => setTimeout(r, 1000));
                 }
-                const { user, quota } = await NVAuth.getCurrentUserAndQuota();
-                if (user) {
-                    currentUser = user;
-                    userQuota = quota || 0;
+                
+                if (typeof NVAuth === 'undefined') {
+                    console.error('NVAuth 未初始化');
+                    showToast('系统初始化失败，请刷新页面');
+                    return;
+                }
+                
+                const result = await NVAuth.getCurrentUserAndQuota();
+                console.log('[Voice] 用户信息:', result);
+                
+                if (result && result.user) {
+                    currentUser = result.user;
+                    userQuota = result.quota || 0;
                     document.getElementById('userQuota').textContent = userQuota;
+                    console.log('[Voice] 用户已登录:', currentUser.email, '胶片:', userQuota);
                 } else {
+                    console.log('[Voice] 未登录，跳转登录页');
                     showToast('请先登录');
                     setTimeout(() => {
                         window.location.href = 'auth.html?return_to=voice.html';
@@ -695,6 +791,7 @@
                 }
             } catch (e) {
                 console.error('认证检查失败:', e);
+                showToast('获取用户信息失败');
             }
         }
 
@@ -711,6 +808,8 @@
                     voiceList = data.voices;
                     renderVoiceList(voiceList);
                     updateVoiceSelects(voiceList);
+                    // 更新批量宫格的音色列表
+                    updateBatchGridVoices(voiceList);
                 } else {
                     const errMsg = data.error || '加载失败';
                     document.getElementById('voiceList').innerHTML = `
@@ -893,7 +992,7 @@
                     } else {
                         throw new Error(data.error || '可灵TTS失败');
                     }
-                }
+                } else {
                     // DubbingX TTS - 需要轮询
                     if (!selectedVoiceId) {
                         showToast('请选择音色');
@@ -1238,6 +1337,592 @@
             } finally {
                 btn.disabled = false;
                 loading.classList.remove('show');
+            }
+        }
+
+        // ==================== 批量配音宫格 ====================
+        const BATCH_CELL_COUNT = 9;  // 宫格数量
+        let batchVoiceResults = [];   // 存储结果
+        
+        // 初始化批量配音宫格
+        function initBatchVoiceGrid() {
+            const grid = document.getElementById('batchVoiceGrid');
+            if (!grid) return;
+            
+            let html = '';
+            for (let i = 0; i < BATCH_CELL_COUNT; i++) {
+                html += `
+                    <div class="batch-cell" id="batchCell${i}" data-index="${i}">
+                        <div class="cell-num">${i + 1}</div>
+                        <textarea placeholder="输入文本..." data-cell="${i}"></textarea>
+                        <select class="cell-voice" data-cell="${i}">
+                            <option value="">选音色</option>
+                        </select>
+                        <select class="cell-engine" data-cell="${i}" onchange="onCellEngineChange(${i})">
+                            <option value="dubbingx">DubbingX</option>
+                            <option value="gemini-flash">Gemini Flash</option>
+                            <option value="gemini-pro">Gemini Pro</option>
+                            <option value="kling">Kling TTS</option>
+                        </select>
+                        <div class="cell-status" id="cellStatus${i}"></div>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+        }
+        
+        // TTS引擎切换时更新音色列表
+        function onCellEngineChange(cellIndex) {
+            const cell = document.getElementById(`batchCell${cellIndex}`);
+            const engineSelect = cell.querySelector('.cell-engine');
+            const voiceSelect = cell.querySelector('.cell-voice');
+            const engine = engineSelect.value;
+            
+            if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                voiceSelect.innerHTML = `
+                    <option value="Kore">Kore (女)</option>
+                    <option value="Charon">Charon (男)</option>
+                    <option value="Puck">Puck (男)</option>
+                    <option value="Aoede">Aoede (女)</option>
+                    <option value="Fenrir">Fenrir (男)</option>
+                    <option value="Leda">Leda (女)</option>
+                `;
+            } else if (engine === 'kling') {
+                voiceSelect.innerHTML = `
+                    <option value="male_dongfang">Kling 东方(男)</option>
+                    <option value="female_qingxin">Kling 清新(女)</option>
+                    <option value="male_chenwen">Kling 沉稳(男)</option>
+                    <option value="female_tianmei">Kling 甜美(女)</option>
+                `;
+            } else {
+                // DubbingX使用全局音色列表
+                if (voiceList && voiceList.length > 0) {
+                    voiceSelect.innerHTML = '<option value="">选音色</option>' + 
+                        voiceList.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+                }
+            }
+        }
+        
+        // 更新宫格音色列表
+        function updateBatchGridVoices(voices) {
+            document.querySelectorAll('.batch-cell .cell-voice').forEach(select => {
+                const cellIndex = select.dataset.cell;
+                const cell = document.getElementById(`batchCell${cellIndex}`);
+                const engine = cell.querySelector('.cell-engine').value;
+                
+                // 只更新 DubbingX 引擎的音色列表
+                if (engine === 'dubbingx') {
+                    select.innerHTML = '<option value="">选音色</option>' + 
+                        voices.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+                }
+            });
+        }
+        
+        // 批量生成
+        async function generateBatchVoice() {
+            // 收集有内容的宫格
+            const inputs = [];
+            for (let i = 0; i < BATCH_CELL_COUNT; i++) {
+                const cell = document.getElementById(`batchCell${i}`);
+                const text = cell.querySelector('textarea').value.trim();
+                if (!text) continue;
+                
+                const voiceId = cell.querySelector('.cell-voice').value;
+                const engine = cell.querySelector('.cell-engine').value;
+                
+                if (!voiceId) {
+                    showToast(`格子 ${i + 1} 请选择音色`);
+                    return;
+                }
+                
+                inputs.push({ index: i, text, voiceId, engine });
+            }
+            
+            if (inputs.length === 0) {
+                showToast('请至少填写一个格子的文本');
+                return;
+            }
+            
+            // 计算费用
+            const totalCost = inputs.reduce((sum, item) => {
+                if (item.engine === 'gemini-pro') return sum + 3;
+                return sum + 2;
+            }, 0);
+            
+            if (userQuota < totalCost) {
+                showToast(`胶片不足，需要${totalCost}胶片`);
+                return;
+            }
+            
+            const btn = document.getElementById('batchBtn');
+            const progressDiv = document.getElementById('batchProgress');
+            
+            btn.disabled = true;
+            progressDiv.style.display = 'block';
+            batchVoiceResults = [];
+            let completed = 0;
+            
+            // 更新进度
+            const updateProgress = () => {
+                const percent = Math.round((completed / inputs.length) * 100);
+                document.getElementById('batchProgressText').textContent = `${completed}/${inputs.length}`;
+                document.getElementById('batchProgressFill').style.width = percent + '%';
+            };
+            updateProgress();
+            
+            // 并发生成（最多3个同时）
+            const processCell = async (item) => {
+                const cell = document.getElementById(`batchCell${item.index}`);
+                const statusDiv = document.getElementById(`cellStatus${item.index}`);
+                
+                cell.style.borderColor = 'var(--accent)';
+                statusDiv.textContent = '⚙️ 生成中...';
+                statusDiv.className = 'cell-status loading';
+                
+                try {
+                    let audioUrl = null;
+                    
+                    if (item.engine === 'gemini-flash' || item.engine === 'gemini-pro') {
+                        // Gemini TTS
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-tts',
+                                text: item.text,
+                                voiceName: item.voiceId,
+                                model: item.engine === 'gemini-pro' ? 'pro' : 'flash',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.audioData) {
+                            audioUrl = `data:${data.mimeType || 'audio/mp3'};base64,${data.audioData}`;
+                        } else {
+                            throw new Error(data.error || 'Gemini TTS失败');
+                        }
+                    } else if (item.engine === 'kling') {
+                        // Kling TTS
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'kling-tts',
+                                text: item.text,
+                                voiceId: item.voiceId,
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && (data.audioUrl || data.taskId)) {
+                            if (data.audioUrl) {
+                                audioUrl = data.audioUrl;
+                            } else {
+                                // 需要轮询
+                                audioUrl = await pollKlingTTS(data.taskId);
+                            }
+                        } else {
+                            throw new Error(data.error || 'Kling TTS失败');
+                        }
+                    } else {
+                        // DubbingX TTS
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'tts-generate',
+                                voiceId: item.voiceId,
+                                text: item.text,
+                                language: 'zh',
+                                fileFormat: 'mp3',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.taskId) {
+                            audioUrl = await pollTTSResultFor('batch', data.taskId);
+                        } else {
+                            throw new Error(data.error || 'DubbingX TTS失败');
+                        }
+                    }
+                    
+                    if (audioUrl) {
+                        // 成功
+                        cell.style.borderColor = '#22c55e';
+                        statusDiv.textContent = '✅ 完成';
+                        statusDiv.className = 'cell-status success';
+                        
+                        // 添加音频播放器
+                        let audio = cell.querySelector('audio');
+                        if (!audio) {
+                            audio = document.createElement('audio');
+                            audio.controls = true;
+                            cell.appendChild(audio);
+                        }
+                        audio.src = audioUrl;
+                        
+                        batchVoiceResults.push({ index: item.index, url: audioUrl, text: item.text });
+                    } else {
+                        throw new Error('未获取到音频');
+                    }
+                } catch (err) {
+                    console.error(`格子 ${item.index + 1} 失败:`, err);
+                    cell.style.borderColor = '#ef4444';
+                    statusDiv.textContent = '❌ ' + (err.message || '失败');
+                    statusDiv.className = 'cell-status error';
+                }
+                
+                completed++;
+                updateProgress();
+            };
+            
+            // 分批处理，每批最多3个
+            for (let i = 0; i < inputs.length; i += 3) {
+                const batch = inputs.slice(i, i + 3);
+                await Promise.all(batch.map(processCell));
+            }
+            
+            btn.disabled = false;
+            
+            const successCount = batchVoiceResults.length;
+            if (successCount > 0) {
+                showToast(`完成！成功 ${successCount} 条`);
+                userQuota -= successCount * 2;
+                document.getElementById('userQuota').textContent = userQuota;
+            } else {
+                showToast('批量生成失败');
+            }
+        }
+        
+        // Kling TTS轮询
+        async function pollKlingTTS(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'kling-tts-poll', taskId })
+                });
+                const data = await res.json();
+                if (data.success && data.audioUrl) {
+                    return data.audioUrl;
+                }
+                if (data.status === 'FAILED') {
+                    throw new Error(data.error || 'Kling TTS失败');
+                }
+            }
+            throw new Error('Kling TTS超时');
+        }
+        
+        // 下载所有成功的音频
+        function downloadAllBatchAudio() {
+            if (batchVoiceResults.length === 0) {
+                showToast('没有可下载的音频');
+                return;
+            }
+            batchVoiceResults.forEach((item, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = item.url;
+                    a.download = `voice_${item.index + 1}.mp3`;
+                    a.target = '_blank';
+                    a.click();
+                }, i * 500);
+            });
+            showToast('开始下载全部音频');
+        }
+
+        // ==================== VC变声 ====================
+        let vcAudioFile = null;
+        let vcTimbreList = [];  // VC音色列表
+        let currentVcAudioUrl = null;
+        
+        // 加载音频样本
+        function loadCloneAudio(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            if (file.size > 20 * 1024 * 1024) {
+                showToast('音频文件不能超过20MB');
+                return;
+            }
+            
+            vcAudioFile = file;
+            
+            const preview = document.getElementById('cloneAudioPreview');
+            const info = document.getElementById('cloneAudioInfo');
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+            info.style.display = 'block';
+            
+            document.getElementById('cloneAudioSize').textContent = (file.size / 1024 / 1024).toFixed(2);
+            
+            preview.onloadedmetadata = () => {
+                const duration = Math.round(preview.duration);
+                document.getElementById('cloneAudioDuration').textContent = duration;
+            };
+        }
+        
+        // 加载VC音色列表
+        async function loadVCTimbreList() {
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'vc-list',
+                        pageIndex: 1,
+                        pageSize: 50,
+                        isMyModel: false
+                    })
+                });
+                const data = await res.json();
+                if (data.success && data.voices && data.voices.length > 0) {
+                    vcTimbreList = data.voices;
+                    renderVCTimbreList(data.voices);
+                } else {
+                    document.getElementById('cloneVoiceList').innerHTML = '<div style="text-align:center;padding:20px;color:#666;">暂无音色</div>';
+                }
+            } catch (e) {
+                console.error('加载VC音色失败:', e);
+            }
+        }
+        
+        function renderVCTimbreList(voices) {
+            const container = document.getElementById('cloneVoiceList');
+            container.innerHTML = voices.slice(0, 20).map(v => `
+                <div class="voice-item ${selectedVcTimbre === v.id ? 'selected' : ''}" data-id="${v.id}" onclick="selectVcTimbre('${v.id}')" style="background:var(--bg-input);padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;">
+                    <div style="font-size:14px;font-weight:500;">${v.name}</div>
+                    <div style="font-size:11px;color:#666;margin-top:4px;">${v.description || ''}</div>
+                    ${v.voiceUrl ? `<button class="play-btn" onclick="event.stopPropagation();playVoiceSample('${v.voiceUrl}')">▶ 试听</button>` : ''}
+                </div>
+            `).join('');
+        }
+        
+        let selectedVcTimbre = null;
+        function selectVcTimbre(timbreId) {
+            selectedVcTimbre = timbreId;
+            document.querySelectorAll('#cloneVoiceList .voice-item').forEach(item => {
+                item.classList.toggle('selected', item.dataset.id === timbreId);
+            });
+        }
+        
+        // 创建VC变声
+        async function createVoiceClone() {
+            if (!vcAudioFile) {
+                showToast('请先上传音频样本');
+                return;
+            }
+            
+            if (!selectedVcTimbre) {
+                showToast('请选择目标音色');
+                return;
+            }
+            
+            if (userQuota < 2) {
+                showToast('胶片不足，需要2胶片');
+                return;
+            }
+            
+            const btn = document.getElementById('cloneCreateBtn');
+            const loading = document.getElementById('cloneLoading');
+            const result = document.getElementById('cloneResult');
+            
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+            
+            try {
+                document.getElementById('cloneLoadingText').textContent = '正在上传音频...';
+                const base64Audio = await fileToBase64(vcAudioFile);
+                
+                document.getElementById('cloneLoadingText').textContent = '正在变声处理...';
+                const pitch = parseInt(document.getElementById('cloneVoiceName').value) || 0;  // 复用输入框作为pitch
+                
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'vc-create',
+                        audioData: base64Audio,
+                        timbreId: selectedVcTimbre,
+                        pitch: pitch,
+                        userId: currentUser?.id
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success && data.taskId) {
+                    document.getElementById('cloneLoadingText').textContent = '正在轮询结果...';
+                    const audioUrl = await pollVCResult(data.taskId);
+                    if (audioUrl) {
+                        currentVcAudioUrl = audioUrl;
+                        document.getElementById('cloneTestAudio').src = audioUrl;
+                        document.getElementById('cloneTestResult').style.display = 'block';
+                        result.style.display = 'block';
+                        showToast('VC变声成功！');
+                        
+                        userQuota -= 2;
+                        document.getElementById('userQuota').textContent = userQuota;
+                    }
+                } else {
+                    throw new Error(data.error || 'VC变声失败');
+                }
+            } catch (e) {
+                showToast('失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+        
+        // 轮询VC结果
+        async function pollVCResult(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'vc-poll', taskId })
+                });
+                const data = await res.json();
+                if (data.success && data.status === 'Completed' && data.audioUrl) {
+                    return data.audioUrl;
+                }
+                if (data.status === 'Failed') {
+                    throw new Error('VC变声失败');
+                }
+            }
+            throw new Error('VC变声超时');
+        }
+        
+        // VC不需要此函数，删除
+        async function testClonedVoice() {
+            const text = document.getElementById('cloneTestText').value.trim();
+            if (!text) {
+                showToast('请输入文本');
+                return;
+            }
+            
+            if (!clonedVoiceId) {
+                showToast('请先克隆声音');
+                return;
+            }
+            
+            if (userQuota < 2) {
+                showToast('胶片不足');
+                return;
+            }
+            
+            const loading = document.getElementById('cloneLoading');
+            const testResult = document.getElementById('cloneTestResult');
+            
+            loading.classList.add('show');
+            document.getElementById('cloneLoadingText').textContent = '正在生成语音...';
+            testResult.style.display = 'none';
+            
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'voice-clone-tts',
+                        voiceId: clonedVoiceId,
+                        text: text,
+                        language: 'zh',
+                        userId: currentUser?.id
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success && data.taskId) {
+                    // 轮询结果
+                    const audioUrl = await pollTTSResultFor('clone', data.taskId);
+                    if (audioUrl) {
+                        currentClonedAudioUrl = audioUrl;
+                        document.getElementById('cloneTestAudio').src = audioUrl;
+                        testResult.style.display = 'block';
+                        showToast('生成成功！');
+                        
+                        userQuota -= 2;
+                        document.getElementById('userQuota').textContent = userQuota;
+                    }
+                } else if (data.success && data.audioUrl) {
+                    currentClonedAudioUrl = data.audioUrl;
+                    document.getElementById('cloneTestAudio').src = data.audioUrl;
+                    testResult.style.display = 'block';
+                    showToast('生成成功！');
+                    
+                    userQuota -= 2;
+                    document.getElementById('userQuota').textContent = userQuota;
+                } else {
+                    throw new Error(data.error || '生成失败');
+                }
+            } catch (e) {
+                showToast('失败: ' + e.message);
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+        
+        // 下载VC音频
+        function downloadClonedAudio() {
+            if (!currentVcAudioUrl) return;
+            const a = document.createElement('a');
+            a.href = currentVcAudioUrl;
+            a.download = `vc_voice_${Date.now()}.mp3`;
+            a.target = '_blank';
+            a.click();
+            showToast('开始下载');
+        }
+        
+        // VC不需要此函数，删除
+        async function loadMyClonedVoices() {
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'voice-clone-list',
+                        userId: currentUser?.id
+                    })
+                });
+                
+                const data = await res.json();
+                const listDiv = document.getElementById('cloneVoiceList');
+                
+                if (data.success && data.voices && data.voices.length > 0) {
+                    myClonedVoices = data.voices;
+                    listDiv.innerHTML = data.voices.map(v => `
+                        <div style="background:var(--bg-input);padding:12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:14px;font-weight:500;">${v.name || v.voiceName}</div>
+                                <div style="font-size:11px;color:#666;margin-top:4px;">创建于 ${new Date(v.createTime || v.created_at).toLocaleDateString()}</div>
+                            </div>
+                            <button onclick="useClonedVoice('${v.id || v.voiceId}')"
+                                style="padding:8px 12px;background:var(--accent);color:#000;border:none;border-radius:6px;font-size:12px;cursor:pointer;">
+                                使用
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">暂无克隆音色</div>';
+                }
+            } catch (e) {
+                console.error('加载克隆音色列表失败:', e);
+            }
+        }
+        
+        // VC不需要此函数，删除
+        function useClonedVoice(voiceId) {
+            clonedVoiceId = voiceId;
+            const voice = myClonedVoices.find(v => (v.id || v.voiceId) === voiceId);
+            if (voice) {
+                document.getElementById('clonedVoiceName').textContent = voice.name || voice.voiceName;
+                document.getElementById('cloneResult').style.display = 'block';
+                showToast('已选择音色: ' + (voice.name || voice.voiceName));
             }
         }
 

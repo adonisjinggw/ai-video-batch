@@ -971,7 +971,10 @@ module.exports = async function handler(req, res) {
             const requestBody = {
                 model: model || 'sora-image',
                 prompt: prompt || '',
-                images: [finalImageUrl]
+                images: [finalImageUrl],
+                // 🧲 提高参考图一致性
+                preserve_subject: true,
+                image_weight: (body && body.image_weight != null) ? Number(body.image_weight) : 0.98
             };
             // 🧬 视频一致性参考：支持 PID(key_value) / video_url
             if (key_value) requestBody.key_value = String(key_value);

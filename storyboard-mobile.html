@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>分镜流水线 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #141419;
+            --bg-input: #1a1a22;
+            --accent: #fbbf24;
+            --accent-hover: #f59e0b;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --radius: 12px;
+            --border: #2a2a35;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        /* Header */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-card);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+        .header h1 { font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .back-btn { background: none; border: none; color: var(--accent); font-size: 14px; cursor: pointer; padding: 8px; }
+        .main { padding: 16px; }
+        
+        /* 故事输入区 */
+        .story-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .section-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        textarea, input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+        }
+        textarea { min-height: 100px; resize: vertical; }
+        textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
+        
+        /* 全局配置 */
+        .config-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .config-item { display: flex; flex-direction: column; gap: 6px; }
+        .config-item label { font-size: 12px; color: var(--text-dim); }
+        
+        /* 操作按钮 */
+        .action-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .action-btn.secondary { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); }
+        
+        /* 分镜宫格 */
+        .storyboard-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .storyboard-row {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .storyboard-row.generating { border-color: var(--accent); }
+        .row-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: rgba(251, 191, 36, 0.1);
+            border-bottom: 1px solid var(--border);
+        }
+        .row-number { font-size: 14px; font-weight: 600; color: var(--accent); }
+        .row-delete { background: none; border: none; color: var(--danger); font-size: 18px; cursor: pointer; padding: 4px 8px; }
+        
+        /* 三列布局 */
+        .row-columns { display: flex; flex-direction: column; }
+        .column {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .column:last-child { border-bottom: none; }
+        .column-title { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+        .column-content { min-height: 60px; }
+        
+        /* 状态标签 */
+        .status-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .status-idle { background: #333; color: #888; }
+        .status-generating { background: rgba(251, 191, 36, 0.2); color: var(--accent); }
+        .status-done { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+        .status-failed { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        
+        /* 预览区 */
+        .preview-area {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--bg-input);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .preview-area img, .preview-area video { width: 100%; height: 100%; object-fit: cover; }
+        .preview-placeholder { color: #555; font-size: 12px; }
+        
+        /* 参考图上传 */
+        .ref-upload {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .ref-item {
+            width: 50px;
+            height: 50px;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+            background: var(--bg-input);
+            border: 1px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .ref-item img { width: 100%; height: 100%; object-fit: cover; }
+        .ref-item .delete-ref {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ref-add { font-size: 18px; color: #555; }
+        
+        /* 列内按钮 */
+        .col-btn {
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .col-btn:disabled { opacity: 0.5; }
+        .col-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        
+        /* 底部操作栏 */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+        }
+        .bottom-bar .action-btn { flex: 1; }
+        
+        /* 加载动画 */
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .loading { animation: pulse 1.5s infinite; }
+        
+        /* 模型选择器小字 */
+        select option { font-size: 13px; }
+        optgroup { font-weight: 600; font-size: 12px; color: var(--accent); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>🎬 分镜流水线</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <!-- 故事输入 -->
+        <div class="story-section">
+            <div class="section-title">📝 输入故事内容</div>
+            <textarea id="storyInput" placeholder="输入故事内容，AI将自动分析并拆分为多个分镜..."></textarea>
+            <button class="action-btn" style="margin-top:12px;" onclick="aiGenerateStoryboards()">
+                🤖 AI智能分镜
+            </button>
+        </div>
+
+        <!-- 全局配置 -->
+        <div class="config-section">
+            <div class="section-title">⚙️ 全局配置</div>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label>🖼️ 图片模型</label>
+                    <select id="globalImageModel">
+                        <option value="modelscope">🆓 智能绘图 (免费)</option>
+                        <option value="doubao-seedream-4-5-251128" selected>✨ 星梦画师 (7胶片)</option>
+                        <option value="nano-banana-2">💰 Banana 标准 (6胶片)</option>
+                        <option value="nano-banana-2-4k">💎 Banana 4K (10胶片)</option>
+                        <option value="Qwen/Qwen-Image-2512">🌟 通义万象Max (8胶片)</option>
+                        <option value="midjourney-fast">🎨 MJ Fast (2胶片)</option>
+                        <option value="midjourney-turbo">⚡ MJ Turbo (2胶片)</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label>🎬 视频模型</label>
+                    <select id="globalVideoModel">
+                        <option value="sora-2-all" selected>Sora-2 (7胶片)</option>
+                        <option value="sora-2-pro-all">Sora-2 Pro (14胶片)</option>
+                        <option value="veo3.1-components-4k">Veo 3.1 4K (30胶片)</option>
+                        <option value="grok-video-3">Grok Video 3 (5胶片)</option>
+                        <optgroup label="🎬 Vidu 系列">
+                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu turbo 5秒 720P (19胶片)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo">
+                            <option value="hailuo-02-768p-6s">海螺02 6秒 768P (7胶片)</option>
+                            <option value="hailuo-fast-768p-6s">海螺Fast 6秒 768P (5胶片)</option>
+                            <option value="hailuo-02-768p-10s">海螺02 10秒 768P (11胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling">
+                            <option value="kling-2.5-720p-5s">可灵2.5 5秒 720P (5胶片)</option>
+                            <option value="kling-2.5-1080p-5s">可灵2.5 5秒 1080P (9胶片)</option>
+                            <option value="kling-2.5-720p-10s">可灵2.5 10秒 720P (10胶片)</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label>📐 图片比例</label>
+                    <select id="globalImageRatio">
+                        <option value="16:9" selected>16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label>⏱️ 视频时长</label>
+                    <select id="globalVideoDuration">
+                        <option value="5">5 秒</option>
+                        <option value="10">10 秒</option>
+                        <option value="15" selected>15 秒</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分镜列表 -->
+        <div class="section-title" style="margin-bottom:12px;">
+            🎬 分镜列表 
+            <span style="font-size:11px;color:var(--text-dim);font-weight:normal;margin-left:8px;">三列：文本 → 图片 → 视频</span>
+        </div>
+        <div class="storyboard-grid" id="storyboardGrid">
+            <!-- 动态生成 -->
+        </div>
+        
+        <button class="action-btn secondary" style="margin-top:16px;" onclick="addStoryboard()">
+            + 添加分镜
+        </button>
+        
+        <!-- 占位，避免被底部栏遮挡 -->
+        <div style="height:80px;"></div>
+    </main>
+
+    <!-- 底部操作栏 -->
+    <div class="bottom-bar">
+        <button class="action-btn secondary" onclick="batchGenerateImages()">🖼️ 批量生成图片</button>
+        <button class="action-btn" onclick="batchGenerateVideos()">🎬 批量生成视频</button>
+    </div>
+
+    <!-- 隐藏的文件上传 -->
+    <input type="file" id="refImageInput" accept="image/*" multiple style="display:none;" onchange="handleRefImageUpload(event)">
+
+    <script>
+        // ==================== 状态管理 ====================
+        let storyboards = [];
+        let currentUser = null;
+        let currentUploadTarget = null; // { rowIndex, type: 'image' | 'video' }
+
+        // ==================== 初始化 ====================
+        async function init() {
+            // 认证
+            try {
+                if (typeof NVAuth !== 'undefined') {
+                    currentUser = await NVAuth.getCurrentUser();
+                    console.log('[storyboard] 用户:', currentUser?.email || '未登录');
+                }
+            } catch (e) {
+                console.error('[storyboard] 认证失败:', e);
+            }
+            
+            // 初始化3个空分镜
+            storyboards = [
+                createEmptyStoryboard(0),
+                createEmptyStoryboard(1),
+                createEmptyStoryboard(2)
+            ];
+            renderStoryboards();
+            
+            // 恢复状态
+            restoreState();
+        }
+
+        function createEmptyStoryboard(index) {
+            return {
+                id: 'sb_' + Date.now() + '_' + index,
+                sceneText: '',
+                image: {
+                    prompt: '',
+                    references: [],
+                    model: null, // null = 使用全局
+                    status: 'idle',
+                    result: null,
+                    error: null
+                },
+                video: {
+                    prompt: '',
+                    references: [],
+                    model: null,
+                    duration: null,
+                    status: 'idle',
+                    result: null,
+                    error: null
+                }
+            };
+        }
+
+        // ==================== 渲染 ====================
+        function renderStoryboards() {
+            const grid = document.getElementById('storyboardGrid');
+            grid.innerHTML = storyboards.map((sb, i) => renderStoryboardRow(sb, i)).join('');
+        }
+
+        function renderStoryboardRow(sb, index) {
+            const imgStatus = sb.image.status;
+            const vidStatus = sb.video.status;
+            const rowClass = (imgStatus === 'generating' || vidStatus === 'generating') ? 'generating' : '';
+            
+            return `
+            <div class="storyboard-row ${rowClass}" data-index="${index}">
+                <div class="row-header">
+                    <span class="row-number">分镜 ${index + 1}</span>
+                    ${storyboards.length > 1 ? `<button class="row-delete" onclick="removeStoryboard(${index})">×</button>` : ''}
+                </div>
+                <div class="row-columns">
+                    <!-- 第1列：分镜文本 -->
+                    <div class="column">
+                        <div class="column-title">📝 分镜描述</div>
+                        <div class="column-content">
+                            <textarea placeholder="描述这个分镜的场景..." 
+                                onchange="updateSceneText(${index}, this.value)"
+                                style="min-height:60px;">${sb.sceneText || ''}</textarea>
+                            <button class="col-btn" onclick="optimizeToImagePrompt(${index})" ${!sb.sceneText ? 'disabled' : ''}>
+                                ✨ 优化为图片提示词
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 第2列：图片生成 -->
+                    <div class="column">
+                        <div class="column-title">
+                            🖼️ 图片生成
+                            <span class="status-tag status-${imgStatus}">${getStatusText(imgStatus)}</span>
+                        </div>
+                        <div class="column-content">
+                            <textarea placeholder="图片提示词（AI自动优化或手动输入）..." 
+                                onchange="updateImagePrompt(${index}, this.value)"
+                                style="min-height:50px;">${sb.image.prompt || ''}</textarea>
+                            
+                            <!-- 参考图 -->
+                            <div class="ref-upload">
+                                ${sb.image.references.map((ref, ri) => `
+                                    <div class="ref-item">
+                                        <img src="${ref}" alt="参考图">
+                                        <button class="delete-ref" onclick="removeImageRef(${index}, ${ri})">×</button>
+                                    </div>
+                                `).join('')}
+                                <div class="ref-item" onclick="openRefUpload(${index}, 'image')">
+                                    <span class="ref-add">+</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 预览 -->
+                            <div class="preview-area">
+                                ${sb.image.result 
+                                    ? `<img src="${sb.image.result}" alt="生成图片">` 
+                                    : `<span class="preview-placeholder">${imgStatus === 'generating' ? '生成中...' : '图片预览'}</span>`}
+                            </div>
+                            
+                            <div style="display:flex;gap:8px;margin-top:8px;">
+                                <button class="col-btn primary" onclick="generateSingleImage(${index})" 
+                                    ${imgStatus === 'generating' ? 'disabled' : ''} style="flex:1;">
+                                    ${imgStatus === 'generating' ? '⏳ 生成中...' : '🖼️ 生成图片'}
+                                </button>
+                                <button class="col-btn" onclick="analyzeImageToVideoPrompt(${index})" 
+                                    ${!sb.image.result ? 'disabled' : ''}>
+                                    → 转视频提示词
+                                </button>
+                            </div>
+                            ${sb.image.error ? `<div style="color:var(--danger);font-size:11px;margin-top:4px;">❌ ${sb.image.error}</div>` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- 第3列：视频生成 -->
+                    <div class="column">
+                        <div class="column-title">
+                            🎬 视频生成
+                            <span class="status-tag status-${vidStatus}">${getStatusText(vidStatus)}</span>
+                        </div>
+                        <div class="column-content">
+                            <textarea placeholder="视频提示词（从图片分析或手动输入）..." 
+                                onchange="updateVideoPrompt(${index}, this.value)"
+                                style="min-height:50px;">${sb.video.prompt || ''}</textarea>
+                            
+                            <!-- 参考图/视频 -->
+                            <div class="ref-upload">
+                                ${sb.video.references.map((ref, ri) => `
+                                    <div class="ref-item">
+                                        <img src="${ref}" alt="参考">
+                                        <button class="delete-ref" onclick="removeVideoRef(${index}, ${ri})">×</button>
+                                    </div>
+                                `).join('')}
+                                <div class="ref-item" onclick="openRefUpload(${index}, 'video')">
+                                    <span class="ref-add">+</span>
+                                </div>
+                                ${sb.image.result ? `
+                                    <div class="ref-item" onclick="useImageAsVideoRef(${index})" title="使用生成的图片">
+                                        <img src="${sb.image.result}" alt="使用图片" style="opacity:0.6;">
+                                    </div>
+                                ` : ''}
+                            </div>
+                            
+                            <!-- 预览 -->
+                            <div class="preview-area">
+                                ${sb.video.result 
+                                    ? `<video src="${sb.video.result}" controls></video>` 
+                                    : `<span class="preview-placeholder">${vidStatus === 'generating' ? '生成中...' : '视频预览'}</span>`}
+                            </div>
+                            
+                            <button class="col-btn primary" onclick="generateSingleVideo(${index})" 
+                                ${vidStatus === 'generating' ? 'disabled' : ''} style="width:100%;margin-top:8px;">
+                                ${vidStatus === 'generating' ? '⏳ 生成中...' : '🎬 生成视频'}
+                            </button>
+                            ${sb.video.error ? `<div style="color:var(--danger);font-size:11px;margin-top:4px;">❌ ${sb.video.error}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        function getStatusText(status) {
+            const map = { idle: '待处理', generating: '生成中', done: '已完成', failed: '失败' };
+            return map[status] || status;
+        }
+
+        // ==================== 状态更新 ====================
+        function updateSceneText(index, value) {
+            storyboards[index].sceneText = value;
+            saveState();
+        }
+
+        function updateImagePrompt(index, value) {
+            storyboards[index].image.prompt = value;
+            saveState();
+        }
+
+        function updateVideoPrompt(index, value) {
+            storyboards[index].video.prompt = value;
+            saveState();
+        }
+
+        // ==================== 分镜管理 ====================
+        function addStoryboard() {
+            storyboards.push(createEmptyStoryboard(storyboards.length));
+            renderStoryboards();
+            saveState();
+        }
+
+        function removeStoryboard(index) {
+            if (storyboards.length <= 1) return;
+            storyboards.splice(index, 1);
+            renderStoryboards();
+            saveState();
+        }
+
+        // ==================== AI分镜 ====================
+        async function aiGenerateStoryboards() {
+            const story = document.getElementById('storyInput').value.trim();
+            if (!story) {
+                alert('请先输入故事内容');
+                return;
+            }
+            if (story.length < 20) {
+                alert('故事内容太短，请至少输入20个字');
+                return;
+            }
+
+            if (!currentUser) {
+                alert('请先登录');
+                return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '🤖 AI分析中...';
+
+            try {
+                const prompt = `请将以下故事拆分成3-8个连续的视频分镜。要求：
+1. 每个分镜描述具体的画面内容（20-50字）
+2. 适合AI图像/视频生成
+3. 保持场景连贯性
+4. 返回JSON数组格式：[{"scene":"分镜描述","imagePrompt":"优化后的英文图片提示词"}]
+
+故事：${story}
+
+直接返回JSON数组，不要其他内容。`;
+
+                const res = await fetch('/api/writer-llm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        userId: currentUser.id,
+                        max_completion_tokens: 2000
+                    })
+                });
+
+                if (!res.ok) throw new Error('AI分析失败');
+                
+                const data = await res.json();
+                let text = data.content || data.text || '';
+                
+                // 提取JSON
+                const jsonMatch = text.match(/\[[\s\S]*\]/);
+                if (!jsonMatch) throw new Error('无法解析AI返回的分镜数据');
+                
+                const scenes = JSON.parse(jsonMatch[0]);
+                if (!Array.isArray(scenes) || scenes.length === 0) {
+                    throw new Error('AI未返回有效分镜');
+                }
+
+                // 更新分镜
+                storyboards = scenes.slice(0, 10).map((s, i) => ({
+                    ...createEmptyStoryboard(i),
+                    sceneText: s.scene || s.description || '',
+                    image: {
+                        ...createEmptyStoryboard(i).image,
+                        prompt: s.imagePrompt || s.image_prompt || ''
+                    }
+                }));
+
+                renderStoryboards();
+                saveState();
+                alert(`✅ 成功生成 ${storyboards.length} 个分镜！`);
+
+            } catch (e) {
+                console.error('[AI分镜]', e);
+                alert('AI分镜失败：' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🤖 AI智能分镜';
+            }
+        }
+
+        // ==================== 优化提示词 ====================
+        async function optimizeToImagePrompt(index) {
+            const sb = storyboards[index];
+            if (!sb.sceneText) return;
+            if (!currentUser) { alert('请先登录'); return; }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '✨ 优化中...';
+
+            try {
+                const res = await fetch('/api/writer-llm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: `将以下场景描述转换为适合AI图像生成的英文提示词，包含画面构图、光影、氛围、艺术风格等要素，50-100词：
+
+场景：${sb.sceneText}
+
+直接返回英文提示词，不要其他内容。`,
+                        userId: currentUser.id,
+                        max_completion_tokens: 500
+                    })
+                });
+
+                if (!res.ok) throw new Error('优化失败');
+                const data = await res.json();
+                const prompt = (data.content || data.text || '').trim();
+                
+                if (prompt) {
+                    storyboards[index].image.prompt = prompt;
+                    renderStoryboards();
+                    saveState();
+                }
+            } catch (e) {
+                alert('优化失败：' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '✨ 优化为图片提示词';
+            }
+        }
+
+        // ==================== 图片分析转视频提示词 ====================
+        async function analyzeImageToVideoPrompt(index) {
+            const sb = storyboards[index];
+            if (!sb.image.result) { alert('请先生成图片'); return; }
+            if (!currentUser) { alert('请先登录'); return; }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '分析中...';
+
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'vision',
+                        image_url: sb.image.result,
+                        prompt: '请为这张图片生成一个适合AI视频生成的提示词，描述画面中可能发生的动作、镜头运动、氛围变化。用英文输出，50-80词。直接返回提示词。',
+                        userId: currentUser.id
+                    })
+                });
+
+                if (!res.ok) throw new Error('分析失败');
+                const data = await res.json();
+                const prompt = (data.content || data.text || data.result || '').trim();
+                
+                if (prompt) {
+                    storyboards[index].video.prompt = prompt;
+                    // 自动添加生成的图片作为参考
+                    if (!storyboards[index].video.references.includes(sb.image.result)) {
+                        storyboards[index].video.references.push(sb.image.result);
+                    }
+                    renderStoryboards();
+                    saveState();
+                }
+            } catch (e) {
+                alert('图片分析失败：' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '→ 转视频提示词';
+            }
+        }
+
+        // ==================== 单个图片生成 ====================
+        async function generateSingleImage(index) {
+            const sb = storyboards[index];
+            const prompt = sb.image.prompt || sb.sceneText;
+            if (!prompt) { alert('请先填写图片提示词或分镜描述'); return; }
+            if (!currentUser) { alert('请先登录'); return; }
+
+            sb.image.status = 'generating';
+            sb.image.error = null;
+            renderStoryboards();
+
+            try {
+                const model = sb.image.model || document.getElementById('globalImageModel').value;
+                const ratio = document.getElementById('globalImageRatio').value;
+                
+                const body = {
+                    prompt,
+                    model,
+                    aspect_ratio: ratio,
+                    userId: currentUser.id
+                };
+                
+                // 参考图
+                if (sb.image.references.length > 0) {
+                    body.input_reference = sb.image.references[0];
+                }
+
+                const res = await fetch('/api/banana2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || data.error || '图片生成失败');
+                
+                const imageUrl = data.url || data.image_url || (data.data && data.data[0]?.url);
+                if (!imageUrl) throw new Error('未返回图片URL');
+
+                sb.image.status = 'done';
+                sb.image.result = imageUrl;
+                
+            } catch (e) {
+                sb.image.status = 'failed';
+                sb.image.error = e.message;
+            }
+            
+            renderStoryboards();
+            saveState();
+        }
+
+        // ==================== 单个视频生成 ====================
+        async function generateSingleVideo(index) {
+            const sb = storyboards[index];
+            const prompt = sb.video.prompt || sb.sceneText;
+            if (!prompt) { alert('请先填写视频提示词'); return; }
+            if (!currentUser) { alert('请先登录'); return; }
+
+            sb.video.status = 'generating';
+            sb.video.error = null;
+            renderStoryboards();
+
+            try {
+                const model = sb.video.model || document.getElementById('globalVideoModel').value;
+                const duration = sb.video.duration || parseInt(document.getElementById('globalVideoDuration').value) || 5;
+                const ratio = document.getElementById('globalImageRatio').value;
+                
+                const body = {
+                    prompt,
+                    model,
+                    duration,
+                    aspect_ratio: ratio,
+                    userId: currentUser.id
+                };
+                
+                // 参考图/视频
+                if (sb.video.references.length > 0) {
+                    body.input_reference = sb.video.references[0];
+                }
+
+                const res = await fetch('/api/sora2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || data.error || '视频生成失败');
+                
+                // 视频可能需要轮询
+                const taskId = data.task_id || data.taskId || data.id;
+                if (taskId && !data.url) {
+                    // 需要轮询
+                    const videoUrl = await pollVideoTask(taskId, model);
+                    sb.video.result = videoUrl;
+                } else {
+                    sb.video.result = data.url || data.video_url || data.output_video_url;
+                }
+                
+                if (!sb.video.result) throw new Error('未返回视频URL');
+                sb.video.status = 'done';
+                
+            } catch (e) {
+                sb.video.status = 'failed';
+                sb.video.error = e.message;
+            }
+            
+            renderStoryboards();
+            saveState();
+        }
+
+        // 轮询视频任务
+        async function pollVideoTask(taskId, model) {
+            const maxAttempts = 120;
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, i < 6 ? 5000 : 10000));
+                
+                try {
+                    const res = await fetch(`/api/sora2?taskId=${taskId}`);
+                    const data = await res.json();
+                    const status = String(data.status || '').toUpperCase();
+                    
+                    if (status === 'COMPLETED' || status === 'SUCCESS' || status === 'SUCCEEDED') {
+                        return data.url || data.video_url || data.output_video_url;
+                    }
+                    if (status === 'FAILED' || status === 'ERROR') {
+                        throw new Error(data.error || data.message || '视频生成失败');
+                    }
+                } catch (e) {
+                    console.warn('[轮询]', e.message);
+                }
+            }
+            throw new Error('视频生成超时');
+        }
+
+        // ==================== 批量生成 ====================
+        async function batchGenerateImages() {
+            if (!currentUser) { alert('请先登录'); return; }
+            
+            const tasks = storyboards.filter(sb => 
+                (sb.image.prompt || sb.sceneText) && sb.image.status !== 'generating'
+            );
+            
+            if (tasks.length === 0) {
+                alert('没有可生成的图片任务');
+                return;
+            }
+
+            // 并发生成所有图片（不限制并发数）
+            await Promise.allSettled(
+                tasks.map((sb, i) => {
+                    const index = storyboards.indexOf(sb);
+                    return generateSingleImage(index);
+                })
+            );
+
+            alert('批量图片生成完成！');
+        }
+
+        async function batchGenerateVideos() {
+            if (!currentUser) { alert('请先登录'); return; }
+            
+            const tasks = storyboards.filter(sb => 
+                (sb.video.prompt || sb.sceneText) && sb.video.status !== 'generating'
+            );
+            
+            if (tasks.length === 0) {
+                alert('没有可生成的视频任务');
+                return;
+            }
+
+            // 并发生成所有视频（不限制并发数）
+            await Promise.allSettled(
+                tasks.map((sb, i) => {
+                    const index = storyboards.indexOf(sb);
+                    return generateSingleVideo(index);
+                })
+            );
+
+            alert('批量视频生成完成！');
+        }
+
+        // ==================== 参考图管理 ====================
+        function openRefUpload(index, type) {
+            currentUploadTarget = { rowIndex: index, type };
+            document.getElementById('refImageInput').click();
+        }
+
+        function handleRefImageUpload(e) {
+            if (!currentUploadTarget) return;
+            const files = e.target.files;
+            if (!files.length) return;
+
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const { rowIndex, type } = currentUploadTarget;
+                    if (type === 'image') {
+                        storyboards[rowIndex].image.references.push(ev.target.result);
+                    } else {
+                        storyboards[rowIndex].video.references.push(ev.target.result);
+                    }
+                    renderStoryboards();
+                    saveState();
+                };
+                reader.readAsDataURL(file);
+            });
+
+            e.target.value = '';
+            currentUploadTarget = null;
+        }
+
+        function removeImageRef(rowIndex, refIndex) {
+            storyboards[rowIndex].image.references.splice(refIndex, 1);
+            renderStoryboards();
+            saveState();
+        }
+
+        function removeVideoRef(rowIndex, refIndex) {
+            storyboards[rowIndex].video.references.splice(refIndex, 1);
+            renderStoryboards();
+            saveState();
+        }
+
+        function useImageAsVideoRef(index) {
+            const sb = storyboards[index];
+            if (sb.image.result && !sb.video.references.includes(sb.image.result)) {
+                sb.video.references.push(sb.image.result);
+                renderStoryboards();
+                saveState();
+            }
+        }
+
+        // ==================== 状态持久化 ====================
+        function saveState() {
+            try {
+                sessionStorage.setItem('rollroll_storyboard_state', JSON.stringify({
+                    storyboards,
+                    story: document.getElementById('storyInput')?.value || '',
+                    globalImageModel: document.getElementById('globalImageModel')?.value,
+                    globalVideoModel: document.getElementById('globalVideoModel')?.value,
+                    globalImageRatio: document.getElementById('globalImageRatio')?.value,
+                    globalVideoDuration: document.getElementById('globalVideoDuration')?.value,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {}
+        }
+
+        function restoreState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_storyboard_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                if (state.timestamp && Date.now() - state.timestamp > 60 * 60 * 1000) return; // 1小时过期
+
+                if (state.storyboards?.length) {
+                    storyboards = state.storyboards;
+                    renderStoryboards();
+                }
+                if (state.story) document.getElementById('storyInput').value = state.story;
+                if (state.globalImageModel) document.getElementById('globalImageModel').value = state.globalImageModel;
+                if (state.globalVideoModel) document.getElementById('globalVideoModel').value = state.globalVideoModel;
+                if (state.globalImageRatio) document.getElementById('globalImageRatio').value = state.globalImageRatio;
+                if (state.globalVideoDuration) document.getElementById('globalVideoDuration').value = state.globalVideoDuration;
+            } catch (e) {}
+        }
+
+        // ==================== 导航 ====================
+        function goBack() {
+            saveState();
+            location.href = 'mobile.html?skip_welcome=1';
+        }
+
+        // 页面事件
+        document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+        window.addEventListener('beforeunload', saveState);
+        
+        // 初始化
+        init();
+    </script>
+</body>
+</html>

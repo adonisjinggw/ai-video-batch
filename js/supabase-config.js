@@ -1486,8 +1486,10 @@ if (typeof document !== 'undefined') {
     // 状态
     let isListening = false;
     let recognition = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
     
-    // 🎤 初始化语音识别（使用浏览器原生 Web Speech API）
+    // 🎤 初始化语音识别（优先使用 MediaRecorder + Whisper API）
     function initSpeechRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
@@ -1524,9 +1526,15 @@ if (typeof document !== 'undefined') {
             if (event.error === 'no-speech') {
                 showAgentMessage('没有听到说话，请再试');
             } else if (event.error === 'not-allowed') {
-                showAgentMessage('需要麦克风权限');
+                showAgentMessage('需要麦克风权限，请在浏览器设置中允许');
+            } else if (event.error === 'network') {
+                // 网络错误通常是无法访问Google服务器（中国大陆常见）
+                console.warn('[🎤 Agent] 网络错误，语音识别服务不可用');
+                showAgentMessage('语音识别服务不可用，请长按使用文字输入');
+            } else if (event.error === 'service-not-allowed' || event.error === 'aborted') {
+                showAgentMessage('语音服务暂不可用，请长按使用文字输入');
             } else {
-                showAgentMessage('识别失败，请重试');
+                showAgentMessage('语音识别不可用，请长按使用文字输入');
             }
         };
         
@@ -1540,37 +1548,122 @@ if (typeof document !== 'undefined') {
         return rec;
     }
     
-    // 🎤 开始语音识别
+    // 🎤 开始语音识别（使用 MediaRecorder + Whisper API）
     async function startListening() {
         if (isListening) return;
         
-        if (!recognition) {
-            recognition = initSpeechRecognition();
-        }
-        
-        if (!recognition) {
-            showAgentMessage('浏览器不支持语音识别，请使用文字输入');
-            return;
-        }
-        
         try {
-            recognition.start();
+            // 请求麦克风权限
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // 创建录音器
+            audioChunks = [];
+            mediaRecorder = new MediaRecorder(stream);
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+            
+            mediaRecorder.onstop = async () => {
+                // 合并音频数据
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                console.log('[🎤 Agent] 录音完成，大小:', audioBlob.size, 'bytes');
+                
+                // 停止所有轨道
+                stream.getTracks().forEach(track => track.stop());
+                
+                // 发送到后端进行语音识别
+                updateAgentUI('processing');
+                await processAudioBlob(audioBlob);
+                updateAgentUI('idle');
+            };
+            
+            // 开始录音
+            mediaRecorder.start();
             isListening = true;
             updateAgentUI('listening');
-            console.log('[🎤 Agent] 开始语音识别...');
+            showAgentMessage('正在录音...（再次点击停止）');
+            console.log('[🎤 Agent] 开始录音...');
+            
         } catch (err) {
             console.error('[🎤 Agent] 启动失败:', err);
-            showAgentMessage('语音识别启动失败');
+            isListening = false;
+            updateAgentUI('idle');
+            
+            if (err.name === 'NotAllowedError') {
+                showAgentMessage('需要麦克风权限，请在浏览器设置中允许');
+            } else {
+                showAgentMessage('录音启动失败，请长按使用文字输入');
+            }
         }
     }
     
-    // 🛑 停止语音识别
+    // 🛑 停止录音
     function stopListening() {
-        if (!isListening || !recognition) return;
-        recognition.stop();
+        if (!isListening) return;
+        
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            console.log('[🎤 Agent] 停止录音');
+        }
         isListening = false;
-        updateAgentUI('idle');
-        console.log('[🎤 Agent] 停止语音识别');
+    }
+    
+    // 📤 处理录音数据，发送到 Whisper API 进行识别
+    async function processAudioBlob(audioBlob) {
+        try {
+            showAgentMessage('正在识别语音...');
+            
+            // 转换为 base64
+            const base64Audio = await blobToBase64(audioBlob);
+            
+            // 调用 yunwu API 的 Whisper
+            const response = await fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'speech-to-text',
+                    audio: base64Audio,
+                    format: 'webm'
+                })
+            });
+            
+            const result = await response.json();
+            console.log('[🎤 Agent] 识别结果:', result);
+            
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            
+            const text = result.text || result.content || '';
+            
+            if (text && text.trim()) {
+                showAgentMessage(`您说: "${text}"`, 'user');
+                const intent = await recognizeIntent(text);
+                await executeIntent(intent);
+            } else {
+                showAgentMessage('没有听清，请再试一次');
+            }
+            
+        } catch (err) {
+            console.error('[🎤 Agent] 语音识别失败:', err);
+            showAgentMessage('语音识别失败，请重试或长按使用文字输入');
+        }
+    }
+    
+    // 💾 Blob 转 Base64
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
     }
     
     // 📝 获取当前页面完整上下文（所有可操作元素+函数）
@@ -1971,7 +2064,7 @@ if (typeof document !== 'undefined') {
     function initAgentUI() {
         if (!AGENT_CONFIG.showButton) return;
         
-        // 创建容器（包含主按钮+开关）
+        // 创建容器
         const container = document.createElement('div');
         container.id = 'aiAgentContainer';
         container.style.cssText = `
@@ -1984,19 +2077,19 @@ if (typeof document !== 'undefined') {
             z-index: 9999;
         `;
         
-        // 创建开关按钮
+        // 创建开关按钮（右上角小按钮）
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'aiAgentToggle';
         toggleBtn.innerHTML = isAgentEnabled() ? '✕' : '🎤';
         toggleBtn.title = isAgentEnabled() ? '关闭语音助手' : '开启语音助手';
         toggleBtn.style.cssText = `
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             border: none;
             background: ${isAgentEnabled() ? 'rgba(239,68,68,0.8)' : 'rgba(102,126,234,0.8)'};
             color: #fff;
-            font-size: 14px;
+            font-size: 12px;
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             transition: all 0.2s;
@@ -2013,7 +2106,7 @@ if (typeof document !== 'undefined') {
         };
         container.appendChild(toggleBtn);
         
-        // 创建主按钮（仅开启时显示）
+        // 创建主按钮（默认启用）
         if (isAgentEnabled()) {
             const btn = document.createElement('button');
             btn.id = 'aiAgentBtn';
