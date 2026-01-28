@@ -874,10 +874,25 @@
                 </div>
             </div>
 
+            <!-- 批量操作区 -->
+            <div class="section" style="padding:12px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button onclick="openBatchPromptInput()" style="flex:1;min-width:140px;padding:10px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+                        📝 批量导入提示词
+                    </button>
+                    <button onclick="openBatchCharacterSelect()" style="flex:1;min-width:140px;padding:10px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+                        🎭 批量设置角色
+                    </button>
+                    <button onclick="applyRefToAll()" style="flex:1;min-width:140px;padding:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;cursor:pointer;">
+                        🖼️ 参考图应用到全部
+                    </button>
+                </div>
+            </div>
+
             <!-- 分镜列表 -->
             <div class="section-title" style="margin-bottom:12px;">
                 🎬 分镜列表
-                <span style="font-size:11px;color:var(--text-dim);font-weight:normal;margin-left:8px;">三列：文本 → 图片 → 视频</span>
+                <span style="font-size:11px;color:var(--text-dim);font-weight:normal;margin-left:8px;">田字格：文本/参考图/图片/视频</span>
             </div>
             <div class="pipeline-grid" id="pipeline-grid">
                 <!-- 动态生成 -->
@@ -1910,6 +1925,88 @@ ${story}
             
             event.target.value = '';
             currentUploadTarget = null;
+        }
+        
+        // ==================== 批量操作功能 ====================
+        
+        // 批量导入提示词
+        function openBatchPromptInput() {
+            const prompts = pipelineRows.map(r => r.sceneText || '').join('\n---\n');
+            const input = prompt('📝 批量导入提示词\n每个分镜用 --- 分隔\n\n当前内容:', prompts);
+            if (input === null) return;
+            
+            const newPrompts = input.split('---').map(p => p.trim()).filter(p => p);
+            if (newPrompts.length === 0) {
+                alert('请输入至少一个提示词');
+                return;
+            }
+            
+            // 调整分镜数量
+            while (pipelineRows.length < newPrompts.length && pipelineRows.length < 10) {
+                pipelineRows.push(createEmptyPipelineRow());
+            }
+            while (pipelineRows.length > newPrompts.length && pipelineRows.length > 1) {
+                pipelineRows.pop();
+            }
+            
+            // 填入提示词
+            newPrompts.forEach((prompt, i) => {
+                if (i < pipelineRows.length) {
+                    pipelineRows[i].sceneText = prompt;
+                }
+            });
+            
+            renderPipelineRows();
+            alert(`✅ 已导入 ${Math.min(newPrompts.length, pipelineRows.length)} 个分镜提示词`);
+        }
+        
+        // 批量设置角色
+        function openBatchCharacterSelect() {
+            // 获取已保存的Sora2角色
+            const chars = getSora2Characters();
+            const charNames = Object.keys(chars);
+            
+            if (charNames.length === 0) {
+                alert('请先在"角色库"中创建角色');
+                return;
+            }
+            
+            const charList = charNames.map((name, i) => `${i + 1}. ${name}`).join('\n');
+            const input = prompt(`🎭 选择角色应用到所有分镜\n\n可用角色:\n${charList}\n\n输入角色名称:`);
+            if (!input) return;
+            
+            const selectedChar = chars[input.trim()];
+            if (!selectedChar) {
+                alert('未找到该角色');
+                return;
+            }
+            
+            // 应用到所有分镜
+            pipelineRows.forEach(row => {
+                row.character = input.trim();
+                row.characterData = selectedChar;
+            });
+            
+            renderPipelineRows();
+            alert(`✅ 已将角色 "${input.trim()}" 应用到所有分镜`);
+        }
+        
+        // 参考图应用到全部分镜
+        function applyRefToAll() {
+            // 找到第一个有参考图的分镜
+            const sourceRow = pipelineRows.find(r => r.refs && r.refs.length > 0);
+            if (!sourceRow) {
+                alert('请先在任意分镜上传参考图');
+                return;
+            }
+            
+            const refs = [...sourceRow.refs];
+            pipelineRows.forEach(row => {
+                row.refs = [...refs];
+            });
+            
+            renderPipelineRows();
+            alert(`✅ 已将 ${refs.length} 张参考图应用到所有分镜`);
         }
         
         // 渲染文本描述格子
