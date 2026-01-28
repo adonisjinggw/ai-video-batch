@@ -1908,9 +1908,6 @@ ${story}
                                 <option value="midjourney-turbo" ${row.refModel === 'midjourney-turbo' ? 'selected' : ''}>⚡ MJ Turbo(2)</option>
                                 <option value="midjourney-relax" ${row.refModel === 'midjourney-relax' ? 'selected' : ''}>🌙 MJ Relax(1)</option>
                                 <option value="mj-small" ${row.refModel === 'mj-small' ? 'selected' : ''}>💎 小MJ(0.5)</option>
-                                <option value="flux-pro" ${row.refModel === 'flux-pro' ? 'selected' : ''}>💫 Flux Pro(3)</option>
-                                <option value="flux-dev" ${row.refModel === 'flux-dev' ? 'selected' : ''}>💫 Flux Dev(2)</option>
-                                <option value="ideogram-v3" ${row.refModel === 'ideogram-v3' ? 'selected' : ''}>📝 Ideogram(3)</option>
                             </select>
                             <button onclick="generateRefImage(${index})" ${isGenerating ? 'disabled' : ''}
                                 style="padding:4px 8px;font-size:10px;background:var(--accent);color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;white-space:nowrap;">
@@ -2038,35 +2035,97 @@ ${story}
             alert(`✅ 已导入 ${Math.min(newPrompts.length, pipelineRows.length)} 个分镜提示词`);
         }
         
-        // 批量设置角色
-        function openBatchCharacterSelect() {
-            // 获取已保存的Sora2角色
-            const chars = getSora2Characters();
-            const charNames = Object.keys(chars);
+        // 批量设置角色 - 从文章分析提取角色并生成提示词
+        async function openBatchCharacterSelect() {
+            // 获取故事内容
+            const storyInput = document.getElementById('pipeline-story-input');
+            const story = storyInput ? storyInput.value.trim() : '';
             
-            if (charNames.length === 0) {
-                alert('请先在"角色库"中创建角色');
+            // 也可以从分镜文本中提取
+            const sceneTexts = pipelineRows.map(r => r.sceneText).filter(t => t).join('\n');
+            const content = story || sceneTexts;
+            
+            if (!content) {
+                alert('请先输入故事内容或分镜文本');
                 return;
             }
             
-            const charList = charNames.map((name, i) => `${i + 1}. ${name}`).join('\n');
-            const input = prompt(`🎭 选择角色应用到所有分镜\n\n可用角色:\n${charList}\n\n输入角色名称:`);
-            if (!input) return;
+            // 显示加载状态
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '⏳ 分析中...';
+            btn.disabled = true;
             
-            const selectedChar = chars[input.trim()];
-            if (!selectedChar) {
-                alert('未找到该角色');
-                return;
+            try {
+                // 调用AI分析角色
+                const prompt = `分析以下故事/分镜内容，提取所有角色，并为每个角色生成详细的图片提示词。
+
+故事内容:
+${content}
+
+请返回 JSON 格式:
+{
+  "characters": [
+    {
+      "name": "角色名",
+      "description": "角色简介",
+      "imagePrompt": "详细的英文图片提示词，包含外貌、服装、表情、姿势等"
+    }
+  ]
+}
+
+注意:
+1. imagePrompt 必须是英文
+2. 提示词要详细具体，包含外貌特征、服装样式、表情、背景等
+3. 只返回 JSON，不要其他内容`;
+
+                const result = await window.ModelScopeAPI.chat(prompt);
+                
+                // 解析结果
+                let parsed;
+                try {
+                    // 提取JSON
+                    const jsonMatch = result.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        parsed = JSON.parse(jsonMatch[0]);
+                    }
+                } catch (e) {
+                    console.error('解析角色JSON失败:', e);
+                }
+                
+                if (!parsed || !parsed.characters || parsed.characters.length === 0) {
+                    alert('未能提取到角色信息');
+                    return;
+                }
+                
+                // 显示提取到的角色
+                const charList = parsed.characters.map((c, i) => 
+                    `${i + 1}. ${c.name}: ${c.description}\n   提示词: ${c.imagePrompt.substring(0, 50)}...`
+                ).join('\n\n');
+                
+                const confirmed = confirm(`🎭 提取到 ${parsed.characters.length} 个角色:\n\n${charList}\n\n是否应用到分镜参考图提示词？`);
+                
+                if (confirmed) {
+                    // 保存角色信息到全局
+                    window.extractedCharacters = parsed.characters;
+                    
+                    // 应用第一个角色的提示词到所有分镜的参考图
+                    const mainChar = parsed.characters[0];
+                    pipelineRows.forEach(row => {
+                        row.refPrompt = mainChar.imagePrompt;
+                        row.characterName = mainChar.name;
+                    });
+                    
+                    renderPipelineRows();
+                    alert(`✅ 已将主角"${mainChar.name}"的提示词应用到所有分镜\n\n提示: 可在每个分镜的"参考图库"中修改或生成图片`);
+                }
+            } catch (e) {
+                console.error('分析角色失败:', e);
+                alert('分析失败: ' + e.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
-            
-            // 应用到所有分镜
-            pipelineRows.forEach(row => {
-                row.character = input.trim();
-                row.characterData = selectedChar;
-            });
-            
-            renderPipelineRows();
-            alert(`✅ 已将角色 "${input.trim()}" 应用到所有分镜`);
         }
         
         // 参考图应用到全部分镜
