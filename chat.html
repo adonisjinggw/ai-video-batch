@@ -113,7 +113,7 @@
         }
 
         .input-box {
-            flex: 1;
+            width: 100%;
             background: var(--bg-input);
             border: 1px solid #333;
             border-radius: 24px;
@@ -122,6 +122,7 @@
             font-size: 16px;
             resize: none;
             max-height: 120px;
+            font-family: inherit;
         }
 
         .input-box:focus {
@@ -916,6 +917,113 @@
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
+        
+        // ==================== 文件上传功能 ====================
+        let uploadedFiles = [];  // 已上传的文件
+        
+        function toggleUploadMenu() {
+            const menu = document.getElementById('uploadMenu');
+            menu.classList.toggle('show');
+        }
+        
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('uploadMenu');
+            const btn = document.getElementById('uploadBtn');
+            if (menu && !menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        });
+        
+        function triggerUpload(type) {
+            document.getElementById('uploadMenu').classList.remove('show');
+            if (type === 'image') {
+                document.getElementById('imageInput').click();
+            } else if (type === 'video') {
+                document.getElementById('videoInput').click();
+            } else if (type === 'file') {
+                document.getElementById('fileInput').click();
+            }
+        }
+        
+        async function handleFileSelect(event, type) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+            
+            const previewContainer = document.getElementById('uploadPreview');
+            
+            for (const file of files) {
+                // 检查文件大小
+                const maxSize = type === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    showToast(`文件过大，最大${maxSize / 1024 / 1024}MB`);
+                    continue;
+                }
+                
+                // 读取文件为base64
+                const base64 = await fileToBase64(file);
+                
+                const fileObj = {
+                    type: type,
+                    name: file.name,
+                    size: file.size,
+                    data: base64
+                };
+                uploadedFiles.push(fileObj);
+                
+                // 显示预览
+                const preview = document.createElement('div');
+                preview.className = 'preview-item';
+                preview.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#333;padding:4px 8px;border-radius:6px;margin:4px;font-size:12px;';
+                
+                if (type === 'image') {
+                    preview.innerHTML = `<img src="${base64}" style="width:24px;height:24px;object-fit:cover;border-radius:4px;"><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                } else if (type === 'video') {
+                    preview.innerHTML = `<span>🎬</span><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                } else {
+                    preview.innerHTML = `<span>📄</span><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                }
+                
+                previewContainer.appendChild(preview);
+            }
+            
+            // 清空 input
+            event.target.value = '';
+        }
+        
+        function removeUploadedFile(index) {
+            uploadedFiles.splice(index, 1);
+            updateUploadPreview();
+        }
+        
+        function updateUploadPreview() {
+            const previewContainer = document.getElementById('uploadPreview');
+            previewContainer.innerHTML = '';
+            
+            uploadedFiles.forEach((file, index) => {
+                const preview = document.createElement('div');
+                preview.className = 'preview-item';
+                preview.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#333;padding:4px 8px;border-radius:6px;margin:4px;font-size:12px;';
+                
+                if (file.type === 'image') {
+                    preview.innerHTML = `<img src="${file.data}" style="width:24px;height:24px;object-fit:cover;border-radius:4px;"><span>${file.name.substring(0, 15)}</span><button onclick="removeUploadedFile(${index})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                } else {
+                    const icon = file.type === 'video' ? '🎬' : '📄';
+                    preview.innerHTML = `<span>${icon}</span><span>${file.name.substring(0, 15)}</span><button onclick="removeUploadedFile(${index})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                }
+                
+                previewContainer.appendChild(preview);
+            });
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
 
         // ==================== 页面状态持久化 ====================
         function saveChatState() {

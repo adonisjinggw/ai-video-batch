@@ -292,9 +292,10 @@
         /* 批量宫格样式 */
         .batch-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             margin-bottom: 16px;
+            width: 100%;
         }
         .batch-cell {
             background: var(--bg-card);
@@ -302,6 +303,9 @@
             border-radius: 12px;
             padding: 12px;
             position: relative;
+            box-sizing: border-box;
+            min-width: 0;
+            overflow: hidden;
         }
         .batch-cell .cell-num {
             position: absolute;
@@ -386,6 +390,7 @@
 
     <div class="tabs">
         <button class="tab active" data-panel="tts">📝 文字转语音</button>
+        <button class="tab" data-panel="script">🎬 剧本配音</button>
         <button class="tab" data-panel="vc">🎤 VC变声</button>
         <button class="tab" data-panel="batch">📚 批量配音</button>
         <button class="tab" data-panel="img2voice">🖼️ 图片配音</button>
@@ -445,16 +450,20 @@
             <div class="input-section" id="geminiVoiceSection" style="display:none;">
                 <label class="input-label">🎤 选择Gemini音色</label>
                 <select id="geminiVoice" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
-                    <option value="Kore">🗣️ Kore - 女声 (英语)</option>
-                    <option value="Charon">🗣️ Charon - 男声 (英语)</option>
-                    <option value="Fenrir">🗣️ Fenrir - 男声 (英语)</option>
-                    <option value="Aoede">🗣️ Aoede - 女声 (英语)</option>
-                    <option value="Puck">🗣️ Puck - 男声 (英语)</option>
-                    <option value="Leda">🗣️ Leda - 女声 (英语)</option>
-                    <option value="Orus">🗣️ Orus - 男声 (英语)</option>
-                    <option value="Zephyr">🗣️ Zephyr - 男声 (英语)</option>
+                    <optgroup label="🇨🇳 中文音色">
+                        <option value="Zephyr">🗣️ Zephyr - 男声 (支持中文)</option>
+                        <option value="Puck">🗣️ Puck - 男声 (支持中文)</option>
+                        <option value="Kore">🗣️ Kore - 女声 (支持中文)</option>
+                        <option value="Aoede">🗣️ Aoede - 女声 (支持中文)</option>
+                    </optgroup>
+                    <optgroup label="🇬🇧 英文音色">
+                        <option value="Charon">🗣️ Charon - 男声 (英语)</option>
+                        <option value="Fenrir">🗣️ Fenrir - 男声 (英语)</option>
+                        <option value="Leda">🗣️ Leda - 女声 (英语)</option>
+                        <option value="Orus">🗣️ Orus - 男声 (英语)</option>
+                    </optgroup>
                 </select>
-                <div style="font-size:11px;color:#666;margin-top:6px;">ℹ️ Gemini TTS 支持多语言输入，自动识别语言</div>
+                <div style="font-size:11px;color:#666;margin-top:6px;">ℹ️ Gemini TTS 支持多语言输入，自动识别语言。中文建议选择 Zephyr/Puck/Kore/Aoede</div>
             </div>
 
             <!-- Kling TTS 音色选择 -->
@@ -530,6 +539,91 @@
                 <div class="result-actions">
                     <button class="result-btn" onclick="downloadAudio('tts')">⬇️ 下载</button>
                     <button class="result-btn primary" onclick="generateTTS()">🔄 重新生成</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎬 剧本配音面板 -->
+        <div class="panel" id="panel-script">
+            <div class="input-section">
+                <label class="input-label">📝 输入剧本内容</label>
+                <textarea class="input-box" id="scriptText" placeholder="粘贴或输入剧本内容...
+
+支持格式：
+旁白：在一个寒冷的冬夜...
+小明：你好，我是小明。
+小红：你好！很高兴认识你！
+
+或者普通叙述文本，AI会自动识别角色和旁白" style="min-height:180px;"></textarea>
+                <div style="text-align:right;font-size:12px;color:#666;margin-top:4px;">
+                    <span id="scriptCharCount">0</span> 字
+                </div>
+            </div>
+
+            <button class="generate-btn" style="background:var(--bg-input);color:var(--text);border:1px solid #333;margin-bottom:16px;" onclick="analyzeScript()">
+                🤖 AI分析剧本
+            </button>
+
+            <!-- 角色列表 -->
+            <div class="input-section" id="scriptRolesSection" style="display:none;">
+                <label class="input-label">🎭 识别到的角色（点击配置音色）</label>
+                <div id="scriptRolesList" style="display:flex;flex-direction:column;gap:8px;"></div>
+            </div>
+
+            <!-- 分句列表 -->
+            <div class="input-section" id="scriptLinesSection" style="display:none;">
+                <label class="input-label">📜 台词列表（可编辑）</label>
+                <div id="scriptLinesList" style="max-height:400px;overflow-y:auto;"></div>
+            </div>
+
+            <div id="scriptGenerateSection" style="display:none;">
+                <div class="settings-row">
+                    <div class="setting-item">
+                        <label>默认TTS引擎</label>
+                        <select id="scriptEngine" onchange="applyEngineToAllRoles(this.value)">
+                            <option value="">（各角色独立设置）</option>
+                            <option value="gemini-flash">全部用 Gemini Flash (1胶片/句)</option>
+                            <option value="gemini-pro">全部用 Gemini Pro (3胶片/句)</option>
+                            <option value="dubbingx">全部用 DubbingX (2胶片/句)</option>
+                            <option value="kling">全部用 Kling 可灵 (2胶片/句)</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>语速</label>
+                        <select id="scriptSpeed">
+                            <option value="0.8">0.8x 慢速</option>
+                            <option value="1.0" selected>1.0x 正常</option>
+                            <option value="1.2">1.2x 快速</option>
+                            <option value="1.5">1.5x 很快</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="scriptCostInfo" style="background:var(--bg-card);padding:12px;border-radius:8px;margin-bottom:16px;font-size:13px;">
+                    <div style="display:flex;justify-content:space-between;">
+                        <span>📊 总句数：<span id="scriptTotalLines">0</span> 句</span>
+                        <span>💰 预估费用：<span id="scriptTotalCost">0</span> 胶片</span>
+                    </div>
+                </div>
+
+                <button class="generate-btn" id="scriptGenerateBtn" onclick="generateScriptVoice()">
+                    🎤 开始配音
+                </button>
+            </div>
+
+            <div class="loading" id="scriptLoading">
+                <div class="spinner"></div>
+                <div id="scriptLoadingText">分析中...</div>
+            </div>
+
+            <!-- 结果列表 -->
+            <div class="result-section" id="scriptResult">
+                <div class="result-title">🎵 配音结果</div>
+                <div id="scriptResultList" style="max-height:400px;overflow-y:auto;"></div>
+                <div class="result-actions" style="margin-top:16px;">
+                    <button class="result-btn" onclick="downloadAllScriptAudio()">⬇️ 下载全部</button>
+                    <button class="result-btn" onclick="mergeScriptAudio()">🔗 合并音频</button>
+                    <button class="result-btn primary" onclick="resetScript()">🔄 重新开始</button>
                 </div>
             </div>
         </div>
@@ -957,7 +1051,12 @@
                     
                     if (data.success && data.audioData) {
                         // 转换 base64 为 data URL
-                        const mimeType = data.mimeType || 'audio/mp3';
+                        // Gemini 返回的可能是 audio/L16 (PCM) 或 audio/wav，需要统一处理
+                        let mimeType = data.mimeType || 'audio/wav';
+                        // 如果是 PCM 格式，浏览器可能不支持，尝试作为 wav 播放
+                        if (mimeType.includes('L16') || mimeType.includes('pcm')) {
+                            mimeType = 'audio/wav';
+                        }
                         audioUrl = `data:${mimeType};base64,${data.audioData}`;
                     } else if (data.success && data.audioUrl) {
                         audioUrl = data.audioUrl;
@@ -1956,6 +2055,495 @@
             toast.textContent = msg;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ==================== 剧本配音 ====================
+        let scriptData = {
+            roles: [],      // { name, gender, voiceEngine, voiceId, voiceName, emotion }
+            lines: []       // { index, role, text, audioUrl, status }
+        };
+        let scriptAudioResults = [];  // 生成的音频列表
+
+        // 字符计数
+        document.getElementById('scriptText').addEventListener('input', function() {
+            document.getElementById('scriptCharCount').textContent = this.value.length;
+        });
+
+        // AI 分析剧本
+        async function analyzeScript() {
+            const text = document.getElementById('scriptText').value.trim();
+            if (!text) {
+                showToast('请先输入剧本内容');
+                return;
+            }
+            if (text.length < 10) {
+                showToast('剧本内容过短，请至少输入10个字');
+                return;
+            }
+
+            const loading = document.getElementById('scriptLoading');
+            loading.classList.add('show');
+            document.getElementById('scriptLoadingText').textContent = 'AI正在分析剧本...';
+
+            try {
+                const prompt = `你是一个专业的剧本分析助手。请分析以下剧本内容，识别出所有角色和台词。
+
+要求：
+1. 识别所有出现的角色（包括旁白）
+2. 判断每个角色的性别（male/female/unknown）
+3. 为每个角色建议一个情绪基调（如：温柔、冷酷、活泼、沉稳、幽默等）
+4. 将剧本拆分成按顺序的台词列表
+
+请严格按以下JSON格式输出：
+{
+  "roles": [
+    { "name": "旁白", "gender": "unknown", "emotion": "沉稳叙述" },
+    { "name": "角色名", "gender": "male/female", "emotion": "情绪描述" }
+  ],
+  "lines": [
+    { "role": "角色名", "text": "台词内容" }
+  ]
+}
+
+剧本内容：
+${text}`;
+
+                const res = await fetch('/api/modelscope', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'text',
+                        prompt: prompt,
+                        userId: currentUser?.id
+                    })
+                });
+                const data = await res.json();
+                
+                if (!data.success || !data.text) {
+                    throw new Error(data.error || 'AI分析失败');
+                }
+
+                // 解析 JSON 结果
+                let parsed;
+                try {
+                    // 提取 JSON 内容（可能被包裹在 markdown 代码块中）
+                    let jsonStr = data.text;
+                    const jsonMatch = jsonStr.match(/```json?\n?([\s\S]*?)\n?```/);
+                    if (jsonMatch) {
+                        jsonStr = jsonMatch[1];
+                    }
+                    parsed = JSON.parse(jsonStr);
+                } catch (e) {
+                    console.error('JSON解析失败:', data.text);
+                    throw new Error('AI返回格式异常，请重试');
+                }
+
+                if (!parsed.roles || !parsed.lines) {
+                    throw new Error('AI分析结果不完整');
+                }
+
+                // 保存分析结果
+                scriptData.roles = parsed.roles.map((r, i) => ({
+                    ...r,
+                    voiceEngine: 'gemini-flash',  // 默认引擎
+                    voiceId: r.gender === 'female' ? 'Kore' : 'Zephyr',  // 默认音色
+                    voiceName: r.gender === 'female' ? 'Kore (女声)' : 'Zephyr (男声)'
+                }));
+                scriptData.lines = parsed.lines.map((l, i) => ({
+                    index: i,
+                    role: l.role,
+                    text: l.text,
+                    audioUrl: null,
+                    status: 'pending'
+                }));
+
+                // 渲染角色和台词
+                renderScriptRoles();
+                renderScriptLines();
+                updateScriptCost();
+
+                // 显示相关区块
+                document.getElementById('scriptRolesSection').style.display = 'block';
+                document.getElementById('scriptLinesSection').style.display = 'block';
+                document.getElementById('scriptGenerateSection').style.display = 'block';
+
+                showToast(`识别到 ${scriptData.roles.length} 个角色，${scriptData.lines.length} 句台词`);
+            } catch (e) {
+                showToast('分析失败: ' + e.message);
+                console.error('剧本分析错误:', e);
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        // 渲染角色列表
+        function renderScriptRoles() {
+            const container = document.getElementById('scriptRolesList');
+            container.innerHTML = scriptData.roles.map((role, idx) => `
+                <div class="voice-item" style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div>
+                            <span style="font-size:16px;font-weight:600;">${role.name}</span>
+                            <span style="font-size:12px;color:#888;margin-left:8px;">${role.gender === 'female' ? '👩 女' : role.gender === 'male' ? '👨 男' : '❓ 未知'}</span>
+                        </div>
+                        <span style="font-size:11px;background:var(--accent);color:#000;padding:2px 8px;border-radius:10px;">${role.emotion}</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <select onchange="updateRoleEngine(${idx}, this.value)" style="flex:1;padding:8px;background:var(--bg-card);border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;">
+                            <option value="gemini-flash" ${role.voiceEngine === 'gemini-flash' ? 'selected' : ''}>Gemini Flash</option>
+                            <option value="gemini-pro" ${role.voiceEngine === 'gemini-pro' ? 'selected' : ''}>Gemini Pro</option>
+                            <option value="dubbingx" ${role.voiceEngine === 'dubbingx' ? 'selected' : ''}>DubbingX</option>
+                            <option value="kling" ${role.voiceEngine === 'kling' ? 'selected' : ''}>Kling可灵</option>
+                        </select>
+                        <select id="roleVoice_${idx}" onchange="updateRoleVoice(${idx}, this)" style="flex:1;padding:8px;background:var(--bg-card);border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;">
+                            ${getVoiceOptions(role.voiceEngine, role.gender, role.voiceId)}
+                        </select>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 获取音色选项
+        function getVoiceOptions(engine, gender, selectedId) {
+            let options = [];
+            if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                options = [
+                    { id: 'Zephyr', name: 'Zephyr (男声中文)', gender: 'male' },
+                    { id: 'Puck', name: 'Puck (男声中文)', gender: 'male' },
+                    { id: 'Kore', name: 'Kore (女声中文)', gender: 'female' },
+                    { id: 'Aoede', name: 'Aoede (女声中文)', gender: 'female' },
+                    { id: 'Charon', name: 'Charon (男声英语)', gender: 'male' },
+                    { id: 'Fenrir', name: 'Fenrir (男声英语)', gender: 'male' },
+                    { id: 'Leda', name: 'Leda (女声英语)', gender: 'female' },
+                    { id: 'Orus', name: 'Orus (男声英语)', gender: 'male' }
+                ];
+            } else if (engine === 'kling') {
+                options = [
+                    { id: 'genshin_vindi2', name: '温蒂 (男)', gender: 'male' },
+                    { id: 'genshin_zhongli', name: '钟离 (男)', gender: 'male' },
+                    { id: 'genshin_keqing', name: '刻晴 (女)', gender: 'female' },
+                    { id: 'genshin_hutao', name: '胡桃 (女)', gender: 'female' },
+                    { id: 'narrator_male', name: '旁白男声', gender: 'male' },
+                    { id: 'narrator_female', name: '旁白女声', gender: 'female' }
+                ];
+            } else {
+                // DubbingX - 从已加载的音色列表获取
+                if (voiceList && voiceList.length > 0) {
+                    const filtered = voiceList.filter(v => 
+                        !gender || gender === 'unknown' || 
+                        (gender === 'female' && v.sex === 0) || 
+                        (gender === 'male' && v.sex === 1)
+                    ).slice(0, 20);
+                    options = filtered.map(v => ({
+                        id: v.voiceId,
+                        name: v.name,
+                        gender: v.sex === 0 ? 'female' : 'male'
+                    }));
+                }
+                if (options.length === 0) {
+                    options = [{ id: '', name: '请先加载音色库', gender: 'unknown' }];
+                }
+            }
+
+            // 按性别排序，优先显示匹配性别的
+            if (gender && gender !== 'unknown') {
+                options.sort((a, b) => {
+                    if (a.gender === gender && b.gender !== gender) return -1;
+                    if (a.gender !== gender && b.gender === gender) return 1;
+                    return 0;
+                });
+            }
+
+            return options.map(o => 
+                `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${o.name}</option>`
+            ).join('');
+        }
+
+        // 更新角色引擎
+        function updateRoleEngine(idx, engine) {
+            const role = scriptData.roles[idx];
+            role.voiceEngine = engine;
+            // 重置为默认音色
+            if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                role.voiceId = role.gender === 'female' ? 'Kore' : 'Zephyr';
+            } else if (engine === 'kling') {
+                role.voiceId = role.gender === 'female' ? 'genshin_keqing' : 'genshin_vindi2';
+            } else {
+                role.voiceId = '';
+            }
+            // 更新音色选择器
+            const voiceSelect = document.getElementById(`roleVoice_${idx}`);
+            if (voiceSelect) {
+                voiceSelect.innerHTML = getVoiceOptions(engine, role.gender, role.voiceId);
+            }
+            updateScriptCost();
+        }
+
+        // 更新角色音色
+        function updateRoleVoice(idx, select) {
+            scriptData.roles[idx].voiceId = select.value;
+            scriptData.roles[idx].voiceName = select.options[select.selectedIndex].text;
+        }
+
+        // 应用引擎到所有角色
+        function applyEngineToAllRoles(engine) {
+            if (!engine) return;  // 空值表示各角色独立设置
+            for (let idx = 0; idx < scriptData.roles.length; idx++) {
+                updateRoleEngine(idx, engine);
+            }
+            renderScriptRoles();
+            showToast(`已将所有角色切换为 ${engine}`);
+        }
+
+        // 渲染台词列表
+        function renderScriptLines() {
+            const container = document.getElementById('scriptLinesList');
+            container.innerHTML = scriptData.lines.map((line, idx) => {
+                const role = scriptData.roles.find(r => r.name === line.role) || {};
+                const statusIcon = line.status === 'done' ? '✅' : line.status === 'error' ? '❌' : '⏳';
+                return `
+                    <div class="script-line-item" style="background:var(--bg-input);padding:10px 12px;border-radius:6px;margin-bottom:6px;${line.status === 'done' ? 'border-left:3px solid #4CAF50;' : ''}">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                            <span style="font-size:12px;color:var(--accent);font-weight:500;">${line.role}</span>
+                            <span style="font-size:11px;color:#666;">${statusIcon} #${idx + 1}</span>
+                        </div>
+                        <input type="text" value="${line.text.replace(/"/g, '&quot;')}" 
+                            onchange="updateLineText(${idx}, this.value)"
+                            style="width:100%;background:transparent;border:none;color:#fff;font-size:13px;outline:none;" />
+                        ${line.audioUrl ? `<audio src="${line.audioUrl}" controls style="width:100%;height:32px;margin-top:6px;"></audio>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 更新台词文本
+        function updateLineText(idx, text) {
+            scriptData.lines[idx].text = text;
+        }
+
+        // 更新费用估算
+        function updateScriptCost() {
+            const totalLines = scriptData.lines.length;
+            let totalCost = 0;
+            
+            // 按引擎统计费用
+            const engineCosts = { 'gemini-flash': 1, 'gemini-pro': 3, 'dubbingx': 2, 'kling': 2 };
+            
+            for (const line of scriptData.lines) {
+                const role = scriptData.roles.find(r => r.name === line.role);
+                if (role) {
+                    totalCost += engineCosts[role.voiceEngine] || 2;
+                }
+            }
+
+            document.getElementById('scriptTotalLines').textContent = totalLines;
+            document.getElementById('scriptTotalCost').textContent = totalCost;
+        }
+
+        // 开始配音
+        async function generateScriptVoice() {
+            if (scriptData.lines.length === 0) {
+                showToast('请先分析剧本');
+                return;
+            }
+
+            const totalCost = parseInt(document.getElementById('scriptTotalCost').textContent);
+            if (userQuota < totalCost) {
+                showToast(`胶片不足，需要 ${totalCost} 胶片`);
+                return;
+            }
+
+            const btn = document.getElementById('scriptGenerateBtn');
+            const loading = document.getElementById('scriptLoading');
+            const result = document.getElementById('scriptResult');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+            scriptAudioResults = [];
+
+            const speed = parseFloat(document.getElementById('scriptSpeed').value);
+            let completed = 0;
+            let failed = 0;
+
+            try {
+                for (let i = 0; i < scriptData.lines.length; i++) {
+                    const line = scriptData.lines[i];
+                    const role = scriptData.roles.find(r => r.name === line.role);
+                    
+                    document.getElementById('scriptLoadingText').textContent = 
+                        `正在生成 ${i + 1}/${scriptData.lines.length}：${line.role}...`;
+
+                    try {
+                        let audioUrl = null;
+                        const engine = role?.voiceEngine || 'gemini-flash';
+                        const voiceId = role?.voiceId || 'Zephyr';
+
+                        if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                            const res = await fetch('/api/yunwu', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: 'gemini-tts',
+                                    text: line.text,
+                                    voiceName: voiceId,
+                                    model: engine === 'gemini-pro' ? 'pro' : 'flash',
+                                    userId: currentUser?.id
+                                })
+                            });
+                            const data = await res.json();
+                            if (data.success && data.audioData) {
+                                let mimeType = data.mimeType || 'audio/wav';
+                                if (mimeType.includes('L16') || mimeType.includes('pcm')) {
+                                    mimeType = 'audio/wav';
+                                }
+                                audioUrl = `data:${mimeType};base64,${data.audioData}`;
+                            } else if (data.success && data.audioUrl) {
+                                audioUrl = data.audioUrl;
+                            }
+                        } else if (engine === 'kling') {
+                            const res = await fetch('/api/yunwu', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: 'kling-tts',
+                                    text: line.text,
+                                    voiceId: voiceId,
+                                    voiceLanguage: 'zh',
+                                    userId: currentUser?.id
+                                })
+                            });
+                            const data = await res.json();
+                            if (data.success && data.audioUrl) {
+                                audioUrl = data.audioUrl;
+                            } else if (data.success && data.taskId) {
+                                audioUrl = await pollKlingTTSResult(data.taskId);
+                            }
+                        } else {
+                            // DubbingX
+                            const res = await fetch('/api/yunwu', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: 'tts-generate',
+                                    voiceId: voiceId,
+                                    text: line.text,
+                                    language: 'zh',
+                                    audioSpeed: speed,
+                                    audioPitch: 1.0,
+                                    fileFormat: 'mp3',
+                                    userId: currentUser?.id
+                                })
+                            });
+                            const data = await res.json();
+                            if (data.success && data.taskId) {
+                                audioUrl = await pollTTSResult(data.taskId);
+                            }
+                        }
+
+                        if (audioUrl) {
+                            line.audioUrl = audioUrl;
+                            line.status = 'done';
+                            scriptAudioResults.push({
+                                index: i,
+                                role: line.role,
+                                text: line.text,
+                                audioUrl: audioUrl
+                            });
+                            completed++;
+                        } else {
+                            throw new Error('未获取到音频');
+                        }
+                    } catch (e) {
+                        console.error(`生成第 ${i + 1} 句失败:`, e);
+                        line.status = 'error';
+                        failed++;
+                    }
+
+                    // 更新台词列表显示
+                    renderScriptLines();
+                }
+
+                // 更新余额
+                const actualCost = completed * 2;  // 简化计费
+                userQuota -= actualCost;
+                document.getElementById('userQuota').textContent = userQuota;
+
+                // 显示结果
+                renderScriptResults();
+                result.style.display = 'block';
+                showToast(`配音完成！成功 ${completed} 句，失败 ${failed} 句`);
+            } catch (e) {
+                showToast('配音失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        // 渲染配音结果
+        function renderScriptResults() {
+            const container = document.getElementById('scriptResultList');
+            container.innerHTML = scriptAudioResults.map((item, idx) => `
+                <div style="background:var(--bg-input);padding:10px;border-radius:6px;margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-size:12px;color:var(--accent);">${item.role}</span>
+                        <span style="font-size:11px;color:#666;">#${item.index + 1}</span>
+                    </div>
+                    <div style="font-size:12px;color:#aaa;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.text}</div>
+                    <audio src="${item.audioUrl}" controls style="width:100%;height:32px;"></audio>
+                </div>
+            `).join('');
+        }
+
+        // 下载全部音频
+        async function downloadAllScriptAudio() {
+            if (scriptAudioResults.length === 0) {
+                showToast('没有可下载的音频');
+                return;
+            }
+
+            showToast('开始下载...');
+            
+            for (let i = 0; i < scriptAudioResults.length; i++) {
+                const item = scriptAudioResults[i];
+                const a = document.createElement('a');
+                a.href = item.audioUrl;
+                a.download = `${String(i + 1).padStart(3, '0')}_${item.role}.mp3`;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // 延迟避免浏览器限制
+                await new Promise(r => setTimeout(r, 300));
+            }
+            
+            showToast(`已下载 ${scriptAudioResults.length} 个音频文件`);
+        }
+
+        // 合并音频
+        async function mergeScriptAudio() {
+            if (scriptAudioResults.length === 0) {
+                showToast('没有可合并的音频');
+                return;
+            }
+
+            showToast('音频合并功能开发中...');
+            // TODO: 实现音频合并（需要后端支持或使用 Web Audio API）
+        }
+
+        // 重置剧本配音
+        function resetScript() {
+            scriptData = { roles: [], lines: [] };
+            scriptAudioResults = [];
+            document.getElementById('scriptText').value = '';
+            document.getElementById('scriptCharCount').textContent = '0';
+            document.getElementById('scriptRolesSection').style.display = 'none';
+            document.getElementById('scriptLinesSection').style.display = 'none';
+            document.getElementById('scriptGenerateSection').style.display = 'none';
+            document.getElementById('scriptResult').style.display = 'none';
+            showToast('已重置');
         }
     </script>
 </body>

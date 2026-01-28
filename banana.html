@@ -1266,6 +1266,53 @@
                 </select>
             </div>
         </div>
+        <!-- 📷 摄影角度选择器 -->
+        <div class="settings-row">
+            <div class="setting-item" style="flex:1;">
+                <label class="input-label">📷 摄影角度（可选）</label>
+                <select id="cameraAngleSelect">
+                    <option value="">不指定</option>
+                    <optgroup label="标准视角">
+                        <option value="eye level shot">平视角度 Eye Level</option>
+                        <option value="front view">正面视角 Front View</option>
+                        <option value="profile view, side angle">侧面视角 Profile View</option>
+                        <option value="three-quarter view, 45 degree angle">斜侧面 3/4视角</option>
+                        <option value="rear view, from behind">背面视角 Rear View</option>
+                        <option value="over-the-shoulder shot">过肩镜头 OTS</option>
+                    </optgroup>
+                    <optgroup label="仰拍角度">
+                        <option value="low angle shot, looking up">低角度仰拍 Low Angle</option>
+                        <option value="extreme low angle, dramatic upward view">极低角度 Extreme Low</option>
+                        <option value="worm's eye view, ground level looking up">虫视角 Worm's Eye</option>
+                        <option value="knee level shot">膝盖高度 Knee Level</option>
+                        <option value="ground level shot">地面镜头 Ground Level</option>
+                    </optgroup>
+                    <optgroup label="俯拍角度">
+                        <option value="high angle shot, looking down">高角度俯拍 High Angle</option>
+                        <option value="bird's eye view, top-down">鸟瞰视角 Bird's Eye</option>
+                        <option value="aerial view, drone shot">航拍视角 Aerial View</option>
+                        <option value="overhead shot, directly above">正上方俯拍 Overhead</option>
+                        <option value="god's eye view, extreme overhead">上帝视角 God's Eye</option>
+                    </optgroup>
+                    <optgroup label="特殊视角">
+                        <option value="dutch angle, tilted frame">荷兰角/倾斜 Dutch Angle</option>
+                        <option value="POV shot, first person view">第一人称 POV</option>
+                        <option value="macro shot, extreme close-up">微距特写 Macro</option>
+                        <option value="wide angle lens, distorted perspective">广角畸变 Wide Angle</option>
+                        <option value="fisheye lens, 180 degree view">鱼眼镜头 Fisheye</option>
+                        <option value="telephoto compression, flattened perspective">长焦压缩 Telephoto</option>
+                    </optgroup>
+                    <optgroup label="创意位置">
+                        <option value="through window, looking through glass">透过窗户 Through Window</option>
+                        <option value="mirror reflection shot">镜面反射 Mirror Shot</option>
+                        <option value="water reflection">水面倒影 Water Reflection</option>
+                        <option value="silhouette shot, backlit">剪影逆光 Silhouette</option>
+                        <option value="underwater view, submerged camera">水下视角 Underwater</option>
+                        <option value="through fog, misty atmosphere">雾中拍摄 Through Fog</option>
+                    </optgroup>
+                </select>
+            </div>
+        </div>
         <button class="generate-btn" id="generateBtn" onclick="generateImage()">⚡ 开始生成</button>
         <div class="loading" id="loading">
             <div class="spinner"></div>
@@ -2046,8 +2093,15 @@
         async function generateSingleImage() {
             console.log('[banana] generateSingleImage 被调用');
             
-            const prompt = document.getElementById('promptInput').value.trim();
+            let prompt = document.getElementById('promptInput').value.trim();
             if (!prompt) { showToast('请输入描述内容'); return; }
+            
+            // 📷 添加摄影角度到 prompt
+            const cameraAngle = document.getElementById('cameraAngleSelect')?.value;
+            if (cameraAngle) {
+                prompt = `${prompt}, ${cameraAngle}`;
+                console.log('[banana] 添加摄影角度:', cameraAngle);
+            }
 
             // 🔐 简化认证检查：优先使用缓存的用户信息
             try {
@@ -3085,9 +3139,15 @@
             // 🆕 收集非空输入，并读取每个格子的独立配置
             const inputs = [];
             let totalCost = 0;
+            // 📷 获取全局摄影角度
+            const globalCameraAngle = document.getElementById('cameraAngleSelect')?.value || '';
             for (let i = 0; i < 9; i++) {
-                const val = document.getElementById(`batchInput${i}`)?.value.trim();
+                let val = document.getElementById(`batchInput${i}`)?.value.trim();
                 if (val) {
+                    // 📷 添加摄影角度到 prompt
+                    if (globalCameraAngle) {
+                        val = `${val}, ${globalCameraAngle}`;
+                    }
                     const cellModel = batchCellConfigs[i].model || 'nano-banana-2';
                     const cellRatio = batchCellConfigs[i].ratio || '1:1';
                     const cellRef = batchCellConfigs[i].refImage || null;

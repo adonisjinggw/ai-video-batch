@@ -204,7 +204,7 @@
             background: #000;
         }
         
-        /* 批量宫格布局 */
+        /* 批量输入宫格布局（文字/图片配置区域） */
         .batch-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -217,6 +217,14 @@
         @media (max-width: 600px) {
             .batch-grid { grid-template-columns: repeat(2, 1fr); }
         }
+
+        /* 批量结果宫格：固定两列小格，不再单列 */
+        .batch-video-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
         .batch-card {
             background: var(--bg-card);
             border-radius: 12px;
@@ -678,7 +686,7 @@
                     <div class="result-title" style="margin:0;">🎬 批量生成结果</div>
                     <button onclick="downloadAllBatchVideos()" style="padding:8px 16px;background:var(--accent);border:none;border-radius:6px;color:#000;font-size:12px;cursor:pointer;">📦 下载全部</button>
                 </div>
-                <div id="batchVideoGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;"></div>
+                <div id="batchVideoGrid" class="batch-video-grid"></div>
             </div>
         </div>
         
@@ -1797,8 +1805,17 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     }
                     const data = await res.json();
                     const status = (data.status || data.state || '').toUpperCase();
+                    console.log(`[轮询] 第${i+1}次, 状态: ${status}, 数据:`, JSON.stringify(data).substring(0, 300));
                     if (status === 'COMPLETED' || status === 'SUCCEEDED' || status === 'SUCCESS' || status === 'DONE' || status === 'FINISH') {
-                        return data.output_url || data.video_url || data.url || data.data?.output_url || data.data?.video_url;
+                        // 🔧 全面提取视频URL，支持多种返回格式
+                        const videoUrl = data.output_url || data.video_url || data.url 
+                            || data.data?.output_url || data.data?.video_url || data.data?.url
+                            || data.result?.url || data.result?.video_url;
+                        console.log(`[轮询] ✅ 完成, 视频URL: ${videoUrl ? videoUrl.substring(0, 80) : '无'}`);
+                        if (videoUrl) return videoUrl;
+                        // 如果状态是完成但没有URL，继续轮询（可能是URL还在生成中）
+                        console.warn(`[轮询] 状态完成但无URL，继续轮询...`);
+                        continue;
                     }
                     if (status === 'FAILED' || status === 'ERROR' || status === 'FAIL') {
                         throw new Error(data.error || data.message || '视频生成失败');

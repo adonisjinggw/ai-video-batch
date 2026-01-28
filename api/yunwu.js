@@ -158,9 +158,8 @@ async function __billing(billingAction, userId, amount, description) {
 const YUNWU_API_KEY = process.env.YUNWU_API_KEY || '';
 
 // ========== DubbingX TTS 配置 ==========
-// DubbingX 需要 apiKey 和 apiSecret 生成签名
+// DubbingX 只需要 apiKey（第一个key），不需要 apiSecret
 const TTS_API_KEY = process.env.TTS_API_KEY || 'NWY1NmUxM2QtYjAxZi00YTkzLTgzYjkt';
-const TTS_API_SECRET = process.env.TTS_API_SECRET || 'NDJkODRhN2YtOTk1My00NjgwLWEzYTMt';
 const TTS_BASE_URL = 'https://tts-api.dubbingx.com';
 const VC_BASE_URL = 'https://vc-api.dubbingx.com';
 
@@ -299,8 +298,10 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫖）
-        if (!userId) {
+        // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫫）
+        // 豁免某些只读操作（不扣费）
+        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll'];  // 获取音色列表和轮询不需要登录
+        if (!userId && !exemptActions.includes(action)) {
             json(401, { error: 'UNAUTHORIZED', message: '请先登录后再使用此功能' });
             return;
         }
@@ -1185,31 +1186,10 @@ module.exports = async function handler(req, res) {
                 return;
             }
             
-            // 🔧 规范化模型名：下划线转点号 (veo_3_1 -> veo3.1)
-            if (veoModel && veoModel.includes('_')) {
-                const oldModel = veoModel;
-                veoModel = veoModel.replace(/_/g, '.');
-                console.log(`[yunwu] 规范化Veo模型名: ${oldModel} -> ${veoModel}`);
-            }
-            
-            // 🔧 图生视频必须使用 -frames 后缀模型
-            // veo3/veo3.1 图生视频 → veo3-fast-frames 或 veo3-pro-frames
-            // veo2 图生视频 → veo2-fast-frames
+            // 🔧 直接使用前端传来的模型名
             const hasImage = !!image_url;
-            let actualModel = veoModel;
-            if (hasImage && !veoModel.includes('-frames')) {
-                const m = String(veoModel).toLowerCase();
-                if (m.includes('veo3.1') || m.includes('veo3-') || m === 'veo3') {
-                    // veo3/veo3.1 系列 → veo3-fast-frames (4K 图生视频)
-                    actualModel = 'veo3-fast-frames';
-                } else if (m.includes('veo2')) {
-                    actualModel = 'veo2-fast-frames';
-                } else {
-                    // 其他 veo 模型，尝试添加 -frames 后缀
-                    actualModel = m.replace(/-?(fast|pro)?$/, '-fast-frames');
-                }
-                console.log(`[yunwu] 🎬 Veo图生视频模型转换: ${veoModel} -> ${actualModel}`);
-            }
+            let actualModel = veoModel || 'veo3.1-components-4k';
+            console.log(`[yunwu] 🎬 Veo模型: ${actualModel} (hasImage=${hasImage})`);
 
             const filmCost = FILM_COST['veo3'] || 30;
             let billingSuccess = false;
@@ -1999,8 +1979,38 @@ module.exports = async function handler(req, res) {
                 console.log(`[yunwu] 💰 Midjourney跳过扣费: 前端已处理`);
             }
 
-            // 优化提示词
-            let optimizedPrompt = prompt.trim().replace(/\s*--\w+\s*[\d.:]*\s*/g, ' ').trim();
+            // 🔧 优化提示词：清理所有已有参数，然后重新添加正确格式
+            let optimizedPrompt = prompt.trim()
+                // 清理各种 MJ 参数格式（包括错误格式）
+                .replace(/\s*--ar\s*[\d:x\u00d7]+\s*/gi, ' ')        // --ar 16:9, --ar 16x9
+                .replace(/\s*--v\s*[\d.]+\s*/gi, ' ')               // --v 6.1, --v 7
+                .replace(/\s*--niji\s*\d*\s*/gi, ' ')               // --niji, --niji 6
+                .replace(/\s*--style\s*\w+\s*/gi, ' ')              // --style raw
+                .replace(/\s*--q\s*[\d.]+\s*/gi, ' ')               // --q 1, --q 0.5
+                .replace(/\s*--quality\s*[\d.]+\s*/gi, ' ')         // --quality 1
+                .replace(/\s*--chaos\s*\d+\s*/gi, ' ')              // --chaos 50
+                .replace(/\s*--s\s*\d+\s*/gi, ' ')                  // --s 100
+                .replace(/\s*--stylize\s*\d+\s*/gi, ' ')            // --stylize 100
+                .replace(/\s*--seed\s*\d+\s*/gi, ' ')               // --seed 12345
+                .replace(/\s*--no\s+[\w,\s]+(?=\s*--|$)/gi, ' ')    // --no text, watermark
+                .replace(/\s*--iw\s*[\d.]+\s*/gi, ' ')              // --iw 0.5
+                .replace(/\s*--tile\s*/gi, ' ')                      // --tile
+                .replace(/\s*--repeat\s*\d+\s*/gi, ' ')             // --repeat 4
+                .replace(/\s*--cref\s*\S+\s*/gi, ' ')               // --cref url
+                .replace(/\s*--sref\s*\S+\s*/gi, ' ')               // --sref url
+                .replace(/\s*--cw\s*\d+\s*/gi, ' ')                 // --cw 100
+                .replace(/\s*--sw\s*\d+\s*/gi, ' ')                 // --sw 100
+                .replace(/\s*--p\s*/gi, ' ')                         // --p (personalization)
+                .replace(/\s*--w\s*\d+\s*/gi, ' ')                  // --w 1920 (无效参数)
+                .replace(/\s*--h\s*\d+\s*/gi, ' ')                  // --h 1080 (无效参数)
+                .replace(/\s*--aspect\s*[\d:x]+\s*/gi, ' ')         // --aspect 16:9 (错误格式)
+                .replace(/\s*--ratio\s*[\d:x]+\s*/gi, ' ')          // --ratio 16:9 (错误格式)
+                .replace(/\s*--version\s*[\d.]+\s*/gi, ' ')         // --version 6 (错误格式)
+                .replace(/\s*--\w+\s*[\d.:]*(?=\s|$)/g, ' ')        // 其他未知参数
+                .replace(/\s{2,}/g, ' ')                             // 多个空格合并
+                .trim();
+            
+            // 重新添加正确格式的参数
             if (aspect_ratio && aspect_ratio !== '1:1') optimizedPrompt += ` --ar ${aspect_ratio}`;
             // 🔧 修复 niji 版本参数：niji6 需要用 --niji 6 而不是 --v niji6
             if (version) {

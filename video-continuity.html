@@ -331,10 +331,10 @@
         .mode-content { display: none; }
         .mode-content.active { display: block; }
         
-        /* 分镜流水线宫格布局 */
+        /* 分镜流水线田字格布局 */
         .pipeline-grid {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 16px;
         }
         .pipeline-scene {
@@ -347,12 +347,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 16px;
+            padding: 10px 14px;
             background: rgba(251, 191, 36, 0.1);
             border-bottom: 1px solid var(--border);
         }
         .pipeline-scene-num {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             color: var(--accent);
         }
@@ -360,23 +360,26 @@
             background: #ef4444;
             color: white;
             border: none;
-            width: 26px;
-            height: 26px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
         }
         .pipeline-scene-body {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            background: var(--border);
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            grid-template-rows: auto auto !important;
+            gap: 2px;
+            background: var(--accent);
+            padding: 2px;
         }
         .pipeline-cell {
             background: var(--bg-dark);
             padding: 14px;
             display: flex;
             flex-direction: column;
+            border-radius: 4px;
         }
         .pipeline-cell-title {
             font-size: 12px;
@@ -595,25 +598,33 @@
             margin-top: 20px;
         }
         .pipeline-bottom-bar .generate-btn { margin: 0; }
+        @media (max-width: 900px) {
+            .pipeline-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         @media (max-width: 768px) {
+            .pipeline-grid {
+                grid-template-columns: 1fr;
+            }
             .pipeline-scene-body {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: 1fr 1fr;
                 gap: 1px;
             }
             .pipeline-cell {
                 padding: 10px;
             }
             .pipeline-cell-title {
-                font-size: 10px;
+                font-size: 11px;
                 margin-bottom: 6px;
             }
             .pipeline-preview {
-                height: 60px;
+                aspect-ratio: 16/9;
                 margin: 6px 0;
             }
             .pipeline-btn {
                 padding: 6px;
-                font-size: 10px;
+                font-size: 11px;
             }
             .ref-item {
                 width: 35px;
@@ -622,24 +633,24 @@
         }
         @media (max-width: 480px) {
             .pipeline-scene-body {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(2, 1fr) !important; /* 保持2列田字格 */
             }
             .pipeline-cell {
                 padding: 8px;
             }
             .pipeline-cell-title {
-                font-size: 9px;
+                font-size: 10px;
             }
             .pipeline-preview {
-                height: 50px;
+                aspect-ratio: 16/9;
             }
             .pipeline-btn {
                 padding: 5px;
                 font-size: 9px;
             }
             .ref-item {
-                width: 30px;
-                height: 30px;
+                width: 28px;
+                height: 28px;
             }
         }
     </style>
@@ -656,8 +667,8 @@
 
         <!-- 模式切换标签 -->
         <div class="mode-tabs">
-            <button class="mode-tab active" onclick="switchMode('continuity')">🎬 视频连续性</button>
-            <button class="mode-tab" onclick="switchMode('pipeline')">🎨 分镜流水线</button>
+            <button class="mode-tab active" onclick="switchMode('continuity', this)">🎬 视频连续性</button>
+            <button class="mode-tab" onclick="switchMode('pipeline', this)">🎨 分镜流水线</button>
         </div>
 
         <!-- 视频连续性模式 -->
@@ -832,8 +843,10 @@
                             <option value="nano-banana-2">💰 Banana 标准 (6胶片)</option>
                             <option value="nano-banana-2-4k">💎 Banana 4K (10胶片)</option>
                             <option value="Qwen/Qwen-Image-2512">🌟 通义万象Max (8胶片)</option>
+                            <option value="jimeng-4.5">🌙 即梦4.5 (7胶片)</option>
                             <option value="midjourney-fast">🎨 MJ Fast (2胶片)</option>
                             <option value="midjourney-turbo">⚡ MJ Turbo (2胶片)</option>
+                            <option value="midjourney-relax">🌙 MJ Relax (1胶片)</option>
                         </select>
                     </div>
                     <div class="option-group" id="global-mj-version-group" style="display:none;">
@@ -852,13 +865,51 @@
                     <div class="option-group">
                         <label>🎬 视频模型</label>
                         <select id="global-video-model">
-                            <option value="sora-2-all" selected>Sora-2 (7胶片)</option>
-                            <option value="sora-2-pro-all">Sora-2 Pro (14胶片)</option>
-                            <option value="veo3.1-components-4k">Veo 3.1 4K (30胶片)</option>
-                            <option value="grok-video-3">Grok Video 3 (5胶片)</option>
-                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
-                            <option value="hailuo-02-768p-6s">海螺02 6秒 768P (7胶片)</option>
-                            <option value="kling-2.5-720p-5s">可灵2.5 5秒 720P (5胶片)</option>
+                            <optgroup label="🌟 Sora 2">
+                                <option value="sora-2-all" selected>Sora-2 (15秒/7胶片)</option>
+                                <option value="sora-2-pro-all">Sora-2 Pro (15秒/14胶片)</option>
+                            </optgroup>
+                            <optgroup label="🌟 Veo 3">
+                                <option value="veo3">Veo3 4K (8秒/30胶片)</option>
+                                <option value="veo3.1-components-4k">Veo 3.1 4K (8秒/30胶片)</option>
+                                <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (25胶片)</option>
+                            </optgroup>
+                            <optgroup label="🎬 Vidu - 5秒">
+                                <option value="vidu-q2-5s-720p">Vidu q2 720P (25胶片)</option>
+                                <option value="vidu-q2-5s-1080p">Vidu q2 1080P (36胶片)</option>
+                                <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 720P (19胶片/最快)</option>
+                                <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 1080P (36胶片)</option>
+                            </optgroup>
+                            <optgroup label="🎬 Vidu - 10秒">
+                                <option value="vidu-q2-10s-720p">Vidu q2 720P (50胶片)</option>
+                                <option value="vidu-q2-10s-1080p">Vidu q2 1080P (72胶片)</option>
+                            </optgroup>
+                            <optgroup label="🐚 海螺 - 6秒">
+                                <option value="hailuo-02-768p-6s">海螺02 768P (7胶片)</option>
+                                <option value="hailuo-02-1080p-6s">海螺02 1080P (12胶片)</option>
+                                <option value="hailuo-fast-768p-6s">海螺Fast 768P (5胶片/最快)</option>
+                                <option value="hailuo-fast-1080p-6s">海螺Fast 1080P (8胶片)</option>
+                            </optgroup>
+                            <optgroup label="🐚 海螺 - 10秒">
+                                <option value="hailuo-02-768p-10s">海螺02 768P (11胶片)</option>
+                                <option value="hailuo-02-1080p-10s">海螺02 1080P (20胶片)</option>
+                                <option value="hailuo-fast-768p-10s">海螺Fast 768P (8胶片)</option>
+                                <option value="hailuo-fast-1080p-10s">海螺Fast 1080P (13胶片)</option>
+                            </optgroup>
+                            <optgroup label="✨ 可灵 2.5 - 5秒">
+                                <option value="kling-2.5-720p-5s">可灵2.5 720P (5胶片/性价比)</option>
+                                <option value="kling-2.5-1080p-5s">可灵2.5 1080P (9胶片)</option>
+                            </optgroup>
+                            <optgroup label="✨ 可灵 2.5 - 10秒">
+                                <option value="kling-2.5-720p-10s">可灵2.5 720P (10胶片)</option>
+                                <option value="kling-2.5-1080p-10s">可灵2.5 1080P (17胶片)</option>
+                            </optgroup>
+                            <optgroup label="✨ 可灵 其他版本">
+                                <option value="kling-2.1-720p-5s">可灵2.1 720P 5秒 (6胶片)</option>
+                                <option value="kling-2.0-720p-5s">可灵2.0 720P 5秒 (7胶片)</option>
+                                <option value="kling-o1-720p-5s">可灵o1 720P 5秒 (15胶片/高质量)</option>
+                            </optgroup>
+                            <option value="grok-video-3">Grok Video 3 (6秒/5胶片)</option>
                         </select>
                     </div>
                     <div class="option-group">
@@ -1787,13 +1838,24 @@ ${story}
         // ==================== 🎨 流水线模式 ====================
         let pipelineRows = [];
         let currentUploadTarget = null;
+        
+        // 🎯 全局故事上下文（用于保持角色/场景一致性）
+        let storyContext = {
+            originalStory: '',      // 原始故事
+            characters: [],         // 角色列表 [{name, appearance, personality}]
+            mainScene: '',          // 主要场景描述
+            artStyle: '',           // 统一的艺术风格
+            colorPalette: ''        // 统一的色调
+        };
 
         // 模式切换
-        function switchMode(mode) {
+        function switchMode(mode, btn) {
             document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.mode-content').forEach(content => content.classList.remove('active'));
             
-            event.target.classList.add('active');
+            if (btn) {
+                btn.classList.add('active');
+            }
             document.getElementById(mode + '-mode').classList.add('active');
             
             if (mode === 'pipeline' && pipelineRows.length === 0) {
@@ -1811,22 +1873,32 @@ ${story}
                 sceneText: '',
                 textModel: 'modelscope', // 文本分析模型
                 mjVersion: null, // MJ版本，null = 使用全局
+                // 🎭 右上格：多张参考图（角色+场景）
+                characterRefs: [],   // 角色设定图数组 (base64/URL)
+                sceneRefs: [],       // 场景参考图数组 (base64/URL)
+                // 🖼️ 左下格：图片生成
                 image: { 
                     prompt: '', 
-                    references: [], 
-                    model: null, // null = 使用全局
-                    ratio: null, // null = 使用全局
+                    model: null,     // null = 使用全局
+                    ratio: null,     // null = 使用全局
+                    useCharRef: true,  // 是否使用角色参考图
+                    useSceneRef: true, // 是否使用场景参考图
+                    refWeight: 0.7,    // 参考图权重 (0-1)
                     status: 'idle', 
                     result: null, 
                     error: null 
                 },
+                // 🎬 右下格：视频生成
                 video: { 
                     prompt: '', 
-                    references: [], 
-                    model: null, // null = 使用全局
+                    model: null,       // null = 使用全局
+                    useImageResult: true,  // 使用图片生成结果作为参考
+                    useCharRef: false,     // 是否使用角色参考图
+                    useSceneRef: false,    // 是否使用场景参考图
                     status: 'idle', 
                     result: null, 
-                    error: null 
+                    error: null,
+                    taskId: null  // 视频任务ID，用于轮询
                 }
             };
         }
@@ -1834,7 +1906,9 @@ ${story}
         function renderPipelineRows() {
             const grid = document.getElementById('pipeline-grid');
             
-            // 每个分镜一个卡片，卡片内三列
+            // 每个分镜一个卡片，卡片内田字格 2x2 布局
+            // 左上：分镜文本 | 右上：角色设定图+场景图
+            // 左下：图片生成 | 右下：视频生成
             const scenes = pipelineRows.map((row, i) => `
                 <div class="pipeline-scene">
                     <div class="pipeline-scene-header">
@@ -1843,6 +1917,7 @@ ${story}
                     </div>
                     <div class="pipeline-scene-body">
                         ${renderTextCell(row, i)}
+                        ${renderRefCell(row, i)}
                         ${renderImageCell(row, i)}
                         ${renderVideoCell(row, i)}
                     </div>
@@ -1852,18 +1927,125 @@ ${story}
             grid.innerHTML = scenes;
         }
         
-        // 渲染文本描述格子
+        // ① 左上格：分镜文本描述
         function renderTextCell(row, index) {
             return `
                 <div class="pipeline-cell" data-label="📝 文本">
-                    <div class="pipeline-cell-title">📝 分镜描述</div>
-                    <textarea placeholder="描述这个分镜的场景..." 
-                        style="width:100%;min-height:80px;padding:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);border-radius:6px;resize:vertical;"
+                    <div class="pipeline-cell-title">📝 分镜文本</div>
+                    <textarea placeholder="描述这个分镜的场景、动作、对话..." 
+                        style="width:100%;min-height:100px;padding:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);border-radius:6px;resize:vertical;font-size:12px;"
                         onchange="updatePipelineSceneText(${index}, this.value)">${row.sceneText || ''}</textarea>
-                    <button style="width:100%;margin-top:8px;padding:6px;background:var(--accent);color:#000;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;"
+                    <button style="width:100%;margin-top:8px;padding:8px;background:var(--accent);color:#000;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;"
                         onclick="optimizeToImagePrompt(${index})" ${!row.sceneText ? 'disabled' : ''}>
                         ✨ 优化为图片提示词
                     </button>
+                </div>
+            `;
+        }
+        
+        // ② 右上格：多张角色设定图 + 多张场景参考图 + AI生成功能
+        function renderRefCell(row, index) {
+            // 兼容旧数据结构
+            if (!row.characterRefs) row.characterRefs = row.characterRef ? [row.characterRef] : [];
+            if (!row.sceneRefs) row.sceneRefs = row.sceneRef ? [row.sceneRef] : [];
+            if (!row.characterDesc) row.characterDesc = '';  // 角色描述
+            if (!row.sceneAngles) row.sceneAngles = ['wide', 'medium', 'close'];  // 场景角度
+            
+            const renderRefList = (refs, type, label, icon) => {
+                const maxRefs = 4;
+                const isGenerating = row[type + 'Generating'];
+                return `
+                    <div style="flex:1;min-width:120px;">
+                        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;">
+                            <span>${icon} ${label}</span>
+                            <span style="font-size:9px;color:#666;">${refs.length}/${maxRefs}</span>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:44px;">
+                            ${refs.map((ref, ri) => `
+                                <div style="width:40px;height:40px;border-radius:6px;overflow:hidden;position:relative;background:var(--bg-input);border:1px solid var(--border);">
+                                    <img src="${ref}" style="width:100%;height:100%;object-fit:cover;cursor:pointer;" onclick="previewRefImage('${ref.replace(/'/g, "\\'")}')"/>
+                                    <button onclick="event.stopPropagation();removeRefImage(${index}, '${type}', ${ri})" style="position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#ef4444;color:white;border:none;border-radius:50%;font-size:9px;cursor:pointer;line-height:1;">×</button>
+                                </div>
+                            `).join('')}
+                            ${refs.length < maxRefs ? `
+                                <div style="width:40px;height:40px;border-radius:6px;background:var(--bg-input);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#555;"
+                                    onclick="openRefUpload(${index}, '${type}')">${isGenerating ? '⏳' : '+'}</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            };
+            
+            return `
+                <div class="pipeline-cell" data-label="🎭 参考图">
+                    <div class="pipeline-cell-title">🎭 参考图库 <span style="font-size:10px;color:var(--text-dim);font-weight:normal;">(支持多图+AI生成)</span></div>
+                    
+                    <!-- 角色设定区 -->
+                    <div style="margin-bottom:8px;padding:8px;background:var(--bg-input);border-radius:6px;">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                            <span style="font-size:11px;color:var(--accent);">👤 角色设定</span>
+                            <button onclick="generateCharacterSheet(${index})" style="padding:2px 6px;font-size:9px;background:var(--accent);color:#000;border:none;border-radius:3px;cursor:pointer;" ${row.characterGenerating ? 'disabled' : ''}>
+                                ${row.characterGenerating ? '⏳ 生成中...' : '✨ AI生成角色图'}
+                            </button>
+                        </div>
+                        <input type="text" placeholder="角色描述：如 年轻女孩，黑色长发，穿白色连衣裙..." 
+                            style="width:100%;padding:6px;font-size:11px;background:var(--bg-dark);border:1px solid var(--border);border-radius:4px;color:var(--text);"
+                            value="${row.characterDesc || ''}" onchange="updateCharacterDesc(${index}, this.value)">
+                        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">
+                            ${row.characterRefs.map((ref, ri) => `
+                                <div style="width:36px;height:36px;border-radius:4px;overflow:hidden;position:relative;border:1px solid var(--border);">
+                                    <img src="${ref}" style="width:100%;height:100%;object-fit:cover;">
+                                    <button onclick="removeRefImage(${index}, 'character', ${ri})" style="position:absolute;top:-2px;right:-2px;width:12px;height:12px;background:#ef4444;color:white;border:none;border-radius:50%;font-size:8px;cursor:pointer;">×</button>
+                                </div>
+                            `).join('')}
+                            ${row.characterRefs.length < 4 ? `
+                                <div style="width:36px;height:36px;border-radius:4px;background:var(--bg-dark);border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:#555;"
+                                    onclick="openRefUpload(${index}, 'character')">+</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- 场景参考区 -->
+                    <div style="padding:8px;background:var(--bg-input);border-radius:6px;">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                            <span style="font-size:11px;color:var(--accent);">🌄 场景参考</span>
+                            <button onclick="generateSceneImages(${index})" style="padding:2px 6px;font-size:9px;background:var(--accent);color:#000;border:none;border-radius:3px;cursor:pointer;" ${row.sceneGenerating ? 'disabled' : ''}>
+                                ${row.sceneGenerating ? '⏳ 生成中...' : '✨ AI生成多角度场景'}
+                            </button>
+                        </div>
+                        <div style="display:flex;gap:4px;margin-bottom:6px;">
+                            <label style="font-size:9px;color:var(--text-dim);display:flex;align-items:center;gap:2px;">
+                                <input type="checkbox" ${row.sceneAngles?.includes('wide') ? 'checked' : ''} onchange="toggleSceneAngle(${index}, 'wide', this.checked)"> 远景
+                            </label>
+                            <label style="font-size:9px;color:var(--text-dim);display:flex;align-items:center;gap:2px;">
+                                <input type="checkbox" ${row.sceneAngles?.includes('medium') ? 'checked' : ''} onchange="toggleSceneAngle(${index}, 'medium', this.checked)"> 中景
+                            </label>
+                            <label style="font-size:9px;color:var(--text-dim);display:flex;align-items:center;gap:2px;">
+                                <input type="checkbox" ${row.sceneAngles?.includes('close') ? 'checked' : ''} onchange="toggleSceneAngle(${index}, 'close', this.checked)"> 特写
+                            </label>
+                            <label style="font-size:9px;color:var(--text-dim);display:flex;align-items:center;gap:2px;">
+                                <input type="checkbox" ${row.sceneAngles?.includes('aerial') ? 'checked' : ''} onchange="toggleSceneAngle(${index}, 'aerial', this.checked)"> 俷视
+                            </label>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:3px;">
+                            ${row.sceneRefs.map((ref, ri) => `
+                                <div style="width:36px;height:36px;border-radius:4px;overflow:hidden;position:relative;border:1px solid var(--border);">
+                                    <img src="${ref}" style="width:100%;height:100%;object-fit:cover;">
+                                    <button onclick="removeRefImage(${index}, 'scene', ${ri})" style="position:absolute;top:-2px;right:-2px;width:12px;height:12px;background:#ef4444;color:white;border:none;border-radius:50%;font-size:8px;cursor:pointer;">×</button>
+                                </div>
+                            `).join('')}
+                            ${row.sceneRefs.length < 4 ? `
+                                <div style="width:36px;height:36px;border-radius:4px;background:var(--bg-dark);border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:#555;"
+                                    onclick="openRefUpload(${index}, 'scene')">+</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- 复用功能 -->
+                    <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">
+                        <button onclick="copyRefsToAll(${index})" style="padding:3px 6px;font-size:9px;background:var(--accent);color:#000;border:none;border-radius:3px;cursor:pointer;">🔄 应用到全部分镜</button>
+                        <button onclick="copyRefsToNext(${index})" style="padding:3px 6px;font-size:9px;background:var(--bg-input);color:var(--text);border:1px solid var(--border);border-radius:3px;cursor:pointer;">→ 应用到下一个</button>
+                    </div>
                 </div>
             `;
         }
@@ -1888,10 +2070,11 @@ ${story}
                         <select style="flex:1;min-width:150px;" onchange="updatePipelineImageModel(${index}, this.value)">
                             <option value="" ${!row.image.model ? 'selected' : ''}>🌐 全局配置</option>
                             <option value="modelscope" ${row.image.model === 'modelscope' ? 'selected' : ''}>🆓 智能绘图 (免费)</option>
-                            <option value="doubao-seedream-4-5-251128" ${row.image.model === 'doubao-seedream-4-5-251128' ? 'selected' : ''}>✨ 星梦画师 (7胶片)</option>
+                            <option value="doubao-seedream-4-5-251128" ${row.image.model === 'doubao-seedream-4-5-251128' ? 'selected' : ''}>✨ 星梦画师 (7)</option>
                             <option value="nano-banana-2" ${row.image.model === 'nano-banana-2' ? 'selected' : ''}>💰 Banana 标准 (6)</option>
                             <option value="nano-banana-2-4k" ${row.image.model === 'nano-banana-2-4k' ? 'selected' : ''}>💎 Banana 4K (10)</option>
                             <option value="Qwen/Qwen-Image-2512" ${row.image.model === 'Qwen/Qwen-Image-2512' ? 'selected' : ''}>🌟 通义万象Max (8)</option>
+                            <option value="jimeng-4.5" ${row.image.model === 'jimeng-4.5' ? 'selected' : ''}>🌙 即梦4.5 (7)</option>
                             <option value="midjourney-fast" ${row.image.model === 'midjourney-fast' ? 'selected' : ''}>🎨 MJ Fast (2)</option>
                             <option value="midjourney-turbo" ${row.image.model === 'midjourney-turbo' ? 'selected' : ''}>⚡ MJ Turbo (2)</option>
                             <option value="midjourney-relax" ${row.image.model === 'midjourney-relax' ? 'selected' : ''}>🌙 MJ Relax (1)</option>
@@ -2079,30 +2262,282 @@ ${story}
             currentUploadTarget = { index, type };
             document.getElementById('ref-image-input').click();
         }
+        
+        // 🎭 右上格参考图上传
+        function openRefUpload(index, refType) {
+            currentUploadTarget = { index, refType };  // refType: 'character' 或 'scene'
+            document.getElementById('ref-image-input').click();
+        }
+        
+        function clearRef(index, refType) {
+            if (refType === 'character') {
+                pipelineRows[index].characterRef = null;
+            } else if (refType === 'scene') {
+                pipelineRows[index].sceneRef = null;
+            }
+            renderPipelineRows();
+        }
 
         function handleRefImageUpload(event) {
             const files = event.target.files;
             if (!files || files.length === 0 || !currentUploadTarget) return;
             
-            const { index, type } = currentUploadTarget;
+            const { index, type, refType } = currentUploadTarget;
             const row = pipelineRows[index];
             if (!row) return;
             
-            Array.from(files).forEach(file => {
+            // 支持多文件上传
+            const maxRefs = 4;
+            const filesToProcess = Array.from(files).slice(0, maxRefs);
+            let processed = 0;
+            
+            filesToProcess.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    if (type === 'image') {
-                        row.image.references.push(e.target.result);
-                    } else {
-                        row.video.references.push(e.target.result);
+                    // 🎭 右上格参考图（角色/场景）- 支持多图
+                    if (refType === 'character') {
+                        if (!row.characterRefs) row.characterRefs = [];
+                        if (row.characterRefs.length < maxRefs) {
+                            row.characterRefs.push(e.target.result);
+                        }
+                    } else if (refType === 'scene') {
+                        if (!row.sceneRefs) row.sceneRefs = [];
+                        if (row.sceneRefs.length < maxRefs) {
+                            row.sceneRefs.push(e.target.result);
+                        }
                     }
-                    renderPipelineRows();
+                    
+                    processed++;
+                    if (processed >= filesToProcess.length) {
+                        renderPipelineRows();
+                    }
                 };
                 reader.readAsDataURL(file);
             });
             
             event.target.value = '';
             currentUploadTarget = null;
+        }
+        
+        // 🎭 右上格辅助函数
+        function updateCharacterDesc(index, value) {
+            if (pipelineRows[index]) {
+                pipelineRows[index].characterDesc = value;
+            }
+        }
+        
+        function toggleSceneAngle(index, angle, checked) {
+            if (!pipelineRows[index]) return;
+            if (!pipelineRows[index].sceneAngles) pipelineRows[index].sceneAngles = [];
+            
+            if (checked) {
+                if (!pipelineRows[index].sceneAngles.includes(angle)) {
+                    pipelineRows[index].sceneAngles.push(angle);
+                }
+            } else {
+                pipelineRows[index].sceneAngles = pipelineRows[index].sceneAngles.filter(a => a !== angle);
+            }
+        }
+        
+        function removeRefImage(index, refType, refIndex) {
+            const row = pipelineRows[index];
+            if (!row) return;
+            
+            if (refType === 'character' && row.characterRefs) {
+                row.characterRefs.splice(refIndex, 1);
+            } else if (refType === 'scene' && row.sceneRefs) {
+                row.sceneRefs.splice(refIndex, 1);
+            }
+            renderPipelineRows();
+        }
+        
+        function previewRefImage(imageUrl) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+            modal.innerHTML = `<img src="${imageUrl}" style="max-width:90%;max-height:90%;object-fit:contain;">`;
+            modal.onclick = () => modal.remove();
+            document.body.appendChild(modal);
+        }
+        
+        function copyRefsToAll(fromIndex) {
+            const sourceRow = pipelineRows[fromIndex];
+            if (!sourceRow) return;
+            
+            pipelineRows.forEach((row, i) => {
+                if (i !== fromIndex) {
+                    row.characterRefs = [...(sourceRow.characterRefs || [])];
+                    row.sceneRefs = [...(sourceRow.sceneRefs || [])];
+                    row.characterDesc = sourceRow.characterDesc || '';
+                }
+            });
+            renderPipelineRows();
+            alert(`✅ 已将参考图复制到其他 ${pipelineRows.length - 1} 个分镜`);
+        }
+        
+        function copyRefsToNext(fromIndex) {
+            const sourceRow = pipelineRows[fromIndex];
+            const nextIndex = fromIndex + 1;
+            if (!sourceRow || nextIndex >= pipelineRows.length) return;
+            
+            pipelineRows[nextIndex].characterRefs = [...(sourceRow.characterRefs || [])];
+            pipelineRows[nextIndex].sceneRefs = [...(sourceRow.sceneRefs || [])];
+            pipelineRows[nextIndex].characterDesc = sourceRow.characterDesc || '';
+            renderPipelineRows();
+        }
+        
+        // 🎨 AI生成角色设定图（使用batch.js模板）
+        async function generateCharacterSheet(index) {
+            const row = pipelineRows[index];
+            if (!row) return;
+            
+            // 使用角色描述或故事上下文
+            let charDesc = row.characterDesc || '';
+            if (!charDesc && storyContext.characters && storyContext.characters.length > 0) {
+                charDesc = storyContext.characters.map(c => `${c.name}: ${c.appearance || ''} ${c.clothing || ''}`).join('\n');
+            }
+            if (!charDesc) {
+                alert('请先输入角色描述，或使用AI智能分镜提取角色信息');
+                return;
+            }
+            
+            row.characterGenerating = true;
+            renderPipelineRows();
+            
+            try {
+                if (!currentUser) {
+                    if (typeof NVAuth !== 'undefined') {
+                        currentUser = await NVAuth.getCurrentUser();
+                    }
+                    if (!currentUser) throw new Error('请先登录');
+                }
+                
+                const stylePrefix = storyContext.artStyle || 'cinematic, high quality';
+                const colorPalette = storyContext.colorPalette || 'natural lighting';
+                
+                // 使用batch.js的角色设定图模板
+                const prompt = `CHARACTER DESIGN REFERENCE SHEET
+
+CHARACTER DESCRIPTION:
+${charDesc}
+
+LAYOUT DESIGN:
+- CENTER: Full body character in signature pose, detailed outfit
+- BOTTOM: 3 facial expressions showing personality (happy, neutral, determined)
+- Detail callouts for unique features
+
+ART STYLE: ${stylePrefix}
+- Clean professional linework
+- ${colorPalette}
+- Light neutral background (white/light gray gradient)
+- High detail, production-ready quality
+
+OUTPUT: 4K character design reference sheet, professional quality.`;
+
+                const model = document.getElementById('global-image-model').value || 'doubao-seedream-4-5-251128';
+                const response = await fetch(model === 'modelscope' ? '/api/modelscope' : '/api/banana2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: model === 'modelscope' ? 'image' : 'generate',
+                        prompt: prompt,
+                        model: model === 'modelscope' ? undefined : model,
+                        aspect_ratio: '16:9',
+                        userId: currentUser.id
+                    })
+                });
+
+                if (!response.ok) throw new Error('角色图生成失败');
+
+                const result = await response.json();
+                const imageUrl = result.imageUrl || result.url || result.image;
+                
+                if (imageUrl) {
+                    if (!row.characterRefs) row.characterRefs = [];
+                    row.characterRefs.push(imageUrl);
+                }
+                
+            } catch (error) {
+                alert('角色图生成失败: ' + error.message);
+            } finally {
+                row.characterGenerating = false;
+                renderPipelineRows();
+            }
+        }
+        
+        // 🌄 AI生成多角度场景图
+        async function generateSceneImages(index) {
+            const row = pipelineRows[index];
+            if (!row || !row.sceneText) {
+                alert('请先输入分镜文本');
+                return;
+            }
+            
+            const angles = row.sceneAngles || ['wide', 'medium', 'close'];
+            if (angles.length === 0) {
+                alert('请至少选择一个场景角度');
+                return;
+            }
+            
+            row.sceneGenerating = true;
+            renderPipelineRows();
+            
+            try {
+                if (!currentUser) {
+                    if (typeof NVAuth !== 'undefined') {
+                        currentUser = await NVAuth.getCurrentUser();
+                    }
+                    if (!currentUser) throw new Error('请先登录');
+                }
+                
+                const angleNames = {
+                    'wide': 'wide shot, establishing shot, full environment visible',
+                    'medium': 'medium shot, character and environment balanced',
+                    'close': 'close-up shot, detailed focus on subject',
+                    'aerial': 'aerial view, bird\'s eye perspective, top-down angle'
+                };
+                
+                const sceneDesc = storyContext.mainScene || row.sceneText;
+                const stylePrefix = storyContext.artStyle || 'cinematic, high quality';
+                
+                // 并发生成多个角度
+                const promises = angles.slice(0, 4).map(async (angle) => {
+                    const prompt = `${angleNames[angle] || angle}, ${sceneDesc}, ${stylePrefix}, ${storyContext.colorPalette || 'natural lighting'}, professional photography, 8k quality`;
+                    
+                    const model = document.getElementById('global-image-model').value || 'doubao-seedream-4-5-251128';
+                    const response = await fetch(model === 'modelscope' ? '/api/modelscope' : '/api/banana2', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: model === 'modelscope' ? 'image' : 'generate',
+                            prompt: prompt,
+                            model: model === 'modelscope' ? undefined : model,
+                            aspect_ratio: '16:9',
+                            userId: currentUser.id
+                        })
+                    });
+                    
+                    if (!response.ok) return null;
+                    const result = await response.json();
+                    return result.imageUrl || result.url || result.image;
+                });
+                
+                const results = await Promise.all(promises);
+                const validImages = results.filter(Boolean);
+                
+                if (validImages.length > 0) {
+                    if (!row.sceneRefs) row.sceneRefs = [];
+                    row.sceneRefs.push(...validImages);
+                    alert(`✅ 成功生成 ${validImages.length} 张场景参考图`);
+                } else {
+                    throw new Error('所有场景图生成失败');
+                }
+                
+            } catch (error) {
+                alert('场景图生成失败: ' + error.message);
+            } finally {
+                row.sceneGenerating = false;
+                renderPipelineRows();
+            }
         }
 
         function usePipelineImageAsVideoRef(index) {
@@ -2114,7 +2549,7 @@ ${story}
             }
         }
 
-        // AI生成分镜（流水线模式）
+        // AI生成分镜（流水线模式）- 增强版：同时提取角色/场景信息
         async function aiGenerateStoryboards() {
             const storyInput = document.getElementById('pipeline-story-input');
             const story = storyInput.value.trim();
@@ -2131,7 +2566,7 @@ ${story}
 
             const btn = event.target;
             btn.disabled = true;
-            btn.textContent = '🤖 AI分析中...';
+            btn.textContent = '🤖 AI深度分析中...';
 
             try {
                 if (!currentUser) {
@@ -2143,22 +2578,36 @@ ${story}
                     }
                 }
 
-                const prompt = `请将以下故事拆分成3-10个连续的视频分镜描述。每个分镜应该：
-1. 描述具体的画面内容
-2. 适合用于AI视频生成（Sora/Veo）
-3. 保持场景的连贯性和逻辑性
-4. 每个分镜20-50字
+                // 🎯 增强版提示词：同时提取角色、场景、风格信息
+                const prompt = `请深度分析以下故事，完成两个任务：
+
+【任务1】提取角色和场景信息（JSON格式）
+【任务2】拆分成3-10个连续视频分镜
 
 故事内容：
 ${story}
 
-请直接输出分镜列表，每行一个分镜，格式如下：
-1. [第一个分镜的画面描述]
-2. [第二个分镜的画面描述]
-3. [第三个分镜的画面描述]
+请严格按以下格式输出：
+
+===CONTEXT===
+{
+  "characters": [
+    {"name": "角色名", "appearance": "详细外貌描述（发型发色、五官、肤色、身高体型、标志性特征）", "clothing": "服装描述", "personality": "性格特点"}
+  ],
+  "mainScene": "主要场景环境描述（时代背景、地点、氛围、光线）",
+  "artStyle": "推荐的画面风格（如：电影感、动漫风、写实风等）",
+  "colorPalette": "推荐的色调（如：暖色调、冷色调、复古色调等）"
+}
+===STORYBOARDS===
+1. [分镜1：包含具体角色名+动作+场景+镜头描述]
+2. [分镜2：...]
+3. [分镜3：...]
 ...
 
-只输出分镜列表，不要有其他解释。`;
+注意：
+- 每个分镜必须包含出场角色的名字
+- 分镜描述要具体，适合AI视频生成
+- 保持前后分镜的连贯性`;
 
                 const response = await fetch('/api/modelscope', {
                     method: 'POST',
@@ -2176,12 +2625,40 @@ ${story}
 
                 const result = await response.json();
                 const text = result.text || result.content || '';
+                
+                // 🎯 解析上下文信息
+                storyContext.originalStory = story;
+                try {
+                    const contextMatch = text.match(/===CONTEXT===\s*([\s\S]*?)\s*===STORYBOARDS===/i);
+                    if (contextMatch) {
+                        const jsonStr = contextMatch[1].trim();
+                        // 尝试提取JSON
+                        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const ctx = JSON.parse(jsonMatch[0]);
+                            storyContext.characters = ctx.characters || [];
+                            storyContext.mainScene = ctx.mainScene || '';
+                            storyContext.artStyle = ctx.artStyle || '';
+                            storyContext.colorPalette = ctx.colorPalette || '';
+                            console.log('[分镜] 📝 提取到故事上下文:', storyContext);
+                        }
+                    }
+                } catch (parseErr) {
+                    console.warn('[分镜] ⚠️ 上下文解析失败，使用基础模式:', parseErr.message);
+                }
+                
+                // 🎬 解析分镜列表
+                let storyboardText = text;
+                const sbMatch = text.match(/===STORYBOARDS===\s*([\s\S]*)/i);
+                if (sbMatch) {
+                    storyboardText = sbMatch[1];
+                }
 
-                const lines = text.split('\n')
+                const lines = storyboardText.split('\n')
                     .map(line => line.trim())
                     .filter(line => line.length > 0)
-                    .map(line => line.replace(/^\d+[\.\u3001]\s*/, '').replace(/^[-\*]\s*/, ''))
-                    .filter(line => line.length > 10);
+                    .map(line => line.replace(/^\d+[\.\u3001]\s*/, '').replace(/^[-\*]\s*/, '').replace(/^\[|\]$/g, ''))
+                    .filter(line => line.length > 10 && !line.startsWith('{') && !line.startsWith('"'));
 
                 if (lines.length === 0) {
                     throw new Error('AI未能生成有效的分镜，请重试或手动输入');
@@ -2192,8 +2669,12 @@ ${story}
                     sceneText: text,
                     textModel: 'modelscope',
                     mjVersion: null,
-                    image: { prompt: '', references: [], model: null, ratio: null, status: 'idle', result: null, error: null },
-                    video: { prompt: '', references: [], model: null, status: 'idle', result: null, error: null }
+                    characterRefs: [],
+                    sceneRefs: [],
+                    characterDesc: '',
+                    sceneAngles: ['wide', 'medium', 'close'],
+                    image: { prompt: '', model: null, ratio: null, useCharRef: true, useSceneRef: true, refWeight: 0.7, status: 'idle', result: null, error: null },
+                    video: { prompt: '', model: null, useImageResult: true, useCharRef: false, useSceneRef: false, status: 'idle', result: null, error: null, taskId: null }
                 }));
                 
                 while (pipelineRows.length < 3) {
@@ -2201,7 +2682,15 @@ ${story}
                 }
 
                 renderPipelineRows();
-                alert(`✅ 成功生成 ${lines.length} 个分镜！\n您可以手动修改后再生成图片和视频。`);
+                
+                // 显示提取到的信息
+                let msg = `✅ 成功生成 ${lines.length} 个分镜！`;
+                if (storyContext.characters.length > 0) {
+                    msg += `\n\n📝 已提取 ${storyContext.characters.length} 个角色信息：`;
+                    msg += storyContext.characters.map(c => `\n  • ${c.name}`).join('');
+                    msg += `\n\n生成图片时将自动注入角色外貌描述，确保一致性。`;
+                }
+                alert(msg);
                 
             } catch (error) {
                 alert('错误：' + error.message);
@@ -2211,7 +2700,7 @@ ${story}
             }
         }
 
-        // 优化为图片提示词
+        // 优化为图片提示词 - 增强版：自动注入角色/场景上下文
         async function optimizeToImagePrompt(index) {
             const row = pipelineRows[index];
             if (!row || !row.sceneText) return;
@@ -2227,10 +2716,39 @@ ${story}
                     if (!currentUser) throw new Error('请先登录');
                 }
 
-                const prompt = `请将以下分镜描述优化成适合AI画图（Midjourney/DALL-E）的提示词：
-${row.sceneText}
+                // 🎯 构建角色上下文（确保并发生成时每个提示词都是自包含的）
+                let characterContext = '';
+                if (storyContext.characters && storyContext.characters.length > 0) {
+                    characterContext = '\n\n【角色设定 - 必须严格遵循】';
+                    storyContext.characters.forEach(c => {
+                        characterContext += `\n• ${c.name}: ${c.appearance || ''} ${c.clothing || ''}`;
+                    });
+                }
+                
+                let sceneContext = '';
+                if (storyContext.mainScene) {
+                    sceneContext = `\n\n【场景设定】${storyContext.mainScene}`;
+                }
+                
+                let styleContext = '';
+                if (storyContext.artStyle || storyContext.colorPalette) {
+                    styleContext = `\n\n【风格要求】${storyContext.artStyle || ''} ${storyContext.colorPalette || ''}`;
+                }
 
-请直接输出优化后的提示词，不要有其他解释。`;
+                const prompt = `请将以下分镜描述优化成适合AI画图（Midjourney/Sora）的英文提示词。
+
+分镜描述：
+${row.sceneText}
+${characterContext}${sceneContext}${styleContext}
+
+要求：
+1. 输出纯英文提示词
+2. 必须包含上述角色的完整外貌描述（发型发色、服装等）
+3. 包含场景环境和光线描述
+4. 包含镜头角度（如 wide shot, close-up, medium shot）
+5. 包含艺术风格和色调
+
+直接输出提示词，不要其他解释。`;
 
                 const response = await fetch('/api/modelscope', {
                     method: 'POST',
@@ -2426,10 +2944,11 @@ ${row.sceneText}
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        action: 'generate',
+                        action: 'text-to-video',
                         prompt: row.video.prompt,
                         model: model,
-                        userId: currentUser.id
+                        userId: currentUser.id,
+                        skip_billing: true  // 前端已检查余额，后端不重复扣费
                     })
                 });
 

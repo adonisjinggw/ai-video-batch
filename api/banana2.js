@@ -149,7 +149,8 @@ const YUNMENG_ENDPOINTS = [
 
 // 兼容旧变量名
 const API_KEY = '';
-const YUNWU_ENDPOINTS = YUNMENG_ENDPOINTS;  // 别名，不重新声明
+// ✅ 直接使用 YUNMENG_ENDPOINTS（第144行已定义），不再重复声明
+
 /**
  * 🔄 带自动备用的图片生成请求
  * ☁️ 优化：并行请求多个端点，哪个先返回用哪个，大幅提速
@@ -172,7 +173,7 @@ async function fetchWithFallback(requestBody, isGemini3Native = false) {
 
     // 🚀 并行请求所有端点，第一个成功的就返回
     const apiKey = YUNMENG_API_KEYS[0];
-    const requests = YUNWU_ENDPOINTS.map(endpoint => {
+    const requests = YUNMENG_ENDPOINTS.map(endpoint => {
         const url = `${endpoint}${apiPath}`;
         console.log(`[banana2] ☁️ 并行请求: ${endpoint}`);
         return fetchWithTimeout(url, {
@@ -209,7 +210,7 @@ async function fetchWithFallback(requestBody, isGemini3Native = false) {
     if (YUNMENG_API_KEYS.length > 1) {
         for (let i = 1; i < YUNMENG_API_KEYS.length; i++) {
             const key = YUNMENG_API_KEYS[i];
-            for (const endpoint of YUNWU_ENDPOINTS) {
+            for (const endpoint of YUNMENG_ENDPOINTS) {
                 try {
                     console.log(`[banana2] ☁️ 备用Key${i+1}: ${endpoint}`);
                     const response = await fetchWithTimeout(`${endpoint}${apiPath}`, {
@@ -239,7 +240,7 @@ async function fetchWithFallback(requestBody, isGemini3Native = false) {
         return { ok: false, status: clientError.status, text: async () => JSON.stringify({ error: `HTTP ${clientError.status}` }) };
     }
 
-    throw new Error(`云梦API节点均不可访问（已并行尝试${YUNWU_ENDPOINTS.length}个节点），请稍后重试`);
+    throw new Error(`云梦API节点均不可访问（已并行尝试${YUNMENG_ENDPOINTS.length}个节点），请稍后重试`);
 }
 
 /**
@@ -734,11 +735,17 @@ module.exports = async function handler(req, res) {
                 }
             };
 
-            // 添加清晰度配置
-            if (resolution === '4K') {
-                geminiRequestBody.generationConfig.image_config.image_size = '4K';
-            } else if (resolution === '2K') {
-                geminiRequestBody.generationConfig.image_config.image_size = '2K';
+            // 🔧 清晰度配置：云梦/云雾 API 不支持 image_size，改用在 prompt 中强调高分辨率
+            // Gemini 3 Pro 本身支持生成高分辨率图像，通过提示词引导
+            if (resolution === '4K' || resolution === '2K') {
+                // 在提示词中添加高清指令（如果还没有）
+                const resHint = resolution === '4K' 
+                    ? '[Generate in ultra-high resolution 4K quality, extremely detailed and sharp]'
+                    : '[Generate in high resolution 2K quality, detailed and crisp]';
+                if (parts[0]?.text && !parts[0].text.includes('resolution')) {
+                    parts[0].text = parts[0].text + ' ' + resHint;
+                    console.log(`[banana2] 🌟 添加${resolution}高清提示词`);
+                }
             }
 
             console.log(`[banana2] Gemini原生格式请求, aspectRatio: ${aspect_ratio}, resolution: ${resolution}`);
