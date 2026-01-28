@@ -874,21 +874,6 @@
                 </div>
             </div>
 
-            <!-- 批量操作区 -->
-            <div class="section" style="padding:12px;">
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button onclick="openBatchPromptInput()" style="flex:1;min-width:140px;padding:10px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
-                        📝 批量导入提示词
-                    </button>
-                    <button onclick="openBatchCharacterSelect()" style="flex:1;min-width:140px;padding:10px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
-                        🎭 批量设置角色
-                    </button>
-                    <button onclick="applyRefToAll()" style="flex:1;min-width:140px;padding:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;cursor:pointer;">
-                        🖼️ 参考图应用到全部
-                    </button>
-                </div>
-            </div>
-
             <!-- 分镜列表 -->
             <div class="section-title" style="margin-bottom:12px;">
                 🎬 分镜列表
@@ -903,11 +888,20 @@
             </button>
 
             <!-- 底部操作栏 -->
-            <div class="pipeline-bottom-bar">
-                <button class="generate-btn" onclick="batchGenerateImages()" style="background:var(--bg-input);color:var(--text);border:1px solid var(--border);">
+            <div class="pipeline-bottom-bar" style="flex-wrap:wrap;">
+                <button class="generate-btn" onclick="openBatchPromptInput()" style="flex:1;min-width:100px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;">
+                    📝 批量提示词
+                </button>
+                <button class="generate-btn" onclick="openBatchCharacterSelect()" style="flex:1;min-width:100px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;">
+                    🎭 批量角色
+                </button>
+                <button class="generate-btn" onclick="applyRefToAll()" style="flex:1;min-width:100px;background:var(--bg-input);color:var(--text);border:1px solid var(--border);">
+                    🖼️ 参考图应用全部
+                </button>
+                <button class="generate-btn" onclick="batchGenerateImages()" style="flex:1;min-width:100px;background:var(--bg-input);color:var(--text);border:1px solid var(--border);">
                     🖼️ 批量生成图片
                 </button>
-                <button class="generate-btn" onclick="batchGenerateVideos()">
+                <button class="generate-btn" onclick="batchGenerateVideos()" style="flex:1;min-width:100px;">
                     🎬 批量生成视频
                 </button>
             </div>
@@ -1875,24 +1869,98 @@ ${story}
         // 参考图库格子（右上）
         function renderRefCell(row, index) {
             if (!row.refs) row.refs = [];
+            if (!row.refModel) row.refModel = 'modelscope';
+            const isGenerating = row.refGenerating;
+            
             return `
                 <div class="pipeline-cell" data-label="🎨 参考图">
                     <div class="pipeline-cell-title">🎨 参考图库</div>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;min-height:60px;">
+                    
+                    <!-- 图片列表 -->
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;min-height:50px;">
                         ${row.refs.map((ref, ri) => `
-                            <div style="width:50px;height:50px;border-radius:6px;overflow:hidden;position:relative;border:1px solid var(--border);">
+                            <div style="width:45px;height:45px;border-radius:6px;overflow:hidden;position:relative;border:1px solid var(--border);">
                                 <img src="${ref}" style="width:100%;height:100%;object-fit:cover;">
-                                <button onclick="removeRef(${index}, ${ri})" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:#ef4444;color:white;border:none;border-radius:50%;font-size:10px;cursor:pointer;">×</button>
+                                <button onclick="removeRef(${index}, ${ri})" style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:#ef4444;color:white;border:none;border-radius:50%;font-size:9px;cursor:pointer;">×</button>
                             </div>
                         `).join('')}
                         ${row.refs.length < 4 ? `
-                            <div style="width:50px;height:50px;border-radius:6px;background:var(--bg-input);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:#555;"
+                            <div style="width:45px;height:45px;border-radius:6px;background:var(--bg-input);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#555;"
                                 onclick="openRefUpload(${index})">+</div>
                         ` : ''}
                     </div>
-                    <p style="font-size:10px;color:var(--text-dim);margin-top:6px;">💡 上传角色/场景参考图</p>
+                    
+                    <!-- AI生成区 -->
+                    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+                        <input type="text" placeholder="输入描述生成参考图..." 
+                            style="width:100%;padding:6px;font-size:11px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text);"
+                            id="ref-prompt-${index}" value="${row.refPrompt || ''}" onchange="updateRefPrompt(${index}, this.value)">
+                        <div style="display:flex;gap:4px;margin-top:6px;">
+                            <select style="flex:1;padding:4px;font-size:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text);" 
+                                onchange="updateRefModel(${index}, this.value)">
+                                <option value="modelscope" ${row.refModel === 'modelscope' ? 'selected' : ''}>🆓 智能绘图</option>
+                                <option value="doubao-seedream-4-5-251128" ${row.refModel === 'doubao-seedream-4-5-251128' ? 'selected' : ''}>✨ 星梦画师</option>
+                                <option value="nano-banana-2" ${row.refModel === 'nano-banana-2' ? 'selected' : ''}>🍌 Banana</option>
+                            </select>
+                            <button onclick="generateRefImage(${index})" ${isGenerating ? 'disabled' : ''}
+                                style="padding:4px 8px;font-size:10px;background:var(--accent);color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;white-space:nowrap;">
+                                ${isGenerating ? '⏳' : '✨ 生成'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `;
+        }
+        
+        function updateRefPrompt(index, value) {
+            pipelineRows[index].refPrompt = value;
+        }
+        
+        function updateRefModel(index, value) {
+            pipelineRows[index].refModel = value;
+        }
+        
+        async function generateRefImage(index) {
+            const row = pipelineRows[index];
+            const prompt = row.refPrompt || row.sceneText;
+            if (!prompt) {
+                alert('请先输入描述或分镜文本');
+                return;
+            }
+            if (row.refs && row.refs.length >= 4) {
+                alert('参考图最多4张');
+                return;
+            }
+            
+            row.refGenerating = true;
+            renderPipelineRows();
+            
+            try {
+                const model = row.refModel || 'modelscope';
+                const ratio = globalConfig.imageRatio || '16:9';
+                
+                let result;
+                if (model === 'modelscope') {
+                    result = await window.ModelScopeAPI.generateImage(prompt);
+                } else {
+                    result = await window.YunwuAPI.generateImage({
+                        prompt: prompt,
+                        model: model,
+                        aspect_ratio: ratio
+                    });
+                }
+                
+                if (result && result.url) {
+                    if (!row.refs) row.refs = [];
+                    row.refs.push(result.url);
+                }
+            } catch (e) {
+                console.error('生成参考图失败:', e);
+                alert('生成失败: ' + e.message);
+            } finally {
+                row.refGenerating = false;
+                renderPipelineRows();
+            }
         }
         
         function removeRef(sceneIndex, refIndex) {
