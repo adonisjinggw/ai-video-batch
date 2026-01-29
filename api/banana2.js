@@ -869,8 +869,18 @@ module.exports = async function handler(req, res) {
                 const inlineData = part?.inline_data || part?.inlineData;
                 if (inlineData?.data) {
                     const mimeType = inlineData.mime_type || inlineData.mimeType || 'image/png';
-                    const url = `data:${mimeType};base64,${inlineData.data}`;
-                    imageUrls.push(url);
+                    let base64Data = inlineData.data;
+                    
+                    // 🔧 修复黑图问题：检查data是否已经包含base64前缀，避免重复拼接
+                    if (base64Data.startsWith('data:')) {
+                        // 已经是完整的 data URL，直接使用
+                        imageUrls.push(base64Data);
+                        console.log('[banana2] base64数据已包含前缀，直接使用');
+                    } else {
+                        // 纯base64数据，需要添加前缀
+                        const url = `data:${mimeType};base64,${base64Data}`;
+                        imageUrls.push(url);
+                    }
                 }
             }
             if (imageUrls.length > 0) {
@@ -884,7 +894,12 @@ module.exports = async function handler(req, res) {
                 if (item?.url && isValidImageUrl(item.url)) {
                     imageUrls.push(item.url);
                 } else if (item?.b64_json) {
-                    imageUrls.push(`data:image/png;base64,${item.b64_json}`);
+                    // 🔧 修复黑图：检查是否已包含data:前缀
+                    if (item.b64_json.startsWith('data:')) {
+                        imageUrls.push(item.b64_json);
+                    } else {
+                        imageUrls.push(`data:image/png;base64,${item.b64_json}`);
+                    }
                 }
             }
             if (imageUrls.length > 0) {
