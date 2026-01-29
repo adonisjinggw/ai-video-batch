@@ -586,16 +586,16 @@ module.exports = async function handler(req, res) {
 
             try {
                 // 根据 aspect_ratio 计算 size
-                // 🔧 修复：ModelScope/万象Max API 的 size 格式是 "高*宽"（与常规相反）
-                let size = '1328*1328';  // 默认正方形
+                // 🔧 修复比例反转：ModelScope/万象Max API 的 size 格式是 "宽*高"
+                let size = '1024*1024';  // 默认正方形
                 if (aspect_ratio === '16:9') {
-                    size = '768*1328';   // 横屏：高768 x 宽1328
+                    size = '1328*768';   // 横屏：宽1328 x 高768
                 } else if (aspect_ratio === '9:16') {
-                    size = '1328*768';   // 竖屏：高1328 x 宽768
+                    size = '768*1328';   // 竖屏：宽768 x 高1328
                 } else if (aspect_ratio === '4:3') {
-                    size = '1024*1328';  // 横屏标准
+                    size = '1328*1024';  // 横屏标准：宽1328 x 高1024
                 } else if (aspect_ratio === '3:4') {
-                    size = '1328*1024';  // 竖屏标准
+                    size = '1024*1328';  // 竖屏标准：宽1024 x 高1328
                 }
                 console.log(`[banana2] 🎨 万象Max size: ${size} (aspect_ratio=${aspect_ratio})`);
 
@@ -758,12 +758,14 @@ module.exports = async function handler(req, res) {
             };
 
             if (isSeedream) {
-                // 🔧 星梦画师使用 size 参数（WxH格式）
+                // 🔧 修复比例反转：星梦画师使用 size 参数（宽x高格式）
                 let width, height;
                 if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
+                    // 横屏：宽 > 高
                     width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
                     height = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
                 } else if (aspect_ratio === '9:16' || aspect_ratio === '10:16') {
+                    // 竖屏：高 > 宽
                     width = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
                     height = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
                 } else { // 1:1
@@ -771,7 +773,7 @@ module.exports = async function handler(req, res) {
                     height = width;
                 }
                 requestBody.size = `${width}x${height}`;
-                console.log(`[banana2] 星梦画师使用size: ${requestBody.size} (${resolution}, ${aspect_ratio})`);
+                console.log(`[banana2] 星梦画师使用size: ${requestBody.size} (宽x高, ${resolution}, ${aspect_ratio})`);
             } else if (isJimeng) {
                 // ✅ 即梦使用 aspect_ratio 参数
                 requestBody.aspect_ratio = aspect_ratio;
