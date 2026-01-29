@@ -155,6 +155,40 @@ async function handleImageToImageGeneration(prompt, imageUrls, apiKey) {
 }
 
 /**
+ * 🔧 辅助函数：将图片URL转换为base64（解决CORS/黑图问题）
+ */
+async function convertImageToBase64(imageUrl) {
+    if (!imageUrl || typeof imageUrl !== 'string') return null;
+    
+    // 已经是 base64 格式，直接返回
+    if (imageUrl.startsWith('data:')) {
+        return imageUrl;
+    }
+    
+    // 不是 http URL，无法转换
+    if (!imageUrl.startsWith('http')) {
+        return imageUrl;
+    }
+    
+    try {
+        console.log(`[modelscope] 🔄 转换图片为base64: ${imageUrl.substring(0, 60)}...`);
+        const response = await fetchWithTimeout(imageUrl, {}, 30000);
+        if (!response.ok) {
+            console.warn(`[modelscope] 下载图片失败: ${response.status}`);
+            return imageUrl;  // 失败时返回原始URL
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        const contentType = response.headers.get('content-type') || 'image/png';
+        console.log(`[modelscope] ✅ 转换成功: ${contentType}, ${Math.round(base64.length/1024)}KB`);
+        return `data:${contentType};base64,${base64}`;
+    } catch (err) {
+        console.warn(`[modelscope] 转换base64失败: ${err.message}`);
+        return imageUrl;  // 失败时返回原始URL
+    }
+}
+
+/**
  * 轮询图像任务状态（优化超时）
  */
 async function pollImageTask(taskId, apiKey) {
@@ -172,8 +206,22 @@ async function pollImageTask(taskId, apiKey) {
             const data = await pollRes.json();
             console.log(`[modelscope] 轮询 ${attempt + 1}/${maxAttempts}: ${data.task_status}`);
             if (data.task_status === 'SUCCEED') {
+                const outputImages = data.output_images || [];
+                
+                // 🔧 修复黑图：将阿里云OSS URL转换为base64，避免CORS问题
+                const convertedImages = [];
+                for (const imgUrl of outputImages) {
+                    // 检查是否是阿里云OSS链接（可能有CORS限制）
+                    if (imgUrl && (imgUrl.includes('aliyuncs.com') || imgUrl.includes('oss-cn-') || imgUrl.includes('modelscope'))) {
+                        const base64Url = await convertImageToBase64(imgUrl);
+                        convertedImages.push(base64Url);
+                    } else {
+                        convertedImages.push(imgUrl);
+                    }
+                }
+                
                 return {
-                    images: data.output_images || [],
+                    images: convertedImages,
                     taskId
                 };
             }
