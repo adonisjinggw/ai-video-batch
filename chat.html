@@ -770,10 +770,20 @@
             const welcomeEl = document.getElementById('welcome');
             if (welcomeEl) welcomeEl.style.display = 'none';
 
-            // 添加用户消息
-            addMessage(text, 'user');
+            // 添加用户消息（含附件预览）
+            let userDisplayText = text;
+            if (uploadedFiles.length > 0) {
+                const fileNames = uploadedFiles.map(f => `📎${f.name}`).join(' ');
+                userDisplayText = `${fileNames}\n${text}`;
+            }
+            addMessage(userDisplayText, 'user');
             messages.push({ role: 'user', content: text });
             input.value = '';
+            
+            // 保存当前上传的文件（发送后清空）
+            const currentFiles = [...uploadedFiles];
+            uploadedFiles = [];
+            updateUploadPreview();
 
             // 显示typing + 模型提示
             const container = document.getElementById('chatContainer');
@@ -807,12 +817,75 @@
                     }
                 }
                 
+                // 📎 构建最终消息（支持多模态）
+                let finalMessage;
+                if (currentFiles.length > 0) {
+                    // 有文件时，构建多模态消息
+                    const contentParts = [];
+                    
+                    // 添加文件内容
+                    for (const file of currentFiles) {
+                        if (file.type === 'image') {
+                            contentParts.push({
+                                type: 'image_url',
+                                image_url: { url: file.data }
+                            });
+                        } else if (file.type === 'file') {
+                            // 文本文件尝试解析内容
+                            if (file.data.startsWith('data:text/') || file.data.startsWith('data:application/json')) {
+                                try {
+                                    const base64Content = file.data.split(',')[1];
+                                    const textContent = atob(base64Content);
+                                    contentParts.push({
+                                        type: 'text',
+                                        text: `[文件: ${file.name}]\n${textContent}`
+                                    });
+                                } catch(e) {
+                                    contentParts.push({
+                                        type: 'text',
+                                        text: `[文件: ${file.name}] (无法解析)`
+                                    });
+                                }
+                            } else {
+                                // 其他文件类型作为附件信息
+                                contentParts.push({
+                                    type: 'text',
+                                    text: `[附件: ${file.name}, 大小: ${(file.size/1024).toFixed(1)}KB]`
+                                });
+                            }
+                        } else if (file.type === 'video') {
+                            // 视频文件作为附件信息（大部分AI不支持视频）
+                            contentParts.push({
+                                type: 'text',
+                                text: `[视频附件: ${file.name}, 大小: ${(file.size/1024/1024).toFixed(1)}MB]`
+                            });
+                        }
+                    }
+                    
+                    // 添加文本内容
+                    if (finalPrompt) {
+                        contentParts.push({ type: 'text', text: finalPrompt });
+                    }
+                    
+                    finalMessage = { role: 'user', content: contentParts };
+                    
+                    // 有图片时切换到视觉模型
+                    const hasImages = currentFiles.some(f => f.type === 'image');
+                    if (hasImages && !routing.model.includes('vision') && !routing.model.includes('gemini') && !routing.model.includes('gpt-4')) {
+                        routing.model = 'gemini-2.0-flash';  // 切换到支持视觉的模型
+                        console.log('🖼️ 检测到图片，切换到视觉模型:', routing.model);
+                    }
+                } else {
+                    // 无文件时，普通文本消息
+                    finalMessage = { role: 'user', content: finalPrompt };
+                }
+                
                 const response = await fetch('/api/yunwu', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'chat',  // 使用chat action支持多轮对话
-                        messages: contextMessages.concat([{ role: 'user', content: finalPrompt }]),
+                        messages: contextMessages.concat([finalMessage]),
                         system: systemPrompt,
                         model: routing.model,
                         userId: currentUser.id,

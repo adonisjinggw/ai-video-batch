@@ -874,6 +874,68 @@
                 </div>
             </div>
 
+            <!-- 🎨 设定图区域 -->
+            <div class="section" id="settings-section" style="display:none;">
+                <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>🎨 人物/场景设定</span>
+                    <button onclick="clearSettings()" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;cursor:pointer;">清空设定</button>
+                </div>
+                
+                <!-- 人物设定 -->
+                <div id="character-settings" style="margin-bottom:16px;">
+                    <div style="font-size:12px;color:var(--accent);margin-bottom:8px;">👤 人物设定</div>
+                    <div id="character-cards" style="display:flex;flex-wrap:wrap;gap:12px;">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+                
+                <!-- 场景设定 -->
+                <div id="scene-settings">
+                    <div style="font-size:12px;color:var(--accent);margin-bottom:8px;">🌄 场景设定</div>
+                    <div id="scene-cards" style="display:flex;flex-wrap:wrap;gap:12px;">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+                
+                <!-- 应用按钮 -->
+                <div style="margin-top:12px;display:flex;gap:8px;">
+                    <button onclick="applySettingsToAllScenes()" class="generate-btn" style="flex:1;padding:10px;font-size:12px;background:linear-gradient(135deg,#10b981,#059669);">
+                        ✨ 应用设定到所有分镜
+                    </button>
+                    <button onclick="regenerateAllSettings()" class="generate-btn" style="flex:1;padding:10px;font-size:12px;background:var(--bg-input);color:var(--text);border:1px solid var(--border);">
+                        🔄 重新生成设定图
+                    </button>
+                </div>
+            </div>
+
+            <!-- 🚀 流水线进度 -->
+            <div class="section" id="pipeline-progress-section" style="display:none;">
+                <div class="section-title">🚀 流水线进度</div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <div class="pipeline-step" id="step-1" style="flex:1;padding:10px;background:var(--bg-input);border-radius:8px;text-align:center;">
+                        <div style="font-size:16px;">1️⃣</div>
+                        <div style="font-size:10px;color:var(--text-dim);">分镜拆分</div>
+                    </div>
+                    <div class="pipeline-step" id="step-2" style="flex:1;padding:10px;background:var(--bg-input);border-radius:8px;text-align:center;">
+                        <div style="font-size:16px;">2️⃣</div>
+                        <div style="font-size:10px;color:var(--text-dim);">设定提取</div>
+                    </div>
+                    <div class="pipeline-step" id="step-3" style="flex:1;padding:10px;background:var(--bg-input);border-radius:8px;text-align:center;">
+                        <div style="font-size:16px;">3️⃣</div>
+                        <div style="font-size:10px;color:var(--text-dim);">设定图</div>
+                    </div>
+                    <div class="pipeline-step" id="step-4" style="flex:1;padding:10px;background:var(--bg-input);border-radius:8px;text-align:center;">
+                        <div style="font-size:16px;">4️⃣</div>
+                        <div style="font-size:10px;color:var(--text-dim);">分镜图</div>
+                    </div>
+                    <div class="pipeline-step" id="step-5" style="flex:1;padding:10px;background:var(--bg-input);border-radius:8px;text-align:center;">
+                        <div style="font-size:16px;">5️⃣</div>
+                        <div style="font-size:10px;color:var(--text-dim);">视频</div>
+                    </div>
+                </div>
+                <div id="pipeline-status" style="font-size:12px;color:var(--text-dim);text-align:center;">等待开始...</div>
+            </div>
+
             <!-- 分镜列表 -->
             <div class="section-title" style="margin-bottom:12px;">
                 🎬 分镜列表
@@ -887,8 +949,23 @@
                 + 添加分镜
             </button>
 
+            <!-- 费用预估 -->
+            <div class="section" id="pipeline-cost-section" style="margin-top:16px;padding:12px;background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.3);border-radius:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <span style="font-size:14px;font-weight:600;color:var(--accent);">💰 预估费用</span>
+                        <span id="pipeline-cost-detail" style="font-size:12px;color:var(--text-dim);margin-left:8px;">0 胶片</span>
+                    </div>
+                    <button onclick="showCostBreakdown()" style="padding:4px 10px;background:none;border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:11px;cursor:pointer;">详细</button>
+                </div>
+            </div>
+
             <!-- 底部操作栏 -->
             <div class="pipeline-bottom-bar" style="flex-wrap:wrap;">
+                <!-- 🚀 一键生成按钮（突出显示） -->
+                <button class="generate-btn" id="smart-pipeline-btn" onclick="runSmartPipeline()" style="flex:2;min-width:200px;background:linear-gradient(135deg,#10b981,#059669);border:none;font-size:14px;padding:14px;">
+                    🚀 一键生成全部
+                </button>
                 <button class="generate-btn" onclick="openBatchPromptInput()" style="flex:1;min-width:100px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;">
                     📝 批量提示词
                 </button>
@@ -925,6 +1002,15 @@
             mjVersion: '6.1',
             imageRatio: '16:9',
             videoModel: 'sora-2-all'
+        };
+        
+        // 🎬 流水线设定（人物/场景设定图）
+        const pipelineSettings = {
+            characters: [],   // 人物设定 [{name, description, prompt, imageUrl, generating}]
+            scenes: [],       // 场景设定 [{name, description, prompt, imageUrl, generating}]
+            storyAnalyzed: false,  // 是否已分析故事
+            pipelineStep: 0,       // 当前流水线步骤 (0=未开始, 1=分镜, 2=设定, 3=图片, 4=视频, 5=完成)
+            pipelineRunning: false // 流水线是否正在运行
         };
         
         // 切换全局MJ版本选择器显示
@@ -1953,6 +2039,17 @@ ${story}
                 return;
             }
             
+            // 检查登录
+            if (!currentUser) {
+                if (typeof NVAuth !== 'undefined') {
+                    currentUser = await NVAuth.getCurrentUser();
+                }
+                if (!currentUser) {
+                    alert('请先登录');
+                    return;
+                }
+            }
+            
             row.refGenerating = true;
             renderPipelineRows();
             
@@ -1960,29 +2057,59 @@ ${story}
                 const model = row.refModel || 'modelscope';
                 const ratio = globalConfig.imageRatio || '16:9';
                 
-                let result;
+                let apiUrl, requestBody;
+                
                 if (model === 'modelscope') {
-                    result = await window.ModelScopeAPI.generateImage(prompt);
+                    // 使用 modelscope API (免费)
+                    apiUrl = '/api/modelscope';
+                    requestBody = {
+                        action: 'image',
+                        prompt: prompt,
+                        userId: currentUser.id
+                    };
                 } else if (model.includes('midjourney')) {
-                    // MJ模型需要传递版本参数
+                    // MJ模型使用 yunwu API
                     const mjVersion = row.refMJVersion || '6.1';
-                    result = await window.YunwuAPI.generateImage({
+                    apiUrl = '/api/yunwu';
+                    requestBody = {
+                        action: 'image',
                         prompt: prompt,
                         model: model,
                         aspect_ratio: ratio,
-                        version: mjVersion
-                    });
+                        version: mjVersion,
+                        userId: currentUser.id
+                    };
                 } else {
-                    result = await window.YunwuAPI.generateImage({
+                    // 其他模型使用 banana2 API
+                    apiUrl = '/api/banana2';
+                    requestBody = {
+                        action: 'generate',
                         prompt: prompt,
                         model: model,
-                        aspect_ratio: ratio
-                    });
+                        aspect_ratio: ratio,
+                        userId: currentUser.id
+                    };
                 }
                 
-                if (result && result.url) {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.message || errData.error || '生成失败');
+                }
+                
+                const result = await response.json();
+                const imageUrl = result.url || result.imageUrl || result.image || (result.data && result.data[0] && result.data[0].url);
+                
+                if (imageUrl) {
                     if (!row.refs) row.refs = [];
-                    row.refs.push(result.url);
+                    row.refs.push(imageUrl);
+                } else {
+                    throw new Error('未获取到图片URL');
                 }
             } catch (e) {
                 console.error('生成参考图失败:', e);
@@ -2739,28 +2866,123 @@ ${row.sceneText}
                     throw new Error(`余额不足，需要${cost}胶片，当前余额${balance}胶片`);
                 }
                 
+                // 构建请求参数
+                const hasImage = row.image.result; // 有图片结果则用图生视频
+                const requestBody = {
+                    action: hasImage ? 'image-to-video' : 'text-to-video',
+                    prompt: row.video.prompt,
+                    model: model,
+                    userId: currentUser.id
+                };
+                
+                // 如果有参考图，添加图片URL
+                if (hasImage) {
+                    requestBody.image_url = row.image.result;
+                }
+                
+                // 添加参考图（如果有）
+                if (row.refs && row.refs.length > 0) {
+                    requestBody.image_url = requestBody.image_url || row.refs[0];
+                }
+                
                 const response = await fetch('/api/sora2', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'generate',
-                        prompt: row.video.prompt,
-                        model: model,
-                        userId: currentUser.id
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
-                if (!response.ok) throw new Error('视频生成失败');
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.message || errData.error || '视频生成失败');
+                }
 
                 const result = await response.json();
-                row.video.result = result.videoUrl || result.url || result.video;
-                row.video.status = 'done';
-                renderPipelineRows();
+                
+                // 视频生成是异步的，返回的是task_id，需要轮询
+                const taskId = result.task_id || result.id;
+                if (taskId) {
+                    row.video.taskId = taskId;
+                    row.video.status = 'processing';
+                    renderPipelineRows();
+                    
+                    // 开始轮询视频状态
+                    pollVideoStatus(index, taskId);
+                } else if (result.videoUrl || result.url || result.video) {
+                    // 直接返回了视频URL（某些API可能同步返回）
+                    row.video.result = result.videoUrl || result.url || result.video;
+                    row.video.status = 'done';
+                    renderPipelineRows();
+                } else {
+                    throw new Error('未获取到任务ID或视频URL');
+                }
                 
             } catch (error) {
                 row.video.status = 'error';
                 row.video.error = error.message;
                 renderPipelineRows();
+            }
+        }
+
+        // 轮询视频状态
+        async function pollVideoStatus(index, taskId, retryCount = 0) {
+            const maxRetries = 60; // 最多轮询60次（约5分钟）
+            const pollInterval = 5000; // 每5秒轮询一次
+            
+            if (retryCount >= maxRetries) {
+                const row = pipelineRows[index];
+                if (row) {
+                    row.video.status = 'error';
+                    row.video.error = '轮询超时，请稍后在生成记录中查看';
+                    renderPipelineRows();
+                }
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/sora2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'poll',
+                        task_id: taskId,
+                        userId: currentUser?.id
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('查询失败');
+                }
+                
+                const result = await response.json();
+                const row = pipelineRows[index];
+                if (!row) return; // 行已被删除
+                
+                const status = result.status || result.state;
+                
+                if (status === 'completed' || status === 'succeeded' || status === 'success' || status === 'done') {
+                    // 完成
+                    const videoUrl = result.video_url || result.url || result.output?.video_url || result.result?.video_url;
+                    if (videoUrl) {
+                        row.video.result = videoUrl;
+                        row.video.status = 'done';
+                    } else {
+                        row.video.status = 'error';
+                        row.video.error = '未获取到视频URL';
+                    }
+                    renderPipelineRows();
+                } else if (status === 'failed' || status === 'error') {
+                    // 失败
+                    row.video.status = 'error';
+                    row.video.error = result.error || result.message || '生成失败';
+                    renderPipelineRows();
+                } else {
+                    // 仍在处理中，继续轮询
+                    setTimeout(() => pollVideoStatus(index, taskId, retryCount + 1), pollInterval);
+                }
+            } catch (e) {
+                console.error('轮询视频状态失败:', e);
+                // 网络错误时继续重试
+                setTimeout(() => pollVideoStatus(index, taskId, retryCount + 1), pollInterval);
             }
         }
 
@@ -2795,6 +3017,495 @@ ${row.sceneText}
                 await generateSingleVideo(index);
             }
         }
+
+        // ==================== 🚀 智能流水线功能 ====================
+        
+        // 计算流水线总费用
+        function calculatePipelineCost() {
+            const imageModel = document.getElementById('global-image-model')?.value || 'modelscope';
+            const videoModel = document.getElementById('global-video-model')?.value || 'sora-2-all';
+            const sceneCount = pipelineRows.length || 3;
+            
+            // 图片模型费用
+            const IMAGE_COST = {
+                'modelscope': 0,
+                'doubao-seedream-4-5-251128': 7,
+                'nano-banana-2': 6,
+                'nano-banana-2-4k': 10,
+                'Qwen/Qwen-Image-2512': 8,
+                'midjourney-fast': 2,
+                'midjourney-turbo': 2
+            };
+            
+            // 视频模型费用
+            const VIDEO_COST = {
+                'sora-2-all': 7,
+                'sora-2-pro-all': 14,
+                'veo3.1-components-4k': 30,
+                'grok-video-3': 5,
+                'vidu-q2-5s-720p': 25,
+                'hailuo-02-768p-6s': 7,
+                'kling-2.5-720p-5s': 5
+            };
+            
+            const imgCost = IMAGE_COST[imageModel] || 6;
+            const vidCost = VIDEO_COST[videoModel] || 7;
+            
+            // 设定图费用（最多2张人物+2张场景）
+            const settingImageCount = Math.min(4, (pipelineSettings.characters.length || 1) + (pipelineSettings.scenes.length || 1));
+            const settingCost = settingImageCount * imgCost;
+            
+            // 分镜图费用
+            const sceneImageCost = sceneCount * imgCost;
+            
+            // 视频费用
+            const videoCost = sceneCount * vidCost;
+            
+            // 总费用
+            const total = settingCost + sceneImageCost + videoCost;
+            
+            return {
+                settingCost,
+                sceneImageCost,
+                videoCost,
+                total,
+                sceneCount,
+                imageModel,
+                videoModel
+            };
+        }
+        
+        // 更新费用显示
+        function updatePipelineCost() {
+            const cost = calculatePipelineCost();
+            const costDetail = document.getElementById('pipeline-cost-detail');
+            if (costDetail) {
+                costDetail.textContent = `约 ${cost.total} 胶片 (设定${cost.settingCost} + 分镜图${cost.sceneImageCost} + 视频${cost.videoCost})`;
+            }
+        }
+        
+        // 显示费用明细
+        function showCostBreakdown() {
+            const cost = calculatePipelineCost();
+            alert(`💰 费用明细\n\n` +
+                `🎨 设定图: ${cost.settingCost} 胶片\n` +
+                `🖼️ 分镜图: ${cost.sceneImageCost} 胶片 (${cost.sceneCount}张)\n` +
+                `🎬 视频: ${cost.videoCost} 胶片 (${cost.sceneCount}条)\n\n` +
+                `📊 总计: ${cost.total} 胶片\n\n` +
+                `图片模型: ${cost.imageModel}\n` +
+                `视频模型: ${cost.videoModel}`);
+        }
+        
+        // 更新流水线步骤状态
+        function updatePipelineStep(step, status) {
+            // status: 'pending' | 'active' | 'done' | 'error'
+            pipelineSettings.pipelineStep = step;
+            
+            for (let i = 1; i <= 5; i++) {
+                const stepEl = document.getElementById(`step-${i}`);
+                if (!stepEl) continue;
+                
+                stepEl.style.background = 'var(--bg-input)';
+                stepEl.style.borderColor = 'transparent';
+                
+                if (i < step) {
+                    // 已完成
+                    stepEl.style.background = 'rgba(34, 197, 94, 0.2)';
+                    stepEl.style.border = '1px solid rgba(34, 197, 94, 0.5)';
+                } else if (i === step) {
+                    // 当前步骤
+                    if (status === 'active') {
+                        stepEl.style.background = 'rgba(251, 191, 36, 0.2)';
+                        stepEl.style.border = '1px solid var(--accent)';
+                    } else if (status === 'done') {
+                        stepEl.style.background = 'rgba(34, 197, 94, 0.2)';
+                        stepEl.style.border = '1px solid rgba(34, 197, 94, 0.5)';
+                    } else if (status === 'error') {
+                        stepEl.style.background = 'rgba(239, 68, 68, 0.2)';
+                        stepEl.style.border = '1px solid rgba(239, 68, 68, 0.5)';
+                    }
+                }
+            }
+        }
+        
+        // 更新流水线状态文本
+        function updatePipelineStatus(text) {
+            const statusEl = document.getElementById('pipeline-status');
+            if (statusEl) statusEl.textContent = text;
+        }
+        
+        // 分析故事内容，提取人物和场景
+        async function analyzeStoryContent(story) {
+            if (!currentUser) {
+                if (typeof NVAuth !== 'undefined') {
+                    currentUser = await NVAuth.getCurrentUser();
+                }
+                if (!currentUser) throw new Error('请先登录');
+            }
+            
+            const prompt = `分析以下故事内容，提取所有人物和主要场景，并为每个生成详细的英文图片提示词。
+
+故事内容:
+${story}
+
+请返回 JSON 格式:
+{
+  "characters": [
+    {
+      "name": "角色名",
+      "description": "角色简介",
+      "prompt": "详细的英文图片提示词，包含外貌、服装、表情、姿势等"
+    }
+  ],
+  "scenes": [
+    {
+      "name": "场景名",
+      "description": "场景简介",
+      "prompt": "详细的英文场景提示词，包含环境、光线、氛围等"
+    }
+  ]
+}
+
+注意:
+1. 如果没有明确的人物，characters数组可以为空
+2. prompt 必须是英文，详细具体，适合AI绘图
+3. 每个提示词50-100词
+4. 只返回 JSON，不要其他内容`;
+
+            const response = await fetch('/api/modelscope', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'text',
+                    prompt: prompt,
+                    userId: currentUser.id
+                })
+            });
+            
+            if (!response.ok) throw new Error('AI分析失败');
+            
+            const result = await response.json();
+            const text = result.text || result.content || '';
+            
+            // 提取JSON
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('未能解析AI返回的内容');
+            
+            return JSON.parse(jsonMatch[0]);
+        }
+        
+        // 生成设定图
+        async function generateSettingImage(type, index) {
+            const settings = type === 'character' ? pipelineSettings.characters : pipelineSettings.scenes;
+            const setting = settings[index];
+            if (!setting || !setting.prompt) return;
+            
+            setting.generating = true;
+            renderSettingsCards();
+            
+            try {
+                const model = document.getElementById('global-image-model')?.value || 'modelscope';
+                const ratio = document.getElementById('global-image-ratio')?.value || '16:9';
+                
+                let apiUrl, requestBody;
+                if (model === 'modelscope') {
+                    apiUrl = '/api/modelscope';
+                    requestBody = {
+                        action: 'image',
+                        prompt: setting.prompt,
+                        userId: currentUser.id
+                    };
+                } else {
+                    apiUrl = '/api/banana2';
+                    requestBody = {
+                        action: 'generate',
+                        prompt: setting.prompt,
+                        model: model,
+                        aspect_ratio: ratio,
+                        userId: currentUser.id
+                    };
+                }
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) throw new Error('生成失败');
+                
+                const result = await response.json();
+                setting.imageUrl = result.url || result.imageUrl || result.image || (result.data?.[0]?.url);
+                
+            } catch (e) {
+                console.error('生成设定图失败:', e);
+                setting.error = e.message;
+            } finally {
+                setting.generating = false;
+                renderSettingsCards();
+            }
+        }
+        
+        // 渲染设定卡片
+        function renderSettingsCards() {
+            const charContainer = document.getElementById('character-cards');
+            const sceneContainer = document.getElementById('scene-cards');
+            const settingsSection = document.getElementById('settings-section');
+            
+            // 显示设定区域
+            if (pipelineSettings.characters.length > 0 || pipelineSettings.scenes.length > 0) {
+                settingsSection.style.display = 'block';
+            }
+            
+            // 渲染人物卡片
+            if (charContainer) {
+                charContainer.innerHTML = pipelineSettings.characters.map((char, i) => `
+                    <div style="width:200px;background:var(--bg-input);border-radius:10px;padding:10px;border:1px solid var(--border);">
+                        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">👤 ${char.name}</div>
+                        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;">${char.description || ''}</div>
+                        ${char.imageUrl ? 
+                            `<img src="${char.imageUrl}" style="width:100%;height:100px;object-fit:cover;border-radius:6px;margin-bottom:8px;">` :
+                            `<div style="width:100%;height:100px;background:var(--bg-dark);border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;color:#555;font-size:11px;">${char.generating ? '⚙️ 生成中...' : '点击生成'}</div>`
+                        }
+                        <textarea style="width:100%;height:50px;font-size:10px;padding:6px;background:var(--bg-dark);border:1px solid var(--border);border-radius:4px;color:var(--text);resize:none;"
+                            onchange="pipelineSettings.characters[${i}].prompt = this.value">${char.prompt || ''}</textarea>
+                        <button onclick="generateSettingImage('character', ${i})" ${char.generating ? 'disabled' : ''}
+                            style="width:100%;margin-top:6px;padding:6px;background:var(--accent);color:#000;border:none;border-radius:4px;font-size:10px;cursor:pointer;">
+                            ${char.generating ? '⚙️ 生成中...' : '✨ 生成设定图'}
+                        </button>
+                    </div>
+                `).join('') || '<div style="color:#555;font-size:11px;">未提取到人物</div>';
+            }
+            
+            // 渲染场景卡片
+            if (sceneContainer) {
+                sceneContainer.innerHTML = pipelineSettings.scenes.map((scene, i) => `
+                    <div style="width:200px;background:var(--bg-input);border-radius:10px;padding:10px;border:1px solid var(--border);">
+                        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">🌄 ${scene.name}</div>
+                        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;">${scene.description || ''}</div>
+                        ${scene.imageUrl ? 
+                            `<img src="${scene.imageUrl}" style="width:100%;height:100px;object-fit:cover;border-radius:6px;margin-bottom:8px;">` :
+                            `<div style="width:100%;height:100px;background:var(--bg-dark);border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;color:#555;font-size:11px;">${scene.generating ? '⚙️ 生成中...' : '点击生成'}</div>`
+                        }
+                        <textarea style="width:100%;height:50px;font-size:10px;padding:6px;background:var(--bg-dark);border:1px solid var(--border);border-radius:4px;color:var(--text);resize:none;"
+                            onchange="pipelineSettings.scenes[${i}].prompt = this.value">${scene.prompt || ''}</textarea>
+                        <button onclick="generateSettingImage('scene', ${i})" ${scene.generating ? 'disabled' : ''}
+                            style="width:100%;margin-top:6px;padding:6px;background:var(--accent);color:#000;border:none;border-radius:4px;font-size:10px;cursor:pointer;">
+                            ${scene.generating ? '⚙️ 生成中...' : '✨ 生成设定图'}
+                        </button>
+                    </div>
+                `).join('') || '<div style="color:#555;font-size:11px;">未提取到场景</div>';
+            }
+        }
+        
+        // 清空设定
+        function clearSettings() {
+            if (!confirm('确认清空所有人物/场景设定？')) return;
+            pipelineSettings.characters = [];
+            pipelineSettings.scenes = [];
+            pipelineSettings.storyAnalyzed = false;
+            renderSettingsCards();
+            document.getElementById('settings-section').style.display = 'none';
+        }
+        
+        // 应用设定到所有分镜
+        function applySettingsToAllScenes() {
+            // 收集所有设定图
+            const settingImages = [];
+            pipelineSettings.characters.forEach(c => { if (c.imageUrl) settingImages.push(c.imageUrl); });
+            pipelineSettings.scenes.forEach(s => { if (s.imageUrl) settingImages.push(s.imageUrl); });
+            
+            if (settingImages.length === 0) {
+                alert('请先生成设定图');
+                return;
+            }
+            
+            // 应用到所有分镜的参考图
+            pipelineRows.forEach(row => {
+                row.refs = [...settingImages];
+                // 同时更新参考图提示词（取第一个人物的提示词）
+                if (pipelineSettings.characters.length > 0) {
+                    row.refPrompt = pipelineSettings.characters[0].prompt;
+                }
+            });
+            
+            renderPipelineRows();
+            alert(`✅ 已将 ${settingImages.length} 张设定图应用到所有分镜`);
+        }
+        
+        // 重新生成所有设定图
+        async function regenerateAllSettings() {
+            const total = pipelineSettings.characters.length + pipelineSettings.scenes.length;
+            if (total === 0) {
+                alert('没有可生成的设定');
+                return;
+            }
+            
+            if (!confirm(`确认重新生成 ${total} 张设定图？`)) return;
+            
+            for (let i = 0; i < pipelineSettings.characters.length; i++) {
+                await generateSettingImage('character', i);
+            }
+            for (let i = 0; i < pipelineSettings.scenes.length; i++) {
+                await generateSettingImage('scene', i);
+            }
+            
+            alert('✅ 设定图生成完成');
+        }
+        
+        // 🚀 一键生成全部 - 智能流水线主函数
+        async function runSmartPipeline() {
+            const storyInput = document.getElementById('pipeline-story-input');
+            const story = storyInput?.value?.trim();
+            
+            if (!story || story.length < 30) {
+                alert('请先输入故事内容（至少30字）');
+                return;
+            }
+            
+            // 检查登录
+            if (!currentUser) {
+                if (typeof NVAuth !== 'undefined') {
+                    currentUser = await NVAuth.getCurrentUser();
+                }
+                if (!currentUser) {
+                    alert('请先登录');
+                    return;
+                }
+            }
+            
+            // 检查余额
+            const cost = calculatePipelineCost();
+            const profile = await NVAuth.getUserProfile(currentUser.id);
+            const balance = profile?.quota_balance || 0;
+            if (balance < cost.total) {
+                alert(`余额不足！需要约 ${cost.total} 胶片，当前余额 ${balance} 胶片`);
+                return;
+            }
+            
+            if (!confirm(`🚀 开始智能流水线\n\n预估费用: ${cost.total} 胶片\n当前余额: ${balance} 胶片\n\n流程:
+1. AI分析分镜
+2. 提取人物/场景
+3. 生成设定图
+4. 生成分镜图
+5. 生成视频\n\n确认开始？`)) {
+                return;
+            }
+            
+            // 禁用按钮
+            const btn = document.getElementById('smart-pipeline-btn');
+            btn.disabled = true;
+            btn.textContent = '⚙️ 流水线运行中...';
+            
+            pipelineSettings.pipelineRunning = true;
+            document.getElementById('pipeline-progress-section').style.display = 'block';
+            
+            try {
+                // ===== 步骤1: AI分析分镜 =====
+                updatePipelineStep(1, 'active');
+                updatePipelineStatus('⚙️ 步骤1/5: AI分析故事，拆分分镜...');
+                
+                await aiGenerateStoryboards();
+                updatePipelineStep(1, 'done');
+                
+                // ===== 步骤2: 提取人物/场景 =====
+                updatePipelineStep(2, 'active');
+                updatePipelineStatus('⚙️ 步骤2/5: 提取人物和场景信息...');
+                
+                const analysis = await analyzeStoryContent(story);
+                pipelineSettings.characters = analysis.characters || [];
+                pipelineSettings.scenes = analysis.scenes || [];
+                pipelineSettings.storyAnalyzed = true;
+                renderSettingsCards();
+                updatePipelineStep(2, 'done');
+                
+                // ===== 步骤3: 生成设定图 =====
+                updatePipelineStep(3, 'active');
+                updatePipelineStatus('⚙️ 步骤3/5: 生成人物/场景设定图...');
+                
+                // 生成人物设定图
+                for (let i = 0; i < pipelineSettings.characters.length; i++) {
+                    updatePipelineStatus(`⚙️ 步骤3/5: 生成人物设定图 (${i + 1}/${pipelineSettings.characters.length})...`);
+                    await generateSettingImage('character', i);
+                }
+                // 生成场景设定图
+                for (let i = 0; i < pipelineSettings.scenes.length; i++) {
+                    updatePipelineStatus(`⚙️ 步骤3/5: 生成场景设定图 (${i + 1}/${pipelineSettings.scenes.length})...`);
+                    await generateSettingImage('scene', i);
+                }
+                
+                // 应用设定图到分镜
+                applySettingsToAllScenes();
+                updatePipelineStep(3, 'done');
+                
+                // ===== 步骤4: 生成分镜图 =====
+                updatePipelineStep(4, 'active');
+                
+                // 先优化所有分镜的图片提示词
+                for (let i = 0; i < pipelineRows.length; i++) {
+                    if (!pipelineRows[i].image.prompt && pipelineRows[i].sceneText) {
+                        updatePipelineStatus(`⚙️ 步骤4/5: 优化图片提示词 (${i + 1}/${pipelineRows.length})...`);
+                        await optimizeToImagePrompt(i);
+                    }
+                }
+                
+                // 生成分镜图
+                for (let i = 0; i < pipelineRows.length; i++) {
+                    if (pipelineRows[i].image.prompt && pipelineRows[i].image.status !== 'done') {
+                        updatePipelineStatus(`⚙️ 步骤4/5: 生成分镜图 (${i + 1}/${pipelineRows.length})...`);
+                        await generateSingleImage(i);
+                    }
+                }
+                updatePipelineStep(4, 'done');
+                
+                // ===== 步骤5: 生成视频 =====
+                updatePipelineStep(5, 'active');
+                
+                // 先优化视频提示词
+                for (let i = 0; i < pipelineRows.length; i++) {
+                    if (!pipelineRows[i].video.prompt && pipelineRows[i].image.result) {
+                        updatePipelineStatus(`⚙️ 步骤5/5: 优化视频提示词 (${i + 1}/${pipelineRows.length})...`);
+                        await analyzeImageToVideoPrompt(i);
+                    }
+                }
+                
+                // 生成视频
+                for (let i = 0; i < pipelineRows.length; i++) {
+                    if (pipelineRows[i].video.prompt && pipelineRows[i].video.status !== 'done' && pipelineRows[i].video.status !== 'processing') {
+                        updatePipelineStatus(`⚙️ 步骤5/5: 生成视频 (${i + 1}/${pipelineRows.length})...`);
+                        await generateSingleVideo(i);
+                    }
+                }
+                updatePipelineStep(5, 'done');
+                
+                // 完成
+                updatePipelineStatus('✅ 流水线完成！');
+                alert('🎉 智能流水线完成！\n\n视频正在后台生成中，请稍候查看结果。');
+                
+            } catch (error) {
+                console.error('流水线错误:', error);
+                updatePipelineStatus(`❌ 错误: ${error.message}`);
+                updatePipelineStep(pipelineSettings.pipelineStep, 'error');
+                alert('流水线运行出错: ' + error.message);
+            } finally {
+                pipelineSettings.pipelineRunning = false;
+                btn.disabled = false;
+                btn.textContent = '🚀 一键生成全部';
+            }
+        }
+        
+        // 监听配置变化更新费用
+        document.addEventListener('DOMContentLoaded', () => {
+            // 绑定配置变化事件
+            const imageModelSelect = document.getElementById('global-image-model');
+            const videoModelSelect = document.getElementById('global-video-model');
+            
+            if (imageModelSelect) imageModelSelect.addEventListener('change', updatePipelineCost);
+            if (videoModelSelect) videoModelSelect.addEventListener('change', updatePipelineCost);
+            
+            // 初始计算
+            setTimeout(updatePipelineCost, 500);
+        });
     </script>
 </body>
 </html>
