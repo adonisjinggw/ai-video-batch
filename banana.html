@@ -3349,6 +3349,23 @@
             }
         }
         
+        // 🔧 带超时的 fetch 函数
+        async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { ...options, signal: controller.signal });
+                clearTimeout(timeoutId);
+                return response;
+            } catch (err) {
+                clearTimeout(timeoutId);
+                if (err.name === 'AbortError') {
+                    throw new Error(`请求超时（${Math.round(timeoutMs/1000)}秒）`);
+                }
+                throw err;
+            }
+        }
+        
         // 单图生成 API 调用（供批量模式复用）
         // 🎨 新增参考图参数支持
         // 返回: string (url) 或 object { urls: string[], isMjGrid: true }
@@ -3359,9 +3376,13 @@
             const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
             const isBanana = model && model.startsWith('nano-banana-');
             
+            // 🔧 根据模型类型设置不同的超时时间
+            // 万象Max 需要较长时间（异步任务轮询）
+            const timeoutMs = isQwenImage ? 180000 : (isMidjourney ? 180000 : (isSeedream ? 120000 : 90000));
+            
             if (isQwenImage) {
-                // 通义万象Max
-                response = await fetch('/api/banana2', {
+                // 通义万象Max - 🔧 使用180秒超时
+                response = await fetchWithTimeout('/api/banana2', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -3370,7 +3391,7 @@
                         model: 'qwen-image-max',
                         userId: currentUser.id
                     })
-                });
+                }, timeoutMs);
             } else if (model === 'modelscope') {
                 response = await fetch('/api/modelscope', {
                     method: 'POST',
@@ -3424,11 +3445,12 @@
                     }
                 }
                 
-                response = await fetch(apiEndpoint, {
+                // 🔧 使用带超时的 fetch
+                response = await fetchWithTimeout(apiEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody)
-                });
+                }, timeoutMs);
             }
             
             if (!response.ok) {

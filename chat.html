@@ -628,11 +628,9 @@
         // 🧠 智能模型路由：根据用户输入自动选择性价比最高的模型
         // 模型价格参考 (yunwu.ai):
         // - gemini-3-flash-preview: 输入￥0.15/1M, 输出￥0.9/1M (最便宜)
-        // - deepseek-v3.2: 输入￥0.6/1M, 输出￥0.9/1M (代码强)
         // - qwen-plus: 输入￥0.24/1M, 输出￥0.6/1M (中文优化)
         // - gemini-3-pro-preview: 输入￥0.6/1M, 输出￥3.6/1M (多模态)
         // - gemini-3-pro-preview-thinking: 输入￥0.6/1M, 输出￥3.6/1M (思考模式)
-        // - claude-haiku-4-5: 输入￥0.5/1M, 输出￥2.5/1M (快速)
         function selectModelByIntent(text) {
             const lower = text.toLowerCase();
             
@@ -654,16 +652,16 @@
                 return { model: 'gemini-3-pro-preview-thinking', type: 'thinking', icon: '🧠', cost: 2 };
             }
             
-            // 🔍 普通分析/理解/解释 → DeepSeek V3.2 (便宜且强)
+            // 🔍 普通分析/理解/解释 → Qwen Plus (中文优化且便宜)
             const analysisKeywords = ['分析', '解释', '为什么', '原因', '理解', '比较', '区别', '优劣', '评价', '总结', '归纳'];
             if (analysisKeywords.some(kw => lower.includes(kw))) {
-                return { model: 'deepseek-v3.2', type: 'analysis', icon: '🔍', cost: 1 };
+                return { model: 'qwen-plus', type: 'analysis', icon: '🔍', cost: 1 };
             }
             
-            // 💻 编程/代码 → DeepSeek V3.2 (代码能力强且便宜)
+            // 💻 编程/代码 → Qwen Plus (代码能力强且便宜)
             const codeKeywords = ['代码', '编程', '函数', '算法', '报错', 'bug', 'code', 'python', 'javascript', 'java', 'html', 'css', 'sql', '调试', '开发', '程序', '脚本'];
             if (codeKeywords.some(kw => lower.includes(kw))) {
-                return { model: 'deepseek-v3.2', type: 'code', icon: '💻', cost: 1 };
+                return { model: 'qwen-plus', type: 'code', icon: '💻', cost: 1 };
             }
             
             // 🌐 联网搜索/实时信息 → Gemini-3 Flash (快速且便宜)
@@ -687,9 +685,7 @@
             'gemini-3-flash-preview': 'Gemini Flash',
             'gemini-3-pro-preview': 'Gemini Pro',
             'gemini-3-pro-preview-thinking': 'Gemini 思考',
-            'deepseek-v3.2': 'DeepSeek',
-            'qwen-plus': '通义千问',
-            'claude-haiku-4-5': 'Claude Haiku'
+            'qwen-plus': '通义千问'
         };
         
         // 🎬 好莱坎视觉指导系统提示词（简洁版）

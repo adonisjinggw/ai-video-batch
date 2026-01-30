@@ -11,6 +11,7 @@ const FILM_COST = {
     'sora-2-pro-all': 14,  // Sora2 Pro 通用（最新名称）
     'sora-2-characters': 7, // 角色锁定模式
     'grok-video-3': 5,     // Grok Video 3 (6秒)
+    'grok-video-3-10s': 8, // Grok Video 3 (10秒)
     'veo3': 30,            // Veo3 4K版本
     'veo3.1': 30,          // Veo 3.1 4K版本
     // 🔧 补充常见模型别名，避免默认7胶片的误计算
@@ -291,24 +292,31 @@ async function fetchWithFallback(requestBody, action) {
             out.model = 'sora-2-all';
         }
 
-        // 🆕 Grok Video 3 特殊参数处理
-        if (m === 'grok-video-3' || m === 'grok-video-3-hd') {
+        // 🆕 Grok Video 3 特殊参数处理 (6秒和10秒版本)
+        const isGrokVideo = m === 'grok-video-3' || m === 'grok-video-3-hd' || m === 'grok-video-3-10s' || m === 'grok-video-3-10s-hd';
+        if (isGrokVideo) {
             // Grok 使用不同的 aspect_ratio 格式
             if (out.aspect_ratio === '16:9') out.aspect_ratio = '3:2';
             else if (out.aspect_ratio === '9:16') out.aspect_ratio = '2:3';
             else if (out.aspect_ratio === '1:1') out.aspect_ratio = '1:1';
 
             // Grok 使用 "720P" 或 "1080P" 格式
-            const wantHd = !!out.hd || m === 'grok-video-3-hd';
+            const wantHd = !!out.hd || m.includes('-hd');
             out.size = wantHd ? '1080P' : '720P';
 
-            // Grok 不使用 duration/seconds，移除这些参数
-            delete out.duration;
+            // Grok 10秒版本设置 duration
+            const is10s = m.includes('10s');
+            if (is10s) {
+                out.duration = 10;
+            } else {
+                // 6秒版本不使用 duration
+                delete out.duration;
+            }
             delete out.seconds;
             delete out.hd;
 
-            // 确保 model 名称正确
-            out.model = 'grok-video-3';
+            // 确保 model 名称正确 (10秒版本使用 grok-video-3-10s)
+            out.model = is10s ? 'grok-video-3-10s' : 'grok-video-3';
         } else {
             // ✅ 云梦某些节点要求 size（否则 400: "size is required for sora-2"）
             // 这里按比例+hd 给一个稳妥尺寸，避免过大导致失败
@@ -1021,7 +1029,38 @@ module.exports = async function handler(req, res) {
             }
 
             // 处理不同模型的参数
-            if (model && model.startsWith('veo')) {
+            const isGrokModel = model && (model.startsWith('grok-video') || model.includes('grok'));
+            
+            if (isGrokModel) {
+                // 🎮 Grok 图生视频特殊参数处理
+                // Grok 使用不同的 aspect_ratio 格式
+                if (body.aspect_ratio === '16:9') requestBody.aspect_ratio = '3:2';
+                else if (body.aspect_ratio === '9:16') requestBody.aspect_ratio = '2:3';
+                else if (body.aspect_ratio === '1:1') requestBody.aspect_ratio = '1:1';
+                else requestBody.aspect_ratio = body.aspect_ratio || '3:2';
+                
+                // 🧲 Grok 图生视频一致性增强参数
+                requestBody.fidelity = body.fidelity || 'high';  // 高保真度，更好保持参考图外观
+                requestBody.image_weight = Math.max(0.95, Number(body.image_weight) || 0.98);  // 强制高权重
+                requestBody.preserve_subject = true;  // 保持主体不变
+                requestBody.motion_intensity = body.motion_intensity || 'medium';  // 中等运动强度，避免形变过大
+                
+                // Grok 使用 "720P" 或 "1080P" 格式
+                const wantHd = !!body.hd || (model && model.includes('-hd'));
+                requestBody.size = wantHd ? '1080P' : '720P';
+                
+                // Grok 10秒版本设置 duration
+                const is10s = model && model.includes('10s');
+                if (is10s) {
+                    requestBody.duration = 10;
+                    requestBody.model = 'grok-video-3-10s';
+                } else {
+                    delete requestBody.duration;  // 6秒版本不使用 duration
+                    requestBody.model = 'grok-video-3';
+                }
+                
+                console.log(`[sora2] 🎮 Grok图生视频: model=${requestBody.model}, fidelity=${requestBody.fidelity}, image_weight=${requestBody.image_weight}`);
+            } else if (model && model.startsWith('veo')) {
                 // 🆕 veo 模型必需参数（根据 API 文档）
                 requestBody.enhance_prompt = true;  // 中文自动转英文
                 requestBody.enable_upsample = body.enable_upsample !== false; // 超分，默认开启

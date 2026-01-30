@@ -336,11 +336,15 @@ async function callQwenImageMax(prompt, options = {}) {
     console.log(`[banana2] 🎯 qwen-image-max 任务已提交, task_id: ${taskId}`);
 
     // 第二步：轮询任务状态（增强容错）
-    const maxAttempts = 45;  // 增加到 45 次，每次 2 秒，共 90 秒
+    // 🔧 优化：增加超时时间，放宽连续失败阈值
+    const maxAttempts = 75;  // 🔧 增加到 75 次，每次 2 秒，共 150 秒（2.5分钟）
     let consecutiveFailures = 0;
+    let lastStatus = '';
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // 🔧 动态等待：前20次每2秒，之后每3秒，减少请求压力
+        const waitTime = attempt < 20 ? 2000 : 3000;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         
         try {
             const pollResponse = await fetchWithTimeout(
@@ -352,13 +356,14 @@ async function callQwenImageMax(prompt, options = {}) {
                         'X-ModelScope-Task-Type': 'image_generation'
                     }
                 },
-                20000  // 增加超时时间
+                30000  // 🔧 增加超时时间到30秒
             );
 
             if (!pollResponse.ok) {
                 consecutiveFailures++;
                 console.warn(`[banana2] 轮询失败 (attempt ${attempt + 1}): ${pollResponse.status}, 连续失败${consecutiveFailures}次`);
-                if (consecutiveFailures >= 5) {
+                // 🔧 放宽阈值：连续10次失败才终止
+                if (consecutiveFailures >= 10) {
                     throw new Error(`轮询连续失败${consecutiveFailures}次`);
                 }
                 continue;
@@ -375,7 +380,11 @@ async function callQwenImageMax(prompt, options = {}) {
                 continue;
             }
             
-            console.log(`[banana2] 🔄 轮询 (${attempt + 1}/${maxAttempts}): ${pollData.task_status}`);
+            // 🔧 只在状态变化时打印日志，减少噪音
+            if (pollData.task_status !== lastStatus) {
+                console.log(`[banana2] 🔄 轮询 (${attempt + 1}/${maxAttempts}): ${pollData.task_status}`);
+                lastStatus = pollData.task_status;
+            }
 
             if (pollData.task_status === 'SUCCEED') {
                 // 🔧 多种方式提取图片URL
@@ -430,15 +439,21 @@ async function callQwenImageMax(prompt, options = {}) {
             if (err.message.includes('轮询连续失败') || err.message.includes('生成失败')) {
                 throw err;
             }
+            // 🔧 UPSTREAM_TIMEOUT 不算连续失败，只是网络抖动
+            if (err.message === 'UPSTREAM_TIMEOUT') {
+                console.warn(`[banana2] 轮询超时 (attempt ${attempt + 1})，继续重试...`);
+                continue;
+            }
             console.warn(`[banana2] 轮询异常 (attempt ${attempt + 1}): ${err.message}`);
             consecutiveFailures++;
-            if (consecutiveFailures >= 5) {
+            // 🔧 放宽阈值：连续10次异常才终止
+            if (consecutiveFailures >= 10) {
                 throw new Error(`轮询连续异常${consecutiveFailures}次: ${err.message}`);
             }
         }
     }
 
-    throw new Error('万象Max生成超时，请稍后重试');
+    throw new Error(`万象Max生成超时（已等待${Math.round(maxAttempts * 2.5 / 60)}分钟），请稍后重试`);
 }
 
 module.exports = async function handler(req, res) {
@@ -698,10 +713,20 @@ module.exports = async function handler(req, res) {
 
             // 图生图模式：添加参考图
             if (image_urls && Array.isArray(image_urls) && image_urls.length > 0) {
-                for (const imgUrl of image_urls) {
+                console.log(`[banana2] 🖼️ 检测到多参考图模式: 收到 ${image_urls.length} 张图片`);
+                let successCount = 0;
+                for (let imgIdx = 0; imgIdx < image_urls.length; imgIdx++) {
+                    const imgUrl = image_urls[imgIdx];
+                    const prevPartsLen = parts.length;
                     await addImagePart(imgUrl);
+                    if (parts.length > prevPartsLen) {
+                        successCount++;
+                        console.log(`[banana2] ✅ 第 ${imgIdx + 1} 张图片添加成功`);
+                    } else {
+                        console.warn(`[banana2] ⚠️ 第 ${imgIdx + 1} 张图片添加失败 (类型: ${typeof imgUrl}, 长度: ${imgUrl?.length || 0})`);
+                    }
                 }
-                console.log(`[banana2] Gemini原生图生图模式: ${image_urls.length} 张参考图, 实际添加parts: ${parts.length - 1}`);
+                console.log(`[banana2] Gemini原生图生图模式: 收到 ${image_urls.length} 张参考图, 成功添加 ${successCount} 张, parts总数: ${parts.length}`);
             } else if (image_url) {
                 await addImagePart(image_url);
                 console.log(`[banana2] Gemini原生图生图模式: 1 张参考图`);

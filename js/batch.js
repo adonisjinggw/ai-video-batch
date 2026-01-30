@@ -15747,6 +15747,7 @@ window.openAdvancedTaskSettings = function (ideaId) {
                                 <option value="sora-2-pro" ${s.videoModel === 'sora-2-pro' ? 'selected' : ''}>Sora-2 Pro（HD 15秒 / 720p 25秒）</option>
                                 <option value="veo3.1" ${__normalizeVideoModelName(s.videoModel) === 'veo3.1' ? 'selected' : ''}>🎬 Veo 3.1（快速+音频，8秒）</option>
                                 <option value="grok-video-3" ${s.videoModel === 'grok-video-3' ? 'selected' : ''}>🚀 Grok Video 3（6秒）</option>
+                                <option value="grok-video-3-10s" ${s.videoModel === 'grok-video-3-10s' ? 'selected' : ''}>🚀 Grok Video 3（10秒）</option>
                             </select>
                         </div>
                         <div class="setting-item">
@@ -22388,7 +22389,7 @@ ${structureTags}
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'text',
-                model: 'gemini-2.5-flash',
+                model: 'roll',
                 prompt: prompt
             })
         });
@@ -23104,7 +23105,7 @@ ${lyrics.substring(0, 1500)}
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'chat',
-                model: 'gemini-2.5-flash-preview-05-20',
+                model: 'roll-preview-05-20',
                 messages: [{ role: 'user', content: llmPrompt }],
                 userId: user.id
             })

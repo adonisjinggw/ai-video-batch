@@ -298,9 +298,9 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫫）
+        // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫒）
         // 豁免某些只读操作（不扣费）
-        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll'];  // 获取音色列表和轮询不需要登录
+        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll', 'vc-list'];  // 获取音色列表和轮询不需要登录
         if (!userId && !exemptActions.includes(action)) {
             json(401, { error: 'UNAUTHORIZED', message: '请先登录后再使用此功能' });
             return;
@@ -806,7 +806,6 @@ module.exports = async function handler(req, res) {
             const MODEL_PRICING = {
                 'gemini-3-flash-preview': { input: 0.15, output: 0.9 },   // 最便宜
                 'qwen-plus': { input: 0.24, output: 0.6 },                // 中文优化
-                'deepseek-v3.2': { input: 0.6, output: 0.9 },             // 代码强
                 'gemini-3-pro-preview': { input: 0.6, output: 3.6 },      // 多模态
                 'gemini-3-pro-preview-thinking': { input: 0.6, output: 3.6 }  // 思考模式
             };
@@ -1217,6 +1216,15 @@ module.exports = async function handler(req, res) {
                     aspect_ratio: aspect_ratio
                 };
                 
+                // 🧲 图生视频一致性增强参数（Veo）
+                if (image_url) {
+                    requestBody.preserve_subject = true;       // 保持主体不变
+                    requestBody.image_weight = (body.image_weight != null) ? Number(body.image_weight) : 0.95;  // 高图片权重
+                    requestBody.motion_intensity = body.motion_intensity || 'medium';  // 中等运动强度
+                    requestBody.style_consistency = true;      // 风格一致性
+                    console.log(`[yunwu] 🧲 Veo图生视频一致性参数: image_weight=${requestBody.image_weight}, preserve_subject=true`);
+                }
+                
                 // 如果有图片参考，添加 images 数组
                 if (image_url) {
                     // 如果是 base64，需要先上传到图床获取 URL
@@ -1397,6 +1405,15 @@ module.exports = async function handler(req, res) {
                         output_compliance_check: 'Enabled'
                     }
                 };
+                
+                // 🧲 Vidu图生视频一致性增强参数
+                if (allImageUrls.length > 0) {
+                    requestBody.preserve_subject = true;       // 保持主体不变
+                    requestBody.image_weight = (body.image_weight != null) ? Number(body.image_weight) : 0.95;
+                    requestBody.motion_intensity = body.motion_intensity || 'medium';
+                    requestBody.style_consistency = true;
+                    console.log(`[yunwu] 🧲 Vidu图生视频一致性参数: image_weight=${requestBody.image_weight}, imageCount=${allImageUrls.length}`);
+                }
                 
                 // 🖼️ 处理参考图片（支持多图）
                 if (allImageUrls.length > 0) {
@@ -1607,6 +1624,15 @@ module.exports = async function handler(req, res) {
                     }
                 };
                 
+                // 🧲 Hailuo图生视频一致性增强参数
+                if (image_url) {
+                    requestBody.preserve_subject = true;       // 保持主体不变
+                    requestBody.image_weight = (body.image_weight != null) ? Number(body.image_weight) : 0.95;
+                    requestBody.motion_intensity = body.motion_intensity || 'medium';
+                    requestBody.style_consistency = true;
+                    console.log(`[yunwu] 🧲 Hailuo图生视频一致性参数: image_weight=${requestBody.image_weight}`);
+                }
+                
                 // 如果有参考图片
                 if (image_url) {
                     let finalImageUrl = image_url;
@@ -1749,6 +1775,15 @@ module.exports = async function handler(req, res) {
                         output_compliance_check: 'Enabled'
                     }
                 };
+                
+                // 🧲 Kling图生视频一致性增强参数
+                if (image_url) {
+                    requestBody.preserve_subject = true;       // 保持主体不变
+                    requestBody.image_weight = (body.image_weight != null) ? Number(body.image_weight) : 0.95;
+                    requestBody.motion_intensity = body.motion_intensity || 'medium';
+                    requestBody.style_consistency = true;
+                    console.log(`[yunwu] 🧲 Kling图生视频一致性参数: image_weight=${requestBody.image_weight}`);
+                }
                 
                 // 如果有参考图片
                 if (image_url) {
@@ -2537,21 +2572,27 @@ module.exports = async function handler(req, res) {
             
             ttsCurrentConcurrent++;
             console.log(`[yunwu] TTS并发: ${ttsCurrentConcurrent}/${TTS_MAX_CONCURRENT}`);
+            console.log(`[yunwu] TTS请求参数: voiceId=${voiceId}, textLen=${text?.length}, language=${language}`);
             
             try {
+                // DubbingX v2 API 使用 SSML 格式
+                const speed = audioSpeed || 1;
+                const pitch = audioPitch || 1;
+                const lang = language || 'zh';
+                // emotion 必须提供，默认使用“常规-日常说话-1”
+                const emo = emotion || '常规-日常说话-1';
+                
+                // 构建 SSML 文本
+                const ssmlText = `<speak voiceId="${voiceId}" language="${lang}" emotion="${emo}" audioPitch="${pitch}" audioSpeed="${speed}">${text}</speak>`;
+                
                 const requestBody = {
-                    voiceId: voiceId,
-                    text: text,
-                    language: language || 'zh',
-                    fileFormat: fileFormat || 'mp3'
+                    text: ssmlText
                 };
-                if (audioSpeed) requestBody.audioSpeed = audioSpeed;
-                if (audioPitch) requestBody.audioPitch = audioPitch;
-                if (audioVolume) requestBody.audioVolume = audioVolume;
-                if (emotion) requestBody.emotion = emotion;
+                
+                console.log(`[yunwu] TTS v2 SSML请求:`, ssmlText.substring(0, 200));
                 
                 const ttsAuthHeaders = getDubbingXBearerHeaders();
-                const response = await fetch(`${TTS_BASE_URL}/v1/addTtsTask`, {
+                const response = await fetch(`${TTS_BASE_URL}/v2/addTtsTask`, {
                     method: 'POST',
                     headers: {
                         'Authorization': ttsAuthHeaders.Authorization,
@@ -2561,8 +2602,10 @@ module.exports = async function handler(req, res) {
                 });
                 
                 const data = await response.json();
+                console.log('[yunwu] DubbingX TTS响应:', JSON.stringify(data).substring(0, 500));
                 
-                if (data.success && data.data?.id) {
+                if (data.success && (data.data?.id || data.data?.taskId)) {
+                    const taskId = data.data?.taskId || data.data?.id;
                     // 扣费
                     const cost = 2;  // TTS固定2胶片
                     if (userId) {
@@ -2571,11 +2614,20 @@ module.exports = async function handler(req, res) {
                     
                     json(200, { 
                         success: true, 
-                        taskId: data.data.id,
+                        taskId: taskId,
                         message: '任务已提交'
                     });
                 } else {
-                    json(200, { success: false, error: data.msg || 'TTS任务创建失败' });
+                    // 详细记录错误
+                    console.error('[yunwu] DubbingX TTS失败:', JSON.stringify(data));
+                    const errMsg = data.msg || data.message || data.error || 'TTS任务创建失败';
+                    // 返回更详细的错误信息给前端
+                    json(200, { 
+                        success: false, 
+                        error: `${errMsg} (voiceId: ${voiceId})`, 
+                        detail: data.data || null,
+                        rawResponse: JSON.stringify(data).substring(0, 200)
+                    });
                 }
             } catch (err) {
                 console.error('[yunwu] TTS生成错误:', err.message);
@@ -2634,14 +2686,14 @@ module.exports = async function handler(req, res) {
                     }
                 };
                 
-                const response = await fetch(`${YUNWU_BASE_URL}/v1beta/models/${ttsModel}:generateContent?key=${YUNWU_API_KEY}`, {
+                const response = await fetchWithFallbackWithTimeout(`/v1beta/models/${ttsModel}:generateContent?key=${YUNWU_API_KEY}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${YUNWU_API_KEY}`
                     },
                     body: JSON.stringify(requestBody)
-                });
+                }, 60000);
                 
                 if (!response.ok) {
                     const errText = await response.text();

@@ -452,7 +452,8 @@
                             <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
                             <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
                         </optgroup>
-                        <option value="grok-video-3">Grok Video (6秒)</option>
+                        <option value="grok-video-3">Grok Video 3 (6秒)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
                     </select>
                 </div>
                 <div class="setting-item"><label>比例</label>
@@ -544,7 +545,8 @@
                             <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
                             <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
                         </optgroup>
-                        <option value="grok-video-3">Grok Video (6秒)</option>
+                        <option value="grok-video-3">Grok Video 3 (6秒)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
                     </select></div>
                 <div class="setting-item"><label>比例</label><select id="i2vRatio">
                         <option value="16:9">16:9 横屏</option>
@@ -655,7 +657,8 @@
                             <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
                             <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
                         </optgroup>
-                        <option value="grok-video-3">Grok Video (6秒)</option>
+                        <option value="grok-video-3">Grok Video 3 (6秒)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
                     </select>
                 </div>
                 <div class="setting-item"><label>比例</label>
@@ -706,7 +709,8 @@
                         <option value="sora-2-all">Sora-2 (15秒)</option>
                         <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
                         <option value="veo3.1">Veo 3.1 4K (8秒)</option>
-                        <option value="grok-video-3">Grok Video (6秒)</option>
+                        <option value="grok-video-3">Grok Video 3 (6秒)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
                     </select></div>
                 <div class="setting-item"><label>比例</label><select id="refRatio">
                         <option value="16:9">16:9</option>
@@ -852,6 +856,7 @@
             'sora-2-pro-all': 14,
             'veo3.1': 30,           // Veo 3.1 4K 版本
             'grok-video-3': 5,      // Grok Video 3 (6秒)
+            'grok-video-3-10s': 8,  // Grok Video 3 (10秒)
             // Vidu 模型 - 5秒版本
             'vidu-q2-5s-720p': 25,
             'vidu-q2-5s-1080p': 36,
@@ -2040,7 +2045,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                                 <option value="">🌐 全局配置</option>
                                 <option value="sora-2-all" ${card.model === 'sora-2-all' ? 'selected' : ''}>Sora-2</option>
                                 <option value="veo3.1-components-4k" ${card.model === 'veo3.1-components-4k' ? 'selected' : ''}>Veo 3.1 4K</option>
-                                <option value="grok-video-3" ${card.model === 'grok-video-3' ? 'selected' : ''}>Grok Video 3</option>
+                                <option value="grok-video-3" ${card.model === 'grok-video-3' ? 'selected' : ''}>Grok 3 6秒</option>
+                                <option value="grok-video-3-10s" ${card.model === 'grok-video-3-10s' ? 'selected' : ''}>Grok 3 10秒</option>
                                 <option value="hailuo-02-768p-6s" ${card.model === 'hailuo-02-768p-6s' ? 'selected' : ''}>海螺02 6秒</option>
                                 <option value="kling-2.5-720p-5s" ${card.model === 'kling-2.5-720p-5s' ? 'selected' : ''}>可灵2.5 5秒</option>
                             </select>
@@ -2142,7 +2148,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                                 <option value="">🌐 全局配置</option>
                                 <option value="sora-2-all">Sora-2</option>
                                 <option value="veo3.1-components-4k">Veo 3.1 4K</option>
-                                <option value="grok-video-3">Grok Video 3</option>
+                                <option value="grok-video-3">Grok 3 6秒</option>
+                                <option value="grok-video-3-10s">Grok 3 10秒</option>
                                 <option value="hailuo-02-768p-6s">海螺02 6秒</option>
                                 <option value="kling-2.5-720p-5s">可灵2.5 5秒</option>
                             </select>
@@ -2390,46 +2397,107 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                             requestBody = { action: 'text-to-video', prompt: finalPrompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
                         }
                     } else {
-                        // 图生视频
+                        // 🧲 图生视频 - 所有模型统一添加参考图一致性参数
+                        const imageConsistencyParams = {
+                            image_weight: 0.95,           // 高图片权重
+                            preserve_subject: true,       // 保持主体不变
+                            motion_intensity: 'medium',   // 中等运动强度，避免形变过大
+                            style_consistency: true       // 风格一致性
+                        };
+                        
                         if (isVidu) {
                             requestBody = { 
                                 action: 'vidu', 
-                                prompt: finalPrompt || '让图片动起来，平滑过渡', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡，保持主体外观不变', 
                                 image_url: task.image,
                                 model_version: viduParams.version,
                                 aspect_ratio: ratio, 
                                 duration: duration,
                                 resolution: viduParams.resolution,
                                 userId: currentUser?.id,
-                                skip_billing: true
+                                skip_billing: true,
+                                ...imageConsistencyParams
                             };
                         } else if (isHailuo) {
                             // 🐚 Hailuo海螺模型 - 图生视频
                             requestBody = { 
                                 action: 'hailuo', 
-                                prompt: finalPrompt || '让图片动起来，平滑过渡', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡，保持主体外观不变', 
                                 image_url: task.image,
                                 model_version: hailuoParams.version,
                                 duration: hailuoParams.duration,
                                 resolution: hailuoParams.resolution,
                                 userId: currentUser?.id,
-                                skip_billing: true
+                                skip_billing: true,
+                                ...imageConsistencyParams
                             };
                         } else if (isKling) {
                             // ✨ Kling可灵模型 - 图生视频
                             requestBody = { 
                                 action: 'kling', 
-                                prompt: finalPrompt || '让图片动起来，平滑过渡', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡，保持主体外观不变', 
                                 image_url: task.image,
                                 model_version: klingParams.version,
                                 aspect_ratio: ratio,
                                 duration: klingParams.duration,
                                 resolution: klingParams.resolution,
                                 userId: currentUser?.id,
-                                skip_billing: true
+                                skip_billing: true,
+                                ...imageConsistencyParams
                             };
                         } else if (isVeo) {
-                            requestBody = { action: 'veo3', prompt: finalPrompt, model, image_url: task.image, aspect_ratio: ratio, duration, with_audio: true, image_weight: 0.9, userId: currentUser?.id, skip_billing: true };
+                            requestBody = { 
+                                action: 'veo3', 
+                                prompt: finalPrompt || '让图片动起来，保持主体外观不变', 
+                                model, 
+                                image_url: task.image, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                with_audio: true, 
+                                userId: currentUser?.id, 
+                                skip_billing: true,
+                                ...imageConsistencyParams
+                            };
+                        } else if (model && model.startsWith('grok-video')) {
+                            // 🎮 Grok 图生视频 - 增强参考图一致性
+                            requestBody = { 
+                                action: 'image-to-video', 
+                                prompt: finalPrompt || '让图片动起来，保持主体外观不变', 
+                                image_url: task.image, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                userId: currentUser?.id, 
+                                image_weight: 0.98,         // Grok用更高权重
+                                preserve_subject: true,
+                                fidelity: 'high',           // 高保真度
+                                motion_intensity: 'medium'
+                            };
+                        } else {
+                            // Sora 等其他模型
+                            requestBody = { 
+                                action: 'image-to-video', 
+                                prompt: finalPrompt || '让图片动起来，保持主体外观不变', 
+                                image_url: task.image, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                userId: currentUser?.id, 
+                                image_weight: 0.98, 
+                                preserve_subject: true,
+                                motion_intensity: 'medium'
+                            };
+                        }
+                    }
+                                prompt: finalPrompt, 
+                                image_url: task.image, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                userId: currentUser?.id, 
+                                image_weight: 0.98,         // 高图片权重
+                                preserve_subject: true,     // 保持主体
+                                fidelity: 'high',           // 高保真度
+                                motion_intensity: 'medium'  // 中等运动强度，避免形变过大
+                            };
                         } else {
                             requestBody = { action: 'image-to-video', prompt: finalPrompt, image_url: task.image, model, aspect_ratio: ratio, duration, userId: currentUser?.id, image_weight: 0.98, preserve_subject: true };
                         }

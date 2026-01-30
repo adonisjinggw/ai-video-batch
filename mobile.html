@@ -1523,8 +1523,8 @@
             </a>
             <a href="sticker.html?force=mobile" class="tool-item"
                 style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
-                <span style="font-size:24px;margin-bottom:4px;">🏷️</span>
-                <span style="font-size:11px;color:var(--text-dim);">贴纸</span>
+                <span style="font-size:24px;margin-bottom:4px;">😀</span>
+                <span style="font-size:11px;color:var(--text-dim);">表情包</span>
             </a>
             <a href="video-continuity.html?force=mobile" class="tool-item"
                 style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
@@ -1712,8 +1712,10 @@
                             <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
                             <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
                         </optgroup>
-                        <option value="grok-video-3-text">Grok Video 3 (文生视频)</option>
-                        <option value="grok-video-3">Grok Video 3 (图生视频)</option>
+                        <option value="grok-video-3-text">Grok Video 3 6秒 (文生视频)</option>
+                        <option value="grok-video-3">Grok Video 3 6秒 (图生视频)</option>
+                        <option value="grok-video-3-10s-text">Grok Video 3 10秒 (文生视频)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 10秒 (图生视频)</option>
                         <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
                     </select>
                 </div>
@@ -2466,6 +2468,7 @@
         function __normalizeVideoModelName(model) {
             const m = String(model || '').toLowerCase().trim();
             if (m.includes('pro')) return 'sora-2-pro-all';
+            if (m.includes('grok') && m.includes('10')) return 'grok-video-3-10s';
             if (m.includes('grok')) return 'grok-video-3';
             if (m.includes('veo')) return 'veo3';
             return 'sora-2-all';
@@ -5111,8 +5114,9 @@ ${panelDescriptions.join('\n')}
                     baseRequestBody.action = 'image-to-video';
                     baseRequestBody.image_url = finalImageData;
                     baseRequestBody.skip_billing = true;
-                    baseRequestBody.image_weight = 0.95; // 提高图像约束
-                    baseRequestBody.style_strength = 0.7; // 略降风格变化
+                    baseRequestBody.image_weight = 0.98;       // 🧲 高图片权重
+                    baseRequestBody.preserve_subject = true;   // 保持主体不变
+                    baseRequestBody.motion_intensity = 'medium'; // 中等运动强度
                     break;
                 case 'veo3.1':
                     apiEndpoint = '/api/yunwu';
@@ -5122,7 +5126,9 @@ ${panelDescriptions.join('\n')}
                         with_audio: true,
                         skip_billing: true,
                         image_url: hasReferenceImage ? finalImageData : undefined,
-                        image_weight: hasReferenceImage ? 0.9 : undefined
+                        image_weight: hasReferenceImage ? 0.95 : undefined,  // 🧲 提高权重
+                        preserve_subject: hasReferenceImage ? true : undefined,
+                        motion_intensity: hasReferenceImage ? 'medium' : undefined
                     };
                     break;
                 case 'grok-video-3-text':
@@ -5134,8 +5140,10 @@ ${panelDescriptions.join('\n')}
                     baseRequestBody.model = 'grok-video-3';
                     baseRequestBody.image_url = finalImageData;
                     baseRequestBody.skip_billing = true;
-                    baseRequestBody.image_weight = 0.9;
-                    baseRequestBody.fidelity = 'high';
+                    baseRequestBody.image_weight = 0.98;       // 🧲 高图片权重
+                    baseRequestBody.fidelity = 'high';         // 高保真度
+                    baseRequestBody.preserve_subject = true;   // 保持主体不变
+                    baseRequestBody.motion_intensity = 'medium'; // 中等运动强度
                     break;
                 case 'video-continuity':
                     baseRequestBody.action = 'video-continuity';
@@ -5144,14 +5152,18 @@ ${panelDescriptions.join('\n')}
                 case 'banana-image-to-video':
                     baseRequestBody.action = 'image-to-video';
                     baseRequestBody.image_url = finalImageData;
-                    baseRequestBody.image_weight = 0.85;
+                    baseRequestBody.image_weight = 0.95;       // 🧲 提高权重
+                    baseRequestBody.preserve_subject = true;   // 保持主体不变
+                    baseRequestBody.motion_intensity = 'medium';
                     baseRequestBody.skip_billing = true;
                     break;
                 case 'banana-grid-to-video':
                     baseRequestBody.action = 'image-to-video';
                     baseRequestBody.image_url = finalImageData;
                     baseRequestBody.gridMode = true;
-                    baseRequestBody.image_weight = 0.85;
+                    baseRequestBody.image_weight = 0.95;       // 🧲 提高权重
+                    baseRequestBody.preserve_subject = true;   // 保持主体不变
+                    baseRequestBody.motion_intensity = 'medium';
                     baseRequestBody.skip_billing = true;
                     // 传递网格布局信息，便于后端按格切分
                     if (idea.gridRows && idea.gridCols) {
@@ -5679,7 +5691,7 @@ ${scriptLine}
                     // 🔧 根据模型设置合理超时：
                     // - Midjourney: 后端轮询最多3分钟，前端给240秒
                     // - 星梦画师批量: 180秒
-                    // - 万象Max: 150秒（后端已优化到banana2，但保留余量）
+                    // - 万象Max: 180秒（后端轮询最多2.5分钟）
                     // - 其他: 90秒
                     let timeoutMs = 90000;
                     if (isMidjourney) {
@@ -5687,7 +5699,7 @@ ${scriptLine}
                     } else if (isSeedream && outputCount > 1) {
                         timeoutMs = 180000;  // 星梦批量模式
                     } else if (isSeedream || isQwenImage) {
-                        timeoutMs = 150000;  // 星梦/万象单图
+                        timeoutMs = 180000;  // 🔧 星梦/万象单图（增加到180秒）
                     }
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
