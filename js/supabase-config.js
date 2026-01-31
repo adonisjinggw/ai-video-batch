@@ -1640,6 +1640,14 @@ if (typeof document !== 'undefined') {
                     userId: userId
                 })
             });
+            
+            // 🔧 检查响应状态
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error('[🎤 Agent] API错误:', response.status, errText);
+                throw new Error(`语音服务错误: ${response.status}`);
+            }
+            
             const result = await response.json();
             console.log('[🎤 Agent] 识别结果:', result);
             

@@ -861,11 +861,20 @@
             await loadVCTimbreList();
             // 绑定标签切换
             document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', () => {
+                tab.addEventListener('click', async () => {
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
                     tab.classList.add('active');
                     document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+                    
+                    // 🔧 切换到需要音色的模式时，自动检查并加载音色库
+                    const panel = tab.dataset.panel;
+                    if (['tts', 'script', 'batch', 'img2voice', 'video2voice'].includes(panel)) {
+                        if (!voiceListLoaded || !voiceList || voiceList.length === 0) {
+                            console.log(`[Voice] 切换到 ${panel}，检查音色库...`);
+                            await loadVoiceList(panel === 'tts');  // 只在TTS模式显示加载提示
+                        }
+                    }
                 });
             });
             // 字数统计
@@ -909,71 +918,97 @@
         }
 
         // ==================== 音色列表 ====================
-        async function loadVoiceList() {
-            try {
-                const res = await fetch('/api/yunwu', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'tts-voices', grade: 'premium' })
-                });
-                const data = await res.json();
-                if (data.success && data.voices && data.voices.length > 0) {
-                    voiceList = data.voices;
-                    renderVoiceList(voiceList);
-                    updateVoiceSelects(voiceList);
-                    // 更新批量宫格的音色列表
-                    updateBatchGridVoices(voiceList);
-                } else {
-                    const errMsg = data.error || '加载失败';
-                    document.getElementById('voiceList').innerHTML = `
-                        <div style="text-align:center;padding:20px;">
-                            <div style="color:#f66;margin-bottom:12px;">❌ ${errMsg}</div>
-                            <div style="color:#888;font-size:13px;">建议切换到 Gemini TTS 或 可灵 TTS</div>
-                        </div>`;
-                }
-            } catch (e) {
-                console.error('加载音色失败:', e);
-                document.getElementById('voiceList').innerHTML = `
-                    <div style="text-align:center;padding:20px;">
-                        <div style="color:#f66;margin-bottom:12px;">❌ 网络错误</div>
-                        <div style="color:#888;font-size:13px;">建议切换到 Gemini TTS 或 可灵 TTS</div>
-                    </div>`;
+        // 🔧 统一音色库加载（带重试机制，所有模式共用）
+        let voiceListLoading = false;  // 防止重复加载
+        let voiceListLoaded = false;   // 加载成功标志
+        
+        async function loadVoiceList(showLoading = true) {
+            // 如果已加载成功且有数据，直接返回
+            if (voiceListLoaded && voiceList && voiceList.length > 0) {
+                console.log('[Voice] 音色库已加载，跳过');
+                syncVoiceListToAllModes();
+                return true;
             }
-        }
-
-        // 剧本配音专用音色加载函数（带重试）
-        async function loadVoiceListForScript() {
+            
+            // 如果正在加载，等待完成
+            if (voiceListLoading) {
+                console.log('[Voice] 音色库正在加载中，等待...');
+                await new Promise(r => setTimeout(r, 2000));
+                return voiceListLoaded;
+            }
+            
+            voiceListLoading = true;
             const maxRetries = 3;
+            
+            if (showLoading) {
+                document.getElementById('voiceList').innerHTML = '<div style="text-align:center;padding:20px;color:#888;">加载音色中...</div>';
+            }
+            
             for (let i = 0; i < maxRetries; i++) {
                 try {
-                    console.log(`[剧本配音] 加载音色库，尝试 ${i + 1}/${maxRetries}`);
+                    console.log(`[Voice] 加载音色库，尝试 ${i + 1}/${maxRetries}`);
                     const res = await fetch('/api/yunwu', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'tts-voices', grade: 'premium' })
                     });
+                    
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+                    
                     const data = await res.json();
                     if (data.success && data.voices && data.voices.length > 0) {
                         voiceList = data.voices;
-                        console.log(`[剧本配音] 音色库加载成功，共 ${voiceList.length} 个音色`);
-                        // 同步更新文本转语音面板
-                        renderVoiceList(voiceList);
-                        updateVoiceSelects(voiceList);
-                        updateBatchGridVoices(voiceList);
+                        voiceListLoaded = true;
+                        console.log(`[Voice] ✅ 音色库加载成功，共 ${voiceList.length} 个音色`);
+                        // 🔧 同步更新所有模式的音色列表
+                        syncVoiceListToAllModes();
+                        voiceListLoading = false;
                         return true;
                     } else {
-                        console.warn(`[剧本配音] 加载失败:`, data.error || '无音色数据');
+                        console.warn(`[Voice] 加载失败:`, data.error || '无音色数据');
                     }
                 } catch (e) {
-                    console.error(`[剧本配音] 加载异常:`, e.message);
+                    console.error(`[Voice] 加载异常 (${i + 1}/${maxRetries}):`, e.message);
                 }
                 // 等待后重试
                 if (i < maxRetries - 1) {
-                    await new Promise(r => setTimeout(r, 1000));
+                    await new Promise(r => setTimeout(r, 1500));
                 }
             }
-            console.error('[剧本配音] 音色库加载失败，已重试', maxRetries, '次');
+            
+            // 所有重试失败
+            voiceListLoading = false;
+            console.error('[Voice] ❌ 音色库加载失败，已重试', maxRetries, '次');
+            document.getElementById('voiceList').innerHTML = `
+                <div style="text-align:center;padding:20px;">
+                    <div style="color:#f66;margin-bottom:12px;">❌ 音色加载失败</div>
+                    <button onclick="loadVoiceList(true)" style="padding:8px 16px;background:var(--accent);color:#000;border:none;border-radius:6px;cursor:pointer;margin-bottom:8px;">🔄 重试加载</button>
+                    <div style="color:#888;font-size:13px;">或切换到 Gemini TTS / 可灵 TTS</div>
+                </div>`;
             return false;
+        }
+        
+        // 🔧 同步音色列表到所有模式
+        function syncVoiceListToAllModes() {
+            if (!voiceList || voiceList.length === 0) return;
+            
+            // 1. 文字转语音面板
+            renderVoiceList(voiceList);
+            
+            // 2. 图片/视频配音下拉框
+            updateVoiceSelects(voiceList);
+            
+            // 3. 批量配音宫格
+            updateBatchGridVoices(voiceList);
+            
+            console.log('[Voice] ✅ 音色库已同步到所有模式');
+        }
+
+        // 剧本配音专用音色加载函数（复用统一加载）
+        async function loadVoiceListForScript() {
+            return await loadVoiceList(false);
         }
 
         function renderVoiceList(voices) {
