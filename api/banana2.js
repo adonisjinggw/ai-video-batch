@@ -282,7 +282,8 @@ async function callQwenImageMax(prompt, options = {}) {
     
     const requestBody = {
         model: modelName,
-        prompt: prompt
+        prompt: prompt,
+        size: size  // 🔧 传递尺寸参数
     };
 
     // 🎨 图生图模式：传入参考图
