@@ -1619,6 +1619,16 @@ if (typeof document !== 'undefined') {
             // 转换为 base64
             const base64Audio = await blobToBase64(audioBlob);
             
+            
+            // 获取当前用户ID
+            let userId = null;
+            try {
+                const user = await getCurrentUser();
+                userId = user?.id;
+            } catch (e) {
+                console.warn('[Agent] 获取用户ID失败:', e);
+            }
+            
             // 调用 yunwu API 的 Whisper
             const response = await fetch('/api/yunwu', {
                 method: 'POST',
@@ -1626,10 +1636,10 @@ if (typeof document !== 'undefined') {
                 body: JSON.stringify({
                     action: 'speech-to-text',
                     audio: base64Audio,
-                    format: 'webm'
+                    format: 'webm',
+                    userId: userId
                 })
             });
-            
             const result = await response.json();
             console.log('[🎤 Agent] 识别结果:', result);
             

@@ -889,6 +889,12 @@
                     })
                 });
 
+                // 检查响应状态
+                if (!response.ok) {
+                    const errText = await response.text().catch(() => '');
+                    throw new Error(`服务器错误 (${response.status}): ${errText.substring(0, 100) || '请稍后重试'}`);
+                }
+
                 const data = await response.json();
                 typingEl.remove();
 
