@@ -336,8 +336,8 @@ async function callQwenImageMax(prompt, options = {}) {
     console.log(`[banana2] 🎯 qwen-image-max 任务已提交, task_id: ${taskId}`);
 
     // 第二步：轮询任务状态（增强容错）
-    // 🔧 优化：增加超时时间，放宽连续失败阈值
-    const maxAttempts = 75;  // 🔧 增加到 75 次，每次 2 秒，共 150 秒（2.5分钟）
+    // 🔧 优化：控制在80秒内，避免Cloudflare 524超时（~100秒限制）
+    const maxAttempts = 40;  // 🔧 40次×2秒=80秒，留出缓冲
     let consecutiveFailures = 0;
     let lastStatus = '';
     
@@ -453,7 +453,7 @@ async function callQwenImageMax(prompt, options = {}) {
         }
     }
 
-    throw new Error(`万象Max生成超时（已等待${Math.round(maxAttempts * 2.5 / 60)}分钟），请稍后重试`);
+    throw new Error(`万象Max生成超时（已等待约80秒），服务器繁忙请稍后重试`);
 }
 
 module.exports = async function handler(req, res) {
