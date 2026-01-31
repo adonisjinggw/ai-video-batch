@@ -182,11 +182,16 @@ module.exports = async function handler(req, res) {
             const row = rows?.[0] || null;
             if (!row) continue;
             const giftBal = Number(row?.gift_film_balance) || 0;
+            const currentBalance = Number(row?.quota_balance) || 0;
             const lotsSum = await __sumActiveLots(headers, uid, nowIso);
             if (lotsSum === null) continue;
-            const total = __round2(giftBal + lotsSum);
-            await __patchProfile(headers, uid, { quota_balance: total });
-            balancesSynced += 1;
+            const calculatedTotal = __round2(giftBal + lotsSum);
+            // 用户可能有直接充值的余额（不通过gift/lots），不能覆盖
+            // 只有当计算值 > 0 且与当前值不同时才更新
+            if (calculatedTotal > 0 && calculatedTotal !== currentBalance) {
+                await __patchProfile(headers, uid, { quota_balance: calculatedTotal });
+                balancesSynced += 1;
+            }
         } catch (e) {
         }
     }
