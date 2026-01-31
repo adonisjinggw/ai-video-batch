@@ -632,9 +632,10 @@
         const TEMPLATES = {
             video_pro: {
                 name: '🎬 专业视频',
+                isVideo: true,  // 🎬 标记为视频模板
                 vars: [
                     {
-                        key: 'video_type', label: '视频类型', options: [
+                        key: 'video_type', label: '视频类型', optional: true, options: [
                             '电影级叙事视频（故事片/短片/微电影）',
                             '商业广告视频（产品宣传/品牌广告）',
                             'MV音乐视频（歌曲MV/表演视频）',
@@ -642,11 +643,58 @@
                             'Vlog短视频（日常记录/生活分享）',
                             '教程说明视频（教学/介绍/讲解）',
                             '创意艺术视频（实验性/艺术表达）',
-                            '社交媒体短视频（抖音/小红书/视频号）'
+                        '社交媒体短视频（抖音/小红书/视频号）'
                         ]
                     },
                     {
-                        key: 'timeline', label: '时间轴分镜', options: [
+                        key: 'director_style', label: '🎬 导演风格', optional: true, hasInput: true, inputPlaceholder: '输入其他导演名字', options: [
+                            // === 好莱坞大师 Hollywood Masters ===
+                            'Steven Spielberg 斯皮尔伯格风格，叙事流畅，情感充沛，商业与艺术平衡',
+                            'Christopher Nolan 诺兰风格，非线性叙事，烧脑悬疑，IMAX巨制作',
+                            'Quentin Tarantino 昆汀风格，暴力美学，对话精彩，诙谐复仇',
+                            'Martin Scorsese 马丁风格，犯罪史诗，内心独白，强烈张力',
+                            'David Fincher 芬奇风格，黑暗悬疑，冷郁色调，精准构图',
+                            'Ridley Scott 雷德利风格，史诗巨制作，视觉震撼，巨尺',
+                            'James Cameron 卡梅隆风格，技术革新，史诗视效，女性英雄',
+                            'Stanley Kubrick 库布里克风格，对称构图，冷郁完美，哲学思辨',
+                            'Alfred Hitchcock 希区柯克风格，悬疑大师，心理惊悸，MacGuffin',
+                            'Tim Burton 波顿风格，哥特童话，奇异视觉，黑色幽默',
+                            // === 艺术电影导演 Arthouse Directors ===
+                            'Wes Anderson 韦斯安德森风格，对称构图，粉彩色调，复古美学',
+                            'Denis Villeneuve 维伦纽瓦风格，气氛感强，叙事克制，科幻史诗',
+                            'Terrence Malick 马力克风格，诗意影像，自然主义，哲学旁白',
+                            'Paul Thomas Anderson PTA风格，复杂人物，长镜头，情感张力',
+                            'Andrei Tarkovsky 塔可夫斯基风格，诗意淡远，象征主义，长镜头',
+                            'Ingmar Bergman 伯格曼风格，内省密闭，存在主义，表情特写',
+                            'Federico Fellini 费里尼风格，超现实梦境，马戏团美学，意大利新现实',
+                            'David Lynch 林奇风格，超现实惊悸，梦靥逻辑，异类氛围',
+                            'Lars von Trier 拉斯风格，极端情感，道格玛95，争议主题',
+                            'Michael Haneke 哈内克风格，冷酷客观，暴力批判，观众考验',
+                            // === 亚洲大师 Asian Masters ===
+                            'Wong Kar-wai 王家卫风格，氤氲骨的浪漫，片段叙事，颗粒影像',
+                            'Akira Kurosawa 黑泽明风格，武士道美学，动态构图，人性史诗',
+                            'Park Chan-wook 朴赞郁风格，复仇美学，极端暴力，精致构图',
+                            'Bong Joon-ho 奉俊昊风格，类型杂糅，社会讽刺，反转剧情',
+                            'Zhang Yimou 张艺谋风格，色彩张力，视觉壮观，大场面调度',
+                            'Hayao Miyazaki 宫崎骏风格，手绘动画，治愈温暖，自然主义',
+                            'Hirokazu Koreeda 是枝裕和风格，家庭细腻，日常深情，淡淡哀伤',
+                            'Edward Yang 杨德昌风格，台北叙事，多线交织，细腻深刻',
+                            'Hou Hsiao-hsien 侯孝贤风格，长镜头，远景观察，时间流逝',
+                            'Satoshi Kon 今敏风格，梦境嵌套，微转机，心理惊悬',
+                            // === 当代新锐 Contemporary Auteurs ===
+                            'Greta Gerwig 葛威格风格，女性视角，温暖谐谑，自然表演',
+                            'Jordan Peele 皮尔风格，社会恐怖，种族讽刺，惊喜反转',
+                            'Ari Aster 阿斯特风格，民俗恐怖，家庭创伤，缓慢建设',
+                            'Robert Eggers 埃格斯风格，古老氛围，历史考据，恐怖氛围',
+                            'Damien Chazelle 查泽雷风格，音乐美学，梦想与现实，动感节奏',
+                            'Chloe Zhao 赵婷风格，自然光线，纪实调，边缘人物',
+                            'Barry Jenkins 杰金斯风格，诗意影像，非裔美学，亲密关怀',
+                            'Yorgos Lanthimos 兰斯莫斯风格，荒诞讽刺，广角畸变，冷酷观视',
+                            'A24风格，独立电影，艺术氛围，克制叙事，视觉隐喻'
+                        ]
+                    },
+                    {
+                        key: 'timeline', label: '时间轴分镜', optional: true, options: [
                             '[0-3s] 远景建立 → [3-7s] 中景推进 → [7-10s] 近景特写 → [10-15s] 升华收尾',
                             '[0-4s] 快速剪辑开场 → [4-8s] 慢镜头展示 → [8-12s] 冲突高潮 → [12-15s] 余韵留白',
                             '[0-5s] 环境声建立 → [5-10s] 主体动作 → [10-15s] 情感爆发',
@@ -659,7 +707,7 @@
                         ]
                     },
                     {
-                        key: 'visual_style', label: '视觉风格', options: [
+                        key: 'visual_style', label: '视觉风格', optional: true, options: [
                             '电影级真实感，胶片质感，颗粒感，色彩分级',
                             '日系动漫风，手绘质感，柔和线条，梦幻氛围',
                             '赛博朋克，霓虹灯光，雨夜反光，未来科技感',
@@ -678,7 +726,7 @@
                         ]
                     },
                     {
-                        key: 'character', label: '主角设定', options: [
+                        key: 'character', label: '主角设定', optional: true, options: [
                             '主角外观保持一致性，服装/发型/气质统一',
                             '多角色互动，每个角色特征鲜明，保持识别度',
                             '无人物，纯场景/产品叙事',
@@ -693,7 +741,7 @@
                         ]
                     },
                     {
-                        key: 'environment', label: '场景环境', options: [
+                        key: 'environment', label: '场景环境', optional: true, hasInput: true, inputPlaceholder: '输入自定义场景描述', options: [
                             '室内/夜晚/温暖灯光，家居氛围，生活气息',
                             '室外/黄昏/城市街道，霓虹灯招牌，人流穿梭',
                             '自然场景/清晨/森林湖泊，薄雾，鸟鸣虫叫',
@@ -709,7 +757,7 @@
                         ]
                     },
                     {
-                        key: 'mood', label: '情绪氛围', options: [
+                        key: 'mood', label: '情绪氛围', optional: true, options: [
                             '温馨治愈，情感细腻，节奏舒缓',
                             '紧张刺激，冲突激烈，快节奏剪辑',
                             '史诗壮阔，气势磅礴，宏大叙事',
@@ -725,7 +773,7 @@
                         ]
                     },
                     {
-                        key: 'camera', label: '运镜方式', multiSelect: true, options: [
+                        key: 'camera', label: '运镜方式', multiSelect: true, optional: true, options: [
                             // === 基础运镜 Basic Camera Movements ===
                             '推镜头 Push In/Dolly In，稳定向前推进，强调主体/情绪',
                             '拉镜头 Pull Out/Dolly Out，稳定后拉，揭示环境/结束感',
@@ -849,7 +897,7 @@
                         ]
                     },
                     {
-                        key: 'camera_position', label: '镜头位置/拍摄角度', multiSelect: true, options: [
+                        key: 'camera_position', label: '镜头位置/拍摄角度', multiSelect: true, optional: true, options: [
                             // === 标准视角 Standard Perspectives ===
                             '平视角度 Eye Level，与主体视线齐平，自然亲切',
                             '标准正面 Front View，直接面向主体，正式规矩',
@@ -963,7 +1011,7 @@
                         ]
                     },
                     {
-                        key: 'music', label: '音乐配乐', options: [
+                        key: 'music', label: '音乐配乐', optional: true, options: [
                             '钢琴独奏，情感细腻，简约优雅',
                             '交响乐团，史诗磅礴，气势恢宏',
                             '电子音乐，节奏感强，现代科技',
@@ -983,7 +1031,7 @@
                         ]
                     },
                     {
-                        key: 'special', label: '特殊效果', multiSelect: true, options: [
+                        key: 'special', label: '特殊效果', multiSelect: true, optional: true, options: [
                             '无特殊要求',
                             '需要慢动作特写镜头',
                             '需要时间流逝效果（延时摄影）',
@@ -1002,7 +1050,7 @@
                         ]
                     }
                 ],
-                template: '【视频类型】{video_type}\n【时间轴分镜】\n{timeline}\n\n【视觉风格】{visual_style}\n【主角设定】{character}\n【场景环境】{environment}\n【情绪氛围】{mood}\n【运镜方式】{camera}\n【镜头位置/拍摄角度】{camera_position}\n【音乐配乐】{music}\n【特殊效果】{special}'
+                template: '【视频类型】{video_type}\n【导演风格】{director_style}\n【时间轴分镜】\n{timeline}\n\n【视觉风格】{visual_style}\n【主角设定】{character}\n【场景环境】{environment}\n【情绪氛围】{mood}\n【运镜方式】{camera}\n【镜头位置/拍摄角度】{camera_position}\n【音乐配乐】{music}\n【特殊效果】{special}'
             },
             // video_ad 已合并到 video_pro 的 video_type 字段中
             christmas: {
@@ -3769,9 +3817,9 @@
                 return;
             }
 
-            // 如果有模板，检查是否所有变量都已填写
+            // 如果有模板，检查是否所有必填变量都已填写（跳过 optional 字段）
             if (currentTemplate) {
-                const missing = currentTemplate.vars.filter(v => !currentValues[v.key]);
+                const missing = currentTemplate.vars.filter(v => !v.optional && !currentValues[v.key]);
                 if (missing.length > 0) {
                     showToast('请填写：' + missing.map(v => v.label).join('、'));
                     return;
@@ -3805,8 +3853,17 @@
                             return filled;
                         });
                     }
-                    basePrompt = basePrompt.replace(new RegExp(`\\{${key}\\}`, 'g'), processedValue);
+                    basePrompt = basePrompt.replace(new RegExp(`\\{${key}\\}`, 'g'), processedValue || '');
                 }
+                
+                // 🆕 移除空的可选字段行（如 【xxx】\n 或 【xxx】 后面没有内容）
+                basePrompt = basePrompt.replace(/【[^】]+】\s*\n/g, (match) => {
+                    // 如果这行只有标签没有内容，删除整行
+                    return match.trim().endsWith('】') ? '' : match;
+                });
+                // 移除多余的空行
+                basePrompt = basePrompt.replace(/\n{3,}/g, '\n\n').trim();
+                
                 // 如果有主题，添加到模板开头
                 if (userTheme) {
                     basePrompt = `【主题】${userTheme}\n\n` + basePrompt;
@@ -3817,14 +3874,29 @@
             }
 
             try {
-                // 调用 AI 优化提示词
-                const response = await fetch('/api/yunwu', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'text',
-                        model: 'roll',
-                        prompt: `你是一个专业的AI绘画提示词专家。请将以下中文提示词优化成一个专业的英文提示词，用于AI图像生成。
+                // 🎬 检查是否是视频模板
+                const isVideoTemplate = currentTemplate?.isVideo === true;
+                
+                let aiPrompt;
+                if (isVideoTemplate) {
+                    // 🎬 视频专属优化提示词
+                    aiPrompt = `你是专业的AI视频提示词专家。请生成通用的英文视频提示词，适用于大多数AI视频模型，并且必须保持角色一致性（同一角色的服装与发型保持一致）。
+
+原始提示词：
+${basePrompt}
+
+【通用优化要求】：
+1. 运镜指令简短直接，放在开头，如 "Slow zoom in." 或 "Camera tracks left."
+2. 只用一个主要运镜，不要多个组合
+3. 场景描述清晰，人物动作明确
+4. 包含光影和氛围词
+5. 保持坚持百词左右
+
+【输出格式】：
+[Camera movement]. [Scene], [subject], [action], [lighting/mood], [style], high quality.`;
+                } else {
+                    // 📷 图像提示词
+                    aiPrompt = `你是一个专业的AI绘画提示词专家。请将以下中文提示词优化成一个专业的英文提示词，用于AI图像生成。
 
 原始提示词：
 ${basePrompt}
@@ -3835,7 +3907,17 @@ ${basePrompt}
 3. 添加专业的摄影/艺术术语
 4. 包含主体描述、风格、光影、构图等元素
 5. 使用逗号分隔各个描述词
-6. 不要解释，直接输出提示词`,
+6. 不要解释，直接输出提示词`;
+                }
+                
+                // 调用 AI 优化提示词
+                const response = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'text',
+                        model: 'roll',
+                        prompt: aiPrompt,
                         userId: currentUser.id  // ✅ 传递userId，后端成功后扣费
                     })
                 });
