@@ -2488,20 +2488,6 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                             };
                         }
                     }
-                                prompt: finalPrompt, 
-                                image_url: task.image, 
-                                model, 
-                                aspect_ratio: ratio, 
-                                userId: currentUser?.id, 
-                                image_weight: 0.98,         // 高图片权重
-                                preserve_subject: true,     // 保持主体
-                                fidelity: 'high',           // 高保真度
-                                motion_intensity: 'medium'  // 中等运动强度，避免形变过大
-                            };
-                        } else {
-                            requestBody = { action: 'image-to-video', prompt: finalPrompt, image_url: task.image, model, aspect_ratio: ratio, duration, userId: currentUser?.id, image_weight: 0.98, preserve_subject: true };
-                        }
-                    }
                     
                     const response = await fetch(apiEndpoint, {
                         method: 'POST',
