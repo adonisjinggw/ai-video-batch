@@ -71,6 +71,22 @@ function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
     return fetch(url, merged).finally(() => clearTimeout(t));
 }
 
+// 🔧 将 aspect_ratio 转换为 width/height
+function aspectRatioToSize(ratio) {
+    const sizeMap = {
+        '1:1': { width: 1024, height: 1024 },
+        '16:9': { width: 1280, height: 720 },
+        '9:16': { width: 720, height: 1280 },
+        '4:3': { width: 1024, height: 768 },
+        '3:4': { width: 768, height: 1024 },
+        '3:2': { width: 1024, height: 683 },
+        '2:3': { width: 683, height: 1024 },
+        '21:9': { width: 1280, height: 549 },
+        '9:21': { width: 549, height: 1280 }
+    };
+    return sizeMap[ratio] || sizeMap['1:1'];
+}
+
 /**
  * 调用 ModelScope 官方 API
  * @param {string} path
@@ -97,6 +113,8 @@ async function callModelScope(path, options, timeoutMs = 30000) {
 }
 
 async function handleImageGeneration(prompt, apiKey, aspectRatio = '1:1') {
+    // 🔧 将 aspect_ratio 转换为 width/height
+    const imageSize = aspectRatioToSize(aspectRatio);
     const submitRes = await callModelScope('v1/images/generations', {
         method: 'POST',
         headers: {
@@ -107,7 +125,8 @@ async function handleImageGeneration(prompt, apiKey, aspectRatio = '1:1') {
         body: JSON.stringify({
             model: IMAGE_MODEL, // Z-Image-Turbo 文生图
             prompt,
-            aspect_ratio: aspectRatio
+            width: imageSize.width,
+            height: imageSize.height
         })
     });
 
@@ -328,6 +347,9 @@ module.exports = async function handler(req, res) {
             try {
                 // 🔐 使用内联逻辑跟踪 task_id 获取状态
                 const modelToUse = body.model || IMAGE_MODEL; // 如果前端指定了模型，则使用指定的模型
+                // 🔧 将 aspect_ratio 转换为 width/height（Z-Image-Turbo 需要）
+                const imageSize = aspectRatioToSize(finalAspectRatio);
+                console.log(`[modelscope] 📏 图片尺寸: ${finalAspectRatio} -> ${imageSize.width}x${imageSize.height}`);
                 const submitRes = await callModelScope('v1/images/generations', {
                     method: 'POST',
                     headers: {
@@ -338,7 +360,8 @@ module.exports = async function handler(req, res) {
                     body: JSON.stringify({
                         model: modelToUse,
                         prompt,
-                        aspect_ratio: finalAspectRatio
+                        width: imageSize.width,
+                        height: imageSize.height
                     })
                 });
                 const { task_id: taskId } = await submitRes.json();
