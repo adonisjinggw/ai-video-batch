@@ -2540,17 +2540,33 @@ ${text}`;
                         };
                     }
                     
-                    // 未匹配到，从 voiceList 找匹配性别的音色
+                // 未匹配到，从 voiceList 找匹配性别的音色
                     let defaultVoice = null;
+                    let defaultEngine = 'gemini-flash';  // 默认用Gemini，更稳定
+                    let defaultVoiceId = r.gender === 'female' ? 'Kore' : 'Zephyr';
+                    let defaultVoiceName = r.gender === 'female' ? 'Kore (女声)' : 'Zephyr (男声)';
+                    
                     if (voiceList && voiceList.length > 0) {
-                        const targetSex = r.gender === 'female' ? 0 : 1;
-                        defaultVoice = voiceList.find(v => v.sex === targetSex) || voiceList[0];
+                        // 🔧 兼容两种字段: sex (0=女, 1=男) 或 gender (1=男, 2=女)
+                        defaultVoice = voiceList.find(v => {
+                            const isFemale = v.sex === 0 || v.gender === 2;
+                            const isMale = v.sex === 1 || v.gender === 1;
+                            return (r.gender === 'female' && isFemale) || (r.gender === 'male' && isMale);
+                        }) || voiceList[0];
+                        
+                        if (defaultVoice) {
+                            defaultEngine = 'dubbingx';
+                            defaultVoiceId = defaultVoice.voiceId || defaultVoice.id;
+                            const isFemale = defaultVoice.sex === 0 || defaultVoice.gender === 2;
+                            defaultVoiceName = `${defaultVoice.name} (${isFemale ? '女' : '男'})`;
+                        }
                     }
+                    
                     return {
                         ...r,
-                        voiceEngine: 'dubbingx',  // 默认引擎
-                        voiceId: defaultVoice ? (defaultVoice.voiceId || defaultVoice.id) : '',
-                        voiceName: defaultVoice ? defaultVoice.name : ''
+                        voiceEngine: defaultEngine,
+                        voiceId: defaultVoiceId,
+                        voiceName: defaultVoiceName
                     };
                 });
                 scriptData.lines = parsed.lines.map((l, i) => ({
@@ -2638,22 +2654,32 @@ ${text}`;
             } else {
                 // DubbingX - 从已加载的音色列表获取
                 if (voiceList && voiceList.length > 0) {
-                    const filtered = voiceList.filter(v => 
-                        !gender || gender === 'unknown' || 
-                        (gender === 'female' && v.sex === 0) || 
-                        (gender === 'male' && v.sex === 1)
-                    ).slice(0, 30);  // 增加到 30 个
-                    options = filtered.map(v => ({
-                        id: v.voiceId,
-                        name: v.name,
-                        gender: v.sex === 0 ? 'female' : 'male'
-                    }));
+                    // 🔧 兼容两种字段格式: sex (0=女, 1=男) 或 gender (1=男, 2=女)
+                    const filtered = voiceList.filter(v => {
+                        if (!gender || gender === 'unknown') return true;
+                        // 判断音色性别
+                        const isFemale = v.sex === 0 || v.gender === 2;
+                        const isMale = v.sex === 1 || v.gender === 1;
+                        return (gender === 'female' && isFemale) || (gender === 'male' && isMale);
+                    }).slice(0, 50);  // 增加到 50 个
+                    
+                    options = filtered.map(v => {
+                        const isFemale = v.sex === 0 || v.gender === 2;
+                        return {
+                            id: v.voiceId || v.id,
+                            name: `${v.name} (${isFemale ? '女' : '男'})`,
+                            gender: isFemale ? 'female' : 'male'
+                        };
+                    });
                 }
                 if (options.length === 0) {
-                    // 音色库未加载，提示用户切换到Gemini
+                    // 音色库未加载，提供Gemini备选
+                    console.warn('[getVoiceOptions] voiceList 为空，使用Gemini备选');
                     options = [
-                        { id: '', name: '⚠️ 音色库未加载，请切换Gemini', gender: 'unknown' },
-                        { id: 'Zephyr', name: '→ 点击切换到Gemini Flash', gender: 'male' }
+                        { id: 'Zephyr', name: 'Zephyr (男声)', gender: 'male' },
+                        { id: 'Puck', name: 'Puck (男声)', gender: 'male' },
+                        { id: 'Kore', name: 'Kore (女声)', gender: 'female' },
+                        { id: 'Aoede', name: 'Aoede (女声)', gender: 'female' }
                     ];
                 }
             }
@@ -2714,16 +2740,29 @@ ${text}`;
             container.innerHTML = scriptData.lines.map((line, idx) => {
                 const role = scriptData.roles.find(r => r.name === line.role) || {};
                 const statusIcon = line.status === 'done' ? '✅' : line.status === 'error' ? '❌' : '⏳';
+                const genderIcon = role.gender === 'female' ? '👩' : role.gender === 'male' ? '👨' : '🗣️';
                 return `
-                    <div class="script-line-item" style="background:var(--bg-input);padding:10px 12px;border-radius:6px;margin-bottom:6px;${line.status === 'done' ? 'border-left:3px solid #4CAF50;' : ''}">
+                    <div class="script-line-item" style="background:var(--bg-input);padding:10px 12px;border-radius:6px;margin-bottom:6px;${line.status === 'done' ? 'border-left:3px solid #4CAF50;' : line.status === 'error' ? 'border-left:3px solid #f44336;' : ''}">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                            <span style="font-size:12px;color:var(--accent);font-weight:500;">${line.role}</span>
-                            <span style="font-size:11px;color:#666;">${statusIcon} #${idx + 1}</span>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span style="font-size:12px;color:var(--accent);font-weight:500;">${genderIcon} ${line.role}</span>
+                                ${role.emotion ? `<span style="font-size:10px;background:rgba(251,191,36,0.2);color:var(--accent);padding:1px 6px;border-radius:8px;">${role.emotion}</span>` : ''}
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span style="font-size:11px;color:#666;">${statusIcon} #${idx + 1}</span>
+                                <button onclick="regenerateSingleLine(${idx})" style="padding:2px 8px;font-size:10px;background:var(--bg-card);border:1px solid #444;border-radius:4px;color:#fff;cursor:pointer;" title="重新生成这句">🔄</button>
+                            </div>
                         </div>
                         <input type="text" value="${line.text.replace(/"/g, '&quot;')}" 
                             onchange="updateLineText(${idx}, this.value)"
                             style="width:100%;background:transparent;border:none;color:#fff;font-size:13px;outline:none;" />
-                        ${line.audioUrl ? `<audio src="${line.audioUrl}" controls style="width:100%;height:32px;margin-top:6px;"></audio>` : ''}
+                        ${line.audioUrl ? `
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                                <audio src="${line.audioUrl}" controls style="flex:1;height:32px;"></audio>
+                                <button onclick="regenerateSingleLine(${idx})" style="padding:4px 10px;font-size:11px;background:var(--accent);border:none;border-radius:4px;color:#000;cursor:pointer;white-space:nowrap;">🔄 重新配音</button>
+                            </div>
+                        ` : ''}
+                        ${line.status === 'error' ? `<div style="color:#f44336;font-size:11px;margin-top:4px;">❌ ${line.error || '生成失败'}</div>` : ''}
                     </div>
                 `;
             }).join('');
@@ -2732,6 +2771,160 @@ ${text}`;
         // 更新台词文本
         function updateLineText(idx, text) {
             scriptData.lines[idx].text = text;
+        }
+        
+        // 🔄 单句重新生成
+        async function regenerateSingleLine(idx) {
+            const line = scriptData.lines[idx];
+            const role = scriptData.roles.find(r => r.name === line.role);
+            
+            if (!role) {
+                showToast('找不到角色配置');
+                return;
+            }
+            
+            // 检查余额
+            const engineCosts = { 'gemini-flash': 1, 'gemini-pro': 3, 'dubbingx': 2, 'kling': 2 };
+            const cost = engineCosts[role.voiceEngine] || 2;
+            if (userQuota < cost) {
+                showToast(`胶片不足，需要 ${cost} 胶片`);
+                return;
+            }
+            
+            // 标记为生成中
+            line.status = 'generating';
+            line.audioUrl = null;
+            renderScriptLines();
+            showToast(`正在重新生成第 ${idx + 1} 句...`);
+            
+            const speed = parseFloat(document.getElementById('scriptSpeed')?.value || '1.0');
+            
+            try {
+                let audioUrl = null;
+                let engine = role.voiceEngine || 'gemini-flash';
+                let voiceId = role.voiceId || '';
+                
+                // DubbingX无voiceId时回退到Gemini
+                if (engine === 'dubbingx' && !voiceId) {
+                    engine = 'gemini-flash';
+                    voiceId = role.gender === 'female' ? 'Kore' : 'Zephyr';
+                }
+                if (!voiceId) voiceId = role.gender === 'female' ? 'Kore' : 'Zephyr';
+                
+                console.log(`[TTS] 重新生成第${idx+1}句: engine=${engine}, voiceId=${voiceId}`);
+                
+                if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'gemini-tts',
+                            text: line.text,
+                            voiceName: voiceId,
+                            model: engine === 'gemini-pro' ? 'pro' : 'flash',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.audioData) {
+                        let mimeType = data.mimeType || 'audio/wav';
+                        if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                        audioUrl = `data:${mimeType};base64,${data.audioData}`;
+                    } else if (data.success && data.audioUrl) {
+                        audioUrl = data.audioUrl;
+                    }
+                } else if (engine === 'kling') {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'kling-tts',
+                            text: line.text,
+                            voiceId: voiceId,
+                            voiceLanguage: 'zh',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.audioUrl) {
+                        audioUrl = data.audioUrl;
+                    } else if (data.success && data.taskId) {
+                        audioUrl = await pollKlingTTSResultSilent(data.taskId);
+                    }
+                } else {
+                    // DubbingX
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'tts-generate',
+                            voiceId: voiceId,
+                            text: line.text,
+                            language: 'zh',
+                            audioSpeed: speed,
+                            audioPitch: 1.0,
+                            fileFormat: 'mp3',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.taskId) {
+                        audioUrl = await pollTTSResultSilent(data.taskId);
+                    } else if (!data.success) {
+                        // 回退到Gemini
+                        const fallbackVoice = role.gender === 'female' ? 'Kore' : 'Zephyr';
+                        const fallbackRes = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-tts',
+                                text: line.text,
+                                voiceName: fallbackVoice,
+                                model: 'flash',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const fallbackData = await fallbackRes.json();
+                        if (fallbackData.success && fallbackData.audioData) {
+                            let mimeType = fallbackData.mimeType || 'audio/wav';
+                            if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                            audioUrl = `data:${mimeType};base64,${fallbackData.audioData}`;
+                        }
+                    }
+                }
+                
+                if (audioUrl) {
+                    line.audioUrl = audioUrl;
+                    line.status = 'done';
+                    line.error = null;
+                    
+                    // 更新结果列表
+                    const existingResult = scriptAudioResults.find(r => r.index === idx);
+                    if (existingResult) {
+                        existingResult.audioUrl = audioUrl;
+                    } else {
+                        scriptAudioResults.push({ index: idx, role: line.role, text: line.text, audioUrl, success: true });
+                        scriptAudioResults.sort((a, b) => a.index - b.index);
+                    }
+                    
+                    // 扣费
+                    userQuota -= cost;
+                    document.getElementById('userQuota').textContent = userQuota;
+                    
+                    showToast(`✅ 第 ${idx + 1} 句重新生成成功`);
+                } else {
+                    throw new Error('未获取到音频');
+                }
+            } catch (e) {
+                line.status = 'error';
+                line.error = e.message || '生成失败';
+                showToast(`❌ 第 ${idx + 1} 句失败: ${e.message}`);
+            }
+            
+            renderScriptLines();
+            if (scriptAudioResults.length > 0) {
+                renderScriptResults();
+            }
         }
 
         // 更新费用估算
@@ -2962,16 +3155,25 @@ ${text}`;
         // 渲染配音结果
         function renderScriptResults() {
             const container = document.getElementById('scriptResultList');
-            container.innerHTML = scriptAudioResults.map((item, idx) => `
+            container.innerHTML = scriptAudioResults.map((item, idx) => {
+                const role = scriptData.roles.find(r => r.name === item.role) || {};
+                const genderIcon = role.gender === 'female' ? '👩' : role.gender === 'male' ? '👨' : '🗣️';
+                return `
                 <div style="background:var(--bg-input);padding:10px;border-radius:6px;margin-bottom:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                        <span style="font-size:12px;color:var(--accent);">${item.role}</span>
-                        <span style="font-size:11px;color:#666;">#${item.index + 1}</span>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="font-size:12px;color:var(--accent);">${genderIcon} ${item.role}</span>
+                            ${role.emotion ? `<span style="font-size:10px;background:rgba(251,191,36,0.2);color:var(--accent);padding:1px 6px;border-radius:8px;">${role.emotion}</span>` : ''}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="font-size:11px;color:#666;">#${item.index + 1}</span>
+                            <button onclick="regenerateSingleLine(${item.index})" style="padding:2px 8px;font-size:10px;background:var(--accent);border:none;border-radius:4px;color:#000;cursor:pointer;" title="重新生成">🔄</button>
+                        </div>
                     </div>
                     <div style="font-size:12px;color:#aaa;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.text}</div>
                     <audio src="${item.audioUrl}" controls style="width:100%;height:32px;"></audio>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         // 下载全部音频
