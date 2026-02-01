@@ -4065,7 +4065,9 @@ Output must look like a frame from a Japanese anime series. The character should
 
             // ✅ 根据模型获取固定分镜时长（与PC版对齐）
             let clipDuration = 15; // 默认15秒
-            if (currentGenMode.includes('grok')) {
+            if (currentGenMode.includes('grok') && currentGenMode.includes('10s')) {
+                clipDuration = 10;  // Grok Video 3 10秒版: 10秒
+            } else if (currentGenMode.includes('grok')) {
                 clipDuration = 6;  // Grok Video 3: 6秒
             } else if (currentGenMode.includes('veo')) {
                 clipDuration = 8;  // Veo 3.1: 8秒
@@ -4073,6 +4075,12 @@ Output must look like a frame from a Japanese anime series. The character should
                 clipDuration = 15; // Sora-2 Pro HD: 15秒
             } else {
                 clipDuration = 15; // Sora-2: 15秒
+            }
+            
+            // 🎬 10秒视频模式日志
+            const isGrok10sMode = currentGenMode.includes('grok') && currentGenMode.includes('10s');
+            if (isGrok10sMode) {
+                console.log('[mobile] 🎬 Grok 10秒视频模式已启用，将使用专用提示词优化确保内容完美收尾');
             }
             
             // 🎯 网格图省费版模式：特殊处理
@@ -4310,8 +4318,8 @@ Output must look like a frame from a Japanese anime series. The character should
          * 4. 防止幻灯片/静态图效果
          * 5. 动态镜头语言注入
          */
-        async function optimizeVideoPrompts(scenePrompts, idea, clipDuration, hasReferenceImage) {
-            console.log('[商用级提示词优化] 开始优化，分镜数:', scenePrompts.length, '有参考图:', hasReferenceImage);
+        async function optimizeVideoPrompts(scenePrompts, idea, clipDuration, hasReferenceImage, modelName = '') {
+            console.log('[商用级提示词优化] 开始优化，分镜数:', scenePrompts.length, '有参考图:', hasReferenceImage, '模型:', modelName);
             
             try {
                 // 🎨 智能风格检测系统
@@ -4332,14 +4340,15 @@ Output must look like a frame from a Japanese anime series. The character should
                 // 🎥 构建分镜文本
                 const storyboardsText = scenePrompts.map((sb, idx) => `分镜${idx + 1}：${sb}`).join('\n');
                 
-                // 🎯 构建商用级优化请求
+                // 🎯 构建商用级优化请求（传入模型名称用于10秒视频专用优化）
                 const optimizePrompt = buildCommercialOptimizationPrompt(
                     storyboardsText, 
                     styleAnalysis, 
                     cultureAnalysis, 
                     clipDuration, 
                     hasReferenceImage,
-                    scenePrompts.length
+                    scenePrompts.length,
+                    modelName || idea.genMode || ''
                 );
                 
                 // 调用AI优化
@@ -4519,7 +4528,7 @@ Output must look like a frame from a Japanese anime series. The character should
         }
         
         // 🎯 构建商用级优化请求
-        function buildCommercialOptimizationPrompt(storyboardsText, styleAnalysis, cultureAnalysis, clipDuration, hasReferenceImage, sceneCount) {
+        function buildCommercialOptimizationPrompt(storyboardsText, styleAnalysis, cultureAnalysis, clipDuration, hasReferenceImage, sceneCount, modelName = '') {
             const cameraMovements = [
                 '缓慢推进(dolly in)', '平滑后拉(dolly out)', '环绕旋转(orbit shot)',
                 '升降运动(crane shot)', '跟随移动(tracking shot)', '手持跨动(handheld)',
@@ -4527,7 +4536,36 @@ Output must look like a frame from a Japanese anime series. The character should
                 '子弹时间(bullet time)', '穿越镜头(through shot)', 'FPV无人机(FPV drone)'
             ];
             
+            // 🎬 Grok 10秒视频专用优化
+            const isGrok10s = String(modelName).includes('grok') && String(modelName).includes('10s');
+            const grok10sConstraints = isGrok10s ? `
+═════ ⚠️ Grok 10秒视频专用约束 ⚠️ ═════
+【极度重要】这是10秒短视频，内容必须在10秒内完美结束！
+
+★ 叙事结构要求（防止生硬断句）：
+  - 前3秒：开场/引入（一个动作或场景展示）
+  - 中间4秒：主体内容（核心动作/事件）
+  - 后3秒：自然收束（动作完成/定格/远去）
+
+★ 必须使用的结束方式（二选一）：
+  ① 动作完成式：主体完成一个完整动作后自然停留（如：转身后站定、拿起物品后展示、微笑后定格）
+  ② 远去/淡出式：主体缓慢远离或镜头慢慢拉远（如：人物走向远方、镜头升起俯瞰、背景渐淡）
+
+★ 绝对禁止：
+  ✘ 在动作进行中突然截断
+  ✘ 语句/旁白说到一半被切断
+  ✘ 快速运动中突然结束
+  ✘ 运镜未完成就结束
+  ✘ 多个并行动作（保持简单）
+
+★ 音频/语音约束：
+  - 所有语音/旁白必须在第8秒前完成
+  - 最后2秒只保留环境音/背景音乐
+  - 语句要短，每句不超过10个字
+` : '';
+            
             return `你是国际顶级视频提示词工程师，专精Sora2/Runway/Veo3/Grok Video/Kling等各种AI视频模型。
+${isGrok10s ? '【注意】这是Grok Video 10秒模型，内容必须在10秒内完美收尾，不能生硬断句！' : ''}
 你的任务是将分镜转换为能产出商用级、无需抽卡的高质量视频提示词。
 
 ═════ 🎬 全局视觉设定 ═════
@@ -4557,13 +4595,16 @@ ${storyboardsText}
 每个分镜输出一行（≤200字），格式:
 分镜X：@风格 [${styleAnalysis.styleName}] @角色 [姓名+外貌特征] @场景 [环境] @动作 [动作链→连接] @镜头 [时间+运动] @光影 [氛围]
 
+${grok10sConstraints}
 ═════ 🎥 ${clipDuration}秒分镜镜头规则 ═════
-每个${clipDuration}秒分镜必须包含${clipDuration >= 15 ? '3-4' : clipDuration >= 8 ? '2-3' : '1-2'}个镜头切换:
+${isGrok10s ? `【10秒视频专用结构】
+镜头A(0-3秒)：开场引入 → 镜头B(3-7秒)：核心动作 → 镜头C(7-10秒)：自然收尾
+★ 结束镜头必须是：定格/远去/缓慢停留，不能是运动中突然截断！` : `每个${clipDuration}秒分镜必须包含${clipDuration >= 15 ? '3-4' : clipDuration >= 8 ? '2-3' : '1-2'}个镜头切换:
 ${clipDuration >= 15 
     ? '镜头A(0-4秒) → 镜头B(4-8秒) → 镜头C(8-12秒) → 镜头D(12-15秒)'
     : clipDuration >= 8 
         ? '镜头A(0-3秒) → 镜头B(3-6秒) → 镜头C(6-${clipDuration}秒)'
-        : '镜头A(0-3秒) → 镜头B(3-${clipDuration}秒)'}
+        : '镜头A(0-3秒) → 镜头B(3-${clipDuration}秒)'}`}
 
 镜头类型库: ${cameraMovements.slice(0, 6).join(', ')}
 
@@ -4573,19 +4614,25 @@ ${clipDuration >= 15
 - NO SLOW-MO: 禁止无意义慢动作
 - NO STATIC: 禁止静止画面，每秒必须有运动
 - NO REPEAT: 禁止重复场景/机位/动作
+${isGrok10s ? '- NO CUT-OFF: 绝对禁止动作/语音进行中突然截断
+- NO COMPLEX: 禁止复杂多线叙事，保持简单单一动作' : ''}
 
 =════ ☑️ 必须包含 ═════
 - 角色持续动作（走动、手势、表情变化）
 - 镜头持续运动（tracking/dolly/crane/orbit）
-- 快节奏剪辑感（每3-5秒一个动作变化）
+${isGrok10s ? '- 完整的动作弧线（开始→进行→完成）
+- 自然的结束姿态（定格/远去/淡出）' : '- 快节奏剪辑感（每3-5秒一个动作变化）'}
 - 动态环境元素（风/光影/粒子）
 
 =════ 🔊 音频时长约束（防止截断） ═════
-- 【强制】所有语音/旁白/对话必须在第${clipDuration - 1}秒前结束
-- 最后1秒保持静音画面（运动继续，语音停止）
+${isGrok10s ? `- 【强制】10秒视频：所有语音必须在第8秒前完成
+- 最后2秒只保留环境音和自然收尾动作
+- 语句要短，每句不超过10个字，避免被截断` : `- 【强制】所有语音/旁白/对话必须在第${clipDuration - 1}秒前结束
+- 最后1秒保持静音画面（运动继续，语音停止）`}
 - 这是防止视频结尾语音被截断的关键设置
 
-请输出 ${sceneCount} 个分镜，每个分镜一行，≤20字。`;
+请输出 ${sceneCount} 个分镜，每个分镜一行，≤20字。${isGrok10s ? '
+【10秒特别提醒】每个分镜必须明确写出结束动作（如：“→缓慢停下”“→定格微笑”“→转身远去”）' : ''}`;
         }
         
         // 🔒 构建商用级约束前缀
@@ -4622,6 +4669,20 @@ ${clipDuration >= 15
             return `【重要-音频时长约束】所有语音/旁白/对话必须在第${audioEndTime}秒前结束，最后1秒保持静音画面。`;
         }
         
+        // 🎬 构建10秒视频结束约束后缀
+        function build10sEndingSuffix(modelName) {
+            const isGrok10s = String(modelName).includes('grok') && String(modelName).includes('10s');
+            if (!isGrok10s) return '';
+            
+            return ` [10-SECOND VIDEO ENDING RULES: 
+★ MUST end with a COMPLETE action (not mid-motion)
+★ Last 2 seconds: slow down or hold final pose
+★ End styles: freeze frame / walk away / fade out / gentle stop
+★ NO cut-off during movement or speech
+★ All dialogue MUST finish by second 8
+★ Final frame should feel like natural conclusion]`;
+        }
+        
         // 解析优化后的提示词
         function parseOptimizedPrompts(text, expectedCount) {
             const prompts = [];
@@ -4654,8 +4715,8 @@ ${clipDuration >= 15
         }
         
         // 兼容旧函数名
-        async function optimizeSora2Prompts(scenePrompts, idea, clipDuration, hasReferenceImage) {
-            return optimizeVideoPrompts(scenePrompts, idea, clipDuration, hasReferenceImage);
+        async function optimizeSora2Prompts(scenePrompts, idea, clipDuration, hasReferenceImage, modelName = '') {
+            return optimizeVideoPrompts(scenePrompts, idea, clipDuration, hasReferenceImage, modelName || idea.genMode || '');
         }
 
         // ==================== 视频生成 ====================
@@ -4900,7 +4961,7 @@ ${characterPrompt}
 
             // 🎬 2.5 Sora2提示词优化（关键步骤！将叙事性分镜转为视觉动态提示词）
             showLoading('🎬 正在优化视频提示词...');
-            const optimizedPrompts = await optimizeSora2Prompts(scenePrompts, idea, clipDuration, hasReferenceImage);
+            const optimizedPrompts = await optimizeSora2Prompts(scenePrompts, idea, clipDuration, hasReferenceImage, genMode);
 
             // 3. 根据生成模式构建基础请求参数
             let apiEndpoint = '/api/sora2';
@@ -5288,6 +5349,13 @@ ${scriptLine}
                     // 文生视频或其他模式：使用优化后的剧本提示词 + 语音时长约束
                     const audioConstraint = buildAudioDurationConstraint(clipDuration);
                     scenePrompt = (optimizedPrompts[i] || (imageRefPrefix + (scenePrompts[i] || idea.theme) + characterSuffix)) + ' ' + audioConstraint;
+                }
+                
+                // 🎬 Grok 10秒视频：追加结束约束后缀
+                const ending10sSuffix = build10sEndingSuffix(genMode);
+                if (ending10sSuffix) {
+                    scenePrompt += ending10sSuffix;
+                    console.log('[mobile] ✅ 已添加10秒视频结尾约束');
                 }
                 
                 console.log(`[mobile] 准备生成分镜 ${i + 1}/${sceneCount}: ${scenePrompt.substring(0, 120)}...`);
