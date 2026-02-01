@@ -669,6 +669,9 @@
                     <button class="result-btn" onclick="showConvertModal('comic')" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5);">
                         📚 生成AI漫画
                     </button>
+                    <button class="result-btn" onclick="pushToVoice()" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1)); border-color: rgba(251,191,36,0.5);">
+                        🎤 去生成配音
+                    </button>
                 </div>
             </div>
         </div>
@@ -695,6 +698,9 @@
                     </button>
                     <button class="batch-action-btn" onclick="pushBatchToComic()" style="background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5); padding: 12px;">
                         📚 批量漫画
+                    </button>
+                    <button class="batch-action-btn" onclick="pushBatchToVoice()" style="background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1)); border-color: rgba(251,191,36,0.5); padding: 12px;">
+                        🎤 批量配音
                     </button>
                 </div>
             </div>
@@ -1318,6 +1324,57 @@
             setTimeout(() => {
                 // 批量漫画跳转到 mobile.html
                 location.href = `mobile.html?batch_comic=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+        
+        // 🎤 推送到配音功能
+        function pushToVoice() {
+            if (!currentResult) {
+                showToast('请先生成写作内容');
+                return;
+            }
+            
+            // 保存数据到 localStorage
+            const transferData = {
+                content: currentResult,
+                target: 'voice',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_to_voice', JSON.stringify(transferData));
+            
+            // 检查是否从手机版来的
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            showToast('正在跳转到AI配音页面...');
+            setTimeout(() => {
+                location.href = fromMobile 
+                    ? `voice.html?force=mobile&from_writing=1&skip_welcome=1`
+                    : `voice.html?from_writing=1&skip_welcome=1`;
+            }, 500);
+        }
+        
+        // 🎤 批量推送到配音
+        function pushBatchToVoice() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                scripts: selected.map(r => ({ content: r.result, input: r.input })),
+                mode: 'batch-voice',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_voice', JSON.stringify(transferData));
+            // 同时存储为 voice_batch_scripts 格式供 voice.html 使用
+            localStorage.setItem('voice_batch_scripts', JSON.stringify(selected.map(r => r.result)));
+            
+            showToast('正在跳转到批量配音...');
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            setTimeout(() => {
+                location.href = fromMobile 
+                    ? `voice.html?force=mobile&batch=1&from_writing=1&skip_welcome=1`
+                    : `voice.html?batch=1&from_writing=1&skip_welcome=1`;
             }, 300);
         }
         

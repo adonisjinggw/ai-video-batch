@@ -859,6 +859,8 @@
             await loadVoiceList();
             // 加载VC音色列表
             await loadVCTimbreList();
+            // 🔧 检查是否从写作页面跳转过来
+            checkFromWriting();
             // 绑定标签切换
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', async () => {
@@ -914,6 +916,81 @@
             } catch (e) {
                 console.error('认证检查失败:', e);
                 showToast('获取用户信息失败');
+            }
+        }
+
+        // ==================== 从写作页面导入 ====================
+        function checkFromWriting() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromWriting = urlParams.get('from_writing');
+            const isBatch = urlParams.get('batch');
+            
+            if (fromWriting !== '1') return;
+            
+            console.log('[Voice] 检测到从写作页面跳转');
+            
+            // 📝 单篇模式：读取 writing_to_voice
+            if (!isBatch) {
+                try {
+                    const data = localStorage.getItem('writing_to_voice');
+                    if (data) {
+                        const parsed = JSON.parse(data);
+                        // 检查时效性（10分钟内有效）
+                        if (parsed.timestamp && Date.now() - parsed.timestamp < 10 * 60 * 1000) {
+                            console.log('[Voice] 读取到单篇内容，长度:', parsed.content?.length);
+                            
+                            // 填充到文字转语音输入框
+                            const ttsText = document.getElementById('ttsText');
+                            if (ttsText && parsed.content) {
+                                ttsText.value = parsed.content;
+                                document.getElementById('ttsCharCount').textContent = parsed.content.length;
+                                showToast('✅ 已导入写作内容');
+                            }
+                            
+                            // 清理数据
+                            localStorage.removeItem('writing_to_voice');
+                        }
+                    }
+                } catch (e) {
+                    console.error('[Voice] 解析写作数据失败:', e);
+                }
+            } else {
+                // 📚 批量模式：读取 voice_batch_scripts
+                try {
+                    const scripts = localStorage.getItem('voice_batch_scripts');
+                    if (scripts) {
+                        const parsed = JSON.parse(scripts);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            console.log('[Voice] 读取到批量内容，数量:', parsed.length);
+                            
+                            // 切换到批量配音面板
+                            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                            const batchTab = document.querySelector('.tab[data-panel="batch"]');
+                            const batchPanel = document.getElementById('panel-batch');
+                            if (batchTab && batchPanel) {
+                                batchTab.classList.add('active');
+                                batchPanel.classList.add('active');
+                            }
+                            
+                            // 填充到批量输入框
+                            parsed.slice(0, 8).forEach((content, i) => {
+                                const input = document.getElementById(`batchInput${i}`);
+                                if (input && content) {
+                                    input.value = content;
+                                }
+                            });
+                            
+                            showToast(`✅ 已导入 ${Math.min(parsed.length, 8)} 个配音剧本`);
+                            
+                            // 清理数据
+                            localStorage.removeItem('voice_batch_scripts');
+                            localStorage.removeItem('writing_batch_to_voice');
+                        }
+                    }
+                } catch (e) {
+                    console.error('[Voice] 解析批量数据失败:', e);
+                }
             }
         }
 
