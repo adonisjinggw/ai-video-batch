@@ -730,7 +730,7 @@
         <!-- 🖼️ 图片配音面板 -->
         <div class="panel" id="panel-img2voice">
             <div class="input-section">
-                <label class="input-label">📷 上传图片（自动识别文字后配音）</label>
+                <label class="input-label">📷 上传图片（AI理解图片内容后配音）</label>
                 <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="previewImage(this)">
                 <div class="upload-area" onclick="document.getElementById('imgInput').click()">
                     <div class="icon">🖼️</div>
@@ -740,9 +740,19 @@
                 <img id="imgPreview" class="upload-preview" style="display:none;">
             </div>
 
+            <div class="input-section">
+                <label class="input-label">🎯 识别模式</label>
+                <select id="imgRecognizeMode" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <option value="understand">🧠 智能理解（描述图片内容生成配音文案）</option>
+                    <option value="ocr">📝 OCR识别（只识别图片中的文字）</option>
+                    <option value="story">📚 故事模式（根据图片生成小故事）</option>
+                    <option value="news">📺 新闻播报（新闻播音风格描述）</option>
+                </select>
+            </div>
+
             <div class="input-section" id="imgTextSection" style="display:none;">
-                <label class="input-label">📝 识别到的文字（可编辑）</label>
-                <textarea class="input-box" id="imgText" placeholder="图片文字识别中..."></textarea>
+                <label class="input-label">📝 生成的配音文案（可编辑）</label>
+                <textarea class="input-box" id="imgText" placeholder="AI正在理解图片内容..." style="min-height:100px;"></textarea>
             </div>
 
             <div class="input-section">
@@ -752,7 +762,7 @@
                 </select>
             </div>
 
-            <button class="generate-btn" id="imgBtn" onclick="generateImgVoice()">🎙️ 识别并配音 (3胶片)</button>
+            <button class="generate-btn" id="imgBtn" onclick="generateImgVoice()">🎤 识别并配音 (3胶片)</button>
 
             <div class="loading" id="imgLoading">
                 <div class="spinner"></div>
@@ -1435,25 +1445,35 @@
 
         // ==================== 图片配音 ====================
         let imgFile = null;
+        let imgBase64Cache = null;  // 缓存base64避免重复读取
 
         function previewImage(input) {
             if (input.files && input.files[0]) {
                 imgFile = input.files[0];
+                imgBase64Cache = null;  // 清除缓存
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     document.getElementById('imgPreview').src = e.target.result;
                     document.getElementById('imgPreview').style.display = 'block';
+                    imgBase64Cache = e.target.result;  // 缓存base64
                 };
                 reader.readAsDataURL(imgFile);
+                // 隐藏之前的识别结果
+                document.getElementById('imgTextSection').style.display = 'none';
+                document.getElementById('imgText').value = '';
             }
         }
 
         async function generateImgVoice() {
-            if (!imgFile) {
+            if (!imgFile && !imgBase64Cache) {
                 showToast('请先上传图片');
                 return;
             }
+            
+            // 检查是否已有编辑过的文案，直接使用
+            const existingText = document.getElementById('imgText').value.trim();
             const voiceId = document.getElementById('imgVoiceSelect').value || selectedVoiceId;
+            
             if (!voiceId) {
                 showToast('请选择音色');
                 return;
@@ -1472,61 +1492,174 @@
             result.style.display = 'none';
 
             try {
-                // 1. 先上传图片并OCR识别
-                document.getElementById('imgLoadingText').textContent = '识别图片文字中...';
+                let textToSpeak = existingText;
                 
-                const base64 = await fileToBase64(imgFile);
-                const ocrRes = await fetch('/api/yunwu', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'vision',
-                        image_url: base64,
-                        prompt: '请识别图片中的所有文字内容，只返回文字，不要其他解释',
-                        userId: currentUser?.id
-                    })
-                });
-                const ocrData = await ocrRes.json();
+                // 如果没有现有文案，先进行AI识别
+                if (!textToSpeak) {
+                    const mode = document.getElementById('imgRecognizeMode').value;
+                    document.getElementById('imgLoadingText').textContent = 'AI正在理解图片...';
+                    
+                    const base64 = imgBase64Cache || await fileToBase64(imgFile);
+                    
+                    // 🧠 根据模式选择不同的prompt
+                    const modePrompts = {
+                        'understand': `请仔细观察这张图片，用流畅的中文描述图片的内容，包括：
+1. 图片中有什么主要元素（人物、物体、场景等）
+2. 图片的氛围、情绪或表达的意境
+3. 如果有文字，请一并读出来
 
-                if (!ocrData.success || !ocrData.text) {
-                    throw new Error('图片文字识别失败');
+请直接输出适合配音的文案，50-150字左右，不要分点列出，要是一段连贯的叙述。`,
+                        
+                        'ocr': `请识别图片中的所有文字内容。如果图片中没有文字，请描述图片中可见的主要内容。只返回文字内容，不要其他解释。`,
+                        
+                        'story': `请根据这张图片，创作一个简短的小故事或小场景。要求：
+- 100-200字左右
+- 生动有趣，有情节
+- 适合配音朗读
+- 直接输出故事内容，不要其他解释`,
+                        
+                        'news': `请用新闻播报的风格描述这张图片。要求：
+- 客观、专业的新闻语言
+- 50-100字左右
+- 按“什么人/什么事/什么地点/什么结果”的结构
+- 直接输出新闻稿，不要其他解释`
+                    };
+                    
+                    const prompt = modePrompts[mode] || modePrompts['understand'];
+                    
+                    // 调用视觉理解API
+                    const visionRes = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'vision',
+                            image_url: base64,
+                            prompt: prompt,
+                            userId: currentUser?.id
+                        })
+                    });
+                    const visionData = await visionRes.json();
+                    
+                    console.log('[ImgVoice] 视觉理解结果:', visionData);
+
+                    if (!visionData.success) {
+                        // 如果视觉API失败，尝试用备用方案
+                        console.warn('[ImgVoice] 视觉API失败，尝试备用方案');
+                        document.getElementById('imgLoadingText').textContent = '尝试备用识别方式...';
+                        
+                        // 尝试用Gemini vision
+                        const geminiRes = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-vision',
+                                image_url: base64,
+                                prompt: prompt,
+                                userId: currentUser?.id
+                            })
+                        });
+                        const geminiData = await geminiRes.json();
+                        
+                        if (geminiData.success && geminiData.text) {
+                            textToSpeak = geminiData.text;
+                        } else {
+                            throw new Error('图片理解失败，请尝试其他图片或手动输入文案');
+                        }
+                    } else {
+                        textToSpeak = visionData.text;
+                    }
+                    
+                    // 检查识别结果是否有效
+                    if (!textToSpeak || textToSpeak.length < 5) {
+                        throw new Error('图片内容识别结果过短，请尝试其他图片或手动输入文案');
+                    }
+
+                    // 显示识别结果
+                    document.getElementById('imgTextSection').style.display = 'block';
+                    document.getElementById('imgText').value = textToSpeak;
                 }
 
-                // 显示识别结果
-                document.getElementById('imgTextSection').style.display = 'block';
-                document.getElementById('imgText').value = ocrData.text;
-
-                // 2. 调用TTS
+                // 2. 调用TTS生成配音
                 document.getElementById('imgLoadingText').textContent = '生成配音中...';
                 
-                const ttsRes = await fetch('/api/yunwu', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'tts-generate',
-                        voiceId: voiceId,
-                        text: ocrData.text,
-                        language: 'zh',
-                        fileFormat: 'mp3',
-                        userId: currentUser?.id
-                    })
-                });
-
-                const ttsData = await ttsRes.json();
-
-                if (ttsData.success && ttsData.taskId) {
-                    const audioUrl = await pollTTSResultFor('img', ttsData.taskId);
+                // 优先使用Gemini TTS（更稳定）
+                let audioUrl = null;
+                
+                // 检查是否是Gemini音色
+                const isGeminiVoice = ['Zephyr', 'Puck', 'Kore', 'Aoede', 'Charon', 'Fenrir', 'Leda', 'Orus'].includes(voiceId);
+                
+                if (isGeminiVoice) {
+                    // 使用Gemini TTS
+                    const ttsRes = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'gemini-tts',
+                            text: textToSpeak,
+                            voiceName: voiceId,
+                            model: 'flash',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const ttsData = await ttsRes.json();
                     
-                    if (audioUrl) {
-                        currentAudioUrls.img = audioUrl;
-                        document.getElementById('imgAudio').src = audioUrl;
-                        result.style.display = 'block';
-                        showToast('配音生成成功！');
-                        userQuota -= 3;
-                        document.getElementById('userQuota').textContent = userQuota;
+                    if (ttsData.success && ttsData.audioData) {
+                        let mimeType = ttsData.mimeType || 'audio/wav';
+                        if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                        audioUrl = `data:${mimeType};base64,${ttsData.audioData}`;
+                    } else if (ttsData.success && ttsData.audioUrl) {
+                        audioUrl = ttsData.audioUrl;
                     }
                 } else {
-                    throw new Error(ttsData.message || ttsData.error || '配音生成失败');
+                    // 使用DubbingX TTS
+                    const ttsRes = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'tts-generate',
+                            voiceId: voiceId,
+                            text: textToSpeak,
+                            language: 'zh',
+                            fileFormat: 'mp3',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const ttsData = await ttsRes.json();
+
+                    if (ttsData.success && ttsData.taskId) {
+                        audioUrl = await pollTTSResultFor('img', ttsData.taskId);
+                    } else if (!ttsData.success) {
+                        // DubbingX失败，回退到Gemini
+                        console.warn('[ImgVoice] DubbingX失败，回退Gemini');
+                        const fallbackRes = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-tts',
+                                text: textToSpeak,
+                                voiceName: 'Zephyr',
+                                model: 'flash',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const fallbackData = await fallbackRes.json();
+                        if (fallbackData.success && fallbackData.audioData) {
+                            let mimeType = fallbackData.mimeType || 'audio/wav';
+                            if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                            audioUrl = `data:${mimeType};base64,${fallbackData.audioData}`;
+                        }
+                    }
+                }
+                
+                if (audioUrl) {
+                    currentAudioUrls.img = audioUrl;
+                    document.getElementById('imgAudio').src = audioUrl;
+                    result.style.display = 'block';
+                    showToast('配音生成成功！');
+                    userQuota -= 3;
+                    document.getElementById('userQuota').textContent = userQuota;
+                } else {
+                    throw new Error('配音生成失败');
                 }
             } catch (e) {
                 const errMsg = e?.message || e?.error || (typeof e === 'string' ? e : '未知错误');
