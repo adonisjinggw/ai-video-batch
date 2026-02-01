@@ -1299,37 +1299,72 @@
                 modelSelect.addEventListener('change', updateI2VImageTip);
             }
         });
-        // 上传视频到图床获取URL
+        // 上传视频到图床获取URL（带备用方案）
         async function uploadVideoToHost(base64Data) {
+            const base64 = base64Data.replace(/^data:video\/\w+;base64,/, '');
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'video/mp4' });
+            
+            // 方案１：尝试后端代理上传（解决国内网络问题）
             try {
                 showToast('正在上传视频...');
-                const base64 = base64Data.replace(/^data:video\/\w+;base64,/, '');
-                const binary = atob(base64);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                const blob = new Blob([bytes], { type: 'video/mp4' });
-                
+                const proxyRes = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'upload-file',
+                        fileData: base64Data,
+                        fileType: 'video/mp4',
+                        fileName: 'video.mp4'
+                    })
+                });
+                const proxyData = await proxyRes.json();
+                if (proxyData.success && proxyData.url) {
+                    console.log('[video-tools] 视频上传成功(代理):', proxyData.url);
+                    return proxyData.url;
+                }
+            } catch (e) {
+                console.warn('[video-tools] 后端代理上传失败:', e.message);
+            }
+            
+            // 方案２：直连 catbox.moe（国外网络或VPN情况）
+            try {
+                showToast('正在尝试备用上传...');
                 const formData = new FormData();
                 formData.append('reqtype', 'fileupload');
                 formData.append('fileToUpload', blob, 'video.mp4');
                 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+                
                 const res = await fetch('https://catbox.moe/user/api.php', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 
                 if (res.ok) {
                     const url = await res.text();
                     if (url && url.startsWith('http')) {
-                        console.log('[video-tools] 视频上传成功:', url);
+                        console.log('[video-tools] 视频上传成功(catbox):', url);
                         return url.trim();
                     }
                 }
-                throw new Error('上传失败');
             } catch (e) {
-                console.error('[video-tools] 视频上传失败:', e);
-                return null;
+                console.warn('[video-tools] catbox上传失败:', e.message);
             }
+            
+            // 方案３：直接返回 base64 URL（如果API支持）
+            console.warn('[video-tools] 所有上传方式失败，尝试使用base64');
+            if (base64Data.length < 10 * 1024 * 1024) { // 小于10MB
+                return base64Data;
+            }
+            
+            showToast('视频上传失败，请检查网络或使用更小的视频');
+            return null;
         }
         
         let refVideoFile = null;

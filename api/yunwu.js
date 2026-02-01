@@ -905,6 +905,90 @@ module.exports = async function handler(req, res) {
             }
         }
 
+        // ========== 📤 文件上传代理（解决国内网络问题） ==========
+        if (action === 'upload-file') {
+            const { fileData, fileType = 'video/mp4', fileName = 'file.mp4' } = body;
+            
+            if (!fileData) {
+                json(400, { success: false, error: 'MISSING_FILE_DATA' });
+                return;
+            }
+            
+            try {
+                // 解析base64
+                const base64Match = fileData.match(/^data:([^;]+);base64,(.+)$/);
+                const mimeType = base64Match ? base64Match[1] : fileType;
+                const b64 = base64Match ? base64Match[2] : fileData.replace(/^data:[^;]+;base64,/, '');
+                const buffer = Buffer.from(b64, 'base64');
+                
+                console.log(`[yunwu] 📤 代理上传文件: ${fileName}, 大小: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`);
+                
+                // 方案１：尝试 catbox.moe
+                try {
+                    const FormData = require('form-data');
+                    const formData = new FormData();
+                    formData.append('reqtype', 'fileupload');
+                    formData.append('fileToUpload', buffer, {
+                        filename: fileName,
+                        contentType: mimeType
+                    });
+                    
+                    const catboxRes = await fetch('https://catbox.moe/user/api.php', {
+                        method: 'POST',
+                        body: formData,
+                        headers: formData.getHeaders(),
+                        signal: AbortSignal.timeout(60000)  // 60秒超时
+                    });
+                    
+                    if (catboxRes.ok) {
+                        const url = await catboxRes.text();
+                        if (url && url.startsWith('http')) {
+                            console.log('[yunwu] ✅ catbox上传成功:', url.trim());
+                            json(200, { success: true, url: url.trim() });
+                            return;
+                        }
+                    }
+                } catch (catboxErr) {
+                    console.warn('[yunwu] catbox上传失败:', catboxErr.message);
+                }
+                
+                // 方案２：尝试 0x0.st（更稳定的备用图床）
+                try {
+                    const FormData = require('form-data');
+                    const formData = new FormData();
+                    formData.append('file', buffer, {
+                        filename: fileName,
+                        contentType: mimeType
+                    });
+                    
+                    const nullRes = await fetch('https://0x0.st', {
+                        method: 'POST',
+                        body: formData,
+                        headers: formData.getHeaders(),
+                        signal: AbortSignal.timeout(60000)
+                    });
+                    
+                    if (nullRes.ok) {
+                        const url = await nullRes.text();
+                        if (url && url.startsWith('http')) {
+                            console.log('[yunwu] ✅ 0x0.st上传成功:', url.trim());
+                            json(200, { success: true, url: url.trim() });
+                            return;
+                        }
+                    }
+                } catch (nullErr) {
+                    console.warn('[yunwu] 0x0.st上传失败:', nullErr.message);
+                }
+                
+                // 所有方案失败
+                json(500, { success: false, error: '所有上传服务均不可用' });
+            } catch (err) {
+                console.error('[yunwu] 文件上传异常:', err.message);
+                json(500, { success: false, error: err.message });
+            }
+            return;
+        }
+
         // ========== 文本生成 (优先使用魔塔roll模型节约成本) ==========
         if (action === 'text') {
             const { prompt, model = 'roll', temperature = 0.7, max_tokens = 4096, speed = 1 } = body;
