@@ -635,6 +635,17 @@
                 isVideo: true,  // 🎬 标记为视频模板
                 vars: [
                     {
+                        key: 'video_model', label: '🎥 目标模型', optional: false, options: [
+                            '通用格式（适用大多数模型）',
+                            'Grok Video 10秒（时间分段+动作链）',
+                            'Grok Video 6秒（极简动作链）',
+                            'Sora（电影级叙事）',
+                            'Runway Gen-3（动态运镜）',
+                            'Kling（中文友好）',
+                            'Veo 2（谷歌风格）'
+                        ]
+                    },
+                    {
                         key: 'video_type', label: '视频类型', optional: true, options: [
                             '电影级叙事视频（故事片/短片/微电影）',
                             '商业广告视频（产品宣传/品牌广告）',
@@ -3877,23 +3888,125 @@
                 // 🎬 检查是否是视频模板
                 const isVideoTemplate = currentTemplate?.isVideo === true;
                 
+                // 🎥 获取目标模型
+                const videoModel = currentValues['video_model'] || '通用格式';
+                const isGrok10s = videoModel.includes('10秒');
+                const isGrok6s = videoModel.includes('6秒') && !isGrok10s;
+                const isSora = videoModel.includes('Sora');
+                const isRunway = videoModel.includes('Runway');
+                const isKling = videoModel.includes('Kling');
+                const isVeo = videoModel.includes('Veo');
+                
                 let aiPrompt;
                 if (isVideoTemplate) {
-                    // 🎬 视频专属优化提示词
-                    aiPrompt = `你是专业的AI视频提示词专家。请生成通用的英文视频提示词，适用于大多数AI视频模型，并且必须保持角色一致性（同一角色的服装与发型保持一致）。
+                    // 🎬 根据目标模型生成专属格式
+                    let modelSpecificInstructions = '';
+                    
+                    if (isGrok10s) {
+                        modelSpecificInstructions = `
+【Grok Video 10秒专用格式】必须严格遵守：
+1. 使用时间分段结构：
+   【0–2秒】开场 + 第一个动作链（用→连接）
+   【2–5秒】连续动作组 + 镜头跟随
+   【5–10秒】收尾动作 + 必须以"最后定格在XXX"结束
 
-原始提示词：
-${basePrompt}
+2. 动作链写法示例：
+   单手指向镜头 → 快速收回 → 贴脸比心
+   镜头跟随，她快速完成：双手交叉 → 左右点脸 → 双手展开
 
-【通用优化要求】：
-1. 运镜指令简短直接，放在开头，如 "Slow zoom in." 或 "Camera tracks left."
+3. 语音约束：所有话语必须在第8秒前说完，最后2秒只做动作不说话
+
+4. 必须的结束方式："最后定格在XXX" 或 "微笑定格完成收尾"
+
+【输出格式】：
+【0–2秒】[开场动作链]
+【2–5秒】[核心动作链]
+【5–10秒】[收尾 + 定格结束]`;
+                    } else if (isGrok6s) {
+                        modelSpecificInstructions = `
+【Grok Video 6秒专用格式】必须严格遵守：
+1. 使用时间分段结构：
+   【0–2秒】开场 + 第一个动作
+   【2–4秒】核心动作链（用→连接，最多3-4个动作）
+   【4–6秒】收尾 + 必须以"最后定格在XXX"结束
+
+2. 6秒极简要求：
+   - 只做一件事，不要多个场景
+   - 动作链最多3-4个动作
+   - 必须有明确的定格结尾
+
+3. 语音约束：所有话语必须在第5秒前说完，最后1秒只做定格
+
+【输出格式】：
+【0–2秒】[开场动作]
+【2–4秒】[核心动作链]
+【4–6秒】[定格结束]`;
+                    } else if (isSora) {
+                        modelSpecificInstructions = `
+【Sora专用格式】电影级叙事风格：
+1. 开头用电影级运镜描述："The camera slowly pushes in..." 或 "A sweeping crane shot reveals..."
+2. 强调光影氛围：golden hour lighting, volumetric fog, cinematic color grading
+3. 使用专业摄影术语：shallow depth of field, anamorphic lens flare, film grain
+4. 叙事感强，像在描述一个电影场景
+5. 保持100词左右，英文输出
+
+【输出格式】：
+[Cinematic camera movement]. [Scene setup], [subject description], [action sequence], [lighting/atmosphere], [film style], high quality, 4K.`;
+                    } else if (isRunway) {
+                        modelSpecificInstructions = `
+【Runway Gen-3专用格式】动态运镜风格：
+1. 强调相机运动：tracking shot, dolly zoom, orbit shot, crane movement
+2. 动作要连贯流畅，避免跳切
+3. 环境要有动态元素：风吹、光影变化、粒子效果
+4. 使用简洁直接的描述，避免过于抽象
+5. 保持80词左右，英文输出
+
+【输出格式】：
+[Camera: specific movement]. [Subject] [action], [environment with dynamic elements], [lighting], [style], smooth motion, high quality.`;
+                    } else if (isKling) {
+                        modelSpecificInstructions = `
+【Kling专用格式】中文友好风格：
+1. 可以使用中英文混合，但关键词用英文
+2. 动作描述要具体：不要"走路"，要"轻快地小跑，裙摆随风飘动"
+3. 强调人物一致性：明确描述服装、发型、体态
+4. 运镜简单直接：推近、拉远、横移、跟拍
+5. 保持80词左右
+
+【输出格式】：
+[运镜]。[人物外貌特征]，[具体动作]，[场景环境]，[光影氛围]，高清，电影感。`;
+                    } else if (isVeo) {
+                        modelSpecificInstructions = `
+【Veo 2专用格式】谷歌风格：
+1. 使用自然语言描述，像在讲述一个画面
+2. 强调真实感和物理正确性
+3. 动作要符合物理规律，避免超现实
+4. 场景描述要详细但不冗长
+5. 保持100词左右，英文输出
+
+【输出格式】：
+[Natural description of scene], [subject doing action], [environment details], [realistic lighting], photorealistic, high quality video.`;
+                    } else {
+                        modelSpecificInstructions = `
+【通用优化要求】适用于大多数AI视频模型：
+1. 运镜指令简短直接，放在开头："Slow zoom in." 或 "Camera tracks left."
 2. 只用一个主要运镜，不要多个组合
 3. 场景描述清晰，人物动作明确
 4. 包含光影和氛围词
-5. 保持坚持百词左右
+5. 保持100词左右，英文输出
 
 【输出格式】：
 [Camera movement]. [Scene], [subject], [action], [lighting/mood], [style], high quality.`;
+                    }
+                    
+                    aiPrompt = `你是专业的AI视频提示词专家，精通各种AI视频模型的最佳实践。
+
+原始提示词：
+${basePrompt}
+${modelSpecificInstructions}
+
+【角色一致性要求】：同一角色的服装、发型、外貌特征必须在整个视频中保持一致。
+
+请直接输出优化后的提示词，不要解释。`;
                 } else {
                     // 📷 图像提示词
                     aiPrompt = `你是一个专业的AI绘画提示词专家。请将以下中文提示词优化成一个专业的英文提示词，用于AI图像生成。
