@@ -4536,36 +4536,80 @@ Output must look like a frame from a Japanese anime series. The character should
                 '子弹时间(bullet time)', '穿越镜头(through shot)', 'FPV无人机(FPV drone)'
             ];
             
-            // 🎬 Grok 10秒视频专用优化
+            // 🎬 Grok 视频专用优化（基于Grok官方示例风格）
             const isGrok10s = String(modelName).includes('grok') && String(modelName).includes('10s');
+            const isGrok6s = String(modelName).includes('grok') && !String(modelName).includes('10s');
+            const isGrok = isGrok10s || isGrok6s;
+            
+            // Grok 10秒专用约束
             const grok10sConstraints = isGrok10s ? `
-═════ ⚠️ Grok 10秒视频专用约束 ⚠️ ═════
-【极度重要】这是10秒短视频，内容必须在10秒内完美结束！
+═════ ⚠️ Grok Video 10秒专用格式 ⚠️ ═════
+【极度重要】请按照以下时间分段+动作链格式输出！
 
-★ 叙事结构要求（防止生硬断句）：
-  - 前3秒：开场/引入（一个动作或场景展示）
-  - 中间4秒：主体内容（核心动作/事件）
-  - 后3秒：自然收束（动作完成/定格/远去）
+★ 必须使用的提示词结构：
+【0–2秒】
+场景开场 + 镜头动作 + 第一个动作链
+例：少女正对镜头，微微歪头甘笑。镜头轻微推近，她突然做出第一个手势动作：单手指向镜头 → 快速收回 → 贴脸比心
 
-★ 必须使用的结束方式（二选一）：
-  ① 动作完成式：主体完成一个完整动作后自然停留（如：转身后站定、拿起物品后展示、微笑后定格）
-  ② 远去/淡出式：主体缓慢远离或镜头慢慢拉远（如：人物走向远方、镜头升起俯瞰、背景渐淡）
+【2–5秒】
+镜头跟随 + 连续动作组（用→连接）
+例：镜头贴身跟随，随她上半身左右晏动同步平移。她连续完成一组节奏感手势舞：双手交叉打开 → 左右点脸 → 双手绕脸一圈展开 → 快速比小心心
 
-★ 绝对禁止：
-  ✘ 在动作进行中突然截断
-  ✘ 语句/旁白说到一半被切断
-  ✘ 快速运动中突然结束
-  ✘ 运镜未完成就结束
-  ✘ 多个并行动作（保持简单）
+【5–10秒】
+镜头推近 + 强互动收尾 + 最后定格
+例：镜头小幅推到面部近景，她对镜头连续做三组强互动动作：眨眼 wink → 食指轻点嘴唇 → 双手向前“递爱心”式推出，最后定格在最靠近镜头的一帧
 
-★ 音频/语音约束：
-  - 所有语音/旁白必须在第8秒前完成
-  - 最后2秒只保留环境音/背景音乐
-  - 语句要短，每句不超过10个字
+★ 动作链写法要求：
+  - 使用 → 符号连接连续动作
+  - 每个动作要具体（“指向镜头”而不是“做手势”）
+  - 动作节奏要清晰（快速/缓慢/连贯）
+  - 表情描述要细腻（甘笑+小俚皮）
+
+★ 镜头运动写法：
+  - “镜头轻微推近”“贴身跟随”“小幅推到近景”
+  - 不要用抽象的“dolly in”，要用描述性语言
+
+★ 必须的结束方式：
+  “最后定格在XXX” 或 “XXX后定格”
+  例：“最后定格在最靠近镜头的一帧”“微笑定格完成甘感收尾”
+
+★ 语音约束：
+  - 所有话语必须在第8秒前说完
+  - 最后2秒只做动作，不说话
+  - 每句话不超过10个字
 ` : '';
             
+            // Grok 6秒专用约束
+            const grok6sConstraints = isGrok6s ? `
+═════ ⚠️ Grok Video 6秒专用格式 ⚠️ ═════
+【极度重要】6秒超短视频，内容必须精简紧凑！
+
+★ 必须使用的提示词结构：
+【0–2秒】
+开场 + 第一个动作
+例：少女正对镜头甘笑，镜头轻微推近，她突然做出手势：单手指向镜头 → 贴脸比心
+
+【2–4秒】
+核心动作组（用→连接）
+例：镜头跟随，她快速完成动作链：双手交叉 → 左右点脸 → 双手展开
+
+【4–6秒】
+收尾动作 + 定格
+例：镜头推近，她眨眼 wink → 比心，最后定格在笑容
+
+★ 6秒视频特殊要求：
+  - 只做一件事，不要多个场景
+  - 动作链最多3-4个动作
+  - 必须有明确的定格结尾
+  - 语音必须在第5秒前说完
+` : '';
+            
+            // Grok统一约束
+            const grokConstraints = grok10sConstraints || grok6sConstraints;
+            
             return `你是国际顶级视频提示词工程师，专精Sora2/Runway/Veo3/Grok Video/Kling等各种AI视频模型。
-${isGrok10s ? '【注意】这是Grok Video 10秒模型，内容必须在10秒内完美收尾，不能生硬断句！' : ''}
+${isGrok10s ? '【注意】这是Grok Video 10秒模型，请使用时间分段+动作链格式！' : ''}
+${isGrok6s ? '【注意】这是Grok Video 6秒模型，内容必须精简紧凑，请使用时间分段+动作链格式！' : ''}
 你的任务是将分镜转换为能产出商用级、无需抽卡的高质量视频提示词。
 
 ═════ 🎬 全局视觉设定 ═════
@@ -4595,11 +4639,9 @@ ${storyboardsText}
 每个分镜输出一行（≤200字），格式:
 分镜X：@风格 [${styleAnalysis.styleName}] @角色 [姓名+外貌特征] @场景 [环境] @动作 [动作链→连接] @镜头 [时间+运动] @光影 [氛围]
 
-${grok10sConstraints}
-═════ 🎥 ${clipDuration}秒分镜镜头规则 ═════
-${isGrok10s ? `【10秒视频专用结构】
-镜头A(0-3秒)：开场引入 → 镜头B(3-7秒)：核心动作 → 镜头C(7-10秒)：自然收尾
-★ 结束镜头必须是：定格/远去/缓慢停留，不能是运动中突然截断！` : `每个${clipDuration}秒分镜必须包含${clipDuration >= 15 ? '3-4' : clipDuration >= 8 ? '2-3' : '1-2'}个镜头切换:
+${grokConstraints}
+${!isGrok ? `═════ 🎥 ${clipDuration}秒分镜镜头规则 ═════` : ''}
+${isGrok10s ? '' : isGrok6s ? '' : `每个${clipDuration}秒分镜必须包含${clipDuration >= 15 ? '3-4' : clipDuration >= 8 ? '2-3' : '1-2'}个镜头切换:
 ${clipDuration >= 15 
     ? '镜头A(0-4秒) → 镜头B(4-8秒) → 镜头C(8-12秒) → 镜头D(12-15秒)'
     : clipDuration >= 8 
@@ -4669,18 +4711,43 @@ ${isGrok10s ? `- 【强制】10秒视频：所有语音必须在第8秒前完成
             return `【重要-音频时长约束】所有语音/旁白/对话必须在第${audioEndTime}秒前结束，最后1秒保持静音画面。`;
         }
         
-        // 🎬 构建10秒视频结束约束后缀
+        // 🎬 构建Grok视频结束约束后缀（6s/10s通用）
         function build10sEndingSuffix(modelName) {
             const isGrok10s = String(modelName).includes('grok') && String(modelName).includes('10s');
-            if (!isGrok10s) return '';
+            const isGrok6s = String(modelName).includes('grok') && !String(modelName).includes('10s');
             
-            return ` [10-SECOND VIDEO ENDING RULES: 
-★ MUST end with a COMPLETE action (not mid-motion)
-★ Last 2 seconds: slow down or hold final pose
-★ End styles: freeze frame / walk away / fade out / gentle stop
-★ NO cut-off during movement or speech
-★ All dialogue MUST finish by second 8
-★ Final frame should feel like natural conclusion]`;
+            if (isGrok10s) {
+                return ` [GROK 10秒视频强制格式:
+【时间分段结构】
+0–2秒: 开场 + 第一个动作链（用→连接）
+2–5秒: 连续动作组 + 镜头跟随
+5–10秒: 收尾动作 + 必须以"最后定格在XXX"结束
+
+【动作链写法】
+使用→符号连接: 单手指向镜头 → 快速收回 → 贴脸比心
+
+【必须的结束方式】
+"最后定格在最靠近镜头的一帧" 或 "微笑定格完成甘感收尾"
+
+【语音约束】
+所有话语必须在第8秒前说完，最后2秒只做动作不说话]`;
+            }
+            
+            if (isGrok6s) {
+                return ` [GROK 6秒视频强制格式:
+【时间分段结构】
+0–2秒: 开场 + 第一个动作（用→连接）
+2–4秒: 核心动作链
+4–6秒: 收尾 + 必须以"最后定格在XXX"结束
+
+【动作链写法】
+最多3-4个动作: 双手交叉 → 左右点脸 → 双手展开
+
+【语音约束】
+所有话语必须在第5秒前说完，最后1秒只做定格]`;
+            }
+            
+            return '';
         }
         
         // 解析优化后的提示词
