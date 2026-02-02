@@ -695,25 +695,54 @@
         
         <div class="panel" id="panel-ref">
             <div class="input-section">
-                <label class="input-label">📁 上传参考视频或输入URL</label>
+                <label class="input-label">📁 上传参考视频</label>
                 <input type="file" id="refVideoInput" accept="video/*" onchange="previewRefVideo(this)"
                     style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:12px;">
-                <input type="text" id="refUrl" placeholder="粘贴视频链接（支持抹茶/阿里云/腾讯云等任意URL）"
-                    style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:12px;">
-                <div style="font-size:11px;color:#888;margin-bottom:12px;">
-                    💡 获取视频链接：<a href="https://www.wenshushu.cn" target="_blank" style="color:var(--accent);">文叔叔</a>(免费)、<a href="https://www.123pan.com" target="_blank" style="color:var(--accent);">123云盘</a>(免费)、或任意云存储的视频直链
+                <video id="refPreviewVideo" controls style="width:100%;display:none;border-radius:8px;margin-bottom:12px;"></video>
+                <!-- 首帧预览 -->
+                <div id="refFramePreview" style="display:none;margin-bottom:12px;">
+                    <div style="font-size:12px;color:#888;margin-bottom:6px;">🖼️ 提取的参考帧：</div>
+                    <img id="refFrameImg" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;background:#000;">
                 </div>
-                <video id="refPreviewVideo" controls style="width:100%;display:none;border-radius:8px;"></video>
             </div>
+            
+            <!-- 克隆模式选择 -->
+            <div class="input-section">
+                <label class="input-label">🎯 克隆模式</label>
+                <select id="refCloneMode" onchange="updateRefCloneMode()" style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:8px;">
+                    <option value="frame">🖼️ 首帧克隆 - 提取首帧图生视频（所有模型）</option>
+                    <option value="ai">🧠 智能分析 - AI描述视频后生成（所有模型）</option>
+                    <option value="native">🎬 原生克隆 - Sora-2 Remix（仅Sora-2）</option>
+                </select>
+                <div id="refModeHint" style="font-size:11px;color:#888;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;">
+                    🖼️ <b>首帧克隆</b>：提取视频第一帧作为参考图，用图生视频功能生成，可保持视觉风格一致性
+                </div>
+            </div>
+            
             <div class="input-section"><label class="input-label">✨ 克隆提示词</label><textarea class="input-box"
                     id="refPrompt" placeholder="例如：保持视频风格，但把主角换成一只熊猫..." style="min-height:80px;"></textarea></div>
+            
             <div class="settings-row">
-                <div class="setting-item"><label>模型</label><select id="refModel">
-                        <option value="sora-2-all">Sora-2 (15秒)</option>
-                        <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
-                        <option value="veo3.1">Veo 3.1 4K (8秒)</option>
-                        <option value="grok-video-3">Grok Video 3 (6秒)</option>
-                        <option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
+                <div class="setting-item"><label>模型</label><select id="refModel" onchange="updateRefModelForMode()">
+                        <optgroup label="🌟 推荐" id="refModelRecommend">
+                            <option value="grok-video-3-10s">Grok 3 10秒 (8胶片)</option>
+                            <option value="grok-video-3">Grok 3 6秒 (5胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Sora-2 (支持原生克隆)">
+                            <option value="sora-2-all">Sora-2 (15秒/7胶片)</option>
+                            <option value="sora-2-pro-all">Sora-2 Pro (15秒/14胶片)</option>
+                        </optgroup>
+                        <optgroup label="🌐 Veo 3.1">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (30胶片)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺">
+                            <option value="hailuo-02-768p-6s">海螺02 6秒 (7胶片)</option>
+                            <option value="hailuo-02-768p-10s">海螺02 10秒 (11胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵">
+                            <option value="kling-2.5-720p-5s">可灵2.5 5秒 (5胶片)</option>
+                            <option value="kling-2.5-720p-10s">可灵2.5 10秒 (10胶片)</option>
+                        </optgroup>
                     </select></div>
                 <div class="setting-item"><label>比例</label><select id="refRatio">
                         <option value="16:9">16:9</option>
@@ -724,7 +753,7 @@
             <button class="generate-btn" onclick="generateRef()">⚡ 克隆视频</button>
             <div class="loading" id="refLoading">
                 <div class="spinner"></div>
-                <div>视频克隆中...</div>
+                <div id="refLoadingText">视频克隆中...</div>
             </div>
             <div class="result-section" id="refResult">
                 <div class="result-title">🎬 克隆结果</div><video class="result-video" id="refVideo" controls
@@ -1353,6 +1382,8 @@
         }
         
         let refVideoFile = null;
+        let refExtractedFrame = null;  // 存储提取的首帧
+        
         function previewRefVideo(input) { 
             if (input.files && input.files[0]) { 
                 const file = input.files[0];
@@ -1363,11 +1394,117 @@
                 }
                 refVideoFile = file;
                 const url = URL.createObjectURL(file); 
-                document.getElementById('refPreviewVideo').src = url; 
-                document.getElementById('refPreviewVideo').style.display = 'block'; 
-                document.getElementById('refUrl').value = ''; 
-                showToast('视频已选择，点击生成时会自动上传');
+                const video = document.getElementById('refPreviewVideo');
+                video.src = url; 
+                video.style.display = 'block';
+                
+                // 视频加载后自动提取首帧
+                video.onloadeddata = () => {
+                    extractVideoFrame(video, 0.1);  // 提取第0.1秒的帧
+                };
+                
+                showToast('视频已选择，正在提取参考帧...');
             } 
+        }
+        
+        // 🖼️ 提取视频帧
+        function extractVideoFrame(video, time = 0.1) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const doExtract = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    refExtractedFrame = dataUrl;
+                    
+                    // 显示预览
+                    document.getElementById('refFrameImg').src = dataUrl;
+                    document.getElementById('refFramePreview').style.display = 'block';
+                    
+                    console.log('[video-tools] 首帧提取成功');
+                    showToast('参考帧提取成功');
+                    resolve(dataUrl);
+                };
+                
+                if (video.readyState >= 2) {
+                    video.currentTime = time;
+                    video.onseeked = doExtract;
+                } else {
+                    video.onloadeddata = () => {
+                        video.currentTime = time;
+                        video.onseeked = doExtract;
+                    };
+                }
+            });
+        }
+        
+        // 🎯 更新克隆模式提示
+        function updateRefCloneMode() {
+            const mode = document.getElementById('refCloneMode').value;
+            const hint = document.getElementById('refModeHint');
+            const model = document.getElementById('refModel');
+            
+            const hints = {
+                'frame': '🖼️ <b>首帧克隆</b>：提取视频第一帧作为参考图，用图生视频功能生成，可保持视觉风格一致性',
+                'ai': '🧠 <b>智能分析</b>：AI先分析视频内容生成详细描述，结合你的修改需求后用文生视频生成',
+                'native': '🎬 <b>原生克隆</b>：Sora-2的Remix功能，真正基于原视频进行编辑（仅Sora-2模型支持）'
+            };
+            hint.innerHTML = hints[mode] || hints['frame'];
+            
+            // 原生模式时自动切换到Sora-2
+            if (mode === 'native') {
+                model.value = 'sora-2-all';
+            }
+        }
+        
+        // 检查模型是否支持原生克隆
+        function updateRefModelForMode() {
+            const mode = document.getElementById('refCloneMode').value;
+            const model = document.getElementById('refModel').value;
+            
+            // 如果是原生模式但选了非Sora-2模型，自动切换到首帧模式
+            if (mode === 'native' && !model.startsWith('sora-2')) {
+                document.getElementById('refCloneMode').value = 'frame';
+                updateRefCloneMode();
+                showToast('当前模型不支持原生克隆，已切换到首帧模式');
+            }
+        }
+        
+        // 🧠 AI分析视频内容
+        async function analyzeVideoContent(frameDataUrl) {
+            try {
+                showToast('AI正在分析视频内容...');
+                const response = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'vision',
+                        model: 'grok-2-vision-latest',
+                        prompt: `请详细分析这个视频帧的内容，包括：
+1. 场景环境（室内/室外、地点、背景）
+2. 人物特征（外貌、服装、姿势、表情）
+3. 光影氛围（时间、光线、色调）
+4. 视觉风格（电影感/动漫/写实等）
+5. 可能的动作/剧情
+
+请用简洁的描述语言，输出一段可以直接用于AI视频生成的提示词（英文）。`,
+                        image_url: frameDataUrl,
+                        userId: currentUser?.id
+                    })
+                });
+                const data = await response.json();
+                if (data.content || data.text) {
+                    return data.content || data.text;
+                }
+                throw new Error(data.error || '分析失败');
+            } catch (e) {
+                console.error('[video-tools] AI分析失败:', e);
+                showToast('AI分析失败: ' + e.message);
+                return null;
+            }
         }
         function getFixedDuration(model) { 
             if (model.includes('grok')) return 6; 
@@ -1730,50 +1867,243 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             } 
         }
         async function generateRef() { 
-            let refUrl = document.getElementById('refUrl').value.trim(); 
-            
-            // 如果有本地文件，先上传获取URL
-            if (refVideoFile && !refUrl) {
-                const reader = new FileReader();
-                const base64 = await new Promise((resolve) => {
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(refVideoFile);
-                });
-                refUrl = await uploadVideoToHost(base64);
-                if (!refUrl) {
-                    // 上传失败，显示手动URL输入框
-                    document.getElementById('refUrl').style.display = 'block';
-                    document.getElementById('refUrl').placeholder = '请粘贴视频直链（可上传到阿里云OSS/腾讯COS/七牛云等）';
-                    showToast('请先将视频上传到云存储，然后粘贴URL');
-                    return;
-                }
-            }
-            
-            if (!refUrl) { showToast('请上传视频或输入URL'); return; } 
-            // 视频克隆必须使用 http URL（上游API不支持base64）
-            if (!refUrl.startsWith('http')) { 
-                document.getElementById('refUrl').style.display = 'block';
-                showToast('请输入有效的视频URL（必须http开头）'); 
-                return; 
-            }
+            const cloneMode = document.getElementById('refCloneMode').value;
             const rawPrompt = document.getElementById('refPrompt').value.trim(); 
-            if (!rawPrompt) { showToast('请输入视频描述'); return; } 
+            if (!rawPrompt) { showToast('请输入克隆提示词'); return; } 
+            
             const model = document.getElementById('refModel').value; 
             const ratio = document.getElementById('refRatio').value; 
             const duration = getFixedDuration(model);
-            const prompt = ensureChineseAudio(rawPrompt, duration);  // 🎯 确保中文配音+时长控制
+            const prompt = ensureChineseAudio(rawPrompt, duration);
             const cost = VIDEO_COST[model] || 8; 
+            
+            // 检查是否有参考视频
+            if (!refVideoFile && !refExtractedFrame) {
+                showToast('请先上传参考视频'); 
+                return;
+            }
+            
             if (!await preDeduct(cost, '视频克隆')) return; 
             document.getElementById('refLoading').style.display = 'block'; 
-            document.getElementById('refResult').style.display = 'none'; 
-            try { 
-                // 🎬 Veo模型使用yunwu API，其他使用sora2
+            document.getElementById('refResult').style.display = 'none';
+            const loadingText = document.getElementById('refLoadingText');
+            
+            try {
+                let apiEndpoint, requestBody;
                 const isVeo = isVeoModel(model);
-                const apiEndpoint = isVeo ? '/api/yunwu' : '/api/sora2';
-                const requestBody = isVeo 
-                    ? { action: 'veo3', prompt, video_url: refUrl, aspect_ratio: ratio, duration, with_audio: true, userId: currentUser?.id }
-                    : { action: 'text-to-video', prompt, video_url: refUrl, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                const isVidu = isViduModel(model);
+                const isHailuo = isHailuoModel(model);
+                const isKling = isKlingModel(model);
                 
+                // ========== 模式1: 首帧克隆 ==========
+                if (cloneMode === 'frame') {
+                    loadingText.textContent = '🖼️ 首帧克隆中...';
+                    
+                    // 确保有提取的帧
+                    if (!refExtractedFrame) {
+                        const video = document.getElementById('refPreviewVideo');
+                        if (video.src) {
+                            await extractVideoFrame(video, 0.1);
+                        } else {
+                            throw new Error('请先上传视频');
+                        }
+                    }
+                    
+                    // 使用图生视频API
+                    if (isVidu) {
+                        const viduParams = parseViduModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'vidu', 
+                            prompt, 
+                            image_url: refExtractedFrame,
+                            model_version: viduParams.version,
+                            aspect_ratio: ratio, 
+                            duration: viduParams.duration,
+                            resolution: viduParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isHailuo) {
+                        const hailuoParams = parseHailuoModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'hailuo', 
+                            prompt, 
+                            image_url: refExtractedFrame,
+                            model_version: hailuoParams.version,
+                            duration: hailuoParams.duration,
+                            resolution: hailuoParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isKling) {
+                        const klingParams = parseKlingModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'kling', 
+                            prompt, 
+                            image_url: refExtractedFrame,
+                            model_version: klingParams.version,
+                            aspect_ratio: ratio,
+                            duration: klingParams.duration,
+                            resolution: klingParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isVeo) {
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'veo3', 
+                            prompt, 
+                            image_url: refExtractedFrame, 
+                            aspect_ratio: ratio, 
+                            with_audio: true, 
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else {
+                        // Sora-2 / Grok 等
+                        apiEndpoint = '/api/sora2';
+                        requestBody = { 
+                            action: 'image-to-video', 
+                            prompt, 
+                            image_url: refExtractedFrame, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
+                            userId: currentUser?.id,
+                            image_weight: 0.98,
+                            preserve_subject: true
+                        };
+                    }
+                }
+                // ========== 模式2: 智能分析 ==========
+                else if (cloneMode === 'ai') {
+                    loadingText.textContent = '🧠 AI分析视频内容...';
+                    
+                    // 确保有提取的帧
+                    if (!refExtractedFrame) {
+                        const video = document.getElementById('refPreviewVideo');
+                        if (video.src) {
+                            await extractVideoFrame(video, 0.1);
+                        } else {
+                            throw new Error('请先上传视频');
+                        }
+                    }
+                    
+                    // AI分析视频内容
+                    const videoDescription = await analyzeVideoContent(refExtractedFrame);
+                    if (!videoDescription) {
+                        throw new Error('AI分析失败，请重试');
+                    }
+                    
+                    // 组合提示词
+                    const combinedPrompt = `Based on this video style: ${videoDescription}\n\nUser modification: ${prompt}`;
+                    const finalPrompt = ensureChineseAudio(combinedPrompt, duration);
+                    
+                    loadingText.textContent = '🎬 文生视频中...';
+                    
+                    // 使用文生视频API
+                    if (isVidu) {
+                        const viduParams = parseViduModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'vidu', 
+                            prompt: finalPrompt, 
+                            model_version: viduParams.version,
+                            aspect_ratio: ratio, 
+                            duration: viduParams.duration,
+                            resolution: viduParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isHailuo) {
+                        const hailuoParams = parseHailuoModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'hailuo', 
+                            prompt: finalPrompt, 
+                            model_version: hailuoParams.version,
+                            duration: hailuoParams.duration,
+                            resolution: hailuoParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isKling) {
+                        const klingParams = parseKlingModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'kling', 
+                            prompt: finalPrompt, 
+                            model_version: klingParams.version,
+                            aspect_ratio: ratio,
+                            duration: klingParams.duration,
+                            resolution: klingParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isVeo) {
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'veo3', 
+                            prompt: finalPrompt, 
+                            aspect_ratio: ratio, 
+                            with_audio: true, 
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else {
+                        apiEndpoint = '/api/sora2';
+                        requestBody = { 
+                            action: 'text-to-video', 
+                            prompt: finalPrompt, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
+                            userId: currentUser?.id
+                        };
+                    }
+                }
+                // ========== 模式3: 原生克隆 (Sora-2 Only) ==========
+                else if (cloneMode === 'native') {
+                    loadingText.textContent = '🎬 Sora-2 原生克隆中...';
+                    
+                    if (!model.startsWith('sora-2')) {
+                        throw new Error('原生克隆仅支持 Sora-2 模型');
+                    }
+                    
+                    // 需要上传视频获取URL
+                    let refUrl = '';
+                    if (refVideoFile) {
+                        loadingText.textContent = '上传视频中...';
+                        const reader = new FileReader();
+                        const base64 = await new Promise((resolve) => {
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsDataURL(refVideoFile);
+                        });
+                        refUrl = await uploadVideoToHost(base64);
+                        if (!refUrl || !refUrl.startsWith('http')) {
+                            throw new Error('视频上传失败，请尝试首帧克隆模式');
+                        }
+                    } else {
+                        throw new Error('原生克隆需要上传视频文件');
+                    }
+                    
+                    loadingText.textContent = '🎬 Sora-2 Remix中...';
+                    apiEndpoint = '/api/sora2';
+                    requestBody = { 
+                        action: 'text-to-video', 
+                        prompt, 
+                        video_url: refUrl, 
+                        model, 
+                        aspect_ratio: ratio, 
+                        duration, 
+                        userId: currentUser?.id
+                    };
+                }
+                
+                // 发送请求
                 const response = await fetch(apiEndpoint, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
@@ -1782,10 +2112,13 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 if (!response.ok) throw new Error('API错误: ' + response.status); 
                 const data = await response.json(); 
                 if (data.error) throw new Error(data.message || data.error); 
+                
                 if (data.task_id || data.id) { 
-                    showToast('视频生成中，请稍候...'); 
-                    const taskId = data.task_id || data.id; 
-                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, isVeo); 
+                    loadingText.textContent = '视频生成中...';
+                    const taskId = data.task_id || data.id;
+                    const isVodModel = isVidu || isHailuo || isKling;
+                    const useYunwu = isVeo || isVidu || isHailuo || isKling;
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, useYunwu, isVodModel); 
                     if (videoUrl) { 
                         currentVideoUrls.ref = videoUrl; 
                         document.getElementById('refVideo').src = videoUrl; 
@@ -1802,7 +2135,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 showToast('克隆失败：' + error.message); 
             } finally { 
                 document.getElementById('refLoading').style.display = 'none'; 
-                refVideoFile = null;
+                document.getElementById('refLoadingText').textContent = '视频克隆中...';
             } 
         }
         
