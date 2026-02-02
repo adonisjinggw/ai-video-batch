@@ -1913,7 +1913,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 
                 // ========== 模式1: 首帧克隆 ==========
                 if (cloneMode === 'frame') {
-                    loadingText.textContent = '🖼️ 首帧克隆中...';
+                    loadingText.textContent = '🖼️ 提取参考帧...';
                     
                     // 确保有提取的帧
                     if (!refExtractedFrame) {
@@ -1925,13 +1925,32 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         }
                     }
                     
-                    // 使用图生视频API
+                    // 🎯 先用AI分析参考帧，获取详细描述
+                    loadingText.textContent = '🧠 分析参考图片...';
+                    let frameDescription = '';
+                    try {
+                        frameDescription = await analyzeVideoContent(refExtractedFrame) || '';
+                        console.log('[video-tools] 参考帧分析结果:', frameDescription.substring(0, 100));
+                    } catch (e) {
+                        console.warn('[video-tools] 参考帧分析失败:', e.message);
+                    }
+                    
+                    // 📝 构建增强提示词：参考图描述 + 用户需求
+                    let enhancedPrompt = prompt;
+                    if (frameDescription) {
+                        enhancedPrompt = `[Reference image: ${frameDescription}]\n\n[User request: ${prompt}]\n\nIMPORTANT: Keep the visual style, characters, and scene from the reference image. Only modify as requested.`;
+                        enhancedPrompt = ensureChineseAudio(enhancedPrompt, duration);
+                    }
+                    
+                    loadingText.textContent = '🎬 图生视频中...';
+                    
+                    // 使用图生视频API（增强提示词 + 参考图双保险）
                     if (isVidu) {
                         const viduParams = parseViduModel(model);
                         apiEndpoint = '/api/yunwu';
                         requestBody = { 
                             action: 'vidu', 
-                            prompt, 
+                            prompt: enhancedPrompt, 
                             image_url: refExtractedFrame,
                             model_version: viduParams.version,
                             aspect_ratio: ratio, 
@@ -1945,7 +1964,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         apiEndpoint = '/api/yunwu';
                         requestBody = { 
                             action: 'hailuo', 
-                            prompt, 
+                            prompt: enhancedPrompt, 
                             image_url: refExtractedFrame,
                             model_version: hailuoParams.version,
                             duration: hailuoParams.duration,
@@ -1958,7 +1977,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         apiEndpoint = '/api/yunwu';
                         requestBody = { 
                             action: 'kling', 
-                            prompt, 
+                            prompt: enhancedPrompt, 
                             image_url: refExtractedFrame,
                             model_version: klingParams.version,
                             aspect_ratio: ratio,
@@ -1971,7 +1990,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         apiEndpoint = '/api/yunwu';
                         requestBody = { 
                             action: 'veo3', 
-                            prompt, 
+                            prompt: enhancedPrompt, 
                             image_url: refExtractedFrame, 
                             aspect_ratio: ratio, 
                             with_audio: true, 
@@ -1983,7 +2002,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         apiEndpoint = '/api/sora2';
                         requestBody = { 
                             action: 'image-to-video', 
-                            prompt, 
+                            prompt: enhancedPrompt, 
                             image_url: refExtractedFrame, 
                             model, 
                             aspect_ratio: ratio, 
