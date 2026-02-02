@@ -695,9 +695,14 @@
         
         <div class="panel" id="panel-ref">
             <div class="input-section">
-                <label class="input-label">📁 上传参考视频</label>
+                <label class="input-label">📁 上传参考视频或输入URL</label>
                 <input type="file" id="refVideoInput" accept="video/*" onchange="previewRefVideo(this)"
                     style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:12px;">
+                <input type="text" id="refUrl" placeholder="或粘贴视频链接（支持抖音/快手/微信视频号/云存储等URL）"
+                    style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:12px;">
+                <div style="font-size:11px;color:#888;margin-bottom:12px;">
+                    💡 获取视频链接：<a href="https://www.wenshushu.cn" target="_blank" style="color:var(--accent);">文叔叔</a>(免费)、<a href="https://www.123pan.com" target="_blank" style="color:var(--accent);">123云盘</a>(免费)、或任意云存储的视频直链
+                </div>
                 <video id="refPreviewVideo" controls style="width:100%;display:none;border-radius:8px;margin-bottom:12px;"></video>
                 <!-- 首帧预览 -->
                 <div id="refFramePreview" style="display:none;margin-bottom:12px;">
@@ -1482,27 +1487,38 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'vision',
-                        model: 'grok-2-vision-latest',
-                        prompt: `请详细分析这个视频帧的内容，包括：
-1. 场景环境（室内/室外、地点、背景）
-2. 人物特征（外貌、服装、姿势、表情）
-3. 光影氛围（时间、光线、色调）
-4. 视觉风格（电影感/动漫/写实等）
-5. 可能的动作/剧情
+                        // 使用后端默认模型 grok-4-fast-non-reasoning
+                        prompt: `Analyze this video frame and describe it in detail for AI video generation. Include:
+1. Scene/environment (indoor/outdoor, location, background)
+2. Characters (appearance, clothing, pose, expression)
+3. Lighting and mood (time of day, light quality, color tone)
+4. Visual style (cinematic/anime/realistic)
+5. Suggested action/motion
 
-请用简洁的描述语言，输出一段可以直接用于AI视频生成的提示词（英文）。`,
+Output a concise English prompt that can be directly used for AI video generation.`,
                         image_url: frameDataUrl,
                         userId: currentUser?.id
                     })
                 });
-                const data = await response.json();
-                if (data.content || data.text) {
-                    return data.content || data.text;
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error('[video-tools] AI分析API错误:', response.status, errText);
+                    throw new Error(`API错误(${response.status})`);
                 }
-                throw new Error(data.error || '分析失败');
+                
+                const data = await response.json();
+                if (data.text) {
+                    console.log('[video-tools] AI分析成功:', data.text.substring(0, 100));
+                    return data.text;
+                }
+                if (data.content) {
+                    return data.content;
+                }
+                throw new Error(data.message || data.error || '分析失败');
             } catch (e) {
                 console.error('[video-tools] AI分析失败:', e);
-                showToast('AI分析失败: ' + e.message);
+                showToast('AI分析失败，将使用首帧克隆模式');
                 return null;
             }
         }
