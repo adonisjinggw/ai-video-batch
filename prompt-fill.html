@@ -637,12 +637,12 @@
                     {
                         key: 'video_model', label: '🎥 目标模型', optional: false, options: [
                             '通用格式（适用大多数模型）',
-                            'Grok Video 10秒（时间分段+动作链）',
-                            'Grok Video 6秒（极简动作链）',
-                            'Sora（电影级叙事）',
-                            'Runway Gen-3（动态运镜）',
-                            'Kling（中文友好）',
-                            'Veo 2（谷歌风格）'
+                            'Grok 3 10秒（时间分段+动作链）',
+                            'Grok 3 6秒（极简动作链）',
+                            'Sora-2（电影级叙事）',
+                            'Veo 3.1（谷歌风格）',
+                            '可灵2.5（中文友好）',
+                            '海螺02（国产优选）'
                         ]
                     },
                     {
@@ -3893,9 +3893,9 @@
                 const isGrok10s = videoModel.includes('10秒');
                 const isGrok6s = videoModel.includes('6秒') && !isGrok10s;
                 const isSora = videoModel.includes('Sora');
-                const isRunway = videoModel.includes('Runway');
-                const isKling = videoModel.includes('Kling');
                 const isVeo = videoModel.includes('Veo');
+                const isKling = videoModel.includes('可灵');
+                const isHailuo = videoModel.includes('海螺');
                 
                 let aiPrompt;
                 if (isVideoTemplate) {
@@ -3943,7 +3943,7 @@
 【4–6秒】[定格结束]`;
                     } else if (isSora) {
                         modelSpecificInstructions = `
-【Sora专用格式】电影级叙事风格：
+【Sora-2专用格式】电影级叙事风格：
 1. 开头用电影级运镜描述："The camera slowly pushes in..." 或 "A sweeping crane shot reveals..."
 2. 强调光影氛围：golden hour lighting, volumetric fog, cinematic color grading
 3. 使用专业摄影术语：shallow depth of field, anamorphic lens flare, film grain
@@ -3952,31 +3952,9 @@
 
 【输出格式】：
 [Cinematic camera movement]. [Scene setup], [subject description], [action sequence], [lighting/atmosphere], [film style], high quality, 4K.`;
-                    } else if (isRunway) {
-                        modelSpecificInstructions = `
-【Runway Gen-3专用格式】动态运镜风格：
-1. 强调相机运动：tracking shot, dolly zoom, orbit shot, crane movement
-2. 动作要连贯流畅，避免跳切
-3. 环境要有动态元素：风吹、光影变化、粒子效果
-4. 使用简洁直接的描述，避免过于抽象
-5. 保持80词左右，英文输出
-
-【输出格式】：
-[Camera: specific movement]. [Subject] [action], [environment with dynamic elements], [lighting], [style], smooth motion, high quality.`;
-                    } else if (isKling) {
-                        modelSpecificInstructions = `
-【Kling专用格式】中文友好风格：
-1. 可以使用中英文混合，但关键词用英文
-2. 动作描述要具体：不要"走路"，要"轻快地小跑，裙摆随风飘动"
-3. 强调人物一致性：明确描述服装、发型、体态
-4. 运镜简单直接：推近、拉远、横移、跟拍
-5. 保持80词左右
-
-【输出格式】：
-[运镜]。[人物外貌特征]，[具体动作]，[场景环境]，[光影氛围]，高清，电影感。`;
                     } else if (isVeo) {
                         modelSpecificInstructions = `
-【Veo 2专用格式】谷歌风格：
+【Veo 3.1专用格式】谷歌风格：
 1. 使用自然语言描述，像在讲述一个画面
 2. 强调真实感和物理正确性
 3. 动作要符合物理规律，避免超现实
@@ -3985,6 +3963,28 @@
 
 【输出格式】：
 [Natural description of scene], [subject doing action], [environment details], [realistic lighting], photorealistic, high quality video.`;
+                    } else if (isKling) {
+                        modelSpecificInstructions = `
+【可灵2.5专用格式】中文友好风格：
+1. 可以使用中英文混合，但关键词用英文
+2. 动作描述要具体：不要"走路"，要"轻快地小跑，裙摆随风飘动"
+3. 强调人物一致性：明确描述服装、发型、体态
+4. 运镜简单直接：推近、拉远、横移、跟拍
+5. 保持80词左右
+
+【输出格式】：
+[运镜]。[人物外貌特征]，[具体动作]，[场景环境]，[光影氛围]，高清，电影感。`;
+                    } else if (isHailuo) {
+                        modelSpecificInstructions = `
+【海螺02专用格式】国产优选：
+1. 中文描述为主，关键动作词可用英文
+2. 动作描述清晰连贯，避免过于复杂的镜头切换
+3. 强调人物表情和肢体语言
+4. 场景光影要自然，避免过度风格化
+5. 保持60-80词左右
+
+【输出格式】：
+[运镜方式]。[人物描述]，[动作描述]，[场景环境]，[光影氛围]，高清画质。`;
                     } else {
                         modelSpecificInstructions = `
 【通用优化要求】适用于大多数AI视频模型：
