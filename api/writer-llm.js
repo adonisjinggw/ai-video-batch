@@ -251,8 +251,8 @@ module.exports = async function handler(req, res) {
         // 1) 检查是否显式选择 MIMO
         const preferMimo = (modelLc === 'mimo' || modelLc.startsWith('mimo:') || modelLc.startsWith('mimo-') || modelLc.includes('mimo'));
         
-        // 2) 检查是否显式选择云雾
-        const preferYunwu = (modelLc === 'yunwu' || modelLc === 'yunmeng' || modelLc.startsWith('yunwu:') || modelLc === 'qwen-plus' || modelLc.startsWith('qwen-'));
+        // 2) 检查是否显式选择云雾（包括 grok-4-fast）
+        const preferYunwu = (modelLc === 'yunwu' || modelLc === 'yunmeng' || modelLc.startsWith('yunwu:') || modelLc === 'qwen-plus' || modelLc.startsWith('qwen-') || modelLc.startsWith('grok-'));
         
         // 1b) MIMO（主通道）
         if ((preferMimo || (!preferYunwu && !useModelScope)) && WRITER_MIMO_API_KEY) {
@@ -298,12 +298,13 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        // 2b) 云雾（需配置模型）
+        // 2b) 云雾（需配置模型，支持 grok-4-fast）
         if ((preferYunwu || (!preferMimo && !useModelScope)) && YUNMENG_API_KEY) {
             try {
-                let yunwuModel = YUNMENG_MODEL || 'qwen-plus';
+                let yunwuModel = YUNMENG_MODEL || 'grok-4-fast';  // 🌟 默认使用 grok-4-fast
                 if (modelLc === 'qwen-plus' || modelLc.startsWith('qwen-')) yunwuModel = reqModel;
-                if (modelLc.startsWith('yunwu:')) yunwuModel = reqModel.split(':').slice(1).join(':') || (YUNMENG_MODEL || 'qwen-plus');
+                if (modelLc.startsWith('grok-')) yunwuModel = reqModel;  // 🌟 支持 grok 系列模型
+                if (modelLc.startsWith('yunwu:')) yunwuModel = reqModel.split(':').slice(1).join(':') || 'grok-4-fast';
                 const payload = {
                     model: yunwuModel,
                     messages: finalMessages,

@@ -626,7 +626,9 @@
         let isGenerating = false;
 
         // 🧠 智能模型路由：根据用户输入自动选择性价比最高的模型
+        // 🌟 默认首选 grok-4-fast：生成文章、提示词优化、生成提示词
         // 模型价格参考 (yunwu.ai):
+        // - grok-4-fast: 输入￥1.5/1M, 输出￥6.0/1M (首选对话模型)
         // - gemini-3-flash-preview: 输入￥0.15/1M, 输出￥0.9/1M (最便宜)
         // - qwen-plus: 输入￥0.24/1M, 输出￥0.6/1M (中文优化)
         // - gemini-3-pro-preview: 输入￥0.6/1M, 输出￥3.6/1M (多模态)
@@ -638,12 +640,6 @@
             const visualKeywords = ['分镜', '视觉', '电影', '场景', '画面', '镜头', '拍摄', '运镜', '组成', '構图', '光影', '布光', '角度', '景别', '特写', '远景', '中景', '近景', 'storyboard', '策划分镜', '视觉冲击'];
             if (visualKeywords.some(kw => lower.includes(kw))) {
                 return { model: 'gemini-3-pro-preview-thinking', type: 'visual', icon: '🎬', cost: 2 };
-            }
-            
-            // ✍️ 写作/剧本/文案 → Gemini-3 Pro (擅长创意写作)
-            const writingKeywords = ['写', '剧本', '文案', '故事', '小说', '文章', '写作', '广告', '创意', '灵感', '标题', '口号', '旇白', '对白', '营销', '推广', '文学'];
-            if (writingKeywords.some(kw => lower.includes(kw))) {
-                return { model: 'gemini-3-pro-preview', type: 'writing', icon: '✍️', cost: 2 };
             }
             
             // 🧠 深度分析/推理 → Gemini-3 Pro Thinking
@@ -670,18 +666,13 @@
                 return { model: 'gemini-3-flash-preview', type: 'search', icon: '🌐', enableSearch: true, cost: 1 };
             }
             
-            // 🎇 中文对话优化 → Qwen Plus (中文能力强且便宜)
-            const chineseRatio = (text.match(/[\u4e00-\u9fa5]/g) || []).length / text.length;
-            if (chineseRatio > 0.7 && text.length < 100) {
-                return { model: 'qwen-plus', type: 'chat', icon: '🎇', cost: 1 };
-            }
-            
-            // 💬 默认：简单对话 → Gemini-3 Flash (最便宜)
-            return { model: 'gemini-3-flash-preview', type: 'chat', icon: '💬', cost: 1 };
+            // 🌟 默认：生成文章/提示词优化/创意写作/对话 → Grok-4 Fast (首选)
+            return { model: 'grok-4-fast', type: 'chat', icon: '🌟', cost: 2 };
         }
         
         // 📝 模型名称映射
         const MODEL_NAMES = {
+            'grok-4-fast': 'Grok-4 Fast',
             'gemini-3-flash-preview': 'Gemini Flash',
             'gemini-3-pro-preview': 'Gemini Pro',
             'gemini-3-pro-preview-thinking': 'Gemini 思考',

@@ -804,6 +804,8 @@ module.exports = async function handler(req, res) {
 
             // 💰 模型价格配置 (yunwu.ai 价格，每百万tokens)
             const MODEL_PRICING = {
+                'grok-4-fast': { input: 1.5, output: 6.0 },               // 🌟 首选对话模型
+                'grok-4-fast-non-reasoning': { input: 1.5, output: 6.0 }, // Grok-4 无推理版
                 'gemini-3-flash-preview': { input: 0.15, output: 0.9 },   // 最便宜
                 'qwen-plus': { input: 0.24, output: 0.6 },                // 中文优化
                 'gemini-3-pro-preview': { input: 0.6, output: 3.6 },      // 多模态
