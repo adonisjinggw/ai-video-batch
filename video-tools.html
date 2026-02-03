@@ -716,11 +716,17 @@
                 <label class="input-label">🎯 克隆模式</label>
                 <select id="refCloneMode" onchange="updateRefCloneMode()" style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:8px;">
                     <option value="frame">🖼️ 首帧克隆 - 提取首帧图生视频（所有模型）</option>
+                    <option value="firstlast">🎬 首尾帧克隆 - 提取首尾帧控制过渡（Vidu Pro/Kling）</option>
                     <option value="ai">🧠 智能分析 - AI描述视频后生成（所有模型）</option>
                     <option value="native">🎬 原生克隆 - Sora-2 Remix（仅Sora-2）</option>
                 </select>
                 <div id="refModeHint" style="font-size:11px;color:#888;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;">
                     🖼️ <b>首帧克隆</b>：提取视频第一帧作为参考图，用图生视频功能生成，可保持视觉风格一致性
+                </div>
+                <!-- 🌟 尾帧预览（首尾帧模式时显示） -->
+                <div id="refLastFramePreview" style="display:none;margin-top:12px;">
+                    <div style="font-size:12px;color:#888;margin-bottom:6px;">🎬 提取的尾帧：</div>
+                    <img id="refLastFrameImg" style="width:100%;max-height:150px;object-fit:contain;border-radius:8px;background:#000;">
                 </div>
             </div>
             
@@ -733,6 +739,18 @@
                             <option value="grok-video-3-10s">Grok 3 10秒 (8胶片)</option>
                             <option value="grok-video-3">Grok 3 6秒 (5胶片)</option>
                         </optgroup>
+                        <optgroup label="🎬 Vidu Pro/Turbo (支持首尾帧)">
+                            <option value="vidu-q2-pro-5s-1080p">Vidu Pro 5秒 1080P (54胶片) ⭐首尾帧</option>
+                            <option value="vidu-q2-turbo-5s-1080p">Vidu Turbo 5秒 1080P (36胶片) ⭐首尾帧</option>
+                            <option value="vidu-q2-pro-5s-720p">Vidu Pro 5秒 720P (27胶片) ⭐首尾帧</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu Turbo 5秒 720P (19胶片) ⭐首尾帧</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling (支持尾帧)">
+                            <option value="kling-2.1-1080p-5s">可灵2.1 5秒 1080P (10胶片) ⭐尾帧</option>
+                            <option value="kling-2.1-1080p-10s">可灵2.1 10秒 1080P (20胶片) ⭐尾帧</option>
+                            <option value="kling-2.5-720p-5s">可灵2.5 5秒 (5胶片)</option>
+                            <option value="kling-2.5-720p-10s">可灵2.5 10秒 (10胶片)</option>
+                        </optgroup>
                         <optgroup label="🎬 Sora-2 (支持原生克隆)">
                             <option value="sora-2-all">Sora-2 (15秒/7胶片)</option>
                             <option value="sora-2-pro-all">Sora-2 Pro (15秒/14胶片)</option>
@@ -743,10 +761,6 @@
                         <optgroup label="🐚 海螺">
                             <option value="hailuo-02-768p-6s">海螺02 6秒 (7胶片)</option>
                             <option value="hailuo-02-768p-10s">海螺02 10秒 (11胶片)</option>
-                        </optgroup>
-                        <optgroup label="✨ 可灵">
-                            <option value="kling-2.5-720p-5s">可灵2.5 5秒 (5胶片)</option>
-                            <option value="kling-2.5-720p-10s">可灵2.5 10秒 (10胶片)</option>
                         </optgroup>
                     </select></div>
                 <div class="setting-item"><label>比例</label><select id="refRatio">
@@ -1388,6 +1402,7 @@
         
         let refVideoFile = null;
         let refExtractedFrame = null;  // 存储提取的首帧
+        let refExtractedLastFrame = null;  // 🌟 存储提取的尾帧（用于首尾帧克隆）
         
         function previewRefVideo(input) { 
             if (input.files && input.files[0]) { 
@@ -1412,8 +1427,8 @@
             } 
         }
         
-        // 🖼️ 提取视频帧
-        function extractVideoFrame(video, time = 0.1) {
+        // 🖼️ 提取视频帧（支持首帧和尾帧）
+        function extractVideoFrame(video, time = 0.1, isLastFrame = false) {
             return new Promise((resolve) => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
@@ -1423,14 +1438,25 @@
                     canvas.height = video.videoHeight;
                     ctx.drawImage(video, 0, 0);
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                    refExtractedFrame = dataUrl;
                     
-                    // 显示预览
-                    document.getElementById('refFrameImg').src = dataUrl;
-                    document.getElementById('refFramePreview').style.display = 'block';
+                    if (isLastFrame) {
+                        refExtractedLastFrame = dataUrl;
+                        // 更新尾帧预览
+                        const lastFrameImg = document.getElementById('refLastFrameImg');
+                        if (lastFrameImg) {
+                            lastFrameImg.src = dataUrl;
+                            document.getElementById('refLastFramePreview').style.display = 'block';
+                        }
+                        console.log('[video-tools] 尾帧提取成功');
+                    } else {
+                        refExtractedFrame = dataUrl;
+                        // 显示首帧预览
+                        document.getElementById('refFrameImg').src = dataUrl;
+                        document.getElementById('refFramePreview').style.display = 'block';
+                        console.log('[video-tools] 首帧提取成功');
+                    }
                     
-                    console.log('[video-tools] 首帧提取成功');
-                    showToast('参考帧提取成功');
+                    showToast(isLastFrame ? '尾帧提取成功' : '首帧提取成功');
                     resolve(dataUrl);
                 };
                 
@@ -1446,22 +1472,57 @@
             });
         }
         
+        // 🌟 提取视频首尾帧（用于首尾帧克隆模式）
+        async function extractFirstAndLastFrame(video) {
+            const duration = video.duration;
+            if (!duration || duration < 0.5) {
+                throw new Error('视频时长不足');
+            }
+            
+            // 提取首帧（0.1秒处）
+            await extractVideoFrame(video, 0.1, false);
+            
+            // 提取尾帧（倒数15帧位置）
+            const lastFrameTime = Math.max(0.5, duration - 0.5);
+            await extractVideoFrame(video, lastFrameTime, true);
+            
+            return { firstFrame: refExtractedFrame, lastFrame: refExtractedLastFrame };
+        }
+        
         // 🎯 更新克隆模式提示
         function updateRefCloneMode() {
             const mode = document.getElementById('refCloneMode').value;
             const hint = document.getElementById('refModeHint');
             const model = document.getElementById('refModel');
+            const video = document.getElementById('refPreviewVideo');
             
             const hints = {
                 'frame': '🖼️ <b>首帧克隆</b>：提取视频第一帧作为参考图，用图生视频功能生成，可保持视觉风格一致性',
+                'firstlast': '🎬 <b>首尾帧克隆</b>：提取视频的第一帧和最后一帧，AI生成过渡动画。<b>支持模型</b>: Vidu q2-pro/q2-turbo、Kling 2.1(1080P)',
                 'ai': '🧠 <b>智能分析</b>：AI先分析视频内容生成详细描述，结合你的修改需求后用文生视频生成',
                 'native': '🎬 <b>原生克隆</b>：Sora-2的Remix功能，真正基于原视频进行编辑（仅Sora-2模型支持）'
             };
             hint.innerHTML = hints[mode] || hints['frame'];
             
+            // 首尾帧模式时自动提取首尾帧
+            if (mode === 'firstlast' && video.src && video.duration) {
+                extractFirstAndLastFrame(video).catch(e => console.warn('首尾帧提取失败:', e));
+                // 推荐切换到支持的模型
+                if (!model.value.includes('vidu-q2-pro') && !model.value.includes('vidu-q2-turbo') && !model.value.includes('kling-2.1')) {
+                    model.value = 'vidu-q2-pro-5s-1080p';
+                    showToast('已切换到 Vidu Pro 模型（支持首尾帧）');
+                }
+            }
+            
             // 原生模式时自动切换到Sora-2
             if (mode === 'native') {
                 model.value = 'sora-2-all';
+            }
+            
+            // 显示/隐藏尾帧预览
+            const lastFramePreview = document.getElementById('refLastFramePreview');
+            if (lastFramePreview) {
+                lastFramePreview.style.display = (mode === 'firstlast' && refExtractedLastFrame) ? 'block' : 'none';
             }
         }
         
@@ -2013,7 +2074,82 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         };
                     }
                 }
-                // ========== 模式2: 智能分析 ==========
+                // ========== 模式2: 首尾帧克隆 (Vidu Pro/Turbo, Kling 2.1) ==========
+                else if (cloneMode === 'firstlast') {
+                    loadingText.textContent = '🎬 提取首尾帧...';
+                    
+                    // 提取首尾帧
+                    const video = document.getElementById('refPreviewVideo');
+                    if (!video.src) {
+                        throw new Error('请先上传视频');
+                    }
+                    await extractFirstAndLastFrame(video);
+                    
+                    if (!refExtractedFrame || !refExtractedLastFrame) {
+                        throw new Error('首尾帧提取失败');
+                    }
+                    
+                    // 检查模型是否支持尾帧
+                    const supportsLastFrame = model.includes('vidu-q2-pro') || model.includes('vidu-q2-turbo') || 
+                                              (model.includes('kling-2.1') && model.includes('1080p'));
+                    
+                    if (!supportsLastFrame) {
+                        showToast('当前模型不支持尾帧，将仅使用首帧');
+                    }
+                    
+                    loadingText.textContent = '🎬 首尾帧图生视频中...';
+                    
+                    // 使用首尾帧图生视频
+                    if (isVidu) {
+                        const viduParams = parseViduModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'vidu', 
+                            prompt: prompt || '让图片动起来，平滑过渡到尾帧', 
+                            image_url: refExtractedFrame,
+                            last_frame_url: supportsLastFrame ? refExtractedLastFrame : undefined,
+                            model_version: viduParams.version,
+                            aspect_ratio: ratio, 
+                            duration: viduParams.duration,
+                            resolution: viduParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                        console.log('[video-tools] Vidu首尾帧克隆:', { version: viduParams.version, hasLastFrame: !!requestBody.last_frame_url });
+                    } else if (isKling) {
+                        const klingParams = parseKlingModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'kling', 
+                            prompt: prompt || '让图片动起来，平滑过渡到尾帧', 
+                            image_url: refExtractedFrame,
+                            last_frame_url: supportsLastFrame ? refExtractedLastFrame : undefined,
+                            model_version: klingParams.version,
+                            aspect_ratio: ratio,
+                            duration: klingParams.duration,
+                            resolution: klingParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                        console.log('[video-tools] Kling首尾帧克隆:', { version: klingParams.version, resolution: klingParams.resolution, hasLastFrame: !!requestBody.last_frame_url });
+                    } else {
+                        // 其他模型回退到普通首帧模式
+                        showToast('当前模型不支持首尾帧，已回退到首帧模式');
+                        apiEndpoint = '/api/sora2';
+                        requestBody = { 
+                            action: 'image-to-video', 
+                            prompt, 
+                            image_url: refExtractedFrame, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
+                            userId: currentUser?.id,
+                            image_weight: 0.98,
+                            preserve_subject: true
+                        };
+                    }
+                }
+                // ========== 模式3: 智能分析 ==========
                 else if (cloneMode === 'ai') {
                     loadingText.textContent = '🧠 AI分析视频内容...';
                     
