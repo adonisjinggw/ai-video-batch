@@ -122,6 +122,129 @@
             color: #94a3b8;
             font-size: 12px;
         }
+
+        /* ═══════════════════════════════════════════
+           🎬 影视开场动画
+           ═══════════════════════════════════════════ */
+        .cinema-intro {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .cinema-intro.active { display: flex !important; }
+        .cinema-intro.hidden { display: none !important; }
+        .cinema-intro.fade-out { animation: cinemaFadeOut 0.6s ease-out forwards; }
+        @keyframes cinemaFadeOut { to { opacity: 0; visibility: hidden; } }
+
+        /* 时代背景 */
+        .era-bg { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; }
+        .era-bg.active { opacity: 1; }
+        .era-silent { background: #1a1a1a; filter: sepia(80%) contrast(1.1); }
+        .era-color { background: linear-gradient(135deg, #1a0808 0%, #081a18 100%); }
+        .era-digital { background: linear-gradient(180deg, #080815 0%, #0f0f20 100%); }
+        .era-ai { background: radial-gradient(ellipse at center, #1a1025 0%, #080810 100%); }
+
+        /* 胶片边框 */
+        .film-border { position: absolute; top: 0; bottom: 0; width: 50px; background: repeating-linear-gradient(to bottom, #111 0px, #111 15px, #000 15px, #000 18px, #1a1a1a 18px, #1a1a1a 33px, #000 33px, #000 36px); z-index: 2; }
+        .film-border.left { left: 0; }
+        .film-border.right { right: 0; }
+
+        /* 宫格效果 - 时代卡片 */
+        .era-card { position: absolute; z-index: 25; text-align: center; opacity: 0; pointer-events: none; }
+        .era-card.show { animation: eraCardShow 1.5s ease-out forwards; }
+        @keyframes eraCardShow {
+            0% { opacity: 0; transform: scale(0.7) translateY(20px); }
+            15% { opacity: 1; transform: scale(1) translateY(0); }
+            85% { opacity: 1; }
+            100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+        }
+        .era-year { font-size: 80px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: -3px; margin-bottom: 8px; }
+        .era-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; letter-spacing: 4px; }
+        .era-desc { font-size: 14px; opacity: 0.7; letter-spacing: 2px; }
+        .era-silent-card .era-year { color: #a0a0a0; }
+        .era-silent-card .era-title { color: #d0d0d0; }
+        .era-color-card .era-year { color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5); }
+        .era-color-card .era-title { color: #ffd93d; }
+        .era-digital-card .era-year { color: #4ecdc4; text-shadow: 0 0 20px rgba(78,205,196,0.5); }
+        .era-digital-card .era-title { color: #45b7d1; }
+        .era-ai-card .era-year { background: linear-gradient(135deg, #fbbf24, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .era-ai-card .era-title { color: #fbbf24; }
+        .era-ai-card .era-desc { color: #a78bfa; }
+
+        /* 场记板 */
+        .intro-clapperboard { position: absolute; width: 280px; height: 200px; z-index: 10; opacity: 0; }
+        .intro-clapperboard.show { animation: clapperShow 0.5s ease-out forwards; }
+        @keyframes clapperShow {
+            0% { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+            60% { opacity: 1; transform: scale(1.05) rotate(3deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .clapper-top { width: 100%; height: 50px; background: linear-gradient(135deg, #1a1a1a, #333); border-radius: 6px 6px 0 0; position: relative; z-index: 2; }
+        .clapper-top::before { content: ''; position: absolute; inset: 4px; background: repeating-linear-gradient(-45deg, #fbbf24 0px, #fbbf24 14px, #000 14px, #000 28px); border-radius: 3px; }
+        .clapper-body { width: 100%; height: 150px; background: linear-gradient(180deg, #1a1a1a, #0a0a0a); border-radius: 0 0 6px 6px; padding: 16px; display: flex; flex-direction: column; justify-content: center; border: 2px solid #333; border-top: none; }
+        .clapper-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+        .clapper-label { color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .clapper-value { color: #fbbf24; font-weight: 700; font-family: 'Courier New', monospace; }
+        .clapper-title { text-align: center; font-size: 24px; font-weight: 900; color: #fff; margin-top: 10px; text-shadow: 0 0 15px rgba(251,191,36,0.5); }
+
+        /* 倒计时 */
+        .intro-countdown { position: absolute; width: 160px; height: 160px; z-index: 20; opacity: 0; }
+        .intro-countdown.show { animation: countdownPulse 0.7s ease-out forwards; }
+        @keyframes countdownPulse {
+            0% { opacity: 0; transform: scale(1.5); }
+            20% { opacity: 1; transform: scale(1); }
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+        .countdown-circle { width: 100%; height: 100%; border: 6px solid transparent; border-top-color: #fbbf24; border-radius: 50%; animation: countdownSpin 0.7s linear; }
+        @keyframes countdownSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .countdown-number { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 72px; font-weight: 900; color: #fbbf24; font-family: 'Courier New', monospace; text-shadow: 0 0 25px rgba(251,191,36,0.8); }
+
+        /* LOGO展示 */
+        .intro-logo { position: absolute; z-index: 30; text-align: center; opacity: 0; }
+        .intro-logo.show { animation: logoReveal 1s ease-out forwards; }
+        @keyframes logoReveal {
+            0% { opacity: 0; transform: scale(0.3); filter: blur(15px); }
+            50% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .intro-logo-icon { width: 120px; height: 120px; margin: 0 auto 20px; background: linear-gradient(135deg, #fbbf24, #a855f7); border-radius: 30px; display: flex; align-items: center; justify-content: center; font-size: 60px; box-shadow: 0 20px 60px rgba(251,191,36,0.4); }
+        .intro-logo-text { font-size: 52px; font-weight: 900; color: #fff; letter-spacing: 8px; text-shadow: 0 0 30px rgba(251,191,36,0.5); margin-bottom: 10px; }
+        .intro-logo-tagline { font-size: 20px; color: rgba(255,255,255,0.8); letter-spacing: 6px; }
+
+        /* 粒子 */
+        .intro-particles { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+        .intro-particle { position: absolute; width: 4px; height: 4px; background: #fbbf24; border-radius: 50%; box-shadow: 0 0 10px #fbbf24; animation: particleFloat 2.5s ease-in-out infinite; }
+        @keyframes particleFloat {
+            0%, 100% { opacity: 0; transform: translateY(100vh) scale(0); }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-50px) scale(1); }
+        }
+
+        /* 光线扫过 */
+        .light-sweep { position: absolute; width: 200%; height: 100%; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.02) 55%, transparent 100%); transform: translateX(-100%) skewX(-20deg); z-index: 50; pointer-events: none; }
+        .light-sweep.animate { animation: sweepLight 1s ease-out forwards; }
+        @keyframes sweepLight { from { transform: translateX(-100%) skewX(-20deg); } to { transform: translateX(100%) skewX(-20deg); } }
+
+        /* 故障效果 */
+        .glitch-overlay { position: absolute; inset: 0; z-index: 60; pointer-events: none; opacity: 0; }
+        .glitch-overlay.active { animation: glitchFlash 0.15s ease-out; }
+        @keyframes glitchFlash {
+            0%, 100% { opacity: 0; }
+            20% { opacity: 1; background: rgba(255,0,0,0.1); transform: translateX(-3px); }
+            40% { opacity: 1; background: rgba(0,255,255,0.1); transform: translateX(3px); }
+            60% { opacity: 0; }
+        }
+
+        /* 跳过按钮 */
+        .intro-skip { position: fixed; bottom: 30px; right: 30px; padding: 12px 24px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 25px; color: #fff; font-size: 14px; cursor: pointer; z-index: 100000; transition: all 0.2s; }
+        .intro-skip:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); }
     </style>
 </head>
 
@@ -717,26 +840,72 @@
         </main>
     </div>
 
-    <!-- 隐藏的兼容性元素 (JS可能调用) -->
-    <!-- 🔧 欢迎页显示逻辑（同步判断，与手机版一致）-->
+    <!-- 🎬 影视开场动画 -->
+    <div id="cinemaIntro" class="cinema-intro">
+        <!-- 时代背景层 -->
+        <div class="era-bg era-silent" id="eraBgSilent"></div>
+        <div class="era-bg era-color" id="eraBgColor"></div>
+        <div class="era-bg era-digital" id="eraBgDigital"></div>
+        <div class="era-bg era-ai" id="eraBgAi"></div>
+        <!-- 胶片边框 -->
+        <div class="film-border left"></div>
+        <div class="film-border right"></div>
+        <!-- 粒子 -->
+        <div class="intro-particles" id="introParticles"></div>
+        <!-- 场记板 -->
+        <div class="intro-clapperboard" id="introClapperboard">
+            <div class="clapper-top"></div>
+            <div class="clapper-body">
+                <div class="clapper-row"><span class="clapper-label">PROD</span><span class="clapper-value">ROLLROLL</span></div>
+                <div class="clapper-row"><span class="clapper-label">SCENE</span><span class="clapper-value">001</span></div>
+                <div class="clapper-row"><span class="clapper-label">TAKE</span><span class="clapper-value">1</span></div>
+                <div class="clapper-title">ACTION!</div>
+            </div>
+        </div>
+        <!-- 时代卡片 -->
+        <div class="era-card era-silent-card" id="eraCardSilent"><div class="era-year">1895</div><div class="era-title">SILENT FILM ERA</div><div class="era-desc">默片时代 · 光影诞生</div></div>
+        <div class="era-card era-color-card" id="eraCardColor"><div class="era-year">1935</div><div class="era-title">TECHNICOLOR ERA</div><div class="era-desc">彩色时代 · 色彩革命</div></div>
+        <div class="era-card era-digital-card" id="eraCardDigital"><div class="era-year">1999</div><div class="era-title">DIGITAL CINEMA</div><div class="era-desc">数字时代 · 技术飞跃</div></div>
+        <div class="era-card era-ai-card" id="eraCardAi"><div class="era-year">2026</div><div class="era-title">AI FILMMAKING</div><div class="era-desc">智能时代 · 无限可能</div></div>
+        <!-- 倒计时 -->
+        <div class="intro-countdown" id="introCountdown"><div class="countdown-circle"></div><div class="countdown-number" id="countdownNumber">3</div></div>
+        <!-- LOGO -->
+        <div class="intro-logo" id="introLogo">
+            <div class="intro-logo-icon">🎬</div>
+            <div class="intro-logo-text">ROLLROLL</div>
+            <div class="intro-logo-tagline">你就是导演</div>
+        </div>
+        <!-- 光线扫过 -->
+        <div class="light-sweep" id="lightSweep"></div>
+        <!-- 故障效果 -->
+        <div class="glitch-overlay" id="glitchOverlay"></div>
+        <!-- 跳过按钮 -->
+        <button class="intro-skip" onclick="skipIntro()">跳过 ›</button>
+    </div>
+
     <script>
-    // 🔧 欢迎页显示逻辑：已登录用户跳过欢迎页
-    // 检查顺序：1. URL参数 2. 本地缓存
+    // 🎬 开场动画/欢迎页显示逻辑
+    var _showIntro = false;
     (function() {
-        var hasLoginParam = location.search.indexOf('logged_in=1') > -1;
-        var skipWelcome = hasLoginParam;
+        var hasLoginParam = location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1;
+        var skipWelcome = false;
         
-        // 🔧 如果没有URL参数，检查本地缓存中是否有有效登录状态
-        if (!skipWelcome) {
+        if (hasLoginParam) {
+            // 登录后跳转或从功能页返回时不显示开场动画和欢迎页
+            skipWelcome = true;
+            history.replaceState({}, '', location.pathname);
+        } else {
+            // 检查本地缓存中是否有有效登录状态
             try {
                 var cacheKey = 'rollroll_auth_cache';
                 var raw = localStorage.getItem(cacheKey);
                 if (raw) {
                     var cache = JSON.parse(raw);
                     var maxAge = 30 * 60 * 1000; // 30分钟
-                    var notExpired = (Date.now() - cache.cachedAt) < maxAge;
-                    var sessionValid = !cache.expiresAt || (cache.expiresAt * 1000 > Date.now());
-                    if (cache.user && cache.user.id && notExpired && sessionValid) {
+                    var cacheNotExpired = cache.cachedAt && (Date.now() - cache.cachedAt) < maxAge;
+                    var sessionNotExpired = cache.expiresAt ? (cache.expiresAt * 1000 > Date.now()) : true;
+                    var hasValidUser = cache.user && cache.user.id;
+                    if (hasValidUser && cacheNotExpired && sessionNotExpired) {
                         skipWelcome = true;
                         console.log('🏠 [同步] 检测到有效登录缓存，跳过欢迎页');
                     }
@@ -745,20 +914,14 @@
         }
         
         if (skipWelcome) {
-            // 登录成功或已登录，清除URL参数，不显示欢迎页
-            if (hasLoginParam) {
-                try {
-                    var params = new URLSearchParams(location.search);
-                    params.delete('logged_in');
-                    var newSearch = params.toString();
-                    var newUrl = location.pathname + (newSearch ? '?' + newSearch : '');
-                    history.replaceState({}, '', newUrl);
-                } catch(e) {}
-            }
-            // 不写入样式，欢迎页默认隐藏
+            // 已登录，不显示开场动画和欢迎页
+            _showIntro = false;
         } else {
-            // 未登录情况显示欢迎页
-            document.write('<style>#welcomeScreen{display:flex!important}</style>');
+            // 未登录，显示开场动画，同时隐藏欢迎页防止闪现
+            _showIntro = true;
+            var style = document.createElement('style');
+            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
+            document.head.appendChild(style);
         }
     })();
     </script>
@@ -1684,6 +1847,148 @@
                 content.removeChild(content.firstChild);
             }
         };
+    </script>
+
+    <!-- 🎬 影视开场动画脚本 -->
+    <script>
+    (function() {
+        // 如果不需要显示开场动画则跳过
+        if (typeof _showIntro === 'undefined' || !_showIntro) return;
+
+        var intro = document.getElementById('cinemaIntro');
+        if (!intro) return;
+
+        var particles = document.getElementById('introParticles');
+        var clapper = document.getElementById('introClapperboard');
+        var countdown = document.getElementById('introCountdown');
+        var countdownNum = document.getElementById('countdownNumber');
+        var logo = document.getElementById('introLogo');
+        var lightSweep = document.getElementById('lightSweep');
+        var glitch = document.getElementById('glitchOverlay');
+        var eraBgs = [document.getElementById('eraBgSilent'), document.getElementById('eraBgColor'), document.getElementById('eraBgDigital'), document.getElementById('eraBgAi')];
+        var eraCards = [document.getElementById('eraCardSilent'), document.getElementById('eraCardColor'), document.getElementById('eraCardDigital'), document.getElementById('eraCardAi')];
+
+        var animationRunning = true;
+
+        // 创建粒子
+        function createParticles() {
+            for (var i = 0; i < 30; i++) {
+                var p = document.createElement('div');
+                p.className = 'intro-particle';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDelay = Math.random() * 2.5 + 's';
+                p.style.animationDuration = (2 + Math.random() * 2) + 's';
+                particles.appendChild(p);
+            }
+        }
+
+        // 重置所有元素
+        function resetAll() {
+            clapper.classList.remove('show');
+            countdown.classList.remove('show');
+            logo.classList.remove('show');
+            lightSweep.classList.remove('animate');
+            eraBgs.forEach(function(bg) { bg.classList.remove('active'); });
+            eraCards.forEach(function(card) { card.classList.remove('show'); });
+        }
+
+        // 播放动画
+        function playIntro() {
+            createParticles();
+            resetAll();
+            var t = 0;
+
+            // 场记板
+            setTimeout(function() { if (!animationRunning) return; clapper.classList.add('show'); }, t);
+            t += 1200;
+            setTimeout(function() { if (!animationRunning) return; clapper.classList.remove('show'); }, t);
+            t += 300;
+
+            // 时代演变
+            var eras = [0, 1, 2, 3];
+            eras.forEach(function(i) {
+                setTimeout(function() {
+                    if (!animationRunning) return;
+                    eraBgs.forEach(function(bg, j) { bg.classList.toggle('active', j === i); });
+                    eraCards[i].classList.add('show');
+                    lightSweep.classList.remove('animate');
+                    void lightSweep.offsetWidth;
+                    lightSweep.classList.add('animate');
+                }, t);
+                t += 1200;
+                setTimeout(function() {
+                    if (!animationRunning) return;
+                    glitch.classList.add('active');
+                    setTimeout(function() { glitch.classList.remove('active'); }, 150);
+                }, t);
+                t += 100;
+            });
+
+            // 倒计时
+            [3, 2, 1].forEach(function(n) {
+                setTimeout(function() {
+                    if (!animationRunning) return;
+                    countdownNum.textContent = n;
+                    countdown.classList.remove('show');
+                    void countdown.offsetWidth;
+                    countdown.classList.add('show');
+                }, t);
+                t += 650;
+            });
+            t += 200;
+
+            // LOGO
+            setTimeout(function() {
+                if (!animationRunning) return;
+                eraBgs[3].classList.add('active');
+                logo.classList.add('show');
+            }, t);
+            t += 1800;
+
+            // 结束
+            setTimeout(function() { finishIntro(); }, t);
+        }
+
+        // 结束动画
+        function finishIntro() {
+            animationRunning = false;
+            // 先准备欢迎页(不可见但已渲染)
+            var welcome = document.getElementById('welcomeScreen');
+            var appContainer = document.querySelector('.app-container');
+            if (welcome) {
+                welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
+            }
+            // 短暂延迟确保样式生效
+            setTimeout(function() {
+                // 开始淡出intro同时淡入欢迎页
+                intro.classList.add('fade-out');
+                if (welcome) {
+                    welcome.style.opacity = '1';
+                }
+                // 淡出完成后隐藏intro
+                setTimeout(function() {
+                    intro.classList.add('hidden');
+                    // 恢复 app-container 显示（但用户要先登录）
+                    if (appContainer) {
+                        appContainer.style.cssText = '';
+                    }
+                }, 600);
+            }, 20);
+        }
+
+        // 跳过动画
+        window.skipIntro = function() {
+            animationRunning = false;
+            finishIntro();
+        };
+
+        // 启动
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', playIntro);
+        } else {
+            playIntro();
+        }
+    })();
     </script>
 </body>
 
