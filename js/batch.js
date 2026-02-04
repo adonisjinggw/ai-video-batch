@@ -44791,3 +44791,219 @@ window.showNodeMenu = function (e) {
     }
 };
 
+// ==================== 🎬 智能任务调度器集成 ====================
+/**
+ * 注册任务处理器到 TaskOrchestrator
+ * 使新模块与现有系统无缝集成
+ */
+(function initTaskOrchestrator() {
+    // 等待 TaskOrchestrator 加载
+    if (typeof TaskOrchestrator === 'undefined') {
+        console.log('⏳ [集成] 等待 TaskOrchestrator 加载...');
+        setTimeout(initTaskOrchestrator, 100);
+        return;
+    }
+
+    console.log('🔗 [集成] 开始注册任务处理器...');
+
+    // 📝 文本生成处理器
+    TaskOrchestrator.registerHandler('text_story', async (task) => {
+        const { prompt, settings } = task.payload;
+        return await callScriptGenerator({ settings }, prompt);
+    });
+
+    TaskOrchestrator.registerHandler('text_character', async (task) => {
+        const { prompt, settings } = task.payload;
+        return await callScriptGenerator({ settings }, prompt);
+    });
+
+    TaskOrchestrator.registerHandler('text_scene', async (task) => {
+        const { prompt, settings } = task.payload;
+        return await callScriptGenerator({ settings }, prompt);
+    });
+
+    // 🖼️ 图像生成处理器
+    TaskOrchestrator.registerHandler('image_character', async (task) => {
+        const { prompt, aspectRatio, model, useModelScope, useBestModel } = task.payload;
+        if (useModelScope) {
+            return await callModelScopeImageAPI(prompt, { aspectRatio });
+        } else {
+            return await callBanana2ImageAPI(prompt, { aspectRatio, model: model || 'nano-banana-2-4k' });
+        }
+    });
+
+    TaskOrchestrator.registerHandler('image_scene', async (task) => {
+        const { prompt, aspectRatio, model } = task.payload;
+        return await callBanana2ImageAPI(prompt, { aspectRatio, model: model || 'nano-banana-2' });
+    });
+
+    // 🎬 视频生成处理器
+    TaskOrchestrator.registerHandler('video_sora2', async (task) => {
+        const { prompt, model, aspectRatio, duration, imageUrl, hd } = task.payload;
+        if (imageUrl) {
+            return await callSora2ImageToVideoAPI(prompt, imageUrl, { model, aspectRatio, duration, hd });
+        } else {
+            return await callSora2TextToVideoAPI(prompt, { model, aspectRatio, duration, hd });
+        }
+    });
+
+    // 🔗 工作流处理器（父任务）
+    TaskOrchestrator.registerHandler('workflow', async (task) => {
+        // 工作流本身不执行，只等待子任务完成
+        return { status: 'workflow_started', name: task.payload.name };
+    });
+
+    // 📊 监听任务事件，更新 UI
+    TaskOrchestrator.on('taskStarted', (task) => {
+        updateSmartProgress();
+        if (task.type !== 'workflow') {
+            addCineStepResult(`⏳ ${getTaskTypeLabel(task.type)}...`, 'running');
+        }
+    });
+
+    TaskOrchestrator.on('taskCompleted', (task) => {
+        updateSmartProgress();
+        if (task.type !== 'workflow') {
+            addCineStepResult(`✅ ${getTaskTypeLabel(task.type)} 完成`, 'success');
+        }
+    });
+
+    TaskOrchestrator.on('taskFailed', (task) => {
+        updateSmartProgress();
+        if (task.type !== 'workflow') {
+            addCineStepResult(`❌ ${getTaskTypeLabel(task.type)} 失败: ${task.error?.substring(0, 50) || '未知错误'}`, 'error');
+        }
+    });
+
+    TaskOrchestrator.on('workflowCompleted', (workflow) => {
+        console.log(`🎉 [工作流完成] ${workflow.payload.name}`);
+        updateSmartProgress();
+    });
+
+    console.log('✅ [集成] 任务处理器注册完成');
+})();
+
+/**
+ * 获取任务类型的中文标签
+ */
+function getTaskTypeLabel(type) {
+    const labels = {
+        'text_story': '📝 故事生成',
+        'text_character': '👤 角色描述',
+        'text_scene': '🎬 分镜脚本',
+        'image_character': '🎨 角色图像',
+        'image_scene': '🖼️ 分镜图像',
+        'video_sora2': '🎬 视频生成',
+        'workflow': '📋 工作流'
+    };
+    return labels[type] || type;
+}
+
+/**
+ * 🔄 更新智能进度显示
+ * 显示预估剩余时间和详细状态
+ */
+function updateSmartProgress() {
+    if (typeof TaskOrchestrator === 'undefined') return;
+
+    const status = TaskOrchestrator.getStatus();
+    const progress = TaskOrchestrator.getProgress();
+
+    // 更新进度条（如果存在）
+    const progressBar = document.querySelector('.smart-progress-bar');
+    if (progressBar) {
+        progressBar.style.width = `${progress}%`;
+    }
+
+    // 更新预估时间显示
+    const etaEl = document.getElementById('smartETA');
+    if (etaEl && status.estimatedTimeRemaining > 0) {
+        etaEl.textContent = `⏱️ 预计剩余: ${status.estimatedTimeFormatted}`;
+        etaEl.style.display = 'block';
+    } else if (etaEl) {
+        etaEl.style.display = 'none';
+    }
+
+    // 更新状态文字
+    const statusEl = document.getElementById('cineStatus');
+    if (statusEl && status.running > 0) {
+        statusEl.textContent = `正在处理 ${status.running} 个任务，等待 ${status.pending} 个...`;
+    }
+
+    // 更新任务计数（如果存在）
+    const countEl = document.getElementById('taskQueueCount');
+    if (countEl) {
+        countEl.textContent = `${status.completed}/${status.total}`;
+    }
+}
+
+/**
+ * 🛡️ 弹性 API 网关集成
+ * 提供统一的 API 调用入口（可选使用）
+ */
+window.SmartAPI = {
+    /**
+     * 智能图像生成（自动选择最优节点）
+     */
+    async generateImage(options) {
+        if (typeof ResilientAPIGateway === 'undefined') {
+            // 降级到原有方法
+            const { prompt, aspectRatio, model, preferFree } = options;
+            if (preferFree) {
+                return await callModelScopeImageAPI(prompt, { aspectRatio });
+            } else {
+                return await callBanana2ImageAPI(prompt, { aspectRatio, model });
+            }
+        }
+        return await ResilientAPIGateway.callImageAPI(options);
+    },
+
+    /**
+     * 智能文本生成（自动选择最优节点）
+     */
+    async generateText(options) {
+        if (typeof ResilientAPIGateway === 'undefined') {
+            const { prompt, settings } = options;
+            return await callScriptGenerator({ settings }, prompt);
+        }
+        return await ResilientAPIGateway.callTextAPI(options);
+    },
+
+    /**
+     * 智能视频生成（自动选择最优节点）
+     */
+    async generateVideo(options) {
+        if (typeof ResilientAPIGateway === 'undefined') {
+            const { prompt, model, aspectRatio, duration, imageUrl, hd } = options;
+            if (imageUrl) {
+                return await callSora2ImageToVideoAPI(prompt, imageUrl, { model, aspectRatio, duration, hd });
+            } else {
+                return await callSora2TextToVideoAPI(prompt, { model, aspectRatio, duration, hd });
+            }
+        }
+        return await ResilientAPIGateway.callVideoAPI(options);
+    },
+
+    /**
+     * 获取 API 状态
+     */
+    getStatus() {
+        if (typeof ResilientAPIGateway === 'undefined') {
+            return { available: true, message: '使用原生 API' };
+        }
+        return ResilientAPIGateway.getStatus();
+    },
+
+    /**
+     * 获取成本预估
+     */
+    estimateCost(usage) {
+        if (typeof ResilientAPIGateway === 'undefined') {
+            return { totalCost: 0, message: '无法预估' };
+        }
+        return ResilientAPIGateway.estimateCost(usage);
+    }
+};
+
+console.log('🎬 [SmartAPI] 智能 API 接口已就绪');
+

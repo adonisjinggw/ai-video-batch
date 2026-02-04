@@ -5409,3 +5409,250 @@ html.sidebar-open .rr-minimap {
     background: #dc2626;
     transform: scale(1.1);
 }
+
+/* ==================== 🎬 智能进度系统 ==================== */
+/* 智能进度容器 */
+.smart-progress-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    background: rgba(13, 13, 26, 0.95);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    z-index: 9000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none;
+}
+
+.smart-progress-container.active {
+    display: block;
+    animation: smartProgressIn 0.3s ease;
+}
+
+@keyframes smartProgressIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.smart-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.smart-progress-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent-gold);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.smart-progress-close {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+}
+
+.smart-progress-close:hover {
+    color: #ef4444;
+}
+
+/* 进度条 */
+.smart-progress-track {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.smart-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-gold), #f97316);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.smart-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* 任务状态 */
+.smart-progress-stats {
+    display: flex;
+    justify-content: space-between;
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+.smart-progress-eta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(255, 215, 0, 0.1);
+    border-radius: 8px;
+    color: var(--accent-gold);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.smart-progress-eta .eta-icon {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* 任务列表 */
+.smart-progress-tasks {
+    max-height: 150px;
+    overflow-y: auto;
+    margin-top: 12px;
+    padding-right: 4px;
+}
+
+.smart-progress-tasks::-webkit-scrollbar {
+    width: 4px;
+}
+
+.smart-progress-tasks::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+}
+
+.smart-progress-tasks::-webkit-scrollbar-thumb {
+    background: var(--accent-gold);
+    border-radius: 2px;
+}
+
+.smart-task-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #aaa;
+    animation: taskFadeIn 0.3s ease;
+}
+
+@keyframes taskFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.smart-task-item.running {
+    background: rgba(255, 215, 0, 0.1);
+    color: var(--accent-gold);
+}
+
+.smart-task-item.completed {
+    color: #10b981;
+}
+
+.smart-task-item.failed {
+    color: #ef4444;
+}
+
+.smart-task-icon {
+    width: 20px;
+    text-align: center;
+}
+
+.smart-task-label {
+    flex: 1;
+}
+
+.smart-task-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* API 状态指示器 */
+.api-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    font-size: 11px;
+    color: #888;
+}
+
+.api-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+}
+
+.api-status-dot.warning {
+    background: #f59e0b;
+    animation: blink 1s infinite;
+}
+
+.api-status-dot.error {
+    background: #ef4444;
+    animation: blink 0.5s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .smart-progress-container {
+        bottom: 80px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+    }
+}
