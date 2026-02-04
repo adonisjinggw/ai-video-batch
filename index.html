@@ -884,56 +884,42 @@
     </div>
 
     <script>
-    // 🎬 开场动画/欢迎页显示逻辑
-    var _showIntro = false;
+    // 🎬 开场动画/欢迎页显示逻辑（登录用户也显示开场动画；仅未登录显示欢迎页）
+    var _showIntro = true;
     (function() {
+        // 1) 清理登录跳转参数（若存在）
         var hasLoginParam = location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1;
-        var skipWelcome = false;
-        
         if (hasLoginParam) {
-            // 登录后跳转或从功能页返回时不显示开场动画和欢迎页
-            skipWelcome = true;
-            history.replaceState({}, '', location.pathname);
-        } else {
-            // 检查本地缓存中是否有有效登录状态
-            try {
-                var cacheKey = 'rollroll_auth_cache';
-                var raw = localStorage.getItem(cacheKey);
-                if (raw) {
-                    var cache = JSON.parse(raw);
-                    var maxAge = 30 * 60 * 1000; // 30分钟
-                    var cacheNotExpired = cache.cachedAt && (Date.now() - cache.cachedAt) < maxAge;
-                    var sessionNotExpired = cache.expiresAt ? (cache.expiresAt * 1000 > Date.now()) : true;
-                    var hasValidUser = cache.user && cache.user.id;
-                    if (hasValidUser && cacheNotExpired && sessionNotExpired) {
-                        skipWelcome = true;
-                        console.log('🏠 [同步] 检测到有效登录缓存，跳过欢迎页');
-                    }
-                }
-            } catch(e) {}
+            try { history.replaceState({}, '', location.pathname); } catch(e) {}
         }
-        
-        if (skipWelcome) {
-            // 已登录，不显示开场动画和欢迎页
-            _showIntro = false;
-        } else {
-            // 未登录，显示开场动画，同时隐藏欢迎页防止闪现
-            _showIntro = true;
-            var style = document.createElement('style');
-            // 仅隐藏欢迎页，保留 app-container 可见，避免出现空白
-            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen{display:none!important;opacity:0;visibility:hidden}';
-            document.head.appendChild(style);
-            // 兜底：如果动画未能启动，1.2s 后直接显示欢迎页
-            setTimeout(function(){
-                if (!_showIntro || window.__introStarted) return;
+        // 2) 检查是否已登录
+        var isLoggedIn = false;
+        try {
+            var raw = localStorage.getItem('rollroll_auth_cache');
+            if (raw) {
+                var cache = JSON.parse(raw);
+                var maxAge = 30 * 60 * 1000;
+                var cacheNotExpired = cache.cachedAt && (Date.now() - cache.cachedAt) < maxAge;
+                var sessionNotExpired = cache.expiresAt ? (cache.expiresAt * 1000 > Date.now()) : true;
+                var hasValidUser = cache.user && cache.user.id;
+                isLoggedIn = !!(hasValidUser && cacheNotExpired && sessionNotExpired);
+            }
+        } catch(e) {}
+        // 3) 指示动画结束后是否展示欢迎页（仅未登录展示）
+        window.__introShowWelcome = !isLoggedIn;
+        // 4) 初始样式：显示开场动画、隐藏欢迎页防闪屏
+        var style = document.createElement('style');
+        style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen{display:none!important;opacity:0;visibility:hidden}';
+        document.head.appendChild(style);
+        // 5) 兜底：若动画1.2s内未启动且需要欢迎页，则直接显示欢迎页
+        setTimeout(function(){
+            if (!window.__introStarted && window.__introShowWelcome) {
                 try {
                     var welcome = document.getElementById('welcomeScreen');
-                    if (welcome) {
-                        welcome.style.cssText = 'display:flex!important;opacity:1;visibility:visible';
-                    }
+                    if (welcome) welcome.style.cssText = 'display:flex!important;opacity:1;visibility:visible';
                 } catch(e) {}
-            }, 1200);
-        }
+            }
+        }, 1200);
     })();
     </script>
     <!-- 欢迎页（默认隐藏，由上方脚本控制显示）-->
@@ -1966,26 +1952,24 @@
         // 结束动画
         function finishIntro() {
             animationRunning = false;
-            // 先准备欢迎页(不可见但已渲染)
+            var showWelcome = !!window.__introShowWelcome;
             var welcome = document.getElementById('welcomeScreen');
             var appContainer = document.querySelector('.app-container');
-            if (welcome) {
+            // 如需展示欢迎页则预渲染
+            if (showWelcome && welcome) {
                 welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
             }
             // 短暂延迟确保样式生效
             setTimeout(function() {
-                // 开始淡出intro同时淡入欢迎页
                 intro.classList.add('fade-out');
-                if (welcome) {
+                if (showWelcome && welcome) {
+                    // 淡入欢迎页
                     welcome.style.opacity = '1';
                 }
-                // 淡出完成后隐藏intro
                 setTimeout(function() {
                     intro.classList.add('hidden');
-                    // 恢复 app-container 显示（但用户要先登录）
-                    if (appContainer) {
-                        appContainer.style.cssText = '';
-                    }
+                    // 恢复 app-container 显示
+                    if (appContainer) appContainer.style.cssText = '';
                 }, 600);
             }, 20);
         }
