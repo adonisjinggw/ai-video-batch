@@ -954,7 +954,7 @@
                 await NVAuth.signInWithEmail(email, password);
                 showMessage('登录成功！', 'success');
                 
-                // 🚀 立即跳转，不等待
+                // 🔧 构建跳转URL
                 const currentOrigin = window.location.origin;
                 const urlParams = new URLSearchParams(window.location.search);
                 const returnTo = urlParams.get('return_to');
@@ -962,8 +962,11 @@
                     ? `${currentOrigin}/${returnTo}?logged_in=1&skip_welcome=1`
                     : `${currentOrigin}/index.html?logged_in=1&skip_welcome=1`;
                 
-                console.log('[Auth] 🚀 跳转到:', targetUrl);
+                // 🔧 等待一帧确保缓存写入完成后再跳转
+                console.log('[Auth] 🚀 登录成功，准备跳转到:', targetUrl);
+                await new Promise(resolve => setTimeout(resolve, 100));
                 window.location.href = targetUrl;
+                return; // 🔧 跳转后直接返回，不执行 finally
             } catch (error) {
                 console.error('登录失败:', error);
                 let errorMsg = '登录失败，请重试';

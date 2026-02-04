@@ -310,11 +310,18 @@ async function signInWithEmail(email, password) {
     // 🚀 优先使用代理加速国内访问
     try {
         console.log('🚀 [登录] 尝试使用代理登录...');
+        
+        // 🔧 添加超时机制，避免代理请求卡住导致无限加载
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
+        
         const proxyRes = await fetch('/api/supabase-proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'authSignIn', email, password })
+            body: JSON.stringify({ action: 'authSignIn', email, password }),
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         
         const proxyData = await proxyRes.json();
         
@@ -371,9 +378,17 @@ async function signInWithEmail(email, password) {
 
     if (error) throw error;
 
+    // 🔧 修复：SDK 直连登录成功后也要保存缓存（不能只依赖 onAuthStateChange）
+    if (data.session) {
+        __nvCachedUser = data.session.user || data.user;
+        __nvCachedSession = data.session;
+        saveAuthCache(__nvCachedUser, __nvCachedSession);
+        console.log('✅ [登录] SDK直连登录成功，已保存缓存');
+    }
+
     // 更新最后登录时间
     if (data.user) {
-        await updateLastLogin(data.user.id);
+        updateLastLogin(data.user.id).catch(() => {});
     }
 
     return data;
@@ -390,9 +405,17 @@ async function signOut() {
     const { error } = await client.auth.signOut();
     if (error) throw error;
 
-    // 清除本地缓存的用户数据
+    // 🔧 清除所有缓存（内存缓存 + 本地缓存）
+    __nvCachedUser = null;
+    __nvCachedSession = null;
+    saveAuthCache(null, null); // 清除 rollroll_auth_cache
     localStorage.removeItem('nv_user_profile');
-    console.log('✅ 已退出登录');
+    localStorage.removeItem('membership_type');
+    localStorage.removeItem('vip_info');
+    localStorage.removeItem('vip_expiry');
+    localStorage.removeItem('film_balance');
+    localStorage.removeItem('cloud_film_balance');
+    console.log('✅ 已退出登录，已清除所有缓存');
 }
 
 /**

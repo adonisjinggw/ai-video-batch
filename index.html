@@ -720,23 +720,44 @@
     <!-- 隐藏的兼容性元素 (JS可能调用) -->
     <!-- 🔧 欢迎页显示逻辑（同步判断，与手机版一致）-->
     <script>
-    // 🔧 欢迎页显示逻辑：必须显示欢迎页和登录页
-    // 只有明确带 logged_in=1 参数时才跳过欢迎页（登录成功后跳转回来）
+    // 🔧 欢迎页显示逻辑：已登录用户跳过欢迎页
+    // 检查顺序：1. URL参数 2. 本地缓存
     (function() {
         var hasLoginParam = location.search.indexOf('logged_in=1') > -1;
+        var skipWelcome = hasLoginParam;
         
-        if (hasLoginParam) {
-            // 登录成功返回，清除参数，不显示欢迎页
+        // 🔧 如果没有URL参数，检查本地缓存中是否有有效登录状态
+        if (!skipWelcome) {
             try {
-                var params = new URLSearchParams(location.search);
-                params.delete('logged_in');
-                var newSearch = params.toString();
-                var newUrl = location.pathname + (newSearch ? '?' + newSearch : '');
-                history.replaceState({}, '', newUrl);
+                var cacheKey = 'rollroll_auth_cache';
+                var raw = localStorage.getItem(cacheKey);
+                if (raw) {
+                    var cache = JSON.parse(raw);
+                    var maxAge = 30 * 60 * 1000; // 30分钟
+                    var notExpired = (Date.now() - cache.cachedAt) < maxAge;
+                    var sessionValid = !cache.expiresAt || (cache.expiresAt * 1000 > Date.now());
+                    if (cache.user && cache.user.id && notExpired && sessionValid) {
+                        skipWelcome = true;
+                        console.log('🏠 [同步] 检测到有效登录缓存，跳过欢迎页');
+                    }
+                }
             } catch(e) {}
+        }
+        
+        if (skipWelcome) {
+            // 登录成功或已登录，清除URL参数，不显示欢迎页
+            if (hasLoginParam) {
+                try {
+                    var params = new URLSearchParams(location.search);
+                    params.delete('logged_in');
+                    var newSearch = params.toString();
+                    var newUrl = location.pathname + (newSearch ? '?' + newSearch : '');
+                    history.replaceState({}, '', newUrl);
+                } catch(e) {}
+            }
             // 不写入样式，欢迎页默认隐藏
         } else {
-            // 其他所有情况都显示欢迎页（包括刷新、直接访问等）
+            // 未登录情况显示欢迎页
             document.write('<style>#welcomeScreen{display:flex!important}</style>');
         }
     })();
