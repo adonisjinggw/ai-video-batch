@@ -920,8 +920,19 @@
             // 未登录，显示开场动画，同时隐藏欢迎页防止闪现
             _showIntro = true;
             var style = document.createElement('style');
-            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
+            // 仅隐藏欢迎页，保留 app-container 可见，避免出现空白
+            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen{display:none!important;opacity:0;visibility:hidden}';
             document.head.appendChild(style);
+            // 兜底：如果动画未能启动，1.2s 后直接显示欢迎页
+            setTimeout(function(){
+                if (!_showIntro || window.__introStarted) return;
+                try {
+                    var welcome = document.getElementById('welcomeScreen');
+                    if (welcome) {
+                        welcome.style.cssText = 'display:flex!important;opacity:1;visibility:visible';
+                    }
+                } catch(e) {}
+            }, 1200);
         }
     })();
     </script>
@@ -1894,9 +1905,12 @@
 
         // 播放动画
         function playIntro() {
+            window.__introStarted = true;
             createParticles();
             resetAll();
             var t = 0;
+            // 兜底：最多 8 秒自动结束动画，防止卡住
+            setTimeout(function(){ if (animationRunning) finishIntro(); }, 8000);
 
             // 场记板
             setTimeout(function() { if (!animationRunning) return; clapper.classList.add('show'); }, t);
