@@ -884,42 +884,21 @@
     </div>
 
     <script>
-    // 🎬 开场动画/欢迎页显示逻辑（登录用户也显示开场动画；仅未登录显示欢迎页）
-    var _showIntro = true;
+    // 🎬 开场动画/欢迎页显示逻辑（与手机版一致：强制显示欢迎页）
+    var _showIntro = false;
     (function() {
-        // 1) 清理登录跳转参数（若存在）
-        var hasLoginParam = location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1;
-        if (hasLoginParam) {
-            try { history.replaceState({}, '', location.pathname); } catch(e) {}
+        // 登录后跳转或从功能页返回时不显示开场动画和欢迎页
+        if (location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1) {
+            history.replaceState({}, '', location.pathname);
+            _showIntro = false;
+        } else {
+            // 其他情况显示开场动画，同时隐藏欢迎页防止闪现
+            _showIntro = true;
+            // 立即添加样式让开场动画显示、其他内容隐藏
+            var style = document.createElement('style');
+            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
+            document.head.appendChild(style);
         }
-        // 2) 检查是否已登录
-        var isLoggedIn = false;
-        try {
-            var raw = localStorage.getItem('rollroll_auth_cache');
-            if (raw) {
-                var cache = JSON.parse(raw);
-                var maxAge = 30 * 60 * 1000;
-                var cacheNotExpired = cache.cachedAt && (Date.now() - cache.cachedAt) < maxAge;
-                var sessionNotExpired = cache.expiresAt ? (cache.expiresAt * 1000 > Date.now()) : true;
-                var hasValidUser = cache.user && cache.user.id;
-                isLoggedIn = !!(hasValidUser && cacheNotExpired && sessionNotExpired);
-            }
-        } catch(e) {}
-        // 3) 指示动画结束后是否展示欢迎页（仅未登录展示）
-        window.__introShowWelcome = !isLoggedIn;
-        // 4) 初始样式：显示开场动画、隐藏欢迎页防闪屏
-        var style = document.createElement('style');
-        style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen{display:none!important;opacity:0;visibility:hidden}';
-        document.head.appendChild(style);
-        // 5) 兜底：若动画1.2s内未启动且需要欢迎页，则直接显示欢迎页
-        setTimeout(function(){
-            if (!window.__introStarted && window.__introShowWelcome) {
-                try {
-                    var welcome = document.getElementById('welcomeScreen');
-                    if (welcome) welcome.style.cssText = 'display:flex!important;opacity:1;visibility:visible';
-                } catch(e) {}
-            }
-        }, 1200);
     })();
     </script>
     <!-- 欢迎页（默认隐藏，由上方脚本控制显示）-->
@@ -1952,24 +1931,21 @@
         // 结束动画
         function finishIntro() {
             animationRunning = false;
-            var showWelcome = !!window.__introShowWelcome;
+            // 先准备欢迎页(不可见但已渲染)
             var welcome = document.getElementById('welcomeScreen');
-            var appContainer = document.querySelector('.app-container');
-            // 如需展示欢迎页则预渲染
-            if (showWelcome && welcome) {
+            if (welcome) {
                 welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
             }
             // 短暂延迟确保样式生效
             setTimeout(function() {
+                // 开始淡出intro同时淡入欢迎页
                 intro.classList.add('fade-out');
-                if (showWelcome && welcome) {
-                    // 淡入欢迎页
+                if (welcome) {
                     welcome.style.opacity = '1';
                 }
+                // 淡出完成后隐藏intro
                 setTimeout(function() {
                     intro.classList.add('hidden');
-                    // 恢复 app-container 显示
-                    if (appContainer) appContainer.style.cssText = '';
                 }, 600);
             }, 20);
         }
