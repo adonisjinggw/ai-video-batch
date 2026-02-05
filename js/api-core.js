@@ -681,6 +681,147 @@
         return await callSora2ImageToVideoAPI(lastFrameUrl, prompt, { ...(options || {}), model: model || options.model || 'sora-2' });
     }
 
+    // ==================== 📚 角色库/素材库保存函数 ====================
+
+    /**
+     * 📚 保存角色到角色库
+     * @param {string} name - 角色名称
+     * @param {string} summary - 角色描述
+     * @param {string} posterUrl - 角色图片URL
+     * @param {string} videoUrl - 角色视频URL（可选）
+     * @param {string} turnaroundUrl - 三视图URL（可选）
+     */
+    function saveCharacterToLibrary(name, summary, posterUrl, videoUrl, turnaroundUrl) {
+        try {
+            let lib = [];
+            try {
+                lib = JSON.parse(localStorage.getItem('character_library') || '[]');
+                if (!Array.isArray(lib)) lib = [];
+            } catch (e) {
+                lib = [];
+            }
+
+            if (!name || typeof name !== 'string') {
+                console.error('[api-core] 角色名称无效');
+                return false;
+            }
+
+            // 检查是否存在相同名字的角色
+            const existingIdx = lib.findIndex(c => c.name === name);
+            if (existingIdx >= 0) {
+                lib[existingIdx] = {
+                    name: name,
+                    summary: summary || '',
+                    imageUrl: posterUrl || lib[existingIdx].imageUrl || '',
+                    videoUrl: videoUrl || lib[existingIdx].videoUrl || '',
+                    variants: {
+                        poster: posterUrl || lib[existingIdx].variants?.poster || lib[existingIdx].imageUrl || '',
+                        turnaround: turnaroundUrl || lib[existingIdx].variants?.turnaround || ''
+                    }
+                };
+                console.log(`✅ [api-core] 角色「${name}」已更新`);
+            } else {
+                lib.push({
+                    name: name,
+                    summary: summary || '',
+                    imageUrl: posterUrl || '',
+                    videoUrl: videoUrl || '',
+                    variants: {
+                        poster: posterUrl || '',
+                        turnaround: turnaroundUrl || ''
+                    }
+                });
+                console.log(`✅ [api-core] 角色「${name}」已保存到角色库`);
+            }
+
+            localStorage.setItem('character_library', JSON.stringify(lib));
+            return true;
+        } catch (err) {
+            console.error('❌ [api-core] 保存角色失败:', err);
+            return false;
+        }
+    }
+
+    /**
+     * 🖼️ 保存图片到素材库
+     * @param {string} url - 图片URL
+     * @param {string} title - 图片标题
+     * @param {string} category - 分类（可选）
+     */
+    function saveImageToLibrary(url, title, category) {
+        try {
+            let lib = [];
+            try {
+                lib = JSON.parse(localStorage.getItem('material_library') || '[]');
+                if (!Array.isArray(lib)) lib = [];
+            } catch (e) {
+                lib = [];
+            }
+
+            if (!url) {
+                console.error('[api-core] 图片URL无效');
+                return false;
+            }
+
+            lib.push({
+                id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                type: 'image',
+                url: url,
+                title: title || '技能生成图片',
+                category: category || 'skill',
+                createdAt: new Date().toISOString()
+            });
+
+            localStorage.setItem('material_library', JSON.stringify(lib));
+            console.log(`✅ [api-core] 图片已保存到素材库: ${title || url.substring(0, 50)}`);
+            return true;
+        } catch (err) {
+            console.error('❌ [api-core] 保存图片失败:', err);
+            return false;
+        }
+    }
+
+    /**
+     * 🎬 保存视频到素材库
+     * @param {string} url - 视频URL
+     * @param {string} title - 视频标题
+     * @param {string} category - 分类（可选）
+     * @param {string} thumbnailUrl - 缩略图URL（可选）
+     */
+    function saveVideoToLibrary(url, title, category, thumbnailUrl) {
+        try {
+            let lib = [];
+            try {
+                lib = JSON.parse(localStorage.getItem('material_library') || '[]');
+                if (!Array.isArray(lib)) lib = [];
+            } catch (e) {
+                lib = [];
+            }
+
+            if (!url) {
+                console.error('[api-core] 视频URL无效');
+                return false;
+            }
+
+            lib.push({
+                id: 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                type: 'video',
+                url: url,
+                thumbnailUrl: thumbnailUrl || '',
+                title: title || '技能生成视频',
+                category: category || 'skill',
+                createdAt: new Date().toISOString()
+            });
+
+            localStorage.setItem('material_library', JSON.stringify(lib));
+            console.log(`✅ [api-core] 视频已保存到素材库: ${title || url.substring(0, 50)}`);
+            return true;
+        } catch (err) {
+            console.error('❌ [api-core] 保存视频失败:', err);
+            return false;
+        }
+    }
+
     // ==================== 📤 导出到全局 ====================
 
     // 核心 API 函数
@@ -703,6 +844,11 @@
     global.checkFreeUserTextProvider = global.checkFreeUserTextProvider || checkFreeUserTextProvider;
     global.pollSora2Task = global.pollSora2Task || pollSora2Task;
     global.sleep = global.sleep || sleep;
+
+    // 📚 角色库/素材库保存函数
+    global.saveCharacterToLibrary = global.saveCharacterToLibrary || saveCharacterToLibrary;
+    global.saveImageToLibrary = global.saveImageToLibrary || saveImageToLibrary;
+    global.saveVideoToLibrary = global.saveVideoToLibrary || saveVideoToLibrary;
 
     console.log('✅ [api-core.js] API 核心模块已加载');
 

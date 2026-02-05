@@ -1749,10 +1749,91 @@
             // 构建结果消息
             let messageContent = `✅ 技能「${skillName}」执行完成\n\n`;
             
+            // 💾 统计保存数量
+            let savedImages = 0;
+            let savedVideos = 0;
+            let savedCharacters = 0;
+            
             // 检查 result 中是否有 videos 数组（批量生成结果）
             if (result && result.videos && Array.isArray(result.videos)) {
                 const successCount = result.videos.filter(v => v.status === 'success').length;
                 messageContent += `🎉 成功生成 ${successCount}/${result.videos.length} 个视频\n\n`;
+                
+                // 💾 保存视频到素材库
+                result.videos.forEach((v, idx) => {
+                    if (v.status === 'success' && v.videoUrl && typeof saveVideoToLibrary === 'function') {
+                        saveVideoToLibrary(v.videoUrl, `${skillName} - 视频${idx + 1}`, 'skill');
+                        savedVideos++;
+                    }
+                    if (v.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(v.imageUrl, `${skillName} - 封面${idx + 1}`, 'skill');
+                        savedImages++;
+                    }
+                });
+            }
+            
+            // 检查 result 中是否有 characterName（角色设定包结果）
+            if (result && result.characterName && result.assets) {
+                if (typeof saveCharacterToLibrary === 'function') {
+                    const assets = result.assets;
+                    saveCharacterToLibrary(
+                        result.characterName,
+                        '',  // summary会从参数中获取
+                        assets.poster || assets.turnaround,
+                        null,
+                        assets.turnaround
+                    );
+                    savedCharacters++;
+                }
+                
+                // 保存所有角色图片到素材库
+                Object.entries(result.assets).forEach(([key, url]) => {
+                    if (url && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(url, `${result.characterName} - ${key}`, 'character');
+                        savedImages++;
+                    }
+                });
+            }
+            
+            // 检查 result 中是否有 images 数组（风格统一出图结果）
+            if (result && result.images && Array.isArray(result.images)) {
+                result.images.forEach((img, idx) => {
+                    if (img.status === 'success' && img.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(img.imageUrl, `${skillName} - ${img.subject || '图片' + (idx + 1)}`, 'skill');
+                        savedImages++;
+                    }
+                });
+            }
+            
+            // 检查 result 中是否有 pages 数组（漫画分镜结果）
+            if (result && result.pages && Array.isArray(result.pages)) {
+                result.pages.forEach((page, idx) => {
+                    if (page.status === 'success' && page.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(page.imageUrl, `${skillName} - 第${page.page}页`, 'comic');
+                        savedImages++;
+                    }
+                });
+            }
+            
+            // 💾 从 generatedMedia 中保存（作为补充）
+            if (generatedMedia && generatedMedia.length > 0) {
+                generatedMedia.forEach((m, idx) => {
+                    if (m.type === 'image' && m.url && typeof saveImageToLibrary === 'function') {
+                        // 检查是否已保存（避免重复）
+                        const lib = JSON.parse(localStorage.getItem('material_library') || '[]');
+                        if (!lib.some(item => item.url === m.url)) {
+                            saveImageToLibrary(m.url, m.step || `${skillName} - 图片${idx + 1}`, 'skill');
+                            savedImages++;
+                        }
+                    }
+                    if (m.type === 'video' && m.url && typeof saveVideoToLibrary === 'function') {
+                        const lib = JSON.parse(localStorage.getItem('material_library') || '[]');
+                        if (!lib.some(item => item.url === m.url)) {
+                            saveVideoToLibrary(m.url, m.step || `${skillName} - 视频${idx + 1}`, 'skill');
+                            savedVideos++;
+                        }
+                    }
+                });
             }
             
             // 展示收集到的媒体内容
@@ -1763,9 +1844,17 @@
                 
                 if (images.length > 0 || videos.length > 0) {
                     messageContent += `🎨 生成内容：\n`;
-                    if (images.length > 0) messageContent += `\u2022 ${images.length} 张图片\n`;
-                    if (videos.length > 0) messageContent += `\u2022 ${videos.length} 个视频\n`;
+                    if (images.length > 0) messageContent += `• ${images.length} 张图片\n`;
+                    if (videos.length > 0) messageContent += `• ${videos.length} 个视频\n`;
                 }
+            }
+            
+            // 💾 显示保存结果
+            if (savedImages > 0 || savedVideos > 0 || savedCharacters > 0) {
+                messageContent += `\n💾 已保存到本地：\n`;
+                if (savedCharacters > 0) messageContent += `• ${savedCharacters} 个角色 → 角色库\n`;
+                if (savedImages > 0) messageContent += `• ${savedImages} 张图片 → 素材库\n`;
+                if (savedVideos > 0) messageContent += `• ${savedVideos} 个视频 → 素材库\n`;
             }
             
             // 添加文本消息
