@@ -1676,6 +1676,9 @@
             if (welcomeEl) welcomeEl.style.display = 'none';
             addMessage(`🧩 执行技能: ${skill?.name || selectedSkillId}`, 'user');
             
+            // 🎯 收集所有生成的媒体内容
+            const generatedMedia = [];
+            
             try {
                 await SkillManager.execute(skillIdToExecute, params, {
                     onProgress: (step, progress, message) => {
@@ -1687,13 +1690,23 @@
                         stepEl.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 0; color:#4ade80; font-size:13px;';
                         stepEl.innerHTML = `<span>✅</span><span>${stepName}</span>`;
                         progressSteps.appendChild(stepEl);
+                        
+                        // 🎯 收集生成的媒体内容
+                        if (result) {
+                            if (result.imageUrl) generatedMedia.push({ type: 'image', url: result.imageUrl, step: stepName });
+                            if (result.videoUrl) generatedMedia.push({ type: 'video', url: result.videoUrl, step: stepName });
+                            if (result.script) generatedMedia.push({ type: 'text', content: result.script, step: stepName });
+                        }
                     },
                     onComplete: (result) => {
                         progressText.textContent = '✅ 执行完成！';
                         progressBar.style.width = '100%';
                         setTimeout(() => {
                             progressModal.classList.remove('show');
-                            addMessage(`✅ 技能「${skill?.name || skillIdToExecute}」执行完成\n\n结果已保存，请在创作页面查看。`, 'ai');
+                            
+                            // 🎯 展示生成结果
+                            displaySkillResults(skill?.name || skillIdToExecute, result, generatedMedia);
+                            
                             showToast(`✅ ${skill?.name || '技能'}执行完成！`);
                         }, 1500);
                     },
@@ -1708,6 +1721,7 @@
                 });
             } catch (error) {
                 console.error('[chat] Skill执行失败:', error);
+                progressModal.classList.remove('show');
                 addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
             }
         }
@@ -1728,6 +1742,93 @@
         function hideSkillProgress() {
             document.getElementById('skillProgressModal').classList.remove('show');
             showToast('技能在后台运行中...');
+        }
+        
+        // 🎯 展示技能执行结果
+        function displaySkillResults(skillName, result, generatedMedia) {
+            // 构建结果消息
+            let messageContent = `✅ 技能「${skillName}」执行完成\n\n`;
+            
+            // 检查 result 中是否有 videos 数组（批量生成结果）
+            if (result && result.videos && Array.isArray(result.videos)) {
+                const successCount = result.videos.filter(v => v.status === 'success').length;
+                messageContent += `🎉 成功生成 ${successCount}/${result.videos.length} 个视频\n\n`;
+            }
+            
+            // 展示收集到的媒体内容
+            if (generatedMedia && generatedMedia.length > 0) {
+                // 过滤图片和视频
+                const images = generatedMedia.filter(m => m.type === 'image');
+                const videos = generatedMedia.filter(m => m.type === 'video');
+                
+                if (images.length > 0 || videos.length > 0) {
+                    messageContent += `🎨 生成内容：\n`;
+                    if (images.length > 0) messageContent += `\u2022 ${images.length} 张图片\n`;
+                    if (videos.length > 0) messageContent += `\u2022 ${videos.length} 个视频\n`;
+                }
+            }
+            
+            // 添加文本消息
+            addMessage(messageContent, 'ai');
+            
+            // 🎨 展示图片和视频
+            if (generatedMedia && generatedMedia.length > 0) {
+                const mediaContainer = document.createElement('div');
+                mediaContainer.className = 'message ai';
+                mediaContainer.style.cssText = 'display:flex; flex-direction:column; gap:12px; max-width:90%;';
+                
+                // 展示图片
+                const images = generatedMedia.filter(m => m.type === 'image' && m.url);
+                if (images.length > 0) {
+                    const imagesGrid = document.createElement('div');
+                    imagesGrid.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px;';
+                    
+                    images.forEach((img, idx) => {
+                        const imgWrapper = document.createElement('div');
+                        imgWrapper.style.cssText = 'position:relative; border-radius:8px; overflow:hidden;';
+                        
+                        const imgEl = document.createElement('img');
+                        imgEl.src = img.url;
+                        imgEl.alt = img.step || `图片 ${idx + 1}`;
+                        imgEl.style.cssText = 'width:100%; height:auto; display:block; cursor:pointer;';
+                        imgEl.onclick = () => window.open(img.url, '_blank');
+                        
+                        imgWrapper.appendChild(imgEl);
+                        imagesGrid.appendChild(imgWrapper);
+                    });
+                    
+                    mediaContainer.appendChild(imagesGrid);
+                }
+                
+                // 展示视频
+                const videos = generatedMedia.filter(m => m.type === 'video' && m.url);
+                if (videos.length > 0) {
+                    videos.forEach((vid, idx) => {
+                        const videoWrapper = document.createElement('div');
+                        videoWrapper.style.cssText = 'border-radius:8px; overflow:hidden; background:#000;';
+                        
+                        const videoEl = document.createElement('video');
+                        videoEl.src = vid.url;
+                        videoEl.controls = true;
+                        videoEl.style.cssText = 'width:100%; max-height:300px;';
+                        videoEl.setAttribute('playsinline', '');
+                        
+                        const label = document.createElement('div');
+                        label.style.cssText = 'padding:6px 10px; background:#1a1a1a; color:#888; font-size:12px;';
+                        label.textContent = vid.step || `视频 ${idx + 1}`;
+                        
+                        videoWrapper.appendChild(videoEl);
+                        videoWrapper.appendChild(label);
+                        mediaContainer.appendChild(videoWrapper);
+                    });
+                }
+                
+                // 添加到对话区域
+                if (images.length > 0 || videos.length > 0) {
+                    document.getElementById('chatContainer').appendChild(mediaContainer);
+                    mediaContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
+            }
         }
     </script>
 </body>
