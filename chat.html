@@ -1649,10 +1649,13 @@
         async function executeSelectedSkill() {
             if (!selectedSkillId || typeof SkillManager === 'undefined') return;
             
+            // 🔧 先保存 skillId，因为 closeSkillConfig 会清空它
+            const skillIdToExecute = selectedSkillId;
             const params = collectSkillParams();
-            const skill = SkillManager.getById(selectedSkillId);
+            const skill = SkillManager.getById(skillIdToExecute);
             
-            closeSkillConfig();
+            // 关闭配置弹窗（会清空 selectedSkillId）
+            document.getElementById('skillConfigModal').classList.remove('show');
             
             // 显示进度弹窗
             const progressModal = document.getElementById('skillProgressModal');
@@ -1673,7 +1676,7 @@
             addMessage(`🧩 执行技能: ${skill?.name || selectedSkillId}`, 'user');
             
             try {
-                await SkillManager.execute(selectedSkillId, params, {
+                await SkillManager.execute(skillIdToExecute, params, {
                     onProgress: (step, progress, message) => {
                         progressBar.style.width = `${progress}%`;
                         progressText.textContent = message || `正在执行: ${step}`;
@@ -1689,7 +1692,7 @@
                         progressBar.style.width = '100%';
                         setTimeout(() => {
                             progressModal.classList.remove('show');
-                            addMessage(`✅ 技能「${skill?.name || selectedSkillId}」执行完成\n\n结果已保存，请在创作页面查看。`, 'ai');
+                            addMessage(`✅ 技能「${skill?.name || skillIdToExecute}」执行完成\n\n结果已保存，请在创作页面查看。`, 'ai');
                             showToast(`✅ ${skill?.name || '技能'}执行完成！`);
                         }, 1500);
                     },
