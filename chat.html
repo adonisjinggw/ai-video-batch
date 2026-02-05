@@ -7,6 +7,7 @@
     <title>🤖 AI对话 - RollRoll</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
+    <script src="/js/api-core.js"></script>
     <script src="/js/skill-system.js"></script>
     <script src="/js/skill-presets.js"></script>
     <style>
@@ -1656,20 +1657,6 @@
             
             // 关闭配置弹窗（会清空 selectedSkillId）
             document.getElementById('skillConfigModal').classList.remove('show');
-            
-            // 🚨 检查必要的 API 函数是否可用（这些函数在 batch.js 中定义）
-            const requiredFunctions = ['callScriptGenerator', 'callBanana2ImageAPI', 'callSora2ImageToVideoAPI'];
-            const missingFunctions = requiredFunctions.filter(fn => typeof window[fn] === 'undefined');
-            
-            if (missingFunctions.length > 0) {
-                // 在对话页面无法执行技能，引导用户到创作页面
-                const welcomeEl = document.getElementById('welcome');
-                if (welcomeEl) welcomeEl.style.display = 'none';
-                
-                addMessage(`🧩 您选择了技能「${skill?.name || skillIdToExecute}」`, 'user');
-                addMessage(`💡 技能功能需要在**创作页面**中使用。\n\n请点击左上角“← 返回”按钮，然后在创作页面顶部找到 **🧩 技能** Tab，即可使用完整的技能功能。\n\n📱 手机用户：返回后在工具栏找到「🧩 技能」\n💻 电脑用户：点击顶部 Tab 栏的「🧩 技能」`, 'ai');
-                return;
-            }
             
             // 显示进度弹窗
             const progressModal = document.getElementById('skillProgressModal');
