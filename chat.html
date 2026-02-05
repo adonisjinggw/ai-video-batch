@@ -828,15 +828,30 @@
                 btn.addEventListener('touchend', function(e) {
                     e.preventDefault();
                     const text = this.textContent.replace(/^[^\s]+\s*/, ''); // 移除emoji前缀
+                    
+                    // 🧩 特殊按钮：调用对应函数而不是发送问题
+                    if (text === '技能') {
+                        console.log('[chat] 技能按钮被点击');
+                        openSkillDrawer();
+                        return;
+                    }
+                    if (text === '分镜设计') {
+                        console.log('[chat] 分镜设计按钮被点击');
+                        startStoryboardMode();
+                        return;
+                    }
+                    
                     const questionMap = {
                         '写剧本': '帮我写一个短视频剧本',
                         '找灵感': '给我一些创意灵感',
                         '优化文案': '帮我优化这段文案',
-                        'AI视频': '解释一下AI视频制作'
+                        '联网搜索': '最新AI视频技术动态'
                     };
-                    const question = questionMap[text] || text;
-                    console.log('[chat] 快捷输入被点击:', question);
-                    askQuestion(question);
+                    const question = questionMap[text];
+                    if (question) {
+                        console.log('[chat] 快捷输入被点击:', question);
+                        askQuestion(question);
+                    }
                 });
             });
             
