@@ -37,6 +37,9 @@
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
+    <!-- 🧩 Skill 技能系统 -->
+    <script src="/js/skill-system.js?v=1.0.0"></script>
+    <script src="/js/skill-presets.js?v=1.0.0"></script>
     <style>
         * {
             margin: 0;
@@ -7142,7 +7145,8 @@ ${idea.theme}${characterPrompt}
             // 更新底部导航激活状态
             document.querySelectorAll('.nav-item').forEach((item, i) => {
                 item.classList.toggle('active',
-                    (tab === 'create' && i === 0) || (tab === 'works' && i === 1)
+                    (tab === 'create' && i === 0) || 
+                    (tab === 'works' && i === 1)
                 );
             });
 
@@ -7150,15 +7154,18 @@ ${idea.theme}${characterPrompt}
             const createPage = document.querySelector('.main:not(.works-page)');
             const worksPage = document.getElementById('worksPage');
             
+            // 先隐藏所有页面
+            if (createPage) createPage.style.display = 'none';
+            if (worksPage) worksPage.style.display = 'none';
+            
+            // 显示目标页面
             if (tab === 'works') {
-                if (createPage) createPage.style.display = 'none';
                 if (worksPage) {
                     worksPage.style.display = 'block';
                     renderWorksPage();
                 }
             } else {
                 if (createPage) createPage.style.display = 'block';
-                if (worksPage) worksPage.style.display = 'none';
             }
         }
         
@@ -8919,7 +8926,7 @@ ${story}
                 // 恢复生成结果
                 if (state.ideas && state.ideas.length > 0) {
                     ideas = state.ideas;
-                    renderIdeasList();
+                    renderTaskList();
                 }
                 
                 console.log('[mobile] 状态已恢复');

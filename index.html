@@ -301,6 +301,13 @@
                         </svg>
                         <span>AI写作</span>
                     </button>
+                    <button class="product-tab" data-type="skills" onclick="switchProductType('skills')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                        </svg>
+                        <span>🧩技能</span>
+                    </button>
                 </div>
 
                 <!-- 模式选择 -->
@@ -553,6 +560,47 @@
                             </div>
                         </div>
                         <div id="writingProjectsList" class="ideas-list"></div>
+                    </div>
+
+                    <!-- 🧩 技能选择面板 -->
+                    <div id="skillsPanel" style="display:none;">
+                        <!-- 分类筛选 -->
+                        <div class="skill-category-tabs" style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+                            <button class="skill-category-tab active" data-category="all" onclick="SkillUI.setCategory('all')"
+                                style="padding:6px 12px; background:rgba(251,191,36,0.2); border:1px solid rgba(251,191,36,0.5); border-radius:16px; color:var(--accent-gold); font-size:12px; cursor:pointer;">全部</button>
+                            <button class="skill-category-tab" data-category="video" onclick="SkillUI.setCategory('video')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎬 视频</button>
+                            <button class="skill-category-tab" data-category="image" onclick="SkillUI.setCategory('image')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎨 图像</button>
+                            <button class="skill-category-tab" data-category="content" onclick="SkillUI.setCategory('content')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">📝 内容</button>
+                            <button class="skill-category-tab" data-category="automation" onclick="SkillUI.setCategory('automation')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🤖 自动化</button>
+                        </div>
+
+                        <!-- 搜索框 -->
+                        <div style="margin-bottom:12px;">
+                            <input type="text" id="skillSearchInput" placeholder="🔍 搜索技能..." 
+                                oninput="SkillUI.search(this.value)"
+                                style="width:100%; padding:10px 14px; background:#1a1a2e; border:1px solid rgba(255,255,255,0.15); border-radius:10px; color:#fff; font-size:13px;">
+                        </div>
+
+                        <!-- 技能卡片网格 -->
+                        <div id="skillsGrid" class="skills-grid" style="display:grid; grid-template-columns:1fr; gap:10px; max-height:calc(100vh - 480px); overflow-y:auto; padding-right:4px;">
+                            <!-- 由 JS 动态渲染 -->
+                        </div>
+
+                        <!-- 执行历史 -->
+                        <div style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <span style="color:#888; font-size:12px;">📊 最近执行</span>
+                                <button onclick="SkillManager.clearHistory(); renderSkillHistory();" 
+                                    style="background:none; border:none; color:#666; font-size:11px; cursor:pointer;">清空</button>
+                            </div>
+                            <div id="skillHistoryList" style="max-height:120px; overflow-y:auto;">
+                                <!-- 由 JS 动态渲染 -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1553,6 +1601,73 @@
         </div>
     </div>
 
+    <!-- 🧩 Skill 配置弹窗 -->
+    <div id="skillConfigModal" class="modal" style="display:none;">
+        <div class="modal-backdrop" onclick="SkillUI.closeSkillConfig()"></div>
+        <div class="modal-content" style="width: 500px; max-width: 95vw;">
+            <div class="modal-header">
+                <h3 id="skillConfigTitle">🧩 技能配置</h3>
+                <button class="btn-close" onclick="SkillUI.closeSkillConfig()">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="skillConfigDesc" style="color: #aaa; font-size: 13px; margin-bottom: 16px; line-height: 1.5;"></div>
+                
+                <!-- 动态参数表单 -->
+                <div id="skillConfigForm" class="skill-config-form">
+                    <!-- 由 JS 动态生成 -->
+                </div>
+
+                <!-- 成本预估 -->
+                <div id="skillCostEstimate" style="margin-top: 16px; padding: 12px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; font-size: 13px;">
+                    <div class="skill-estimate-note" style="color: #888;">成本取决于实际生成内容</div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px;">
+                <button class="btn-secondary" onclick="SkillUI.closeSkillConfig()" style="flex: 1;">取消</button>
+                <button class="btn-primary" onclick="SkillUI.executeCurrentSkill()" style="flex: 2;">🚀 开始执行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧩 Skill 执行进度面板 -->
+    <div id="skillProgressPanel" class="cinematic-overlay" style="display:none;">
+        <div class="cinematic-bg"></div>
+        <div class="cinematic-content" style="max-width: 500px; width: 90%;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div class="cine-loader" style="margin: 0 auto 15px;">
+                    <svg class="film-reel" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" stroke="var(--accent-gold)" stroke-width="4" fill="none" stroke-dasharray="10 5" />
+                        <circle cx="50" cy="50" r="30" stroke="#fff" stroke-width="2" fill="none" />
+                        <path d="M50 20 L50 80 M20 50 L80 50" stroke="#333" stroke-width="4" />
+                    </svg>
+                </div>
+                <div id="skillProgressText" style="color: #fff; font-size: 16px; font-weight: 600;">准备中...</div>
+            </div>
+
+            <!-- 进度条 -->
+            <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; margin-bottom: 20px; overflow: hidden;">
+                <div id="skillProgressBar" style="height: 100%; background: linear-gradient(90deg, var(--accent-gold), #f97316); border-radius: 10px; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+
+            <!-- 步骤列表 -->
+            <div id="skillProgressSteps" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 15px; max-height: 200px; overflow-y: auto;">
+                <!-- 由 JS 动态添加 -->
+            </div>
+
+            <!-- 控制按钮 -->
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button onclick="SkillUI.cancelExecution()" 
+                    style="flex: 1; padding: 10px 20px; background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.4); color: #ff8a80; border-radius: 20px; cursor: pointer;">
+                    ⏹️ 取消
+                </button>
+                <button onclick="document.getElementById('skillProgressPanel').style.display='none'" 
+                    style="flex: 1; padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #aaa; border-radius: 20px; cursor: pointer;">
+                    ↙️ 后台运行
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/supabase-config.js?v=1.0.3"></script>
     <script src="js/free-api.js?v=1.0.0"></script>
     <script src="js/knolling-node.js"></script>
@@ -1560,6 +1675,9 @@
     <script src="js/task-orchestrator.js?v=1.0.0"></script>
     <!-- 🛡️ 弹性 API 网关 - 负载均衡、熔断降级、成本优化 -->
     <script src="js/resilient-api.js?v=1.0.0"></script>
+    <!-- 🧩 Skill 技能系统 - 用户可选择不同技能完成任务 -->
+    <script src="js/skill-system.js?v=1.0.0"></script>
+    <script src="js/skill-presets.js?v=1.0.0"></script>
     <script src="js/batch.js?v=8.6.5&t=202601140058"></script>
     <script src="js/help_modal.js"></script>
 

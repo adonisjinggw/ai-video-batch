@@ -37021,9 +37021,59 @@ function checkWritingToGeneration() {
 // 导出到 window 供外部调用
 window.checkWritingToGeneration = checkWritingToGeneration;
 
+// ==================== 🧩 Skill 技能系统集成 ====================
+
 /**
- * 切换产品类型（视频/漫画）
- * @param {string} type - 'video' | 'comic'
+ * 渲染 Skill 历史记录
+ */
+function renderSkillHistory() {
+    const container = document.getElementById('skillHistoryList');
+    if (!container) return;
+
+    if (typeof SkillManager === 'undefined') {
+        container.innerHTML = '<div class="skill-empty-state"><div class="skill-empty-icon">📜</div><div class="skill-empty-text">技能系统还没有加载</div></div>';
+        return;
+    }
+
+    const history = SkillManager.getHistory();
+    if (!history || history.length === 0) {
+        container.innerHTML = '<div class="skill-empty-state"><div class="skill-empty-icon">📜</div><div class="skill-empty-text">还没有执行过任何技能</div></div>';
+        return;
+    }
+
+    // 最多显示最近 10 条
+    const recentHistory = history.slice(-10).reverse();
+
+    container.innerHTML = recentHistory.map(item => {
+        const skill = SkillManager.getById(item.skillId);
+        const icon = item.skillIcon || skill?.icon || '🧩';
+        const name = item.skillName || skill?.name || item.skillId;
+        const statusClass = item.status || 'completed';
+        const statusLabels = {
+            'completed': '完成',
+            'failed': '失败',
+            'cancelled': '已取消'
+        };
+        const statusLabel = statusLabels[statusClass] || item.status;
+        const time = item.timestamp ? new Date(item.timestamp).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+        return `
+            <div class="skill-history-item">
+                <span class="skill-history-icon">${icon}</span>
+                <span class="skill-history-name" title="${name}">${name}</span>
+                <span class="skill-history-status ${statusClass}">${statusLabel}</span>
+                <span style="font-size:10px;color:#666;">${time}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// 暴露给全局
+window.renderSkillHistory = renderSkillHistory;
+
+/**
+ * 切换产品类型（视频/漫画/技能）
+ * @param {string} type - 'video' | 'comic' | 'writing' | 'skills'
  */
 window.switchProductType = function (type) {
     currentProductType = type;
@@ -37034,8 +37084,41 @@ window.switchProductType = function (type) {
     });
 
     // 更新body class
-    document.body.classList.remove('video-mode', 'comic-mode', 'writing-mode');
+    document.body.classList.remove('video-mode', 'comic-mode', 'writing-mode', 'skills-mode');
     document.body.classList.add(type + '-mode');
+
+    // 🧩 Skills 模式：显示技能面板，隐藏其他
+    const skillsPanel = document.getElementById('skillsPanel');
+    const ideasList = document.getElementById('ideasList');
+    const writingPanel = document.getElementById('writingProjectsPanel');
+    const quickInputSection = document.querySelector('.quick-input-section');
+    const modeToggle = document.querySelector('.mode-toggle');
+    const taskLimit = document.querySelector('.task-limit-control');
+    const startBtn = document.getElementById('startBatchBtn');
+
+    if (type === 'skills') {
+        // 切换到技能模式
+        if (skillsPanel) skillsPanel.style.display = 'block';
+        if (ideasList) ideasList.style.display = 'none';
+        if (writingPanel) writingPanel.style.display = 'none';
+        if (quickInputSection) quickInputSection.style.display = 'none';
+        if (modeToggle) modeToggle.style.display = 'none';
+        if (taskLimit) taskLimit.style.display = 'none';
+        if (startBtn) startBtn.style.display = 'none';
+
+        // 渲染技能列表
+        if (typeof SkillUI !== 'undefined' && SkillUI.renderSkillList) {
+            SkillUI.renderSkillList();
+        }
+        // 渲染历史记录
+        renderSkillHistory();
+
+        console.log('[产品类型] 切换到: 🧩技能');
+        return;
+    }
+
+    // 非 skills 模式：隐藏技能面板
+    if (skillsPanel) skillsPanel.style.display = 'none';
 
     // 更新侧边栏选项
     updateSidebarForProductType(type);

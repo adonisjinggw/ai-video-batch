@@ -7,6 +7,8 @@
     <title>🤖 AI对话 - RollRoll</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
+    <script src="/js/skill-system.js"></script>
+    <script src="/js/skill-presets.js"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -403,6 +405,278 @@
         .upload-menu-item .icon {
             font-size: 18px;
         }
+        
+        /* 🧩 技能选择弹窗 */
+        .skill-drawer {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+        }
+        .skill-drawer.show {
+            display: flex;
+        }
+        .skill-drawer-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+        }
+        .skill-drawer-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .skill-drawer-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .skill-filters {
+            display: flex;
+            gap: 8px;
+            padding: 12px 20px;
+            overflow-x: auto;
+        }
+        .skill-filter-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .skill-filter-btn.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: 600;
+        }
+        .skill-filter-btn:not(.active) {
+            background: #333;
+            color: #fff;
+        }
+        .skill-search {
+            padding: 0 20px 12px;
+        }
+        .skill-search input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border: 2px solid #2a2a35;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .skill-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .skill-card {
+            padding: 16px;
+            background: var(--bg-card);
+            border: 2px solid #222;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .skill-card:active {
+            border-color: var(--accent);
+            background: rgba(251,191,36,0.1);
+        }
+        .skill-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .skill-card-icon {
+            font-size: 32px;
+        }
+        .skill-card-category {
+            font-size: 11px;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 8px;
+            color: #888;
+        }
+        .skill-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .skill-card-desc {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* 技能配置弹窗 */
+        .skill-config-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1001;
+            display: none;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .skill-config-modal.show {
+            display: block;
+        }
+        .skill-config-content {
+            max-width: 500px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .skill-config-header {
+            padding: 16px 20px;
+            background: #1a1a24;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .skill-config-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .skill-config-body {
+            padding: 20px;
+        }
+        .skill-config-desc {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .skill-config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .skill-param-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #ccc;
+            font-weight: 600;
+        }
+        .skill-param-input {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-input);
+            border: 2px solid #2a2a35;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .skill-param-hint {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #666;
+        }
+        .skill-config-footer {
+            padding: 16px 20px;
+            background: #1a1a24;
+            display: flex;
+            gap: 12px;
+        }
+        .skill-config-footer button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .skill-config-cancel {
+            background: #333;
+            color: #fff;
+        }
+        .skill-config-execute {
+            flex: 2 !important;
+            background: linear-gradient(135deg, var(--accent), #f97316);
+            color: #000;
+            font-weight: 700;
+        }
+        
+        /* 技能执行进度 */
+        .skill-progress-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1002;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .skill-progress-modal.show {
+            display: flex;
+        }
+        .skill-progress-content {
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        .skill-progress-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        .skill-progress-text {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .skill-progress-bar-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            height: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .skill-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #f97316);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .skill-progress-steps {
+            text-align: left;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .skill-progress-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .skill-progress-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
     </style>
 </head>
 
@@ -423,6 +697,7 @@
                 <span class="quick-q" onclick="askQuestion('给我一些创意灵感')">💡 找灵感</span>
                 <span class="quick-q" onclick="askQuestion('帮我优化这段文案')">✨ 优化文案</span>
                 <span class="quick-q" onclick="startStoryboardMode()">🎬 分镜设计</span>
+                <span class="quick-q" onclick="openSkillDrawer()">🧩 技能</span>
                 <span class="quick-q" onclick="askQuestion('最新AI视频技术动态')">🌐 联网搜索</span>
             </div>
         </div>
@@ -461,6 +736,65 @@
     
 
     <div class="toast" id="toast"></div>
+    
+    <!-- 🧩 技能选择弹窗 -->
+    <div class="skill-drawer" id="skillDrawer">
+        <div class="skill-drawer-header">
+            <h3>🧩 技能库</h3>
+            <button class="skill-drawer-close" onclick="closeSkillDrawer()">&times;</button>
+        </div>
+        <div class="skill-filters" id="skillFilters">
+            <button class="skill-filter-btn active" data-category="all" onclick="filterSkills('all')">全部</button>
+            <button class="skill-filter-btn" data-category="video" onclick="filterSkills('video')">🎬 视频</button>
+            <button class="skill-filter-btn" data-category="image" onclick="filterSkills('image')">🎨 图像</button>
+            <button class="skill-filter-btn" data-category="content" onclick="filterSkills('content')">📝 内容</button>
+            <button class="skill-filter-btn" data-category="automation" onclick="filterSkills('automation')">🤖 自动化</button>
+        </div>
+        <div class="skill-search">
+            <input type="text" id="skillSearch" placeholder="🔍 搜索技能..." oninput="searchSkills(this.value)">
+        </div>
+        <div class="skill-list" id="skillList">
+            <!-- 由 JS 动态渲染 -->
+        </div>
+    </div>
+    
+    <!-- 技能配置弹窗 -->
+    <div class="skill-config-modal" id="skillConfigModal">
+        <div class="skill-config-content">
+            <div class="skill-config-header">
+                <h3 id="skillConfigTitle">🧩 技能配置</h3>
+                <button class="skill-drawer-close" onclick="closeSkillConfig()">&times;</button>
+            </div>
+            <div class="skill-config-body">
+                <div class="skill-config-desc" id="skillConfigDesc"></div>
+                <div class="skill-config-form" id="skillConfigForm">
+                    <!-- 由 JS 动态生成 -->
+                </div>
+            </div>
+            <div class="skill-config-footer">
+                <button class="skill-config-cancel" onclick="closeSkillConfig()">取消</button>
+                <button class="skill-config-execute" onclick="executeSelectedSkill()">🚀 开始执行</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 技能执行进度 -->
+    <div class="skill-progress-modal" id="skillProgressModal">
+        <div class="skill-progress-content">
+            <div class="skill-progress-icon" id="skillProgressIcon">🚀</div>
+            <div class="skill-progress-text" id="skillProgressText">准备中...</div>
+            <div class="skill-progress-bar-container">
+                <div class="skill-progress-bar" id="skillProgressBar"></div>
+            </div>
+            <div class="skill-progress-steps" id="skillProgressSteps">
+                <!-- 由 JS 动态添加 -->
+            </div>
+            <div class="skill-progress-buttons">
+                <button style="background:rgba(244,67,54,0.2); border:1px solid rgba(244,67,54,0.4); color:#ff8a80;" onclick="cancelSkillExecution()">⏹️ 取消</button>
+                <button style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#aaa;" onclick="hideSkillProgress()">↙️ 后台运行</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         // 使用 NVAuth 模块
@@ -1141,6 +1475,237 @@
         window.addEventListener('beforeunload', saveChatState);
         window.addEventListener('pagehide', saveChatState);
         window.addEventListener('load', () => setTimeout(restoreChatState, 200));
+        
+        // ==================== 🧩 技能系统 ====================
+        let currentSkillCategory = 'all';
+        let selectedSkillId = null;
+        
+        // 打开技能选择弹窗
+        function openSkillDrawer() {
+            document.getElementById('skillDrawer').classList.add('show');
+            renderSkillList();
+        }
+        
+        // 关闭技能选择弹窗
+        function closeSkillDrawer() {
+            document.getElementById('skillDrawer').classList.remove('show');
+        }
+        
+        // 渲染技能列表
+        function renderSkillList(searchKeyword = '') {
+            const container = document.getElementById('skillList');
+            if (typeof SkillManager === 'undefined') {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">🧩 技能系统加载中...</div>';
+                return;
+            }
+            
+            let skills = [];
+            if (searchKeyword) {
+                skills = SkillManager.search(searchKeyword);
+            } else if (currentSkillCategory === 'all') {
+                skills = SkillManager.getAll();
+            } else {
+                skills = SkillManager.getByCategory(currentSkillCategory);
+            }
+            
+            if (skills.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">🔍 未找到匹配的技能</div>';
+                return;
+            }
+            
+            const categoryLabels = {
+                video: '🎬 视频',
+                image: '🎨 图像',
+                content: '📝 内容',
+                automation: '🤖 自动化'
+            };
+            
+            container.innerHTML = skills.map(skill => `
+                <div class="skill-card" onclick="openSkillConfig('${skill.id}')">
+                    <div class="skill-card-header">
+                        <span class="skill-card-icon">${skill.icon}</span>
+                        <span class="skill-card-category">${categoryLabels[skill.category] || skill.category}</span>
+                    </div>
+                    <div class="skill-card-title">${skill.name}</div>
+                    <div class="skill-card-desc">${skill.description}</div>
+                </div>
+            `).join('');
+        }
+        
+        // 筛选技能
+        function filterSkills(category) {
+            currentSkillCategory = category;
+            document.querySelectorAll('.skill-filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === category);
+            });
+            document.getElementById('skillSearch').value = '';
+            renderSkillList();
+        }
+        
+        // 搜索技能
+        function searchSkills(keyword) {
+            renderSkillList(keyword);
+        }
+        
+        // 打开技能配置弹窗
+        function openSkillConfig(skillId) {
+            if (typeof SkillManager === 'undefined') return;
+            const skill = SkillManager.getById(skillId);
+            if (!skill) return;
+            
+            selectedSkillId = skillId;
+            closeSkillDrawer();
+            
+            document.getElementById('skillConfigTitle').textContent = `${skill.icon} ${skill.name}`;
+            document.getElementById('skillConfigDesc').textContent = skill.description;
+            
+            // 渲染参数表单
+            const formContainer = document.getElementById('skillConfigForm');
+            if (!skill.parameters || skill.parameters.length === 0) {
+                formContainer.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">此技能无需额外配置参数</div>';
+            } else {
+                formContainer.innerHTML = skill.parameters.map(param => {
+                    let inputHtml = '';
+                    switch (param.type) {
+                        case 'textarea':
+                            inputHtml = `<textarea id="skill_param_${param.key}" class="skill-param-input" placeholder="${param.placeholder || ''}" style="min-height:80px; resize:vertical;">${param.default || ''}</textarea>`;
+                            break;
+                        case 'number':
+                            inputHtml = `<input type="number" id="skill_param_${param.key}" class="skill-param-input" value="${param.default || ''}" min="${param.min ?? ''}" max="${param.max ?? ''}">`;
+                            break;
+                        case 'select':
+                            const options = (param.options || []).map(opt => `<option value="${opt.value}" ${opt.value === param.default ? 'selected' : ''}>${opt.label}</option>`).join('');
+                            inputHtml = `<select id="skill_param_${param.key}" class="skill-param-input">${options}</select>`;
+                            break;
+                        case 'checkbox':
+                            inputHtml = `<label style="display:flex; align-items:center; gap:10px; cursor:pointer;"><input type="checkbox" id="skill_param_${param.key}" ${param.default ? 'checked' : ''} style="width:20px; height:20px; accent-color:var(--accent);"><span style="color:#ccc;">${param.checkboxLabel || '启用'}</span></label>`;
+                            break;
+                        default:
+                            inputHtml = `<input type="text" id="skill_param_${param.key}" class="skill-param-input" placeholder="${param.placeholder || ''}" value="${param.default || ''}">`;
+                    }
+                    return `
+                        <div>
+                            <label class="skill-param-label">${param.label}${param.required ? '<span style="color:#ef4444; margin-left:2px;">*</span>' : ''}</label>
+                            ${inputHtml}
+                            ${param.hint ? `<div class="skill-param-hint">${param.hint}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            document.getElementById('skillConfigModal').classList.add('show');
+        }
+        
+        // 关闭技能配置弹窗
+        function closeSkillConfig() {
+            document.getElementById('skillConfigModal').classList.remove('show');
+            selectedSkillId = null;
+        }
+        
+        // 收集表单参数
+        function collectSkillParams() {
+            if (!selectedSkillId || typeof SkillManager === 'undefined') return {};
+            const skill = SkillManager.getById(selectedSkillId);
+            if (!skill) return {};
+            
+            const params = {};
+            for (const param of skill.parameters || []) {
+                const el = document.getElementById(`skill_param_${param.key}`);
+                if (!el) continue;
+                switch (param.type) {
+                    case 'checkbox':
+                        params[param.key] = el.checked;
+                        break;
+                    case 'number':
+                        params[param.key] = el.value ? Number(el.value) : param.default;
+                        break;
+                    default:
+                        params[param.key] = el.value || param.default;
+                }
+            }
+            return params;
+        }
+        
+        // 执行选中的技能
+        async function executeSelectedSkill() {
+            if (!selectedSkillId || typeof SkillManager === 'undefined') return;
+            
+            const params = collectSkillParams();
+            const skill = SkillManager.getById(selectedSkillId);
+            
+            closeSkillConfig();
+            
+            // 显示进度弹窗
+            const progressModal = document.getElementById('skillProgressModal');
+            const progressBar = document.getElementById('skillProgressBar');
+            const progressText = document.getElementById('skillProgressText');
+            const progressSteps = document.getElementById('skillProgressSteps');
+            const progressIcon = document.getElementById('skillProgressIcon');
+            
+            progressModal.classList.add('show');
+            progressBar.style.width = '0%';
+            progressText.textContent = '准备中...';
+            progressSteps.innerHTML = '';
+            progressIcon.textContent = skill?.icon || '🚀';
+            
+            // 添加到对话中
+            const welcomeEl = document.getElementById('welcome');
+            if (welcomeEl) welcomeEl.style.display = 'none';
+            addMessage(`🧩 执行技能: ${skill?.name || selectedSkillId}`, 'user');
+            
+            try {
+                await SkillManager.execute(selectedSkillId, params, {
+                    onProgress: (step, progress, message) => {
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = message || `正在执行: ${step}`;
+                    },
+                    onStepComplete: (stepName, result) => {
+                        const stepEl = document.createElement('div');
+                        stepEl.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 0; color:#4ade80; font-size:13px;';
+                        stepEl.innerHTML = `<span>✅</span><span>${stepName}</span>`;
+                        progressSteps.appendChild(stepEl);
+                    },
+                    onComplete: (result) => {
+                        progressText.textContent = '✅ 执行完成！';
+                        progressBar.style.width = '100%';
+                        setTimeout(() => {
+                            progressModal.classList.remove('show');
+                            addMessage(`✅ 技能「${skill?.name || selectedSkillId}」执行完成\n\n结果已保存，请在创作页面查看。`, 'ai');
+                            showToast(`✅ ${skill?.name || '技能'}执行完成！`);
+                        }, 1500);
+                    },
+                    onError: (error) => {
+                        progressText.textContent = `❌ 执行失败: ${error.message}`;
+                        const stepEl = document.createElement('div');
+                        stepEl.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 0; color:#f87171; font-size:13px;';
+                        stepEl.innerHTML = `<span>❌</span><span>${error.message}</span>`;
+                        progressSteps.appendChild(stepEl);
+                        addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
+                    }
+                });
+            } catch (error) {
+                console.error('[chat] Skill执行失败:', error);
+                addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
+            }
+        }
+        
+        // 取消技能执行
+        function cancelSkillExecution() {
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.cancel();
+            }
+            document.getElementById('skillProgressText').textContent = '🛑 已取消';
+            setTimeout(() => {
+                document.getElementById('skillProgressModal').classList.remove('show');
+            }, 500);
+            addMessage('🛑 技能执行已取消', 'ai');
+        }
+        
+        // 隐藏进度弹窗（后台运行）
+        function hideSkillProgress() {
+            document.getElementById('skillProgressModal').classList.remove('show');
+            showToast('技能在后台运行中...');
+        }
     </script>
 </body>
 
