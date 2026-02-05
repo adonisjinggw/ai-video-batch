@@ -693,35 +693,48 @@
      */
     function saveCharacterToLibrary(name, summary, posterUrl, videoUrl, turnaroundUrl) {
         try {
-            let lib = [];
-            try {
-                lib = JSON.parse(localStorage.getItem('character_library') || '[]');
-                if (!Array.isArray(lib)) lib = [];
-            } catch (e) {
-                lib = [];
-            }
-
             if (!name || typeof name !== 'string') {
                 console.error('[api-core] 角色名称无效');
                 return false;
             }
 
-            // 检查是否存在相同名字的角色
-            const existingIdx = lib.findIndex(c => c.name === name);
-            if (existingIdx >= 0) {
-                lib[existingIdx] = {
+            // 📱 保存到手机版角色库 (library_chars)
+            try {
+                let mobileLib = [];
+                try {
+                    mobileLib = JSON.parse(localStorage.getItem('library_chars') || '[]');
+                    if (!Array.isArray(mobileLib)) mobileLib = [];
+                } catch (e) { mobileLib = []; }
+
+                const mobileExistingIdx = mobileLib.findIndex(c => c.name === name);
+                const mobileChar = {
                     name: name,
-                    summary: summary || '',
-                    imageUrl: posterUrl || lib[existingIdx].imageUrl || '',
-                    videoUrl: videoUrl || lib[existingIdx].videoUrl || '',
-                    variants: {
-                        poster: posterUrl || lib[existingIdx].variants?.poster || lib[existingIdx].imageUrl || '',
-                        turnaround: turnaroundUrl || lib[existingIdx].variants?.turnaround || ''
-                    }
+                    desc: summary || '',
+                    image: posterUrl || '',
+                    video: videoUrl || ''
                 };
-                console.log(`✅ [api-core] 角色「${name}」已更新`);
-            } else {
-                lib.push({
+                
+                if (mobileExistingIdx >= 0) {
+                    mobileLib[mobileExistingIdx] = mobileChar;
+                } else {
+                    mobileLib.push(mobileChar);
+                }
+                localStorage.setItem('library_chars', JSON.stringify(mobileLib));
+                console.log(`✅ [api-core] 角色「${name}」已保存到手机版角色库`);
+            } catch (e) {
+                console.warn('[api-core] 保存到手机版角色库失败:', e);
+            }
+
+            // 💻 保存到PC版角色库 (character_library)
+            try {
+                let pcLib = [];
+                try {
+                    pcLib = JSON.parse(localStorage.getItem('character_library') || '[]');
+                    if (!Array.isArray(pcLib)) pcLib = [];
+                } catch (e) { pcLib = []; }
+
+                const pcExistingIdx = pcLib.findIndex(c => c.name === name);
+                const pcChar = {
                     name: name,
                     summary: summary || '',
                     imageUrl: posterUrl || '',
@@ -730,11 +743,19 @@
                         poster: posterUrl || '',
                         turnaround: turnaroundUrl || ''
                     }
-                });
-                console.log(`✅ [api-core] 角色「${name}」已保存到角色库`);
+                };
+                
+                if (pcExistingIdx >= 0) {
+                    pcLib[pcExistingIdx] = pcChar;
+                } else {
+                    pcLib.push(pcChar);
+                }
+                localStorage.setItem('character_library', JSON.stringify(pcLib));
+                console.log(`✅ [api-core] 角色「${name}」已保存到PC版角色库`);
+            } catch (e) {
+                console.warn('[api-core] 保存到PC版角色库失败:', e);
             }
 
-            localStorage.setItem('character_library', JSON.stringify(lib));
             return true;
         } catch (err) {
             console.error('❌ [api-core] 保存角色失败:', err);
@@ -750,30 +771,55 @@
      */
     function saveImageToLibrary(url, title, category) {
         try {
-            let lib = [];
-            try {
-                lib = JSON.parse(localStorage.getItem('material_library') || '[]');
-                if (!Array.isArray(lib)) lib = [];
-            } catch (e) {
-                lib = [];
-            }
-
             if (!url) {
                 console.error('[api-core] 图片URL无效');
                 return false;
             }
 
-            lib.push({
-                id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-                type: 'image',
-                url: url,
-                title: title || '技能生成图片',
-                category: category || 'skill',
-                createdAt: new Date().toISOString()
-            });
+            // 📱 保存到素材库页面使用的格式 (library_scenes)
+            try {
+                let lib = [];
+                try {
+                    lib = JSON.parse(localStorage.getItem('library_scenes') || '[]');
+                    if (!Array.isArray(lib)) lib = [];
+                } catch (e) { lib = []; }
 
-            localStorage.setItem('material_library', JSON.stringify(lib));
-            console.log(`✅ [api-core] 图片已保存到素材库: ${title || url.substring(0, 50)}`);
+                // 检查是否已存在
+                if (!lib.some(item => item.image === url)) {
+                    lib.unshift({
+                        name: title || '技能生成图片',
+                        desc: category || 'skill',
+                        image: url,
+                        createdAt: Date.now()
+                    });
+                    localStorage.setItem('library_scenes', JSON.stringify(lib));
+                    console.log(`✅ [api-core] 图片已保存到素材库(library_scenes): ${title || url.substring(0, 50)}`);
+                }
+            } catch (e) {
+                console.warn('[api-core] 保存到 library_scenes 失败:', e);
+            }
+
+            // 也保存到通用素材库 (material_library) 以便后续扩展
+            try {
+                let lib = [];
+                try {
+                    lib = JSON.parse(localStorage.getItem('material_library') || '[]');
+                    if (!Array.isArray(lib)) lib = [];
+                } catch (e) { lib = []; }
+
+                if (!lib.some(item => item.url === url)) {
+                    lib.push({
+                        id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                        type: 'image',
+                        url: url,
+                        title: title || '技能生成图片',
+                        category: category || 'skill',
+                        createdAt: new Date().toISOString()
+                    });
+                    localStorage.setItem('material_library', JSON.stringify(lib));
+                }
+            } catch (e) { }
+
             return true;
         } catch (err) {
             console.error('❌ [api-core] 保存图片失败:', err);
@@ -790,31 +836,57 @@
      */
     function saveVideoToLibrary(url, title, category, thumbnailUrl) {
         try {
-            let lib = [];
-            try {
-                lib = JSON.parse(localStorage.getItem('material_library') || '[]');
-                if (!Array.isArray(lib)) lib = [];
-            } catch (e) {
-                lib = [];
-            }
-
             if (!url) {
                 console.error('[api-core] 视频URL无效');
                 return false;
             }
 
-            lib.push({
-                id: 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-                type: 'video',
-                url: url,
-                thumbnailUrl: thumbnailUrl || '',
-                title: title || '技能生成视频',
-                category: category || 'skill',
-                createdAt: new Date().toISOString()
-            });
+            // 📱 保存到素材库页面使用的格式 (library_scenes) - 视频也可以放在这里
+            try {
+                let lib = [];
+                try {
+                    lib = JSON.parse(localStorage.getItem('library_scenes') || '[]');
+                    if (!Array.isArray(lib)) lib = [];
+                } catch (e) { lib = []; }
 
-            localStorage.setItem('material_library', JSON.stringify(lib));
-            console.log(`✅ [api-core] 视频已保存到素材库: ${title || url.substring(0, 50)}`);
+                // 检查是否已存在
+                if (!lib.some(item => item.video === url || item.image === url)) {
+                    lib.unshift({
+                        name: title || '技能生成视频',
+                        desc: category || 'skill',
+                        image: thumbnailUrl || '',  // 缩略图
+                        video: url,  // 视频URL
+                        createdAt: Date.now()
+                    });
+                    localStorage.setItem('library_scenes', JSON.stringify(lib));
+                    console.log(`✅ [api-core] 视频已保存到素材库(library_scenes): ${title || url.substring(0, 50)}`);
+                }
+            } catch (e) {
+                console.warn('[api-core] 保存到 library_scenes 失败:', e);
+            }
+
+            // 也保存到通用素材库 (material_library)
+            try {
+                let lib = [];
+                try {
+                    lib = JSON.parse(localStorage.getItem('material_library') || '[]');
+                    if (!Array.isArray(lib)) lib = [];
+                } catch (e) { lib = []; }
+
+                if (!lib.some(item => item.url === url)) {
+                    lib.push({
+                        id: 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                        type: 'video',
+                        url: url,
+                        thumbnailUrl: thumbnailUrl || '',
+                        title: title || '技能生成视频',
+                        category: category || 'skill',
+                        createdAt: new Date().toISOString()
+                    });
+                    localStorage.setItem('material_library', JSON.stringify(lib));
+                }
+            } catch (e) { }
+
             return true;
         } catch (err) {
             console.error('❌ [api-core] 保存视频失败:', err);
