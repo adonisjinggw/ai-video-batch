@@ -698,6 +698,13 @@
                 return false;
             }
 
+            // 验证至少有一个有效的图片/视频URL
+            const hasValidImage = posterUrl && typeof posterUrl === 'string' && posterUrl.startsWith('http');
+            const hasValidVideo = videoUrl && typeof videoUrl === 'string' && videoUrl.startsWith('http');
+            if (!hasValidImage && !hasValidVideo) {
+                console.warn(`[api-core] 角色「${name}」没有有效的图片或视频URL, 仍然保存但可能显示为空`);
+            }
+
             // 📱 保存到手机版角色库 (library_chars)
             try {
                 let mobileLib = [];
@@ -771,8 +778,8 @@
      */
     function saveImageToLibrary(url, title, category) {
         try {
-            if (!url) {
-                console.error('[api-core] 图片URL无效');
+            if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+                console.error('[api-core] 图片URL无效:', url);
                 return false;
             }
 
@@ -836,8 +843,8 @@
      */
     function saveVideoToLibrary(url, title, category, thumbnailUrl) {
         try {
-            if (!url) {
-                console.error('[api-core] 视频URL无效');
+            if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+                console.error('[api-core] 视频URL无效:', url);
                 return false;
             }
 

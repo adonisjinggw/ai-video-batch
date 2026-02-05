@@ -1694,7 +1694,9 @@
                         // 🎯 收集生成的媒体内容
                         if (result) {
                             if (result.imageUrl) generatedMedia.push({ type: 'image', url: result.imageUrl, step: stepName });
+                            else if (result.url && typeof result.url === 'string' && !result.url.endsWith('.mp4')) generatedMedia.push({ type: 'image', url: result.url, step: stepName });
                             if (result.videoUrl) generatedMedia.push({ type: 'video', url: result.videoUrl, step: stepName });
+                            else if (result.url && typeof result.url === 'string' && result.url.endsWith('.mp4')) generatedMedia.push({ type: 'video', url: result.url, step: stepName });
                             if (result.script) generatedMedia.push({ type: 'text', content: result.script, step: stepName });
                         }
                     },
@@ -1746,6 +1748,9 @@
         
         // 🎯 展示技能执行结果
         function displaySkillResults(skillName, result, generatedMedia) {
+            console.log('[displaySkillResults] result:', JSON.stringify(result, null, 2));
+            console.log('[displaySkillResults] generatedMedia:', generatedMedia);
+            
             // 构建结果消息
             let messageContent = `✅ 技能「${skillName}」执行完成\n\n`;
             
@@ -1754,16 +1759,21 @@
             let savedVideos = 0;
             let savedCharacters = 0;
             
+            // 🔧 合并所有媒体到一个统一数组（用于最终展示）
+            const allMedia = [...(generatedMedia || [])];
+            
             // 检查 result 中是否有 videos 数组（批量生成结果）
             if (result && result.videos && Array.isArray(result.videos)) {
                 const successCount = result.videos.filter(v => v.status === 'success').length;
                 messageContent += `🎉 成功生成 ${successCount}/${result.videos.length} 个视频\n\n`;
                 
-                // 💾 保存视频到素材库
                 result.videos.forEach((v, idx) => {
                     if (v.status === 'success' && v.videoUrl && typeof saveVideoToLibrary === 'function') {
                         saveVideoToLibrary(v.videoUrl, `${skillName} - 视频${idx + 1}`, 'skill');
                         savedVideos++;
+                        if (!allMedia.some(m => m.url === v.videoUrl)) {
+                            allMedia.push({ type: 'video', url: v.videoUrl, step: `视频${idx + 1}` });
+                        }
                     }
                     if (v.imageUrl && typeof saveImageToLibrary === 'function') {
                         saveImageToLibrary(v.imageUrl, `${skillName} - 封面${idx + 1}`, 'skill');
@@ -1774,23 +1784,35 @@
             
             // 检查 result 中是否有 characterName（角色设定包结果）
             if (result && result.characterName && result.assets) {
-                if (typeof saveCharacterToLibrary === 'function') {
-                    const assets = result.assets;
-                    saveCharacterToLibrary(
-                        result.characterName,
-                        '',  // summary会从参数中获取
-                        assets.poster || assets.turnaround,
-                        null,
-                        assets.turnaround
-                    );
-                    savedCharacters++;
+                const assets = result.assets;
+                const posterUrl = assets.poster || assets.turnaround;
+                
+                // 只在有实际图片URL时才保存角色
+                if (posterUrl && typeof posterUrl === 'string' && posterUrl.startsWith('http')) {
+                    if (typeof saveCharacterToLibrary === 'function') {
+                        saveCharacterToLibrary(
+                            result.characterName,
+                            '',
+                            posterUrl,
+                            null,
+                            typeof assets.turnaround === 'string' ? assets.turnaround : null
+                        );
+                        savedCharacters++;
+                    }
+                } else {
+                    console.warn('[displaySkillResults] 角色图片URL无效, 跳过保存角色:', posterUrl);
                 }
                 
-                // 保存所有角色图片到素材库
+                // 保存所有角色图片到素材库，同时加入展示数组
                 Object.entries(result.assets).forEach(([key, url]) => {
-                    if (url && typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(url, `${result.characterName} - ${key}`, 'character');
-                        savedImages++;
+                    if (url && typeof url === 'string' && url.startsWith('http')) {
+                        if (typeof saveImageToLibrary === 'function') {
+                            saveImageToLibrary(url, `${result.characterName} - ${key}`, 'character');
+                            savedImages++;
+                        }
+                        if (!allMedia.some(m => m.url === url)) {
+                            allMedia.push({ type: 'image', url: url, step: `${result.characterName} - ${key}` });
+                        }
                     }
                 });
             }
@@ -1801,6 +1823,9 @@
                     if (img.status === 'success' && img.imageUrl && typeof saveImageToLibrary === 'function') {
                         saveImageToLibrary(img.imageUrl, `${skillName} - ${img.subject || '图片' + (idx + 1)}`, 'skill');
                         savedImages++;
+                        if (!allMedia.some(m => m.url === img.imageUrl)) {
+                            allMedia.push({ type: 'image', url: img.imageUrl, step: img.subject || `图片${idx + 1}` });
+                        }
                     }
                 });
             }
@@ -1811,15 +1836,17 @@
                     if (page.status === 'success' && page.imageUrl && typeof saveImageToLibrary === 'function') {
                         saveImageToLibrary(page.imageUrl, `${skillName} - 第${page.page}页`, 'comic');
                         savedImages++;
+                        if (!allMedia.some(m => m.url === page.imageUrl)) {
+                            allMedia.push({ type: 'image', url: page.imageUrl, step: `第${page.page}页` });
+                        }
                     }
                 });
             }
             
-            // 💾 从 generatedMedia 中保存（作为补充）
+            // 💾 从 generatedMedia 中保存（作为补充，去重）
             if (generatedMedia && generatedMedia.length > 0) {
                 generatedMedia.forEach((m, idx) => {
                     if (m.type === 'image' && m.url && typeof saveImageToLibrary === 'function') {
-                        // 检查是否已保存（避免重复）
                         const lib = JSON.parse(localStorage.getItem('material_library') || '[]');
                         if (!lib.some(item => item.url === m.url)) {
                             saveImageToLibrary(m.url, m.step || `${skillName} - 图片${idx + 1}`, 'skill');
@@ -1836,17 +1863,14 @@
                 });
             }
             
-            // 展示收集到的媒体内容
-            if (generatedMedia && generatedMedia.length > 0) {
-                // 过滤图片和视频
-                const images = generatedMedia.filter(m => m.type === 'image');
-                const videos = generatedMedia.filter(m => m.type === 'video');
-                
-                if (images.length > 0 || videos.length > 0) {
-                    messageContent += `🎨 生成内容：\n`;
-                    if (images.length > 0) messageContent += `• ${images.length} 张图片\n`;
-                    if (videos.length > 0) messageContent += `• ${videos.length} 个视频\n`;
-                }
+            // 展示所有媒体内容统计
+            const allImages = allMedia.filter(m => m.type === 'image' && m.url);
+            const allVideos = allMedia.filter(m => m.type === 'video' && m.url);
+            
+            if (allImages.length > 0 || allVideos.length > 0) {
+                messageContent += `🎨 生成内容：\n`;
+                if (allImages.length > 0) messageContent += `• ${allImages.length} 张图片\n`;
+                if (allVideos.length > 0) messageContent += `• ${allVideos.length} 个视频\n`;
             }
             
             // 💾 显示保存结果
@@ -1857,22 +1881,26 @@
                 if (savedVideos > 0) messageContent += `• ${savedVideos} 个视频 → 素材库\n`;
             }
             
+            // 无任何结果时提示
+            if (allImages.length === 0 && allVideos.length === 0 && savedCharacters === 0) {
+                messageContent += `⚠️ 未生成有效内容，可能API调用失败，请检查网络或重试\n`;
+            }
+            
             // 添加文本消息
             addMessage(messageContent, 'ai');
             
-            // 🎨 展示图片和视频
-            if (generatedMedia && generatedMedia.length > 0) {
+            // 🎨 展示图片和视频（使用合并后的 allMedia）
+            if (allImages.length > 0 || allVideos.length > 0) {
                 const mediaContainer = document.createElement('div');
                 mediaContainer.className = 'message ai';
                 mediaContainer.style.cssText = 'display:flex; flex-direction:column; gap:12px; max-width:90%;';
                 
                 // 展示图片
-                const images = generatedMedia.filter(m => m.type === 'image' && m.url);
-                if (images.length > 0) {
+                if (allImages.length > 0) {
                     const imagesGrid = document.createElement('div');
                     imagesGrid.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px;';
                     
-                    images.forEach((img, idx) => {
+                    allImages.forEach((img, idx) => {
                         const imgWrapper = document.createElement('div');
                         imgWrapper.style.cssText = 'position:relative; border-radius:8px; overflow:hidden;';
                         
@@ -1882,7 +1910,12 @@
                         imgEl.style.cssText = 'width:100%; height:auto; display:block; cursor:pointer;';
                         imgEl.onclick = () => window.open(img.url, '_blank');
                         
+                        const label = document.createElement('div');
+                        label.style.cssText = 'padding:4px 8px; background:rgba(0,0,0,0.7); color:#aaa; font-size:11px; text-align:center;';
+                        label.textContent = img.step || `图片 ${idx + 1}`;
+                        
                         imgWrapper.appendChild(imgEl);
+                        imgWrapper.appendChild(label);
                         imagesGrid.appendChild(imgWrapper);
                     });
                     
@@ -1890,9 +1923,8 @@
                 }
                 
                 // 展示视频
-                const videos = generatedMedia.filter(m => m.type === 'video' && m.url);
-                if (videos.length > 0) {
-                    videos.forEach((vid, idx) => {
+                if (allVideos.length > 0) {
+                    allVideos.forEach((vid, idx) => {
                         const videoWrapper = document.createElement('div');
                         videoWrapper.style.cssText = 'border-radius:8px; overflow:hidden; background:#000;';
                         
@@ -1912,11 +1944,8 @@
                     });
                 }
                 
-                // 添加到对话区域
-                if (images.length > 0 || videos.length > 0) {
-                    document.getElementById('chatContainer').appendChild(mediaContainer);
-                    mediaContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                }
+                document.getElementById('chatContainer').appendChild(mediaContainer);
+                mediaContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
             }
         }
     </script>
