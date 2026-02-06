@@ -1693,10 +1693,25 @@
                         
                         // 🎯 收集生成的媒体内容
                         if (result) {
-                            if (result.imageUrl) generatedMedia.push({ type: 'image', url: result.imageUrl, step: stepName });
-                            else if (result.url && typeof result.url === 'string' && !result.url.endsWith('.mp4')) generatedMedia.push({ type: 'image', url: result.url, step: stepName });
-                            if (result.videoUrl) generatedMedia.push({ type: 'video', url: result.videoUrl, step: stepName });
-                            else if (result.url && typeof result.url === 'string' && result.url.endsWith('.mp4')) generatedMedia.push({ type: 'video', url: result.url, step: stepName });
+                            console.log(`[onStepComplete] ${stepName}:`, JSON.stringify(result).substring(0, 200));
+                            // 检查各种可能的URL格式
+                            const imgUrl = result.imageUrl || null;
+                            const vidUrl = result.videoUrl || null;
+                            // result.url 可能是图片或视频（来自character_design_pack等）
+                            const rawUrl = (result.url && typeof result.url === 'string' && result.url.startsWith('http')) ? result.url : null;
+                            
+                            if (imgUrl) {
+                                generatedMedia.push({ type: 'image', url: imgUrl, step: stepName });
+                            } else if (rawUrl && !rawUrl.match(/\.(mp4|webm|mov)($|\?)/i)) {
+                                generatedMedia.push({ type: 'image', url: rawUrl, step: stepName });
+                            }
+                            
+                            if (vidUrl) {
+                                generatedMedia.push({ type: 'video', url: vidUrl, step: stepName });
+                            } else if (rawUrl && rawUrl.match(/\.(mp4|webm|mov)($|\?)/i)) {
+                                generatedMedia.push({ type: 'video', url: rawUrl, step: stepName });
+                            }
+                            
                             if (result.script) generatedMedia.push({ type: 'text', content: result.script, step: stepName });
                         }
                     },
@@ -1885,6 +1900,24 @@
             if (allImages.length === 0 && allVideos.length === 0 && savedCharacters === 0) {
                 messageContent += `⚠️ 未生成有效内容，可能API调用失败，请检查网络或重试\n`;
             }
+            
+            // 📊 添加存储验证信息（帮助诊断问题）
+            try {
+                const charsCount = JSON.parse(localStorage.getItem('library_chars') || '[]').length;
+                const scenesCount = JSON.parse(localStorage.getItem('library_scenes') || '[]').length;
+                const pcCharsCount = JSON.parse(localStorage.getItem('character_library') || '[]').length;
+                messageContent += `\n📊 当前库存：角色库 ${charsCount} 条 | 素材库 ${scenesCount} 条 | PC角色库 ${pcCharsCount} 条`;
+                
+                // 如果result有assets但都不是有效URL，额外提示
+                if (result && result.assets) {
+                    const assetKeys = Object.keys(result.assets);
+                    const validUrls = Object.values(result.assets).filter(v => v && typeof v === 'string' && v.startsWith('http')).length;
+                    messageContent += `\n📎 result.assets: ${assetKeys.length}项, 有效URL: ${validUrls}个`;
+                }
+                if (generatedMedia) {
+                    messageContent += ` | generatedMedia: ${generatedMedia.length}项`;
+                }
+            } catch (e) { }
             
             // 添加文本消息
             addMessage(messageContent, 'ai');
