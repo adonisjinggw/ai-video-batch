@@ -21,6 +21,14 @@
     // ==================== 🔧 基础工具函数 ====================
 
     /**
+     * 🔗 检查是否为有效的媒体URL（支持 http(s) 和 data: URL）
+     */
+    function isValidMediaUrl(url) {
+        if (!url || typeof url !== 'string') return false;
+        return url.startsWith('http') || url.startsWith('data:image/') || url.startsWith('data:video/');
+    }
+
+    /**
      * 延迟执行
      */
     function sleep(ms) {
@@ -699,10 +707,17 @@
             }
 
             // 验证至少有一个有效的图片/视频URL
-            const hasValidImage = posterUrl && typeof posterUrl === 'string' && posterUrl.startsWith('http');
-            const hasValidVideo = videoUrl && typeof videoUrl === 'string' && videoUrl.startsWith('http');
+            const hasValidImage = isValidMediaUrl(posterUrl);
+            const hasValidVideo = isValidMediaUrl(videoUrl);
             if (!hasValidImage && !hasValidVideo) {
                 console.warn(`[api-core] 角色「${name}」没有有效的图片或视频URL, 仍然保存但可能显示为空`);
+            }
+
+            // ⚠️ base64 图片太大，跳过 localStorage 保存
+            const isBase64 = (posterUrl && posterUrl.startsWith('data:')) || (videoUrl && videoUrl.startsWith('data:'));
+            if (isBase64) {
+                console.warn(`[api-core] 角色「${name}」图片为 base64 格式，跳过本地库保存，仅在聊天中展示`);
+                return true;
             }
 
             // 📱 保存到手机版角色库 (library_chars)
@@ -778,9 +793,15 @@
      */
     function saveImageToLibrary(url, title, category) {
         try {
-            if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-                console.error('[api-core] 图片URL无效:', url);
+            if (!isValidMediaUrl(url)) {
+                console.error('[api-core] 图片URL无效:', typeof url === 'string' ? url.substring(0, 80) : url);
                 return false;
+            }
+
+            // ⚠️ data:base64 URL 太大，跳过 localStorage 保存（避免超出配额）
+            if (url.startsWith('data:')) {
+                console.warn(`[api-core] 图片为 base64 格式(${(url.length / 1024).toFixed(0)}KB)，跳过本地库保存，仅在聊天中展示: ${title}`);
+                return true; // 返回 true 表示 URL 有效，可用于展示
             }
 
             // 📱 保存到素材库页面使用的格式 (library_scenes)
@@ -843,8 +864,8 @@
      */
     function saveVideoToLibrary(url, title, category, thumbnailUrl) {
         try {
-            if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-                console.error('[api-core] 视频URL无效:', url);
+            if (!isValidMediaUrl(url)) {
+                console.error('[api-core] 视频URL无效:', typeof url === 'string' ? url.substring(0, 80) : url);
                 return false;
             }
 
@@ -928,6 +949,7 @@
     global.saveCharacterToLibrary = global.saveCharacterToLibrary || saveCharacterToLibrary;
     global.saveImageToLibrary = global.saveImageToLibrary || saveImageToLibrary;
     global.saveVideoToLibrary = global.saveVideoToLibrary || saveVideoToLibrary;
+    global.isValidMediaUrl = global.isValidMediaUrl || isValidMediaUrl;
 
     console.log('✅ [api-core.js] API 核心模块已加载');
 

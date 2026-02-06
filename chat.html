@@ -1710,8 +1710,8 @@
                             // 检查各种可能的URL格式
                             const imgUrl = result.imageUrl || null;
                             const vidUrl = result.videoUrl || null;
-                            // result.url 可能是图片或视频（来自character_design_pack等）
-                            const rawUrl = (result.url && typeof result.url === 'string' && result.url.startsWith('http')) ? result.url : null;
+                            // result.url 可能是图片或视频（来自character_design_pack等，可能是 http 或 data:base64）
+                            const rawUrl = (result.url && typeof result.url === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(result.url) : result.url.startsWith('http'))) ? result.url : null;
                             
                             if (imgUrl) {
                                 generatedMedia.push({ type: 'image', url: imgUrl, step: stepName });
@@ -1815,8 +1815,8 @@
                 const assets = result.assets;
                 const posterUrl = assets.poster || assets.turnaround;
                 
-                // 只在有实际图片URL时才保存角色
-                if (posterUrl && typeof posterUrl === 'string' && posterUrl.startsWith('http')) {
+                // 只在有实际图片URL时才保存角色（支持 http 和 data:base64）
+                if (posterUrl && typeof posterUrl === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(posterUrl) : posterUrl.startsWith('http'))) {
                     if (typeof saveCharacterToLibrary === 'function') {
                         saveCharacterToLibrary(
                             result.characterName,
@@ -1833,7 +1833,7 @@
                 
                 // 保存所有角色图片到素材库，同时加入展示数组
                 Object.entries(result.assets).forEach(([key, url]) => {
-                    if (url && typeof url === 'string' && url.startsWith('http')) {
+                    if (url && typeof url === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(url) : url.startsWith('http'))) {
                         if (typeof saveImageToLibrary === 'function') {
                             saveImageToLibrary(url, `${result.characterName} - ${key}`, 'character');
                             savedImages++;
@@ -1941,7 +1941,8 @@
                 // 如果result有assets但都不是有效URL，额外提示
                 if (result && result.assets) {
                     const assetKeys = Object.keys(result.assets);
-                    const validUrls = Object.values(result.assets).filter(v => v && typeof v === 'string' && v.startsWith('http')).length;
+                    const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && typeof u === 'string' && u.startsWith('http'));
+                    const validUrls = Object.values(result.assets).filter(v => _isValid(v)).length;
                     messageContent += `\n📎 result.assets: ${assetKeys.length}项, 有效URL: ${validUrls}个`;
                 }
                 if (generatedMedia) {
