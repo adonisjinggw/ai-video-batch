@@ -1600,6 +1600,16 @@
                         case 'checkbox':
                             inputHtml = `<label style="display:flex; align-items:center; gap:10px; cursor:pointer;"><input type="checkbox" id="skill_param_${param.key}" ${param.default ? 'checked' : ''} style="width:20px; height:20px; accent-color:var(--accent);"><span style="color:#ccc;">${param.checkboxLabel || '启用'}</span></label>`;
                             break;
+                        case 'image':
+                            inputHtml = `<div>
+                                <input type="file" id="skill_param_${param.key}" accept="image/*" style="display:none;" onchange="(function(el){var p=el.closest('div').querySelector('.skill-img-preview');if(el.files&&el.files[0]){var r=new FileReader();r.onload=function(e){p.src=e.target.result;p.style.display='block';};r.readAsDataURL(el.files[0]);}else{p.style.display='none';}})(this)">
+                                <div onclick="this.parentElement.querySelector('input[type=file]').click()" style="border:2px dashed #444; border-radius:10px; padding:20px; text-align:center; cursor:pointer; color:#888;">
+                                    <div style="font-size:24px; margin-bottom:4px;">📷</div>
+                                    <div style="font-size:13px;">点击上传图片</div>
+                                    <img class="skill-img-preview" src="" style="display:none; max-width:100%; max-height:120px; margin-top:10px; border-radius:8px;">
+                                </div>
+                            </div>`;
+                            break;
                         default:
                             inputHtml = `<input type="text" id="skill_param_${param.key}" class="skill-param-input" placeholder="${param.placeholder || ''}" value="${param.default || ''}">`;
                     }
@@ -1638,6 +1648,9 @@
                         break;
                     case 'number':
                         params[param.key] = el.value ? Number(el.value) : param.default;
+                        break;
+                    case 'image':
+                        params[param.key] = el.files || null;
                         break;
                     default:
                         params[param.key] = el.value || param.default;
@@ -1896,8 +1909,25 @@
                 if (savedVideos > 0) messageContent += `• ${savedVideos} 个视频 → 素材库\n`;
             }
             
+            // 📝 处理文本类结果（文案、分镜脚本等）
+            let hasTextContent = false;
+            if (result && result.copywritings && Array.isArray(result.copywritings) && result.copywritings.length > 0) {
+                hasTextContent = true;
+                messageContent += `📝 生成 ${result.copywritings.length} 条文案\n`;
+            }
+            if (result && result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+                hasTextContent = true;
+                messageContent += `✂️ 拆分为 ${result.segments.length} 个片段\n`;
+            }
+            if (result && result.outline && typeof result.outline === 'string') {
+                hasTextContent = true;
+            }
+            // generatedMedia 中的文本
+            const textItems = (generatedMedia || []).filter(m => m.type === 'text' && m.content);
+            if (textItems.length > 0) hasTextContent = true;
+            
             // 无任何结果时提示
-            if (allImages.length === 0 && allVideos.length === 0 && savedCharacters === 0) {
+            if (allImages.length === 0 && allVideos.length === 0 && savedCharacters === 0 && !hasTextContent) {
                 messageContent += `⚠️ 未生成有效内容，可能API调用失败，请检查网络或重试\n`;
             }
             
@@ -1921,6 +1951,17 @@
             
             // 添加文本消息
             addMessage(messageContent, 'ai');
+            
+            // 📝 展示文案内容（热点文案等文本类技能）
+            if (result && result.copywritings && Array.isArray(result.copywritings) && result.copywritings.length > 0) {
+                const textMsg = result.copywritings.map((c, i) => `${i + 1}. ${c}`).join('\n');
+                addMessage(textMsg, 'ai');
+            }
+            // 展示脚本拆分结果
+            if (result && result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+                const segMsg = result.segments.map((s, i) => `片段${i + 1}: ${typeof s === 'string' ? s : (s.description || s.content || JSON.stringify(s)).substring(0, 200)}`).join('\n\n');
+                addMessage(segMsg, 'ai');
+            }
             
             // 🎨 展示图片和视频（使用合并后的 allMedia）
             if (allImages.length > 0 || allVideos.length > 0) {
