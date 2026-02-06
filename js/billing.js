@@ -2,7 +2,9 @@
  * 通用两阶段扣费模块
  * 用于所有 AI 功能的统一计费
  * 
- * 流程：reserve（冻结）→ 调用API → commit（确认）/ release（释放）
+ * 流程：reserve（consume扣费）→ 调用API → commit（确认）/ release（recharge退还）
+ * 
+ * 实现：直接使用 supabase-proxy 的 consume/recharge action
  */
 
 const FILM_UNIT = 10; // 1胶片 = 10 units
@@ -17,51 +19,69 @@ function unitsToFilm(units) {
     return (Number(units) / FILM_UNIT).toFixed(1);
 }
 
-// 调用 Supabase RPC
-async function callBillingRPC(rpc, rpcArgs) {
-    const res = await fetch('/api/supabase-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'rpc', rpc, rpcArgs })
-    });
+// 调用 supabase-proxy action
+async function callBillingAction(data) {
+    let res;
+    try {
+        res = await fetch('/api/supabase-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    } catch (fetchErr) {
+        console.error('[billing] 网络请求失败:', fetchErr);
+        throw new Error('网络请求失败，请检查网络连接');
+    }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-        console.error('[billing] RPC 失败:', res.status, json);
-        const errMsg = json?.error || json?.message || `RPC failed: ${res.status}`;
+        console.error('[billing] action 失败:', res.status, json);
+        const errMsg = json?.error || json?.message || `Action failed: ${res.status}`;
         throw new Error(errMsg);
     }
-    return json.data;
+    return json;
 }
 
-// 获取用户余额（统一口径）
+// 获取用户余额
 async function getUserBalance(userId) {
-    return await callBillingRPC('get_user_balance', { p_user_id: userId });
+    const data = await callBillingAction({ action: 'getProfile', userId });
+    return {
+        total_balance_units: (data.quotaBalance || 0) * FILM_UNIT,
+        balance: data.quotaBalance || 0
+    };
 }
 
-// 预扣费冻结
+// 预扣费冻结（通过 consume 实现）
 async function reserveFilm(userId, filmCost, requestId) {
-    const units = filmToUnits(filmCost);
-    return await callBillingRPC('reserve_film_units', {
-        p_user_id: userId,
-        p_amount_units: units,
-        p_request_id: requestId
+    const amount = Math.ceil(filmCost);
+    const data = await callBillingAction({
+        action: 'consume',
+        userId,
+        amount,
+        description: `预扣费:${requestId}`
     });
+    return {
+        total_balance_units: (data.quotaBalance || 0) * FILM_UNIT
+    };
 }
 
-// 确认扣费（生成成功）
-async function commitFilm(userId, requestId) {
-    return await callBillingRPC('commit_film_units', {
-        p_user_id: userId,
-        p_request_id: requestId
-    });
+// 确认扣费（余额已在 reserve 时扣除，无需额外操作）
+async function commitFilm(userId, requestId, _filmCost) {
+    console.log(`[billing] 确认扣费: ${requestId}`);
+    return {};
 }
 
-// 释放冻结（生成失败）
-async function releaseFilm(userId, requestId) {
-    return await callBillingRPC('release_film_units', {
-        p_user_id: userId,
-        p_request_id: requestId
+// 释放冻结（通过 recharge 退还）
+async function releaseFilm(userId, requestId, filmCost) {
+    const amount = Math.ceil(filmCost);
+    const data = await callBillingAction({
+        action: 'recharge',
+        userId,
+        amount,
+        description: `退还冻结:${requestId}`
     });
+    return {
+        total_balance_units: (data.quotaBalance || 0) * FILM_UNIT
+    };
 }
 
 /**
@@ -108,26 +128,21 @@ async function executeWithBilling({ userId, filmCost, apiCall, onBalanceUpdate, 
     try {
         const result = await apiCall();
         
-        // 3. 成功：确认扣费
+        // 3. 成功：确认扣费（余额已扣除，仅记录日志）
         try {
-            const balanceAfterCommit = await commitFilm(userId, requestId);
-            if (onBalanceUpdate && balanceAfterCommit) {
-                const totalUnits = balanceAfterCommit.total_balance_units || 0;
-                onBalanceUpdate(unitsToFilm(totalUnits));
-            }
+            await commitFilm(userId, requestId, filmCost);
             console.log(`[billing] 确认扣费成功: ${filmCost} 胶片`);
         } catch (commitErr) {
             console.error('[billing] 确认扣费失败:', commitErr);
-            // 确认失败不影响结果返回，但需要记录
         }
         
         return result;
     } catch (apiError) {
-        // 4. 失败：释放冻结
+        // 4. 失败：释放冻结（退还扣除的余额）
         console.error(`[billing] ${description} 失败:`, apiError);
         if (reserved) {
             try {
-                const balanceAfterRelease = await releaseFilm(userId, requestId);
+                const balanceAfterRelease = await releaseFilm(userId, requestId, filmCost);
                 if (onBalanceUpdate && balanceAfterRelease) {
                     const totalUnits = balanceAfterRelease.total_balance_units || 0;
                     onBalanceUpdate(unitsToFilm(totalUnits));
@@ -141,32 +156,14 @@ async function executeWithBilling({ userId, filmCost, apiCall, onBalanceUpdate, 
     }
 }
 
-// 兼容旧版：直接扣费（不推荐，仅用于过渡）
+// 兼容旧版：直接扣费
 async function consumeFilmLegacy(userId, amount, description) {
-    const res = await fetch('/api/supabase-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'consume', userId, amount, description })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(data.message || data.error || `扣费失败: ${res.status}`);
-    }
-    return data;
+    return await callBillingAction({ action: 'consume', userId, amount, description });
 }
 
-// 兼容旧版：退款（不推荐，仅用于过渡）
+// 兼容旧版：退款
 async function refundFilmLegacy(userId, amount, description) {
-    const res = await fetch('/api/supabase-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'recharge', userId, amount, description })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(data.message || data.error || `退款失败: ${res.status}`);
-    }
-    return data;
+    return await callBillingAction({ action: 'recharge', userId, amount, description });
 }
 
 // 导出到全局
