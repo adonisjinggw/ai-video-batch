@@ -427,6 +427,282 @@
             }
         },
 
+        // ---------- 自定义技能 ----------
+
+        /**
+         * 注销一个 Skill
+         * @param {string} skillId
+         */
+        unregister(skillId) {
+            return this._skills.delete(skillId);
+        },
+
+        /**
+         * 保存自定义技能到 localStorage 并注册
+         * @param {Object} skillDef - 自定义技能定义（不含 execute/estimateCost）
+         * @returns {Object} 注册后的完整 skill
+         */
+        saveCustomSkill(skillDef) {
+            // 确保有 id
+            if (!skillDef.id) {
+                skillDef.id = 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            }
+            skillDef.isCustom = true;
+
+            // 保存到 localStorage（不含函数）
+            const stored = this._getStoredCustomSkills();
+            const idx = stored.findIndex(s => s.id === skillDef.id);
+            // 存储时剥离函数
+            const toStore = { ...skillDef };
+            delete toStore.execute;
+            delete toStore.estimateCost;
+            if (idx >= 0) {
+                stored[idx] = toStore;
+            } else {
+                stored.push(toStore);
+            }
+            try {
+                localStorage.setItem('rollroll_custom_skills', JSON.stringify(stored));
+            } catch (e) {
+                console.error('[SkillManager] 保存自定义技能失败:', e);
+            }
+
+            // 构建可执行版本并注册
+            const fullSkill = this._hydrateCustomSkill(toStore);
+            this._skills.set(fullSkill.id, fullSkill);
+            console.log(`✅ [SkillManager] 自定义技能已保存: ${fullSkill.icon} ${fullSkill.name}`);
+            return fullSkill;
+        },
+
+        /**
+         * 删除自定义技能
+         * @param {string} skillId
+         */
+        deleteCustomSkill(skillId) {
+            const stored = this._getStoredCustomSkills().filter(s => s.id !== skillId);
+            try {
+                localStorage.setItem('rollroll_custom_skills', JSON.stringify(stored));
+            } catch (e) { }
+            this._skills.delete(skillId);
+            console.log(`🗑️ [SkillManager] 自定义技能已删除: ${skillId}`);
+        },
+
+        /**
+         * 获取所有自定义技能（原始数据）
+         * @returns {Array}
+         */
+        getCustomSkills() {
+            return this._getStoredCustomSkills();
+        },
+
+        /**
+         * 导出技能为通用 JSON
+         * @param {string} skillId
+         * @returns {Object}
+         */
+        exportSkill(skillId) {
+            const skill = this.getById(skillId);
+            if (!skill) return null;
+            const exported = { ...skill };
+            delete exported.execute;
+            delete exported.estimateCost;
+            return { version: '1.0', type: 'rollroll-skill', skill: exported };
+        },
+
+        /**
+         * 导入技能 JSON
+         * @param {Object} json
+         * @returns {Object} 注册后的 skill
+         */
+        importSkill(json) {
+            if (!json || json.type !== 'rollroll-skill' || !json.skill) {
+                throw new Error('无效的技能文件格式');
+            }
+            const skillDef = { ...json.skill };
+            // 生成新 ID 避免冲突
+            skillDef.id = 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            skillDef.isCustom = true;
+            return this.saveCustomSkill(skillDef);
+        },
+
+        /** @private */
+        _getStoredCustomSkills() {
+            try {
+                const data = localStorage.getItem('rollroll_custom_skills');
+                return data ? JSON.parse(data) : [];
+            } catch (e) { return []; }
+        },
+
+        /**
+         * 将存储的自定义技能数据转化为可执行 skill
+         * @private
+         */
+        _hydrateCustomSkill(def) {
+            const skill = { ...def };
+            skill.estimateCost = this._buildCustomEstimateCost(def);
+            skill.execute = this._buildCustomExecute(def);
+            return skill;
+        },
+
+        /**
+         * 根据模板类型构建 estimateCost 函数
+         * @private
+         */
+        _buildCustomEstimateCost(def) {
+            return (params) => {
+                const type = def.templateType || 'text';
+                const count = parseInt(params.count || def.count) || 1;
+                if (type === 'text') {
+                    return { film: Math.ceil(count * 0.2), time: '约 30 秒' };
+                } else if (type === 'image') {
+                    return { film: Math.ceil(count * 0.5), time: `约 ${count} 分钟` };
+                } else if (type === 'video') {
+                    return { film: Math.ceil(count * 3.5), time: `约 ${count * 2} 分钟` };
+                }
+                return { film: 1, time: '约 1 分钟' };
+            };
+        },
+
+        /**
+         * 根据模板类型构建 execute 函数
+         * @private
+         */
+        _buildCustomExecute(def) {
+            const templateType = def.templateType || 'text';
+            const promptTemplate = def.promptTemplate || '';
+            const aspectRatio = def.aspectRatio || '16:9';
+            const videoModel = def.videoModel || 'sora-2-all';
+            const defaultCount = parseInt(def.count) || 1;
+
+            // 替换模板中的 {{key}} 为参数值
+            function fillTemplate(template, params) {
+                return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+                    return params[key] !== undefined ? String(params[key]) : `{{${key}}}`;
+                });
+            }
+
+            if (templateType === 'text') {
+                return async (params, callbacks) => {
+                    callbacks.onProgress?.('生成文本', 20, '正在生成...');
+                    const prompt = fillTemplate(promptTemplate, params);
+                    let result = '';
+                    if (typeof callScriptGenerator === 'function') {
+                        result = await callScriptGenerator({}, prompt);
+                    } else if (typeof callModelScopeTextAPI === 'function') {
+                        result = await callModelScopeTextAPI(prompt);
+                    } else {
+                        throw new Error('文本生成功能不可用');
+                    }
+                    callbacks.onStepComplete?.('文本生成', { script: result.substring(0, 100) + '...' });
+                    callbacks.onProgress?.('完成', 100, '生成完成');
+                    // 解析为列表（按换行拆分）
+                    const lines = result.split(/\n+/).filter(l => l.trim()).map(l => l.replace(/^\d+[\.\)、]\s*/, '').trim()).filter(l => l.length > 3);
+                    return { content: result, copywritings: lines };
+                };
+            }
+
+            if (templateType === 'image') {
+                return async (params, callbacks) => {
+                    const count = parseInt(params.count) || defaultCount;
+                    const results = [];
+                    for (let i = 0; i < count; i++) {
+                        if (callbacks.isCancelled?.()) break;
+                        const progress = Math.round((i / count) * 100);
+                        callbacks.onProgress?.(`生成图片 ${i + 1}/${count}`, progress, `正在生成第 ${i + 1} 张...`);
+                        try {
+                            const prompt = fillTemplate(promptTemplate, { ...params, index: i + 1 });
+                            let imageUrl = '';
+                            if (typeof callBanana2ImageAPI === 'function') {
+                                imageUrl = await callBanana2ImageAPI(prompt, { aspectRatio: params.aspectRatio || aspectRatio });
+                            } else if (typeof callModelScopeImageAPI === 'function') {
+                                imageUrl = await callModelScopeImageAPI(prompt, { aspectRatio: params.aspectRatio || aspectRatio });
+                            } else {
+                                throw new Error('图片生成功能不可用');
+                            }
+                            callbacks.onStepComplete?.(`图片${i + 1}`, { imageUrl });
+                            results.push({ subject: `图片${i + 1}`, imageUrl, status: 'success' });
+                        } catch (error) {
+                            results.push({ subject: `图片${i + 1}`, error: error.message, status: 'failed' });
+                        }
+                    }
+                    callbacks.onProgress?.('完成', 100, `生成 ${results.filter(r => r.status === 'success').length}/${count} 张`);
+                    return { images: results };
+                };
+            }
+
+            if (templateType === 'video') {
+                return async (params, callbacks) => {
+                    const count = parseInt(params.count) || defaultCount;
+                    const results = [];
+                    for (let i = 0; i < count; i++) {
+                        if (callbacks.isCancelled?.()) break;
+                        const progress = Math.round((i / count) * 100);
+                        callbacks.onProgress?.(`生成视频 ${i + 1}/${count}`, progress, `正在生成第 ${i + 1} 个...`);
+                        try {
+                            const prompt = fillTemplate(promptTemplate, { ...params, index: i + 1 });
+                            // 先生成封面图
+                            let imageUrl = '';
+                            if (typeof callBanana2ImageAPI === 'function') {
+                                callbacks.onProgress?.(`视频${i + 1} 封面`, progress, '生成封面图...');
+                                imageUrl = await callBanana2ImageAPI(prompt, { aspectRatio: params.aspectRatio || aspectRatio });
+                            }
+                            callbacks.onStepComplete?.(`视频${i + 1} 封面`, { imageUrl });
+                            // 图生视频
+                            let videoUrl = '';
+                            if (imageUrl && typeof callSora2ImageToVideoAPI === 'function') {
+                                callbacks.onProgress?.(`视频${i + 1} 渲染`, progress + 5, '生成视频...');
+                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, prompt, {
+                                    model: params.videoModel || videoModel,
+                                    duration: parseInt(params.duration) || 15,
+                                    aspectRatio: params.aspectRatio || aspectRatio
+                                });
+                            } else if (typeof callSora2TextToVideoAPI === 'function') {
+                                videoUrl = await callSora2TextToVideoAPI(prompt, {
+                                    model: params.videoModel || videoModel,
+                                    duration: parseInt(params.duration) || 15,
+                                    aspectRatio: params.aspectRatio || aspectRatio
+                                });
+                            }
+                            callbacks.onStepComplete?.(`视频${i + 1}`, { videoUrl });
+                            results.push({ index: i + 1, imageUrl, videoUrl, status: 'success' });
+                        } catch (error) {
+                            results.push({ index: i + 1, error: error.message, status: 'failed' });
+                        }
+                    }
+                    callbacks.onProgress?.('完成', 100, `生成 ${results.filter(r => r.status === 'success').length}/${count} 个`);
+                    return { videos: results };
+                };
+            }
+
+            // fallback
+            return async (params, callbacks) => {
+                callbacks.onProgress?.('执行', 50, '执行中...');
+                callbacks.onProgress?.('完成', 100, '完成');
+                return { content: fillTemplate(promptTemplate, params) };
+            };
+        },
+
+        /**
+         * 从 localStorage 加载自定义技能
+         * @private
+         */
+        _loadCustomSkills() {
+            const stored = this._getStoredCustomSkills();
+            let count = 0;
+            for (const def of stored) {
+                try {
+                    const skill = this._hydrateCustomSkill(def);
+                    this._skills.set(skill.id, skill);
+                    count++;
+                } catch (e) {
+                    console.warn('[SkillManager] 加载自定义技能失败:', def.id, e);
+                }
+            }
+            if (count > 0) {
+                console.log(`🔧 [SkillManager] 已加载 ${count} 个自定义技能`);
+            }
+        },
+
         // ---------- 初始化 ----------
 
         /**
@@ -434,6 +710,7 @@
          */
         init() {
             this._loadHistory();
+            this._loadCustomSkills();
             console.log('🧩 [SkillManager] 初始化完成');
         }
     };

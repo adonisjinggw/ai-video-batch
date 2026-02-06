@@ -8,6 +8,7 @@
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
     <script src="/js/api-core.js"></script>
+    <script src="/js/billing.js"></script>
     <script src="/js/skill-system.js"></script>
     <script src="/js/skill-presets.js"></script>
     <style>
@@ -615,68 +616,317 @@
             font-weight: 700;
         }
         
-        /* 技能执行进度 */
+        /* ========== 技能执行进度 · 精美卡通动画 ========== */
+        @keyframes sp-float {
+            0% { transform: translateY(0) scale(0.5); opacity:0; }
+            10% { opacity:0.7; }
+            100% { transform: translateY(-100vh) scale(0); opacity:0; }
+        }
+        @keyframes sp-icon-float {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes sp-glow-pulse {
+            0%,100% { box-shadow: 0 0 15px rgba(251,191,36,0.3), 0 8px 32px rgba(0,0,0,0.4); }
+            50% { box-shadow: 0 0 35px rgba(251,191,36,0.55), 0 0 60px rgba(251,191,36,0.15), 0 8px 32px rgba(0,0,0,0.4); }
+        }
+        @keyframes sp-orbit {
+            0% { transform: rotate(0deg) translateX(54px) rotate(0deg); }
+            100% { transform: rotate(360deg) translateX(54px) rotate(-360deg); }
+        }
+        @keyframes sp-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes sp-step-in {
+            0% { transform: translateX(-20px) scale(0.95); opacity:0; }
+            60% { transform: translateX(4px) scale(1.02); }
+            100% { transform: translateX(0) scale(1); opacity:1; }
+        }
+        @keyframes sp-check-pop {
+            0% { transform: scale(0) rotate(-45deg); }
+            60% { transform: scale(1.3) rotate(10deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes sp-confetti {
+            0% { transform: translateY(0) translateX(0) rotate(0deg) scale(1); opacity:1; }
+            100% { transform: translateY(75vh) translateX(var(--x-drift, 0px)) rotate(720deg) scale(0.2); opacity:0; }
+        }
+        @keyframes sp-success-pop {
+            0% { transform: scale(0.3); opacity:0; }
+            50% { transform: scale(1.18); }
+            70% { transform: scale(0.95); }
+            100% { transform: scale(1); opacity:1; }
+        }
+        @keyframes sp-error-shake {
+            0%,100% { transform: translateX(0); }
+            10%,30%,50%,70%,90% { transform: translateX(-6px); }
+            20%,40%,60%,80% { transform: translateX(6px); }
+        }
+        @keyframes sp-sparkle {
+            0%,100% { opacity:0; transform: scale(0) rotate(0deg); }
+            50% { opacity:1; transform: scale(1) rotate(180deg); }
+        }
+        @keyframes sp-ring-rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes sp-bg-shift {
+            0%,100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        @keyframes sp-shadow-pulse {
+            0%,100% { transform: scaleX(1); opacity:0.3; }
+            50% { transform: scaleX(0.7); opacity:0.15; }
+        }
         .skill-progress-modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 1002;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, rgba(10,10,18,0.97), rgba(18,10,32,0.97), rgba(10,18,24,0.97));
+            background-size: 300% 300%;
+            z-index: 1002; display: none;
+            align-items: center; justify-content: center; padding: 20px;
+            overflow: hidden;
         }
         .skill-progress-modal.show {
             display: flex;
+            animation: sp-bg-shift 8s ease infinite;
         }
+        /* 粒子背景 */
+        .sp-particles { position: absolute; inset:0; pointer-events:none; overflow:hidden; }
+        .sp-particle {
+            position: absolute; bottom: -10px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(251,191,36,0.8), rgba(249,115,22,0.3));
+            animation: sp-float linear infinite; pointer-events: none;
+        }
+        /* 内容区 */
         .skill-progress-content {
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
+            max-width: 380px; width: 100%; text-align: center;
+            position: relative; z-index: 1;
         }
-        .skill-progress-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
+        /* 图标区域 */
+        .sp-icon-area {
+            position: relative; width: 120px; height: 120px;
+            margin: 0 auto 8px;
         }
+        .sp-icon {
+            position: absolute; inset: 0; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 46px; background: rgba(25,25,38,0.85);
+            border-radius: 50%; border: 2px solid rgba(251,191,36,0.3);
+            animation: sp-icon-float 2.2s ease-in-out infinite, sp-glow-pulse 2.5s ease-in-out infinite;
+            z-index: 2;
+        }
+        /* 图标下方阴影 */
+        .sp-icon-area::after {
+            content: ''; position: absolute; bottom: -8px; left: 50%;
+            transform: translateX(-50%); width: 50px; height: 10px;
+            background: radial-gradient(ellipse, rgba(251,191,36,0.25), transparent 70%);
+            border-radius: 50%;
+            animation: sp-shadow-pulse 2.2s ease-in-out infinite;
+        }
+        /* 轨道环 */
+        .sp-orbit-ring {
+            position: absolute; inset: -8px;
+            animation: sp-ring-rotate 6s linear infinite; z-index: 1;
+        }
+        .sp-orbit-dot {
+            position: absolute; top:50%; left:50%;
+            width: 8px; height: 8px; margin: -4px 0 0 -4px;
+            border-radius: 50%; background: var(--accent);
+            animation: sp-orbit 3s linear infinite;
+            box-shadow: 0 0 8px rgba(251,191,36,0.6);
+        }
+        .sp-orbit-dot:nth-child(2) {
+            animation-delay: -1s; background: #f97316;
+            box-shadow: 0 0 8px rgba(249,115,22,0.6);
+            width:6px; height:6px; margin:-3px 0 0 -3px;
+        }
+        .sp-orbit-dot:nth-child(3) {
+            animation-delay: -2s; background: #fb923c;
+            box-shadow: 0 0 8px rgba(251,146,60,0.6);
+            width:5px; height:5px; margin:-2.5px 0 0 -2.5px;
+        }
+        /* 闪烁星星 */
+        .sp-sparkles { position: absolute; inset: -20px; pointer-events:none; z-index:3; }
+        .sp-sparkle {
+            position: absolute; font-size: 14px;
+            animation: sp-sparkle 1.5s ease-in-out infinite;
+        }
+        /* 阶段标签 */
+        .sp-phase {
+            font-size: 11px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--accent);
+            margin-bottom: 6px; opacity: 0.85;
+        }
+        /* 进度文字 */
         .skill-progress-text {
-            color: #fff;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 20px;
+            color: #fff; font-size: 15px; font-weight: 600;
+            margin-bottom: 18px; min-height: 22px;
         }
-        .skill-progress-bar-container {
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            height: 8px;
-            margin-bottom: 20px;
-            overflow: hidden;
+        /* 进度条 */
+        .sp-progress-wrap {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
         }
-        .skill-progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--accent), #f97316);
-            border-radius: 10px;
-            width: 0%;
-            transition: width 0.3s;
+        .sp-progress-track {
+            flex: 1; background: rgba(255,255,255,0.08);
+            border-radius: 10px; height: 8px; overflow: hidden; position: relative;
         }
+        .sp-progress-fill {
+            height: 100%; border-radius: 10px; width: 0%;
+            background: linear-gradient(90deg, var(--accent), #f97316, var(--accent));
+            background-size: 200% 100%;
+            transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+            animation: sp-shimmer 2s linear infinite;
+            position: relative;
+        }
+        .sp-progress-fill::after {
+            content: ''; position: absolute; right: -5px; top: 50%;
+            transform: translateY(-50%); width: 14px; height: 14px;
+            background: #fff; border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(251,191,36,0.3);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .skill-progress-modal[data-phase="executing"] .sp-progress-fill::after,
+        .skill-progress-modal[data-phase="complete"] .sp-progress-fill::after {
+            opacity: 0.9;
+        }
+        .sp-progress-pct {
+            font-size: 13px; font-weight: 700; color: var(--accent);
+            min-width: 36px; text-align: right;
+        }
+        /* 步骤列表 */
         .skill-progress-steps {
-            text-align: left;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            padding: 15px;
-            max-height: 200px;
-            overflow-y: auto;
+            text-align: left; background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px; padding: 12px 14px;
+            max-height: 180px; overflow-y: auto;
+            backdrop-filter: blur(4px);
         }
+        .sp-step-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 7px 0; font-size: 13px; color: #a8e6a3;
+            animation: sp-step-in 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .sp-step-item:last-child { border-bottom: none; }
+        .sp-step-item.error { color: #f87171; }
+        .sp-step-check {
+            display: inline-block;
+            animation: sp-check-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+            animation-delay: 0.2s;
+        }
+        .sp-step-name { flex: 1; }
+        /* 按钮 */
         .skill-progress-buttons {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
+            display: flex; gap: 12px; margin-top: 18px;
         }
         .skill-progress-buttons button {
-            flex: 1;
-            padding: 12px;
+            flex: 1; padding: 12px; border-radius: 12px;
+            cursor: pointer; font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05); color: #aaa;
+            backdrop-filter: blur(4px); transition: all 0.2s;
+        }
+        .skill-progress-buttons button:first-child {
+            border-color: rgba(244,67,54,0.3); color: #ff8a80;
+        }
+        .skill-progress-buttons button:active { transform: scale(0.96); }
+        /* 🎊 撒花 */
+        .sp-confetti { position: absolute; inset:0; pointer-events:none; z-index:10; overflow:hidden; }
+        .sp-confetti-piece {
+            position: absolute; top: 35%; border-radius: 2px;
+            animation: sp-confetti ease-out forwards;
+        }
+        /* 阶段状态切换 */
+        .skill-progress-modal[data-phase="complete"] .sp-icon {
+            animation: sp-success-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+            border-color: rgba(74,222,128,0.5);
+            box-shadow: 0 0 30px rgba(74,222,128,0.3);
+        }
+        .skill-progress-modal[data-phase="complete"] .sp-orbit-ring {
+            animation: none; opacity:0; transition: opacity 0.5s;
+        }
+        .skill-progress-modal[data-phase="complete"] .sp-phase { color: #4ade80; }
+        .skill-progress-modal[data-phase="complete"] .sp-progress-fill {
+            background: linear-gradient(90deg, #4ade80, #22c55e, #4ade80);
+            background-size: 200% 100%;
+        }
+        .skill-progress-modal[data-phase="error"] .sp-icon {
+            animation: sp-error-shake 0.6s ease both;
+            border-color: rgba(248,113,113,0.5);
+            box-shadow: 0 0 30px rgba(248,113,113,0.3);
+        }
+        .skill-progress-modal[data-phase="error"] .sp-orbit-ring {
+            animation: none; opacity:0; transition: opacity 0.5s;
+        }
+        .skill-progress-modal[data-phase="error"] .sp-phase { color: #f87171; }
+        .skill-progress-modal[data-phase="error"] .sp-progress-fill {
+            background: linear-gradient(90deg, #f87171, #ef4444, #f87171);
+            background-size: 200% 100%;
+        }
+        /* 成本预估 */
+        .skill-cost-estimate {
+            background: rgba(251,191,36,0.1);
+            border: 1px solid rgba(251,191,36,0.25);
             border-radius: 10px;
-            cursor: pointer;
-            font-size: 14px;
+            padding: 10px 14px;
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--accent);
+        }
+        /* 自定义技能创建弹窗 */
+        .create-skill-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1003;
+            display: none; align-items: center; justify-content: center; padding: 16px;
+        }
+        .create-skill-modal.show { display: flex; }
+        .create-skill-content {
+            background: #1a1a1a; border-radius: 16px; width: 100%; max-width: 500px;
+            max-height: 90vh; overflow-y: auto; padding: 20px;
+        }
+        .create-skill-content h3 { margin-bottom: 16px; }
+        .cs-field { margin-bottom: 14px; }
+        .cs-field label { display: block; font-size: 13px; color: #aaa; margin-bottom: 4px; }
+        .cs-field input, .cs-field textarea, .cs-field select {
+            width: 100%; background: #222; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 12px; color: #fff; font-size: 14px; font-family: inherit;
+        }
+        .cs-field textarea { min-height: 80px; resize: vertical; }
+        .cs-icons { display: flex; flex-wrap: wrap; gap: 8px; }
+        .cs-icon-btn {
+            width: 40px; height: 40px; border-radius: 10px; border: 2px solid #333;
+            background: #222; font-size: 20px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .cs-icon-btn.selected { border-color: var(--accent); background: rgba(251,191,36,0.15); }
+        .cs-params-list { display: flex; flex-direction: column; gap: 8px; }
+        .cs-param-row {
+            display: flex; gap: 6px; align-items: center; background: #222;
+            border-radius: 8px; padding: 8px;
+        }
+        .cs-param-row input, .cs-param-row select {
+            flex: 1; background: #1a1a1a; border: 1px solid #333; border-radius: 6px;
+            padding: 6px 8px; color: #fff; font-size: 13px;
+        }
+        .cs-param-del {
+            background: none; border: none; color: #f87171; cursor: pointer;
+            font-size: 18px; padding: 0 4px;
+        }
+        .cs-footer { display: flex; gap: 10px; margin-top: 16px; }
+        .cs-footer button {
+            flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 14px; cursor: pointer;
+        }
+        .cs-btn-cancel { background: #333; color: #fff; }
+        .cs-btn-save { background: linear-gradient(135deg, var(--accent), #f97316); color: #000; font-weight: 700; }
+        .cs-btn-import { background: #2a2a2a; color: #aaa; border: 1px solid #444 !important; }
+        .skill-card-actions {
+            display: flex; gap: 6px; margin-top: 6px;
+        }
+        .skill-card-actions button {
+            padding: 4px 8px; font-size: 11px; border-radius: 6px; border: 1px solid #444;
+            background: #222; color: #aaa; cursor: pointer;
         }
     </style>
 </head>
@@ -754,12 +1004,16 @@
             <button class="skill-filter-btn" data-category="image" onclick="filterSkills('image')">🎨 图像</button>
             <button class="skill-filter-btn" data-category="content" onclick="filterSkills('content')">📝 内容</button>
             <button class="skill-filter-btn" data-category="automation" onclick="filterSkills('automation')">🤖 自动化</button>
+            <button class="skill-filter-btn" data-category="custom" onclick="filterSkills('custom')">🔧 自定义</button>
         </div>
         <div class="skill-search">
             <input type="text" id="skillSearch" placeholder="🔍 搜索技能..." oninput="searchSkills(this.value)">
         </div>
         <div class="skill-list" id="skillList">
             <!-- 由 JS 动态渲染 -->
+        </div>
+        <div style="padding:12px 16px; border-top:1px solid #333;">
+            <button onclick="openCreateSkillModal()" style="width:100%; padding:12px; background:linear-gradient(135deg,#333,#2a2a2a); border:1px dashed #555; border-radius:10px; color:#aaa; font-size:14px; cursor:pointer;">➕ 创建自定义技能</button>
         </div>
     </div>
     
@@ -775,30 +1029,96 @@
                 <div class="skill-config-form" id="skillConfigForm">
                     <!-- 由 JS 动态生成 -->
                 </div>
+                <div class="skill-cost-estimate" id="skillCostEstimate"></div>
             </div>
             <div class="skill-config-footer">
                 <button class="skill-config-cancel" onclick="closeSkillConfig()">取消</button>
-                <button class="skill-config-execute" onclick="executeSelectedSkill()">🚀 开始执行</button>
+                <button class="skill-config-execute" id="skillExecuteBtn" onclick="executeSelectedSkill()">🚀 开始执行</button>
             </div>
         </div>
     </div>
     
-    <!-- 技能执行进度 -->
-    <div class="skill-progress-modal" id="skillProgressModal">
-        <div class="skill-progress-content">
-            <div class="skill-progress-icon" id="skillProgressIcon">🚀</div>
-            <div class="skill-progress-text" id="skillProgressText">准备中...</div>
-            <div class="skill-progress-bar-container">
-                <div class="skill-progress-bar" id="skillProgressBar"></div>
+    <!-- 自定义技能创建弹窗 -->
+    <div class="create-skill-modal" id="createSkillModal">
+        <div class="create-skill-content">
+            <h3>🔧 创建自定义技能</h3>
+            <div class="cs-field">
+                <label>技能名称 *</label>
+                <input type="text" id="csName" placeholder="例如：小红书笔记生成器">
             </div>
-            <div class="skill-progress-steps" id="skillProgressSteps">
-                <!-- 由 JS 动态添加 -->
+            <div class="cs-field">
+                <label>图标</label>
+                <div class="cs-icons" id="csIconPicker">
+                    <span class="cs-icon-btn selected" data-icon="🔧" onclick="selectSkillIcon(this)">🔧</span>
+                    <span class="cs-icon-btn" data-icon="✨" onclick="selectSkillIcon(this)">✨</span>
+                    <span class="cs-icon-btn" data-icon="💡" onclick="selectSkillIcon(this)">💡</span>
+                    <span class="cs-icon-btn" data-icon="🎨" onclick="selectSkillIcon(this)">🎨</span>
+                    <span class="cs-icon-btn" data-icon="📸" onclick="selectSkillIcon(this)">📸</span>
+                    <span class="cs-icon-btn" data-icon="🎬" onclick="selectSkillIcon(this)">🎬</span>
+                    <span class="cs-icon-btn" data-icon="📝" onclick="selectSkillIcon(this)">📝</span>
+                    <span class="cs-icon-btn" data-icon="🚀" onclick="selectSkillIcon(this)">🚀</span>
+                    <span class="cs-icon-btn" data-icon="🌟" onclick="selectSkillIcon(this)">🌟</span>
+                    <span class="cs-icon-btn" data-icon="🔥" onclick="selectSkillIcon(this)">🔥</span>
+                    <span class="cs-icon-btn" data-icon="🌿" onclick="selectSkillIcon(this)">🌿</span>
+                    <span class="cs-icon-btn" data-icon="🎯" onclick="selectSkillIcon(this)">🎯</span>
+                </div>
             </div>
-            <div class="skill-progress-buttons">
-                <button style="background:rgba(244,67,54,0.2); border:1px solid rgba(244,67,54,0.4); color:#ff8a80;" onclick="cancelSkillExecution()">⏹️ 取消</button>
-                <button style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#aaa;" onclick="hideSkillProgress()">↙️ 后台运行</button>
+            <div class="cs-field">
+                <label>模板类型 *</label>
+                <select id="csTemplateType">
+                    <option value="text">📝 文本生成</option>
+                    <option value="image">🎨 图片生成</option>
+                    <option value="video">🎬 视频生成</option>
+                </select>
+            </div>
+            <div class="cs-field">
+                <label>描述</label>
+                <input type="text" id="csDescription" placeholder="简要描述这个技能的功能">
+            </div>
+            <div class="cs-field">
+                <label>提示词模板 * <span style="color:#666; font-size:12px;">(用 {{变量名}} 引用参数)</span></label>
+                <textarea id="csPromptTemplate" placeholder="例如：请为{{topic}}生成{{count}}条小红书风格的笔记文案，要求吸引眼球、有干货..."></textarea>
+            </div>
+            <div class="cs-field">
+                <label>参数定义 <button onclick="addCustomParam()" style="float:right;background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;">+ 添加参数</button></label>
+                <div class="cs-params-list" id="csParamsList"></div>
+            </div>
+            <div class="cs-footer">
+                <button class="cs-btn-import" onclick="importSkillJSON()">📥 导入</button>
+                <button class="cs-btn-cancel" onclick="closeCreateSkillModal()">取消</button>
+                <button class="cs-btn-save" onclick="saveNewCustomSkill()">保存技能</button>
             </div>
         </div>
+    </div>
+    
+    <!-- 技能执行进度（精美动画版） -->
+    <div class="skill-progress-modal" id="skillProgressModal" data-phase="preparing">
+        <div class="sp-particles" id="spParticles"></div>
+        <div class="skill-progress-content">
+            <div class="sp-icon-area">
+                <div class="sp-orbit-ring">
+                    <div class="sp-orbit-dot"></div>
+                    <div class="sp-orbit-dot"></div>
+                    <div class="sp-orbit-dot"></div>
+                </div>
+                <div class="sp-icon" id="skillProgressIcon">🚀</div>
+                <div class="sp-sparkles" id="spSparkles"></div>
+            </div>
+            <div class="sp-phase" id="spPhase">🚀 准备启动</div>
+            <div class="skill-progress-text" id="skillProgressText">准备中...</div>
+            <div class="sp-progress-wrap">
+                <div class="sp-progress-track">
+                    <div class="sp-progress-fill" id="skillProgressBar"></div>
+                </div>
+                <div class="sp-progress-pct" id="spProgressPct">0%</div>
+            </div>
+            <div class="skill-progress-steps" id="skillProgressSteps"></div>
+            <div class="skill-progress-buttons">
+                <button onclick="cancelSkillExecution()">⏹️ 取消</button>
+                <button onclick="hideSkillProgress()">↙️ 后台运行</button>
+            </div>
+        </div>
+        <div class="sp-confetti" id="spConfetti"></div>
     </div>
 
     <script>
@@ -1537,10 +1857,19 @@
                 video: '🎬 视频',
                 image: '🎨 图像',
                 content: '📝 内容',
-                automation: '🤖 自动化'
+                automation: '🤖 自动化',
+                custom: '🔧 自定义'
             };
             
-            container.innerHTML = skills.map(skill => `
+            container.innerHTML = skills.map(skill => {
+                const isCustom = skill.isCustom;
+                const actionsHtml = isCustom ? `
+                    <div class="skill-card-actions">
+                        <button onclick="event.stopPropagation(); editCustomSkill('${skill.id}')">✏️ 编辑</button>
+                        <button onclick="event.stopPropagation(); exportCustomSkill('${skill.id}')">📤 导出</button>
+                        <button onclick="event.stopPropagation(); deleteCustomSkill('${skill.id}')" style="color:#f87171;border-color:#5a2020;">🗑️ 删除</button>
+                    </div>` : '';
+                return `
                 <div class="skill-card" onclick="openSkillConfig('${skill.id}')">
                     <div class="skill-card-header">
                         <span class="skill-card-icon">${skill.icon}</span>
@@ -1548,8 +1877,9 @@
                     </div>
                     <div class="skill-card-title">${skill.name}</div>
                     <div class="skill-card-desc">${skill.description}</div>
-                </div>
-            `).join('');
+                    ${actionsHtml}
+                </div>`;
+            }).join('');
         }
         
         // 筛选技能
@@ -1623,7 +1953,32 @@
                 }).join('');
             }
             
+            // 💰 显示成本预估
+            updateSkillCostEstimate(skill);
+            
             document.getElementById('skillConfigModal').classList.add('show');
+        }
+        
+        // 更新技能成本预估
+        function updateSkillCostEstimate(skill) {
+            const estimateEl = document.getElementById('skillCostEstimate');
+            const executeBtn = document.getElementById('skillExecuteBtn');
+            if (!estimateEl) return;
+            
+            if (skill && skill.estimateCost) {
+                try {
+                    const params = collectSkillParams();
+                    const cost = skill.estimateCost(params);
+                    const film = Math.ceil(cost.film || 0);
+                    estimateEl.innerHTML = `<span>🎞️ 预估: ${film} 胶片</span><span>⏱️ ${cost.time || '未知'}</span>`;
+                    if (executeBtn) executeBtn.textContent = film > 0 ? `🚀 执行 (${film} 胶片)` : '🚀 开始执行';
+                } catch (e) {
+                    estimateEl.innerHTML = '<span>成本取决于参数配置</span>';
+                }
+            } else {
+                estimateEl.innerHTML = '<span>成本取决于实际生成内容</span>';
+                if (executeBtn) executeBtn.textContent = '🚀 开始执行';
+            }
         }
         
         // 关闭技能配置弹窗
@@ -1668,6 +2023,28 @@
             const params = collectSkillParams();
             const skill = SkillManager.getById(skillIdToExecute);
             
+            // 💰 计费检查
+            let filmCost = 0;
+            if (skill && skill.estimateCost) {
+                try {
+                    const cost = skill.estimateCost(params);
+                    filmCost = Math.ceil(cost.film || 0);
+                } catch (e) { filmCost = 1; }
+            }
+            
+            if (filmCost > 0) {
+                // 检查登录状态
+                if (!currentUser) {
+                    showToast('请先登录后再使用技能');
+                    return;
+                }
+                // 检查余额
+                if (userQuota < filmCost) {
+                    showToast(`胶片不足，需要${filmCost}胶片，当前${userQuota}`);
+                    return;
+                }
+            }
+            
             // 关闭配置弹窗（会清空 selectedSkillId）
             document.getElementById('skillConfigModal').classList.remove('show');
             
@@ -1680,9 +2057,16 @@
             
             progressModal.classList.add('show');
             progressBar.style.width = '0%';
-            progressText.textContent = '准备中...';
+            progressText.textContent = filmCost > 0 ? `扣费中... (${filmCost} 胶片)` : '准备中...';
             progressSteps.innerHTML = '';
             progressIcon.textContent = skill?.icon || '🚀';
+            // 🎨 初始化精美动画
+            initSkillParticles();
+            initSkillSparkles();
+            setSkillAnimPhase('preparing');
+            const _pctEl = document.getElementById('spProgressPct');
+            if (_pctEl) _pctEl.textContent = '0%';
+            let _animExecuting = false;
             
             // 添加到对话中
             const welcomeEl = document.getElementById('welcome');
@@ -1692,16 +2076,18 @@
             // 🎯 收集所有生成的媒体内容
             const generatedMedia = [];
             
-            try {
-                await SkillManager.execute(skillIdToExecute, params, {
+            // 💰 包裹执行函数（带计费）
+            const skillApiCall = () => SkillManager.execute(skillIdToExecute, params, {
                     onProgress: (step, progress, message) => {
                         progressBar.style.width = `${progress}%`;
                         progressText.textContent = message || `正在执行: ${step}`;
+                        if (_pctEl) _pctEl.textContent = Math.round(progress) + '%';
+                        if (!_animExecuting) { setSkillAnimPhase('executing'); _animExecuting = true; }
                     },
                     onStepComplete: (stepName, result) => {
                         const stepEl = document.createElement('div');
-                        stepEl.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 0; color:#4ade80; font-size:13px;';
-                        stepEl.innerHTML = `<span>✅</span><span>${stepName}</span>`;
+                        stepEl.className = 'sp-step-item';
+                        stepEl.innerHTML = `<span class="sp-step-check">✅</span><span class="sp-step-name">${stepName}</span>`;
                         progressSteps.appendChild(stepEl);
                         
                         // 🎯 收集生成的媒体内容
@@ -1729,8 +2115,10 @@
                         }
                     },
                     onComplete: (result) => {
-                        progressText.textContent = '✅ 执行完成！';
+                        progressText.textContent = '🎉 执行完成！';
                         progressBar.style.width = '100%';
+                        if (_pctEl) _pctEl.textContent = '100%';
+                        setSkillAnimPhase('complete');
                         setTimeout(() => {
                             progressModal.classList.remove('show');
                             
@@ -1738,17 +2126,37 @@
                             displaySkillResults(skill?.name || skillIdToExecute, result, generatedMedia);
                             
                             showToast(`✅ ${skill?.name || '技能'}执行完成！`);
-                        }, 1500);
+                        }, 2200);
                     },
                     onError: (error) => {
                         progressText.textContent = `❌ 执行失败: ${error.message}`;
+                        setSkillAnimPhase('error');
                         const stepEl = document.createElement('div');
-                        stepEl.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 0; color:#f87171; font-size:13px;';
-                        stepEl.innerHTML = `<span>❌</span><span>${error.message}</span>`;
+                        stepEl.className = 'sp-step-item error';
+                        stepEl.innerHTML = `<span class="sp-step-check">❌</span><span class="sp-step-name">${error.message}</span>`;
                         progressSteps.appendChild(stepEl);
                         addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
                     }
                 });
+            
+            try {
+                // 💰 使用两阶段计费执行
+                if (filmCost > 0 && typeof Billing !== 'undefined' && currentUser) {
+                    await Billing.executeWithBilling({
+                        userId: currentUser.id,
+                        filmCost: filmCost,
+                        apiCall: skillApiCall,
+                        onBalanceUpdate: (newBalance) => {
+                            userQuota = parseFloat(newBalance) || 0;
+                            localStorage.setItem('film_balance', String(userQuota));
+                            updateQuotaDisplay();
+                        },
+                        description: `技能: ${skill?.name || skillIdToExecute}`
+                    });
+                } else {
+                    // 免费技能或未登录，直接执行
+                    await skillApiCall();
+                }
             } catch (error) {
                 console.error('[chat] Skill执行失败:', error);
                 progressModal.classList.remove('show');
@@ -1761,10 +2169,11 @@
             if (typeof SkillManager !== 'undefined') {
                 SkillManager.cancel();
             }
+            setSkillAnimPhase('error');
             document.getElementById('skillProgressText').textContent = '🛑 已取消';
             setTimeout(() => {
                 document.getElementById('skillProgressModal').classList.remove('show');
-            }, 500);
+            }, 800);
             addMessage('🛑 技能执行已取消', 'ai');
         }
         
@@ -1772,6 +2181,241 @@
         function hideSkillProgress() {
             document.getElementById('skillProgressModal').classList.remove('show');
             showToast('技能在后台运行中...');
+        }
+        
+        // ==================== 🎨 技能执行动画系统 ====================
+        function initSkillParticles() {
+            const c = document.getElementById('spParticles');
+            if (!c) return;
+            c.innerHTML = '';
+            for (let i = 0; i < 22; i++) {
+                const p = document.createElement('div');
+                p.className = 'sp-particle';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDelay = Math.random() * 5 + 's';
+                p.style.animationDuration = (4 + Math.random() * 5) + 's';
+                const sz = 2 + Math.random() * 4;
+                p.style.width = sz + 'px';
+                p.style.height = sz + 'px';
+                c.appendChild(p);
+            }
+        }
+        
+        function initSkillSparkles() {
+            const c = document.getElementById('spSparkles');
+            if (!c) return;
+            c.innerHTML = '';
+            const positions = [
+                {top:'5%',left:'8%'}, {top:'12%',right:'3%'},
+                {bottom:'18%',left:'3%'}, {bottom:'8%',right:'12%'},
+                {top:'42%',left:'-8%'}, {top:'28%',right:'-10%'}
+            ];
+            const chars = ['✦','✨','⭐','✦','✧','✦'];
+            positions.forEach((pos, i) => {
+                const s = document.createElement('span');
+                s.className = 'sp-sparkle';
+                s.textContent = chars[i];
+                Object.assign(s.style, pos);
+                s.style.animationDelay = (i * 0.35) + 's';
+                s.style.fontSize = (10 + Math.random() * 8) + 'px';
+                s.style.color = i % 2 === 0 ? 'var(--accent)' : '#f97316';
+                c.appendChild(s);
+            });
+        }
+        
+        function setSkillAnimPhase(phase) {
+            const modal = document.getElementById('skillProgressModal');
+            const phaseEl = document.getElementById('spPhase');
+            if (!modal) return;
+            modal.dataset.phase = phase;
+            if (!phaseEl) return;
+            switch (phase) {
+                case 'preparing': phaseEl.textContent = '🚀 准备启动'; break;
+                case 'executing':  phaseEl.textContent = '⚡ 正在执行'; break;
+                case 'complete':   phaseEl.textContent = '🎉 任务完成'; createConfetti(); break;
+                case 'error':      phaseEl.textContent = '😢 执行出错'; break;
+            }
+        }
+        
+        function createConfetti() {
+            const c = document.getElementById('spConfetti');
+            if (!c) return;
+            c.innerHTML = '';
+            const colors = ['#fbbf24','#f97316','#ef4444','#22c55e','#3b82f6','#a855f7','#ec4899','#14b8a6'];
+            for (let i = 0; i < 55; i++) {
+                const p = document.createElement('div');
+                p.className = 'sp-confetti-piece';
+                p.style.left = (30 + Math.random() * 40) + '%';
+                p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.animationDelay = Math.random() * 0.6 + 's';
+                p.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+                const w = 4 + Math.random() * 7;
+                p.style.width = w + 'px';
+                p.style.height = w * (0.3 + Math.random() * 0.7) + 'px';
+                p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                // 随机方向偏移
+                const xOff = (Math.random() - 0.5) * 200;
+                p.style.setProperty('--x-drift', xOff + 'px');
+                c.appendChild(p);
+            }
+            setTimeout(() => { if (c) c.innerHTML = ''; }, 4000);
+        }
+        
+        // ==================== 🔧 自定义技能 CRUD ====================
+        let editingSkillId = null; // 编辑中的技能 ID
+        
+        function openCreateSkillModal(existingSkillId) {
+            editingSkillId = existingSkillId || null;
+            const modal = document.getElementById('createSkillModal');
+            
+            // 重置表单
+            document.getElementById('csName').value = '';
+            document.getElementById('csDescription').value = '';
+            document.getElementById('csPromptTemplate').value = '';
+            document.getElementById('csTemplateType').value = 'text';
+            document.getElementById('csParamsList').innerHTML = '';
+            document.querySelectorAll('.cs-icon-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelector('.cs-icon-btn[data-icon="🔧"]')?.classList.add('selected');
+            
+            // 如果是编辑模式，填充现有数据
+            if (existingSkillId && typeof SkillManager !== 'undefined') {
+                const skill = SkillManager.getById(existingSkillId);
+                if (skill) {
+                    document.getElementById('csName').value = skill.name || '';
+                    document.getElementById('csDescription').value = skill.description || '';
+                    document.getElementById('csPromptTemplate').value = skill.promptTemplate || '';
+                    document.getElementById('csTemplateType').value = skill.templateType || 'text';
+                    // 选中图标
+                    document.querySelectorAll('.cs-icon-btn').forEach(b => {
+                        b.classList.toggle('selected', b.dataset.icon === skill.icon);
+                    });
+                    // 填充参数
+                    (skill.parameters || []).forEach(p => addCustomParam(p));
+                }
+            }
+            
+            closeSkillDrawer();
+            modal.classList.add('show');
+        }
+        
+        function closeCreateSkillModal() {
+            document.getElementById('createSkillModal').classList.remove('show');
+            editingSkillId = null;
+        }
+        
+        function selectSkillIcon(el) {
+            document.querySelectorAll('.cs-icon-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+        
+        function addCustomParam(existing) {
+            const list = document.getElementById('csParamsList');
+            const row = document.createElement('div');
+            row.className = 'cs-param-row';
+            row.innerHTML = `
+                <input type="text" placeholder="变量名 (key)" class="cs-p-key" value="${existing?.key || ''}">
+                <input type="text" placeholder="显示名称" class="cs-p-label" value="${existing?.label || ''}">
+                <select class="cs-p-type">
+                    <option value="text" ${(existing?.type||'text')==='text'?'selected':''}>文本</option>
+                    <option value="textarea" ${existing?.type==='textarea'?'selected':''}>多行</option>
+                    <option value="number" ${existing?.type==='number'?'selected':''}>数字</option>
+                    <option value="select" ${existing?.type==='select'?'selected':''}>选择</option>
+                </select>
+                <input type="text" placeholder="默认值" class="cs-p-default" value="${existing?.default || ''}" style="max-width:80px;">
+                <button class="cs-param-del" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            list.appendChild(row);
+        }
+        
+        function saveNewCustomSkill() {
+            const name = document.getElementById('csName').value.trim();
+            const promptTemplate = document.getElementById('csPromptTemplate').value.trim();
+            if (!name) { showToast('请输入技能名称'); return; }
+            if (!promptTemplate) { showToast('请输入提示词模板'); return; }
+            
+            const icon = document.querySelector('.cs-icon-btn.selected')?.dataset.icon || '🔧';
+            const templateType = document.getElementById('csTemplateType').value;
+            const description = document.getElementById('csDescription').value.trim() || `自定义${templateType === 'text' ? '文本' : templateType === 'image' ? '图片' : '视频'}技能`;
+            
+            // 收集参数
+            const parameters = [];
+            document.querySelectorAll('.cs-param-row').forEach(row => {
+                const key = row.querySelector('.cs-p-key')?.value.trim();
+                const label = row.querySelector('.cs-p-label')?.value.trim();
+                const type = row.querySelector('.cs-p-type')?.value || 'text';
+                const def = row.querySelector('.cs-p-default')?.value || '';
+                if (key && label) {
+                    parameters.push({ key, label, type, required: true, default: def, placeholder: `请输入${label}` });
+                }
+            });
+            
+            const skillDef = {
+                id: editingSkillId || undefined,
+                name, icon, description,
+                category: 'custom',
+                templateType, promptTemplate, parameters
+            };
+            
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.saveCustomSkill(skillDef);
+                showToast(`✅ 技能「${name}」已保存`);
+                closeCreateSkillModal();
+                // 刷新列表
+                openSkillDrawer();
+                filterSkills('custom');
+            }
+        }
+        
+        function editCustomSkill(skillId) {
+            openCreateSkillModal(skillId);
+        }
+        
+        function deleteCustomSkill(skillId) {
+            if (!confirm('确定删除这个自定义技能？')) return;
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.deleteCustomSkill(skillId);
+                showToast('已删除');
+                renderSkillList();
+            }
+        }
+        
+        function exportCustomSkill(skillId) {
+            if (typeof SkillManager === 'undefined') return;
+            const data = SkillManager.exportSkill(skillId);
+            if (!data) { showToast('导出失败'); return; }
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `skill_${data.skill.name || 'custom'}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('已导出');
+        }
+        
+        function importSkillJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    const text = await file.text();
+                    const json = JSON.parse(text);
+                    if (typeof SkillManager !== 'undefined') {
+                        const skill = SkillManager.importSkill(json);
+                        showToast(`✅ 已导入技能「${skill.name}」`);
+                        closeCreateSkillModal();
+                        openSkillDrawer();
+                        filterSkills('custom');
+                    }
+                } catch (err) {
+                    showToast('导入失败: ' + err.message);
+                }
+            };
+            input.click();
         }
         
         // 🎯 展示技能执行结果
