@@ -558,16 +558,23 @@
                 `;
             }
             if (d.type === 'audio') {
-                const durationStr = d.duration ? `${Math.floor(d.duration / 60)}:${String(Math.floor(d.duration % 60)).padStart(2, '0')}` : '';
+                const uid = 'audio_' + idx + '_' + Date.now();
                 return `
                     <div class="at-deliverable at-deliverable-audio" style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:16px;">
                         <div class="at-d-header" style="margin-bottom:10px;">${d.icon || '🎵'} ${d.agent || ''} ${d.description || ''}</div>
                         ${d.imageUrl ? `<img src="${d.imageUrl}" alt="封面" style="width:100%;max-width:280px;border-radius:8px;margin-bottom:10px;cursor:pointer;" onclick="window.open('${d.imageUrl}','_blank')">` : ''}
                         <div style="font-size:14px;font-weight:600;color:#e0d0ff;margin-bottom:6px;">🎵 ${this._escapeHtml(d.title || '生成音乐')}</div>
                         ${d.tags ? `<div style="font-size:11px;color:#a78bfa;margin-bottom:8px;">🏷️ ${this._escapeHtml(d.tags)}</div>` : ''}
-                        ${durationStr ? `<div style="font-size:11px;color:#888;margin-bottom:8px;">⏱ ${durationStr}</div>` : ''}
-                        <audio src="${d.url}" controls preload="metadata" style="width:100%;margin-top:4px;"></audio>
-                        <div style="margin-top:8px;display:flex;gap:8px;">
+                        <div id="${uid}_dur" style="font-size:11px;color:#888;margin-bottom:8px;"></div>
+                        <audio id="${uid}" controls crossorigin="anonymous" preload="auto" style="width:100%;margin-top:4px;"
+                            onloadedmetadata="(function(a){var d=document.getElementById('${uid}_dur');if(a.duration&&isFinite(a.duration)){var m=Math.floor(a.duration/60),s=Math.floor(a.duration%60);d.textContent='⏱ '+m+':'+String(s).padStart(2,'0')}})(this)"
+                            onerror="this.insertAdjacentHTML('afterend','<div style=\'font-size:12px;color:#f87171;margin-top:4px;\'>⚠️ 播放失败，请点击下方链接直接打开</div>')">
+                            <source src="${d.url}" type="audio/mpeg">
+                            <source src="${d.url}" type="audio/wav">
+                            <source src="${d.url}" type="audio/ogg">
+                        </audio>
+                        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                            <a href="${d.url}" target="_blank" style="font-size:12px;color:#a78bfa;text-decoration:none;">🔗 在新窗口打开</a>
                             <a href="${d.url}" target="_blank" download style="font-size:12px;color:#a78bfa;text-decoration:none;">⬇️ 下载音频</a>
                             ${d.videoUrl ? `<a href="${d.videoUrl}" target="_blank" style="font-size:12px;color:#a78bfa;text-decoration:none;">🎬 查看MV</a>` : ''}
                         </div>
@@ -603,6 +610,13 @@
                     const c = { type: d.type, agent: d.agent, icon: d.icon, description: d.description };
                     if (d.url && !d.url.startsWith('data:')) c.url = d.url;
                     if (d.content) c.content = d.content.substring(0, 2000);
+                    // 保留音频特有字段
+                    if (d.type === 'audio') {
+                        if (d.title) c.title = d.title;
+                        if (d.imageUrl && !d.imageUrl.startsWith('data:')) c.imageUrl = d.imageUrl;
+                        if (d.videoUrl) c.videoUrl = d.videoUrl;
+                        if (d.tags) c.tags = d.tags;
+                    }
                     return c;
                 });
 

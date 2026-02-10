@@ -1162,6 +1162,11 @@
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Gemini TTS失败');
+            // Gemini TTS 返回 audioData(base64)，需要转换为 data URL
+            if (data.audioData) {
+                const mime = data.mimeType || 'audio/wav';
+                return `data:${mime};base64,${data.audioData}`;
+            }
             return data.audioUrl || data.audio_url || '';
         }
 
@@ -1241,13 +1246,15 @@
 
         // DubbingX TTS
         if (engine === 'dubbingx') {
+            // DubbingX 需要 voiceId，如果为空则使用默认音色
+            const dxVoiceId = options.voiceId || 'zh_female_shuangkuaisisi_moon_bigtts';
             const res = await fetch('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'tts-generate',
                     text,
-                    voiceId: options.voiceId || '',
+                    voiceId: dxVoiceId,
                     language: options.language || 'zh',
                     audioSpeed: options.speed || 1,
                     emotion: options.emotion || '',
