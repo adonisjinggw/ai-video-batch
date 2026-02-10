@@ -7,16 +7,16 @@
     <title>🤖 AI对话 - RollRoll</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
-    <script src="/js/api-core.js?v=1.3&t=20260210b"></script>
-    <script src="/js/user-memory.js?v=1.0"></script>
-    <script src="/js/writing-vault.js?v=1.0"></script>
-    <script src="/js/billing.js?v=1.0"></script>
-    <script src="/js/skill-system.js?v=2.3&t=20260210b"></script>
-    <script src="/js/skill-presets.js?v=2.3&t=20260210b"></script>
-    <script src="/js/agent-team.js?v=2.1&t=20260210b"></script>
-    <script src="/js/agent-roles.js?v=2.1&t=20260210b"></script>
-    <script src="/js/agent-ui.js?v=1.1&t=20260210b"></script>
-    <script src="/js/role-expert.js?v=1.0"></script>
+    <script src="/js/api-core.js?v=20260210c&t=20260210c"></script>
+    <script src="/js/user-memory.js?v=20260210c"></script>
+    <script src="/js/writing-vault.js?v=20260210c"></script>
+    <script src="/js/billing.js?v=20260210c"></script>
+    <script src="/js/skill-system.js?v=20260210c&t=20260210c"></script>
+    <script src="/js/skill-presets.js?v=20260210c&t=20260210c"></script>
+    <script src="/js/agent-team.js?v=20260210c&t=20260210c"></script>
+    <script src="/js/agent-roles.js?v=20260210c&t=20260210c"></script>
+    <script src="/js/agent-ui.js?v=20260210c&t=20260210c"></script>
+    <script src="/js/role-expert.js?v=20260210c"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -531,7 +531,7 @@
             overflow: hidden;
         }
         
-        /* 技能配置弹�?*/
+        /* 技能配置弹窗 */
         .skill-config-modal {
             position: fixed;
             inset: 0;
@@ -622,7 +622,7 @@
             font-weight: 700;
         }
         
-        /* ========== 技能执行进�?· 精美卡通动�?========== */
+        /* ========== 技能执行进度 · 精美卡通动画 ========== */
         @keyframes sp-float {
             0% { transform: translateY(0) scale(0.5); opacity:0; }
             10% { opacity:0.7; }
@@ -704,7 +704,7 @@
             background: radial-gradient(circle, rgba(251,191,36,0.8), rgba(249,115,22,0.3));
             animation: sp-float linear infinite; pointer-events: none;
         }
-        /* 内容�?*/
+        /* 内容区 */
         .skill-progress-content {
             max-width: 380px; width: 100%; text-align: center;
             position: relative; z-index: 1;
@@ -730,7 +730,7 @@
             border-radius: 50%;
             animation: sp-shadow-pulse 2.2s ease-in-out infinite;
         }
-        /* 轨道�?*/
+        /* 轨道环 */
         .sp-orbit-ring {
             position: absolute; inset: -8px;
             animation: sp-ring-rotate 6s linear infinite; z-index: 1;
@@ -769,7 +769,7 @@
             color: #fff; font-size: 15px; font-weight: 600;
             margin-bottom: 18px; min-height: 22px;
         }
-        /* 进度�?*/
+        /* 进度条 */
         .sp-progress-wrap {
             display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
         }
@@ -843,7 +843,7 @@
             position: absolute; top: 35%; border-radius: 2px;
             animation: sp-confetti ease-out forwards;
         }
-        /* 阶段状态切�?*/
+        /* 阶段状态切换 */
         .skill-progress-modal[data-phase="complete"] .sp-icon {
             animation: sp-success-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
             border-color: rgba(74,222,128,0.5);
@@ -882,7 +882,7 @@
             font-size: 13px;
             color: var(--accent);
         }
-        /* 自定义技能创建弹�?*/
+        /* 自定义技能创建弹窗 */
         .create-skill-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1003;
             display: none; align-items: center; justify-content: center; padding: 16px;
@@ -1126,12 +1126,12 @@
 
 <body>
     <header class="header">
-        <button class="back-btn" onclick="goBack()">�?返回</button>
+        <button class="back-btn" onclick="goBack()">← 返回</button>
         <h1>🤖 AI对话</h1>
-        <span class="quota-display" id="quotaDisplay">🎞�?--</span>
+        <span class="quota-display" id="quotaDisplay">🎞️ --</span>
     </header>
 
-    <!-- 🎭 角色专家指示�?-->
+    <!-- 🎭 角色专家指示器 -->
     <div id="roleIndicator" style="display:none; padding:8px 20px; background:linear-gradient(90deg, rgba(139,92,246,0.15), rgba(236,72,153,0.1)); border-bottom:1px solid rgba(139,92,246,0.3); cursor:pointer;" onclick="openRoleSelector()">
         <div style="display:flex; align-items:center; justify-content:space-between;">
             <div style="display:flex; align-items:center; gap:8px;">
@@ -1149,30 +1149,30 @@
     <div class="quick-actions" style="padding:12px 20px; background:var(--bg-dark); border-bottom:1px solid #222;">
         <div class="quick-questions" style="margin-top:0;">
             <span class="quick-q" onclick="openRoleSelector()" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.15)); border:1px solid rgba(139,92,246,0.4); color:#a78bfa;">🎭 角色专家</span>
-            <span class="quick-q" onclick="fillInput('帮我写一个短视频剧本，主题是')">📝 写剧�?/span>
-            <span class="quick-q" onclick="fillInput('给我一些关于的创意灵感', 5)">💡 找灵�?/span>
-            <span class="quick-q" onclick="fillInput('帮我优化这段文案�?)">�?优化文案</span>
+            <span class="quick-q" onclick="fillInput('帮我写一个短视频剧本，主题是')">📝 写剧本</span>
+            <span class="quick-q" onclick="fillInput('给我一些关于的创意灵感', 5)">💡 找灵感</span>
+            <span class="quick-q" onclick="fillInput('帮我优化这段文案：')">✨ 优化文案</span>
             <span class="quick-q" onclick="startStoryboardMode()">🎬 分镜设计</span>
-            <span class="quick-q" onclick="openSkillDrawer()">🧩 技�?/span>
+            <span class="quick-q" onclick="openSkillDrawer()">🧩 技能</span>
             <span class="quick-q" onclick="AgentUI.open()">🤖 智能团队</span>
-            <span class="quick-q" onclick="fillInput('搜索最�?)">🌐 联网搜索</span>
+            <span class="quick-q" onclick="fillInput('搜索最新')">🌐 联网搜索</span>
         </div>
     </div>
     
     <div class="chat-container" id="chatContainer">
         <div class="welcome" id="welcome">
-            <h2>👋 你好�?/h2>
-            <p>我是你的AI助手，有什么可以帮你的�?/p>
-            <p class="cost-hint">按实际token消耗计费，最�?胶片</p>
+            <h2>👋 你好！</h2>
+            <p>我是你的AI助手，有什么可以帮你的？</p>
+            <p class="cost-hint">按实际token消耗计费，最低1胶片</p>
         </div>
     </div>
 
     <div class="input-area">
         <div style="position:relative;">
-            <button class="upload-btn" id="uploadBtn" onclick="toggleUploadMenu()">�?/button>
+            <button class="upload-btn" id="uploadBtn" onclick="toggleUploadMenu()">➕</button>
             <div class="upload-menu" id="uploadMenu">
                 <div class="upload-menu-item" onclick="triggerUpload('image')">
-                    <span class="icon">🖼�?/span>
+                    <span class="icon">🖼️</span>
                     <span>上传图片</span>
                 </div>
                 <div class="upload-menu-item" onclick="triggerUpload('video')">
@@ -1190,7 +1190,7 @@
             <textarea class="input-box" id="inputBox" placeholder="输入消息..." rows="1"
                 onkeydown="handleKeydown(event)"></textarea>
         </div>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">�?/button>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
     </div>
     
     <!-- 隐藏的文件上传输入框 -->
@@ -1205,7 +1205,7 @@
     <div id="roleSelectPanel" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.7);" onclick="closeRoleSelector()">
         <div style="position:absolute; bottom:0; left:0; right:0; max-height:75vh; background:#111; border-radius:16px 16px 0 0; overflow:hidden;" onclick="event.stopPropagation()">
             <div style="padding:16px 20px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:16px; font-weight:600;">🎭 角色专家 <span style="font-size:12px; color:#888; font-weight:400;">+1胶片/�?/span></div>
+                <div style="font-size:16px; font-weight:600;">🎭 角色专家 <span style="font-size:12px; color:#888; font-weight:400;">+1胶片/条</span></div>
                 <button onclick="closeRoleSelector()" style="background:none; border:none; color:#888; font-size:20px; cursor:pointer;">&times;</button>
             </div>
             <!-- 分类标签 -->
@@ -1226,7 +1226,7 @@
                 <!-- 团队选择 -->
                 <div id="atView_select" style="display:flex; flex-direction:column; gap:12px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div style="font-size:13px; color:#888;">选择一个团队模板，或自由组�?/div>
+                        <div style="font-size:13px; color:#888;">选择一个团队模板，或自由组队</div>
                         <button class="at-btn at-btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="AgentUI.showTeamHistory()">📂 历史</button>
                     </div>
                     <div id="atTemplateGrid"></div>
@@ -1235,7 +1235,7 @@
                 <div id="atView_config" style="display:none; flex-direction:column; gap:12px;">
                     <div id="atConfigArea"></div>
                 </div>
-                <!-- 运行�?-->
+                <!-- 运行中 -->
                 <div id="atView_running" style="display:none; flex-direction:column; gap:8px;">
                     <div id="atRunArea"></div>
                 </div>
@@ -1260,132 +1260,132 @@
             <button class="skill-filter-btn" data-category="design" onclick="filterSkills('design')">🎯 设计</button>
             <button class="skill-filter-btn" data-category="content" onclick="filterSkills('content')">📝 内容</button>
             <button class="skill-filter-btn" data-category="tool" onclick="filterSkills('tool')">🔍 工具</button>
-            <button class="skill-filter-btn" data-category="automation" onclick="filterSkills('automation')">🤖 自动�?/button>
-            <button class="skill-filter-btn" data-category="custom" onclick="filterSkills('custom')">🔧 自定�?/button>
+            <button class="skill-filter-btn" data-category="automation" onclick="filterSkills('automation')">🤖 自动化</button>
+            <button class="skill-filter-btn" data-category="custom" onclick="filterSkills('custom')">🔧 自定义</button>
         </div>
         <div class="skill-search">
-            <input type="text" id="skillSearch" placeholder="🔍 搜索技�?.." oninput="searchSkills(this.value)">
+            <input type="text" id="skillSearch" placeholder="🔍 搜索技能..." oninput="searchSkills(this.value)">
         </div>
         <div class="skill-list" id="skillList">
-            <!-- �?JS 动态渲�?-->
+            <!-- 由 JS 动态渲染 -->
         </div>
         <div style="padding:12px 16px; border-top:1px solid #333;">
-            <button onclick="openCreateSkillModal()" style="width:100%; padding:12px; background:linear-gradient(135deg,#333,#2a2a2a); border:1px dashed #555; border-radius:10px; color:#aaa; font-size:14px; cursor:pointer;">�?创建自定义技�?/button>
+            <button onclick="openCreateSkillModal()" style="width:100%; padding:12px; background:linear-gradient(135deg,#333,#2a2a2a); border:1px dashed #555; border-radius:10px; color:#aaa; font-size:14px; cursor:pointer;">➕ 创建自定义技能</button>
         </div>
     </div>
     
-    <!-- 技能配置弹�?-->
+    <!-- 技能配置弹窗 -->
     <div class="skill-config-modal" id="skillConfigModal">
         <div class="skill-config-content">
             <div class="skill-config-header">
-                <h3 id="skillConfigTitle">🧩 技能配�?/h3>
+                <h3 id="skillConfigTitle">🧩 技能配置</h3>
                 <button class="skill-drawer-close" onclick="closeSkillConfig()">&times;</button>
             </div>
             <div class="skill-config-body">
                 <div class="skill-config-desc" id="skillConfigDesc"></div>
                 <div class="skill-config-form" id="skillConfigForm">
-                    <!-- �?JS 动态生�?-->
+                    <!-- 由 JS 动态生成 -->
                 </div>
                 <div class="skill-cost-estimate" id="skillCostEstimate"></div>
             </div>
             <div class="skill-config-footer">
                 <button class="skill-config-cancel" onclick="closeSkillConfig()">取消</button>
-                <button class="skill-config-execute" id="skillExecuteBtn" onclick="executeSelectedSkill()">🚀 开始执�?/button>
+                <button class="skill-config-execute" id="skillExecuteBtn" onclick="executeSelectedSkill()">🚀 开始执行</button>
             </div>
         </div>
     </div>
     
-    <!-- 自定义技能创建弹�?-->
+    <!-- 自定义技能创建弹窗 -->
     <div class="create-skill-modal" id="createSkillModal">
         <div class="create-skill-content">
-            <h3>🔧 创建自定义技�?<button class="cs-btn-help" onclick="toggleSkillHelp()">�?帮助教程</button></h3>
+            <h3>🔧 创建自定义技能 <button class="cs-btn-help" onclick="toggleSkillHelp()">❓ 帮助教程</button></h3>
             
             <!-- 帮助面板 -->
             <div class="cs-help-panel" id="csHelpPanel">
                 <h4>📖 什么是自定义技能？</h4>
-                自定义技能就是一�?strong>提示词模�?/strong>，你可以把常用的AI指令保存为技能，每次使用时只需填入不同的参数即可�?
+                自定义技能就是一个<strong>提示词模板</strong>，你可以把常用的AI指令保存为技能，每次使用时只需填入不同的参数即可。
                 
                 <h4>📝 核心概念：提示词模板</h4>
-                在模板中�?<code>{{变量名}}</code> 标记需要动态替换的内容。执行时系统会把 <code>{{变量名}}</code> 替换为你输入的实际值�?
-                <div class="cs-help-example">模板：请�?span style="color:#fbbf24">{{topic}}</span>写一�?span style="color:#fbbf24">{{style}}</span>风格的文�?
+                在模板中用 <code>{{变量名}}</code> 标记需要动态替换的内容。执行时系统会把 <code>{{变量名}}</code> 替换为你输入的实际值。
+                <div class="cs-help-example">模板：请为<span style="color:#fbbf24">{{topic}}</span>写一篇<span style="color:#fbbf24">{{style}}</span>风格的文案
 参数填入：topic=旅行 style=文艺
 实际发送：请为旅行写一篇文艺风格的文案</div>
                 
                 <h4>⚙️ 参数定义说明</h4>
-                每个 <code>{{变量名}}</code> 都需要在「参数定义」中添加对应条目�?
+                每个 <code>{{变量名}}</code> 都需要在「参数定义」中添加对应条目：
                 <div style="margin:6px 0;">
-                <span class="cs-help-tag">变量�?(key)</span> 必须和模板中 <code>{{...}}</code> 里的名字一�?
-                <br><span class="cs-help-tag">显示名称</span> 用户看到的中文标�?
+                <span class="cs-help-tag">变量名 (key)</span> 必须和模板中 <code>{{...}}</code> 里的名字一致
+                <br><span class="cs-help-tag">显示名称</span> 用户看到的中文标签
                 <br><span class="cs-help-tag">类型</span> 文本 / 多行文本 / 数字 / 选择
-                <br><span class="cs-help-tag">默认�?/span> 可选，预填的初始�?
+                <br><span class="cs-help-tag">默认值</span> 可选，预填的初始值
                 </div>
                 
-                <h4>🎯 完整示例 1：小红书笔记生成�?/h4>
+                <h4>🎯 完整示例 1：小红书笔记生成器</h4>
                 <div class="cs-help-example"><strong>技能名称：</strong>小红书笔记生成器
-<strong>图标�?/strong>📝  <strong>模板类型�?/strong>文本生成
-<strong>描述�?/strong>一键生成小红书爆款笔记
+<strong>图标：</strong>📝  <strong>模板类型：</strong>文本生成
+<strong>描述：</strong>一键生成小红书爆款笔记
 <strong>提示词模板：</strong>
-请为「{{topic}}」生成{{count}}条小红书风格的笔记文案�?
-要求�?
+请为「{{topic}}」生成{{count}}条小红书风格的笔记文案。
+要求：
 1. 标题要有吸引力，善用emoji
 2. 风格：{{style}}
-3. 每条200-300�?
-4. 包含3-5个话题标�?
+3. 每条200-300字
+4. 包含3-5个话题标签
 
-<strong>参数定义�?/strong>
-  变量�? topic    显示名称: 笔记主题   类型: 文本   默认�? (�?
-  变量�? count    显示名称: 生成条数   类型: 数字   默认�? 3
-  变量�? style    显示名称: 写作风格   类型: 文本   默认�? 活泼有趣</div>
+<strong>参数定义：</strong>
+  变量名: topic    显示名称: 笔记主题   类型: 文本   默认值: (空)
+  变量名: count    显示名称: 生成条数   类型: 数字   默认值: 3
+  变量名: style    显示名称: 写作风格   类型: 文本   默认值: 活泼有趣</div>
                 
-                <h4>🎯 完整示例 2：AI绘图提示词翻�?/h4>
-                <div class="cs-help-example"><strong>技能名称：</strong>提示词翻译助�?
-<strong>图标�?/strong>🎨  <strong>模板类型�?/strong>文本生成
-<strong>描述�?/strong>把中文画面描述翻译为英文AI绘图提示�?
+                <h4>🎯 完整示例 2：AI绘图提示词翻译</h4>
+                <div class="cs-help-example"><strong>技能名称：</strong>提示词翻译助手
+<strong>图标：</strong>🎨  <strong>模板类型：</strong>文本生成
+<strong>描述：</strong>把中文画面描述翻译为英文AI绘图提示词
 <strong>提示词模板：</strong>
 请把以下中文画面描述翻译为专业的AI绘图提示词（英文），
-要求用Stable Diffusion / Midjourney 风格的关键词描述�?
-包含画面内容、光影、构图、风格等维度�?
+要求用Stable Diffusion / Midjourney 风格的关键词描述，
+包含画面内容、光影、构图、风格等维度。
 
 中文描述：{{description}}
 画风偏好：{{art_style}}
 
-<strong>参数定义�?/strong>
-  变量�? description  显示名称: 画面描述   类型: 多行   默认�? (�?
-  变量�? art_style    显示名称: 画风偏好   类型: 文本   默认�? 电影质感</div>
+<strong>参数定义：</strong>
+  变量名: description  显示名称: 画面描述   类型: 多行   默认值: (空)
+  变量名: art_style    显示名称: 画风偏好   类型: 文本   默认值: 电影质感</div>
                 
-                <h4>🎯 完整示例 3：视频脚本生�?/h4>
-                <div class="cs-help-example"><strong>技能名称：</strong>短视频脚本生�?
-<strong>图标�?/strong>🎬  <strong>模板类型�?/strong>文本生成
-<strong>描述�?/strong>根据主题自动生成带分镜的短视频脚�?
+                <h4>🎯 完整示例 3：视频脚本生成</h4>
+                <div class="cs-help-example"><strong>技能名称：</strong>短视频脚本生成
+<strong>图标：</strong>🎬  <strong>模板类型：</strong>文本生成
+<strong>描述：</strong>根据主题自动生成带分镜的短视频脚本
 <strong>提示词模板：</strong>
-请为主题「{{topic}}」生成一个{{duration}}秒的短视频脚本�?
+请为主题「{{topic}}」生成一个{{duration}}秒的短视频脚本。
 目标平台：{{platform}}
-要求�?
-1. 包含画面描述、台�?旁白、背景音乐建�?
+要求：
+1. 包含画面描述、台词/旁白、背景音乐建议
 2. 分镜头设计，标注每个镜头时长
-3. 开�?秒必须有hook吸引观众
+3. 开头3秒必须有hook吸引观众
 
-<strong>参数定义�?/strong>
-  变量�? topic     显示名称: 视频主题   类型: 文本   默认�? (�?
-  变量�? duration  显示名称: 视频时长   类型: 数字   默认�? 60
-  变量�? platform  显示名称: 目标平台   类型: 文本   默认�? 抖音</div>
+<strong>参数定义：</strong>
+  变量名: topic     显示名称: 视频主题   类型: 文本   默认值: (空)
+  变量名: duration  显示名称: 视频时长   类型: 数字   默认值: 60
+  变量名: platform  显示名称: 目标平台   类型: 文本   默认值: 抖音</div>
                 
-                <h4>💡 小技�?/h4>
-                �?提示词写得越<strong>具体</strong>，AI输出效果越好<br>
-                �?可以�?<code>📥 导入</code> 按钮导入别人分享的技能JSON文件<br>
-                �?创建好的技能可以点 <code>📤 导出</code> 分享给朋�?br>
-                �?模板类型选「图片生成」会调用图片API，「文本生成」会调用文本API
+                <h4>💡 小技巧</h4>
+                • 提示词写得越<strong>具体</strong>，AI输出效果越好<br>
+                • 可以用 <code>📥 导入</code> 按钮导入别人分享的技能JSON文件<br>
+                • 创建好的技能可以点 <code>📤 导出</code> 分享给朋友<br>
+                • 模板类型选「图片生成」会调用图片API，「文本生成」会调用文本API
             </div>
             
             <div class="cs-field">
-                <label>技能名�?*</label>
-                <input type="text" id="csName" placeholder="例如：小红书笔记生成�?>
+                <label>技能名称 *</label>
+                <input type="text" id="csName" placeholder="例如：小红书笔记生成器">
             </div>
             <div class="cs-field">
                 <label>图标</label>
                 <div class="cs-icons" id="csIconPicker">
                     <span class="cs-icon-btn selected" data-icon="🔧" onclick="selectSkillIcon(this)">🔧</span>
-                    <span class="cs-icon-btn" data-icon="�? onclick="selectSkillIcon(this)">�?/span>
+                    <span class="cs-icon-btn" data-icon="✨" onclick="selectSkillIcon(this)">✨</span>
                     <span class="cs-icon-btn" data-icon="💡" onclick="selectSkillIcon(this)">💡</span>
                     <span class="cs-icon-btn" data-icon="🎨" onclick="selectSkillIcon(this)">🎨</span>
                     <span class="cs-icon-btn" data-icon="📸" onclick="selectSkillIcon(this)">📸</span>
@@ -1411,7 +1411,7 @@
                 <input type="text" id="csDescription" placeholder="简要描述这个技能的功能">
             </div>
             <div class="cs-field">
-                <label>提示词模�?* <span style="color:#666; font-size:12px;">(�?{{变量名}} 引用参数)</span></label>
+                <label>提示词模板 * <span style="color:#666; font-size:12px;">(用 {{变量名}} 引用参数)</span></label>
                 <textarea id="csPromptTemplate" placeholder="例如：请为{{topic}}生成{{count}}条小红书风格的笔记文案，要求吸引眼球、有干货..."></textarea>
             </div>
             <div class="cs-field">
@@ -1421,7 +1421,7 @@
             <div class="cs-footer">
                 <button class="cs-btn-import" onclick="importSkillJSON()">📥 导入</button>
                 <button class="cs-btn-cancel" onclick="closeCreateSkillModal()">取消</button>
-                <button class="cs-btn-save" onclick="saveNewCustomSkill()">保存技�?/button>
+                <button class="cs-btn-save" onclick="saveNewCustomSkill()">保存技能</button>
             </div>
         </div>
     </div>
@@ -1440,7 +1440,7 @@
                 <div class="sp-sparkles" id="spSparkles"></div>
             </div>
             <div class="sp-phase" id="spPhase">🚀 准备启动</div>
-            <div class="skill-progress-text" id="skillProgressText">准备�?..</div>
+            <div class="skill-progress-text" id="skillProgressText">准备中...</div>
             <div class="sp-progress-wrap">
                 <div class="sp-progress-track">
                     <div class="sp-progress-fill" id="skillProgressBar"></div>
@@ -1460,10 +1460,10 @@
         // 使用 NVAuth 模块
         var _sbClient = null, currentUser = null, userQuota = 0;
         let authInitialized = false;
-        // 💰 AI对话费用（后端按token实际消耗计费，1胶片=¥0.3�?
-        const MIN_CHAT_COST = 1;  // 最�?胶片（用于余额检查）
+        // 💰 AI对话费用（后端按token实际消耗计费，1胶片=¥0.3）
+        const MIN_CHAT_COST = 1;  // 最低1胶片（用于余额检查）
 
-        // 初始�?
+        // 初始化
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('[chat] 页面加载完成，开始初始化...');
             
@@ -1483,39 +1483,39 @@
                 console.log('[chat] 发送按钮事件已绑定');
             }
             
-            // 🔧 修复：快捷输入按钮支持触摸事�?
+            // 🔧 修复：快捷输入按钮支持触摸事件
             document.querySelectorAll('.quick-q').forEach(btn => {
                 btn.addEventListener('touchend', function(e) {
                     e.preventDefault();
                     const text = this.textContent.replace(/^[^\s]+\s*/, ''); // 移除emoji前缀
                     
-                    // 🧩 特殊按钮：调用对应函数而不是发送问�?
-                    if (text === '技�?) {
+                    // 🧩 特殊按钮：调用对应函数而不是发送问题
+                    if (text === '技能') {
                         console.log('[chat] 技能按钮被点击');
                         openSkillDrawer();
                         return;
                     }
                     if (text === '分镜设计') {
-                        console.log('[chat] 分镜设计按钮被点�?);
+                        console.log('[chat] 分镜设计按钮被点击');
                         startStoryboardMode();
                         return;
                     }
                     if (text === '智能团队') {
-                        console.log('[chat] 智能团队按钮被点�?);
+                        console.log('[chat] 智能团队按钮被点击');
                         if (typeof AgentUI !== 'undefined') AgentUI.open();
                         return;
                     }
                     if (text === '角色专家') {
-                        console.log('[chat] 角色专家按钮被点�?);
+                        console.log('[chat] 角色专家按钮被点击');
                         if (typeof openRoleSelector === 'function') openRoleSelector();
                         return;
                     }
                     
                     const fillMap = {
-                        '写剧�?: '帮我写一个短视频剧本，主题是',
-                        '找灵�?: { text: '给我一些关于的创意灵感', cursor: 5 },
-                        '优化文案': '帮我优化这段文案�?,
-                        '联网搜索': '搜索最�?
+                        '写剧本': '帮我写一个短视频剧本，主题是',
+                        '找灵感': { text: '给我一些关于的创意灵感', cursor: 5 },
+                        '优化文案': '帮我优化这段文案：',
+                        '联网搜索': '搜索最新'
                     };
                     const fillText = fillMap[text];
                     if (fillText) {
@@ -1529,7 +1529,7 @@
                 });
             });
             
-            // 🔧 修复：返回按钮支持触摸事�?
+            // 🔧 修复：返回按钮支持触摸事件
             const backBtn = document.querySelector('.back-btn');
             if (backBtn) {
                 backBtn.addEventListener('touchend', function(e) {
@@ -1544,12 +1544,12 @@
             updateQuotaDisplay();
             // 🎭 初始化角色专家指示器
             _updateRoleIndicator();
-            console.log('[chat] 初始化完�?);
+            console.log('[chat] 初始化完成');
         });
 
         async function checkUser() {
             try {
-                // 等待认证状态就�?
+                // 等待认证状态就绪
                 await Promise.race([
                     typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
                     new Promise(resolve => setTimeout(resolve, 3000))
@@ -1557,16 +1557,16 @@
                 
                 currentUser = await NVAuth.getCurrentUser();
                 if (currentUser) {
-                    console.log('[chat] 用户已登�?', currentUser.email);
+                    console.log('[chat] 用户已登录:', currentUser.email);
                     await loadUserQuota();
                 } else {
-                    console.log('[chat] 用户未登�?);
+                    console.log('[chat] 用户未登录');
                 }
-            } catch (e) { console.error('检查用户失�?', e); }
+            } catch (e) { console.error('检查用户失败:', e); }
             
-            // 标记认证初始化完�?
+            // 标记认证初始化完成
             authInitialized = true;
-            console.log('[chat] 认证初始化完�? currentUser:', currentUser ? currentUser.email : 'null');
+            console.log('[chat] 认证初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
         }
 
         async function loadUserQuota() {
@@ -1581,18 +1581,18 @@
         function updateQuotaDisplay() {
             const el = document.getElementById('quotaDisplay');
             if (currentUser) {
-                el.textContent = `🎞�?${userQuota}`;
+                el.textContent = `🎞️ ${userQuota}`;
             } else {
-                el.textContent = '🎞�?未登�?;
+                el.textContent = '🎞️ 未登录';
             }
         }
 
-        // 预扣费函�?
+        // 预扣费函数
         async function preDeduct(cost, description) {
-            // 🔧 修复：确保cost是整数（数据库是INTEGER类型�?
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
             cost = Math.ceil(cost);
             
-            // 等待认证初始化完�?
+            // 等待认证初始化完成
             if (!authInitialized) {
                 const waitStart = Date.now();
                 while (!authInitialized && (Date.now() - waitStart) < 3000) {
@@ -1601,7 +1601,7 @@
             }
             
             if (!currentUser) { showToast('请先登录'); return false; }
-            if (userQuota < cost) { showToast(`胶片不足，需�?{cost}胶片`); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
             try {
                 const res = await fetch('/api/supabase-proxy', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1609,19 +1609,19 @@
                 });
                 const data = await res.json().catch(() => ({}));
                 
-                // 🔧 修复：先检�?HTTP 状态码
+                // 🔧 修复：先检查 HTTP 状态码
                 if (!res.ok) {
                     if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
-                        throw new Error('余额不足，请先充�?);
+                        throw new Error('余额不足，请先充值');
                     }
-                    throw new Error(data.message || data.error || `服务器错�? ${res.status}`);
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
                 }
                 
                 if (data.success || data.newBalance !== undefined) {
                     userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
                     localStorage.setItem('film_balance', String(userQuota));
                     updateQuotaDisplay();
-                    console.log(`🎞�?预扣费成�? -${cost}胶片, 余额=${userQuota}`);
+                    console.log(`🎞️ 预扣费成功: -${cost}胶片, 余额=${userQuota}`);
                     return true;
                 }
                 throw new Error(data.message || data.error || '扣费失败');
@@ -1635,7 +1635,7 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // 返回函数 - 直接返回 mobile.html 工作�?
+        // 返回函数 - 直接返回 mobile.html 工作区
         function goBack() {
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
@@ -1651,53 +1651,53 @@
         let isGenerating = false;
 
         // 🧠 智能模型路由：根据用户输入自动选择性价比最高的模型
-        // 🌟 默认首�?grok-4-fast：生成文章、提示词优化、生成提示词
-        // 模型价格参�?(yunwu.ai):
-        // - grok-4-fast: 输入�?.5/1M, 输出�?.0/1M (首选对话模�?
-        // - gemini-3-flash-preview: 输入�?.15/1M, 输出�?.9/1M (最便宜)
-        // - qwen-plus: 输入�?.24/1M, 输出�?.6/1M (中文优化)
-        // - gemini-3-pro-preview: 输入�?.6/1M, 输出�?.6/1M (多模�?
-        // - gemini-3-pro-preview-thinking: 输入�?.6/1M, 输出�?.6/1M (思考模�?
+        // 🌟 默认首选 grok-4-fast：生成文章、提示词优化、生成提示词
+        // 模型价格参考 (yunwu.ai):
+        // - grok-4-fast: 输入￥1.5/1M, 输出￥6.0/1M (首选对话模型)
+        // - gemini-3-flash-preview: 输入￥0.15/1M, 输出￥0.9/1M (最便宜)
+        // - qwen-plus: 输入￥0.24/1M, 输出￥0.6/1M (中文优化)
+        // - gemini-3-pro-preview: 输入￥0.6/1M, 输出￥3.6/1M (多模态)
+        // - gemini-3-pro-preview-thinking: 输入￥0.6/1M, 输出￥3.6/1M (思考模式)
         function selectModelByIntent(text) {
             const lower = text.toLowerCase();
             
-            // 🎬 分镜/视觉/电影相关 �?Gemini-3 Pro Thinking (深度推理)
+            // 🎬 分镜/视觉/电影相关 → Gemini-3 Pro Thinking (深度推理)
             const visualKeywords = ['分镜', '视觉', '电影', '场景', '画面', '镜头', '拍摄', '运镜', '组成', '構图', '光影', '布光', '角度', '景别', '特写', '远景', '中景', '近景', 'storyboard', '策划分镜', '视觉冲击'];
             if (visualKeywords.some(kw => lower.includes(kw))) {
                 return { model: 'gemini-3-pro-preview-thinking', type: 'visual', icon: '🎬', cost: 2 };
             }
             
-            // 🧠 深度分析/推理 �?Gemini-3 Pro Thinking
-            const thinkingKeywords = ['深度分析', '详细分析', '思�?, '推理', '论证', '证明', '复杂问题', '多步�?];
+            // 🧠 深度分析/推理 → Gemini-3 Pro Thinking
+            const thinkingKeywords = ['深度分析', '详细分析', '思考', '推理', '论证', '证明', '复杂问题', '多步骤'];
             if (thinkingKeywords.some(kw => lower.includes(kw))) {
                 return { model: 'gemini-3-pro-preview-thinking', type: 'thinking', icon: '🧠', cost: 2 };
             }
             
-            // 🔍 普通分�?理解/解释 �?Qwen Plus (中文优化且便�?
-            const analysisKeywords = ['分析', '解释', '为什�?, '原因', '理解', '比较', '区别', '优劣', '评价', '总结', '归纳'];
+            // 🔍 普通分析/理解/解释 → Qwen Plus (中文优化且便宜)
+            const analysisKeywords = ['分析', '解释', '为什么', '原因', '理解', '比较', '区别', '优劣', '评价', '总结', '归纳'];
             if (analysisKeywords.some(kw => lower.includes(kw))) {
                 return { model: 'qwen-plus', type: 'analysis', icon: '🔍', cost: 1 };
             }
             
-            // 💻 编程/代码 �?Qwen Plus (代码能力强且便宜)
-            const codeKeywords = ['代码', '编程', '函数', '算法', '报错', 'bug', 'code', 'python', 'javascript', 'java', 'html', 'css', 'sql', '调试', '开�?, '程序', '脚本'];
+            // 💻 编程/代码 → Qwen Plus (代码能力强且便宜)
+            const codeKeywords = ['代码', '编程', '函数', '算法', '报错', 'bug', 'code', 'python', 'javascript', 'java', 'html', 'css', 'sql', '调试', '开发', '程序', '脚本'];
             if (codeKeywords.some(kw => lower.includes(kw))) {
                 return { model: 'qwen-plus', type: 'code', icon: '💻', cost: 1 };
             }
             
-            // 🌐 联网搜索/实时信息 �?Gemini-3 Flash (快速且便宜)
-            const searchKeywords = ['搜索', '查找', '最�?, '今天', '新闻', '实时', '现在', '当前', '天气', '股价', '热约', '赛事', '比赛', '哪里', '谁是', '多少�?];
+            // 🌐 联网搜索/实时信息 → Gemini-3 Flash (快速且便宜)
+            const searchKeywords = ['搜索', '查找', '最新', '今天', '新闻', '实时', '现在', '当前', '天气', '股价', '热约', '赛事', '比赛', '哪里', '谁是', '多少钱'];
             if (searchKeywords.some(kw => lower.includes(kw))) {
                 return { model: 'gemini-3-flash-preview', type: 'search', icon: '🌐', enableSearch: true, cost: 1 };
             }
             
-            // 🔍 OCR/文字识别 �?deepseek-ocr
-            const ocrKeywords = ['ocr', '识别文字', '文字识别', '提取文字', '读取文字', '图片文字', '截图文字', '识别内容', '识别一�?, '看看写的什�?, '读出�?];
+            // 🔍 OCR/文字识别 → deepseek-ocr
+            const ocrKeywords = ['ocr', '识别文字', '文字识别', '提取文字', '读取文字', '图片文字', '截图文字', '识别内容', '识别一下', '看看写的什么', '读出来'];
             if (ocrKeywords.some(kw => lower.includes(kw))) {
                 return { model: 'deepseek-ocr', type: 'ocr', icon: '🔍', cost: 2 };
             }
             
-            // 🌟 默认：生成文�?提示词优�?创意写作/对话 �?Grok-4 Fast (首�?
+            // 🌟 默认：生成文章/提示词优化/创意写作/对话 → Grok-4 Fast (首选)
             return { model: 'grok-4-fast', type: 'chat', icon: '🌟', cost: 2 };
         }
         
@@ -1706,7 +1706,7 @@
             'grok-4-fast': 'Grok-4 Fast',
             'gemini-3-flash-preview': 'Gemini Flash',
             'gemini-3-pro-preview': 'Gemini Pro',
-            'gemini-3-pro-preview-thinking': 'Gemini 思�?,
+            'gemini-3-pro-preview-thinking': 'Gemini 思考',
             'qwen-plus': '通义千问',
             'deepseek-ocr': 'DeepSeek OCR',
             'gemini-2.0-flash': 'Gemini Vision'
@@ -1753,7 +1753,7 @@
                     <div style="font-size:24px; margin-bottom:6px;">${r.icon}</div>
                     <div style="font-size:14px; font-weight:600; color:#fff; margin-bottom:2px;">${r.name}</div>
                     <div style="font-size:11px; color:#888; line-height:1.4;">${r.description}</div>
-                    ${r.id === activeId ? '<div style="margin-top:6px; font-size:10px; color:#a78bfa;">�?当前使用�?/div>' : ''}
+                    ${r.id === activeId ? '<div style="margin-top:6px; font-size:10px; color:#a78bfa;">✅ 当前使用中</div>' : ''}
                 </div>
             `).join('');
         }
@@ -1762,7 +1762,7 @@
             if (typeof RoleExpert === 'undefined') return;
             const current = RoleExpert.getActive();
             if (current && current.id === roleId) {
-                // 点击已激活的角色 �?取消
+                // 点击已激活的角色 → 取消
                 RoleExpert.deactivate();
             } else {
                 RoleExpert.activate(roleId);
@@ -1786,28 +1786,28 @@
                 indicator.style.display = 'block';
                 document.getElementById('roleIndicatorIcon').textContent = role.icon;
                 document.getElementById('roleIndicatorName').textContent = role.name + ' 模式';
-                document.getElementById('roleIndicatorDesc').textContent = role.description + ' · +1胶片/�?;
+                document.getElementById('roleIndicatorDesc').textContent = role.description + ' · +1胶片/条';
             } else {
                 indicator.style.display = 'none';
             }
         }
 
-        // 🎬 好莱坎视觉指导系统提示词（简洁版�?
-        const HOLLYWOOD_VISUAL_DIRECTOR_PROMPT = `你是专业分镜设计师。直接输出分镜表，不要废话�?
+        // 🎬 好莱坎视觉指导系统提示词（简洁版）
+        const HOLLYWOOD_VISUAL_DIRECTOR_PROMPT = `你是专业分镜设计师。直接输出分镜表，不要废话。
 
-格式（每个分镜一行）�?
-【镜号】景�?| 画面内容 | 镜头运动 | 时长
+格式（每个分镜一行）：
+【镜号】景别 | 画面内容 | 镜头运动 | 时长
 
-示例�?
-�?】远�?| 日落海边，人物剑影走�?| 推镜 | 3s
-�?】中�?| 人物正面，表情坚�?| 固定 | 2s
+示例：
+【1】远景 | 日落海边，人物剑影走来 | 推镜 | 3s
+【2】中景 | 人物正面，表情坚毅 | 固定 | 2s
 
-注意�?
-- 只输出分镜表，不要其他内�?
+注意：
+- 只输出分镜表，不要其他内容
 - 每个分镜一行，简洁明了`;
 
         // 填充输入框（不自动发送，让用户继续编辑）
-        // cursorAt: 可选，光标位置索引；默认末�?
+        // cursorAt: 可选，光标位置索引；默认末尾
         function fillInput(text, cursorAt) {
             const input = document.getElementById('inputBox');
             input.value = text;
@@ -1830,9 +1830,9 @@
             const welcomeEl = document.getElementById('welcome');
             if (welcomeEl) welcomeEl.style.display = 'none';
             // 显示AI询问
-            addMessage('🎬 分镜设计模式\n\n请描述你想要的场景或故事，我来帮你规划分镜。\n\n例如：\n�?一个女孩在海边看日落\n�?美食探店vlog开场\n�?产品广告展示', 'ai');
-            // 设置输入框提�?
-            document.getElementById('inputBox').placeholder = '描述你的场景或故�?..';
+            addMessage('🎬 分镜设计模式\n\n请描述你想要的场景或故事，我来帮你规划分镜。\n\n例如：\n• 一个女孩在海边看日落\n• 美食探店vlog开场\n• 产品广告展示', 'ai');
+            // 设置输入框提示
+            document.getElementById('inputBox').placeholder = '描述你的场景或故事...';
             document.getElementById('inputBox').focus();
         }
 
@@ -1848,22 +1848,22 @@
             const text = input.value.trim();
             if (!text || isGenerating) return;
 
-            // 🧠 智能模型路由（每次都根据内容重新选择�?
+            // 🧠 智能模型路由（每次都根据内容重新选择）
             let routing;
             
-            // 🎬 分镜模式：强制使用视觉指导模�?
+            // 🎬 分镜模式：强制使用视觉指导模型
             if (isStoryboardMode) {
                 routing = { model: 'gemini-3-pro-preview', type: 'storyboard', icon: '🎬', cost: 2 };
                 console.log(`🎬 分镜模式: ${routing.model}`);
             } else {
                 // 每次都根据内容智能选择模型
                 routing = selectModelByIntent(text);
-                console.log(`🧠 智能路由: ${routing.icon} ${routing.type} �?${routing.model}`);
+                console.log(`🧠 智能路由: ${routing.icon} ${routing.type} → ${routing.model}`);
             }
 
-            // �?检查余额是否足够（最�?胶片�?
+            // ✅ 检查余额是否足够（最低1胶片）
             if (userQuota < MIN_CHAT_COST) {
-                showToast('余额不足，请先充�?);
+                showToast('余额不足，请先充值');
                 return;
             }
 
@@ -1871,7 +1871,7 @@
             const welcomeEl = document.getElementById('welcome');
             if (welcomeEl) welcomeEl.style.display = 'none';
 
-            // 添加用户消息（含附件预览�?
+            // 添加用户消息（含附件预览）
             let userDisplayText = text;
             if (uploadedFiles.length > 0) {
                 const fileNames = uploadedFiles.map(f => `📎${f.name}`).join(' ');
@@ -1881,7 +1881,7 @@
             messages.push({ role: 'user', content: text });
             input.value = '';
             
-            // 保存当前上传的文件（发送后清空�?
+            // 保存当前上传的文件（发送后清空）
             const currentFiles = [...uploadedFiles];
             uploadedFiles = [];
             updateUploadPreview();
@@ -1890,7 +1890,7 @@
             const container = document.getElementById('chatContainer');
             const typingEl = document.createElement('div');
             typingEl.className = 'message ai';
-            const typeNames = { storyboard: '分镜设计', visual: '视觉指导', writing: '创意写作', thinking: '深度思�?, analysis: '智能分析', search: '联网搜索', code: '代码助手', chat: '智能对话', ocr: '文字识别' };
+            const typeNames = { storyboard: '分镜设计', visual: '视觉指导', writing: '创意写作', thinking: '深度思考', analysis: '智能分析', search: '联网搜索', code: '代码助手', chat: '智能对话', ocr: '文字识别' };
             const modelName = MODEL_NAMES[routing.model] || routing.model;
             typingEl.innerHTML = `<div class="typing"><span></span><span></span><span></span></div><div style="font-size:11px;color:#888;margin-top:4px;">${routing.icon} ${typeNames[routing.type] || '对话'} · ${modelName}</div>`;
             container.appendChild(typingEl);
@@ -1900,7 +1900,7 @@
             document.getElementById('sendBtn').disabled = true;
 
             try {
-                // 📝 构建带上下文记忆的消息列表（最�?轮对话）
+                // 📝 构建带上下文记忆的消息列表（最近6轮对话）
                 const contextMessages = messages.slice(-6).map(m => ({
                     role: m.role === 'user' ? 'user' : 'assistant',
                     content: m.content
@@ -1911,7 +1911,7 @@
                 let finalPrompt = text;
                 if (routing.type === 'storyboard' || routing.type === 'visual') {
                     systemPrompt = HOLLYWOOD_VISUAL_DIRECTOR_PROMPT;
-                    // 分镜模式完成后重�?
+                    // 分镜模式完成后重置
                     if (isStoryboardMode) {
                         isStoryboardMode = false;
                         document.getElementById('inputBox').placeholder = '输入消息...';
@@ -1922,7 +1922,7 @@
                 const activeRole = typeof RoleExpert !== 'undefined' ? RoleExpert.getActive() : null;
                 if (activeRole && !systemPrompt) {
                     systemPrompt = activeRole.systemPrompt;
-                    // 角色可能建议更好的模�?
+                    // 角色可能建议更好的模型
                     if (activeRole.modelHint && !isStoryboardMode) {
                         routing.model = activeRole.modelHint;
                         console.log(`🎭 角色模型建议: ${activeRole.modelHint}`);
@@ -1948,7 +1948,7 @@
                 // 📎 构建最终消息（支持多模态）
                 let finalMessage;
                 if (currentFiles.length > 0) {
-                    // 有文件时，构建多模态消�?
+                    // 有文件时，构建多模态消息
                     const contentParts = [];
                     
                     // 添加文件内容
@@ -1997,18 +1997,18 @@
                     
                     finalMessage = { role: 'user', content: contentParts };
                     
-                    // 有图片时切换到视觉模型（OCR模式保持不变�?
+                    // 有图片时切换到视觉模型（OCR模式保持不变）
                     const hasImages = currentFiles.some(f => f.type === 'image');
                     if (hasImages && routing.type !== 'ocr' && !routing.model.includes('vision') && !routing.model.includes('gemini') && !routing.model.includes('gpt-4') && !routing.model.includes('deepseek-ocr')) {
                         routing.model = 'gemini-2.0-flash';  // 切换到支持视觉的模型
-                        console.log('🖼�?检测到图片，切换到视觉模型:', routing.model);
+                        console.log('🖼️ 检测到图片，切换到视觉模型:', routing.model);
                     }
                 } else {
-                    // 无文件时，普通文本消�?
+                    // 无文件时，普通文本消息
                     finalMessage = { role: 'user', content: finalPrompt };
                 }
                 
-                // 🔍 OCR模式 + 有图片：�?vision action（专�?OCR 通道�?
+                // 🔍 OCR模式 + 有图片：走 vision action（专属 OCR 通道）
                 let response;
                 const hasUploadedImages = currentFiles.some(f => f.type === 'image');
                 if (routing.type === 'ocr' && hasUploadedImages) {
@@ -2019,7 +2019,7 @@
                         body: JSON.stringify({
                             action: 'vision',
                             model: 'deepseek-ocr',
-                            prompt: finalPrompt || '请识别并输出图片中的所有文字内容，保持原始格式�?,
+                            prompt: finalPrompt || '请识别并输出图片中的所有文字内容，保持原始格式。',
                             image_url: imageFile.data,
                             userId: currentUser.id
                         })
@@ -2039,10 +2039,10 @@
                     });
                 }
 
-                // 检查响应状�?
+                // 检查响应状态
                 if (!response.ok) {
                     const errText = await response.text().catch(() => '');
-                    throw new Error(`服务器错�?(${response.status}): ${errText.substring(0, 100) || '请稍后重�?}`);
+                    throw new Error(`服务器错误 (${response.status}): ${errText.substring(0, 100) || '请稍后重试'}`);
                 }
 
                 const data = await response.json();
@@ -2052,11 +2052,11 @@
                     throw new Error(data.error);
                 }
 
-                const aiText = data.content || data.text || data.response || '抱歉，我没有理解你的问题�?;
-                let actualCost = data.billed || 0;  // 后端返回的实际扣�?
+                const aiText = data.content || data.text || data.response || '抱歉，我没有理解你的问题。';
+                let actualCost = data.billed || 0;  // 后端返回的实际扣费
                 const usage = data.usage || {};
 
-                // 🎭 角色专家附加费（后端已扣基础费，前端扣角色附加费�?
+                // 🎭 角色专家附加费（后端已扣基础费，前端扣角色附加费）
                 let roleSurcharge = 0;
                 if (activeRole && actualCost > 0 && currentUser) {
                     roleSurcharge = activeRole.filmSurcharge || 1;
@@ -2073,9 +2073,9 @@
                         const surData = await surRes.json().catch(() => ({}));
                         if (surData.success) {
                             actualCost += roleSurcharge;
-                            console.log(`🎭 角色附加�? -${roleSurcharge}胶片 (${activeRole.name})`);
+                            console.log(`🎭 角色附加费: -${roleSurcharge}胶片 (${activeRole.name})`);
                         }
-                    } catch (e) { console.warn('角色附加费失�?', e); }
+                    } catch (e) { console.warn('角色附加费失败:', e); }
                 }
                 
                 // 添加模型标识（显示实际消耗）
@@ -2087,7 +2087,7 @@
                 addMessageWithBadge(aiText, 'ai', modelBadge);
                 messages.push({ role: 'assistant', content: aiText });
 
-                // 更新余额显示（用后端返回的实际扣�?+ 角色附加费）
+                // 更新余额显示（用后端返回的实际扣费 + 角色附加费）
                 if (actualCost > 0) {
                     userQuota = Math.max(0, userQuota - actualCost);
                     updateQuotaDisplay();
@@ -2098,7 +2098,7 @@
             } catch (error) {
                 typingEl.remove();
                 addMessage('出错了：' + error.message, 'ai');
-                // �?后端成功才扣费，失败不扣费，无需退�?
+                // ✅ 后端成功才扣费，失败不扣费，无需退款
             } finally {
                 isGenerating = false;
                 document.getElementById('sendBtn').disabled = false;
@@ -2137,7 +2137,7 @@
             const msg = btn.closest('.message');
             const text = msg.dataset.rawText || msg.innerText;
             navigator.clipboard.writeText(text).then(() => {
-                btn.textContent = '�?已复�?;
+                btn.textContent = '✅ 已复制';
                 setTimeout(() => { btn.textContent = '📋 复制'; }, 1500);
             }).catch(() => {
                 // 备用方法
@@ -2147,20 +2147,20 @@
                 ta.select();
                 document.execCommand('copy');
                 document.body.removeChild(ta);
-                btn.textContent = '�?已复�?;
+                btn.textContent = '✅ 已复制';
                 setTimeout(() => { btn.textContent = '📋 复制'; }, 1500);
             });
         }
 
         function formatMessage(text) {
-            // 简单的代码块处�?
+            // 简单的代码块处理
             return text
                 .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
                 .replace(/`([^`]+)`/g, '<code style="background:#333;padding:2px 6px;border-radius:4px;">$1</code>')
                 .replace(/\n/g, '<br>');
         }
 
-        // 自动调整输入框高�?
+        // 自动调整输入框高度
         document.getElementById('inputBox').addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
@@ -2201,10 +2201,10 @@
             const previewContainer = document.getElementById('uploadPreview');
             
             for (const file of files) {
-                // 检查文件大�?
+                // 检查文件大小
                 const maxSize = type === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
                 if (file.size > maxSize) {
-                    showToast(`文件过大，最�?{maxSize / 1024 / 1024}MB`);
+                    showToast(`文件过大，最大${maxSize / 1024 / 1024}MB`);
                     continue;
                 }
                 
@@ -2284,7 +2284,7 @@
                 };
                 sessionStorage.setItem('rollroll_chat_state', JSON.stringify(state));
                 console.log('[chat] 状态已保存');
-            } catch (e) { console.warn('[chat] 保存状态失�?', e); }
+            } catch (e) { console.warn('[chat] 保存状态失败:', e); }
         }
 
         function restoreChatState() {
@@ -2296,9 +2296,9 @@
                     sessionStorage.removeItem('rollroll_chat_state');
                     return;
                 }
-                console.log('[chat] 恢复状�?..');
+                console.log('[chat] 恢复状态...');
 
-                // 恢复输入�?
+                // 恢复输入框
                 if (state.inputValue) document.getElementById('inputBox').value = state.inputValue;
 
                 // 恢复对话历史
@@ -2315,8 +2315,8 @@
                     });
                 }
 
-                console.log('[chat] 状态恢复完�?);
-            } catch (e) { console.warn('[chat] 恢复状态失�?', e); }
+                console.log('[chat] 状态恢复完成');
+            } catch (e) { console.warn('[chat] 恢复状态失败:', e); }
         }
 
         document.addEventListener('visibilitychange', () => { if (document.hidden) saveChatState(); });
@@ -2324,10 +2324,10 @@
         window.addEventListener('pagehide', saveChatState);
         window.addEventListener('load', () => setTimeout(restoreChatState, 200));
         
-        // ==================== 🧩 技能系�?====================
+        // ==================== 🧩 技能系统 ====================
         let currentSkillCategory = 'all';
         let selectedSkillId = null;
-        // 🖼�?多图存储：{ paramKey: [base64_1, base64_2, ...] }
+        // 🖼️ 多图存储：{ paramKey: [base64_1, base64_2, ...] }
         const skillImageStore = {};
         
         // 打开技能选择弹窗
@@ -2341,7 +2341,7 @@
             document.getElementById('skillDrawer').classList.remove('show');
         }
         
-        // 渲染技能列�?
+        // 渲染技能列表
         function renderSkillList(searchKeyword = '') {
             const container = document.getElementById('skillList');
             if (typeof SkillManager === 'undefined') {
@@ -2359,7 +2359,7 @@
             }
             
             if (skills.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">🔍 未找到匹配的技�?/div>';
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">🔍 未找到匹配的技能</div>';
                 return;
             }
             
@@ -2369,8 +2369,8 @@
                 design: '🎯 设计',
                 content: '📝 内容',
                 tool: '🔍 工具',
-                automation: '🤖 自动�?,
-                custom: '🔧 自定�?
+                automation: '🤖 自动化',
+                custom: '🔧 自定义'
             };
             
             container.innerHTML = skills.map(skill => {
@@ -2379,7 +2379,7 @@
                     <div class="skill-card-actions">
                         <button onclick="event.stopPropagation(); editCustomSkill('${skill.id}')">✏️ 编辑</button>
                         <button onclick="event.stopPropagation(); exportCustomSkill('${skill.id}')">📤 导出</button>
-                        <button onclick="event.stopPropagation(); deleteCustomSkill('${skill.id}')" style="color:#f87171;border-color:#5a2020;">🗑�?删除</button>
+                        <button onclick="event.stopPropagation(); deleteCustomSkill('${skill.id}')" style="color:#f87171;border-color:#5a2020;">🗑️ 删除</button>
                     </div>` : '';
                 return `
                 <div class="skill-card" onclick="openSkillConfig('${skill.id}')">
@@ -2394,7 +2394,7 @@
             }).join('');
         }
         
-        // 筛选技�?
+        // 筛选技能
         function filterSkills(category) {
             currentSkillCategory = category;
             document.querySelectorAll('.skill-filter-btn').forEach(btn => {
@@ -2404,12 +2404,12 @@
             renderSkillList();
         }
         
-        // 搜索技�?
+        // 搜索技能
         function searchSkills(keyword) {
             renderSkillList(keyword);
         }
         
-        // 打开技能配置弹�?
+        // 打开技能配置弹窗
         function openSkillConfig(skillId) {
             if (typeof SkillManager === 'undefined') return;
             const skill = SkillManager.getById(skillId);
@@ -2475,7 +2475,7 @@
             document.getElementById('skillConfigModal').classList.add('show');
         }
         
-        // 更新技能成本预�?
+        // 更新技能成本预估
         function updateSkillCostEstimate(skill) {
             const estimateEl = document.getElementById('skillCostEstimate');
             const executeBtn = document.getElementById('skillExecuteBtn');
@@ -2486,18 +2486,18 @@
                     const params = collectSkillParams();
                     const cost = skill.estimateCost(params);
                     const film = Math.ceil(cost.film || 0);
-                    estimateEl.innerHTML = `<span>🎞�?预估: ${film} 胶片</span><span>⏱️ ${cost.time || '未知'}</span>`;
-                    if (executeBtn) executeBtn.textContent = film > 0 ? `🚀 执行 (${film} 胶片)` : '🚀 开始执�?;
+                    estimateEl.innerHTML = `<span>🎞️ 预估: ${film} 胶片</span><span>⏱️ ${cost.time || '未知'}</span>`;
+                    if (executeBtn) executeBtn.textContent = film > 0 ? `🚀 执行 (${film} 胶片)` : '🚀 开始执行';
                 } catch (e) {
-                    estimateEl.innerHTML = '<span>成本取决于参数配�?/span>';
+                    estimateEl.innerHTML = '<span>成本取决于参数配置</span>';
                 }
             } else {
-                estimateEl.innerHTML = '<span>成本取决于实际生成内�?/span>';
-                if (executeBtn) executeBtn.textContent = '🚀 开始执�?;
+                estimateEl.innerHTML = '<span>成本取决于实际生成内容</span>';
+                if (executeBtn) executeBtn.textContent = '🚀 开始执行';
             }
         }
         
-        // 关闭技能配置弹�?
+        // 关闭技能配置弹窗
         function closeSkillConfig() {
             document.getElementById('skillConfigModal').classList.remove('show');
             selectedSkillId = null;
@@ -2505,7 +2505,7 @@
             Object.keys(skillImageStore).forEach(k => { skillImageStore[k] = []; });
         }
         
-        // 🖼�?多图上传处理（参考手机版 previewI2VImages 实现�?
+        // 🖼️ 多图上传处理（参考手机版 previewI2VImages 实现）
         function handleSkillImageUpload(paramKey, input) {
             if (!input.files || input.files.length === 0) return;
             const files = Array.from(input.files);
@@ -2585,7 +2585,7 @@
                         break;
                     case 'file':
                     case 'image':
-                        // 🖼�?多图模式：优先从 skillImageStore 读取 base64 数组
+                        // 🖼️ 多图模式：优先从 skillImageStore 读取 base64 数组
                         if (skillImageStore[param.key] && skillImageStore[param.key].length > 0) {
                             params[param.key] = skillImageStore[param.key];
                         } else if (el.files && el.files.length > 0) {
@@ -2601,11 +2601,11 @@
             return params;
         }
         
-        // 执行选中的技�?
+        // 执行选中的技能
         async function executeSelectedSkill() {
             if (!selectedSkillId || typeof SkillManager === 'undefined') return;
             
-            // 🔧 先保�?skillId，因�?closeSkillConfig 会清空它
+            // 🔧 先保存 skillId，因为 closeSkillConfig 会清空它
             const skillIdToExecute = selectedSkillId;
             const params = collectSkillParams();
             const skill = SkillManager.getById(skillIdToExecute);
@@ -2620,7 +2620,7 @@
                 }
             }
             
-            // 💰 计费检�?
+            // 💰 计费检查
             let filmCost = 0;
             if (skill && skill.estimateCost) {
                 try {
@@ -2630,19 +2630,19 @@
             }
             
             if (filmCost > 0) {
-                // 检查登录状�?
+                // 检查登录状态
                 if (!currentUser) {
-                    showToast('请先登录后再使用技�?);
+                    showToast('请先登录后再使用技能');
                     return;
                 }
-                // 检查余�?
+                // 检查余额
                 if (userQuota < filmCost) {
-                    showToast(`胶片不足，需�?{filmCost}胶片，当�?{userQuota}`);
+                    showToast(`胶片不足，需要${filmCost}胶片，当前${userQuota}`);
                     return;
                 }
             }
             
-            // 关闭配置弹窗（会清空 selectedSkillId�?
+            // 关闭配置弹窗（会清空 selectedSkillId）
             document.getElementById('skillConfigModal').classList.remove('show');
             
             // 显示进度弹窗
@@ -2654,10 +2654,10 @@
             
             progressModal.classList.add('show');
             progressBar.style.width = '0%';
-            progressText.textContent = filmCost > 0 ? `预估消�?${filmCost} 胶片，准备中...` : '准备�?..';
+            progressText.textContent = filmCost > 0 ? `预估消耗 ${filmCost} 胶片，准备中...` : '准备中...';
             progressSteps.innerHTML = '';
             progressIcon.textContent = skill?.icon || '🚀';
-            // 🎨 初始化精美动�?
+            // 🎨 初始化精美动画
             initSkillParticles();
             initSkillSparkles();
             setSkillAnimPhase('preparing');
@@ -2668,12 +2668,12 @@
             // 添加到对话中
             const welcomeEl = document.getElementById('welcome');
             if (welcomeEl) welcomeEl.style.display = 'none';
-            addMessage(`🧩 执行技�? ${skill?.name || selectedSkillId}`, 'user');
+            addMessage(`🧩 执行技能: ${skill?.name || selectedSkillId}`, 'user');
             
             // 🎯 收集所有生成的媒体内容
             const generatedMedia = [];
             
-            // 💰 包裹执行函数（带计费�?
+            // 💰 包裹执行函数（带计费）
             const skillApiCall = () => SkillManager.execute(skillIdToExecute, params, {
                     onProgress: (step, progress, message) => {
                         progressBar.style.width = `${progress}%`;
@@ -2684,16 +2684,16 @@
                     onStepComplete: (stepName, result) => {
                         const stepEl = document.createElement('div');
                         stepEl.className = 'sp-step-item';
-                        stepEl.innerHTML = `<span class="sp-step-check">�?/span><span class="sp-step-name">${stepName}</span>`;
+                        stepEl.innerHTML = `<span class="sp-step-check">✅</span><span class="sp-step-name">${stepName}</span>`;
                         progressSteps.appendChild(stepEl);
                         
-                        // 🎯 收集生成的媒体内�?
+                        // 🎯 收集生成的媒体内容
                         if (result) {
                             console.log(`[onStepComplete] ${stepName}:`, JSON.stringify(result).substring(0, 200));
                             // 检查各种可能的URL格式
                             const imgUrl = result.imageUrl || null;
                             const vidUrl = result.videoUrl || null;
-                            // result.url 可能是图片或视频（来自character_design_pack等，可能�?http �?data:base64�?
+                            // result.url 可能是图片或视频（来自character_design_pack等，可能是 http 或 data:base64）
                             const rawUrl = (result.url && typeof result.url === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(result.url) : result.url.startsWith('http'))) ? result.url : null;
                             
                             if (imgUrl) {
@@ -2712,7 +2712,7 @@
                         }
                     },
                     onComplete: (result) => {
-                        progressText.textContent = '🎉 执行完成�?;
+                        progressText.textContent = '🎉 执行完成！';
                         progressBar.style.width = '100%';
                         if (_pctEl) _pctEl.textContent = '100%';
                         setSkillAnimPhase('complete');
@@ -2722,40 +2722,40 @@
                             // 🎯 展示生成结果
                             displaySkillResults(skill?.name || skillIdToExecute, result, generatedMedia);
                             
-                            showToast(`�?${skill?.name || '技�?}执行完成！`);
+                            showToast(`✅ ${skill?.name || '技能'}执行完成！`);
                         }, 2200);
                     },
                     onError: (error) => {
-                        progressText.textContent = `�?执行失败: ${error.message}`;
+                        progressText.textContent = `❌ 执行失败: ${error.message}`;
                         setSkillAnimPhase('error');
                         const stepEl = document.createElement('div');
                         stepEl.className = 'sp-step-item error';
-                        stepEl.innerHTML = `<span class="sp-step-check">�?/span><span class="sp-step-name">${error.message}</span>`;
+                        stepEl.innerHTML = `<span class="sp-step-check">❌</span><span class="sp-step-name">${error.message}</span>`;
                         progressSteps.appendChild(stepEl);
-                        addMessage(`�?技能执行失�? ${error.message}`, 'ai');
+                        addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
                     }
                 });
             
             try {
-                // 💰 后端 API 已经按次扣费，前端不再重复扣�?
-                // 只做余额检查（已在上面完成），直接执行技�?
+                // 💰 后端 API 已经按次扣费，前端不再重复扣费
+                // 只做余额检查（已在上面完成），直接执行技能
                 await skillApiCall();
                 // 执行完后同步后端余额
                 if (typeof loadUserQuota === 'function') loadUserQuota();
             } catch (error) {
                 console.error('[chat] Skill执行失败:', error);
                 progressModal.classList.remove('show');
-                addMessage(`�?技能执行失�? ${error.message}`, 'ai');
+                addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
             }
         }
         
-        // 取消技能执�?
+        // 取消技能执行
         function cancelSkillExecution() {
             if (typeof SkillManager !== 'undefined') {
                 SkillManager.cancel();
             }
             setSkillAnimPhase('error');
-            document.getElementById('skillProgressText').textContent = '🛑 已取�?;
+            document.getElementById('skillProgressText').textContent = '🛑 已取消';
             setTimeout(() => {
                 document.getElementById('skillProgressModal').classList.remove('show');
             }, 800);
@@ -2765,10 +2765,10 @@
         // 隐藏进度弹窗（后台运行）
         function hideSkillProgress() {
             document.getElementById('skillProgressModal').classList.remove('show');
-            showToast('技能在后台运行�?..');
+            showToast('技能在后台运行中...');
         }
         
-        // ==================== 🎨 技能执行动画系�?====================
+        // ==================== 🎨 技能执行动画系统 ====================
         function initSkillParticles() {
             const c = document.getElementById('spParticles');
             if (!c) return;
@@ -2795,7 +2795,7 @@
                 {bottom:'18%',left:'3%'}, {bottom:'8%',right:'12%'},
                 {top:'42%',left:'-8%'}, {top:'28%',right:'-10%'}
             ];
-            const chars = ['�?,'�?,'�?,'�?,'�?,'�?];
+            const chars = ['✦','✨','⭐','✦','✧','✦'];
             positions.forEach((pos, i) => {
                 const s = document.createElement('span');
                 s.className = 'sp-sparkle';
@@ -2816,7 +2816,7 @@
             if (!phaseEl) return;
             switch (phase) {
                 case 'preparing': phaseEl.textContent = '🚀 准备启动'; break;
-                case 'executing':  phaseEl.textContent = '�?正在执行'; break;
+                case 'executing':  phaseEl.textContent = '⚡ 正在执行'; break;
                 case 'complete':   phaseEl.textContent = '🎉 任务完成'; createConfetti(); break;
                 case 'error':      phaseEl.textContent = '😢 执行出错'; break;
             }
@@ -2846,8 +2846,8 @@
             setTimeout(() => { if (c) c.innerHTML = ''; }, 4000);
         }
         
-        // ==================== 🔧 自定义技�?CRUD ====================
-        let editingSkillId = null; // 编辑中的技�?ID
+        // ==================== 🔧 自定义技能 CRUD ====================
+        let editingSkillId = null; // 编辑中的技能 ID
         
         function openCreateSkillModal(existingSkillId) {
             editingSkillId = existingSkillId || null;
@@ -2898,7 +2898,7 @@
             const row = document.createElement('div');
             row.className = 'cs-param-row';
             row.innerHTML = `
-                <input type="text" placeholder="变量�?(key)" class="cs-p-key" value="${existing?.key || ''}">
+                <input type="text" placeholder="变量名 (key)" class="cs-p-key" value="${existing?.key || ''}">
                 <input type="text" placeholder="显示名称" class="cs-p-label" value="${existing?.label || ''}">
                 <select class="cs-p-type">
                     <option value="text" ${(existing?.type||'text')==='text'?'selected':''}>文本</option>
@@ -2906,7 +2906,7 @@
                     <option value="number" ${existing?.type==='number'?'selected':''}>数字</option>
                     <option value="select" ${existing?.type==='select'?'selected':''}>选择</option>
                 </select>
-                <input type="text" placeholder="默认�? class="cs-p-default" value="${existing?.default || ''}" style="max-width:80px;">
+                <input type="text" placeholder="默认值" class="cs-p-default" value="${existing?.default || ''}" style="max-width:80px;">
                 <button class="cs-param-del" onclick="this.parentElement.remove()">&times;</button>
             `;
             list.appendChild(row);
@@ -2915,12 +2915,12 @@
         function saveNewCustomSkill() {
             const name = document.getElementById('csName').value.trim();
             const promptTemplate = document.getElementById('csPromptTemplate').value.trim();
-            if (!name) { showToast('请输入技能名�?); return; }
+            if (!name) { showToast('请输入技能名称'); return; }
             if (!promptTemplate) { showToast('请输入提示词模板'); return; }
             
             const icon = document.querySelector('.cs-icon-btn.selected')?.dataset.icon || '🔧';
             const templateType = document.getElementById('csTemplateType').value;
-            const description = document.getElementById('csDescription').value.trim() || `自定�?{templateType === 'text' ? '文本' : templateType === 'image' ? '图片' : '视频'}技能`;
+            const description = document.getElementById('csDescription').value.trim() || `自定义${templateType === 'text' ? '文本' : templateType === 'image' ? '图片' : '视频'}技能`;
             
             // 收集参数
             const parameters = [];
@@ -2930,7 +2930,7 @@
                 const type = row.querySelector('.cs-p-type')?.value || 'text';
                 const def = row.querySelector('.cs-p-default')?.value || '';
                 if (key && label) {
-                    parameters.push({ key, label, type, required: true, default: def, placeholder: `请输�?{label}` });
+                    parameters.push({ key, label, type, required: true, default: def, placeholder: `请输入${label}` });
                 }
             });
             
@@ -2943,7 +2943,7 @@
             
             if (typeof SkillManager !== 'undefined') {
                 SkillManager.saveCustomSkill(skillDef);
-                showToast(`�?技能�?{name}」已保存`);
+                showToast(`✅ 技能「${name}」已保存`);
                 closeCreateSkillModal();
                 // 刷新列表
                 openSkillDrawer();
@@ -2959,7 +2959,7 @@
             if (!confirm('确定删除这个自定义技能？')) return;
             if (typeof SkillManager !== 'undefined') {
                 SkillManager.deleteCustomSkill(skillId);
-                showToast('已删�?);
+                showToast('已删除');
                 renderSkillList();
             }
         }
@@ -2976,7 +2976,7 @@
             a.download = `skill_${data.skill.name || 'custom'}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            showToast('已导�?);
+            showToast('已导出');
         }
         
         function toggleSkillHelp() {
@@ -2996,7 +2996,7 @@
                     const json = JSON.parse(text);
                     if (typeof SkillManager !== 'undefined') {
                         const skill = SkillManager.importSkill(json);
-                        showToast(`�?已导入技能�?{skill.name}」`);
+                        showToast(`✅ 已导入技能「${skill.name}」`);
                         closeCreateSkillModal();
                         openSkillDrawer();
                         filterSkills('custom');
@@ -3008,13 +3008,13 @@
             input.click();
         }
         
-        // 🎯 展示技能执行结�?
+        // 🎯 展示技能执行结果
         function displaySkillResults(skillName, result, generatedMedia) {
             console.log('[displaySkillResults] result:', JSON.stringify(result, null, 2));
             console.log('[displaySkillResults] generatedMedia:', generatedMedia);
             
             // 构建结果消息
-            let messageContent = `�?技能�?{skillName}」执行完成\n\n`;
+            let messageContent = `✅ 技能「${skillName}」执行完成\n\n`;
             
             // 💾 统计保存数量
             let savedImages = 0;
@@ -3024,7 +3024,7 @@
             // 🔧 合并所有媒体到一个统一数组（用于最终展示）
             const allMedia = [...(generatedMedia || [])];
             
-            // 检�?result 中是否有 videos 数组（批量生成结果）
+            // 检查 result 中是否有 videos 数组（批量生成结果）
             if (result && result.videos && Array.isArray(result.videos)) {
                 const successCount = result.videos.filter(v => v.status === 'success').length;
                 messageContent += `🎉 成功生成 ${successCount}/${result.videos.length} 个视频\n\n`;
@@ -3044,12 +3044,12 @@
                 });
             }
             
-            // 检�?result 中是否有 characterName（角色设定包结果�?
+            // 检查 result 中是否有 characterName（角色设定包结果）
             if (result && result.characterName && result.assets) {
                 const assets = result.assets;
                 const posterUrl = assets.poster || assets.turnaround;
                 
-                // 只在有实际图片URL时才保存角色（支�?http �?data:base64�?
+                // 只在有实际图片URL时才保存角色（支持 http 和 data:base64）
                 if (posterUrl && typeof posterUrl === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(posterUrl) : posterUrl.startsWith('http'))) {
                     if (typeof saveCharacterToLibrary === 'function') {
                         saveCharacterToLibrary(
@@ -3079,7 +3079,7 @@
                 });
             }
             
-            // 检�?result 中是否有 images 数组（风格统一出图结果�?
+            // 检查 result 中是否有 images 数组（风格统一出图结果）
             if (result && result.images && Array.isArray(result.images)) {
                 result.images.forEach((img, idx) => {
                     if (img.status === 'success' && img.imageUrl && typeof saveImageToLibrary === 'function') {
@@ -3092,42 +3092,42 @@
                 });
             }
             
-            // 检�?result 中是否有 pages 数组（漫画分镜结果）
+            // 检查 result 中是否有 pages 数组（漫画分镜结果）
             if (result && result.pages && Array.isArray(result.pages)) {
                 result.pages.forEach((page, idx) => {
                     if (page.status === 'success' && page.imageUrl && typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(page.imageUrl, `${skillName} - �?{page.page}页`, 'comic');
+                        saveImageToLibrary(page.imageUrl, `${skillName} - 第${page.page}页`, 'comic');
                         savedImages++;
                         if (!allMedia.some(m => m.url === page.imageUrl)) {
-                            allMedia.push({ type: 'image', url: page.imageUrl, step: `�?{page.page}页` });
+                            allMedia.push({ type: 'image', url: page.imageUrl, step: `第${page.page}页` });
                         }
                     }
                 });
             }
             
-            // 📺 连续剧情结果（episodes�?
+            // 📺 连续剧情结果（episodes）
             if (result && result.episodes && Array.isArray(result.episodes)) {
                 result.episodes.forEach((ep, idx) => {
                     if (ep.status === 'success') {
                         if (ep.videoUrl && typeof saveVideoToLibrary === 'function') {
-                            saveVideoToLibrary(ep.videoUrl, `${skillName} - �?{ep.episode}集`, 'skill', ep.imageUrl);
+                            saveVideoToLibrary(ep.videoUrl, `${skillName} - 第${ep.episode}集`, 'skill', ep.imageUrl);
                             savedVideos++;
                             if (!allMedia.some(m => m.url === ep.videoUrl)) {
-                                allMedia.push({ type: 'video', url: ep.videoUrl, step: `�?{ep.episode}集` });
+                                allMedia.push({ type: 'video', url: ep.videoUrl, step: `第${ep.episode}集` });
                             }
                         }
                         if (ep.imageUrl && typeof saveImageToLibrary === 'function') {
-                            saveImageToLibrary(ep.imageUrl, `${skillName} - �?{ep.episode}集封面`, 'skill');
+                            saveImageToLibrary(ep.imageUrl, `${skillName} - 第${ep.episode}集封面`, 'skill');
                             savedImages++;
                             if (!ep.videoUrl && !allMedia.some(m => m.url === ep.imageUrl)) {
-                                allMedia.push({ type: 'image', url: ep.imageUrl, step: `�?{ep.episode}集` });
+                                allMedia.push({ type: 'image', url: ep.imageUrl, step: `第${ep.episode}集` });
                             }
                         }
                     }
                 });
             }
             
-            // 🎨 scenes 结果（全流程自动化分镜图�?
+            // 🎨 scenes 结果（全流程自动化分镜图）
             if (result && result.scenes && Array.isArray(result.scenes)) {
                 result.scenes.forEach((scene, idx) => {
                     if (scene.imageUrl && typeof saveImageToLibrary === 'function') {
@@ -3147,20 +3147,20 @@
                 });
             }
             
-            // 📖 comics 结果（全流程自动化漫画页�?
+            // 📖 comics 结果（全流程自动化漫画页）
             if (result && result.comics && Array.isArray(result.comics)) {
                 result.comics.forEach((comic, idx) => {
                     if (comic.imageUrl && typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(comic.imageUrl, `${skillName} - 漫画�?{comic.page || idx + 1}页`, 'comic');
+                        saveImageToLibrary(comic.imageUrl, `${skillName} - 漫画第${comic.page || idx + 1}页`, 'comic');
                         savedImages++;
                         if (!allMedia.some(m => m.url === comic.imageUrl)) {
-                            allMedia.push({ type: 'image', url: comic.imageUrl, step: `漫画�?{comic.page || idx + 1}页` });
+                            allMedia.push({ type: 'image', url: comic.imageUrl, step: `漫画第${comic.page || idx + 1}页` });
                         }
                     }
                 });
             }
             
-            // 👤 charSheet 角色设定�?
+            // 👤 charSheet 角色设定图
             if (result && result.charSheet && typeof result.charSheet === 'string') {
                 const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && u.startsWith('http'));
                 if (_isValid(result.charSheet)) {
@@ -3169,12 +3169,12 @@
                         savedImages++;
                     }
                     if (!allMedia.some(m => m.url === result.charSheet)) {
-                        allMedia.push({ type: 'image', url: result.charSheet, step: '角色设定�? });
+                        allMedia.push({ type: 'image', url: result.charSheet, step: '角色设定表' });
                     }
                 }
             }
             
-            // 💾 �?generatedMedia 中保存（作为补充，跳过已通过 result 保存过的�?
+            // 💾 从 generatedMedia 中保存（作为补充，跳过已通过 result 保存过的）
             const _savedUrls = new Set();
             if (result && result.images) result.images.forEach(img => { if (img.imageUrl) _savedUrls.add(img.imageUrl); });
             if (result && result.videos) result.videos.forEach(v => { if (v.videoUrl) _savedUrls.add(v.videoUrl); if (v.imageUrl) _savedUrls.add(v.imageUrl); });
@@ -3187,7 +3187,7 @@
             
             if (generatedMedia && generatedMedia.length > 0) {
                 generatedMedia.forEach((m, idx) => {
-                    if (_savedUrls.has(m.url)) return; // 已通过 result 保存，跳�?
+                    if (_savedUrls.has(m.url)) return; // 已通过 result 保存，跳过
                     if (m.type === 'image' && m.url && typeof saveImageToLibrary === 'function') {
                         saveImageToLibrary(m.url, m.step || `${skillName} - 图片${idx + 1}`, 'skill');
                         savedImages++;
@@ -3199,25 +3199,25 @@
                 });
             }
             
-            // 展示所有媒体内容统�?
+            // 展示所有媒体内容统计
             const allImages = allMedia.filter(m => m.type === 'image' && m.url);
             const allVideos = allMedia.filter(m => m.type === 'video' && m.url);
             
             if (allImages.length > 0 || allVideos.length > 0) {
                 messageContent += `🎨 生成内容：\n`;
-                if (allImages.length > 0) messageContent += `�?${allImages.length} 张图片\n`;
-                if (allVideos.length > 0) messageContent += `�?${allVideos.length} 个视频\n`;
+                if (allImages.length > 0) messageContent += `• ${allImages.length} 张图片\n`;
+                if (allVideos.length > 0) messageContent += `• ${allVideos.length} 个视频\n`;
             }
             
             // 💾 显示保存结果
             if (savedImages > 0 || savedVideos > 0 || savedCharacters > 0) {
                 messageContent += `\n💾 已保存到本地：\n`;
-                if (savedCharacters > 0) messageContent += `�?${savedCharacters} 个角�?�?角色库\n`;
-                if (savedImages > 0) messageContent += `�?${savedImages} 张图�?�?素材库\n`;
-                if (savedVideos > 0) messageContent += `�?${savedVideos} 个视�?�?素材库\n`;
+                if (savedCharacters > 0) messageContent += `• ${savedCharacters} 个角色 → 角色库\n`;
+                if (savedImages > 0) messageContent += `• ${savedImages} 张图片 → 素材库\n`;
+                if (savedVideos > 0) messageContent += `• ${savedVideos} 个视频 → 素材库\n`;
             }
             
-            // 📝 处理文本类结果（文案、分镜脚本等�?
+            // 📝 处理文本类结果（文案、分镜脚本等）
             let hasTextContent = false;
             if (result && result.copywritings && Array.isArray(result.copywritings) && result.copywritings.length > 0) {
                 hasTextContent = true;
@@ -3225,7 +3225,7 @@
             }
             if (result && result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
                 hasTextContent = true;
-                messageContent += `✂️ 拆分�?${result.segments.length} 个片段\n`;
+                messageContent += `✂️ 拆分为 ${result.segments.length} 个片段\n`;
             }
             if (result && result.outline && typeof result.outline === 'string') {
                 hasTextContent = true;
@@ -3250,14 +3250,14 @@
                 const charsCount = JSON.parse(localStorage.getItem('library_chars') || '[]').length;
                 const scenesCount = JSON.parse(localStorage.getItem('library_scenes') || '[]').length;
                 const pcCharsCount = JSON.parse(localStorage.getItem('character_library') || '[]').length;
-                messageContent += `\n📊 当前库存：角色库 ${charsCount} �?| 素材�?${scenesCount} �?| PC角色�?${pcCharsCount} 条`;
+                messageContent += `\n📊 当前库存：角色库 ${charsCount} 条 | 素材库 ${scenesCount} 条 | PC角色库 ${pcCharsCount} 条`;
                 
-                // 如果result有assets但都不是有效URL，额外提�?
+                // 如果result有assets但都不是有效URL，额外提示
                 if (result && result.assets) {
                     const assetKeys = Object.keys(result.assets);
                     const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && typeof u === 'string' && u.startsWith('http'));
                     const validUrls = Object.values(result.assets).filter(v => _isValid(v)).length;
-                    messageContent += `\n📎 result.assets: ${assetKeys.length}�? 有效URL: ${validUrls}个`;
+                    messageContent += `\n📎 result.assets: ${assetKeys.length}项, 有效URL: ${validUrls}个`;
                 }
                 if (generatedMedia) {
                     messageContent += ` | generatedMedia: ${generatedMedia.length}项`;
@@ -3277,14 +3277,14 @@
                 const segMsg = result.segments.map((s, i) => `片段${i + 1}: ${typeof s === 'string' ? s : (s.description || s.content || JSON.stringify(s)).substring(0, 200)}`).join('\n\n');
                 addMessage(segMsg, 'ai');
             }
-            // 展示 OCR / 脚本 / 文案 / 策略 / 剧本 等文本结�?
+            // 展示 OCR / 脚本 / 文案 / 策略 / 剧本 等文本结果
             if (result && result.ocrText) addMessage(`🔍 OCR识别结果：\n${result.ocrText}`, 'ai');
             if (result && typeof result.result === 'string') addMessage(`📝 处理结果：\n${result.result}`, 'ai');
             if (result && result.copyText) addMessage(`📝 文案内容：\n${result.copyText}`, 'ai');
             if (result && result.strategy) addMessage(`📊 策略方案：\n${result.strategy}`, 'ai');
             if (result && result.script && typeof result.script === 'string') addMessage(`📝 剧本：\n${result.script}`, 'ai');
             
-            // 🎨 展示图片和视频（使用合并后的 allMedia�?
+            // 🎨 展示图片和视频（使用合并后的 allMedia）
             if (allImages.length > 0 || allVideos.length > 0) {
                 const mediaContainer = document.createElement('div');
                 mediaContainer.className = 'message ai';
