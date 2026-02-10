@@ -49,6 +49,11 @@
         }
     }
 
+    // 🔒 扣费会话控制：团队/技能执行期间跳过逐次扣费，由调用方一次性预扣
+    let _billingSessionCount = 0;
+    function startBillingSession() { _billingSessionCount++; console.log('[api-core] 🔒 扣费会话开始 count=' + _billingSessionCount); }
+    function endBillingSession() { _billingSessionCount = Math.max(0, _billingSessionCount - 1); console.log('[api-core] 🔓 扣费会话结束 count=' + _billingSessionCount); }
+
     /**
      * 🔄 带重试的 API 调用
      */
@@ -243,6 +248,7 @@
 
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/yunwu', {
             method: 'POST',
@@ -272,6 +278,7 @@
     async function callModelScopeTextAPI(prompt) {
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/modelscope', {
             method: 'POST',
@@ -296,8 +303,9 @@
      */
     async function callWriterLLM(messages, opts = {}) {
         let userId = await getCurrentUserId();
+        if (_billingSessionCount > 0) userId = undefined;
 
-        // 🧠 注入用户记忆到 system prompt（如果有的话）
+        // 🧠 注入用户记忆到 system prompt
         if (typeof getUserMemoryPrompt === 'function' && Array.isArray(messages) && messages.length > 0) {
             const memPrompt = getUserMemoryPrompt();
             if (memPrompt && messages[0] && messages[0].role === 'system') {
@@ -392,6 +400,7 @@
 
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
         let imageUrls = undefined;
         let action = 'image';
@@ -443,8 +452,9 @@
     async function callBanana2ImageAPI(prompt, options = {}) {
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
-        // 🔧 参考图兼容：支持 imageUrl / image_url / refImage 三种传参方式
+        // 🔧 参考图兼容
         const refImageUrl = options.imageUrl || options.image_url || options.refImage || undefined;
 
         // 🔧 fetch 级超时（60s），后端实际超时45s，前端留足余量
@@ -563,8 +573,9 @@
 
         console.log(`🏞️ [视频] 跳过前端预扣费，由后端统一扣费`);
 
-        const userId = await getCurrentUserId();
+        let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
         // 🎬 Vidu 模型
         if (__isViduModel(_m)) {
@@ -692,8 +703,9 @@
         const imageRefPrefix = `[CRITICAL IMAGE REFERENCE: The uploaded reference image MUST be the primary visual source. Strictly maintain ALL visual elements from the reference image: exact face features, hairstyle, hair color, clothing, accessories, body proportions, art style, color palette. The video must look like the reference image came to life with motion. Do NOT generate new characters or change the visual style. Only add natural movement and animation to the existing image content.] `;
         const enhancedPrompt = imageRefPrefix + (prompt || 'Animate this image with natural movement');
 
-        const userId = await getCurrentUserId();
+        let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/sora2', {
             method: 'POST',
@@ -1052,8 +1064,9 @@
         const paid = isPaidUser();
         if (!paid) throw new Error('Midjourney 为付费功能，请先充值胶片');
 
-        const userId = await getCurrentUserId();
+        let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/yunwu', {
             method: 'POST',
@@ -1093,7 +1106,8 @@
     async function callOCRAPI(imageUrl, prompt, model) {
         if (!imageUrl) throw new Error('缺少图片');
         const ocrPrompt = prompt || '请识别并输出这张图片中的所有文字内容，保持原始格式。';
-        const userId = await getCurrentUserId();
+        let userId = await getCurrentUserId();
+        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/yunwu', {
             method: 'POST',
@@ -1125,8 +1139,9 @@
      */
     async function callTTSAPI(text, options = {}) {
         if (!text) throw new Error('缺少配音文本');
-        const userId = await getCurrentUserId();
+        let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
         const engine = options.engine || 'gemini';
 
@@ -1156,7 +1171,7 @@
                 body: JSON.stringify({
                     action: 'kling-tts',
                     text,
-                    voiceId: options.voiceId || 'zhifeng_zz',
+                    voiceId: options.voiceId || 'genshin_vindi2',
                     voiceSpeed: options.speed || 1,
                     userId
                 })
@@ -1227,8 +1242,9 @@
      * @returns {Promise<{taskId: string, music: Array}>} 任务ID和音乐列表
      */
     async function callSunoMusicAPI(options = {}) {
-        const userId = await getCurrentUserId();
+        let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
+        if (_billingSessionCount > 0) userId = undefined;
 
         const body = {
             action: 'generate',
@@ -1277,8 +1293,9 @@
      * 🎵 调用 Suno 歌词生成 API
      */
     async function callSunoLyricsAPI(prompt) {
-        const userId = await getCurrentUserId();
+        let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录');
+        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/suno', {
             method: 'POST',
@@ -1313,6 +1330,8 @@
 
     // 辅助函数
     global.getCurrentUserId = global.getCurrentUserId || getCurrentUserId;
+    global.startBillingSession = startBillingSession;
+    global.endBillingSession = endBillingSession;
     global.retryableAPICall = global.retryableAPICall || retryableAPICall;
     global.isPaidUser = global.isPaidUser || isPaidUser;
     global.checkFreeUserAccess = global.checkFreeUserAccess || checkFreeUserAccess;

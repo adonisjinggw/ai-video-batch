@@ -387,16 +387,45 @@
                 this._addMessage('system', 'info', `📷 参考图处理完成，开始执行任务`, '✅', '系统');
             }
 
-            // 💰 团队不再前端扣费，后端每次API调用独立计费（避免双重扣费）
+            // 💰 团队一次性预扣费（后端API调用不再重复扣费）
+            const teamBillingId = 'team_' + Date.now();
+            let teamBillingDone = false;
+            if (typeof currentUser !== 'undefined' && currentUser && typeof Billing !== 'undefined') {
+                try {
+                    await Billing.reserveFilm(currentUser.id, estCost, teamBillingId);
+                    teamBillingDone = true;
+                    if (typeof refreshBalance === 'function') refreshBalance();
+                } catch (e) {
+                    if (e.message && e.message.includes('INSUFFICIENT')) {
+                        if (typeof showToast === 'function') showToast('余额不足，请先充值');
+                        this._isRunning = false;
+                        return;
+                    }
+                    console.warn('[AgentUI] 预扣费失败，继续执行:', e.message);
+                }
+            }
+
+            // 🔒 开启扣费会话（内部API调用跳过逐次扣费）
+            if (typeof startBillingSession === 'function') startBillingSession();
+
             try {
                 const result = await this._currentTeam.run(goal);
                 this._isRunning = false;
                 this._showResultView(result);
             } catch (err) {
                 this._isRunning = false;
+                // 💰 失败退还预扣费用
+                if (teamBillingDone && typeof Billing !== 'undefined') {
+                    try {
+                        await Billing.releaseFilm(currentUser.id, teamBillingId, estCost);
+                        if (typeof refreshBalance === 'function') refreshBalance();
+                    } catch (re) { console.warn('[AgentUI] 退款失败:', re.message); }
+                }
                 if (err.message !== '任务已取消') {
                     this._addMessage('system', 'error', `❌ 执行失败: ${err.message}`);
                 }
+            } finally {
+                if (typeof endBillingSession === 'function') endBillingSession();
             }
         },
 

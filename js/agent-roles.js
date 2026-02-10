@@ -326,8 +326,8 @@
 ## 多角色配音流程（有声小说/广播剧）
 1. **角色分析**：阅读全文，识别所有角色（旁白、角色A、角色B…）
 2. **音色分配**：
-   - 旁白/叙述者 → engine:kling, voice:zhifeng_zz, speed:1.0（或 engine:gemini, voice:Charon）
-   - 年轻女性角色 → engine:kling, voice:zhimiao_emo（或 engine:gemini, voice:Kore）
+   - 旁白/叙述者 → engine:kling, voice:diyinnansang_DB_CN_M_04-v2, speed:1.0（或 engine:gemini, voice:Charon）
+   - 年轻女性角色 → engine:kling, voice:ai_shatang（或 engine:gemini, voice:Kore）
    - 年轻男性角色 → engine:gemini, voice:Puck, speed:1.0
    - 成熟男性角色 → engine:gemini, voice:Charon, speed:0.9
    - 温柔女性角色 → engine:gemini, voice:Aoede, speed:0.9
@@ -339,7 +339,7 @@
 ## 配音引擎与音色（优先使用 dubbingx）
 - engine:dubbingx（优先推荐2胶片） — 多种高质量音色，质量最佳
 - engine:gemini（快速1胶片） — Kore(女),Puck(男),Charon(低沉男),Aoede(温柔女)
-- engine:kling（2胶片） — zhifeng_zz(男),zhimiao_emo(女)
+- engine:kling（2胶片） — genshin_vindi2(阳光少年),ai_shatang(青春少女),ai_kaiya(阳光男生),chat1_female_new-3(温柔姐姐),diyinnansang_DB_CN_M_04-v2(新闻播报男)
 - speed: 0.5慢 / 1.0正常 / 1.2偏快 / 1.5快 / 2.0极快
 - 单次文本≤500字，超过请分段调用
 

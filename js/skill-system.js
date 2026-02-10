@@ -183,6 +183,32 @@
             this._executions.set(executionId, execution);
             this._emit('executionStarted', { ...execution });
 
+            // 💰 技能一次性预扣费（后端API调用不再重复扣费）
+            let _skillBillingDone = false;
+            const _estCost = skill.estimateCost ? skill.estimateCost(params) : null;
+            const _filmCost = _estCost?.film || 0;
+            if (_filmCost > 0 && typeof Billing !== 'undefined' && typeof getCurrentUserId === 'function') {
+                try {
+                    const _uid = await getCurrentUserId();
+                    if (_uid) {
+                        await Billing.reserveFilm(_uid, _filmCost, executionId);
+                        _skillBillingDone = true;
+                        if (typeof refreshBalance === 'function') refreshBalance();
+                    }
+                } catch (e) {
+                    if (e.message && e.message.includes('INSUFFICIENT')) {
+                        const error = new Error('余额不足，请先充值');
+                        this._executions.delete(executionId);
+                        callbacks.onError?.(error);
+                        throw error;
+                    }
+                    console.warn('[SkillManager] 预扣费失败，继续执行:', e.message);
+                }
+            }
+
+            // 🔒 开启扣费会话
+            if (typeof startBillingSession === 'function') startBillingSession();
+
             try {
                 console.log(`🚀 [SkillManager] 开始执行 Skill: ${skill.icon} ${skill.name} (${executionId}, 并发${this._executions.size}/${this._maxConcurrent})`);
 
@@ -236,6 +262,15 @@
                 return result;
 
             } catch (error) {
+                // 💰 失败退还预扣费用
+                if (_skillBillingDone && typeof Billing !== 'undefined') {
+                    try {
+                        const _uid = await getCurrentUserId();
+                        if (_uid) await Billing.releaseFilm(_uid, executionId, _filmCost);
+                        if (typeof refreshBalance === 'function') refreshBalance();
+                    } catch (re) { console.warn('[SkillManager] 退款失败:', re.message); }
+                }
+
                 // 记录失败
                 const exec = this._executions.get(executionId);
                 const endTime = Date.now();
@@ -259,6 +294,8 @@
                 console.error(`❌ [SkillManager] Skill 执行失败: ${skill.name}`, error);
                 callbacks.onError?.(error);
                 throw error;
+            } finally {
+                if (typeof endBillingSession === 'function') endBillingSession();
             }
         },
 

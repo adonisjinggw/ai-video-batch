@@ -1150,20 +1150,20 @@ ${story}
                         '小红': { engine: 'gemini', voiceId: 'Kore', speed: 1.0 },
                         '娘': { engine: 'gemini', voiceId: 'Aoede', speed: 0.9 },
                         '温柔': { engine: 'gemini', voiceId: 'Aoede', speed: 0.9 },
-                        '女声': { engine: 'kling', voiceId: 'zhimiao_emo', speed: 1.0 },
+                        '女声': { engine: 'kling', voiceId: 'ai_shatang', speed: 1.0 },
                         // 男性角色
                         '男': { engine: 'gemini', voiceId: 'Puck', speed: 1.0 },
                         '男孩': { engine: 'gemini', voiceId: 'Puck', speed: 1.1 },
                         '小明': { engine: 'gemini', voiceId: 'Puck', speed: 1.0 },
                         '老人': { engine: 'gemini', voiceId: 'Charon', speed: 0.85 },
-                        '男声': { engine: 'kling', voiceId: 'zhifeng_zz', speed: 1.0 },
+                        '男声': { engine: 'kling', voiceId: 'genshin_vindi2', speed: 1.0 },
                         '深沉': { engine: 'gemini', voiceId: 'Charon', speed: 0.9 }
                     };
 
                     // 场景默认音色（当角色名未匹配时的兆底）
                     const sceneDefaults = {
                         narration:  { engine: 'gemini', voiceId: 'Charon', speed: 0.95 },
-                        story:      { engine: 'kling', voiceId: 'zhifeng_zz', speed: 1.0 },
+                        story:      { engine: 'kling', voiceId: 'diyinnansang_DB_CN_M_04-v2', speed: 1.0 },
                         ad:         { engine: 'gemini', voiceId: 'Puck', speed: 1.1 },
                         education:  { engine: 'gemini', voiceId: 'Charon', speed: 0.9 },
                         lively:     { engine: 'gemini', voiceId: 'Kore', speed: 1.2 }
@@ -1178,8 +1178,8 @@ ${story}
                         { engine: 'gemini', voiceId: 'Kore', speed: 1.0 },
                         { engine: 'gemini', voiceId: 'Aoede', speed: 0.95 },
                         { engine: 'gemini', voiceId: 'Charon', speed: 0.9 },
-                        { engine: 'kling', voiceId: 'zhifeng_zz', speed: 1.0 },
-                        { engine: 'kling', voiceId: 'zhimiao_emo', speed: 1.0 }
+                        { engine: 'kling', voiceId: 'genshin_vindi2', speed: 1.0 },
+                        { engine: 'kling', voiceId: 'ai_shatang', speed: 1.0 }
                     ];
                     let altIdx = 0;
 

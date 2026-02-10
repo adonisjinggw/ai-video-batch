@@ -2808,10 +2808,41 @@ module.exports = async function handler(req, res) {
                 const data = await response.json();
                 
                 // 解析音频数据
-                const audioData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                const mimeType = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/mp3';
+                let audioData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                let mimeType = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/mp3';
                 
                 if (audioData) {
+                    // 🔧 PCM → WAV 转换：Gemini 返回的 audio/L16 是原始 PCM 数据，浏览器无法直接播放
+                    if (mimeType && (mimeType.includes('L16') || mimeType.includes('pcm') || mimeType.includes('raw'))) {
+                        const rateMatch = mimeType.match(/rate=(\d+)/);
+                        const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+                        const channels = 1;
+                        const bitsPerSample = 16;
+                        const pcmBuffer = Buffer.from(audioData, 'base64');
+                        const dataLength = pcmBuffer.length;
+                        const wavBuffer = Buffer.alloc(44 + dataLength);
+                        // RIFF header
+                        wavBuffer.write('RIFF', 0);
+                        wavBuffer.writeUInt32LE(36 + dataLength, 4);
+                        wavBuffer.write('WAVE', 8);
+                        // fmt chunk
+                        wavBuffer.write('fmt ', 12);
+                        wavBuffer.writeUInt32LE(16, 16);
+                        wavBuffer.writeUInt16LE(1, 20);
+                        wavBuffer.writeUInt16LE(channels, 22);
+                        wavBuffer.writeUInt32LE(sampleRate, 24);
+                        wavBuffer.writeUInt32LE(sampleRate * channels * bitsPerSample / 8, 28);
+                        wavBuffer.writeUInt16LE(channels * bitsPerSample / 8, 32);
+                        wavBuffer.writeUInt16LE(bitsPerSample, 34);
+                        // data chunk
+                        wavBuffer.write('data', 36);
+                        wavBuffer.writeUInt32LE(dataLength, 40);
+                        pcmBuffer.copy(wavBuffer, 44);
+                        audioData = wavBuffer.toString('base64');
+                        mimeType = 'audio/wav';
+                        console.log(`[yunwu] Gemini TTS: PCM→WAV 转换完成, sampleRate=${sampleRate}, size=${dataLength}bytes`);
+                    }
+
                     // 扣费
                     if (userId) {
                         await __billing('consume', userId, cost, `Gemini ${isProModel ? 'Pro' : 'Flash'} TTS配音`);
@@ -2819,7 +2850,7 @@ module.exports = async function handler(req, res) {
                     
                     json(200, { 
                         success: true, 
-                        audioData: audioData,  // base64编码的音频
+                        audioData: audioData,  // base64编码的音频（WAV格式）
                         mimeType: mimeType,
                         model: ttsModel,
                         message: '生成成功'
