@@ -1185,18 +1185,56 @@
             if (data.audioUrl) return data.audioUrl;
             // 否则需要轮询
             if (data.taskId) {
-                for (let i = 0; i < 60; i++) {
-                    await sleep(3000);
-                    const pr = await fetch('/api/yunwu', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'kling-tts-poll', taskId: data.taskId })
-                    });
-                    const pd = await pr.json().catch(() => ({}));
-                    if (pd.status === 'completed' && pd.audioUrl) return pd.audioUrl;
-                    if (pd.status === 'failed') throw new Error('Kling TTS生成失败');
+                console.log(`🎤 [api-core] Kling TTS 开始轮询 taskId=${data.taskId}`);
+                let failCount = 0;
+                for (let i = 0; i < 90; i++) {
+                    await sleep(2000);
+                    try {
+                        const pr = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'kling-tts-poll', taskId: data.taskId })
+                        });
+                        const pd = await pr.json().catch(() => ({}));
+                        
+                        // 成功获取音频URL
+                        if (pd.audioUrl) {
+                            console.log(`✅ [api-core] Kling TTS 完成: ${pd.audioUrl.substring(0, 80)}`);
+                            return pd.audioUrl;
+                        }
+                        if (pd.status === 'completed' && pd.audioUrl) return pd.audioUrl;
+                        
+                        // 彻底失败
+                        if (pd.status === 'failed') {
+                            throw new Error(pd.error || 'Kling TTS生成失败');
+                        }
+                        
+                        // 状态完成但没有URL，尝试从rawData提取
+                        if (pd.status === 'completed_no_url' && pd.rawData) {
+                            console.warn('[api-core] Kling TTS: 后端状态完成但无URL，尝试前端提取:', JSON.stringify(pd.rawData).substring(0, 300));
+                            const rd = pd.rawData;
+                            const extractedUrl = rd?.data?.task_result?.works?.[0]?.resource?.resource ||
+                                                rd?.data?.task_result?.works?.[0]?.audio?.resource ||
+                                                rd?.data?.works?.[0]?.resource?.resource ||
+                                                rd?.data?.works?.[0]?.audio?.resource ||
+                                                rd?.data?.audio_url || rd?.audio_url || rd?.data?.resource || rd?.resource;
+                            if (extractedUrl) {
+                                console.log(`✅ [api-core] Kling TTS 前端提取成功: ${extractedUrl.substring(0, 80)}`);
+                                return extractedUrl;
+                            }
+                        }
+                        
+                        if ((i + 1) % 10 === 0) {
+                            console.log(`🔄 [api-core] Kling TTS 轮询中... ${i + 1}/90 status=${pd.status || 'unknown'}`);
+                        }
+                    } catch (pollErr) {
+                        if (pollErr.message && (pollErr.message.includes('失败') || pollErr.message.includes('failed'))) throw pollErr;
+                        failCount++;
+                        console.warn(`[api-core] Kling TTS 轮询异常 #${failCount}:`, pollErr.message);
+                        if (failCount >= 5) throw new Error(`Kling TTS轮询连续失败${failCount}次: ${pollErr.message}`);
+                    }
                 }
-                throw new Error('Kling TTS超时');
+                throw new Error('Kling TTS超时(3分钟)');
             }
             throw new Error('Kling TTS未返回结果');
         }

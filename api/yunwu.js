@@ -3155,50 +3155,69 @@ module.exports = async function handler(req, res) {
                 }, 15000);
                 
                 if (!response.ok) {
-                    // 读取真实错误而不是默默返回processing
+                    // 读取真实错误
                     let errBody = '';
                     try { errBody = await response.text(); } catch(e) {}
-                    console.warn(`[yunwu] Kling TTS轮询 HTTP ${response.status}:`, errBody.substring(0, 200));
-                    json(200, { success: false, status: 'processing', _httpStatus: response.status });
+                    console.warn(`[yunwu] Kling TTS轮询 HTTP ${response.status}:`, errBody.substring(0, 300));
+                    
+                    // 4xx = 永久性错误（认证/找不到），直接返回failed
+                    if (response.status >= 400 && response.status < 500) {
+                        json(200, { success: false, status: 'failed', error: `HTTP ${response.status}: ${errBody.substring(0, 100)}` });
+                    } else {
+                        // 5xx = 临时错误，继续轮询
+                        json(200, { success: false, status: 'processing', _httpStatus: response.status });
+                    }
                     return;
                 }
                 
                 const data = await response.json();
-                console.log('[yunwu] Kling TTS轮询返回:', JSON.stringify(data).substring(0, 500));
+                console.log('[yunwu] Kling TTS轮询返回:', JSON.stringify(data).substring(0, 800));
                 
                 const taskStatus = data?.data?.task_status || data?.task_status || data?.status;
                 const taskStatusLower = String(taskStatus || '').toLowerCase();
+                const taskCode = data?.code ?? data?.data?.code;
                 
-                if (taskStatusLower === 'succeed' || taskStatusLower === 'completed' || taskStatusLower === 'success') {
-                    // 多路径提取音频URL
-                    const audioUrl = data?.data?.task_result?.works?.[0]?.resource?.resource ||
-                                    data?.data?.task_result?.works?.[0]?.audio?.resource ||
-                                    data?.data?.task_result?.works?.[0]?.audio?.resource_without_watermark ||
-                                    data?.data?.works?.[0]?.resource?.resource ||
-                                    data?.data?.works?.[0]?.audio?.resource ||
-                                    data?.data?.works?.[0]?.audio?.resource_without_watermark ||
-                                    data?.data?.audio_url ||
-                                    data?.audio_url ||
-                                    data?.data?.resource ||
-                                    data?.resource;
-                    if (audioUrl) {
-                        json(200, {
-                            success: true,
-                            status: 'completed',
-                            audioUrl: audioUrl
-                        });
-                    } else {
-                        console.error('[yunwu] Kling TTS轮询: 状态完成但未找到audioUrl, 完整数据:', JSON.stringify(data).substring(0, 800));
-                        json(200, { success: false, status: 'processing', _note: 'completed but no audioUrl' });
-                    }
-                } else if (taskStatusLower === 'failed' || taskStatusLower === 'error') {
+                // 先尝试从任何位置提取音频URL（即使状态判断失败也能工作）
+                const audioUrl = data?.data?.task_result?.works?.[0]?.resource?.resource ||
+                                data?.data?.task_result?.works?.[0]?.audio?.resource ||
+                                data?.data?.task_result?.works?.[0]?.audio?.resource_without_watermark ||
+                                data?.data?.task_result?.works?.[0]?.url ||
+                                data?.data?.works?.[0]?.resource?.resource ||
+                                data?.data?.works?.[0]?.audio?.resource ||
+                                data?.data?.works?.[0]?.audio?.resource_without_watermark ||
+                                data?.data?.works?.[0]?.url ||
+                                data?.data?.audio_url ||
+                                data?.audio_url ||
+                                data?.data?.task_result?.resource ||
+                                data?.data?.resource ||
+                                data?.resource;
+                
+                // 如果能找到音频URL，无论状态如何都返回成功
+                if (audioUrl) {
+                    console.log('[yunwu] ✅ Kling TTS轮询: 找到audioUrl:', audioUrl.substring(0, 100));
+                    json(200, {
+                        success: true,
+                        status: 'completed',
+                        audioUrl: audioUrl
+                    });
+                    return;
+                }
+                
+                if (taskStatusLower === 'succeed' || taskStatusLower === 'completed' || taskStatusLower === 'success' || taskCode === 0) {
+                    // 状态显示完成但没有audioUrl，记录详细数据
+                    console.error('[yunwu] ⚠️ Kling TTS轮询: 状态完成但未找到audioUrl, 完整数据:', JSON.stringify(data));
+                    // 返回完整rawData供前端尝试提取
+                    json(200, { success: false, status: 'completed_no_url', rawData: data, _note: 'status OK but no audioUrl found' });
+                } else if (taskStatusLower === 'failed' || taskStatusLower === 'error' || taskStatusLower === 'timeout') {
                     const errMsg = data?.data?.task_status_msg || data?.data?.error || data?.message || '生成失败';
                     json(200, { success: false, status: 'failed', error: errMsg });
                 } else {
-                    json(200, { success: false, status: 'processing' });
+                    // 仍在处理中
+                    json(200, { success: false, status: 'processing', _taskStatus: taskStatus });
                 }
             } catch (err) {
                 console.error('[yunwu] Kling TTS轮询错误:', err.message);
+                // 网络/超时等瞬态错误 → processing; 其他 → 也返回processing但带错误信息
                 json(200, { success: false, status: 'processing', error: err.message });
             }
             return;
