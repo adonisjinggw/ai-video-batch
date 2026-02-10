@@ -894,7 +894,7 @@ module.exports = async function handler(req, res) {
                 
                 // 💰 按实际消耗扣费
                 let billingSuccess = false;
-                if (filmCost > 0 && userId) {
+                if (!skipBilling && filmCost > 0 && userId) {
                     const billingResult = await __billing('consume', userId, filmCost, `AI对话:${model}(${totalTokens}tokens)`);
                     if (!billingResult.success && !billingResult.skipped) {
                         json(400, { success: false, error: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
@@ -2712,7 +2712,7 @@ module.exports = async function handler(req, res) {
                     const taskId = data.data?.taskId || data.data?.id;
                     // 扣费
                     const cost = 2;  // TTS固定2胶片
-                    if (userId) {
+                    if (userId && !skipBilling) {
                         await __billing('consume', userId, cost, 'TTS配音');
                     }
                     
@@ -2844,7 +2844,7 @@ module.exports = async function handler(req, res) {
                     }
 
                     // 扣费
-                    if (userId) {
+                    if (userId && !skipBilling) {
                         await __billing('consume', userId, cost, `Gemini ${isProModel ? 'Pro' : 'Flash'} TTS配音`);
                     }
                     
@@ -3094,7 +3094,7 @@ module.exports = async function handler(req, res) {
                     
                     // 扣费
                     const cost = 2;  // Kling TTS 2胶片
-                    if (userId) {
+                    if (userId && !skipBilling) {
                         await __billing('consume', userId, cost, 'Kling TTS配音');
                     }
                     
@@ -3103,22 +3103,30 @@ module.exports = async function handler(req, res) {
                         taskId: taskId,
                         message: '任务已提交'
                     });
-                } else if (data?.data?.works?.[0]?.resource?.resource) {
-                    // 直接返回音频URL
-                    const audioUrl = data.data.works[0].resource.resource;
-                    
-                    const cost = 2;
-                    if (userId) {
-                        await __billing('consume', userId, cost, 'Kling TTS配音');
-                    }
-                    
-                    json(200, { 
-                        success: true, 
-                        audioUrl: audioUrl,
-                        message: '生成成功'
-                    });
                 } else {
-                    throw new Error('未获取到任务ID或音频');
+                    // 尝试多种路径提取直接返回的音频URL
+                    const audioUrl = data?.data?.task_result?.works?.[0]?.resource?.resource ||
+                                    data?.data?.task_result?.works?.[0]?.audio?.resource ||
+                                    data?.data?.works?.[0]?.resource?.resource ||
+                                    data?.data?.works?.[0]?.audio?.resource ||
+                                    data?.data?.audio_url ||
+                                    data?.audio_url;
+                    
+                    if (audioUrl) {
+                        const cost = 2;
+                        if (userId && !skipBilling) {
+                            await __billing('consume', userId, cost, 'Kling TTS配音');
+                        }
+                        
+                        json(200, { 
+                            success: true, 
+                            audioUrl: audioUrl,
+                            message: '生成成功'
+                        });
+                    } else {
+                        console.error('[yunwu] Kling TTS 未能提取taskId或audioUrl, 完整返回:', JSON.stringify(data).substring(0, 500));
+                        throw new Error('未获取到任务ID或音频');
+                    }
                 }
             } catch (err) {
                 console.error('[yunwu] Kling TTS错误:', err.message);
@@ -3147,25 +3155,45 @@ module.exports = async function handler(req, res) {
                 }, 15000);
                 
                 if (!response.ok) {
-                    json(200, { success: false, status: 'processing' });
+                    // 读取真实错误而不是默默返回processing
+                    let errBody = '';
+                    try { errBody = await response.text(); } catch(e) {}
+                    console.warn(`[yunwu] Kling TTS轮询 HTTP ${response.status}:`, errBody.substring(0, 200));
+                    json(200, { success: false, status: 'processing', _httpStatus: response.status });
                     return;
                 }
                 
                 const data = await response.json();
-                console.log('[yunwu] Kling TTS轮询返回:', JSON.stringify(data).substring(0, 300));
+                console.log('[yunwu] Kling TTS轮询返回:', JSON.stringify(data).substring(0, 500));
                 
-                const taskStatus = data?.data?.task_status || data?.task_status;
+                const taskStatus = data?.data?.task_status || data?.task_status || data?.status;
+                const taskStatusLower = String(taskStatus || '').toLowerCase();
                 
-                if (taskStatus === 'succeed') {
-                    const audioUrl = data?.data?.task_result?.works?.[0]?.resource?.resource || 
-                                    data?.data?.works?.[0]?.resource?.resource;
-                    json(200, {
-                        success: true,
-                        status: 'completed',
-                        audioUrl: audioUrl
-                    });
-                } else if (taskStatus === 'failed') {
-                    json(200, { success: false, status: 'failed', error: '生成失败' });
+                if (taskStatusLower === 'succeed' || taskStatusLower === 'completed' || taskStatusLower === 'success') {
+                    // 多路径提取音频URL
+                    const audioUrl = data?.data?.task_result?.works?.[0]?.resource?.resource ||
+                                    data?.data?.task_result?.works?.[0]?.audio?.resource ||
+                                    data?.data?.task_result?.works?.[0]?.audio?.resource_without_watermark ||
+                                    data?.data?.works?.[0]?.resource?.resource ||
+                                    data?.data?.works?.[0]?.audio?.resource ||
+                                    data?.data?.works?.[0]?.audio?.resource_without_watermark ||
+                                    data?.data?.audio_url ||
+                                    data?.audio_url ||
+                                    data?.data?.resource ||
+                                    data?.resource;
+                    if (audioUrl) {
+                        json(200, {
+                            success: true,
+                            status: 'completed',
+                            audioUrl: audioUrl
+                        });
+                    } else {
+                        console.error('[yunwu] Kling TTS轮询: 状态完成但未找到audioUrl, 完整数据:', JSON.stringify(data).substring(0, 800));
+                        json(200, { success: false, status: 'processing', _note: 'completed but no audioUrl' });
+                    }
+                } else if (taskStatusLower === 'failed' || taskStatusLower === 'error') {
+                    const errMsg = data?.data?.task_status_msg || data?.data?.error || data?.message || '生成失败';
+                    json(200, { success: false, status: 'failed', error: errMsg });
                 } else {
                     json(200, { success: false, status: 'processing' });
                 }

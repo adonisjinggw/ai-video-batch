@@ -501,6 +501,7 @@ module.exports = async function handler(req, res) {
         } = body || {};
 
         userId = reqUserId;  // 赋值给外层变量
+        const skipBilling = body?.skip_billing === true;
 
         // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫫）
         if (!userId) {
@@ -591,7 +592,7 @@ module.exports = async function handler(req, res) {
         // 🆕 qwen-image-max 使用魔塔 ModelScope API
         if (isQwenImageMax) {
             // 🔒 先扣费
-            if (filmCost > 0 && userId) {
+            if (!skipBilling && filmCost > 0 && userId) {
                 const billingResult = await __billing('consume', userId, filmCost, `画图生成:${model}`);
                 if (!billingResult.success && !billingResult.skipped) {
                     json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
@@ -648,7 +649,7 @@ module.exports = async function handler(req, res) {
         }
 
         // 🔒 Gemini/其他模型先扣费
-        if (filmCost > 0 && userId && !billingSuccess) {
+        if (!skipBilling && filmCost > 0 && userId && !billingSuccess) {
             const billingResult = await __billing('consume', userId, filmCost, `画图生成:${model}`);
             if (!billingResult.success && !billingResult.skipped) {
                 json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });

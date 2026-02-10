@@ -346,8 +346,9 @@ module.exports = async function handler(req, res) {
         negative_tags,       // 不希望的风格
         metadata             // 自定义参数 {create_mode, vocal_gender}
     } = req.body || {};
+    const skipBilling = req.body?.skip_billing === true;
 
-    // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫖）
+    // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫢）
     // 排除查询操作（轮询/查询状态不需要登录，因为不涉及计费）
     const noAuthActions = ['poll', 'fetch', 'status', 'fetch_batch', 'models'];
     if (!userId && !noAuthActions.includes(action)) {
@@ -363,7 +364,7 @@ module.exports = async function handler(req, res) {
         let billingSuccess = false;
 
         // 🔒 先扣费（🔧 修复：__billing 会 throw，必须 try-catch 防止函数崩溃）
-        if (filmCost > 0 && userId) {
+        if (!skipBilling && filmCost > 0 && userId) {
             try {
                 const billingResult = await __billing('consume', userId, filmCost, `音乐生成:${mv || 'chirp-v4'}`);
                 if (!billingResult.success && !billingResult.skipped) {
@@ -570,7 +571,7 @@ module.exports = async function handler(req, res) {
         let billingSuccess = false;
 
         // 🔒 先扣费
-        if (filmCost > 0 && userId) {
+        if (!skipBilling && filmCost > 0 && userId) {
             const billingResult = await __billing('consume', userId, filmCost, '歌词生成');
             if (!billingResult.success && !billingResult.skipped) {
                 return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
@@ -634,7 +635,7 @@ module.exports = async function handler(req, res) {
         let billingSuccess = false;
 
         // 🔒 先扣费
-        if (filmCost > 0 && userId) {
+        if (!skipBilling && filmCost > 0 && userId) {
             const billingResult = await __billing('consume', userId, filmCost, '歌手风格创作');
             if (!billingResult.success && !billingResult.skipped) {
                 return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
@@ -707,7 +708,7 @@ module.exports = async function handler(req, res) {
         let billingSuccess = false;
 
         // 🔒 先扣费
-        if (filmCost > 0 && userId) {
+        if (!skipBilling && filmCost > 0 && userId) {
             const billingResult = await __billing('consume', userId, filmCost, '上传歌曲二创');
             if (!billingResult.success && !billingResult.skipped) {
                 return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
@@ -771,7 +772,7 @@ module.exports = async function handler(req, res) {
         let billingSuccess = false;
 
         // 🔒 先扣费
-        if (filmCost > 0 && userId) {
+        if (!skipBilling && filmCost > 0 && userId) {
             const billingResult = await __billing('consume', userId, filmCost, '歌曲拼接');
             if (!billingResult.success && !billingResult.skipped) {
                 return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });

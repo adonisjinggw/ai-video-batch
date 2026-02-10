@@ -303,7 +303,8 @@ module.exports = async function handler(req, res) {
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-        const { action, prompt, aspectRatio, aspect_ratio, imageUrls, userId } = body || {};
+        const { action, prompt, aspectRatio, aspect_ratio, imageUrls, userId, skip_billing } = body || {};
+        const skipBilling = skip_billing === true;
         // 兼容两种命名风格
         const finalAspectRatio = aspectRatio || aspect_ratio || '1:1';
 
@@ -330,7 +331,7 @@ module.exports = async function handler(req, res) {
             const filmCost = FILM_COST['image'] || 3;
             let billingSuccess = false;
             let taskIdObtained = false; // 🚨 跟踪是否已获取 task_id
-            if (filmCost > 0 && userId) {
+            if (!skipBilling && filmCost > 0 && userId) {
                 try {
                     const billingResult = await __billing('consume', userId, filmCost, 'ModelScope图片生成');
                     if (!billingResult.success && !billingResult.skipped) {
@@ -395,7 +396,7 @@ module.exports = async function handler(req, res) {
             const filmCost = FILM_COST['image2image'] || 4;
             let billingSuccess = false;
             let taskIdObtained = false; // 🚨 跟踪是否已获取 task_id
-            if (filmCost > 0 && userId) {
+            if (!skipBilling && filmCost > 0 && userId) {
                 try {
                     const billingResult = await __billing('consume', userId, filmCost, 'ModelScope图生图');
                     if (!billingResult.success && !billingResult.skipped) {
@@ -533,7 +534,7 @@ module.exports = async function handler(req, res) {
             // 💰 计费
             const filmCost = FILM_COST['text'] || 1;
             let billingSuccess = false;
-            if (filmCost > 0 && userId) {
+            if (!skipBilling && filmCost > 0 && userId) {
                 try {
                     const billingResult = await __billing('consume', userId, filmCost, 'ModelScope文本生成');
                     if (!billingResult.success && !billingResult.skipped) {

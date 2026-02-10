@@ -165,6 +165,7 @@ module.exports = async function handler(req, res) {
             presence_penalty = 0,
             thinking
         } = body || {};
+        const skipBilling = body?.skip_billing === true;
 
         const reqModel = String(model || '').trim();
         const modelLc = reqModel.toLowerCase();
@@ -199,7 +200,7 @@ module.exports = async function handler(req, res) {
         let billingSuccess = false;
 
         // 🔒 先扣费
-        if (filmCost > 0 && userId) {
+        if (!skipBilling && filmCost > 0 && userId) {
             const billingResult = await __billing('consume', userId, filmCost, `写作助手(${totalChars}字符)`);
             if (!billingResult.success && !billingResult.skipped) {
                 json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });

@@ -248,7 +248,6 @@
 
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/yunwu', {
             method: 'POST',
@@ -260,7 +259,8 @@
                 temperature,
                 max_tokens,
                 speed,
-                userId
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
             })
         });
         const data = await res.json().catch(() => ({}));
@@ -278,7 +278,6 @@
     async function callModelScopeTextAPI(prompt) {
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/modelscope', {
             method: 'POST',
@@ -286,7 +285,8 @@
             body: JSON.stringify({
                 action: 'text',
                 prompt,
-                userId
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
             })
         });
         const data = await res.json().catch(() => ({}));
@@ -303,7 +303,6 @@
      */
     async function callWriterLLM(messages, opts = {}) {
         let userId = await getCurrentUserId();
-        if (_billingSessionCount > 0) userId = undefined;
 
         // 🧠 注入用户记忆到 system prompt
         if (typeof getUserMemoryPrompt === 'function' && Array.isArray(messages) && messages.length > 0) {
@@ -317,6 +316,7 @@
         const payload = {
             messages,
             userId,
+            skip_billing: _billingSessionCount > 0 || undefined,
             model: opts.model || 'roll',
             temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.7,
             max_tokens: typeof opts.max_tokens === 'number' ? opts.max_tokens : 4096
@@ -400,7 +400,6 @@
 
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         let imageUrls = undefined;
         let action = 'image';
@@ -427,7 +426,8 @@
                     prompt,
                     aspectRatio,
                     imageUrls,
-                    userId
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
                 }),
                 signal: _msAbort.signal
             });
@@ -452,7 +452,6 @@
     async function callBanana2ImageAPI(prompt, options = {}) {
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         // 🔧 参考图兼容
         const refImageUrl = options.imageUrl || options.image_url || options.refImage || undefined;
@@ -470,7 +469,8 @@
                     model: options.model || 'nano-banana-2',
                     aspect_ratio: options.aspectRatio || options.aspect_ratio || '16:9',
                     image_url: refImageUrl,
-                    userId
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
                 }),
                 signal: _abortCtl.signal
             });
@@ -575,7 +575,6 @@
 
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         // 🎬 Vidu 模型
         if (__isViduModel(_m)) {
@@ -591,7 +590,8 @@
                     aspect_ratio: aspectRatio,
                     duration: parseInt(_dur) || 5,
                     resolution: viduParams.resolution,
-                    userId
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -617,7 +617,8 @@
                     model_version: hailuoParams.version,
                     duration: hailuoParams.duration,
                     resolution: hailuoParams.resolution,
-                    userId
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -644,7 +645,8 @@
                     aspect_ratio: aspectRatio,
                     duration: klingParams.duration,
                     resolution: klingParams.resolution,
-                    userId
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -676,7 +678,8 @@
                 character_timestamps,
                 input_reference,
                 style,
-                userId
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
             })
         });
         const data = await res.json().catch(() => ({}));
@@ -705,7 +708,6 @@
 
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/sora2', {
             method: 'POST',
@@ -725,7 +727,8 @@
                 character_url,
                 character_timestamps,
                 style,
-                userId
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
             })
         });
         const data = await res.json().catch(() => ({}));
@@ -1066,7 +1069,6 @@
 
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/yunwu', {
             method: 'POST',
@@ -1078,7 +1080,8 @@
                 aspect_ratio: aspectRatio,
                 version,
                 image_url,
-                userId
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
             })
         });
 
@@ -1107,7 +1110,6 @@
         if (!imageUrl) throw new Error('缺少图片');
         const ocrPrompt = prompt || '请识别并输出这张图片中的所有文字内容，保持原始格式。';
         let userId = await getCurrentUserId();
-        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/yunwu', {
             method: 'POST',
@@ -1118,7 +1120,7 @@
                 prompt: ocrPrompt,
                 image_url: imageUrl,
                 userId,
-                skipBilling: false
+                skip_billing: _billingSessionCount > 0 || undefined
             })
         });
 
@@ -1141,7 +1143,6 @@
         if (!text) throw new Error('缺少配音文本');
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         const engine = options.engine || 'gemini';
 
@@ -1155,7 +1156,8 @@
                     text,
                     voiceName: options.voiceId || options.voiceName || 'Kore',
                     model: options.model || 'flash',
-                    userId
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -1173,7 +1175,8 @@
                     text,
                     voiceId: options.voiceId || 'genshin_vindi2',
                     voiceSpeed: options.speed || 1,
-                    userId
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -1210,7 +1213,8 @@
                     language: options.language || 'zh',
                     audioSpeed: options.speed || 1,
                     emotion: options.emotion || '',
-                    userId
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -1244,11 +1248,11 @@
     async function callSunoMusicAPI(options = {}) {
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
-        if (_billingSessionCount > 0) userId = undefined;
 
         const body = {
             action: 'generate',
             userId,
+            skip_billing: _billingSessionCount > 0 || undefined,
             mv: options.model || 'chirp-v4',
             title: options.title || '',
             tags: options.tags || '',
@@ -1295,12 +1299,11 @@
     async function callSunoLyricsAPI(prompt) {
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录');
-        if (_billingSessionCount > 0) userId = undefined;
 
         const res = await fetch('/api/suno', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'lyrics', prompt, userId })
+            body: JSON.stringify({ action: 'lyrics', prompt, userId, skip_billing: _billingSessionCount > 0 || undefined })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) throw new Error(data.message || data.error || '歌词生成失败');
