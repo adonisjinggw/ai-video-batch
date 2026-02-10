@@ -123,6 +123,63 @@
         throw new Error('图片生成功能不可用');
     }
 
+    // ==================== 🧠 智能分析辅助函数 ====================
+
+    /** 检测配音场景 */
+    function _detectScene(text) {
+        const t = text.toLowerCase();
+        if (/\[.{1,10}\]/.test(text) && (text.match(/\[/g) || []).length >= 3) return 'story';
+        if (/广告|推广|产品|品牌|促销|买|优惠/.test(t)) return 'ad';
+        if (/课程|教学|知识|科普|讲解|播客/.test(t)) return 'education';
+        if (/活泼|搞笑|有趣|开心|快乐|咕咕|短视频/.test(t)) return 'lively';
+        if (/小说|故事|角色|对话|广播剧|旁白/.test(t)) return 'story';
+        return 'narration';
+    }
+
+    /** 检测音乐用途 */
+    function _detectMusicPurpose(desc) {
+        const d = (desc || '').toLowerCase();
+        if (/bgm|背景音乐|配乐|视频|短视频|宣传片/.test(d)) return 'bgm';
+        if (/歌曲|歌词|唱|人声|唱歌|原创歌/.test(d)) return 'song';
+        if (/放松|冥想|睡眠|白噪音|自然|氛围/.test(d)) return 'ambient';
+        if (/游戏|动画|像素|战斗|冒险/.test(d)) return 'game';
+        if (/品牌|广告|企业|商业|营销/.test(d)) return 'brand';
+        return 'bgm';
+    }
+
+    /** 智能生成音乐风格标签 */
+    function _generateMusicTags(desc, purpose) {
+        const d = (desc || '').toLowerCase();
+        const tags = [];
+
+        // 基于用途的基础标签
+        const purposeTags = {
+            bgm: ['instrumental', 'background'],
+            song: ['vocal', 'pop'],
+            ambient: ['ambient', 'calm', 'instrumental'],
+            game: ['electronic', 'cinematic', 'instrumental'],
+            brand: ['corporate', 'uplifting', 'instrumental']
+        };
+        if (purposeTags[purpose]) tags.push(...purposeTags[purpose]);
+
+        // 基于描述的风格检测
+        if (/中国风|国风|古典|古风|水墨|民乐/.test(d)) tags.push('chinese folk', 'traditional');
+        if (/电子|电音|edm|dj|蹦迪/.test(d)) tags.push('electronic', 'synth');
+        if (/摇滚|rock|吱他/.test(d)) tags.push('rock', 'guitar');
+        if (/嘴士|jazz|慰意/.test(d)) tags.push('jazz', 'smooth');
+        if (/说唱|rap|嘴哈/.test(d)) tags.push('hip-hop', 'rap');
+        if (/史诗|宏大|壮丽|史诗感/.test(d)) tags.push('cinematic', 'epic', 'orchestral');
+        if (/轻快|欢快|活泼|开心/.test(d)) tags.push('upbeat', 'happy');
+        if (/悲伤|伤感|忧郁|淮思/.test(d)) tags.push('sad', 'emotional', 'piano');
+        if (/美食|美食探店|烹饪/.test(d)) tags.push('upbeat', 'fun', 'acoustic');
+        if (/科幻|未来|太空/.test(d)) tags.push('sci-fi', 'electronic', 'cinematic');
+        if (/浪漫|爱情|温骊/.test(d)) tags.push('romantic', 'soft', 'piano');
+
+        // 去重，限制标签数量
+        const unique = [...new Set(tags)];
+        return unique.slice(0, 6).join(', ') || 'pop, melodic';
+    }
+
     function registerPresetSkills() {
         const presetSkills = [
             // ==================== 视频类 ====================
@@ -1012,176 +1069,283 @@ ${story}
 
             // ==================== 音频类 ====================
 
-            // 7. AI配音
+            // 7. AI智能配音
             {
                 id: 'ai_dubbing',
-                name: 'AI配音',
-                icon: '🎤',
+                name: 'AI智能配音',
+                icon: '🎙️',
                 category: 'audio',
-                description: '输入文本，AI 自动生成配音音频。支持 Gemini/可灵/DubbingX 多引擎，可选音色、语速、情感。',
+                description: '输入文本，AI 自动分析内容类型，智能选择最佳音色、语速、引擎。支持旁白、对话、多角色自动分段配音。',
                 parameters: [
                     {
                         key: 'text',
                         label: '配音文本',
                         type: 'textarea',
                         required: true,
-                        placeholder: '输入要配音的文字内容...',
-                        hint: '支持中英文，建议单次不超过 500 字'
+                        placeholder: '输入要配音的文字内容...\n\u2022 纯旁白：直接输入文字\n\u2022 多角色：用 [角色名] 标记，如 [旁白] [小明] [小红]',
+                        hint: '支持自动识别角色对话，每段不超过500字'
                     },
                     {
-                        key: 'engine',
-                        label: '配音引擎',
+                        key: 'scene',
+                        label: '场景描述（可选）',
                         type: 'select',
-                        default: 'gemini',
+                        default: 'auto',
                         options: [
-                            { value: 'gemini', label: '⚡ Gemini Flash（1胶片 最快）' },
-                            { value: 'kling', label: '🎵 可灵 TTS（2胶片 高质量）' },
-                            { value: 'dubbingx', label: '🎧 DubbingX（2胶片 多音色）' }
+                            { value: 'auto', label: '🧠 AI 自动判断' },
+                            { value: 'narration', label: '🎥 视频旁白 / 纪录片' },
+                            { value: 'story', label: '📖 有声小说 / 广播剧' },
+                            { value: 'ad', label: '📢 广告 / 产品介绍' },
+                            { value: 'education', label: '🎓 教育课程 / 播客' },
+                            { value: 'lively', label: '🎉 活泼活力 / 短视频' }
                         ]
-                    },
-                    {
-                        key: 'voiceId',
-                        label: '音色',
-                        type: 'text',
-                        default: '',
-                        placeholder: 'Gemini: Kore/Puck/Charon | 可灵: zhifeng_zz',
-                        hint: 'Gemini音色: Kore(女)/Puck(男)/Charon(低沉)/Aoede(温柔) | 可灵: zhifeng_zz/zhimiao_emo 等'
-                    },
-                    {
-                        key: 'speed',
-                        label: '语速',
-                        type: 'number',
-                        default: 1,
-                        min: 0.5,
-                        max: 2,
-                        hint: '0.5=慢速, 1=正常, 2=快速'
                     }
                 ],
                 estimateCost: (params) => {
-                    const engineCosts = { gemini: 1, kling: 2, dubbingx: 2 };
+                    // 智能估算：检测多角色标记
+                    const text = params.text || '';
+                    const roleMatches = text.match(/\[.{1,10}\]/g);
+                    const segments = roleMatches ? new Set(roleMatches).size : 1;
+                    const totalSegments = roleMatches ? roleMatches.length : 1;
+                    // 多角色用高质量引擎，单角色用快速引擎
+                    const costPerSegment = segments > 1 ? 1 : 1;
                     return {
-                        film: engineCosts[params.engine] || 1,
-                        time: '约 10-30 秒'
+                        film: Math.max(1, totalSegments * costPerSegment),
+                        time: totalSegments > 3 ? `约 ${totalSegments * 8} 秒` : '约 10-30 秒'
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { text, engine, voiceId, speed } = params;
-
-                    callbacks.onProgress?.('生成配音', 20, `正在使用 ${engine} 生成配音...`);
-
+                    const { text, scene } = params;
                     if (typeof callTTSAPI !== 'function') throw new Error('TTS功能不可用');
 
-                    const audioUrl = await callTTSAPI(text, {
-                        engine: engine || 'gemini',
-                        voiceId: voiceId || '',
-                        speed: parseFloat(speed) || 1
-                    });
+                    // 🧠 Step 1: 智能分析文本内容
+                    callbacks.onProgress?.('分析文本', 5, 'AI 正在分析文本内容...');
 
-                    callbacks.onStepComplete?.('配音完成', { audioUrl });
-                    callbacks.onProgress?.('完成', 100, '配音已生成');
+                    // 角色分段检测：[角色名] 文本内容
+                    const rolePattern = /\[(.{1,10})\]\s*([\s\S]*?)(?=\[.{1,10}\]|$)/g;
+                    const segments = [];
+                    let roleMatch;
+                    while ((roleMatch = rolePattern.exec(text)) !== null) {
+                        const roleName = roleMatch[1].trim();
+                        const roleText = roleMatch[2].trim();
+                        if (roleText) segments.push({ role: roleName, text: roleText });
+                    }
+
+                    // 无角色标记 → 整段配音
+                    if (segments.length === 0) {
+                        segments.push({ role: 'narrator', text: text.trim() });
+                    }
+
+                    // 🎭 Step 2: 智能音色分配
+                    const detectedScene = scene === 'auto' ? _detectScene(text) : scene;
+
+                    // 角色音色映射表
+                    const voiceProfiles = {
+                        // 旁白类
+                        '旁白':   { engine: 'gemini', voiceId: 'Charon', speed: 0.95 },
+                        'narrator': { engine: 'gemini', voiceId: 'Charon', speed: 0.95 },
+                        '叙述':   { engine: 'gemini', voiceId: 'Charon', speed: 0.95 },
+                        // 女性角色
+                        '女': { engine: 'gemini', voiceId: 'Kore', speed: 1.0 },
+                        '女孩': { engine: 'gemini', voiceId: 'Kore', speed: 1.1 },
+                        '小红': { engine: 'gemini', voiceId: 'Kore', speed: 1.0 },
+                        '娘': { engine: 'gemini', voiceId: 'Aoede', speed: 0.9 },
+                        '温柔': { engine: 'gemini', voiceId: 'Aoede', speed: 0.9 },
+                        '女声': { engine: 'kling', voiceId: 'zhimiao_emo', speed: 1.0 },
+                        // 男性角色
+                        '男': { engine: 'gemini', voiceId: 'Puck', speed: 1.0 },
+                        '男孩': { engine: 'gemini', voiceId: 'Puck', speed: 1.1 },
+                        '小明': { engine: 'gemini', voiceId: 'Puck', speed: 1.0 },
+                        '老人': { engine: 'gemini', voiceId: 'Charon', speed: 0.85 },
+                        '男声': { engine: 'kling', voiceId: 'zhifeng_zz', speed: 1.0 },
+                        '深沉': { engine: 'gemini', voiceId: 'Charon', speed: 0.9 }
+                    };
+
+                    // 场景默认音色（当角色名未匹配时的兆底）
+                    const sceneDefaults = {
+                        narration:  { engine: 'gemini', voiceId: 'Charon', speed: 0.95 },
+                        story:      { engine: 'kling', voiceId: 'zhifeng_zz', speed: 1.0 },
+                        ad:         { engine: 'gemini', voiceId: 'Puck', speed: 1.1 },
+                        education:  { engine: 'gemini', voiceId: 'Charon', speed: 0.9 },
+                        lively:     { engine: 'gemini', voiceId: 'Kore', speed: 1.2 }
+                    };
+                    const defaultVoice = sceneDefaults[detectedScene] || sceneDefaults.narration;
+
+                    // 为每个角色分配音色，同一角色名保持一致
+                    const roleVoiceMap = {};
+                    const usedVoices = new Set();
+                    const alternateVoices = [
+                        { engine: 'gemini', voiceId: 'Puck', speed: 1.0 },
+                        { engine: 'gemini', voiceId: 'Kore', speed: 1.0 },
+                        { engine: 'gemini', voiceId: 'Aoede', speed: 0.95 },
+                        { engine: 'gemini', voiceId: 'Charon', speed: 0.9 },
+                        { engine: 'kling', voiceId: 'zhifeng_zz', speed: 1.0 },
+                        { engine: 'kling', voiceId: 'zhimiao_emo', speed: 1.0 }
+                    ];
+                    let altIdx = 0;
+
+                    for (const seg of segments) {
+                        if (roleVoiceMap[seg.role]) continue;
+                        // 匹配预定义角色
+                        const matched = Object.entries(voiceProfiles).find(([key]) =>
+                            seg.role.includes(key) || key.includes(seg.role)
+                        );
+                        if (matched && !usedVoices.has(matched[1].voiceId)) {
+                            roleVoiceMap[seg.role] = matched[1];
+                            usedVoices.add(matched[1].voiceId);
+                        } else if (segments.length === 1) {
+                            roleVoiceMap[seg.role] = defaultVoice;
+                        } else {
+                            // 多角色时分配不同音色
+                            while (altIdx < alternateVoices.length && usedVoices.has(alternateVoices[altIdx].voiceId)) altIdx++;
+                            const voice = altIdx < alternateVoices.length ? alternateVoices[altIdx] : defaultVoice;
+                            roleVoiceMap[seg.role] = voice;
+                            usedVoices.add(voice.voiceId);
+                            altIdx++;
+                        }
+                    }
+
+                    callbacks.onProgress?.('开始配音', 10,
+                        `检测到 ${segments.length} 段配音，${Object.keys(roleVoiceMap).length} 个角色，场景: ${detectedScene}`);
+
+                    // 🎤 Step 3: 逐段配音
+                    const results = [];
+                    for (let i = 0; i < segments.length; i++) {
+                        const seg = segments[i];
+                        const voice = roleVoiceMap[seg.role];
+                        const segText = seg.text.substring(0, 500); // 单段限制500字
+                        const progress = 10 + Math.round((i / segments.length) * 85);
+                        callbacks.onProgress?.(`配音中 ${i + 1}/${segments.length}`, progress,
+                            `🎤 [${seg.role}] ${voice.engine}/${voice.voiceId} speed=${voice.speed}`);
+
+                        try {
+                            const audioUrl = await callTTSAPI(segText, {
+                                engine: voice.engine,
+                                voiceId: voice.voiceId,
+                                speed: voice.speed
+                            });
+                            results.push({ role: seg.role, audioUrl, text: segText, status: 'success' });
+                            callbacks.onStepComplete?.(`[${seg.role}] 配音完成`, { audioUrl });
+                        } catch (err) {
+                            results.push({ role: seg.role, error: err.message, text: segText, status: 'failed' });
+                        }
+                    }
+
+                    callbacks.onProgress?.('完成', 100,
+                        `成功 ${results.filter(r => r.status === 'success').length}/${segments.length} 段`);
 
                     return {
-                        audioUrl,
-                        engine,
-                        textLength: text.length
+                        scene: detectedScene,
+                        segments: results,
+                        roles: Object.entries(roleVoiceMap).map(([role, v]) => ({ role, ...v }))
                     };
                 }
             },
 
-            // 8. AI音乐制作
+            // 8. AI智能音乐
             {
                 id: 'ai_music',
-                name: 'AI音乐制作',
+                name: 'AI智能音乐',
                 icon: '🎵',
                 category: 'audio',
-                description: '输入歌词或描述，AI 自动创作音乐。支持 Suno v3-v5 模型，可生成带人声或纯音乐。',
+                description: '描述想要的音乐氛围或用途，AI 自动生成歌词、选择风格、配置参数，一键创作音乐。',
                 parameters: [
                     {
-                        key: 'mode',
-                        label: '创作模式',
-                        type: 'select',
-                        default: 'inspiration',
-                        options: [
-                            { value: 'inspiration', label: '💡 灵感模式（描述想要的音乐）' },
-                            { value: 'custom', label: '✍️ 自定义模式（提供歌词）' }
-                        ]
-                    },
-                    {
-                        key: 'prompt',
-                        label: '歌词/描述',
+                        key: 'description',
+                        label: '音乐描述',
                         type: 'textarea',
                         required: true,
-                        placeholder: '灵感模式: 描述想要的音乐风格 / 自定义模式: 直接输入歌词',
-                        hint: '灵感模式只需描述风格，自定义模式需输入歌词'
+                        placeholder: '描述想要的音乐，例如：\n\u2022 给美食探店视频做一段轻快的BGM\n\u2022 写一首关于秋天的中国风歌曲\n\u2022 科幻电影预告片的史诗配乐',
+                        hint: '描述越具体，AI 生成的音乐越符合预期'
                     },
                     {
-                        key: 'title',
-                        label: '歌曲标题',
-                        type: 'text',
-                        default: '',
-                        placeholder: '可选，AI可自动命名'
-                    },
-                    {
-                        key: 'tags',
-                        label: '风格标签',
-                        type: 'text',
-                        default: '',
-                        placeholder: '例如: pop, 电子, 中国风, rock, jazz...',
-                        hint: '多个标签用逗号分隔'
-                    },
-                    {
-                        key: 'model',
-                        label: 'Suno 模型',
+                        key: 'purpose',
+                        label: '音乐用途（可选）',
                         type: 'select',
-                        default: 'chirp-v4',
+                        default: 'auto',
                         options: [
-                            { value: 'chirp-v5', label: 'Suno v5.0（最新）' },
-                            { value: 'chirp-auk', label: 'Suno v4.5' },
-                            { value: 'chirp-v4', label: 'Suno v4.0（推荐）' },
-                            { value: 'chirp-v3-5', label: 'Suno v3.5' }
+                            { value: 'auto', label: '🧠 AI 自动判断' },
+                            { value: 'bgm', label: '🎬 视频/短视频BGM' },
+                            { value: 'song', label: '🎤 完整歌曲（带人声）' },
+                            { value: 'ambient', label: '🌿 氛围音乐/放松' },
+                            { value: 'game', label: '🎮 游戏/动画配乐' },
+                            { value: 'brand', label: '🏢 品牌/广告音乐' }
                         ]
-                    },
-                    {
-                        key: 'instrumental',
-                        label: '纯音乐',
-                        type: 'checkbox',
-                        default: false,
-                        checkboxLabel: '只生成音乐，不含人声'
                     }
                 ],
                 estimateCost: () => ({
-                    film: 8,
+                    film: 9,
                     time: '约 1-3 分钟'
                 }),
                 execute: async (params, callbacks) => {
-                    const { mode, prompt, title, tags, model, instrumental } = params;
-
-                    callbacks.onProgress?.('提交音乐任务', 10, '正在提交音乐生成任务...');
-
+                    const { description, purpose } = params;
                     if (typeof callSunoMusicAPI !== 'function') throw new Error('音乐生成功能不可用');
 
-                    const options = {
-                        model: model || 'chirp-v4',
-                        title: title || '',
-                        tags: tags || '',
-                        instrumental: !!instrumental
-                    };
+                    // 🧠 Step 1: AI 分析描述，自动生成参数
+                    callbacks.onProgress?.('分析音乐需求', 5, 'AI 正在分析你的音乐需求...');
 
-                    if (mode === 'inspiration') {
-                        options.description = prompt;
-                    } else {
-                        options.prompt = prompt;
+                    const detectedPurpose = purpose === 'auto' ? _detectMusicPurpose(description) : purpose;
+                    const isInstrumental = ['bgm', 'ambient', 'game'].includes(detectedPurpose);
+                    const needLyrics = ['song'].includes(detectedPurpose) || (!isInstrumental && detectedPurpose === 'auto');
+
+                    // 智能风格标签生成
+                    const autoTags = _generateMusicTags(description, detectedPurpose);
+                    const model = 'chirp-v4'; // 默认稳定版本
+
+                    callbacks.onProgress?.('生成音乐参数', 10,
+                        `用途: ${detectedPurpose} | 风格: ${autoTags} | ${isInstrumental ? '纯BGM' : '带人声'}`);
+
+                    // 🎵 Step 2: 如果需要歌词，先用AI生成歌词
+                    let lyrics = '';
+                    if (needLyrics) {
+                        callbacks.onProgress?.('创作歌词', 15, 'AI 正在根据描述创作歌词...');
+                        try {
+                            if (typeof callScriptGenerator === 'function') {
+                                lyrics = await callScriptGenerator({},
+                                    `你是一位专业词作家。根据以下描述创作一首歌曲的歌词：
+
+描述：${description}
+风格：${autoTags}
+
+要求：
+- 包含主歌(Verse)、副歌(Chorus)、Bridge
+- 副歌朗朗上口，有记忆点
+- 中文歌词
+- 直接输出歌词内容，不要解释`);
+                            }
+                            if (lyrics) {
+                                callbacks.onStepComplete?.('歌词创作完成', { lyrics });
+                            }
+                        } catch (e) {
+                            console.warn('[ai_music] 歌词生成失败，改用灵感模式:', e.message);
+                        }
                     }
 
-                    callbacks.onProgress?.('生成中', 30, '音乐生成中，请耐心等待...');
+                    // 🎶 Step 3: 调用 Suno 生成音乐
+                    callbacks.onProgress?.('生成音乐', 25, '正在生成音乐，请耐心等待...');
 
-                    const result = await callSunoMusicAPI(options);
+                    const sunoOptions = {
+                        model,
+                        title: '',
+                        tags: autoTags,
+                        instrumental: isInstrumental
+                    };
+
+                    if (lyrics) {
+                        sunoOptions.prompt = lyrics;
+                    } else {
+                        sunoOptions.description = description;
+                    }
+
+                    const result = await callSunoMusicAPI(sunoOptions);
 
                     callbacks.onProgress?.('完成', 100, `成功生成 ${result.music.length} 首音乐`);
 
-                    // 返回音乐列表
                     return {
                         taskId: result.taskId,
+                        purpose: detectedPurpose,
+                        tags: autoTags,
+                        isInstrumental,
+                        lyrics: lyrics || null,
                         music: result.music.map(m => ({
                             title: m.title,
                             audioUrl: m.audio_url,

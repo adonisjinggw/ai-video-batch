@@ -830,42 +830,65 @@ async function syncTasksToCloud(tasks, deletedTaskIds = []) {
  * @returns {Promise<Array>} 任务列表
  */
 async function getTasksFromCloud() {
-    const client = getSupabase();
-    if (!client) throw new Error('Supabase 未初始化');
-
     const user = await getCurrentUser();
     if (!user) throw new Error('用户未登录');
 
-    // 🔧 使用 or 条件处理 is_deleted 可能为 null 或 false 的情况
-    const { data, error } = await client
-        .from('user_tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .or('is_deleted.eq.false,is_deleted.is.null')
-        .order('updated_at', { ascending: false });
+    // 🔧 策略：先尝试 Supabase SDK 直连，失败后降级走服务端代理（解决 SSL 错误）
+    let data = null;
+    let sdkError = null;
 
-    if (error) throw error;
+    const client = getSupabase();
+    if (client) {
+        try {
+            const result = await client
+                .from('user_tasks')
+                .select('*')
+                .eq('user_id', user.id)
+                .or('is_deleted.eq.false,is_deleted.is.null')
+                .order('updated_at', { ascending: false });
+            if (result.error) throw result.error;
+            data = result.data;
+        } catch (e) {
+            sdkError = e;
+            console.warn('⚠️ [getTasksFromCloud] SDK 直连失败，降级走代理:', e?.message);
+        }
+    }
+
+    // 🔄 降级：通过服务端代理获取（不受客户端 SSL 限制）
+    if (!data) {
+        try {
+            const proxyRes = await fetch('/api/supabase-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'getTasks', userId: user.id })
+            });
+            const proxyData = await proxyRes.json().catch(() => ({}));
+            if (proxyRes.ok && proxyData.success && Array.isArray(proxyData.tasks)) {
+                console.log(`☁️ [代理] 从云端获取了 ${proxyData.tasks.length} 个任务`);
+                return proxyData.tasks;
+            }
+            throw new Error(proxyData.message || '代理获取任务失败');
+        } catch (proxyErr) {
+            console.error('❌ [getTasksFromCloud] SDK 和代理均失败:', sdkError?.message, proxyErr?.message);
+            throw sdkError || proxyErr;
+        }
+    }
 
     console.log(`☁️ 从云端获取了 ${data?.length || 0} 个任务`);
 
-    // 提取task_data，同时返回task_id用于过滤
-    // 🔧 确保每个任务都有有效的ID
     return data.map(row => {
         const taskData = row.task_data || {};
-        // 优先使用 task_id，其次使用 task_data 中的 id
         const id = row.task_id || taskData.id;
-
         if (!id) {
             console.warn('⚠️ 云端任务缺少ID，跳过:', row.theme);
             return null;
         }
-
         return {
             ...taskData,
             id: id,
             theme: row.theme || taskData.theme || '未命名任务'
         };
-    }).filter(task => task !== null); // 过滤掉无效任务
+    }).filter(task => task !== null);
 }
 
 /**
@@ -966,32 +989,58 @@ async function syncCharactersToCloud(characters) {
  * @returns {Promise<Array>} 角色列表
  */
 async function getCharactersFromCloud() {
-    const client = getSupabase();
-    if (!client) throw new Error('Supabase 未初始化');
-
     const user = await getCurrentUser();
     if (!user) throw new Error('用户未登录');
 
-    const { data, error } = await client
-        .from('user_characters')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+    // 🔧 策略：先 SDK 直连，失败后走服务端代理
+    let data = null;
+    let sdkError = null;
 
-    if (error) throw error;
+    const client = getSupabase();
+    if (client) {
+        try {
+            const result = await client
+                .from('user_characters')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+            if (result.error) throw result.error;
+            data = result.data;
+        } catch (e) {
+            sdkError = e;
+            console.warn('⚠️ [getCharactersFromCloud] SDK 直连失败，降级走代理:', e?.message);
+        }
+    }
 
-    // 🔧 修复：优先使用完整数据，兼容旧格式
+    // 🔄 降级：通过服务端代理获取
+    if (!data) {
+        try {
+            const proxyRes = await fetch('/api/supabase-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'getCharacters', userId: user.id })
+            });
+            const proxyData = await proxyRes.json().catch(() => ({}));
+            if (proxyRes.ok && proxyData.success && Array.isArray(proxyData.characters)) {
+                console.log(`☁️ [代理] 从云端获取了 ${proxyData.characters.length} 个角色`);
+                return proxyData.characters;
+            }
+            throw new Error(proxyData.message || '代理获取角色失败');
+        } catch (proxyErr) {
+            console.error('❌ [getCharactersFromCloud] SDK 和代理均失败:', sdkError?.message, proxyErr?.message);
+            throw sdkError || proxyErr;
+        }
+    }
+
     return data.map(row => {
-        // 如果 tags 里有完整数据，直接使用
         if (row.tags && row.tags.__full_data) {
             return row.tags.__full_data;
         }
-        // 兼容旧格式（没有 __full_data 的数据）
         return {
             name: row.name,
             summary: row.summary,
             imageUrl: row.image_url,
-            posterUrl: row.image_url,  // 兼容
+            posterUrl: row.image_url,
             videoUrl: row.video_url,
             variants: {
                 poster: row.image_url,

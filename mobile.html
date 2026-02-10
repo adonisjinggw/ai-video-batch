@@ -6928,10 +6928,8 @@ ${idea.theme}${characterPrompt}
         function renderTaskList() {
             const container = document.getElementById('taskList');
             
-            // 🔧 安全检查：如果容器不存在（创作页已经没有任务列表），则跳过
+            // 🔧 taskList 已拆分到作品页，创作页无此容器 —— 静默降级到作品页
             if (!container) {
-                console.log('[mobile] taskList容器不存在，跳过renderTaskList');
-                // 如果当前在作品页，刷新作品页
                 if (currentTab === 'works') {
                     renderWorksPage();
                 }

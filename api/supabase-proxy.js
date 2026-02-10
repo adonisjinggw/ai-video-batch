@@ -357,6 +357,96 @@ module.exports = async function handler(req, res) {
             }
         }
 
+        // ========== 🔄 云端任务同步代理（解决客户端 SSL 错误）==========
+        if (action === 'getTasks') {
+            if (!userId) {
+                res.status(400).json({ error: 'MISSING_USER_ID', message: '缺少 userId' });
+                return;
+            }
+            if (!SUPABASE_SERVICE_KEY) {
+                res.status(500).json({ error: 'SERVER_CONFIG_ERROR', message: '未配置 SUPABASE_SERVICE_KEY' });
+                return;
+            }
+            try {
+                const queryUrl = `${SUPABASE_URL}/rest/v1/user_tasks?user_id=eq.${encodeURIComponent(userId)}&or=(is_deleted.eq.false,is_deleted.is.null)&order=updated_at.desc&select=*`;
+                const queryRes = await fetch(queryUrl, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (!queryRes.ok) {
+                    const errText = await queryRes.text().catch(() => '');
+                    console.error('[supabase-proxy] getTasks 查询失败:', queryRes.status, errText);
+                    res.status(queryRes.status).json({ error: 'QUERY_FAILED', message: errText });
+                    return;
+                }
+                const rows = await queryRes.json().catch(() => []);
+                // 提取 task_data，与 supabase-config.js 中 getTasksFromCloud 逻辑一致
+                const tasks = (rows || []).map(row => {
+                    const taskData = row.task_data || {};
+                    const id = row.task_id || taskData.id;
+                    if (!id) return null;
+                    return { ...taskData, id, theme: row.theme || taskData.theme || '未命名任务' };
+                }).filter(Boolean);
+                console.log(`[supabase-proxy] ✅ getTasks 成功: ${tasks.length} 条`);
+                res.status(200).json({ success: true, tasks });
+                return;
+            } catch (e) {
+                console.error('[supabase-proxy] getTasks 异常:', e.message);
+                res.status(500).json({ error: 'PROXY_ERROR', message: e.message });
+                return;
+            }
+        }
+
+        if (action === 'getCharacters') {
+            if (!userId) {
+                res.status(400).json({ error: 'MISSING_USER_ID', message: '缺少 userId' });
+                return;
+            }
+            if (!SUPABASE_SERVICE_KEY) {
+                res.status(500).json({ error: 'SERVER_CONFIG_ERROR', message: '未配置 SUPABASE_SERVICE_KEY' });
+                return;
+            }
+            try {
+                const queryUrl = `${SUPABASE_URL}/rest/v1/user_characters?user_id=eq.${encodeURIComponent(userId)}&select=*`;
+                const queryRes = await fetch(queryUrl, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (!queryRes.ok) {
+                    const errText = await queryRes.text().catch(() => '');
+                    res.status(queryRes.status).json({ error: 'QUERY_FAILED', message: errText });
+                    return;
+                }
+                const rows = await queryRes.json().catch(() => []);
+                // 提取角色数据，与 supabase-config.js 中 getCharactersFromCloud 逻辑一致
+                const characters = (rows || []).map(row => {
+                    if (row.tags?.__full_data) return row.tags.__full_data;
+                    return {
+                        name: row.name || '未命名',
+                        summary: row.summary || '',
+                        description: row.summary || '',
+                        imageUrl: row.image_url || '',
+                        posterUrl: row.image_url || '',
+                        videoUrl: row.video_url || '',
+                        variants: { poster: row.image_url || '' }
+                    };
+                });
+                console.log(`[supabase-proxy] ✅ getCharacters 成功: ${characters.length} 个`);
+                res.status(200).json({ success: true, characters });
+                return;
+            } catch (e) {
+                console.error('[supabase-proxy] getCharacters 异常:', e.message);
+                res.status(500).json({ error: 'PROXY_ERROR', message: e.message });
+                return;
+            }
+        }
+
         // ========== 验证邀请码（不需要 userId，公开 API）==========
         if (action === 'validateInviteCode') {
             const inviteCode = String(body?.inviteCode || '').trim().toUpperCase();
