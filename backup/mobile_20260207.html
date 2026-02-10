@@ -37,13 +37,9 @@
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
-    <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=1.2&t=20260209"></script>
-    <script src="/js/user-memory.js?v=1.0"></script>
-    <script src="/js/writing-vault.js?v=1.0"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=2.2&t=20260209b"></script>
-    <script src="/js/skill-presets.js?v=2.2&t=20260209b"></script>
+    <script src="/js/skill-system.js?v=1.0.0"></script>
+    <script src="/js/skill-presets.js?v=1.0.0"></script>
     <style>
         * {
             margin: 0;
@@ -1359,84 +1355,6 @@
         /* 跳过按钮 */
         .intro-skip { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; color: #fff; font-size: 13px; cursor: pointer; z-index: 100000; }
 
-        /* 🧩 技能面板样式 */
-        .skill-sheet { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; display:none; }
-        .skill-sheet.show { display:flex; flex-direction:column; }
-        .skill-sheet-backdrop { position:absolute; inset:0; }
-        .skill-sheet-content { position:absolute; bottom:0; left:0; right:0; max-height:92vh; background:var(--bg-dark); border-radius:20px 20px 0 0; display:flex; flex-direction:column; transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.32,0.72,0,1); padding-bottom:env(safe-area-inset-bottom); }
-        .skill-sheet.show .skill-sheet-content { transform:translateY(0); }
-        .skill-sheet-handle { width:40px; height:4px; background:#444; border-radius:2px; margin:10px auto 6px; flex-shrink:0; }
-        .skill-sheet-header { display:flex; justify-content:space-between; align-items:center; padding:8px 20px 12px; flex-shrink:0; }
-        .skill-sheet-title { font-size:18px; font-weight:700; color:#fff; }
-        .skill-sheet-close { background:none; border:none; color:#888; font-size:28px; cursor:pointer; padding:4px 8px; }
-        .skill-cats { display:flex; gap:8px; padding:0 20px 12px; overflow-x:auto; flex-shrink:0; -webkit-overflow-scrolling:touch; }
-        .skill-cats::-webkit-scrollbar { display:none; }
-        .skill-cat-btn { padding:8px 16px; background:var(--bg-card); border:1px solid #333; border-radius:20px; color:var(--text-dim); font-size:13px; white-space:nowrap; cursor:pointer; flex-shrink:0; transition:all 0.2s; }
-        .skill-cat-btn.active { background:rgba(251,191,36,0.15); border-color:var(--accent); color:var(--accent); }
-        .skill-search-box { margin:0 20px 12px; padding:10px 14px; background:var(--bg-card); border:1px solid #333; border-radius:10px; color:#fff; font-size:14px; flex-shrink:0; }
-        .skill-grid { flex:1; overflow-y:auto; padding:0 20px 20px; display:grid; grid-template-columns:repeat(2,1fr); gap:12px; align-content:start; }
-        .skill-card-m { background:var(--bg-card); border-radius:14px; padding:16px; cursor:pointer; border:1px solid #222; transition:border-color 0.2s; }
-        .skill-card-m:active { border-color:var(--accent); }
-        .skill-card-m-icon { font-size:28px; margin-bottom:8px; }
-        .skill-card-m-name { font-size:14px; font-weight:600; color:#fff; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .skill-card-m-desc { font-size:11px; color:var(--text-dim); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-        .skill-card-m-tag { display:inline-block; margin-top:8px; padding:3px 8px; background:rgba(255,255,255,0.06); border-radius:8px; font-size:10px; color:#888; }
-        /* 技能参数页 */
-        .skill-config-page { position:absolute; inset:0; background:var(--bg-dark); display:none; flex-direction:column; z-index:2; }
-        .skill-config-page.show { display:flex; }
-        .skill-config-header { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #222; flex-shrink:0; }
-        .skill-config-back { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:4px; }
-        .skill-config-body { flex:1; overflow-y:auto; padding:20px; }
-        .skill-param-group-m { margin-bottom:16px; }
-        .skill-param-label-m { display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; }
-        .skill-param-input-m, .skill-param-textarea-m, .skill-param-select-m { width:100%; padding:12px; background:var(--bg-input); border:1px solid #2a2a35; border-radius:10px; color:#fff; font-size:14px; }
-        .skill-param-textarea-m { min-height:80px; resize:vertical; }
-        .skill-param-hint-m { font-size:11px; color:#666; margin-top:4px; }
-        .skill-config-footer { padding:16px 20px; border-top:1px solid #222; flex-shrink:0; }
-        .skill-exec-btn { width:100%; padding:16px; background:linear-gradient(135deg, var(--accent), #f59e0b); border:none; border-radius:14px; color:#000; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
-        .skill-exec-btn:disabled { opacity:0.5; cursor:not-allowed; }
-        .skill-cost-row { display:flex; justify-content:space-between; padding:8px 0; font-size:13px; color:var(--text-dim); }
-        .skill-cost-value { color:var(--accent); font-weight:600; }
-        /* 执行进度条（顶部通知） */
-        .skill-exec-bar { position:fixed; top:0; left:0; right:0; z-index:10001; background:var(--bg-card); border-bottom:1px solid #333; padding:10px 16px; transform:translateY(-100%); transition:transform 0.3s; display:flex; align-items:center; gap:12px; }
-        .skill-exec-bar.show { transform:translateY(0); }
-        .skill-exec-bar-icon { font-size:20px; }
-        .skill-exec-bar-info { flex:1; min-width:0; }
-        .skill-exec-bar-name { font-size:13px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .skill-exec-bar-msg { font-size:11px; color:var(--text-dim); margin-top:2px; }
-        .skill-exec-bar-progress { height:3px; background:#333; border-radius:2px; margin-top:4px; overflow:hidden; }
-        .skill-exec-bar-fill { height:100%; background:linear-gradient(90deg, var(--accent), #f59e0b); transition:width 0.3s; }
-        .skill-exec-bar-cancel { background:none; border:1px solid #555; border-radius:8px; color:#f87171; font-size:12px; padding:6px 12px; cursor:pointer; flex-shrink:0; }
-        /* 技能结果面板 */
-        .skill-result-page { position:absolute; inset:0; background:var(--bg-dark); display:none; flex-direction:column; z-index:3; }
-        .skill-result-page.show { display:flex; }
-        .skill-result-body { flex:1; overflow-y:auto; padding:20px; }
-        .skill-result-item { background:var(--bg-card); border-radius:12px; padding:14px; margin-bottom:12px; }
-        .skill-result-img { width:100%; border-radius:8px; margin-bottom:8px; }
-        .skill-result-video { width:100%; border-radius:8px; margin-bottom:8px; }
-        .skill-result-text { font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap; word-break:break-word; }
-        /* 📤 发布面板 */
-        .publish-sheet { position:fixed; inset:0; z-index:10002; display:none; }
-        .publish-sheet.show { display:flex; flex-direction:column; }
-        .publish-sheet-bg { position:absolute; inset:0; background:rgba(0,0,0,0.6); }
-        .publish-sheet-body { position:absolute; bottom:0; left:0; right:0; background:var(--bg-dark); border-radius:20px 20px 0 0; padding-bottom:env(safe-area-inset-bottom); transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.32,0.72,0,1); }
-        .publish-sheet.show .publish-sheet-body { transform:translateY(0); }
-        .publish-options { padding:0 20px 16px; display:flex; flex-direction:column; gap:10px; }
-        .publish-opt { display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--bg-card); border-radius:12px; cursor:pointer; border:1px solid #222; }
-        .publish-opt:active { border-color:var(--accent); }
-        .publish-opt-icon { font-size:24px; flex-shrink:0; }
-        .publish-opt-name { font-size:14px; font-weight:600; color:#fff; flex:1; }
-        .publish-opt-desc { font-size:11px; color:#888; }
-        .publish-platforms { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:0 20px 16px; }
-        .publish-plat { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 8px; background:var(--bg-card); border-radius:12px; cursor:pointer; border:1px solid #222; font-size:12px; color:#ccc; }
-        .publish-plat:active { border-color:var(--accent); background:rgba(251,191,36,0.08); }
-
-        /* 📤 自动发布提示条动画 */
-        @keyframes slideUpIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
         /* 📱 手机端开场动画适配 */
         @media (max-width: 480px) {
             .film-border { width: 25px; }
@@ -1654,11 +1572,6 @@
                 style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(212,175,55,0.2), rgba(255,215,0,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(212,175,55,0.3);">
                 <span style="font-size:24px;margin-bottom:4px;">🎭</span>
                 <span style="font-size:11px;color:var(--text-dim);">Sora2角色</span>
-            </a>
-            <a href="javascript:void(0)" onclick="openMobileSkillPanel()" class="tool-item"
-                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(251,191,36,0.2), rgba(245,158,11,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(251,191,36,0.3);">
-                <span style="font-size:24px;margin-bottom:4px;">🧩</span>
-                <span style="font-size:11px;color:var(--text-dim);">技能</span>
             </a>
         </div>
 
@@ -2114,124 +2027,6 @@
     <!-- Toast提示 -->
     <div class="toast" id="toast"></div>
 
-    <!-- 🧩 技能面板 (Bottom Sheet) -->
-    <div class="skill-sheet" id="skillSheet">
-        <div class="skill-sheet-backdrop" onclick="closeMobileSkillPanel()"></div>
-        <div class="skill-sheet-content">
-            <div class="skill-sheet-handle"></div>
-            <div class="skill-sheet-header">
-                <span class="skill-sheet-title">🧩 技能库</span>
-                <button class="skill-sheet-close" onclick="closeMobileSkillPanel()">&times;</button>
-            </div>
-            <!-- 分类标签 -->
-            <div class="skill-cats" id="skillCats">
-                <button class="skill-cat-btn active" data-cat="all" onclick="mobileSkillSetCategory('all')">全部</button>
-                <button class="skill-cat-btn" data-cat="video" onclick="mobileSkillSetCategory('video')">🎬 视频</button>
-                <button class="skill-cat-btn" data-cat="image" onclick="mobileSkillSetCategory('image')">🖼️ 图像</button>
-                <button class="skill-cat-btn" data-cat="content" onclick="mobileSkillSetCategory('content')">✍️ 内容</button>
-                <button class="skill-cat-btn" data-cat="automation" onclick="mobileSkillSetCategory('automation')">⚙️ 自动化</button>
-            </div>
-            <!-- 搜索 -->
-            <input type="text" class="skill-search-box" id="skillSearchBox" placeholder="🔍 搜索技能..." oninput="mobileSkillSearch(this.value)">
-            <!-- 技能卡片网格 -->
-            <div class="skill-grid" id="skillGrid"></div>
-
-            <!-- 参数配置页 -->
-            <div class="skill-config-page" id="skillConfigPage">
-                <div class="skill-config-header">
-                    <button class="skill-config-back" onclick="mobileSkillBack()">←</button>
-                    <span id="skillConfigTitle" style="font-size:16px;font-weight:600;color:#fff;"></span>
-                </div>
-                <div class="skill-config-body" id="skillConfigBody"></div>
-                <div class="skill-config-footer">
-                    <div id="skillCostArea"></div>
-                    <button class="skill-exec-btn" id="skillExecBtn" onclick="mobileSkillExecute()">⚡ 开始执行</button>
-                </div>
-            </div>
-
-            <!-- 结果页 -->
-            <div class="skill-result-page" id="skillResultPage">
-                <div class="skill-config-header">
-                    <button class="skill-config-back" onclick="mobileSkillCloseResult()">←</button>
-                    <span style="font-size:16px;font-weight:600;color:#fff;">✅ 执行结果</span>
-                </div>
-                <div class="skill-result-body" id="skillResultBody"></div>
-                <div class="skill-config-footer" style="display:flex;gap:10px;">
-                    <button class="skill-exec-btn" onclick="mobileSkillCloseResult()" style="background:#333;color:#fff;flex:1;">完成</button>
-                    <button class="skill-exec-btn" onclick="mobileSkillPublish()" style="flex:1;">📤 发布</button>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- 📤 发布面板（独立于技能面板，支持从任务卡片直接调用） -->
-    <div class="publish-sheet" id="publishSheet">
-        <div class="publish-sheet-bg" onclick="closePublishSheet()"></div>
-        <div class="publish-sheet-body">
-            <div class="skill-sheet-handle"></div>
-            <div style="padding:16px 20px 12px;font-size:16px;font-weight:700;color:#fff;">📤 发布到自媒体</div>
-            <div class="publish-options">
-                <div class="publish-opt" onclick="publishAction('share')">
-                    <span class="publish-opt-icon">📱</span>
-                    <span class="publish-opt-name">分享到...</span>
-                    <span class="publish-opt-desc">调用系统分享（微信/QQ等）</span>
-                </div>
-                <div class="publish-opt" onclick="publishAction('copyText')">
-                    <span class="publish-opt-icon">📋</span>
-                    <span class="publish-opt-name">复制文案</span>
-                    <span class="publish-opt-desc">复制所有文本内容到剪贴板</span>
-                </div>
-                <div class="publish-opt" onclick="publishAction('downloadAll')">
-                    <span class="publish-opt-icon">💾</span>
-                    <span class="publish-opt-name">保存全部素材</span>
-                    <span class="publish-opt-desc">下载所有图片/视频到本地</span>
-                </div>
-            </div>
-            <div style="padding:0 20px 8px;font-size:13px;color:#888;font-weight:600;">🎯 平台专属格式</div>
-            <div class="publish-platforms">
-                <div class="publish-plat" onclick="publishForPlatform('xiaohongshu')">
-                    <span style="font-size:22px;">📕</span>
-                    <span>小红书</span>
-                </div>
-                <div class="publish-plat" onclick="publishForPlatform('douyin')">
-                    <span style="font-size:22px;">🎵</span>
-                    <span>抖音</span>
-                </div>
-                <div class="publish-plat" onclick="publishForPlatform('weibo')">
-                    <span style="font-size:22px;">🌐</span>
-                    <span>微博</span>
-                </div>
-                <div class="publish-plat" onclick="publishForPlatform('gongzhonghao')">
-                    <span style="font-size:22px;">💬</span>
-                    <span>公众号</span>
-                </div>
-                <div class="publish-plat" onclick="publishForPlatform('bilibili')">
-                    <span style="font-size:22px;">📺</span>
-                    <span>B站</span>
-                </div>
-                <div class="publish-plat" onclick="publishForPlatform('kuaishou')">
-                    <span style="font-size:22px;">⚡</span>
-                    <span>快手</span>
-                </div>
-            </div>
-            <div style="padding:12px 20px;">
-                <button onclick="closePublishSheet()" style="width:100%;padding:14px;background:#333;border:none;border-radius:12px;color:#fff;font-size:15px;cursor:pointer;">取消</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 🧩 技能执行进度条 -->
-    <div class="skill-exec-bar" id="skillExecBar">
-        <span class="skill-exec-bar-icon" id="skillExecBarIcon">⚡</span>
-        <div class="skill-exec-bar-info">
-            <div class="skill-exec-bar-name" id="skillExecBarName"></div>
-            <div class="skill-exec-bar-msg" id="skillExecBarMsg">准备中...</div>
-            <div class="skill-exec-bar-progress"><div class="skill-exec-bar-fill" id="skillExecBarFill" style="width:0%"></div></div>
-        </div>
-        <button class="skill-exec-bar-cancel" onclick="mobileSkillCancel()">取消</button>
-    </div>
-
     <!-- 🎨 Midjourney 图片选择器弹窗 -->
     <div class="mj-image-picker" id="mjImagePicker">
         <div class="mj-picker-header">
@@ -2679,14 +2474,11 @@
         // 🎬 视频模型名称标准化
         function __normalizeVideoModelName(model) {
             const m = String(model || '').toLowerCase().trim();
-            if (m === 'sora-2-vip-all') return 'sora-2-vip-all';
-            // 🔧 旧 sora2 模型已停用，统一转换为过渡模型
-            if (m.includes('pro') && m.includes('sora')) return 'sora-2-vip-all';
+            if (m.includes('pro')) return 'sora-2-pro-all';
             if (m.includes('grok') && m.includes('10')) return 'grok-video-3-10s';
             if (m.includes('grok')) return 'grok-video-3';
             if (m.includes('veo')) return 'veo3';
-            if (m.includes('sora')) return 'sora-2-vip-all';
-            return 'sora-2-vip-all';
+            return 'sora-2-all';
         }
 
         // 🎬 计算视频胶片费用（与PC版完全对齐）
@@ -3626,15 +3418,9 @@
                 case 'view':
                     viewTask(contextMenuTargetId);
                     break;
-                case 'share': {
-                    const _idea = ideas.find(i => i.id === contextMenuTargetId);
-                    if (_idea && _idea.status === 'completed') {
-                        publishTask(contextMenuTargetId);
-                    } else {
-                        shareTask(contextMenuTargetId);
-                    }
+                case 'share':
+                    shareTask(contextMenuTargetId);
                     break;
-                }
                 case 'retry':
                     retryTask(contextMenuTargetId);
                     break;
@@ -4362,8 +4148,9 @@ Output must look like a frame from a Japanese anime series. The character should
             let requiredQuota = 0;
             if (currentMode === 'video') {
                 // 获取视频参数
-                const videoModel = currentGenMode.includes('grok') ? 'grok-video-3' :
-                                   currentGenMode.includes('veo') ? 'veo3' : 'sora-2-vip-all';
+                const videoModel = currentGenMode.includes('pro') ? 'sora-2-pro-all' : 
+                                   currentGenMode.includes('grok') ? 'grok-video-3' :
+                                   currentGenMode.includes('veo') ? 'veo3' : 'sora-2-all';
                 const videoHd = false;
                 // ✅ 按分镜数计算费用（每个分镜单独计费）
                 requiredQuota = __estimateSoraVideoFilmCost(videoModel, clipDuration, videoHd) * sceneCount;
@@ -4484,17 +4271,7 @@ Output must look like a frame from a Japanese anime series. The character should
                 idea.status = 'completed';
                 console.log(`🎞️ 生成成功，已扣费: ${requiredQuota}胶片`);
 
-                // 📚 自动保存到素材库
-                try {
-                    _autoSaveToLibrary(idea);
-                } catch (libErr) {
-                    console.warn('[mobile] 素材库自动保存失败:', libErr);
-                }
-
                 showToast('生成完成！🎉');
-
-                // 📤 自动弹出发布提示条
-                setTimeout(() => showAutoPublishBar(idea.id), 500);
             } catch (error) {
                 console.error('生成失败:', error);
                 idea.status = 'failed';
@@ -5263,7 +5040,7 @@ ${characterPrompt}
             let apiEndpoint = '/api/sora2';
             let baseRequestBody = {
                 action: 'text-to-video',
-                model: 'sora-2-vip-all',
+                model: 'sora-2-all',
                 duration: clipDuration,
                 aspect_ratio: '16:9',
                 hd: false,
@@ -6452,16 +6229,9 @@ ${idea.theme}${characterPrompt}
                         new Date(b.createTime || 0) - new Date(a.createTime || 0)
                     ).slice(0, 100);
                     
-                    // 保存到本地（只保留必要字段，移除base64避免超限）
+                    // 保存到本地
                     try {
-                        const _saveItems = ideas.slice(0, 30).map(idea => ({
-                            id: idea.id, type: idea.type, theme: idea.theme, status: idea.status,
-                            createTime: idea.createTime, sceneCount: idea.sceneCount,
-                            videoUrl: idea.videoUrl || '',
-                            videoUrls: (idea.videoUrls || []).slice(0, 6),
-                            previewImages: (idea.previewImages || []).filter(u => u && typeof u === 'string' && u.startsWith('http')).slice(0, 3)
-                        }));
-                        localStorage.setItem('rollroll_mobile_ideas', JSON.stringify(_saveItems));
+                        localStorage.setItem('rollroll_mobile_ideas', JSON.stringify(ideas.slice(0, 50)));
                         console.log('[mobile] 本地存储已更新');
                     } catch (storageErr) {
                         console.warn('[mobile] 本地存储失败:', storageErr);
@@ -6556,21 +6326,16 @@ ${idea.theme}${characterPrompt}
                     
                     // 保存到本地（带容错处理）
                     try {
-                        // 只保留必要字段，移除base64数据避免超限
-                        const _saveItems = ideas.slice(0, 30).map(idea => ({
-                            id: idea.id, type: idea.type, theme: idea.theme, status: idea.status,
-                            createTime: idea.createTime, sceneCount: idea.sceneCount,
-                            videoUrl: idea.videoUrl || '',
-                            videoUrls: (idea.videoUrls || []).slice(0, 6),
-                            previewImages: (idea.previewImages || []).filter(u => u && typeof u === 'string' && u.startsWith('http')).slice(0, 3)
-                        }));
-                        localStorage.setItem('rollroll_mobile_ideas', JSON.stringify(_saveItems));
+                        localStorage.setItem('rollroll_mobile_ideas', JSON.stringify(ideas.slice(0, 50)));
                     } catch (storageErr) {
                         console.warn('[mobile] 本地存储失败，尝试压缩:', storageErr.message);
                         try {
-                            const minimal = ideas.slice(0, 10).map(idea => ({
+                            // 压缩保存：只保留必要字段，移除base64
+                            const minimal = ideas.slice(0, 20).map(idea => ({
                                 id: idea.id, type: idea.type, theme: idea.theme, status: idea.status,
-                                createTime: idea.createTime, videoUrl: idea.videoUrl || ''
+                                createTime: idea.createTime, videoUrl: idea.videoUrl || '',
+                                videoUrls: (idea.videoUrls || []).slice(0, 4),
+                                previewImages: (idea.previewImages || []).filter(u => u && u.startsWith('http')).slice(0, 2)
                             }));
                             localStorage.setItem('rollroll_mobile_ideas', JSON.stringify(minimal));
                         } catch (e2) {
@@ -6702,78 +6467,6 @@ ${idea.theme}${characterPrompt}
                 setTimeout(() => {
                     syncTasksFromCloud().then(() => renderTaskList());
                 }, 500);
-            }
-        }
-
-        // 📚 生成完成后自动保存到素材库（library_scenes）
-        function _autoSaveToLibrary(idea) {
-            if (!idea) return;
-            const title = (idea.theme || '生成作品').substring(0, 50);
-            const category = idea.type === 'comic' ? '漫画' : '视频';
-
-            // 读取现有素材库
-            let lib = [];
-            try {
-                lib = JSON.parse(localStorage.getItem('library_scenes') || '[]');
-                if (!Array.isArray(lib)) lib = [];
-            } catch (e) { lib = []; }
-
-            let saved = 0;
-
-            // 保存视频URL
-            const videoUrls = idea.videoUrls || (idea.videoUrl ? [idea.videoUrl] : []);
-            for (const vUrl of videoUrls) {
-                if (!vUrl || typeof vUrl !== 'string' || !vUrl.startsWith('http')) continue;
-                if (lib.some(item => item.video === vUrl)) continue;
-                lib.unshift({
-                    name: `${title} - 视频${saved + 1}`,
-                    desc: category,
-                    image: '',
-                    video: vUrl,
-                    createdAt: Date.now()
-                });
-                saved++;
-            }
-
-            // 保存预览图片（仅http URL，跳过base64避免擁堵localStorage）
-            const images = idea.previewImages || [];
-            for (const imgUrl of images) {
-                if (!imgUrl || typeof imgUrl !== 'string' || !imgUrl.startsWith('http')) continue;
-                if (lib.some(item => item.image === imgUrl)) continue;
-                lib.unshift({
-                    name: `${title} - 图片`,
-                    desc: category,
-                    image: imgUrl,
-                    createdAt: Date.now()
-                });
-                saved++;
-            }
-
-            // 漫画面板图片
-            if (idea.panelImages && Array.isArray(idea.panelImages)) {
-                for (const panel of idea.panelImages) {
-                    const pUrl = panel.url;
-                    if (!pUrl || typeof pUrl !== 'string' || !pUrl.startsWith('http')) continue;
-                    if (lib.some(item => item.image === pUrl)) continue;
-                    lib.unshift({
-                        name: `${title} - 面板${panel.index || ''}`,
-                        desc: category,
-                        image: pUrl,
-                        createdAt: Date.now()
-                    });
-                    saved++;
-                }
-            }
-
-            if (saved > 0) {
-                // 限制素材库总数，避免LocalStorage超限
-                lib = lib.slice(0, 200);
-                try {
-                    localStorage.setItem('library_scenes', JSON.stringify(lib));
-                    console.log(`📚 [mobile] 已自动保存 ${saved} 个素材到素材库`);
-                } catch (e) {
-                    console.warn('[mobile] 素材库保存失败:', e.message);
-                }
             }
         }
 
@@ -7025,9 +6718,8 @@ ${idea.theme}${characterPrompt}
                             ${videoPreviewHTML}
                             <div class="task-actions">
                                 ${idea.status === 'completed' ? `
-                                    <button class="task-btn primary" onclick="publishTask(${idea.id})" style="background:linear-gradient(135deg, var(--accent), #f59e0b); color:#000;">📤 发布</button>
-                                    <button class="task-btn" onclick="downloadTask(${idea.id})">⬇ 下载</button>
-                                    <button class="task-btn" onclick="viewTask(${idea.id})">查看</button>
+                                    <button class="task-btn" onclick="shareTask(${idea.id})">分享</button>
+                                    <button class="task-btn primary" onclick="viewTask(${idea.id})">查看</button>
                                 ` : idea.status === 'failed' ? `
                                     <button class="task-btn primary" onclick="retryTask(${idea.id})">重试</button>
                                 ` : ''}
@@ -7643,9 +7335,9 @@ ${idea.theme}${characterPrompt}
                         ${videoPreviewHTML}
                         <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
                             ${idea.status === 'completed' ? `
-                                <button onclick="event.stopPropagation(); publishTask(${idea.id})" style="padding:6px 14px; background:linear-gradient(135deg, var(--accent), #f59e0b); border:none; border-radius:6px; color:#000; font-size:11px; font-weight:600; cursor:pointer;">📤 发布</button>
                                 <button onclick="event.stopPropagation(); downloadTask(${idea.id})" style="padding:6px 12px; background:#1a472a; border:none; border-radius:6px; color:#4ade80; font-size:11px; cursor:pointer;">⬇ 下载</button>
-                                <button onclick="event.stopPropagation(); viewTask(${idea.id})" style="padding:6px 12px; background:#333; border:none; border-radius:6px; color:#ccc; font-size:11px; cursor:pointer;">查看</button>
+                                <button onclick="event.stopPropagation(); shareTask(${idea.id})" style="padding:6px 12px; background:#333; border:none; border-radius:6px; color:#888; font-size:11px; cursor:pointer;">分享</button>
+                                <button onclick="event.stopPropagation(); viewTask(${idea.id})" style="padding:6px 12px; background:var(--accent); border:none; border-radius:6px; color:#000; font-size:11px; font-weight:600; cursor:pointer;">查看</button>
                             ` : idea.status === 'failed' ? `
                                 <button onclick="event.stopPropagation(); retryTask(${idea.id})" style="padding:6px 12px; background:var(--accent); border:none; border-radius:6px; color:#000; font-size:11px; font-weight:600; cursor:pointer;">重试</button>
                             ` : ''}
@@ -7963,7 +7655,7 @@ ${idea.theme}${characterPrompt}
                         <div>
                             <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎬 视频模型</label>
                             <select id="mobileMVModel" onchange="updateMobileMVCost()" style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
-                                <option value="sora-2-vip-all">Sora-2 VIP (7胶片/片段)</option>
+                                <option value="sora-2-all">Sora-2 (8胶片/片段)</option>
                                 <option value="grok-video-3">Grok Video 3 (6胶片/片段)</option>
                                 <option value="veo3.1">Veo 3.1 (10胶片/片段)</option>
                             </select>
@@ -8010,8 +7702,8 @@ ${idea.theme}${characterPrompt}
         }
         
         function updateMobileMVCost() {
-            const model = document.getElementById('mobileMVModel')?.value || 'sora-2-vip-all';
-            const costs = { 'sora-2-vip-all': 111, 'sora-2-all': 111, 'grok-video-3': 87, 'veo3.1': 135 };
+            const model = document.getElementById('mobileMVModel')?.value || 'sora-2-all';
+            const costs = { 'sora-2-all': 111, 'grok-video-3': 87, 'veo3.1': 135 };
             const cost = costs[model] || 111;
             const costDiv = document.getElementById('mobileMVCost');
             if (costDiv) {
@@ -8079,921 +7771,6 @@ ${idea.theme}${characterPrompt}
                     </div>
                 `;
             }
-        }
-
-        // ==================== 🧩 手机版技能面板 ====================
-        let _mobileSkillCat = 'all';
-        let _mobileSkillSelected = null;
-        let _mobileSkillExecId = null;
-        let _mobileSkillImageStore = {};
-        let _mobileSkillLastResult = null;
-        let _mobileSkillLastSkill = null;
-
-        function openMobileSkillPanel() {
-            const sheet = document.getElementById('skillSheet');
-            if (!sheet) return;
-            sheet.classList.add('show');
-            renderMobileSkillGrid();
-        }
-
-        function closeMobileSkillPanel() {
-            const sheet = document.getElementById('skillSheet');
-            if (sheet) sheet.classList.remove('show');
-            // 关闭子页面
-            document.getElementById('skillConfigPage')?.classList.remove('show');
-            document.getElementById('skillResultPage')?.classList.remove('show');
-        }
-
-        function mobileSkillSetCategory(cat) {
-            _mobileSkillCat = cat;
-            document.querySelectorAll('.skill-cat-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.cat === cat);
-            });
-            document.getElementById('skillSearchBox').value = '';
-            renderMobileSkillGrid();
-        }
-
-        function mobileSkillSearch(keyword) {
-            renderMobileSkillGrid(keyword);
-        }
-
-        function renderMobileSkillGrid(keyword) {
-            const grid = document.getElementById('skillGrid');
-            if (!grid || typeof SkillManager === 'undefined') return;
-
-            let skills = keyword ? SkillManager.search(keyword) : SkillManager.getByCategory(_mobileSkillCat);
-            const favorites = SkillManager.getFavorites();
-            skills.sort((a, b) => (favorites.includes(a.id) ? 0 : 1) - (favorites.includes(b.id) ? 0 : 1));
-
-            const catLabels = { video: '🎬 视频', image: '🖼️ 图像', content: '✍️ 内容', automation: '⚙️ 自动化', audio: '🍜 音频', design: '🎨 设计', tool: '🔧 工具' };
-
-            if (skills.length === 0) {
-                grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:40px 0;color:#666;">🔍 未找到匹配的技能</div>';
-                return;
-            }
-
-            grid.innerHTML = skills.map(s => `
-                <div class="skill-card-m" onclick="mobileSkillOpen('${s.id}')">
-                    <div class="skill-card-m-icon">${s.icon}</div>
-                    <div class="skill-card-m-name">${s.name}</div>
-                    <div class="skill-card-m-desc">${s.description}</div>
-                    <span class="skill-card-m-tag">${catLabels[s.category] || s.category}</span>
-                </div>
-            `).join('');
-        }
-
-        function mobileSkillOpen(skillId) {
-            const skill = SkillManager.getById(skillId);
-            if (!skill) return;
-            _mobileSkillSelected = skillId;
-
-            document.getElementById('skillConfigTitle').textContent = `${skill.icon} ${skill.name}`;
-
-            // 渲染参数表单
-            const body = document.getElementById('skillConfigBody');
-            const params = skill.parameters || [];
-            if (params.length === 0) {
-                body.innerHTML = '<div style="color:#888;text-align:center;padding:20px;">此技能无需额外配置参数</div>';
-            } else {
-                body.innerHTML = params.map(p => {
-                    const req = p.required ? '<span style="color:#ef4444;">*</span>' : '';
-                    let input = '';
-                    switch (p.type) {
-                        case 'textarea':
-                            input = `<textarea id="msp_${p.key}" class="skill-param-textarea-m" placeholder="${p.placeholder || ''}">${p.default || ''}</textarea>`;
-                            break;
-                        case 'number':
-                            input = `<input type="number" id="msp_${p.key}" class="skill-param-input-m" value="${p.default || ''}" min="${p.min ?? ''}" max="${p.max ?? ''}">`;
-                            break;
-                        case 'select':
-                            input = `<select id="msp_${p.key}" class="skill-param-select-m">${(p.options || []).map(o => `<option value="${o.value}" ${o.value === p.default ? 'selected' : ''}>${o.label}</option>`).join('')}</select>`;
-                            break;
-                        case 'checkbox':
-                            input = `<label style="display:flex;align-items:center;gap:8px;color:#fff;font-size:14px;"><input type="checkbox" id="msp_${p.key}" ${p.default ? 'checked' : ''}> ${p.checkboxLabel || '启用'}</label>`;
-                            break;
-                        case 'file':
-                        case 'image':
-                            _mobileSkillImageStore[p.key] = [];
-                            input = `<div style="position:relative;">
-                                <input type="file" id="msp_${p.key}" accept="${p.type === 'image' ? 'image/*' : '*'}" ${p.type === 'image' ? 'multiple' : ''}
-                                    style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1;"
-                                    onchange="_mobileSkillImageUpload('${p.key}', this)">
-                                <label for="msp_${p.key}" id="msp_wrap_${p.key}"
-                                    style="display:block;border:2px dashed #444;border-radius:10px;padding:16px;text-align:center;cursor:pointer;color:#888;">
-                                    <div style="font-size:24px;margin-bottom:4px;">${p.type === 'image' ? '📷' : '📁'}</div>
-                                    <div class="msp-img-text" style="font-size:13px;">点击上传${p.type === 'image' ? '图片（可多选）' : '文件'}</div>
-                                    <div id="msp_previews_${p.key}" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
-                                </label>
-                            </div>`;
-                            break;
-                        default:
-                            input = `<input type="text" id="msp_${p.key}" class="skill-param-input-m" placeholder="${p.placeholder || ''}" value="${p.default || ''}">`;
-                    }
-                    const hint = p.hint ? `<div class="skill-param-hint-m">${p.hint}</div>` : '';
-                    return `<div class="skill-param-group-m"><label class="skill-param-label-m">${p.label}${req}</label>${input}${hint}</div>`;
-                }).join('');
-            }
-
-            // 成本预估
-            _mobileSkillUpdateCost(skill);
-
-            document.getElementById('skillConfigPage').classList.add('show');
-            document.getElementById('skillExecBtn').disabled = false;
-            document.getElementById('skillExecBtn').innerHTML = '⚡ 开始执行';
-        }
-
-        function _mobileSkillUpdateCost(skill) {
-            const area = document.getElementById('skillCostArea');
-            if (!area) return;
-            if (skill.estimateCost) {
-                try {
-                    const p = _mobileSkillCollectParams(skill);
-                    const cost = skill.estimateCost(p);
-                    area.innerHTML = `<div class="skill-cost-row"><span>预估消耗</span><span class="skill-cost-value">🎞️ ${cost.film || 0} 胶片</span></div>
-                    ${cost.time ? `<div class="skill-cost-row"><span>预估时间</span><span class="skill-cost-value">⏱️ ${cost.time}</span></div>` : ''}`;
-                } catch (e) { area.innerHTML = ''; }
-            } else {
-                area.innerHTML = '<div style="font-size:12px;color:#666;padding:4px 0;">成本取决于实际生成内容</div>';
-            }
-        }
-
-        function _mobileSkillCollectParams(skill) {
-            const params = {};
-            for (const p of skill?.parameters || []) {
-                const el = document.getElementById(`msp_${p.key}`);
-                if (!el) continue;
-                if (p.type === 'checkbox') params[p.key] = el.checked;
-                else if (p.type === 'number') params[p.key] = el.value ? Number(el.value) : p.default;
-                else if (p.type === 'image' || p.type === 'file') {
-                    if (_mobileSkillImageStore[p.key] && _mobileSkillImageStore[p.key].length > 0) {
-                        params[p.key] = _mobileSkillImageStore[p.key];
-                    } else if (el.files && el.files.length > 0) {
-                        params[p.key] = el.files;
-                    } else {
-                        params[p.key] = null;
-                    }
-                }
-                else params[p.key] = el.value || p.default;
-            }
-            return params;
-        }
-
-        function mobileSkillBack() {
-            document.getElementById('skillConfigPage').classList.remove('show');
-            _mobileSkillSelected = null;
-            Object.keys(_mobileSkillImageStore).forEach(k => { _mobileSkillImageStore[k] = []; });
-        }
-
-        // 🖼️ 手机版多图上传处理
-        function _mobileSkillImageUpload(paramKey, input) {
-            if (!input.files || input.files.length === 0) return;
-            if (!_mobileSkillImageStore[paramKey]) _mobileSkillImageStore[paramKey] = [];
-            const promises = Array.from(input.files).map(file => new Promise(resolve => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(e.target.result);
-                reader.onerror = () => resolve(null);
-                reader.readAsDataURL(file);
-            }));
-            Promise.all(promises).then(results => {
-                results.filter(Boolean).forEach(d => _mobileSkillImageStore[paramKey].push(d));
-                _mobileSkillRenderPreviews(paramKey);
-            });
-            input.value = '';
-        }
-
-        function _mobileSkillRemoveImage(paramKey, idx) {
-            if (_mobileSkillImageStore[paramKey]) _mobileSkillImageStore[paramKey].splice(idx, 1);
-            _mobileSkillRenderPreviews(paramKey);
-            event.stopPropagation();
-        }
-
-        function _mobileSkillClearImages(paramKey) {
-            _mobileSkillImageStore[paramKey] = [];
-            _mobileSkillRenderPreviews(paramKey);
-            event.stopPropagation();
-        }
-
-        function _mobileSkillRenderPreviews(paramKey) {
-            const container = document.getElementById(`msp_previews_${paramKey}`);
-            const wrap = document.getElementById(`msp_wrap_${paramKey}`);
-            const textEl = wrap?.querySelector('.msp-img-text');
-            const images = _mobileSkillImageStore[paramKey] || [];
-            if (images.length === 0) {
-                if (container) container.style.display = 'none';
-                if (textEl) textEl.textContent = '点击上传图片（可多选）';
-                if (wrap) { wrap.style.borderColor = '#444'; wrap.style.background = 'transparent'; }
-                return;
-            }
-            if (container) container.style.display = 'flex';
-            if (textEl) textEl.textContent = `已选 ${images.length} 张（点击继续添加）`;
-            if (wrap) { wrap.style.borderColor = 'var(--accent)'; wrap.style.background = 'rgba(251,191,36,0.05)'; }
-            if (container) container.innerHTML = images.map((d, i) => `
-                <div style="position:relative;display:inline-block;">
-                    <img src="${d}" style="width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #333;">
-                    <button onclick="_mobileSkillRemoveImage('${paramKey}',${i})"
-                        style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;background:#f87171;border:none;border-radius:50%;color:#fff;font-size:11px;cursor:pointer;line-height:1;">×</button>
-                </div>
-            `).join('') + (images.length > 1 ? `<button onclick="_mobileSkillClearImages('${paramKey}')" style="background:none;border:1px dashed #666;border-radius:6px;color:#888;font-size:11px;padding:4px 8px;cursor:pointer;">清空</button>` : '');
-        }
-
-        async function mobileSkillExecute() {
-            if (!_mobileSkillSelected) return;
-            const skill = SkillManager.getById(_mobileSkillSelected);
-            if (!skill) return;
-            const params = _mobileSkillCollectParams(skill);
-
-            // 🔒 校验必填参数
-            for (const p of skill.parameters || []) {
-                if (!p.required) continue;
-                const v = params[p.key];
-                if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
-                    showToast(`请填写：${p.label}`);
-                    return;
-                }
-            }
-
-            // 💰 检查余额
-            let filmCost = 0;
-            if (skill.estimateCost) {
-                try { filmCost = Math.ceil((skill.estimateCost(params)).film || 0); } catch(e) { filmCost = 1; }
-            }
-            if (filmCost > 0 && userQuota < filmCost) {
-                showToast(`胶片不足，需要${filmCost}胶片，当前${userQuota}`);
-                return;
-            }
-
-            // 🎬 在配置页内显示进度（不关闭面板，不跳转主页）
-            const execBtn = document.getElementById('skillExecBtn');
-            const configBody = document.getElementById('skillConfigBody');
-            execBtn.disabled = true;
-            execBtn.innerHTML = '⏳ 执行中...';
-
-            // 将配置区域替换为进度显示
-            const _origConfigHTML = configBody.innerHTML;
-            configBody.innerHTML = `
-                <div style="text-align:center;padding:30px 0;">
-                    <div style="font-size:48px;margin-bottom:16px;" id="mspExecIcon">${skill.icon}</div>
-                    <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px;">${skill.name}</div>
-                    <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;" id="mspExecMsg">准备中...</div>
-                    <div style="height:6px;background:#222;border-radius:3px;overflow:hidden;margin:0 20px 16px;">
-                        <div id="mspExecFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#f59e0b);transition:width 0.3s;border-radius:3px;"></div>
-                    </div>
-                    <div id="mspExecPct" style="font-size:12px;color:var(--accent);font-weight:600;">0%</div>
-                    <div id="mspExecSteps" style="margin-top:16px;text-align:left;padding:0 10px;max-height:200px;overflow-y:auto;"></div>
-                </div>`;
-
-            const msgEl = document.getElementById('mspExecMsg');
-            const fillEl = document.getElementById('mspExecFill');
-            const pctEl = document.getElementById('mspExecPct');
-            const stepsEl = document.getElementById('mspExecSteps');
-            const iconEl = document.getElementById('mspExecIcon');
-
-            try {
-                const result = await SkillManager.execute(_mobileSkillSelected, params, {
-                    onProgress: (step, progress, message) => {
-                        if (msgEl) msgEl.textContent = message || step;
-                        if (fillEl) fillEl.style.width = `${progress}%`;
-                        if (pctEl) pctEl.textContent = Math.round(progress) + '%';
-                    },
-                    onStepComplete: (stepName, stepResult) => {
-                        if (stepsEl) stepsEl.innerHTML += `<div style="font-size:12px;color:#4ade80;padding:3px 0;">✅ ${stepName}</div>`;
-                    },
-                    onComplete: (result) => {
-                        if (iconEl) iconEl.textContent = '✅';
-                        if (msgEl) msgEl.textContent = '🎉 执行完成！';
-                        if (fillEl) fillEl.style.width = '100%';
-                        if (pctEl) pctEl.textContent = '100%';
-                        setTimeout(() => {
-                            _mobileSkillShowResult(skill, result);
-                        }, 800);
-                    },
-                    onError: (error) => {
-                        if (iconEl) iconEl.textContent = '❌';
-                        if (msgEl) { msgEl.textContent = '执行失败: ' + error.message; msgEl.style.color = '#f87171'; }
-                        execBtn.disabled = false;
-                        execBtn.innerHTML = '🔄 重试';
-                        execBtn.onclick = () => { configBody.innerHTML = _origConfigHTML; execBtn.innerHTML = '⚡ 开始执行'; execBtn.onclick = () => mobileSkillExecute(); };
-                    }
-                });
-                _mobileSkillExecId = null;
-                // 💰 执行后同步余额
-                if (typeof loadUserQuota === 'function') loadUserQuota();
-                else if (typeof NVAuth !== 'undefined') {
-                    try {
-                        const q = await NVAuth.getFilmBalance();
-                        if (q !== null) { userQuota = q; document.querySelectorAll('.quota-text,.quota-display').forEach(el => { if(el) el.textContent = q; }); }
-                    } catch(e) {}
-                }
-            } catch (error) {
-                _mobileSkillExecId = null;
-                // 如果 onError 没处理，在这里兜底
-                if (iconEl) iconEl.textContent = '❌';
-                if (msgEl) { msgEl.textContent = '执行失败: ' + error.message; msgEl.style.color = '#f87171'; }
-                execBtn.disabled = false;
-                execBtn.innerHTML = '🔄 重试';
-                execBtn.onclick = () => { configBody.innerHTML = _origConfigHTML; execBtn.innerHTML = '⚡ 开始执行'; execBtn.onclick = () => mobileSkillExecute(); };
-            }
-        }
-
-        function mobileSkillCancel() {
-            SkillManager.cancel();
-            const bar = document.getElementById('skillExecBar');
-            document.getElementById('skillExecBarMsg').textContent = '正在取消...';
-            setTimeout(() => bar.classList.remove('show'), 1500);
-        }
-
-        function _mobileSkillShowResult(skill, result) {
-            const sheet = document.getElementById('skillSheet');
-            const body = document.getElementById('skillResultBody');
-            if (!sheet || !body) return;
-
-            // 存储结果供发布功能使用
-            _mobileSkillLastResult = result;
-            _mobileSkillLastSkill = skill;
-
-            const skillName = skill?.name || '技能';
-            let html = '';
-            let savedImages = 0;
-            let savedVideos = 0;
-            let savedCharacters = 0;
-            const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && typeof u === 'string' && (u.startsWith('http') || u.startsWith('data:')));
-
-            // 📝 文本结果（兼容所有文本格式）
-            const _textContent = result.content || result.ocrText || result.result || result.copyText || result.strategy || result.script || result.outline || null;
-            const _textList = result.copywritings || null;
-            if (_textContent || _textList) {
-                const text = _textContent || (_textList || []).join('\n');
-                const label = result.ocrText ? '🔍 OCR识别结果' : result.strategy ? '📊 策略方案' : result.script ? '📝 剧本内容' : result.copyText ? '📝 文案内容' : '📝 生成文本';
-                html += `<div class="skill-result-item">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <span style="font-size:13px;color:var(--accent);font-weight:600;">${label}</span>
-                        <button onclick="navigator.clipboard.writeText(this.closest('.skill-result-item').querySelector('.skill-result-text').textContent);showToast('✅ 已复制')" 
-                            style="padding:4px 10px;background:#333;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">复制</button>
-                    </div>
-                    <div class="skill-result-text" style="white-space:pre-wrap;max-height:400px;overflow-y:auto;">${text}</div>
-                </div>`;
-            }
-
-            // 👤 角色设定包结果（characterName + assets）→ 保存到角色库
-            if (result.characterName && result.assets) {
-                const assets = result.assets;
-                const posterUrl = assets.poster || assets.turnaround;
-                if (posterUrl && _isValid(posterUrl) && typeof saveCharacterToLibrary === 'function') {
-                    saveCharacterToLibrary(
-                        result.characterName, '',
-                        posterUrl, null,
-                        typeof assets.turnaround === 'string' ? assets.turnaround : null
-                    );
-                    savedCharacters++;
-                }
-                // 保存所有角色素材到素材库
-                Object.entries(assets).forEach(([key, url]) => {
-                    if (url && _isValid(url) && typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(url, `${result.characterName} - ${key}`, 'character');
-                        savedImages++;
-                    }
-                });
-                // 展示角色素材
-                Object.entries(assets).forEach(([key, url]) => {
-                    if (url && _isValid(url)) {
-                        html += `<div class="skill-result-item">
-                            <img src="${url}" class="skill-result-img" alt="${key}" onclick="openImageViewer('${url.replace(/'/g, "\\'")}')"
-                                style="cursor:pointer;">
-                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">👤 ${result.characterName} - ${key}</div>
-                            <a href="${url}" download="${result.characterName}_${key}.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
-                        </div>`;
-                    }
-                });
-            } else if (result.characterName && result.images) {
-                // ip_character_ecosystem: characterName + images → 保存角色
-                const firstImg = result.images.find(i => i.status === 'success' && i.imageUrl);
-                if (firstImg && typeof saveCharacterToLibrary === 'function') {
-                    saveCharacterToLibrary(result.characterName, '', firstImg.imageUrl);
-                    savedCharacters++;
-                }
-            }
-
-            // 🖼️ 图片结果
-            if (result.images && result.images.length > 0) {
-                for (const img of result.images) {
-                    if (img.status === 'success' && img.imageUrl) {
-                        if (typeof saveImageToLibrary === 'function') {
-                            saveImageToLibrary(img.imageUrl, `${skillName} - ${img.subject || '图片'}`, 'skill');
-                            savedImages++;
-                        }
-                        html += `<div class="skill-result-item">
-                            <img src="${img.imageUrl}" class="skill-result-img" alt="${img.subject || '图片'}" onclick="openImageViewer('${img.imageUrl.replace(/'/g, "\\'")}')"
-                                style="cursor:pointer;">
-                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${img.subject || ''}</div>
-                            <div style="display:flex;gap:8px;">
-                                <a href="${img.imageUrl}" download="${img.subject || 'image'}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
-                            </div>
-                        </div>`;
-                    } else if (img.status === 'failed') {
-                        html += `<div class="skill-result-item" style="border:1px solid rgba(239,68,68,0.3);"><div style="color:#f87171;font-size:13px;">❌ ${img.subject}: ${img.error}</div></div>`;
-                    }
-                }
-            }
-
-            // 📖 漫画分镜/页面结果
-            if (result.pages && result.pages.length > 0) {
-                for (const page of result.pages) {
-                    if (page.status === 'success' && page.imageUrl) {
-                        if (typeof saveImageToLibrary === 'function') {
-                            saveImageToLibrary(page.imageUrl, `${skillName} - 第${page.page || ''}页`, 'comic');
-                            savedImages++;
-                        }
-                        html += `<div class="skill-result-item">
-                            <img src="${page.imageUrl}" class="skill-result-img" onclick="openImageViewer('${page.imageUrl.replace(/'/g, "\\'")}')"
-                                style="cursor:pointer;">
-                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">📖 第${page.page || ''}页</div>
-                            <a href="${page.imageUrl}" download="page_${page.page || ''}.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
-                        </div>`;
-                    }
-                }
-            }
-
-            // 📺 连续剧情结果（episodes）→ 转为标准 videos/images
-            if (result.episodes && result.episodes.length > 0) {
-                for (const ep of result.episodes) {
-                    if (ep.status === 'success') {
-                        if (ep.videoUrl && _isValid(ep.videoUrl)) {
-                            if (typeof saveVideoToLibrary === 'function') {
-                                saveVideoToLibrary(ep.videoUrl, `${skillName} - 第${ep.episode}集`, 'skill', ep.imageUrl);
-                                savedVideos++;
-                            }
-                            html += `<div class="skill-result-item">
-                                <video src="${ep.videoUrl}" controls class="skill-result-video"></video>
-                                <div style="font-size:12px;color:#aaa;margin-bottom:6px;">📺 第${ep.episode}集</div>
-                                <a href="${ep.videoUrl}" download="episode_${ep.episode}.mp4" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
-                            </div>`;
-                        } else if (ep.imageUrl && _isValid(ep.imageUrl)) {
-                            if (typeof saveImageToLibrary === 'function') {
-                                saveImageToLibrary(ep.imageUrl, `${skillName} - 第${ep.episode}集`, 'skill');
-                                savedImages++;
-                            }
-                            html += `<div class="skill-result-item">
-                                <img src="${ep.imageUrl}" class="skill-result-img" onclick="openImageViewer('${ep.imageUrl.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
-                                <div style="font-size:12px;color:#aaa;">📺 第${ep.episode}集</div>
-                            </div>`;
-                        }
-                    }
-                }
-            }
-
-            // 🎨 scenes 结果（全流程自动化的分镜图）
-            if (result.scenes && result.scenes.length > 0) {
-                for (const scene of result.scenes) {
-                    if (scene.imageUrl && _isValid(scene.imageUrl)) {
-                        if (typeof saveImageToLibrary === 'function') {
-                            saveImageToLibrary(scene.imageUrl, `${skillName} - 分镜${scene.index || ''}`, 'skill');
-                            savedImages++;
-                        }
-                        html += `<div class="skill-result-item">
-                            <img src="${scene.imageUrl}" class="skill-result-img" onclick="openImageViewer('${scene.imageUrl.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
-                            <div style="font-size:12px;color:#aaa;">🎨 分镜${scene.index || ''}</div>
-                        </div>`;
-                    }
-                }
-            }
-
-            // 📖 comics 结果（全流程自动化的漫画页）
-            if (result.comics && result.comics.length > 0) {
-                for (const comic of result.comics) {
-                    if (comic.imageUrl && _isValid(comic.imageUrl)) {
-                        if (typeof saveImageToLibrary === 'function') {
-                            saveImageToLibrary(comic.imageUrl, `${skillName} - 漫画第${comic.page || ''}页`, 'comic');
-                            savedImages++;
-                        }
-                        html += `<div class="skill-result-item">
-                            <img src="${comic.imageUrl}" class="skill-result-img" onclick="openImageViewer('${comic.imageUrl.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
-                            <div style="font-size:12px;color:#aaa;">📖 漫画第${comic.page || ''}页</div>
-                        </div>`;
-                    }
-                }
-            }
-
-            // 🎬 charSheet 单独角色设定图
-            if (result.charSheet && _isValid(result.charSheet)) {
-                if (typeof saveImageToLibrary === 'function') {
-                    saveImageToLibrary(result.charSheet, `${skillName} - 角色设定表`, 'character');
-                    savedImages++;
-                }
-                html += `<div class="skill-result-item">
-                    <img src="${result.charSheet}" class="skill-result-img" onclick="openImageViewer('${result.charSheet.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
-                    <div style="font-size:12px;color:#aaa;">👤 角色设定表</div>
-                    <a href="${result.charSheet}" download="charsheet.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
-                </div>`;
-            }
-
-            // 🎬 视频结果
-            if (result.videos && result.videos.length > 0) {
-                for (const vid of result.videos) {
-                    if (vid.status === 'success' && vid.videoUrl) {
-                        if (typeof saveVideoToLibrary === 'function') {
-                            saveVideoToLibrary(vid.videoUrl, `${skillName} - 视频${vid.index || ''}`, 'skill', vid.imageUrl);
-                            savedVideos++;
-                        }
-                        if (vid.imageUrl && typeof saveImageToLibrary === 'function') {
-                            saveImageToLibrary(vid.imageUrl, `${skillName} - 封面${vid.index || ''}`, 'skill');
-                        }
-                        html += `<div class="skill-result-item">
-                            <video src="${vid.videoUrl}" controls class="skill-result-video"></video>
-                            ${vid.imageUrl ? `<img src="${vid.imageUrl}" class="skill-result-img" style="max-height:120px;">` : ''}
-                            <a href="${vid.videoUrl}" download="video.mp4" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载视频</a>
-                        </div>`;
-                    } else if (vid.status === 'failed') {
-                        html += `<div class="skill-result-item" style="border:1px solid rgba(239,68,68,0.3);"><div style="color:#f87171;font-size:13px;">❌ 视频${vid.index}: ${vid.error}</div></div>`;
-                    }
-                }
-            }
-
-            // 🍜 音频结果（AI配音）
-            if (result.audioUrl && _isValid(result.audioUrl)) {
-                html += `<div class="skill-result-item">
-                    <div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px;">🍜 配音音频</div>
-                    <audio src="${result.audioUrl}" controls style="width:100%;margin-bottom:10px;"></audio>
-                    <a href="${result.audioUrl}" download="dubbing.mp3" style="display:block;padding:10px;background:#333;border:none;border-radius:8px;color:#fff;font-size:13px;text-align:center;text-decoration:none;">💾 下载音频</a>
-                </div>`;
-            }
-
-            // 🎵 音乐结果（AI音乐制作）
-            if (result.music && result.music.length > 0) {
-                for (const m of result.music) {
-                    html += `<div class="skill-result-item">
-                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                            ${m.imageUrl ? `<img src="${m.imageUrl}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;">` : ''}
-                            <div>
-                                <div style="font-size:14px;color:#fff;font-weight:600;">🎵 ${m.title || '未命名'}</div>
-                                ${m.tags ? `<div style="font-size:11px;color:#888;margin-top:2px;">${m.tags}</div>` : ''}
-                                ${m.duration ? `<div style="font-size:11px;color:#666;">‣ ${Math.round(m.duration)}s</div>` : ''}
-                            </div>
-                        </div>
-                        ${m.audioUrl ? `<audio src="${m.audioUrl}" controls style="width:100%;margin-bottom:8px;"></audio>
-                        <a href="${m.audioUrl}" download="${(m.title || 'music').replace(/[^\w\u4e00-\u9fa5]/g, '_')}.mp3" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>` : ''}
-                    </div>`;
-                }
-            }
-
-            if (!html) {
-                // 🔄 通用兆底：尝试展示原始 JSON 结果
-                try {
-                    const raw = JSON.stringify(result, null, 2);
-                    if (raw && raw !== '{}' && raw.length > 5) {
-                        html = `<div class="skill-result-item">
-                            <div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px;">📋 执行结果</div>
-                            <pre style="white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;font-size:12px;color:#ccc;background:#111;padding:12px;border-radius:8px;">${raw}</pre>
-                            <button onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);showToast('✅ 已复制')" style="margin-top:8px;padding:6px 12px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">复制结果</button>
-                        </div>`;
-                    } else {
-                        html = '<div style="text-align:center;padding:40px;color:#888;">执行完成，无可展示的结果</div>';
-                    }
-                } catch(e) {
-                    html = '<div style="text-align:center;padding:40px;color:#888;">执行完成，无可展示的结果</div>';
-                }
-            }
-
-            // 💾 保存统计提示
-            const totalSaved = savedImages + savedVideos + savedCharacters;
-            if (totalSaved > 0) {
-                let saveMsg = '✅ 已自动保存：';
-                if (savedCharacters > 0) saveMsg += `${savedCharacters}个角色→角色库 `;
-                if (savedImages > 0) saveMsg += `${savedImages}张图片→素材库 `;
-                if (savedVideos > 0) saveMsg += `${savedVideos}个视频→素材库`;
-                html = `<div style="padding:8px 12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;margin-bottom:12px;font-size:12px;color:#4ade80;">${saveMsg}</div>` + html;
-            }
-
-            body.innerHTML = html;
-            sheet.classList.add('show');
-            document.getElementById('skillConfigPage').classList.remove('show');
-            document.getElementById('skillResultPage').classList.add('show');
-        }
-
-        function mobileSkillCloseResult() {
-            document.getElementById('skillResultPage').classList.remove('show');
-            closeMobileSkillPanel();
-        }
-
-        // ==================== 📤 发布功能 ====================
-
-        function mobileSkillPublish() {
-            const sheet = document.getElementById('publishSheet');
-            if (sheet) sheet.classList.add('show');
-        }
-
-        function closePublishSheet() {
-            const sheet = document.getElementById('publishSheet');
-            if (sheet) sheet.classList.remove('show');
-        }
-
-        /**
-         * 📤 从任务卡片直接发布（将task idea数据桥接到发布面板）
-         * 支持从创作页/作品页的completed任务直接调起发布面板
-         */
-        function publishTask(id) {
-            const idea = ideas.find(i => i.id === id);
-            if (!idea || idea.status !== 'completed') {
-                showToast('该作品还未完成，无法发布');
-                return;
-            }
-
-            // 将task数据桥接为 _mobileSkillLastResult 格式
-            const bridgedResult = {};
-            const bridgedSkill = {
-                name: idea.theme || '我的作品',
-                category: idea.type === 'video' ? 'video' : 'image'
-            };
-
-            // 文本内容
-            bridgedResult.content = `${idea.theme || ''}${idea.script ? '\n\n' + idea.script : ''}`;
-
-            // 图片
-            const images = [];
-            if (idea.coverImage) images.push({ status: 'success', imageUrl: idea.coverImage, subject: '封面' });
-            if (idea.panelImages) {
-                idea.panelImages.forEach((p, idx) => {
-                    if (p.url) images.push({ status: 'success', imageUrl: p.url, subject: `分镜${idx + 1}` });
-                });
-            }
-            if (idea.previewImages) {
-                idea.previewImages.forEach((img, idx) => {
-                    if (img && img.startsWith('http') && !images.find(i => i.imageUrl === img)) {
-                        images.push({ status: 'success', imageUrl: img, subject: `预览${idx + 1}` });
-                    }
-                });
-            }
-            if (images.length > 0) bridgedResult.images = images;
-
-            // 视频
-            const videoUrls = idea.videoUrls || (idea.videoUrl ? [idea.videoUrl] : []);
-            if (videoUrls.length > 0) {
-                bridgedResult.videos = videoUrls.map((url, idx) => ({
-                    status: 'success',
-                    videoUrl: url,
-                    imageUrl: idea.previewImages?.[idx] || '',
-                    index: idx + 1
-                }));
-            }
-
-            // 设置全局发布数据
-            _mobileSkillLastResult = bridgedResult;
-            _mobileSkillLastSkill = bridgedSkill;
-
-            // 打开发布面板
-            const sheet = document.getElementById('publishSheet');
-            if (sheet) sheet.classList.add('show');
-        }
-
-        /**
-         * 📤 任务完成后自动弹出发布提示条
-         * 在底部显示一个3秒的操作条，用户可一键发布/下载
-         */
-        function showAutoPublishBar(ideaId) {
-            // 移除已有的提示条
-            const existing = document.getElementById('autoPublishBar');
-            if (existing) existing.remove();
-
-            const bar = document.createElement('div');
-            bar.id = 'autoPublishBar';
-            bar.style.cssText = `
-                position: fixed;
-                bottom: 70px;
-                left: 12px;
-                right: 12px;
-                background: linear-gradient(135deg, #1a1a2e, #16213e);
-                border: 1px solid rgba(251,191,36,0.3);
-                border-radius: 14px;
-                padding: 14px 16px;
-                z-index: 9999;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-                animation: slideUpIn 0.3s ease-out;
-            `;
-            bar.innerHTML = `
-                <div style="flex:1;min-width:0;">
-                    <div style="font-size:14px;font-weight:600;color:#fff;">🎉 作品已完成！</div>
-                    <div style="font-size:11px;color:#888;margin-top:2px;">一键发布到社交平台</div>
-                </div>
-                <button onclick="event.stopPropagation(); publishTask(${ideaId}); document.getElementById('autoPublishBar')?.remove();" 
-                    style="padding:8px 16px; background:linear-gradient(135deg, var(--accent), #f59e0b); border:none; border-radius:8px; color:#000; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">📤 发布</button>
-                <button onclick="event.stopPropagation(); downloadTask(${ideaId}); document.getElementById('autoPublishBar')?.remove();" 
-                    style="padding:8px 12px; background:#333; border:none; border-radius:8px; color:#fff; font-size:13px; cursor:pointer; white-space:nowrap;">⬇ 下载</button>
-                <button onclick="document.getElementById('autoPublishBar')?.remove();" 
-                    style="background:none; border:none; color:#666; font-size:18px; cursor:pointer; padding:0 4px;">✕</button>
-            `;
-            document.body.appendChild(bar);
-
-            // 8秒后自动消失
-            setTimeout(() => {
-                const el = document.getElementById('autoPublishBar');
-                if (el) {
-                    el.style.transition = 'opacity 0.3s, transform 0.3s';
-                    el.style.opacity = '0';
-                    el.style.transform = 'translateY(20px)';
-                    setTimeout(() => el.remove(), 300);
-                }
-            }, 8000);
-        }
-
-        /** 提取结果中的所有文本 */
-        function _publishGetTexts() {
-            const r = _mobileSkillLastResult;
-            if (!r) return '';
-            const parts = [];
-            if (r.content) parts.push(r.content);
-            if (r.ocrText) parts.push(r.ocrText);
-            if (r.copyText) parts.push(r.copyText);
-            if (r.strategy) parts.push(r.strategy);
-            if (r.script) parts.push(r.script);
-            if (r.outline) parts.push(r.outline);
-            if (r.result) parts.push(r.result);
-            if (r.copywritings) parts.push(r.copywritings.join('\n'));
-            // 🎵 音乐信息
-            if (r.music && r.music.length > 0) {
-                parts.push(r.music.map(m => `🎵 ${m.title || '未命名'}${m.tags ? ' [' + m.tags + ']' : ''}`).join('\n'));
-            }
-            // 🍜 配音信息
-            if (r.audioUrl && r.textLength) {
-                parts.push(`🍜 AI配音（${r.engine || ''}，${r.textLength}字）`);
-            }
-            return parts.join('\n\n');
-        }
-
-        /** 提取结果中的所有媒体 URL */
-        function _publishGetMediaUrls() {
-            const r = _mobileSkillLastResult;
-            if (!r) return { images: [], videos: [], audios: [] };
-            const images = [];
-            const videos = [];
-            const audios = [];
-            const _v = u => u && typeof u === 'string' && (u.startsWith('http') || u.startsWith('data:'));
-
-            // images
-            if (r.images) r.images.forEach(i => { if (i.status === 'success' && i.imageUrl && _v(i.imageUrl)) images.push(i.imageUrl); });
-            // videos
-            if (r.videos) r.videos.forEach(v => { if (v.status === 'success' && v.videoUrl && _v(v.videoUrl)) videos.push(v.videoUrl); });
-            // episodes
-            if (r.episodes) r.episodes.forEach(e => { if (e.status === 'success') { if (e.videoUrl && _v(e.videoUrl)) videos.push(e.videoUrl); else if (e.imageUrl && _v(e.imageUrl)) images.push(e.imageUrl); } });
-            // pages/comics/scenes
-            if (r.pages) r.pages.forEach(p => { if (p.status === 'success' && p.imageUrl && _v(p.imageUrl)) images.push(p.imageUrl); });
-            if (r.comics) r.comics.forEach(c => { if (c.imageUrl && _v(c.imageUrl)) images.push(c.imageUrl); });
-            if (r.scenes) r.scenes.forEach(s => { if (s.imageUrl && _v(s.imageUrl)) images.push(s.imageUrl); });
-            // assets
-            if (r.assets) Object.values(r.assets).forEach(u => { if (_v(u)) images.push(u); });
-            // charSheet
-            if (r.charSheet && _v(r.charSheet)) images.push(r.charSheet);
-            // 🍜 音频
-            if (r.audioUrl && _v(r.audioUrl)) audios.push({ url: r.audioUrl, name: 'dubbing' });
-            // 🎵 音乐
-            if (r.music) r.music.forEach((m, i) => { if (m.audioUrl && _v(m.audioUrl)) audios.push({ url: m.audioUrl, name: (m.title || `music_${i+1}`).replace(/[^\w\u4e00-\u9fa5]/g, '_') }); });
-            return { images, videos, audios };
-        }
-
-        async function publishAction(action) {
-            if (action === 'share') {
-                // Web Share API
-                const text = _publishGetTexts();
-                const { images, videos } = _publishGetMediaUrls();
-                const shareData = {
-                    title: _mobileSkillLastSkill?.name || 'AI创作内容',
-                    text: text ? text.slice(0, 500) : '查看我用RollRoll AI创作的内容',
-                };
-                // 尝试分享文件
-                const { audios } = _publishGetMediaUrls();
-                if (navigator.canShare && (images.length > 0 || videos.length > 0 || audios.length > 0)) {
-                    try {
-                        const files = [];
-                        for (let i = 0; i < Math.min(images.length, 4); i++) {
-                            const resp = await fetch(images[i]);
-                            const blob = await resp.blob();
-                            files.push(new File([blob], `image_${i+1}.png`, { type: blob.type || 'image/png' }));
-                        }
-                        for (let i = 0; i < Math.min(videos.length, 1); i++) {
-                            const resp = await fetch(videos[i]);
-                            const blob = await resp.blob();
-                            files.push(new File([blob], `video_${i+1}.mp4`, { type: blob.type || 'video/mp4' }));
-                        }
-                        for (let i = 0; i < Math.min(audios.length, 4); i++) {
-                            const resp = await fetch(audios[i].url);
-                            const blob = await resp.blob();
-                            files.push(new File([blob], `${audios[i].name}.mp3`, { type: blob.type || 'audio/mpeg' }));
-                        }
-                        if (files.length > 0) shareData.files = files;
-                    } catch(e) {
-                        console.warn('[Publish] 加载媒体文件失败:', e);
-                    }
-                }
-                if (navigator.share) {
-                    try {
-                        await navigator.share(shareData);
-                        showToast('✅ 分享成功');
-                    } catch(e) {
-                        if (e.name !== 'AbortError') showToast('分享失败: ' + e.message);
-                    }
-                } else {
-                    // 回退到复制
-                    publishAction('copyText');
-                }
-            } else if (action === 'copyText') {
-                const text = _publishGetTexts();
-                if (!text) { showToast('无可复制的文本内容'); closePublishSheet(); return; }
-                try {
-                    await navigator.clipboard.writeText(text);
-                    showToast('✅ 已复制文案到剪贴板');
-                } catch(e) {
-                    // fallback
-                    const ta = document.createElement('textarea');
-                    ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px';
-                    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-                    document.body.removeChild(ta);
-                    showToast('✅ 已复制');
-                }
-            } else if (action === 'downloadAll') {
-                const { images, videos, audios } = _publishGetMediaUrls();
-                const total = images.length + videos.length + audios.length;
-                if (total === 0) { showToast('无可下载的媒体文件'); closePublishSheet(); return; }
-                let count = 0;
-                for (const url of images) {
-                    const a = document.createElement('a'); a.href = url; a.download = `image_${++count}.png`; a.click();
-                }
-                for (const url of videos) {
-                    const a = document.createElement('a'); a.href = url; a.download = `video_${++count}.mp4`; a.click();
-                }
-                for (const audio of audios) {
-                    const a = document.createElement('a'); a.href = audio.url; a.download = `${audio.name}.mp3`; a.click();
-                }
-                showToast(`✅ 开始下载 ${total} 个文件`);
-            }
-            closePublishSheet();
-        }
-
-        /** 平台专属格式化 */
-        function publishForPlatform(platform) {
-            const text = _publishGetTexts();
-            const skill = _mobileSkillLastSkill;
-            const skillName = skill?.name || 'AI创作';
-
-            const formatters = {
-                xiaohongshu: () => {
-                    let out = text || `用AI创作了一组太绝了的内容！`;
-                    out += '\n\n---\n';
-                    out += '#AI创作 #AI绘画 #RollRoll #小红书创作灵感 ';
-                    if (skill?.category === 'video') out += '#AI视频 ';
-                    else if (skill?.category === 'image') out += '#AI绘画作品 ';
-                    out += `#${skillName.replace(/\s/g,'')}`;
-                    return out;
-                },
-                douyin: () => {
-                    let out = text ? text.split('\n').slice(0,3).join('\n') : `用AI做的，太绝了🔥`;
-                    out += '\n\n';
-                    out += '#AI创作 #AI绘画 #AI视频制作 #RollRoll ';
-                    if (skill?.category === 'video') out += '#短视频制作 ';
-                    return out;
-                },
-                weibo: () => {
-                    let out = `【${skillName}】` + (text ? text.slice(0, 280) : '用AI创作的内容');
-                    out += ' #AI创作# #RollRoll# ';
-                    return out;
-                },
-                gongzhonghao: () => {
-                    let out = text || '';
-                    out += '\n\n---\n✨ 本内容由 RollRoll AI 智能创作平台生成\n官网: lossloop.cn';
-                    return out;
-                },
-                bilibili: () => {
-                    let out = text ? text.slice(0, 200) : `用AI做的，来看看效果`;
-                    out += '\n\n';
-                    out += '#AI创作 #AI绘画 #AI视频 #RollRoll';
-                    return out;
-                },
-                kuaishou: () => {
-                    let out = text ? text.split('\n').slice(0,3).join('\n') : `AI创作太好玩了😍`;
-                    out += '\n\n#AI创作 #AI绘画 #快手创作者';
-                    return out;
-                }
-            };
-
-            const platformNames = {
-                xiaohongshu: '小红书', douyin: '抖音', weibo: '微博',
-                gongzhonghao: '公众号', bilibili: 'B站', kuaishou: '快手'
-            };
-
-            const formatter = formatters[platform];
-            if (!formatter) return;
-            const formatted = formatter();
-
-            try {
-                navigator.clipboard.writeText(formatted);
-            } catch(e) {
-                const ta = document.createElement('textarea');
-                ta.value = formatted; ta.style.cssText = 'position:fixed;left:-9999px';
-                document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-                document.body.removeChild(ta);
-            }
-            showToast(`✅ ${platformNames[platform]}格式文案已复制，去发布吧！`);
-            closePublishSheet();
         }
 
         // ==================== UI工具函数 ====================
@@ -9763,9 +8540,9 @@ ${story}
                 action: 'text-to-video',
                 userId: currentUser.id,
                 prompt: prompt,
-                model: 'sora-2-vip-all',
+                model: 'sora-2-all',
                 aspect_ratio: '16:9',
-                duration: 10,
+                duration: 5,
                 hd: false
             };
             if (apiFormat !== 'auto') body.api_format = apiFormat;

@@ -693,9 +693,9 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        // ========== 图片分析/视觉识别 (grok-4-fast-non-reasoning) ==========
+        // ========== 图片分析/视觉识别/OCR ==========
         if (action === 'vision') {
-            const { prompt, image_url, model = 'grok-4-fast-non-reasoning' } = body;
+            const { prompt, image_url, model: reqModel = 'grok-4-fast-non-reasoning' } = body;
             
             if (!prompt || !image_url) {
                 json(400, { 
@@ -707,14 +707,23 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
+            // 🔧 模型映射：用户友好名 → 实际API模型名
+            const VISION_MODEL_MAP = {
+                'deepseek-ocr': 'deepseek-ocr',               // OCR专用：云雾已配置
+                'grok-4-fast-non-reasoning': 'grok-4-fast-non-reasoning',
+                'gemini-2.0-flash': 'gemini-2.0-flash'
+            };
+            const model = VISION_MODEL_MAP[reqModel] || reqModel;
+            const isOCR = reqModel === 'deepseek-ocr' || /ocr/i.test(reqModel);
+
             const filmCost = FILM_COST['vision'] || 2;
             let billingSuccess = false;
 
-            console.log('[yunwu] 图片分析:', { model, hasImage: !!image_url });
+            console.log('[yunwu] 图片分析:', { reqModel, actualModel: model, isOCR, hasImage: !!image_url });
 
             // 🔒 先扣费
             if (!skipBilling && filmCost > 0 && userId) {
-                const billingResult = await __billing('consume', userId, filmCost, '图片分析');
+                const billingResult = await __billing('consume', userId, filmCost, isOCR ? 'OCR文字识别' : '图片分析');
                 if (!billingResult.success && !billingResult.skipped) {
                     json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
                     return;
@@ -725,6 +734,21 @@ module.exports = async function handler(req, res) {
             }
 
             try {
+                // 🔧 OCR模式：添加系统提示 + 更大的max_tokens
+                const ocrSystemMsg = isOCR ? {
+                    role: 'system',
+                    content: '你是专业的OCR文字识别引擎。请精确识别并输出图片中的所有文字内容，保持原始排版格式。如有表格，用markdown表格格式输出。如有多语言混排，分别标注语言。不要添加任何额外解释或评论，只输出识别到的文字。'
+                } : null;
+                const maxTokens = isOCR ? 4096 : (body.max_tokens || 800);
+
+                const msgContent = [
+                    { type: 'text', text: prompt },
+                    { type: 'image_url', image_url: { url: image_url } }
+                ];
+                const messages = [];
+                if (ocrSystemMsg) messages.push(ocrSystemMsg);
+                messages.push({ role: 'user', content: msgContent });
+
                 const response = await fetchWithFallback(`/v1/chat/completions`, {
                     method: 'POST',
                     headers: {
@@ -733,14 +757,8 @@ module.exports = async function handler(req, res) {
                     },
                     body: JSON.stringify({
                         model,
-                        messages: [{ 
-                            role: 'user', 
-                            content: [
-                                { type: 'text', text: prompt },
-                                { type: 'image_url', image_url: { url: image_url } }
-                            ]
-                        }],
-                        max_tokens: 100
+                        messages,
+                        max_tokens: maxTokens
                     })
                 });
 

@@ -7,8 +7,9 @@
 
 // ========== 计费配置（与 mobile.html QUOTA_COSTS 对齐） ==========
 const FILM_COST = {
-    'sora-2-all': 7,       // Sora2 通用（最新名称）
-    'sora-2-pro-all': 14,  // Sora2 Pro 通用（最新名称）
+    'sora-2-vip-all': 7,   // Sora2 VIP 过渡模型（10s）
+    'sora-2-all': 7,       // Sora2 通用（已停用，兼容旧任务）
+    'sora-2-pro-all': 14,  // Sora2 Pro 通用（已停用，兼容旧任务）
     'sora-2-characters': 7, // 角色锁定模式
     'grok-video-3': 5,     // Grok Video 3 (6秒)
     'grok-video-3-10s': 8, // Grok Video 3 (10秒)
@@ -279,17 +280,18 @@ async function fetchWithFallback(requestBody, action) {
             }
         }
 
-        // ✅ 云梦 Sora2 模型处理：sora-2-all 和 sora-2-pro-all 是最新名称，直接使用
-        // 🔧 旧名称 sora-2 / sora-2-pro 已废弃，统一转换为新名称
+        // ✅ 云梦 Sora2 模型处理：sora-2-vip-all 是当前过渡模型
+        // 🔧 旧 sora-2-all / sora-2-pro-all 已停用，统一转换为 sora-2-vip-all
         const m = String(out.model || '').trim();
-        if (m === 'sora-2-all' || m === 'sora-2-pro-all' || m === 'sora-2-characters') {
-            // 最新名称，保持原样
+        if (m === 'sora-2-vip-all') {
+            // 当前过渡模型，保持原样
+        } else if (m === 'sora-2-all' || m === 'sora-2-pro-all' || m === 'sora-2-characters') {
+            // 旧模型统一转换为过渡模型
+            out.model = 'sora-2-vip-all';
         } else if (m === 'sora-2-pro') {
-            // 旧名称转换为新名称
-            out.model = 'sora-2-pro-all';
+            out.model = 'sora-2-vip-all';
         } else if (m === 'sora-2' || m === 'sora-2-hd' || m === 'sora2-hd' || m === 'sora-2-landscape' || m === 'sora-2-landscape-hd' || m === 'sora-2-portrait' || m === 'sora-2-portrait-hd') {
-            // 旧名称统一转换为 sora-2-all
-            out.model = 'sora-2-all';
+            out.model = 'sora-2-vip-all';
         }
 
         // 🆕 Grok Video 3 特殊参数处理 (6秒和10秒版本)
@@ -694,7 +696,7 @@ module.exports = async function handler(req, res) {
             }
 
             // 💰 先扣费模式：调用上游API前先扣费
-            const filmCost = FILM_COST[model] || FILM_COST['sora-2-all'] || 7;
+            const filmCost = FILM_COST[model] || FILM_COST['sora-2-vip-all'] || 7;
             let billingSuccess = false;
             let billingSkipped = false;
             const skipBilling = body.skip_billing === true;
@@ -917,7 +919,7 @@ module.exports = async function handler(req, res) {
             }
 
             // 💰 先扣费模式：调用上游API前先扣费
-            const i2vFilmCost = FILM_COST[model] || FILM_COST['sora-2-all'] || 7;
+            const i2vFilmCost = FILM_COST[model] || FILM_COST['sora-2-vip-all'] || 7;
             let i2vBillingSuccess = false;
             let i2vBillingSkipped = false;
             const i2vSkipBilling = body.skip_billing === true;

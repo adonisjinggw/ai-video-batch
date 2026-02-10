@@ -6,6 +6,38 @@
 (function () {
     'use strict';
 
+    // 🎨 通用生图模型选项（必须在 registerPresetSkills 之前声明，避免 TDZ）
+    const IMAGE_MODEL_OPTIONS = [
+        { value: 'doubao-seedream-4-5-251128', label: '✨ 星梦画师（推荐 7胶片）' },
+        { value: 'nano-banana-2', label: '🎨 Banana 标准（6胶片）' },
+        { value: 'nano-banana-2-4k', label: '💎 Banana 4K（10胶片）' },
+        { value: 'modelscope', label: '🆓 智能绘图（免费）' },
+        { value: 'Qwen/Qwen-Image-2512', label: '🌟 通义万象Max（8胶片）' },
+        { value: 'midjourney-fast', label: '🎨 MJ Fast（2胶片）' },
+        { value: 'midjourney-turbo', label: '⚡ MJ Turbo（2胶片）' },
+        { value: 'midjourney-relax', label: '🐢 MJ Relax（2胶片）' }
+    ];
+
+    // 🎬 通用视频模型选项
+    const VIDEO_MODEL_OPTIONS = [
+        { value: 'sora-2-vip-all', label: 'Sora-2 VIP（过渡 10s）' },
+        // { value: 'sora-2-all', label: 'Sora-2（已停用）' },
+        // { value: 'sora-2-pro-all', label: 'Sora-2 Pro（已停用）' },
+        { value: 'veo3.1', label: 'Veo 3.1 4K（超清 8s）' },
+        { value: 'veo2', label: 'Veo 2.0（8s）' },
+        { value: 'grok-video-3', label: 'Grok Video 3（6s）' },
+        { value: 'kling-2.5-720p-5s', label: '可灵 2.5 720p 5s' },
+        { value: 'kling-2.5-720p-10s', label: '可灵 2.5 720p 10s' },
+        { value: 'kling-2.5-1080p-5s', label: '可灵 2.5 1080p 5s' },
+        { value: 'kling-o1-720p-5s', label: '可灵 O1 720p 5s' },
+        { value: 'hailuo-02-768p-6s', label: '海螺 02 768p 6s' },
+        { value: 'hailuo-02-768p-10s', label: '海螺 02 768p 10s' },
+        { value: 'hailuo-fast-768p-6s', label: '海螺 Fast 768p 6s' },
+        { value: 'vidu-q2-pro-8s-1080p', label: 'Vidu Q2 Pro 1080p 8s' },
+        { value: 'vidu-q2-turbo-4s-720p', label: 'Vidu Q2 Turbo 720p 4s' },
+        { value: 'vidu-q2-4s-720p', label: 'Vidu Q2 720p 4s' }
+    ];
+
     // 等待 SkillManager 加载
     if (typeof SkillManager === 'undefined') {
         console.warn('[SkillPresets] 等待 SkillManager 加载...');
@@ -18,6 +50,78 @@
     }
 
     registerPresetSkills();
+
+    /**
+     * 🖼️ 统一解析参考图参数（兼容 base64 数组 / FileList / 单文件）
+     * @param {Array|FileList|null} imageParam - 从 collectSkillParams 返回的图片参数
+     * @returns {Promise<{first: string|null, all: string[]}>} first=第一张base64, all=全部base64数组
+     */
+    async function resolveRefImages(imageParam) {
+        if (!imageParam || (Array.isArray(imageParam) && imageParam.length === 0)) {
+            return { first: null, all: [] };
+        }
+        // 已是 base64 数组（从 skillImageStore 来）
+        if (Array.isArray(imageParam) && typeof imageParam[0] === 'string') {
+            return { first: imageParam[0], all: [...imageParam] };
+        }
+        // FileList 或类似对象
+        const files = Array.from(imageParam);
+        const results = await Promise.all(files.map(file => {
+            if (typeof file === 'string') return Promise.resolve(file);
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+            });
+        }));
+        const valid = results.filter(Boolean);
+        return { first: valid[0] || null, all: valid };
+    }
+
+    /**
+     * 🎨 智能调用图片生成 API
+     * 支持 imageModel 路由：
+     *   doubao-seedream-* / nano-banana-2 / nano-banana-2-4k / modelscope /
+     *   Qwen/Qwen-Image-2512 / midjourney-fast / midjourney-turbo / midjourney-relax
+     */
+    async function callImageAPIWithRefs(prompt, opts, refImages) {
+        const imageModel = opts?.imageModel || '';
+
+        // 🎨 Midjourney 路由
+        if (imageModel.startsWith('midjourney') && typeof callMidjourneyImageAPI === 'function') {
+            console.log(`🎨 [MJ路由] 使用 ${imageModel}`);
+            return await callMidjourneyImageAPI(prompt, { ...opts, model: imageModel });
+        }
+
+        // 🎨 ModelScope 路由
+        if (imageModel === 'modelscope' && typeof callModelScopeImageAPI === 'function') {
+            console.log(`🖼️ [ModelScope路由] 使用智能绘图`);
+            return await callModelScopeImageAPI(prompt, { ...opts, refImages });
+        }
+
+        // ✨ 星梦画师 / Banana 4K / Banana 2K / 通义万象 → 通过 callBanana2ImageAPI 指定 model
+        if ((imageModel.includes('seedream') || imageModel.includes('doubao') ||
+             imageModel.includes('banana-2-4k') || imageModel.includes('banana-2-2k') ||
+             imageModel.startsWith('Qwen/')) && typeof callBanana2ImageAPI === 'function') {
+            console.log(`🎨 [模型路由] 使用 ${imageModel}`);
+            return await callBanana2ImageAPI(prompt, { ...opts, model: imageModel });
+        }
+
+        // 多图参考（>= 2张）→ 优先走 ModelScope 的 image2image
+        if (refImages && refImages.length >= 2 && typeof callModelScopeImageAPI === 'function') {
+            console.log(`🖼️ [多图参考] 使用 ModelScope image2image，${refImages.length}张参考图`);
+            return await callModelScopeImageAPI(prompt, { ...opts, refImages });
+        }
+        // 默认 → Banana2
+        if (typeof callBanana2ImageAPI === 'function') {
+            return await callBanana2ImageAPI(prompt, { ...opts, model: imageModel || 'nano-banana-2' });
+        }
+        if (typeof callModelScopeImageAPI === 'function') {
+            return await callModelScopeImageAPI(prompt, opts);
+        }
+        throw new Error('图片生成功能不可用');
+    }
 
     function registerPresetSkills() {
         const presetSkills = [
@@ -77,29 +181,44 @@
                         key: 'videoModel',
                         label: '视频模型',
                         type: 'select',
-                        default: 'sora-2-all',
-                        options: [
-                            { value: 'sora-2-all', label: 'Sora-2（推荐）' },
-                            { value: 'veo3.1', label: 'Veo 3.1 4K（超清）' },
-                            { value: 'kling-2.5-720p-5s', label: '可灵 2.5（性价比）' },
-                            { value: 'hailuo-02-768p-6s', label: '海螺（经济）' }
-                        ]
+                        default: 'sora-2-vip-all',
+                        options: VIDEO_MODEL_OPTIONS
+                    },
+                    {
+                        key: 'imageModel',
+                        label: '生图模型',
+                        type: 'select',
+                        default: 'nano-banana-2',
+                        options: IMAGE_MODEL_OPTIONS
+                    },
+                    {
+                        key: 'styleRef',
+                        label: '风格参考图（可选）',
+                        type: 'image',
+                        hint: '上传参考图，视频画面将模仿该风格'
                     }
                 ],
                 estimateCost: (params) => {
                     const count = params.count || 3;
                     const duration = parseInt(params.duration) || 15;
-                    const model = params.videoModel || 'sora-2-all';
+                    const model = params.videoModel || 'sora-2-vip-all';
 
-                    // 每个视频：剧本(0.1) + 图片(0.5) + 视频(根据模型)
-                    let videoFilm = 3; // Sora-2 默认
-                    if (model.includes('veo')) videoFilm = 5;
+                    // 每个视频：剧本(1) + 图片(6) + 视频(按模型)
+                    const im = params.imageModel || 'nano-banana-2';
+                    let imgFilm = 6; // banana2
+                    if (im.startsWith('midjourney')) imgFilm = 12;
+                    if (im === 'modelscope') imgFilm = 0;
+                    let videoFilm = 7; // Sora-2 默认
+                    if (model.includes('pro')) videoFilm = 14;
+                    if (model.includes('veo')) videoFilm = 30;
+                    if (model.includes('grok')) videoFilm = 5;
                     if (model.includes('kling')) videoFilm = duration <= 5 ? 5 : 10;
                     if (model.includes('hailuo')) videoFilm = duration <= 6 ? 7 : 11;
+                    if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
 
-                    const perVideo = 0.1 + 0.5 + videoFilm;
+                    const perVideo = 1 + imgFilm + videoFilm;
                     const totalFilm = Math.ceil(count * perVideo);
-                    const timePerVideo = duration <= 10 ? 2 : 3; // 分钟
+                    const timePerVideo = duration <= 10 ? 2 : 3;
 
                     return {
                         film: totalFilm,
@@ -107,91 +226,74 @@
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { topic, count, style, duration, videoModel } = params;
-                    const results = [];
+                    const { topic, count, style, duration, videoModel, styleRef, imageModel } = params;
+                    // 🖼️ 解析参考图（支持多图）
+                    const refs = await resolveRefImages(styleRef);
+                    const userRefImage = refs.first;
+                    const allRefImages = refs.all;
 
-                    for (let i = 0; i < count; i++) {
-                        if (callbacks.isCancelled?.()) break;
+                    const stylePrompts = {
+                        anime: 'Japanese anime style, vibrant colors, cel-shaded',
+                        realistic: 'photorealistic, cinematic lighting, detailed',
+                        chinese: 'Chinese traditional style, ink painting influence',
+                        '3d': '3D rendered, Pixar style, high quality CGI',
+                        watercolor: 'watercolor painting, soft colors, artistic'
+                    };
 
-                        const progress = Math.round((i / count) * 100);
-                        callbacks.onProgress?.(`生成视频 ${i + 1}/${count}`, progress, `正在创作第 ${i + 1} 个视频...`);
-
+                    // 🎨 一致性策略：无参考图时，先生成第1张图作为风格参考
+                    let _autoRef = userRefImage;
+                    if (!_autoRef && count > 1) {
+                        callbacks.onProgress?.('生成风格基准', 3, '先生成第1张图片作为风格参考...');
                         try {
-                            // 步骤 1: 生成剧本
+                            const _seedPrompt = `${stylePrompts[style] || ''}, ${topic}, establishing shot, high quality, 16:9 aspect ratio`;
+                            _autoRef = await callImageAPIWithRefs(_seedPrompt, { aspectRatio: '16:9', imageModel }, allRefImages);
+                            callbacks.onStepComplete?.('风格基准图', { imageUrl: _autoRef });
+                        } catch (e) { console.warn('风格基准图生成失败, 继续无参考生成:', e.message); }
+                    }
+
+                    callbacks.onProgress?.('并行生成', 5, `同时生成 ${count} 个视频...`);
+                    let _vDone = 0;
+                    const results = await Promise.all(Array.from({ length: count }, (_, i) => (async () => {
+                        try {
                             const scriptPrompt = `请为以下主题生成一个短视频剧本，时长约${duration}秒，风格为${style}：\n${topic}\n\n要求：
 1. 剧本要简洁有力，适合短视频
 2. 包含具体的画面描述
 3. 第 ${i + 1} 个视频要与其他视频有所不同
 4. 直接输出剧本内容，不要解释`;
-
                             let script = '';
                             if (typeof callScriptGenerator === 'function') {
                                 script = await callScriptGenerator({}, scriptPrompt);
                             } else if (typeof callModelScopeTextAPI === 'function') {
                                 script = await callModelScopeTextAPI(scriptPrompt);
-                            } else {
-                                throw new Error('文本生成功能不可用');
-                            }
-
+                            } else { throw new Error('文本生成功能不可用'); }
                             callbacks.onStepComplete?.(`视频${i + 1} 剧本`, { script: script.substring(0, 100) + '...' });
 
-                            // 步骤 2: 生成封面图
-                            const stylePrompts = {
-                                anime: 'Japanese anime style, vibrant colors, cel-shaded',
-                                realistic: 'photorealistic, cinematic lighting, detailed',
-                                chinese: 'Chinese traditional style, ink painting influence',
-                                '3d': '3D rendered, Pixar style, high quality CGI',
-                                watercolor: 'watercolor painting, soft colors, artistic'
-                            };
-
                             const imagePrompt = `${stylePrompts[style] || ''}, ${script.substring(0, 200)}, high quality, 16:9 aspect ratio`;
-
-                            let imageUrl = '';
-                            if (typeof callBanana2ImageAPI === 'function') {
-                                imageUrl = await callBanana2ImageAPI(imagePrompt, { aspectRatio: '16:9' });
-                            } else if (typeof callModelScopeImageAPI === 'function') {
-                                imageUrl = await callModelScopeImageAPI(imagePrompt, { aspectRatio: '16:9' });
-                            }
-
+                            const imgOpts = { aspectRatio: '16:9', imageModel };
+                            if (_autoRef) imgOpts.refImage = _autoRef;
+                            const imageUrl = await callImageAPIWithRefs(imagePrompt, imgOpts, allRefImages);
                             callbacks.onStepComplete?.(`视频${i + 1} 封面图`, { imageUrl });
 
-                            // 步骤 3: 生成视频
                             let videoUrl = '';
                             const videoPrompt = script.substring(0, 500);
-
                             if (imageUrl && typeof callSora2ImageToVideoAPI === 'function') {
-                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, videoPrompt, {
-                                    model: videoModel,
-                                    duration: parseInt(duration),
-                                    aspectRatio: '16:9'
-                                });
+                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, videoPrompt, { model: videoModel, duration: parseInt(duration), aspectRatio: '16:9' });
                             } else if (typeof callSora2TextToVideoAPI === 'function') {
-                                videoUrl = await callSora2TextToVideoAPI(videoPrompt, {
-                                    model: videoModel,
-                                    duration: parseInt(duration),
-                                    aspectRatio: '16:9'
-                                });
+                                videoUrl = await callSora2TextToVideoAPI(videoPrompt, { model: videoModel, duration: parseInt(duration), aspectRatio: '16:9' });
                             }
-
                             callbacks.onStepComplete?.(`视频${i + 1} 完成`, { videoUrl });
 
-                            results.push({
-                                index: i + 1,
-                                script,
-                                imageUrl,
-                                videoUrl,
-                                status: 'success'
-                            });
-
+                            _vDone++;
+                            callbacks.onProgress?.(`已完成 ${_vDone}/${count}`, Math.round((_vDone / count) * 95) + 5, `✅ 视频${i + 1}`);
+                            return { index: i + 1, script, imageUrl, videoUrl, status: 'success' };
                         } catch (error) {
                             console.error(`视频 ${i + 1} 生成失败:`, error);
-                            results.push({
-                                index: i + 1,
-                                error: error.message,
-                                status: 'failed'
-                            });
+                            _vDone++;
+                            callbacks.onProgress?.(`已完成 ${_vDone}/${count}`, Math.round((_vDone / count) * 95) + 5, `❌ 视频${i + 1}`);
+                            return { index: i + 1, error: error.message, status: 'failed' };
                         }
-                    }
+                    })()));
+                    results.sort((a, b) => a.index - b.index);
 
                     callbacks.onProgress?.('完成', 100, `成功生成 ${results.filter(r => r.status === 'success').length}/${count} 个视频`);
 
@@ -233,18 +335,33 @@
                             { value: 'realistic', label: '📸 电影质感' },
                             { value: 'chinese', label: '🏮 国风古典' }
                         ]
+                    },
+                    {
+                        key: 'videoModel',
+                        label: '视频模型',
+                        type: 'select',
+                        default: 'sora-2-vip-all',
+                        options: VIDEO_MODEL_OPTIONS
                     }
                 ],
                 estimateCost: (params) => {
                     const episodes = params.episodes || 3;
-                    // 每集：剧本(0.1) + 图片(0.5) + 视频(3)
+                    const model = params.videoModel || 'sora-2-vip-all';
+                    let videoFilm = 7; // Sora-2
+                    if (model.includes('pro')) videoFilm = 14;
+                    if (model.includes('veo')) videoFilm = 30;
+                    if (model.includes('grok')) videoFilm = 5;
+                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 10 : 5;
+                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 11 : 7;
+                    if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
+                    // 每集: 文本1 + 图片6 + 视频
                     return {
-                        film: Math.ceil(episodes * 3.6),
+                        film: Math.ceil(episodes * (1 + 6 + videoFilm)),
                         time: `约 ${episodes * 3} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { story, episodes, style } = params;
+                    const { story, episodes, style, videoModel } = params;
                     const results = [];
 
                     // 先生成分集大纲
@@ -291,21 +408,15 @@ ${story}
                             const imagePrompt = `${styleMap[style]}, ${segment.substring(0, 300)}, sequential storytelling, 16:9`;
 
                             let imageUrl = '';
-                            if (lastImageUrl && typeof callBanana2ImageAPI === 'function') {
-                                // 使用上一帧作为参考，保持角色一致性
-                                imageUrl = await callBanana2ImageAPI(imagePrompt, {
-                                    aspectRatio: '16:9',
-                                    refImage: lastImageUrl
-                                });
-                            } else if (typeof callBanana2ImageAPI === 'function') {
-                                imageUrl = await callBanana2ImageAPI(imagePrompt, { aspectRatio: '16:9' });
-                            }
+                            const _storyOpts = { aspectRatio: '16:9' };
+                            if (lastImageUrl) _storyOpts.refImage = lastImageUrl;
+                            imageUrl = await callImageAPIWithRefs(imagePrompt, _storyOpts, []);
 
                             // 生成视频
                             let videoUrl = '';
                             if (imageUrl && typeof callSora2ImageToVideoAPI === 'function') {
                                 videoUrl = await callSora2ImageToVideoAPI(imageUrl, segment, {
-                                    model: 'sora-2-all',
+                                    model: videoModel || 'sora-2-all',
                                     duration: 15,
                                     aspectRatio: '16:9'
                                 });
@@ -376,19 +487,32 @@ ${story}
                             { value: '10', label: '10 秒' },
                             { value: '15', label: '15 秒' }
                         ]
+                    },
+                    {
+                        key: 'videoModel',
+                        label: '视频模型',
+                        type: 'select',
+                        default: 'sora-2-vip-all',
+                        options: VIDEO_MODEL_OPTIONS
                     }
                 ],
                 estimateCost: (params) => {
                     const imageCount = params.images?.length || 1;
+                    const model = params.videoModel || 'sora-2-vip-all';
+                    let videoFilm = 7; // Sora-2
+                    if (model.includes('pro')) videoFilm = 14;
+                    if (model.includes('veo')) videoFilm = 30;
+                    if (model.includes('grok')) videoFilm = 5;
+                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 10 : 5;
+                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 11 : 7;
+                    if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
                     return {
-                        film: Math.ceil(imageCount * 3),
+                        film: Math.ceil(imageCount * videoFilm),
                         time: `约 ${imageCount * 2} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { images, motion, duration } = params;
-                    const results = [];
-
+                    const { images, motion, duration, videoModel } = params;
                     if (!images || images.length === 0) {
                         throw new Error('请上传至少一张图片');
                     }
@@ -400,52 +524,37 @@ ${story}
                         dramatic: 'dramatic action, dynamic movement'
                     };
 
-                    for (let i = 0; i < images.length; i++) {
-                        if (callbacks.isCancelled?.()) break;
-
-                        const progress = Math.round((i / images.length) * 100);
-                        callbacks.onProgress?.(`处理图片 ${i + 1}/${images.length}`, progress, `正在生成第 ${i + 1} 个视频...`);
-
+                    callbacks.onProgress?.('并行生成', 5, `同时处理 ${images.length} 张图片...`);
+                    let _i2vDone = 0;
+                    const results = await Promise.all(Array.from(images).map((file, i) => (async () => {
                         try {
-                            const file = images[i];
-
-                            // 将文件转为 URL
-                            const imageUrl = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = () => resolve(reader.result);
-                                reader.onerror = reject;
-                                reader.readAsDataURL(file);
-                            });
-
-                            // 生成视频
-                            const prompt = `${motionPrompts[motion]}, animate this image with ${motion} effect`;
-
-                            let videoUrl = '';
-                            if (typeof callSora2ImageToVideoAPI === 'function') {
-                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, prompt, {
-                                    model: 'sora-2-all',
-                                    duration: parseInt(duration),
-                                    aspectRatio: '16:9'
+                            let imageUrl = '';
+                            if (typeof file === 'string') {
+                                imageUrl = file;
+                            } else {
+                                imageUrl = await new Promise((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () => resolve(reader.result);
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(file);
                                 });
                             }
-
+                            const prompt = `${motionPrompts[motion]}, animate this image with ${motion} effect`;
+                            let videoUrl = '';
+                            if (typeof callSora2ImageToVideoAPI === 'function') {
+                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, prompt, { model: videoModel || 'sora-2-all', duration: parseInt(duration), aspectRatio: '16:9' });
+                            }
+                            _i2vDone++;
+                            callbacks.onProgress?.(`已完成 ${_i2vDone}/${images.length}`, Math.round((_i2vDone / images.length) * 95) + 5, `✅ 图片${i + 1}`);
                             callbacks.onStepComplete?.(`图片${i + 1}`, { videoUrl });
-
-                            results.push({
-                                index: i + 1,
-                                fileName: file.name,
-                                videoUrl,
-                                status: 'success'
-                            });
-
+                            return { index: i + 1, fileName: file.name, videoUrl, status: 'success' };
                         } catch (error) {
-                            results.push({
-                                index: i + 1,
-                                error: error.message,
-                                status: 'failed'
-                            });
+                            _i2vDone++;
+                            callbacks.onProgress?.(`已完成 ${_i2vDone}/${images.length}`, Math.round((_i2vDone / images.length) * 95) + 5, `❌ 图片${i + 1}`);
+                            return { index: i + 1, error: error.message, status: 'failed' };
                         }
-                    }
+                    })()));
+                    results.sort((a, b) => a.index - b.index);
 
                     callbacks.onProgress?.('完成', 100, `成功处理 ${results.filter(r => r.status === 'success').length}/${images.length} 张图片`);
 
@@ -494,71 +603,85 @@ ${story}
                             { value: '1:1', label: '1:1 正方形' },
                             { value: '16:9', label: '16:9 横版' },
                             { value: '9:16', label: '9:16 竖版' },
-                            { value: '4:3', label: '4:3 标准' }
+                            { value: '4:3', label: '4:3 横版标准' },
+                            { value: '3:4', label: '3:4 竖版标准' }
                         ]
+                    },
+                    {
+                        key: 'imageModel',
+                        label: '生图模型',
+                        type: 'select',
+                        default: 'nano-banana-2',
+                        options: IMAGE_MODEL_OPTIONS
                     }
                 ],
                 estimateCost: (params) => {
                     const subjects = (params.subjects || '').split('\n').filter(s => s.trim());
+                    const count = Math.max(subjects.length, 1);
+                    const im = params.imageModel || 'nano-banana-2';
+                    let perImage = 6; // banana2
+                    if (im.startsWith('midjourney')) perImage = 12; // MJ 高质量
+                    if (im === 'modelscope') perImage = 0; // 免费
                     return {
-                        film: Math.ceil(subjects.length * 0.5),
-                        time: `约 ${Math.ceil(subjects.length * 0.5)} 分钟`
+                        film: count * perImage,
+                        time: `约 ${Math.ceil(count * (im.startsWith('midjourney') ? 1.5 : 0.5))} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { styleRef, styleDesc, subjects, aspectRatio } = params;
+                    const { styleRef, styleDesc, subjects, aspectRatio, imageModel } = params;
                     const subjectList = subjects.split('\n').filter(s => s.trim());
-                    const results = [];
 
-                    // 处理参考图
-                    let refImageUrl = null;
-                    if (styleRef && styleRef.length > 0) {
-                        refImageUrl = await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(styleRef[0]);
-                        });
-                    }
+                    // 🖼️ 解析参考图（支持多图）
+                    const refs = await resolveRefImages(styleRef);
+                    const refImageUrl = refs.first;
+                    const allRefImages = refs.all;
 
-                    for (let i = 0; i < subjectList.length; i++) {
-                        if (callbacks.isCancelled?.()) break;
-
-                        const subject = subjectList[i].trim();
-                        const progress = Math.round((i / subjectList.length) * 100);
-                        callbacks.onProgress?.(`生成图片 ${i + 1}/${subjectList.length}`, progress, `正在生成: ${subject}`);
-
+                    // 🎨 一致性策略：无参考图时，先生成第1张图作为风格基准
+                    let _styleRef = refImageUrl;
+                    if (!_styleRef && subjectList.length > 1) {
+                        callbacks.onProgress?.('生成风格基准', 3, '先生成第1张图片确定风格...');
                         try {
-                            const prompt = `${styleDesc} style, ${subject}, high quality, detailed, consistent art style`;
-
-                            let imageUrl = '';
-                            if (refImageUrl && typeof callBanana2ImageAPI === 'function') {
-                                imageUrl = await callBanana2ImageAPI(prompt, {
-                                    aspectRatio,
-                                    refImage: refImageUrl
-                                });
-                            } else if (typeof callBanana2ImageAPI === 'function') {
-                                imageUrl = await callBanana2ImageAPI(prompt, { aspectRatio });
-                            } else if (typeof callModelScopeImageAPI === 'function') {
-                                imageUrl = await callModelScopeImageAPI(prompt, { aspectRatio });
-                            }
-
-                            callbacks.onStepComplete?.(subject, { imageUrl });
-
-                            results.push({
-                                subject,
-                                imageUrl,
-                                status: 'success'
-                            });
-
-                        } catch (error) {
-                            results.push({
-                                subject,
-                                error: error.message,
-                                status: 'failed'
-                            });
-                        }
+                            const _firstPrompt = `${styleDesc} style, ${subjectList[0].trim()}, high quality, detailed, consistent art style`;
+                            _styleRef = await callImageAPIWithRefs(_firstPrompt, { aspectRatio, imageModel }, allRefImages);
+                            callbacks.onStepComplete?.('风格基准图', { imageUrl: _styleRef });
+                        } catch (e) { console.warn('风格基准图失败:', e.message); }
                     }
+
+                    callbacks.onProgress?.('并行生成', 5, `同时生成 ${subjectList.length} 张图片...`);
+
+                    // 🚀 并行生成所有图片（已有基准的第1张会复用缓存）
+                    let completedCount = 0;
+                    const promises = subjectList.map((subject, i) => {
+                        const trimmed = subject.trim();
+                        const prompt = `${styleDesc} style, ${trimmed}, high quality, detailed, consistent art style`;
+                        const imgOpts = { aspectRatio, imageModel };
+                        if (_styleRef) imgOpts.refImage = _styleRef;
+
+                        // 第1张已作为基准图生成过，直接复用
+                        if (i === 0 && _styleRef && !refImageUrl) {
+                            completedCount++;
+                            callbacks.onProgress?.(`已完成 1/${subjectList.length}`, 10, `✅ ${trimmed}`);
+                            callbacks.onStepComplete?.(trimmed, { imageUrl: _styleRef });
+                            return Promise.resolve({ subject: trimmed, imageUrl: _styleRef, status: 'success' });
+                        }
+
+                        return callImageAPIWithRefs(prompt, imgOpts, allRefImages)
+                            .then(imageUrl => {
+                                completedCount++;
+                                const progress = Math.round((completedCount / subjectList.length) * 95) + 5;
+                                callbacks.onProgress?.(`已完成 ${completedCount}/${subjectList.length}`, progress, `✅ ${trimmed}`);
+                                callbacks.onStepComplete?.(trimmed, { imageUrl });
+                                return { subject: trimmed, imageUrl, status: 'success' };
+                            })
+                            .catch(error => {
+                                completedCount++;
+                                const progress = Math.round((completedCount / subjectList.length) * 95) + 5;
+                                callbacks.onProgress?.(`已完成 ${completedCount}/${subjectList.length}`, progress, `❌ ${trimmed}: ${error.message}`);
+                                return { subject: trimmed, error: error.message, status: 'failed' };
+                            });
+                    });
+
+                    const results = await Promise.all(promises);
 
                     callbacks.onProgress?.('完成', 100, `成功生成 ${results.filter(r => r.status === 'success').length}/${subjectList.length} 张图片`);
 
@@ -602,6 +725,25 @@ ${story}
                         ]
                     },
                     {
+                        key: 'aspectRatio',
+                        label: '图片比例',
+                        type: 'select',
+                        default: '16:9',
+                        options: [
+                            { value: '16:9', label: '16:9 横版' },
+                            { value: '4:3', label: '4:3 标准' },
+                            { value: '1:1', label: '1:1 方形' },
+                            { value: '3:4', label: '3:4 竖版' },
+                            { value: '9:16', label: '9:16 手机竖屏' }
+                        ]
+                    },
+                    {
+                        key: 'charRefImage',
+                        label: '角色参考图（可选）',
+                        type: 'image',
+                        hint: '上传已有角色草稿或参考图，生成结果将保持一致'
+                    },
+                    {
                         key: 'includeExpressions',
                         label: '生成表情包',
                         type: 'checkbox',
@@ -614,20 +756,37 @@ ${story}
                         type: 'checkbox',
                         default: true,
                         checkboxLabel: '包含 4 个动作'
+                    },
+                    {
+                        key: 'imageModel',
+                        label: '生图模型',
+                        type: 'select',
+                        default: 'nano-banana-2',
+                        options: IMAGE_MODEL_OPTIONS
                     }
                 ],
                 estimateCost: (params) => {
                     let count = 2; // 基础：三视图 + 设定海报
                     if (params.includeExpressions) count += 1;
                     if (params.includeActions) count += 1;
+                    const im = params.imageModel || 'nano-banana-2';
+                    let perImg = 6;
+                    if (im.startsWith('midjourney')) perImg = 12;
+                    if (im === 'modelscope') perImg = 0;
                     return {
-                        film: Math.ceil(count * 1),
-                        time: `约 ${count * 1} 分钟`
+                        film: Math.ceil(count * perImg) + 1, // +1文本
+                        time: `约 ${count} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { name, description, style, includeExpressions, includeActions } = params;
+                    const { name, description, style, aspectRatio, charRefImage, includeExpressions, includeActions } = params;
+                    const charAspectRatio = aspectRatio || '16:9';
                     const results = {};
+
+                    // 🖼️ 解析角色参考图（支持多图）
+                    const charRefs = await resolveRefImages(charRefImage);
+                    let charRef = charRefs.first;
+                    const allCharRefImages = charRefs.all;
 
                     const stylePrompts = {
                         anime: 'Japanese anime style, vibrant colors, detailed',
@@ -653,62 +812,42 @@ ${story}
                             });
                             results.turnaround = variants;
                         } else if (typeof callBanana2ImageAPI === 'function') {
-                            results.turnaround = await callBanana2ImageAPI(turnaroundPrompt, { aspectRatio: '16:9' });
+                            const opts = { aspectRatio: charAspectRatio };
+                            if (charRef) opts.refImage = charRef;
+                            results.turnaround = await callBanana2ImageAPI(turnaroundPrompt, opts);
                         }
+                        // 首张生成图作为后续参考（保持角色一致性）
+                        if (!charRef && results.turnaround) charRef = results.turnaround;
 
                         callbacks.onStepComplete?.('三视图', { url: results.turnaround });
                     } catch (e) {
                         console.error('三视图生成失败:', e);
                     }
 
-                    // 2. 设定海报
-                    callbacks.onProgress?.('设定海报', 30, '正在生成角色设定海报...');
+                    // 2-4. 并行生成海报+表情包+动作参考
+                    const charTasks = [];
+                    charTasks.push({ key: 'poster', name: '设定海报', prompt: `${baseStyle}, character design poster, ${name}, ${description}, clothing details, color palette, accessories, full body pose, professional character sheet` });
+                    if (includeExpressions) charTasks.push({ key: 'expressions', name: '表情包', prompt: `${baseStyle}, expression sheet, ${name}, ${description}, 6 different expressions: happy, sad, angry, surprised, shy, confident, portrait close-up, white background, grid layout` });
+                    if (includeActions) charTasks.push({ key: 'actions', name: '动作参考', prompt: `${baseStyle}, action pose sheet, ${name}, ${description}, 4 dynamic poses: standing, running, fighting, sitting, full body, white background, action reference` });
 
-                    try {
-                        const posterPrompt = `${baseStyle}, character design poster, ${name}, ${description}, clothing details, color palette, accessories, full body pose, professional character sheet`;
-
-                        if (typeof callBanana2ImageAPI === 'function') {
-                            results.poster = await callBanana2ImageAPI(posterPrompt, { aspectRatio: '16:9' });
-                        }
-
-                        callbacks.onStepComplete?.('设定海报', { url: results.poster });
-                    } catch (e) {
-                        console.error('设定海报生成失败:', e);
-                    }
-
-                    // 3. 表情包
-                    if (includeExpressions) {
-                        callbacks.onProgress?.('表情包', 50, '正在生成表情包...');
-
-                        try {
-                            const expressionPrompt = `${baseStyle}, expression sheet, ${name}, ${description}, 6 different expressions: happy, sad, angry, surprised, shy, confident, portrait close-up, white background, grid layout`;
-
-                            if (typeof callBanana2ImageAPI === 'function') {
-                                results.expressions = await callBanana2ImageAPI(expressionPrompt, { aspectRatio: '16:9' });
-                            }
-
-                            callbacks.onStepComplete?.('表情包', { url: results.expressions });
-                        } catch (e) {
-                            console.error('表情包生成失败:', e);
-                        }
-                    }
-
-                    // 4. 动作参考
-                    if (includeActions) {
-                        callbacks.onProgress?.('动作参考', 75, '正在生成动作参考...');
-
-                        try {
-                            const actionPrompt = `${baseStyle}, action pose sheet, ${name}, ${description}, 4 dynamic poses: standing, running, fighting, sitting, full body, white background, action reference`;
-
-                            if (typeof callBanana2ImageAPI === 'function') {
-                                results.actions = await callBanana2ImageAPI(actionPrompt, { aspectRatio: '16:9' });
-                            }
-
-                            callbacks.onStepComplete?.('动作参考', { url: results.actions });
-                        } catch (e) {
-                            console.error('动作参考生成失败:', e);
-                        }
-                    }
+                    callbacks.onProgress?.('并行生成', 30, `同时生成 ${charTasks.length} 项角色素材...`);
+                    let _chDone = 0;
+                    await Promise.all(charTasks.map(task => {
+                        const opts = { aspectRatio: charAspectRatio };
+                        if (charRef) opts.refImage = charRef;
+                        return callImageAPIWithRefs(task.prompt, opts, allCharRefImages)
+                            .then(url => {
+                                results[task.key] = url;
+                                _chDone++;
+                                callbacks.onProgress?.(`已完成 ${_chDone}/${charTasks.length}`, 30 + Math.round((_chDone / charTasks.length) * 65), `✅ ${task.name}`);
+                                callbacks.onStepComplete?.(task.name, { url });
+                            })
+                            .catch(e => {
+                                _chDone++;
+                                console.error(`${task.name}生成失败:`, e);
+                                callbacks.onProgress?.(`已完成 ${_chDone}/${charTasks.length}`, 30 + Math.round((_chDone / charTasks.length) * 65), `❌ ${task.name}`);
+                            });
+                    }));
 
                     callbacks.onProgress?.('完成', 100, `角色设定包已生成`);
 
@@ -731,6 +870,12 @@ ${story}
                         required: true,
                         placeholder: '输入故事内容...',
                         hint: 'AI 会自动拆分为分镜'
+                    },
+                    {
+                        key: 'styleRef',
+                        label: '风格参考图（可选）',
+                        type: 'image',
+                        hint: '上传角色或画风参考图，漫画风格将基于此生成'
                     },
                     {
                         key: 'pageCount',
@@ -762,18 +907,36 @@ ${story}
                             { value: '4', label: '4 格' },
                             { value: '6', label: '6 格' }
                         ]
+                    },
+                    {
+                        key: 'aspectRatio',
+                        label: '页面比例',
+                        type: 'select',
+                        default: '9:16',
+                        options: [
+                            { value: '9:16', label: '9:16 条漫竖屏' },
+                            { value: '3:4', label: '3:4 竖版' },
+                            { value: '4:3', label: '4:3 横版' },
+                            { value: '1:1', label: '1:1 方形' },
+                            { value: '16:9', label: '16:9 横屏' }
+                        ]
                     }
                 ],
                 estimateCost: (params) => {
                     const pages = params.pageCount || 4;
                     return {
-                        film: Math.ceil(pages * 0.5),
+                        film: Math.ceil(pages * 6) + 1, // 6胶片/页 + 文本1
                         time: `约 ${pages} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { story, pageCount, style, panelsPerPage } = params;
-                    const results = [];
+                    const { story, styleRef, pageCount, style, panelsPerPage, aspectRatio } = params;
+                    const comicAspectRatio = aspectRatio || '9:16';
+
+                    // 🖼️ 解析参考图（支持多图）
+                    const comicRefs = await resolveRefImages(styleRef);
+                    let comicRef = comicRefs.first;
+                    const allComicRefImages = comicRefs.all;
 
                     const styleMap = {
                         manga: 'manga style, black and white, screen tones, dynamic angles',
@@ -806,42 +969,40 @@ ${story}
 
                     callbacks.onStepComplete?.('分镜规划', { panelCount: panelDescriptions.length });
 
-                    // 生成每页
-                    for (let page = 0; page < pageCount; page++) {
-                        if (callbacks.isCancelled?.()) break;
-
-                        const progress = 10 + Math.round((page / pageCount) * 85);
-                        callbacks.onProgress?.(`生成第 ${page + 1} 页`, progress, `正在绘制第 ${page + 1} 页...`);
-
+                    // 🎨 一致性策略：无参考图时，先生成第1页作为风格基准
+                    if (!comicRef && pageCount > 1) {
+                        callbacks.onProgress?.('生成风格基准', 8, '先生成第1页确定漫画风格...');
                         try {
-                            const startPanel = page * parseInt(panelsPerPage);
-                            const pagePanels = panelDescriptions.slice(startPanel, startPanel + parseInt(panelsPerPage));
-                            const panelDesc = pagePanels.join('; ');
-
-                            const pagePrompt = `${styleMap[style]}, comic page, ${parseInt(panelsPerPage)} panels layout, sequential art, ${panelDesc}`;
-
-                            let imageUrl = '';
-                            if (typeof callBanana2ImageAPI === 'function') {
-                                imageUrl = await callBanana2ImageAPI(pagePrompt, { aspectRatio: '9:16' });
-                            }
-
-                            callbacks.onStepComplete?.(`第${page + 1}页`, { imageUrl });
-
-                            results.push({
-                                page: page + 1,
-                                panels: pagePanels,
-                                imageUrl,
-                                status: 'success'
-                            });
-
-                        } catch (error) {
-                            results.push({
-                                page: page + 1,
-                                error: error.message,
-                                status: 'failed'
-                            });
-                        }
+                            const _firstPanels = panelDescriptions.slice(0, parseInt(panelsPerPage)).join('; ');
+                            const _firstPrompt = `${styleMap[style]}, comic page, ${parseInt(panelsPerPage)} panels layout, sequential art, ${_firstPanels}`;
+                            comicRef = await callImageAPIWithRefs(_firstPrompt, { aspectRatio: comicAspectRatio }, allComicRefImages);
+                            callbacks.onStepComplete?.('风格基准页', { imageUrl: comicRef });
+                        } catch (e) { console.warn('风格基准页失败:', e.message); }
                     }
+
+                    // 并行生成每页
+                    callbacks.onProgress?.('并行生成', 10, `同时生成 ${pageCount} 页漫画...`);
+                    let _cDone = 0;
+                    const results = await Promise.all(Array.from({ length: pageCount }, (_, page) => {
+                        const startPanel = page * parseInt(panelsPerPage);
+                        const pagePanels = panelDescriptions.slice(startPanel, startPanel + parseInt(panelsPerPage));
+                        const panelDesc = pagePanels.join('; ');
+                        const pagePrompt = `${styleMap[style]}, comic page, ${parseInt(panelsPerPage)} panels layout, sequential art, ${panelDesc}`;
+                        const opts = { aspectRatio: comicAspectRatio };
+                        if (comicRef) opts.refImage = comicRef;
+                        return callImageAPIWithRefs(pagePrompt, opts, allComicRefImages)
+                            .then(imageUrl => {
+                                _cDone++;
+                                callbacks.onProgress?.(`已完成 ${_cDone}/${pageCount}`, 10 + Math.round((_cDone / pageCount) * 85), `✅ 第${page + 1}页`);
+                                callbacks.onStepComplete?.(`第${page + 1}页`, { imageUrl });
+                                return { page: page + 1, panels: pagePanels, imageUrl, status: 'success' };
+                            })
+                            .catch(e => {
+                                _cDone++;
+                                callbacks.onProgress?.(`已完成 ${_cDone}/${pageCount}`, 10 + Math.round((_cDone / pageCount) * 85), `❌ 第${page + 1}页`);
+                                return { page: page + 1, error: e.message, status: 'failed' };
+                            });
+                    }));
 
                     callbacks.onProgress?.('完成', 100, `成功生成 ${results.filter(r => r.status === 'success').length}/${pageCount} 页漫画`);
 
@@ -849,9 +1010,192 @@ ${story}
                 }
             },
 
+            // ==================== 音频类 ====================
+
+            // 7. AI配音
+            {
+                id: 'ai_dubbing',
+                name: 'AI配音',
+                icon: '🎤',
+                category: 'audio',
+                description: '输入文本，AI 自动生成配音音频。支持 Gemini/可灵/DubbingX 多引擎，可选音色、语速、情感。',
+                parameters: [
+                    {
+                        key: 'text',
+                        label: '配音文本',
+                        type: 'textarea',
+                        required: true,
+                        placeholder: '输入要配音的文字内容...',
+                        hint: '支持中英文，建议单次不超过 500 字'
+                    },
+                    {
+                        key: 'engine',
+                        label: '配音引擎',
+                        type: 'select',
+                        default: 'gemini',
+                        options: [
+                            { value: 'gemini', label: '⚡ Gemini Flash（1胶片 最快）' },
+                            { value: 'kling', label: '🎵 可灵 TTS（2胶片 高质量）' },
+                            { value: 'dubbingx', label: '🎧 DubbingX（2胶片 多音色）' }
+                        ]
+                    },
+                    {
+                        key: 'voiceId',
+                        label: '音色',
+                        type: 'text',
+                        default: '',
+                        placeholder: 'Gemini: Kore/Puck/Charon | 可灵: zhifeng_zz',
+                        hint: 'Gemini音色: Kore(女)/Puck(男)/Charon(低沉)/Aoede(温柔) | 可灵: zhifeng_zz/zhimiao_emo 等'
+                    },
+                    {
+                        key: 'speed',
+                        label: '语速',
+                        type: 'number',
+                        default: 1,
+                        min: 0.5,
+                        max: 2,
+                        hint: '0.5=慢速, 1=正常, 2=快速'
+                    }
+                ],
+                estimateCost: (params) => {
+                    const engineCosts = { gemini: 1, kling: 2, dubbingx: 2 };
+                    return {
+                        film: engineCosts[params.engine] || 1,
+                        time: '约 10-30 秒'
+                    };
+                },
+                execute: async (params, callbacks) => {
+                    const { text, engine, voiceId, speed } = params;
+
+                    callbacks.onProgress?.('生成配音', 20, `正在使用 ${engine} 生成配音...`);
+
+                    if (typeof callTTSAPI !== 'function') throw new Error('TTS功能不可用');
+
+                    const audioUrl = await callTTSAPI(text, {
+                        engine: engine || 'gemini',
+                        voiceId: voiceId || '',
+                        speed: parseFloat(speed) || 1
+                    });
+
+                    callbacks.onStepComplete?.('配音完成', { audioUrl });
+                    callbacks.onProgress?.('完成', 100, '配音已生成');
+
+                    return {
+                        audioUrl,
+                        engine,
+                        textLength: text.length
+                    };
+                }
+            },
+
+            // 8. AI音乐制作
+            {
+                id: 'ai_music',
+                name: 'AI音乐制作',
+                icon: '🎵',
+                category: 'audio',
+                description: '输入歌词或描述，AI 自动创作音乐。支持 Suno v3-v5 模型，可生成带人声或纯音乐。',
+                parameters: [
+                    {
+                        key: 'mode',
+                        label: '创作模式',
+                        type: 'select',
+                        default: 'inspiration',
+                        options: [
+                            { value: 'inspiration', label: '💡 灵感模式（描述想要的音乐）' },
+                            { value: 'custom', label: '✍️ 自定义模式（提供歌词）' }
+                        ]
+                    },
+                    {
+                        key: 'prompt',
+                        label: '歌词/描述',
+                        type: 'textarea',
+                        required: true,
+                        placeholder: '灵感模式: 描述想要的音乐风格 / 自定义模式: 直接输入歌词',
+                        hint: '灵感模式只需描述风格，自定义模式需输入歌词'
+                    },
+                    {
+                        key: 'title',
+                        label: '歌曲标题',
+                        type: 'text',
+                        default: '',
+                        placeholder: '可选，AI可自动命名'
+                    },
+                    {
+                        key: 'tags',
+                        label: '风格标签',
+                        type: 'text',
+                        default: '',
+                        placeholder: '例如: pop, 电子, 中国风, rock, jazz...',
+                        hint: '多个标签用逗号分隔'
+                    },
+                    {
+                        key: 'model',
+                        label: 'Suno 模型',
+                        type: 'select',
+                        default: 'chirp-v4',
+                        options: [
+                            { value: 'chirp-v5', label: 'Suno v5.0（最新）' },
+                            { value: 'chirp-auk', label: 'Suno v4.5' },
+                            { value: 'chirp-v4', label: 'Suno v4.0（推荐）' },
+                            { value: 'chirp-v3-5', label: 'Suno v3.5' }
+                        ]
+                    },
+                    {
+                        key: 'instrumental',
+                        label: '纯音乐',
+                        type: 'checkbox',
+                        default: false,
+                        checkboxLabel: '只生成音乐，不含人声'
+                    }
+                ],
+                estimateCost: () => ({
+                    film: 8,
+                    time: '约 1-3 分钟'
+                }),
+                execute: async (params, callbacks) => {
+                    const { mode, prompt, title, tags, model, instrumental } = params;
+
+                    callbacks.onProgress?.('提交音乐任务', 10, '正在提交音乐生成任务...');
+
+                    if (typeof callSunoMusicAPI !== 'function') throw new Error('音乐生成功能不可用');
+
+                    const options = {
+                        model: model || 'chirp-v4',
+                        title: title || '',
+                        tags: tags || '',
+                        instrumental: !!instrumental
+                    };
+
+                    if (mode === 'inspiration') {
+                        options.description = prompt;
+                    } else {
+                        options.prompt = prompt;
+                    }
+
+                    callbacks.onProgress?.('生成中', 30, '音乐生成中，请耐心等待...');
+
+                    const result = await callSunoMusicAPI(options);
+
+                    callbacks.onProgress?.('完成', 100, `成功生成 ${result.music.length} 首音乐`);
+
+                    // 返回音乐列表
+                    return {
+                        taskId: result.taskId,
+                        music: result.music.map(m => ({
+                            title: m.title,
+                            audioUrl: m.audio_url,
+                            imageUrl: m.image_url,
+                            duration: m.duration,
+                            tags: m.tags
+                        }))
+                    };
+                }
+            },
+
             // ==================== 内容类 ====================
 
-            // 7. 热点文案生成
+            // 9. 热点文案生成
             {
                 id: 'trending_copywriting',
                 name: '热点文案生成',
@@ -903,8 +1247,8 @@ ${story}
                 ],
                 estimateCost: (params) => {
                     return {
-                        film: Math.ceil((params.count || 10) * 0.1),
-                        time: `约 1-2 分钟`
+                        film: 1, // 单次文本调用1胶片
+                        time: '约 30 秒'
                     };
                 },
                 execute: async (params, callbacks) => {
@@ -988,6 +1332,12 @@ ${story}
                         hint: '建议 1000-3000 字为宜'
                     },
                     {
+                        key: 'styleRef',
+                        label: '风格/角色参考图（可选）',
+                        type: 'image',
+                        hint: '上传角色或画风参考图，漫画将保持一致风格'
+                    },
+                    {
                         key: 'pageCount',
                         label: '漫画页数',
                         type: 'number',
@@ -1010,13 +1360,16 @@ ${story}
                 estimateCost: (params) => {
                     const pages = params.pageCount || 6;
                     return {
-                        film: Math.ceil(pages * 0.6),
+                        film: Math.ceil(pages * 6) + 1, // 6胶片/页 + 文本1
                         time: `约 ${pages + 2} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { novel, pageCount, style } = params;
-                    const results = [];
+                    const { novel, styleRef, pageCount, style } = params;
+
+                    // 🖼️ 解析风格参考图（支持多图 base64 数组）
+                    const novelRefs = await resolveRefImages(styleRef);
+                    let novelRef = novelRefs.first;
 
                     // 步骤 1: 分析小说，提取分镜
                     callbacks.onProgress?.('分析小说', 5, '正在分析故事情节...');
@@ -1054,39 +1407,39 @@ ${novel.substring(0, 3000)}
                     };
 
                     const pages = storyboard.split(/【第\d+页】/i).filter(p => p.trim());
+                    const actualCount = Math.min(pageCount, pages.length || pageCount);
 
-                    for (let i = 0; i < Math.min(pageCount, pages.length || pageCount); i++) {
-                        if (callbacks.isCancelled?.()) break;
-
-                        const progress = 10 + Math.round((i / pageCount) * 85);
-                        callbacks.onProgress?.(`绘制第 ${i + 1} 页`, progress, `正在生成第 ${i + 1} 页漫画...`);
-
+                    // 🎨 一致性策略：无参考图时，先生成第1页作为风格基准
+                    if (!novelRef && actualCount > 1) {
+                        callbacks.onProgress?.('生成风格基准', 8, '先生成第1页确定漫画风格...');
                         try {
-                            const pageContent = pages[i] || novel.substring(i * 500, (i + 1) * 500);
-                            const pagePrompt = `${styleMap[style]}, comic page, 4 panels, sequential art, ${pageContent.substring(0, 400)}`;
-
-                            let imageUrl = '';
-                            if (typeof callBanana2ImageAPI === 'function') {
-                                imageUrl = await callBanana2ImageAPI(pagePrompt, { aspectRatio: '9:16' });
-                            }
-
-                            callbacks.onStepComplete?.(`第${i + 1}页`, { imageUrl });
-
-                            results.push({
-                                page: i + 1,
-                                content: pageContent.substring(0, 100) + '...',
-                                imageUrl,
-                                status: 'success'
-                            });
-
-                        } catch (error) {
-                            results.push({
-                                page: i + 1,
-                                error: error.message,
-                                status: 'failed'
-                            });
-                        }
+                            const _firstContent = pages[0] || novel.substring(0, 500);
+                            const _firstPrompt = `${styleMap[style]}, comic page, 4 panels, sequential art, ${_firstContent.substring(0, 400)}`;
+                            novelRef = await callImageAPIWithRefs(_firstPrompt, { aspectRatio: '9:16' }, novelRefs.all);
+                            callbacks.onStepComplete?.('风格基准页', { imageUrl: novelRef });
+                        } catch (e) { console.warn('风格基准页失败:', e.message); }
                     }
+
+                    callbacks.onProgress?.('并行生成', 10, `同时生成 ${actualCount} 页漫画...`);
+                    let _nDone = 0;
+                    const results = await Promise.all(Array.from({ length: actualCount }, (_, i) => {
+                        const pageContent = pages[i] || novel.substring(i * 500, (i + 1) * 500);
+                        const pagePrompt = `${styleMap[style]}, comic page, 4 panels, sequential art, ${pageContent.substring(0, 400)}`;
+                        const opts = { aspectRatio: '9:16' };
+                        if (novelRef) opts.refImage = novelRef;
+                        return callImageAPIWithRefs(pagePrompt, opts, novelRefs.all)
+                            .then(imageUrl => {
+                                _nDone++;
+                                callbacks.onProgress?.(`已完成 ${_nDone}/${actualCount}`, 10 + Math.round((_nDone / actualCount) * 85), `✅ 第${i + 1}页`);
+                                callbacks.onStepComplete?.(`第${i + 1}页`, { imageUrl });
+                                return { page: i + 1, content: pageContent.substring(0, 100) + '...', imageUrl, status: 'success' };
+                            })
+                            .catch(e => {
+                                _nDone++;
+                                callbacks.onProgress?.(`已完成 ${_nDone}/${actualCount}`, 10 + Math.round((_nDone / actualCount) * 85), `❌ 第${i + 1}页`);
+                                return { page: i + 1, error: e.message, status: 'failed' };
+                            });
+                    }));
 
                     callbacks.onProgress?.('完成', 100, `成功生成 ${results.filter(r => r.status === 'success').length}/${pageCount} 页漫画`);
 
@@ -1132,7 +1485,7 @@ ${novel.substring(0, 3000)}
                 ],
                 estimateCost: (params) => {
                     return {
-                        film: 0.2,
+                        film: 1, // 文本1胶片
                         time: '约 30 秒'
                     };
                 },
@@ -1242,19 +1595,47 @@ ${script.substring(0, 4000)}
                         type: 'checkbox',
                         default: true,
                         checkboxLabel: '先设计角色，保证人物一致性'
+                    },
+                    {
+                        key: 'styleRef',
+                        label: '风格/角色参考图（可选）',
+                        type: 'image',
+                        hint: '上传角色或风格参考图，所有生成内容将基于此风格'
+                    },
+                    {
+                        key: 'videoModel',
+                        label: '视频模型',
+                        type: 'select',
+                        default: 'sora-2-vip-all',
+                        options: VIDEO_MODEL_OPTIONS
+                    },
+                    {
+                        key: 'imageModel',
+                        label: '生图模型',
+                        type: 'select',
+                        default: 'nano-banana-2',
+                        options: IMAGE_MODEL_OPTIONS
                     }
                 ],
                 estimateCost: (params) => {
                     const duration = parseInt(params.duration) || 60;
                     const scenes = Math.ceil(duration / 15);
-                    let film = 0.5; // 剧本
+                    const model = params.videoModel || 'sora-2-vip-all';
+                    let videoFilm = 7; // Sora-2
+                    if (model.includes('pro')) videoFilm = 14;
+                    if (model.includes('veo')) videoFilm = 30;
+                    if (model.includes('grok')) videoFilm = 5;
+                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 10 : 5;
+                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 11 : 7;
+                    if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
+                    let film = 1; // 剧本
 
-                    if (params.includeCharacter) film += 1; // 角色
+                    if (params.includeCharacter) film += 7; // 角色设定(文本1+图片6)
                     if (params.outputType === 'video' || params.outputType === 'both') {
-                        film += scenes * 3.5; // 每个分镜：图+视频
+                        film += scenes * (6 + videoFilm); // 每个分镜：图片6+视频
                     }
                     if (params.outputType === 'comic' || params.outputType === 'both') {
-                        film += Math.ceil(scenes / 2) * 0.5; // 漫画页
+                        film += Math.ceil(scenes / 2) * 6; // 漫画页6胶片/页
                     }
 
                     return {
@@ -1263,7 +1644,13 @@ ${script.substring(0, 4000)}
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { idea, outputType, style, duration, includeCharacter } = params;
+                    const { idea, outputType, style, duration, includeCharacter, styleRef, videoModel } = params;
+
+                    // 🖼️ 解析参考图（支持多图）
+                    const autoRefs = await resolveRefImages(styleRef);
+                    let userRefImage = autoRefs.first;
+                    const allAutoRefImages = autoRefs.all;
+
                     const results = {
                         script: null,
                         character: null,
@@ -1335,79 +1722,789 @@ ${results.script.substring(0, 1000)}`;
                     };
 
                     const sceneTexts = results.script?.split(/分镜\d+|镜头\d+|【\d+】/i).filter(s => s.trim().length > 20) || [results.script || idea];
+                    let refImage = userRefImage || results.character?.[0]?.url;
 
-                    for (let i = 0; i < scenesCount; i++) {
-                        if (callbacks.isCancelled?.()) break;
+                    // 🎨 一致性策略：无参考图时，先生成第1张分镜图作为风格基准
+                    if (!refImage && scenesCount > 1) {
+                        callbacks.onProgress?.('生成风格基准', 18, '先生成第1张分镜图确定风格...');
+                        try {
+                            const _firstText = sceneTexts[0] || idea;
+                            const _firstPrompt = `${stylePrompts[style]}, ${_firstText.substring(0, 300)}, cinematic composition, high quality`;
+                            refImage = await callImageAPIWithRefs(_firstPrompt, { aspectRatio: '16:9' }, allAutoRefImages);
+                            callbacks.onStepComplete?.('风格基准分镜', { imageUrl: refImage });
+                        } catch (e) { console.warn('风格基准分镜失败:', e.message); }
+                    }
 
-                        const baseProgress = 20 + Math.round((i / scenesCount) * 60);
-                        callbacks.onProgress?.(`生成分镜 ${i + 1}/${scenesCount}`, baseProgress, `正在绘制第 ${i + 1} 个分镜...`);
-
+                    // 步骤 3: 并行生成分镜图像 + 视频
+                    callbacks.onProgress?.('并行生成分镜', 20, `同时生成 ${scenesCount} 个分镜...`);
+                    let _faDone = 0;
+                    const sceneResults = await Promise.all(Array.from({ length: scenesCount }, (_, i) => (async () => {
                         try {
                             const sceneText = sceneTexts[i] || sceneTexts[0] || idea;
                             const imagePrompt = `${stylePrompts[style]}, ${sceneText.substring(0, 300)}, cinematic composition, high quality`;
+                            const opts = { aspectRatio: '16:9' };
+                            if (refImage) opts.refImage = refImage;
+                            const imageUrl = await callImageAPIWithRefs(imagePrompt, opts, allAutoRefImages);
 
-                            let imageUrl = '';
-                            const refImage = results.character?.[0]?.url;
-
-                            if (typeof callBanana2ImageAPI === 'function') {
-                                imageUrl = await callBanana2ImageAPI(imagePrompt, {
-                                    aspectRatio: '16:9',
-                                    refImage
-                                });
+                            let videoUrl = null;
+                            if ((outputType === 'video' || outputType === 'both') && imageUrl && typeof callSora2ImageToVideoAPI === 'function') {
+                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, sceneText, { model: videoModel || 'sora-2-all', duration: 15, aspectRatio: '16:9' });
                             }
 
-                            results.scenes.push({
-                                index: i + 1,
-                                text: sceneText.substring(0, 100),
-                                imageUrl
-                            });
-
-                            // 如果需要视频
-                            if ((outputType === 'video' || outputType === 'both') && imageUrl) {
-                                callbacks.onProgress?.(`生成视频 ${i + 1}/${scenesCount}`, baseProgress + 5, `正在生成第 ${i + 1} 个视频...`);
-
-                                if (typeof callSora2ImageToVideoAPI === 'function') {
-                                    const videoUrl = await callSora2ImageToVideoAPI(imageUrl, sceneText, {
-                                        model: 'sora-2-all',
-                                        duration: 15,
-                                        aspectRatio: '16:9'
-                                    });
-                                    results.videos.push({ index: i + 1, videoUrl });
-                                }
-                            }
-
+                            _faDone++;
+                            callbacks.onProgress?.(`已完成 ${_faDone}/${scenesCount}`, 20 + Math.round((_faDone / scenesCount) * 55), `✅ 分镜${i + 1}`);
                             callbacks.onStepComplete?.(`分镜${i + 1}`, { imageUrl });
-
+                            return { index: i + 1, text: sceneText.substring(0, 100), imageUrl, videoUrl };
                         } catch (e) {
+                            _faDone++;
                             console.error(`分镜 ${i + 1} 失败:`, e);
+                            callbacks.onProgress?.(`已完成 ${_faDone}/${scenesCount}`, 20 + Math.round((_faDone / scenesCount) * 55), `❌ 分镜${i + 1}`);
+                            return { index: i + 1, text: '', imageUrl: null, videoUrl: null };
                         }
-                    }
+                    })()));
+                    sceneResults.sort((a, b) => a.index - b.index);
+                    results.scenes = sceneResults.filter(s => s.imageUrl);
+                    results.videos = sceneResults.filter(s => s.videoUrl).map(s => ({ index: s.index, videoUrl: s.videoUrl }));
 
-                    // 步骤 4: 生成漫画（如果需要）
+                    // 步骤 4: 并行生成漫画（如果需要）
                     if (outputType === 'comic' || outputType === 'both') {
                         const comicPages = Math.ceil(scenesCount / 4);
-                        for (let p = 0; p < comicPages; p++) {
-                            if (callbacks.isCancelled?.()) break;
-
-                            callbacks.onProgress?.(`生成漫画 ${p + 1}/${comicPages}`, 80 + Math.round((p / comicPages) * 15), `正在生成第 ${p + 1} 页漫画...`);
-
-                            try {
-                                const pageScenes = results.scenes.slice(p * 4, (p + 1) * 4);
-                                const comicPrompt = `${stylePrompts[style]}, comic page, 4 panels, ${pageScenes.map(s => s.text).join('; ')}`;
-
-                                if (typeof callBanana2ImageAPI === 'function') {
-                                    const comicUrl = await callBanana2ImageAPI(comicPrompt, { aspectRatio: '9:16' });
-                                    results.comics.push({ page: p + 1, imageUrl: comicUrl });
-                                }
-                            } catch (e) {
-                                console.error(`漫画第 ${p + 1} 页失败:`, e);
-                            }
-                        }
+                        callbacks.onProgress?.('并行生成漫画', 80, `同时生成 ${comicPages} 页漫画...`);
+                        let _cmDone = 0;
+                        results.comics = (await Promise.all(Array.from({ length: comicPages }, (_, p) => {
+                            const pageScenes = results.scenes.slice(p * 4, (p + 1) * 4);
+                            const comicPrompt = `${stylePrompts[style]}, comic page, 4 panels, ${pageScenes.map(s => s.text).join('; ')}`;
+                            if (typeof callBanana2ImageAPI !== 'function') return Promise.resolve(null);
+                            const _comicOpts = { aspectRatio: '9:16' };
+                            if (refImage) _comicOpts.refImage = refImage;
+                            return callBanana2ImageAPI(comicPrompt, _comicOpts)
+                                .then(comicUrl => {
+                                    _cmDone++;
+                                    callbacks.onProgress?.(`漫画 ${_cmDone}/${comicPages}`, 80 + Math.round((_cmDone / comicPages) * 15), `✅ 第${p + 1}页`);
+                                    return { page: p + 1, imageUrl: comicUrl };
+                                })
+                                .catch(e => { _cmDone++; console.error(`漫画第 ${p + 1} 页失败:`, e); return null; });
+                        }))).filter(Boolean);
                     }
 
                     callbacks.onProgress?.('完成', 100, '全流程执行完成！');
 
                     return results;
+                }
+            },
+
+            // ==================== 🎨 设计类 ====================
+
+            // 11. 品牌视觉全案 (Logo & Brand System)
+            {
+                id: 'brand_visual_system',
+                name: '品牌视觉全案',
+                icon: '🎯',
+                category: 'design',
+                description: '输入品牌名称和行业，AI 自动规划品牌策略并生成完整视觉体系：Logo、名片、包装、社媒封面、品牌手册。',
+                parameters: [
+                    { key: 'brandName', label: '品牌名称', type: 'text', required: true, placeholder: '例如：StarFlow、星流' },
+                    { key: 'industry', label: '行业/领域', type: 'text', required: true, placeholder: '例如：科技、餐饮、美妆、教育...' },
+                    { key: 'refImage', label: '参考图（可选）', type: 'image', hint: '上传已有 Logo 或风格参考图，AI 会基于此设计' },
+                    { key: 'style', label: '设计风格', type: 'select', default: 'modern', options: [
+                        { value: 'modern', label: '简约现代' }, { value: 'luxury', label: '高端奢华' },
+                        { value: 'playful', label: '活泼有趣' }, { value: 'tech', label: '科技未来' },
+                        { value: 'natural', label: '自然清新' }, { value: 'retro', label: '复古经典' }
+                    ]},
+                    { key: 'slogan', label: '品牌标语（可选）', type: 'text', placeholder: '例如：Let creativity flow' },
+                    { key: 'colorPref', label: '偏好色系（可选）', type: 'text', placeholder: '例如：蓝紫色系、红金配色...' }
+                ],
+                estimateCost: () => ({ film: 6, time: '约 3-5 分钟' }),
+                execute: async (params, callbacks) => {
+                    const { brandName, industry, style, slogan, colorPref, refImage } = params;
+                    const results = { strategy: '', images: [] };
+                    const styleMap = {
+                        modern: 'minimalist modern design, clean lines, sans-serif typography',
+                        luxury: 'luxury premium design, gold accents, elegant serif fonts',
+                        playful: 'playful colorful design, rounded shapes, fun typography',
+                        tech: 'futuristic tech design, gradients, geometric shapes, neon accents',
+                        natural: 'organic natural design, earth tones, botanical elements',
+                        retro: 'vintage retro design, classic typography, nostalgic palette'
+                    };
+                    const designStyle = styleMap[style] || styleMap.modern;
+
+                    // Step 1: LLM 规划品牌策略
+                    callbacks.onProgress?.('品牌策略', 5, '正在规划品牌视觉策略...');
+                    try {
+                        const strategyPrompt = `你是资深品牌设计总监。为「${brandName}」（行业：${industry}）制定品牌视觉策略。
+设计风格：${style}
+${slogan ? '标语：' + slogan : ''}
+${colorPref ? '色彩偏好：' + colorPref : ''}
+
+请输出：
+1. 品牌定位（一句话）
+2. 主色调（HEX色值 + 语义）
+3. 辅助色（2-3个）
+4. 字体风格建议
+5. Logo设计方向（图形元素、结构）
+6. 设计理念（用 1-2 句话解释商业逻辑）
+
+简洁输出，每项一行。`;
+                        if (typeof callScriptGenerator === 'function') {
+                            results.strategy = await callScriptGenerator({}, strategyPrompt);
+                        }
+                        callbacks.onStepComplete?.('品牌策略', { script: results.strategy?.substring(0, 150) + '...' });
+                    } catch (e) { console.error('品牌策略失败:', e); }
+
+                    const brandContext = results.strategy ? results.strategy.substring(0, 300) : `${brandName}, ${industry}, ${designStyle}`;
+
+                    // 🖼️ 解析参考图（支持多图）
+                    const brandRefs = await resolveRefImages(refImage);
+                    let userRefImage = brandRefs.first;
+                    const allBrandRefImages = brandRefs.all;
+
+                    // Step 2-7: 批量生成品牌物料
+                    const assets = [
+                        { name: 'Logo 设计', prompt: `Professional logo design for "${brandName}", ${designStyle}, ${industry} brand, vector style, clean white background, centered composition, brand identity, ${brandContext.substring(0, 100)}`, ratio: '1:1' },
+                        { name: 'Logo 变体套装', prompt: `Logo variations sheet for "${brandName}", showing 6 different versions: full color, monochrome, reversed, icon only, horizontal layout, stacked layout, ${designStyle}, white background, organized grid`, ratio: '16:9' },
+                        { name: '名片设计', prompt: `Professional business card design for "${brandName}", front and back view, ${designStyle}, ${industry}, showing name/title/phone/email/website placeholders, premium print quality mockup`, ratio: '16:9' },
+                        { name: '产品包装', prompt: `Product packaging design mockup for "${brandName}", ${industry} product, ${designStyle}, 3D rendered box/bag/bottle on clean background, premium quality, photorealistic`, ratio: '1:1' },
+                        { name: '社媒封面', prompt: `Social media cover design for "${brandName}", ${slogan || industry}, ${designStyle}, modern banner layout, brand colors, eye-catching composition, 16:9 aspect ratio`, ratio: '16:9' },
+                        { name: '品牌手册页', prompt: `Brand guidelines page for "${brandName}", showing color palette, typography, logo usage rules, spacing guidelines, ${designStyle}, clean professional layout, design manual page`, ratio: '9:16' }
+                    ];
+
+                    // 🎯 无参考图时，先生成首张作为风格锚点
+                    let _firstBrandUrl = null;
+                    if (!userRefImage && assets.length > 1) {
+                        callbacks.onProgress?.('生成风格基准', 8, '先生成首张品牌物料确定风格...');
+                        try {
+                            const firstAsset = assets[0];
+                            _firstBrandUrl = await callImageAPIWithRefs(firstAsset.prompt, { aspectRatio: firstAsset.ratio }, allBrandRefImages);
+                            userRefImage = _firstBrandUrl;
+                            callbacks.onStepComplete?.(firstAsset.name + '(风格基准)', { imageUrl: _firstBrandUrl });
+                        } catch (e) { console.warn('风格基准图失败:', e.message); }
+                    }
+
+                    callbacks.onProgress?.('并行生成', 10, `同时生成 ${assets.length} 张品牌物料...`);
+                    let _bDone = 0;
+                    results.images = await Promise.all(assets.map((asset, _bIdx) => {
+                        // 首张已作为基准图生成过，直接复用
+                        if (_bIdx === 0 && _firstBrandUrl) {
+                            _bDone++;
+                            callbacks.onProgress?.(`已完成 ${_bDone}/${assets.length}`, 10 + Math.round((_bDone / assets.length) * 85), `✅ ${asset.name}`);
+                            callbacks.onStepComplete?.(asset.name, { imageUrl: _firstBrandUrl });
+                            return Promise.resolve({ subject: asset.name, imageUrl: _firstBrandUrl, status: 'success' });
+                        }
+                        const opts = { aspectRatio: asset.ratio };
+                        if (userRefImage) opts.refImage = userRefImage;
+                        return callImageAPIWithRefs(asset.prompt, opts, allBrandRefImages)
+                            .then(imageUrl => {
+                                _bDone++;
+                                callbacks.onProgress?.(`已完成 ${_bDone}/${assets.length}`, 10 + Math.round((_bDone / assets.length) * 85), `✅ ${asset.name}`);
+                                callbacks.onStepComplete?.(asset.name, { imageUrl });
+                                return { subject: asset.name, imageUrl, status: 'success' };
+                            })
+                            .catch(e => {
+                                _bDone++;
+                                callbacks.onProgress?.(`已完成 ${_bDone}/${assets.length}`, 10 + Math.round((_bDone / assets.length) * 85), `❌ ${asset.name}`);
+                                return { subject: asset.name, error: e.message, status: 'failed' };
+                            });
+                    }));
+
+                    callbacks.onProgress?.('完成', 100, `品牌视觉全案已生成！共 ${results.images.filter(i => i.status === 'success').length} 张设计图`);
+                    return { brandName, strategy: results.strategy, images: results.images };
+                }
+            },
+
+            // 12. 社媒素材套装 (Social Media Visual Assets)
+            {
+                id: 'social_media_kit',
+                name: '社媒素材套装',
+                icon: '📱',
+                category: 'design',
+                description: '一键生成多平台适配的社媒素材：抖音、小红书、微博、B站、公众号。自动适配尺寸和风格。',
+                parameters: [
+                    { key: 'topic', label: '内容主题', type: 'textarea', required: true, placeholder: '例如：2026新年促销、新品发布、品牌宣传...' },
+                    { key: 'brandInfo', label: '品牌/产品名', type: 'text', placeholder: '例如：StarFlow 咖啡' },
+                    { key: 'refImage', label: '品牌参考图（可选）', type: 'image', hint: '上传品牌 Logo 或产品图，所有素材基于此风格生成' },
+                    { key: 'platforms', label: '目标平台', type: 'select', default: 'all', options: [
+                        { value: 'all', label: '全平台（6张）' }, { value: 'douyin', label: '抖音（9:16）' },
+                        { value: 'xiaohongshu', label: '小红书（3:4）' }, { value: 'weibo', label: '微博（16:9）' },
+                        { value: 'bilibili', label: 'B站（16:9）' }, { value: 'wechat', label: '公众号（16:9）' }
+                    ]},
+                    { key: 'style', label: '视觉风格', type: 'select', default: 'trendy', options: [
+                        { value: 'trendy', label: '潮流时尚' }, { value: 'minimal', label: '极简大气' },
+                        { value: 'vibrant', label: '活力缮纷' }, { value: 'elegant', label: '精致优雅' }
+                    ]}
+                ],
+                estimateCost: (params) => {
+                    const count = params.platforms === 'all' ? 6 : 1;
+                    return { film: Math.ceil(count * 0.5), time: `约 ${count} 分钟` };
+                },
+                execute: async (params, callbacks) => {
+                    const { topic, brandInfo, platforms, style, refImage } = params;
+
+                    // 🖼️ 解析参考图（支持多图）
+                    const socialRefs = await resolveRefImages(refImage);
+                    let userRefImage = socialRefs.first;
+                    const allSocialRefImages = socialRefs.all;
+
+                    const styleMap = {
+                        trendy: 'trendy social media design, bold typography, vibrant gradients, Gen-Z aesthetic',
+                        minimal: 'minimalist clean design, whitespace, elegant typography, premium feel',
+                        vibrant: 'colorful energetic design, dynamic shapes, eye-catching, bold colors',
+                        elegant: 'sophisticated elegant design, muted palette, refined typography, luxury feel'
+                    };
+                    const designStyle = styleMap[style] || styleMap.trendy;
+
+                    const platformSpecs = [
+                        { id: 'douyin', name: '抖音', ratio: '9:16', hint: 'vertical full-screen, big centered text, Douyin/TikTok style' },
+                        { id: 'xiaohongshu', name: '小红书', ratio: '9:16', hint: 'lifestyle aesthetic, soft tones, Xiaohongshu style, Chinese text overlay' },
+                        { id: 'weibo', name: '微博', ratio: '16:9', hint: 'horizontal banner, news-style layout, Weibo post image' },
+                        { id: 'bilibili', name: 'B站', ratio: '16:9', hint: 'thumbnail cover, anime-influenced, Bilibili video cover' },
+                        { id: 'wechat', name: '公众号', ratio: '16:9', hint: 'WeChat article header, professional, editorial style' },
+                        { id: 'instagram', name: 'Instagram', ratio: '1:1', hint: 'square format, Instagram aesthetic, lifestyle photography style' }
+                    ];
+
+                    const targets = platforms === 'all' ? platformSpecs : platformSpecs.filter(p => p.id === platforms);
+
+                    // 🎯 无参考图时，先生成首张作为风格锚点
+                    let _firstSocialUrl = null;
+                    if (!userRefImage && targets.length > 1) {
+                        callbacks.onProgress?.('生成风格基准', 3, '先生成首张社媒素材确定风格...');
+                        try {
+                            const firstP = targets[0];
+                            const firstPrompt = `${designStyle}, social media post design for ${firstP.name}, ${firstP.hint}, topic: ${topic}, ${brandInfo ? 'brand: ' + brandInfo + ',' : ''} high quality, professional marketing design`;
+                            _firstSocialUrl = await callImageAPIWithRefs(firstPrompt, { aspectRatio: firstP.ratio }, allSocialRefImages);
+                            userRefImage = _firstSocialUrl;
+                            callbacks.onStepComplete?.(firstP.name + '(风格基准)', { imageUrl: _firstSocialUrl });
+                        } catch (e) { console.warn('风格基准图失败:', e.message); }
+                    }
+
+                    callbacks.onProgress?.('并行生成', 5, `同时生成 ${targets.length} 张社媒素材...`);
+                    let _sDone = 0;
+                    const results = await Promise.all(targets.map((p, _sIdx) => {
+                        // 首张已作为基准图生成过，直接复用
+                        if (_sIdx === 0 && _firstSocialUrl) {
+                            _sDone++;
+                            callbacks.onProgress?.(`已完成 ${_sDone}/${targets.length}`, Math.round((_sDone / targets.length) * 95), `✅ ${p.name}`);
+                            callbacks.onStepComplete?.(`${p.name}素材`, { imageUrl: _firstSocialUrl });
+                            return Promise.resolve({ subject: `${p.name} (${p.ratio})`, imageUrl: _firstSocialUrl, status: 'success' });
+                        }
+                        const prompt = `${designStyle}, social media post design for ${p.name}, ${p.hint}, topic: ${topic}, ${brandInfo ? 'brand: ' + brandInfo + ',' : ''} high quality, professional marketing design`;
+                        const opts = { aspectRatio: p.ratio };
+                        if (userRefImage) opts.refImage = userRefImage;
+                        return callImageAPIWithRefs(prompt, opts, allSocialRefImages)
+                            .then(imageUrl => {
+                                _sDone++;
+                                callbacks.onProgress?.(`已完成 ${_sDone}/${targets.length}`, Math.round((_sDone / targets.length) * 95), `✅ ${p.name}`);
+                                callbacks.onStepComplete?.(`${p.name}素材`, { imageUrl });
+                                return { subject: `${p.name} (${p.ratio})`, imageUrl, status: 'success' };
+                            })
+                            .catch(e => {
+                                _sDone++;
+                                callbacks.onProgress?.(`已完成 ${_sDone}/${targets.length}`, Math.round((_sDone / targets.length) * 95), `❌ ${p.name}`);
+                                return { subject: p.name, error: e.message, status: 'failed' };
+                            });
+                    }));
+
+                    callbacks.onProgress?.('完成', 100, `已生成 ${results.filter(r => r.status === 'success').length} 张社媒素材`);
+                    return { images: results };
+                }
+            },
+
+            // 13. 电商产品套图 (E-commerce Product Listing Kit)
+            {
+                id: 'ecommerce_product_kit',
+                name: '电商产品套图',
+                icon: '🛒',
+                category: 'design',
+                description: '一张产品图生成完整电商套图：白底主图、卖点图、场景图、细节图、A+页面。支持淘宝/京东/亚马逊/拼多多。',
+                parameters: [
+                    { key: 'product', label: '产品名称', type: 'text', required: true, placeholder: '例如：无线蓝牙耳机、素皮双肩包...' },
+                    { key: 'productImage', label: '产品参考图（推荐）', type: 'image', hint: '上传产品实拍图或3D渲染图，AI 基于此生成全套电商图' },
+                    { key: 'sellingPoints', label: '核心卖点', type: 'textarea', required: true, placeholder: '每行一个卖点，例如：\n降噪40dB\n续航30小时\nIPX5防水' },
+                    { key: 'platform', label: '目标平台', type: 'select', default: 'taobao', options: [
+                        { value: 'taobao', label: '淘宝/天猫' }, { value: 'jd', label: '京东' },
+                        { value: 'amazon', label: '亚马逊' }, { value: 'pdd', label: '拼多多' }
+                    ]},
+                    { key: 'style', label: '视觉风格', type: 'select', default: 'premium', options: [
+                        { value: 'premium', label: '高端品质' }, { value: 'minimal', label: '极简白底' },
+                        { value: 'lifestyle', label: '生活场景' }, { value: 'tech', label: '科技感' }
+                    ]}
+                ],
+                estimateCost: () => ({ film: 5, time: '约 3-4 分钟' }),
+                execute: async (params, callbacks) => {
+                    const { product, productImage, sellingPoints, platform, style } = params;
+                    const points = sellingPoints.split('\n').filter(s => s.trim());
+                    const styleMap = {
+                        premium: 'premium product photography, studio lighting, high-end feel',
+                        minimal: 'minimalist white background, clean product shot',
+                        lifestyle: 'lifestyle product photography, in-use scenario, warm lighting',
+                        tech: 'tech product showcase, dark background, neon accents, futuristic'
+                    };
+                    const designStyle = styleMap[style] || styleMap.premium;
+                    // 🖼️ 解析产品参考图（支持多图）
+                    const prodRefs = await resolveRefImages(productImage);
+                    let productRefImage = prodRefs.first;
+                    const allProdRefImages = prodRefs.all;
+
+                    const shots = [
+                        { name: '白底主图', prompt: `${product}, pure white background, studio product photography, centered, clean, professional ${platform === 'amazon' ? 'Amazon' : ''} listing main image, high resolution`, ratio: '1:1' },
+                        { name: '卖点信息图', prompt: `${product} infographic, product features highlight, ${points.slice(0, 3).join(', ')}, ${designStyle}, annotated product image with feature callouts, icons and text overlay, marketing design`, ratio: '1:1' },
+                        { name: '场景图', prompt: `${product} lifestyle photography, person using/wearing the product in real life scenario, ${designStyle}, natural lighting, aspirational, editorial quality`, ratio: '1:1' },
+                        { name: '细节特写', prompt: `${product} detail close-up shots, material texture, craftsmanship, quality details, macro photography, ${designStyle}, showing premium quality`, ratio: '1:1' },
+                        { name: '尺寸对比图', prompt: `${product} size comparison, product next to common objects for scale reference, dimensions labeled, clean infographic style, white background`, ratio: '1:1' },
+                        { name: 'A+品牌横幅', prompt: `Brand banner for ${product}, premium brand story header, ${designStyle}, wide horizontal banner, brand values, elegant typography, marketing page hero image`, ratio: '16:9' }
+                    ];
+
+                    // 🎯 无参考图时，先生成首张作为风格锚点
+                    let _firstProdUrl = null;
+                    if (!productRefImage && shots.length > 1) {
+                        callbacks.onProgress?.('生成风格基准', 3, '先生成首张电商图确定产品风格...');
+                        try {
+                            const firstShot = shots[0];
+                            _firstProdUrl = await callImageAPIWithRefs(firstShot.prompt, { aspectRatio: firstShot.ratio }, allProdRefImages);
+                            productRefImage = _firstProdUrl;
+                            callbacks.onStepComplete?.(firstShot.name + '(风格基准)', { imageUrl: _firstProdUrl });
+                        } catch (e) { console.warn('风格基准图失败:', e.message); }
+                    }
+
+                    callbacks.onProgress?.('并行生成', 5, `同时生成 ${shots.length} 张电商套图...`);
+                    let _eDone = 0;
+                    const results = await Promise.all(shots.map((shot, _eIdx) => {
+                        // 首张已作为基准图生成过，直接复用
+                        if (_eIdx === 0 && _firstProdUrl) {
+                            _eDone++;
+                            callbacks.onProgress?.(`已完成 ${_eDone}/${shots.length}`, 5 + Math.round((_eDone / shots.length) * 90), `✅ ${shot.name}`);
+                            callbacks.onStepComplete?.(shot.name, { imageUrl: _firstProdUrl });
+                            return Promise.resolve({ subject: shot.name, imageUrl: _firstProdUrl, status: 'success' });
+                        }
+                        const opts = { aspectRatio: shot.ratio };
+                        if (productRefImage) opts.refImage = productRefImage;
+                        return callImageAPIWithRefs(shot.prompt, opts, allProdRefImages)
+                            .then(imageUrl => {
+                                _eDone++;
+                                callbacks.onProgress?.(`已完成 ${_eDone}/${shots.length}`, 5 + Math.round((_eDone / shots.length) * 90), `✅ ${shot.name}`);
+                                callbacks.onStepComplete?.(shot.name, { imageUrl });
+                                return { subject: shot.name, imageUrl, status: 'success' };
+                            })
+                            .catch(e => {
+                                _eDone++;
+                                callbacks.onProgress?.(`已完成 ${_eDone}/${shots.length}`, 5 + Math.round((_eDone / shots.length) * 90), `❌ ${shot.name}`);
+                                return { subject: shot.name, error: e.message, status: 'failed' };
+                            });
+                    }));
+
+                    callbacks.onProgress?.('完成', 100, `电商套图已生成！共 ${results.filter(r => r.status === 'success').length} 张`);
+                    return { images: results };
+                }
+            },
+
+            // 14. 营销宣传册 (Marketing Brochure)
+            {
+                id: 'marketing_brochure',
+                name: '营销宣传册',
+                icon: '📖',
+                category: 'design',
+                description: '生成专业三折页宣传册，包含封面、内页、封底，可直接印刷。',
+                parameters: [
+                    { key: 'subject', label: '宣传主题', type: 'textarea', required: true, placeholder: '例如：高端瑜伽服品牌宣传册、旅游度假村招商手册...' },
+                    { key: 'refImage', label: '风格参考图（可选）', type: 'image', hint: '上传品牌素材或设计参考图，宣传册风格将基于此生成' },
+                    { key: 'audience', label: '目标受众', type: 'text', placeholder: '例如：25-40岁都市女性、企业决策者...' },
+                    { key: 'keyPoints', label: '核心卖点', type: 'textarea', required: true, placeholder: '每行一个卖点，最多5个' },
+                    { key: 'style', label: '设计风格', type: 'select', default: 'professional', options: [
+                        { value: 'professional', label: '专业商务' }, { value: 'creative', label: '创意活泼' },
+                        { value: 'luxury', label: '高端奢华' }, { value: 'eco', label: '自然环保' }
+                    ]}
+                ],
+                estimateCost: () => ({ film: 4, time: '约 3 分钟' }),
+                execute: async (params, callbacks) => {
+                    const { subject, refImage, audience, keyPoints, style } = params;
+                    const points = keyPoints.split('\n').filter(s => s.trim());
+                    const styleMap = {
+                        professional: 'professional corporate brochure, blue/gray palette, clean layout',
+                        creative: 'creative colorful brochure, dynamic layout, bold typography',
+                        luxury: 'luxury premium brochure, gold foil, dark background, elegant',
+                        eco: 'eco-friendly brochure, earth tones, natural textures, organic design'
+                    };
+                    const designStyle = styleMap[style] || styleMap.professional;
+
+                    // 🖼️ 解析参考图（支持多图）
+                    const brochureRefs = await resolveRefImages(refImage);
+                    let userRefImage = brochureRefs.first;
+                    const allBrochureRefImages = brochureRefs.all;
+
+                    // Step 1: LLM 生成宣传册文案
+                    callbacks.onProgress?.('策划文案', 5, '正在撰写宣传册文案...');
+                    let copyText = '';
+                    try {
+                        if (typeof callScriptGenerator === 'function') {
+                            copyText = await callScriptGenerator({}, `为以下主题撰写三折页宣传册文案：
+主题：${subject}
+受众：${audience || '通用'}
+卖点：${points.join('、')}
+
+输出格式：
+[封面] 标题 + 副标题
+[内页左] 卖点介绍
+[内页中] 产品/服务详情
+[内页右] 客户评价/数据
+[封底] 联系方式 + CTA
+
+简洁有力，适合印刷。`);
+                        }
+                        callbacks.onStepComplete?.('宣传册文案', { script: copyText?.substring(0, 100) + '...' });
+                    } catch (e) { }
+
+                    const pages = [
+                        { name: '外页展开图', prompt: `Tri-fold brochure OUTER layout flat design, ${designStyle}, for "${subject}", front cover (right panel) with headline, back cover (left panel) with contact info, middle panel with summary, unfolded view, ${audience ? 'targeting ' + audience : ''}, print-ready quality`, ratio: '16:9' },
+                        { name: '内页展开图', prompt: `Tri-fold brochure INNER layout flat design, ${designStyle}, for "${subject}", 3 panels showing: left-features/benefits, center-product details with images, right-testimonials/CTA, unfolded view, professional print quality`, ratio: '16:9' },
+                        { name: '折叠实物渲染', prompt: `Photorealistic mockup of folded tri-fold brochure, ${designStyle}, for "${subject}", ${audience ? 'targeting ' + audience : ''}, brochure on desk/table, soft shadows, professional studio photography`, ratio: '16:9' },
+                        { name: '场景展示', prompt: `Marketing brochure in real-world context, person holding/reading the brochure at ${subject.includes('旅游') ? 'travel expo' : subject.includes('健身') ? 'gym reception' : 'business meeting'}, ${designStyle}, lifestyle photography, professional`, ratio: '16:9' }
+                    ];
+
+                    // 🎯 无参考图时，先生成首张作为风格锚点
+                    let _firstBrochUrl = null;
+                    if (!userRefImage && pages.length > 1) {
+                        callbacks.onProgress?.('生成风格基准', 12, '先生成首张宣传册确定风格...');
+                        try {
+                            const firstPage = pages[0];
+                            _firstBrochUrl = await callImageAPIWithRefs(firstPage.prompt, { aspectRatio: firstPage.ratio }, allBrochureRefImages);
+                            userRefImage = _firstBrochUrl;
+                            callbacks.onStepComplete?.(firstPage.name + '(风格基准)', { imageUrl: _firstBrochUrl });
+                        } catch (e) { console.warn('风格基准图失败:', e.message); }
+                    }
+
+                    callbacks.onProgress?.('并行生成', 15, `同时生成 ${pages.length} 张宣传册...`);
+                    let _mDone = 0;
+                    const results = await Promise.all(pages.map((page, _mIdx) => {
+                        // 首张已作为基准图生成过，直接复用
+                        if (_mIdx === 0 && _firstBrochUrl) {
+                            _mDone++;
+                            callbacks.onProgress?.(`已完成 ${_mDone}/${pages.length}`, 15 + Math.round((_mDone / pages.length) * 80), `✅ ${page.name}`);
+                            callbacks.onStepComplete?.(page.name, { imageUrl: _firstBrochUrl });
+                            return Promise.resolve({ subject: page.name, imageUrl: _firstBrochUrl, status: 'success' });
+                        }
+                        const opts = { aspectRatio: page.ratio };
+                        if (userRefImage) opts.refImage = userRefImage;
+                        return callImageAPIWithRefs(page.prompt, opts, allBrochureRefImages)
+                            .then(imageUrl => {
+                                _mDone++;
+                                callbacks.onProgress?.(`已完成 ${_mDone}/${pages.length}`, 15 + Math.round((_mDone / pages.length) * 80), `✅ ${page.name}`);
+                                callbacks.onStepComplete?.(page.name, { imageUrl });
+                                return { subject: page.name, imageUrl, status: 'success' };
+                            })
+                            .catch(e => {
+                                _mDone++;
+                                callbacks.onProgress?.(`已完成 ${_mDone}/${pages.length}`, 15 + Math.round((_mDone / pages.length) * 80), `❌ ${page.name}`);
+                                return { subject: page.name, error: e.message, status: 'failed' };
+                            });
+                    }));
+
+                    callbacks.onProgress?.('完成', 100, `宣传册已生成！共 ${results.filter(r => r.status === 'success').length} 张设计图`);
+                    return { copyText, images: results };
+                }
+            },
+
+            // 15. IP角色生态 (IP Character Ecosystem)
+            {
+                id: 'ip_character_ecosystem',
+                name: 'IP角色生态',
+                icon: '🎭',
+                category: 'design',
+                description: '从角色设定到表情包、贴纸、周边商品、社媒头像，一键生成完整IP角色资产。',
+                parameters: [
+                    { key: 'charConcept', label: '角色概念', type: 'textarea', required: true, placeholder: '描述角色外观、性格、故事背景...' },
+                    { key: 'charName', label: '角色名称', type: 'text', required: true, placeholder: '例如：小星、Mochi...' },
+                    { key: 'charRefImage', label: '角色参考图（可选）', type: 'image', hint: '上传已有角色草稿/原型图，AI 会基于此保持一致性' },
+                    { key: 'style', label: '画风', type: 'select', default: 'cute', options: [
+                        { value: 'cute', label: '可爱萌系' }, { value: 'cool', label: '潮酷街头' },
+                        { value: 'chibi', label: 'Q版卡通' }, { value: 'realistic', label: '写实3D' },
+                        { value: 'pixel', label: '像素风' }
+                    ]},
+                    { key: 'usage', label: '用途场景', type: 'select', default: 'brand', options: [
+                        { value: 'brand', label: '品牌吉祥物' }, { value: 'sticker', label: '聊天表情包' },
+                        { value: 'merch', label: '周边商品' }, { value: 'all', label: '全部（8张）' }
+                    ]}
+                ],
+                estimateCost: (params) => {
+                    const count = params.usage === 'all' ? 8 : 4;
+                    return { film: Math.ceil(count * 0.5), time: `约 ${count} 分钟` };
+                },
+                execute: async (params, callbacks) => {
+                    const { charConcept, charName, charRefImage, style, usage } = params;
+                    const styleMap = {
+                        cute: 'cute kawaii style, soft colors, round features, adorable',
+                        cool: 'urban street style, bold colors, graffiti influenced, edgy',
+                        chibi: 'chibi super-deformed style, big head small body, cute cartoon',
+                        realistic: '3D rendered character, Pixar/Disney quality, soft lighting',
+                        pixel: 'pixel art style, retro game aesthetic, 16-bit'
+                    };
+                    const designStyle = styleMap[style] || styleMap.cute;
+                    const results = [];
+
+                    // 🖼️ 解析角色参考图（支持多图）
+                    const ipRefs = await resolveRefImages(charRefImage);
+                    let refImageUrl = ipRefs.first;
+                    const allIPRefImages = ipRefs.all;
+
+                    const allAssets = [
+                        { name: '角色设定图', prompt: `Character design sheet for "${charName}", ${charConcept}, ${designStyle}, front view and side view and back view, full body, clean white background, character reference sheet, professional concept art`, ratio: '16:9', group: 'core' },
+                        { name: '表情包套图', prompt: `Expression sheet of "${charName}" character, ${designStyle}, ${charConcept}, 9 different emotions in 3x3 grid: happy, sad, angry, surprised, shy, love, sleepy, confused, laughing, close-up face, white background`, ratio: '1:1', group: 'sticker' },
+                        { name: '动态贴纸', prompt: `Sticker pack of "${charName}", ${designStyle}, ${charConcept}, 6 cute animated pose stickers: waving, dancing, thumbs up, eating, sleeping, celebrating, die-cut style, white background`, ratio: '1:1', group: 'sticker' },
+                        { name: '社媒头像套装', prompt: `Social media avatar set of "${charName}", ${designStyle}, ${charConcept}, 4 profile picture variations: default, holiday, night mode, celebration, circular crop friendly, vibrant background`, ratio: '1:1', group: 'brand' },
+                        { name: 'T恤设计', prompt: `T-shirt mockup featuring "${charName}" character, ${designStyle}, ${charConcept}, creative graphic tee design, front print, photorealistic clothing mockup on model or flat lay`, ratio: '1:1', group: 'merch' },
+                        { name: '马克杯设计', prompt: `Mug mockup featuring "${charName}" character, ${designStyle}, ${charConcept}, cute character wrapped around ceramic mug, photorealistic product mockup, studio lighting`, ratio: '1:1', group: 'merch' },
+                        { name: '手机壳设计', prompt: `Phone case mockup featuring "${charName}" character, ${designStyle}, ${charConcept}, creative phone case design, photorealistic mockup on latest smartphone`, ratio: '9:16', group: 'merch' },
+                        { name: '场景插画', prompt: `"${charName}" character illustration in a scene, ${designStyle}, ${charConcept}, character in their natural environment, storytelling illustration, detailed background, atmospheric lighting`, ratio: '16:9', group: 'core' }
+                    ];
+
+                    const targets = usage === 'all' ? allAssets : allAssets.filter(a => a.group === 'core' || a.group === usage);
+
+                    // 🎯 无参考图时，先生成首张（角色设定图）作为风格锚点
+                    let _firstIPUrl = null;
+                    if (!refImageUrl && targets.length > 1) {
+                        callbacks.onProgress?.('生成风格基准', 3, '先生成角色设定图确定风格...');
+                        try {
+                            const firstAsset = targets[0];
+                            _firstIPUrl = await callImageAPIWithRefs(firstAsset.prompt, { aspectRatio: firstAsset.ratio }, allIPRefImages);
+                            refImageUrl = _firstIPUrl;
+                            callbacks.onStepComplete?.(firstAsset.name + '(风格基准)', { imageUrl: _firstIPUrl });
+                        } catch (e) { console.warn('风格基准图失败:', e.message); }
+                    }
+
+                    callbacks.onProgress?.('并行生成', 5, `同时生成 ${targets.length} 张IP素材...`);
+                    let _ipDone = 0;
+                    const ipResults = await Promise.all(targets.map((asset, _ipIdx) => {
+                        // 首张已作为基准图生成过，直接复用
+                        if (_ipIdx === 0 && _firstIPUrl) {
+                            _ipDone++;
+                            callbacks.onProgress?.(`已完成 ${_ipDone}/${targets.length}`, Math.round((_ipDone / targets.length) * 95), `✅ ${asset.name}`);
+                            callbacks.onStepComplete?.(asset.name, { imageUrl: _firstIPUrl });
+                            return Promise.resolve({ subject: asset.name, imageUrl: _firstIPUrl, status: 'success' });
+                        }
+                        const opts = { aspectRatio: asset.ratio };
+                        if (refImageUrl) opts.refImage = refImageUrl;
+                        return callImageAPIWithRefs(asset.prompt, opts, allIPRefImages)
+                            .then(imageUrl => {
+                                _ipDone++;
+                                callbacks.onProgress?.(`已完成 ${_ipDone}/${targets.length}`, Math.round((_ipDone / targets.length) * 95), `✅ ${asset.name}`);
+                                callbacks.onStepComplete?.(asset.name, { imageUrl });
+                                return { subject: asset.name, imageUrl, status: 'success' };
+                            })
+                            .catch(e => {
+                                _ipDone++;
+                                callbacks.onProgress?.(`已完成 ${_ipDone}/${targets.length}`, Math.round((_ipDone / targets.length) * 95), `❌ ${asset.name}`);
+                                return { subject: asset.name, error: e.message, status: 'failed' };
+                            });
+                    }));
+
+                    callbacks.onProgress?.('完成', 100, `IP角色生态已生成！共 ${ipResults.filter(r => r.status === 'success').length} 张`);
+                    return { characterName: charName, images: ipResults };
+                }
+            },
+
+            // 16. 分镜脚本和角色设定表 (Production Storyboards & Character Sheets)
+            {
+                id: 'storyboard_character_sheet',
+                name: '分镜脚本和角色设定表',
+                icon: '🎬',
+                category: 'design',
+                description: '上传角色参考图 + 一句话描述，AI 自动生成角色设定表和分镜脚本图。适合动画、漫画、短片的前期制作。',
+                parameters: [
+                    { key: 'story', label: '故事/场景描述', type: 'textarea', required: true, placeholder: '例如：穿黑色T恤的超哥骑着马儿，给社群成员挨个送马年祝福...', hint: '一句话或一段话都可以，AI 会自动拆分为分镜' },
+                    { key: 'refImage', label: '角色/场景参考图', type: 'image', hint: '上传角色照片或插画，分镜将保持角色一致性（强烈推荐）' },
+                    { key: 'panelCount', label: '分镜数量', type: 'number', default: 6, min: 2, max: 20, hint: '建议 4-8 个分镜' },
+                    { key: 'includeCharSheet', label: '生成角色设定表', type: 'checkbox', default: true, checkboxLabel: '先生成角色三视图设定，确保分镜角色一致' },
+                    { key: 'style', label: '画风', type: 'select', default: 'anime', options: [
+                        { value: 'anime', label: '🎌 动漫风' }, { value: 'realistic', label: '📸 写实风' },
+                        { value: 'chinese', label: '🏮 国风' }, { value: 'storyboard', label: '✏️ 线稿分镜' },
+                        { value: 'cinematic', label: '🎥 电影感' }
+                    ]},
+                    { key: 'aspectRatio', label: '分镜比例', type: 'select', default: '16:9', options: [
+                        { value: '16:9', label: '16:9 横版（推荐）' }, { value: '1:1', label: '1:1 正方形' },
+                        { value: '9:16', label: '9:16 竖版' }, { value: '3:4', label: '3:4 竖版标准' }
+                    ]}
+                ],
+                estimateCost: (params) => {
+                    const panels = params.panelCount || 6;
+                    let count = panels; // 每个分镜 1 张图
+                    if (params.includeCharSheet) count += 1; // 角色设定表
+                    return { film: count * 6, time: `约 ${Math.ceil(count * 0.5)} 分钟` };
+                },
+                execute: async (params, callbacks) => {
+                    const { story, refImage, panelCount, includeCharSheet, style, aspectRatio } = params;
+                    const results = { charSheet: null, panels: [] };
+
+                    // 🖼️ 解析参考图
+                    const refs = await resolveRefImages(refImage);
+                    let charRefUrl = refs.first;
+                    const allRefImages = refs.all;
+
+                    const styleMap = {
+                        anime: 'anime style, Japanese animation, vibrant colors, cel-shaded',
+                        realistic: 'photorealistic, cinematic lighting, detailed textures',
+                        chinese: 'Chinese traditional art style, ink painting influence, elegant',
+                        storyboard: 'professional storyboard sketch, pencil line art, grayscale, clean lines, film production style',
+                        cinematic: 'cinematic movie still, dramatic lighting, film grain, wide angle'
+                    };
+                    const designStyle = styleMap[style] || styleMap.anime;
+
+                    // ========== Step 1: LLM 拆分分镜脚本 ==========
+                    callbacks.onProgress?.('拆分分镜脚本', 5, '正在将故事拆分为分镜...');
+
+                    const splitPrompt = `你是专业动画分镜师。请将以下故事/描述拆分为 ${panelCount} 个分镜画面。
+
+故事描述：${story}
+
+请为每个分镜输出：
+【分镜1】画面描述（用英文，详细描述角色动作、表情、镜头角度、场景环境）
+【分镜2】...
+...
+
+要求：
+1. 每个分镜是一个独立画面
+2. 镜头要有变化（远景、中景、近景、特写交替）
+3. 描述要具体，可以直接作为 AI 绘画的 prompt
+4. 保持角色特征一致
+5. 画面描述用英文输出`;
+
+                    let panelDescriptions = [];
+                    try {
+                        let outline = '';
+                        if (typeof callScriptGenerator === 'function') {
+                            outline = await callScriptGenerator({}, splitPrompt);
+                        } else if (typeof callModelScopeTextAPI === 'function') {
+                            outline = await callModelScopeTextAPI(splitPrompt);
+                        }
+                        // 解析分镜
+                        panelDescriptions = outline.split(/【分镜\d+】/i).filter(s => s.trim());
+                        if (panelDescriptions.length === 0) {
+                            // fallback: 按段落分
+                            panelDescriptions = outline.split(/\n+/).filter(s => s.trim().length > 10);
+                        }
+                        callbacks.onStepComplete?.('分镜脚本', { script: outline.substring(0, 200) + '...' });
+                    } catch (e) {
+                        console.error('分镜脚本生成失败:', e);
+                        // fallback: 用故事本身拆分
+                        for (let i = 0; i < panelCount; i++) {
+                            panelDescriptions.push(`scene ${i + 1} of the story: ${story}`);
+                        }
+                    }
+
+                    // 确保数量匹配
+                    while (panelDescriptions.length < panelCount) {
+                        panelDescriptions.push(panelDescriptions[panelDescriptions.length - 1] || story);
+                    }
+                    panelDescriptions = panelDescriptions.slice(0, panelCount);
+
+                    // ========== Step 2: 角色设定表（可选）==========
+                    if (includeCharSheet) {
+                        callbacks.onProgress?.('生成角色设定表', 10, '正在绘制角色三视图设定...');
+                        try {
+                            const charPrompt = `${designStyle}, professional character design reference sheet, character turnaround, front view, 3/4 view, side view, back view, full body, clean white background, consistent character design, model sheet, ${story.substring(0, 200)}, detailed character features, professional concept art`;
+
+                            const opts = { aspectRatio: '16:9' };
+                            if (charRefUrl) opts.refImage = charRefUrl;
+                            results.charSheet = await callImageAPIWithRefs(charPrompt, opts, allRefImages);
+
+                            // 用角色设定图作为后续分镜的参考（保持一致性）
+                            if (results.charSheet && !charRefUrl) {
+                                charRefUrl = results.charSheet;
+                            }
+                            callbacks.onStepComplete?.('角色设定表', { imageUrl: results.charSheet });
+                        } catch (e) {
+                            console.error('角色设定表生成失败:', e);
+                        }
+                    }
+
+                    // ========== Step 3: 并行生成全部分镜画面 ==========
+                    const baseProgress = includeCharSheet ? 20 : 10;
+                    callbacks.onProgress?.('并行生成分镜', baseProgress, `同时生成 ${panelDescriptions.length} 个分镜...`);
+
+                    let completedCount = 0;
+                    const panelPromises = panelDescriptions.map((rawDesc, i) => {
+                        const desc = rawDesc.trim();
+                        const panelPrompt = `${designStyle}, storyboard panel ${i + 1}, ${desc}, cinematic composition, professional production storyboard, high quality, detailed`;
+
+                        const opts = { aspectRatio };
+                        if (charRefUrl) opts.refImage = charRefUrl;
+
+                        return callImageAPIWithRefs(panelPrompt, opts, allRefImages)
+                            .then(imageUrl => {
+                                completedCount++;
+                                const progress = baseProgress + Math.round((completedCount / panelDescriptions.length) * (95 - baseProgress));
+                                callbacks.onProgress?.(`已完成 ${completedCount}/${panelDescriptions.length}`, progress, `✅ 分镜${i + 1}`);
+                                callbacks.onStepComplete?.(`分镜${i + 1}`, { imageUrl });
+                                return { index: i + 1, description: desc, imageUrl, status: 'success' };
+                            })
+                            .catch(e => {
+                                completedCount++;
+                                const progress = baseProgress + Math.round((completedCount / panelDescriptions.length) * (95 - baseProgress));
+                                callbacks.onProgress?.(`已完成 ${completedCount}/${panelDescriptions.length}`, progress, `❌ 分镜${i + 1}: ${e.message}`);
+                                return { index: i + 1, description: desc, error: e.message, status: 'failed' };
+                            });
+                    });
+
+                    results.panels = await Promise.all(panelPromises);
+                    // 按分镜序号排序
+                    results.panels.sort((a, b) => a.index - b.index);
+
+                    const successCount = results.panels.filter(p => p.status === 'success').length;
+                    callbacks.onProgress?.('完成', 100, `分镜脚本已生成！角色设定表 ${results.charSheet ? '1张' : '无'} + 分镜 ${successCount}/${panelDescriptions.length} 张`);
+
+                    return {
+                        charSheet: results.charSheet,
+                        images: [
+                            ...(results.charSheet ? [{ subject: '角色设定表', imageUrl: results.charSheet, status: 'success' }] : []),
+                            ...results.panels.map(p => ({ subject: `分镜${p.index}`, imageUrl: p.imageUrl, status: p.status, error: p.error }))
+                        ]
+                    };
+                }
+            },
+
+            // ==================== 🔧 工具类 ====================
+
+            // 17. 图片文字识别 (OCR)
+            {
+                id: 'image_ocr',
+                name: '图片文字识别',
+                icon: '🔍',
+                category: 'tool',
+                description: '使用 DeepSeek OCR 识别图片中的所有文字，支持中文、英文、表格、手写体等。',
+                parameters: [
+                    { key: 'image', label: '上传图片', type: 'image', required: true, hint: '支持 JPG/PNG，截图、照片、文档扫描件等' },
+                    { key: 'ocrMode', label: '识别模式', type: 'select', default: 'all', options: [
+                        { value: 'all', label: '全部文字' }, { value: 'table', label: '表格识别' },
+                        { value: 'handwrite', label: '手写体' }, { value: 'translate', label: '识别+翻译' }
+                    ]}
+                ],
+                estimateCost: () => ({ film: 2, time: '约 10 秒' }),
+                execute: async (params, callbacks) => {
+                    const { image, ocrMode } = params;
+                    if (!image || image.length === 0) throw new Error('请上传图片');
+
+                    callbacks.onProgress?.('OCR识别', 30, '正在识别图片文字...');
+
+                    // 🖼️ 兼容 base64 数组和 FileList
+                    const ocrRefs = await resolveRefImages(image);
+                    const imageUrl = ocrRefs.first;
+                    if (!imageUrl) throw new Error('图片读取失败');
+
+                    const modePrompts = {
+                        all: '请识别并输出图片中的所有文字内容，保持原始排版格式。',
+                        table: '请识别图片中的表格，用 Markdown 表格格式输出，保持行列结构。',
+                        handwrite: '请识别图片中的手写文字，尽可能准确输出。',
+                        translate: '请识别图片中的所有文字，先输出原文，然后在下方提供中文翻译。'
+                    };
+
+                    let result = '';
+                    if (typeof callOCRAPI === 'function') {
+                        result = await callOCRAPI(imageUrl, modePrompts[ocrMode] || modePrompts.all, 'deepseek-ocr');
+                    } else {
+                        throw new Error('OCR 功能不可用');
+                    }
+
+                    callbacks.onStepComplete?.('OCR识别', { text: result?.substring(0, 100) + '...' });
+                    callbacks.onProgress?.('完成', 100, `识别完成！共 ${result.length} 个字符`);
+
+                    return { ocrText: result, outline: result };
                 }
             }
         ];
@@ -1415,6 +2512,6 @@ ${results.script.substring(0, 1000)}`;
         // 注册所有预置 Skills
         SkillManager.registerAll(presetSkills);
 
-        console.log('🧩 预置 Skills 注册完成');
+console.log('🧩 预置 Skills 注册完成（17 个技能）');
     }
 })();

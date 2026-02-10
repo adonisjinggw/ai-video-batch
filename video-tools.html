@@ -400,8 +400,9 @@
             <div class="settings-row">
                 <div class="setting-item"><label>模型</label>
                     <select id="t2vModel">
-                        <option value="sora-2-all">Sora-2 (15秒)</option>
-                        <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                        <option value="sora-2-vip-all">Sora-2 VIP 过渡 (10秒)</option>
+                        <!-- <option value="sora-2-all">Sora-2（已停用）</option> -->
+                        <!-- <option value="sora-2-pro-all">Sora-2 Pro（已停用）</option> -->
                         <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
                             <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
                             <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
@@ -493,8 +494,9 @@
                     id="i2vPrompt" placeholder="例如：图片中的人物转头微笑..." style="min-height:60px;"></textarea></div>
             <div class="settings-row">
                 <div class="setting-item"><label>模型</label><select id="i2vModel">
-                        <option value="sora-2-all">Sora-2 (15秒)</option>
-                        <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                        <option value="sora-2-vip-all">Sora-2 VIP 过渡 (10秒)</option>
+                        <!-- <option value="sora-2-all">Sora-2（已停用）</option> -->
+                        <!-- <option value="sora-2-pro-all">Sora-2 Pro（已停用）</option> -->
                         <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
                             <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
                             <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
@@ -605,8 +607,9 @@
             <div class="settings-row">
                 <div class="setting-item"><label>模型</label>
                     <select id="batchModel">
-                        <option value="sora-2-all">Sora-2 (15秒)</option>
-                        <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                        <option value="sora-2-vip-all">Sora-2 VIP (10秒/7胶片)</option>
+                        <!-- <option value="sora-2-all">Sora-2 (已停用)</option> -->
+                        <!-- <option value="sora-2-pro-all">Sora-2 Pro (已停用)</option> -->
                         <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
                             <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
                             <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
@@ -752,8 +755,9 @@
                             <option value="kling-2.5-720p-10s">可灵2.5 10秒 (10胶片)</option>
                         </optgroup>
                         <optgroup label="🎬 Sora-2 (支持原生克隆)">
-                            <option value="sora-2-all">Sora-2 (15秒/7胶片)</option>
-                            <option value="sora-2-pro-all">Sora-2 Pro (15秒/14胶片)</option>
+                            <option value="sora-2-vip-all">Sora-2 VIP (10秒/7胶片)</option>
+                            <!-- <option value="sora-2-all">Sora-2 (已停用)</option> -->
+                            <!-- <option value="sora-2-pro-all">Sora-2 Pro (已停用)</option> -->
                         </optgroup>
                         <optgroup label="🌐 Veo 3.1">
                             <option value="veo3.1-components-4k">Veo 3.1 4K (30胶片)</option>
@@ -903,8 +907,9 @@
 
         // 视频生成费用（成本×2，1胶片=￥0.1）
         const VIDEO_COST = {
-            'sora-2-all': 7,
-            'sora-2-pro-all': 14,
+            'sora-2-vip-all': 7,
+            'sora-2-all': 7,       // 已停用，保留兼容
+            'sora-2-pro-all': 14,  // 已停用，保留兼容
             'veo3.1': 30,           // Veo 3.1 4K 版本
             'grok-video-3': 5,      // Grok Video 3 (6秒)
             'grok-video-3-10s': 8,  // Grok Video 3 (10秒)
@@ -1516,7 +1521,7 @@
             
             // 原生模式时自动切换到Sora-2
             if (mode === 'native') {
-                model.value = 'sora-2-all';
+                model.value = 'sora-2-vip-all';
             }
             
             // 显示/隐藏尾帧预览
@@ -1584,6 +1589,7 @@ Output a concise English prompt that can be directly used for AI video generatio
             }
         }
         function getFixedDuration(model) { 
+            if (model.includes('sora-2-vip')) return 10;
             if (model.includes('grok')) return 6; 
             if (model.includes('veo')) return 8; 
             // Vidu/Hailuo/Kling模型：从模型名提取时长
@@ -2575,7 +2581,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         <div class="batch-card-config">
                             <select onchange="updateBatchT2vModel(${i}, this.value)">
                                 <option value="">🌐 全局配置</option>
-                                <option value="sora-2-all" ${card.model === 'sora-2-all' ? 'selected' : ''}>Sora-2</option>
+                                <option value="sora-2-vip-all" ${card.model === 'sora-2-vip-all' ? 'selected' : ''}>Sora-2 VIP</option>
                                 <option value="veo3.1-components-4k" ${card.model === 'veo3.1-components-4k' ? 'selected' : ''}>Veo 3.1 4K</option>
                                 <option value="grok-video-3" ${card.model === 'grok-video-3' ? 'selected' : ''}>Grok 3 6秒</option>
                                 <option value="grok-video-3-10s" ${card.model === 'grok-video-3-10s' ? 'selected' : ''}>Grok 3 10秒</option>
@@ -2678,7 +2684,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         <div class="batch-card-config">
                             <select onchange="updateBatchImageModel(${i}, this.value)">
                                 <option value="">🌐 全局配置</option>
-                                <option value="sora-2-all">Sora-2</option>
+                                <option value="sora-2-vip-all">Sora-2 VIP</option>
                                 <option value="veo3.1-components-4k">Veo 3.1 4K</option>
                                 <option value="grok-video-3">Grok 3 6秒</option>
                                 <option value="grok-video-3-10s">Grok 3 10秒</option>

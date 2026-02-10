@@ -190,7 +190,10 @@ async function fetchWithFallback(endpoint, body, action) {
                 return { success: true, data, endpoint: baseUrl };
             }
 
-            errors.push(`[${baseUrl}] ${res.status}: ${data.message || data.error || text.slice(0, 200)}`);
+            const errDetail = typeof data.message === 'string' ? data.message
+                            : typeof data.error === 'string' ? data.error
+                            : text.slice(0, 200);
+            errors.push(`[${baseUrl}] ${res.status}: ${errDetail}`);
         } catch (e) {
             if (e.name === 'AbortError') {
                 errors.push(`[${baseUrl}] 请求超时(${timeoutMs/1000}s)`);
@@ -359,13 +362,18 @@ module.exports = async function handler(req, res) {
         const filmCost = FILM_COST['music'] || 8;
         let billingSuccess = false;
 
-        // 🔒 先扣费
+        // 🔒 先扣费（🔧 修复：__billing 会 throw，必须 try-catch 防止函数崩溃）
         if (filmCost > 0 && userId) {
-            const billingResult = await __billing('consume', userId, filmCost, `音乐生成:${mv || 'chirp-v4'}`);
-            if (!billingResult.success && !billingResult.skipped) {
-                return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+            try {
+                const billingResult = await __billing('consume', userId, filmCost, `音乐生成:${mv || 'chirp-v4'}`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: String(billingResult.error || '扣费失败'), billed: 0 });
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            } catch (billingErr) {
+                console.error('[suno] 扣费异常:', billingErr.message);
+                return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: String(billingErr.message || '扣费失败'), billed: 0 });
             }
-            billingSuccess = billingResult.success && !billingResult.skipped;
         }
         
         const requestBody = {

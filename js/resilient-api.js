@@ -96,7 +96,7 @@
                 name: 'Sora2',
                 cost: 1.08,
                 quality: 'high',
-                models: ['sora-2-all', 'sora-2-pro-all'],
+                models: ['sora-2-vip-all'],
                 timeout: 180000,
                 weight: 100
             },
@@ -378,7 +378,7 @@
         async callVideoAPI(options) {
             const {
                 prompt,
-                model = 'sora-2-all',
+                model = 'sora-2-vip-all',
                 aspectRatio = '16:9',
                 duration = 15,
                 imageUrl,           // 首帧图

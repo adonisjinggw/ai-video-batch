@@ -7,16 +7,10 @@
     <title>🤖 AI对话 - RollRoll</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
-    <script src="/js/api-core.js?v=1.2&t=20260209"></script>
-    <script src="/js/user-memory.js?v=1.0"></script>
-    <script src="/js/writing-vault.js?v=1.0"></script>
-    <script src="/js/billing.js?v=1.0"></script>
-    <script src="/js/skill-system.js?v=2.2&t=20260209b"></script>
-    <script src="/js/skill-presets.js?v=2.2&t=20260209b"></script>
-    <script src="/js/agent-team.js?v=2.0&t=20260209"></script>
-    <script src="/js/agent-roles.js?v=2.0&t=20260209"></script>
-    <script src="/js/agent-ui.js?v=1.0"></script>
-    <script src="/js/role-expert.js?v=1.0"></script>
+    <script src="/js/api-core.js"></script>
+    <script src="/js/billing.js"></script>
+    <script src="/js/skill-system.js"></script>
+    <script src="/js/skill-presets.js"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -928,171 +922,6 @@
         .cs-btn-save { background: linear-gradient(135deg, var(--accent), #f97316); color: #000; font-weight: 700; }
         .cs-btn-import { background: #2a2a2a; color: #aaa; border: 1px solid #444 !important; }
         .cs-btn-help { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 13px; float: right; }
-
-        /* ==================== Agent Team Panel ==================== */
-        #agentTeamPanel {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85); z-index: 2000;
-            flex-direction: column; align-items: center; justify-content: center;
-        }
-        .at-panel-inner {
-            width: 95%; max-width: 600px; max-height: 90vh; background: #111;
-            border-radius: 16px; overflow: hidden; display: flex; flex-direction: column;
-        }
-        .at-panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 20px; border-bottom: 1px solid #222;
-        }
-        .at-panel-header h3 { font-size: 18px; }
-        .at-panel-close { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; }
-        .at-panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
-
-        /* Views */
-        #atView_select, #atView_config, #atView_running, #atView_result {
-            flex-direction: column; gap: 12px;
-        }
-
-        /* Template grid */
-        #atTemplateGrid {
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
-        }
-        .at-template-card {
-            background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
-            padding: 16px; cursor: pointer; transition: border-color 0.2s;
-        }
-        .at-template-card:hover { border-color: var(--accent); }
-        .at-template-card.at-custom { border-style: dashed; }
-        .at-tpl-icon { font-size: 28px; margin-bottom: 8px; }
-        .at-tpl-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-        .at-tpl-desc { font-size: 12px; color: #888; margin-bottom: 6px; line-height: 1.4; }
-        .at-tpl-roles { font-size: 11px; color: var(--accent); }
-
-        /* Config */
-        .at-config-title { font-size: 18px; font-weight: 700; }
-        .at-config-subtitle { font-size: 13px; color: #888; margin-bottom: 8px; }
-        .at-team-members { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-        .at-member {
-            display: flex; align-items: center; gap: 6px;
-            background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 6px 12px;
-        }
-        .at-member-icon { font-size: 18px; }
-        .at-member-name { font-size: 13px; }
-        .at-member-tools { font-size: 11px; color: #888; }
-        .at-role-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-        .at-role-check {
-            display: flex; align-items: center; gap: 6px; background: #1a1a1a;
-            border: 1px solid #333; border-radius: 8px; padding: 8px 12px; cursor: pointer;
-        }
-        .at-role-check input { accent-color: var(--accent); }
-        .at-goal-section { margin-top: 8px; }
-        .at-goal-label { font-size: 13px; color: #aaa; margin-bottom: 6px; }
-        .at-goal-input {
-            width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 10px;
-            padding: 12px; color: #fff; font-size: 14px; resize: none; font-family: inherit;
-        }
-        .at-goal-input:focus { outline: none; border-color: var(--accent); }
-        .at-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-        .at-suggest-btn {
-            background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3);
-            border-radius: 8px; padding: 6px 10px; color: var(--accent);
-            font-size: 12px; cursor: pointer;
-        }
-        .at-suggest-btn:hover { background: rgba(251,191,36,0.2); }
-        .at-config-actions { display: flex; gap: 10px; margin-top: 16px; }
-        .at-btn {
-            padding: 10px 20px; border: none; border-radius: 10px;
-            font-size: 14px; cursor: pointer; font-weight: 600;
-        }
-        .at-btn-primary { background: linear-gradient(135deg, var(--accent), #f97316); color: #000; flex: 1; }
-        .at-btn-secondary { background: #333; color: #fff; }
-        .at-btn-danger { background: #dc2626; color: #fff; font-size: 12px; padding: 6px 14px; }
-        .at-btn-outline {
-            background: transparent; border: 1px dashed #555; color: #aaa;
-            padding: 10px; border-radius: 10px; font-size: 13px; cursor: pointer;
-        }
-        .at-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
-        .at-role-custom { position: relative; }
-        .at-role-delete {
-            position: absolute; top: 2px; right: 4px; font-size: 10px; color: #666;
-            cursor: pointer; line-height: 1; padding: 2px;
-        }
-        .at-role-delete:hover { color: #f87171; }
-        .at-create-role-form {
-            background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
-            padding: 16px; margin-top: 10px;
-        }
-        .at-form-row { margin-bottom: 12px; }
-        .at-form-row > label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
-        .at-form-input {
-            width: 100%; background: #222; border: 1px solid #333; border-radius: 8px;
-            padding: 8px 12px; color: #fff; font-size: 13px; font-family: inherit;
-        }
-        .at-form-input:focus { outline: none; border-color: var(--accent); }
-        textarea.at-form-input { resize: vertical; min-height: 60px; }
-        .at-emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-        .at-emoji-opt {
-            width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
-            border-radius: 8px; border: 2px solid #333; cursor: pointer; font-size: 16px;
-            background: #222;
-        }
-        .at-emoji-opt:hover { border-color: #555; }
-        .at-emoji-opt.selected { border-color: var(--accent); background: rgba(251,191,36,0.12); }
-        .at-tool-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-        .at-tool-check {
-            display: flex; align-items: center; gap: 4px; background: #222;
-            border: 1px solid #333; border-radius: 6px; padding: 5px 8px;
-            font-size: 12px; cursor: pointer; color: #ccc;
-        }
-        .at-tool-check input { accent-color: var(--accent); }
-        .at-form-actions { display: flex; gap: 8px; margin-top: 12px; }
-
-        /* Running view */
-        .at-run-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .at-run-title { font-size: 16px; font-weight: 600; }
-        .at-agents-bar { display: flex; gap: 12px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
-        .at-agent-avatar {
-            display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 56px;
-        }
-        .at-agent-icon { font-size: 24px; }
-        .at-agent-status-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-        }
-        .at-status-idle { background: #555; }
-        .at-status-working { background: var(--accent); animation: pulse 1s infinite; }
-        .at-status-done { background: #22c55e; }
-        .at-status-error { background: #ef4444; }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .at-agent-label { font-size: 10px; color: #888; white-space: nowrap; }
-        .at-message-flow {
-            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
-            min-height: 200px; max-height: 50vh; padding: 8px 0;
-        }
-        .at-msg {
-            display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
-            background: #1a1a1a; border-radius: 10px; font-size: 13px;
-        }
-        .at-msg-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-        .at-msg-body { flex: 1; min-width: 0; }
-        .at-msg-agent { font-weight: 600; margin-right: 6px; color: var(--accent); font-size: 12px; }
-        .at-msg-text { color: #ccc; word-break: break-all; }
-        .at-msg-time { font-size: 10px; color: #555; flex-shrink: 0; }
-        .at-msg-error { border-left: 3px solid #ef4444; }
-        .at-msg-result { border-left: 3px solid #22c55e; }
-        .at-msg-thinking { border-left: 3px solid var(--accent); }
-
-        /* Result view */
-        .at-result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .at-result-title { font-size: 18px; font-weight: 700; }
-        .at-result-stats { font-size: 13px; color: #888; }
-        .at-deliverables { display: flex; flex-direction: column; gap: 12px; }
-        .at-deliverable {
-            background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 12px; overflow: hidden;
-        }
-        .at-d-header { font-size: 12px; color: #888; margin-bottom: 8px; }
-        .at-d-img { width: 100%; border-radius: 8px; cursor: pointer; }
-        .at-d-video { width: 100%; border-radius: 8px; }
-        .at-d-text { font-size: 14px; line-height: 1.6; color: #ccc; max-height: 200px; overflow-y: auto; }
-        .at-result-actions { display: flex; gap: 10px; margin-top: 16px; }
         .cs-help-panel {
             display: none; background: #111; border: 1px solid #333; border-radius: 12px;
             padding: 16px; margin-bottom: 14px; font-size: 13px; line-height: 1.7; color: #ccc;
@@ -1131,30 +960,14 @@
         <span class="quota-display" id="quotaDisplay">🎞️ --</span>
     </header>
 
-    <!-- 🎭 角色专家指示器 -->
-    <div id="roleIndicator" style="display:none; padding:8px 20px; background:linear-gradient(90deg, rgba(139,92,246,0.15), rgba(236,72,153,0.1)); border-bottom:1px solid rgba(139,92,246,0.3); cursor:pointer;" onclick="openRoleSelector()">
-        <div style="display:flex; align-items:center; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span id="roleIndicatorIcon" style="font-size:18px;"></span>
-                <div>
-                    <div id="roleIndicatorName" style="font-size:13px; color:#a78bfa; font-weight:600;"></div>
-                    <div id="roleIndicatorDesc" style="font-size:11px; color:#666;"></div>
-                </div>
-            </div>
-            <button onclick="event.stopPropagation(); deactivateRole()" style="background:none; border:none; color:#888; font-size:16px; cursor:pointer; padding:4px 8px;" title="关闭角色">&times;</button>
-        </div>
-    </div>
-
     <!-- 🧩 快捷按钮区域（始终显示） -->
     <div class="quick-actions" style="padding:12px 20px; background:var(--bg-dark); border-bottom:1px solid #222;">
         <div class="quick-questions" style="margin-top:0;">
-            <span class="quick-q" onclick="openRoleSelector()" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.15)); border:1px solid rgba(139,92,246,0.4); color:#a78bfa;">🎭 角色专家</span>
             <span class="quick-q" onclick="fillInput('帮我写一个短视频剧本，主题是')">📝 写剧本</span>
             <span class="quick-q" onclick="fillInput('给我一些关于的创意灵感', 5)">💡 找灵感</span>
             <span class="quick-q" onclick="fillInput('帮我优化这段文案：')">✨ 优化文案</span>
             <span class="quick-q" onclick="startStoryboardMode()">🎬 分镜设计</span>
             <span class="quick-q" onclick="openSkillDrawer()">🧩 技能</span>
-            <span class="quick-q" onclick="AgentUI.open()">🤖 智能团队</span>
             <span class="quick-q" onclick="fillInput('搜索最新')">🌐 联网搜索</span>
         </div>
     </div>
@@ -1200,49 +1013,6 @@
     
 
     <div class="toast" id="toast"></div>
-
-    <!-- 🎭 角色专家选择面板 -->
-    <div id="roleSelectPanel" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.7);" onclick="closeRoleSelector()">
-        <div style="position:absolute; bottom:0; left:0; right:0; max-height:75vh; background:#111; border-radius:16px 16px 0 0; overflow:hidden;" onclick="event.stopPropagation()">
-            <div style="padding:16px 20px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:16px; font-weight:600;">🎭 角色专家 <span style="font-size:12px; color:#888; font-weight:400;">+1胶片/条</span></div>
-                <button onclick="closeRoleSelector()" style="background:none; border:none; color:#888; font-size:20px; cursor:pointer;">&times;</button>
-            </div>
-            <!-- 分类标签 -->
-            <div id="roleCatTabs" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; border-bottom:1px solid #1a1a1a;"></div>
-            <!-- 角色网格 -->
-            <div id="roleGrid" style="padding:16px 20px; display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; max-height:50vh; overflow-y:auto;"></div>
-        </div>
-    </div>
-
-    <!-- 🤖 Agent Team 面板 -->
-    <div id="agentTeamPanel">
-        <div class="at-panel-inner">
-            <div class="at-panel-header">
-                <h3>🤖 智能团队</h3>
-                <button class="at-panel-close" onclick="AgentUI.close()">&times;</button>
-            </div>
-            <div class="at-panel-body">
-                <!-- 团队选择 -->
-                <div id="atView_select" style="display:flex; flex-direction:column; gap:12px;">
-                    <div style="font-size:13px; color:#888;">选择一个团队模板，或自由组队</div>
-                    <div id="atTemplateGrid"></div>
-                </div>
-                <!-- 配置 -->
-                <div id="atView_config" style="display:none; flex-direction:column; gap:12px;">
-                    <div id="atConfigArea"></div>
-                </div>
-                <!-- 运行中 -->
-                <div id="atView_running" style="display:none; flex-direction:column; gap:8px;">
-                    <div id="atRunArea"></div>
-                </div>
-                <!-- 结果 -->
-                <div id="atView_result" style="display:none; flex-direction:column; gap:12px;">
-                    <div id="atResultArea"></div>
-                </div>
-            </div>
-        </div>
-    </div>
     
     <!-- 🧩 技能选择弹窗 -->
     <div class="skill-drawer" id="skillDrawer">
@@ -1254,9 +1024,7 @@
             <button class="skill-filter-btn active" data-category="all" onclick="filterSkills('all')">全部</button>
             <button class="skill-filter-btn" data-category="video" onclick="filterSkills('video')">🎬 视频</button>
             <button class="skill-filter-btn" data-category="image" onclick="filterSkills('image')">🎨 图像</button>
-            <button class="skill-filter-btn" data-category="design" onclick="filterSkills('design')">🎯 设计</button>
             <button class="skill-filter-btn" data-category="content" onclick="filterSkills('content')">📝 内容</button>
-            <button class="skill-filter-btn" data-category="tool" onclick="filterSkills('tool')">🔍 工具</button>
             <button class="skill-filter-btn" data-category="automation" onclick="filterSkills('automation')">🤖 自动化</button>
             <button class="skill-filter-btn" data-category="custom" onclick="filterSkills('custom')">🔧 自定义</button>
         </div>
@@ -1497,16 +1265,6 @@
                         startStoryboardMode();
                         return;
                     }
-                    if (text === '智能团队') {
-                        console.log('[chat] 智能团队按钮被点击');
-                        if (typeof AgentUI !== 'undefined') AgentUI.open();
-                        return;
-                    }
-                    if (text === '角色专家') {
-                        console.log('[chat] 角色专家按钮被点击');
-                        if (typeof openRoleSelector === 'function') openRoleSelector();
-                        return;
-                    }
                     
                     const fillMap = {
                         '写剧本': '帮我写一个短视频剧本，主题是',
@@ -1539,8 +1297,6 @@
                 await checkUser();
             }
             updateQuotaDisplay();
-            // 🎭 初始化角色专家指示器
-            _updateRoleIndicator();
             console.log('[chat] 初始化完成');
         });
 
@@ -1688,12 +1444,6 @@
                 return { model: 'gemini-3-flash-preview', type: 'search', icon: '🌐', enableSearch: true, cost: 1 };
             }
             
-            // 🔍 OCR/文字识别 → deepseek-ocr
-            const ocrKeywords = ['ocr', '识别文字', '文字识别', '提取文字', '读取文字', '图片文字', '截图文字', '识别内容', '识别一下', '看看写的什么', '读出来'];
-            if (ocrKeywords.some(kw => lower.includes(kw))) {
-                return { model: 'deepseek-ocr', type: 'ocr', icon: '🔍', cost: 2 };
-            }
-            
             // 🌟 默认：生成文章/提示词优化/创意写作/对话 → Grok-4 Fast (首选)
             return { model: 'grok-4-fast', type: 'chat', icon: '🌟', cost: 2 };
         }
@@ -1704,91 +1454,9 @@
             'gemini-3-flash-preview': 'Gemini Flash',
             'gemini-3-pro-preview': 'Gemini Pro',
             'gemini-3-pro-preview-thinking': 'Gemini 思考',
-            'qwen-plus': '通义千问',
-            'deepseek-ocr': 'DeepSeek OCR',
-            'gemini-2.0-flash': 'Gemini Vision'
+            'qwen-plus': '通义千问'
         };
         
-        // ==================== 🎭 角色专家 UI ====================
-        let _roleCat = 'all';
-
-        function openRoleSelector() {
-            const panel = document.getElementById('roleSelectPanel');
-            if (!panel || typeof RoleExpert === 'undefined') return;
-            panel.style.display = 'block';
-            _renderRoleCatTabs();
-            _renderRoleGrid();
-        }
-
-        function closeRoleSelector() {
-            const panel = document.getElementById('roleSelectPanel');
-            if (panel) panel.style.display = 'none';
-        }
-
-        function _renderRoleCatTabs() {
-            const container = document.getElementById('roleCatTabs');
-            if (!container) return;
-            const cats = RoleExpert.getCategories();
-            container.innerHTML = cats.map(c => `
-                <button onclick="_setRoleCat('${c.id}')" style="padding:6px 14px; border-radius:16px; border:1px solid ${_roleCat === c.id ? 'var(--accent)' : '#333'}; background:${_roleCat === c.id ? 'rgba(251,191,36,0.15)' : '#1a1a1a'}; color:${_roleCat === c.id ? 'var(--accent)' : '#aaa'}; font-size:13px; white-space:nowrap; cursor:pointer;">${c.icon} ${c.name}</button>
-            `).join('');
-        }
-
-        function _setRoleCat(cat) {
-            _roleCat = cat;
-            _renderRoleCatTabs();
-            _renderRoleGrid();
-        }
-
-        function _renderRoleGrid() {
-            const grid = document.getElementById('roleGrid');
-            if (!grid) return;
-            const roles = RoleExpert.getRoles(_roleCat);
-            const activeId = RoleExpert.getActive()?.id;
-            grid.innerHTML = roles.map(r => `
-                <div onclick="selectRole('${r.id}')" style="padding:12px; background:${r.id === activeId ? 'rgba(139,92,246,0.2)' : '#1a1a1a'}; border:1px solid ${r.id === activeId ? 'rgba(139,92,246,0.5)' : '#2a2a2a'}; border-radius:12px; cursor:pointer; transition:all 0.2s;">
-                    <div style="font-size:24px; margin-bottom:6px;">${r.icon}</div>
-                    <div style="font-size:14px; font-weight:600; color:#fff; margin-bottom:2px;">${r.name}</div>
-                    <div style="font-size:11px; color:#888; line-height:1.4;">${r.description}</div>
-                    ${r.id === activeId ? '<div style="margin-top:6px; font-size:10px; color:#a78bfa;">✅ 当前使用中</div>' : ''}
-                </div>
-            `).join('');
-        }
-
-        function selectRole(roleId) {
-            if (typeof RoleExpert === 'undefined') return;
-            const current = RoleExpert.getActive();
-            if (current && current.id === roleId) {
-                // 点击已激活的角色 → 取消
-                RoleExpert.deactivate();
-            } else {
-                RoleExpert.activate(roleId);
-            }
-            _updateRoleIndicator();
-            closeRoleSelector();
-        }
-
-        function deactivateRole() {
-            if (typeof RoleExpert !== 'undefined') {
-                RoleExpert.deactivate();
-                _updateRoleIndicator();
-            }
-        }
-
-        function _updateRoleIndicator() {
-            const indicator = document.getElementById('roleIndicator');
-            if (!indicator) return;
-            const role = typeof RoleExpert !== 'undefined' ? RoleExpert.getActive() : null;
-            if (role) {
-                indicator.style.display = 'block';
-                document.getElementById('roleIndicatorIcon').textContent = role.icon;
-                document.getElementById('roleIndicatorName').textContent = role.name + ' 模式';
-                document.getElementById('roleIndicatorDesc').textContent = role.description + ' · +1胶片/条';
-            } else {
-                indicator.style.display = 'none';
-            }
-        }
-
         // 🎬 好莱坎视觉指导系统提示词（简洁版）
         const HOLLYWOOD_VISUAL_DIRECTOR_PROMPT = `你是专业分镜设计师。直接输出分镜表，不要废话。
 
@@ -1887,7 +1555,7 @@
             const container = document.getElementById('chatContainer');
             const typingEl = document.createElement('div');
             typingEl.className = 'message ai';
-            const typeNames = { storyboard: '分镜设计', visual: '视觉指导', writing: '创意写作', thinking: '深度思考', analysis: '智能分析', search: '联网搜索', code: '代码助手', chat: '智能对话', ocr: '文字识别' };
+            const typeNames = { storyboard: '分镜设计', visual: '视觉指导', writing: '创意写作', thinking: '深度思考', analysis: '智能分析', search: '联网搜索', code: '代码助手', chat: '智能对话' };
             const modelName = MODEL_NAMES[routing.model] || routing.model;
             typingEl.innerHTML = `<div class="typing"><span></span><span></span><span></span></div><div style="font-size:11px;color:#888;margin-top:4px;">${routing.icon} ${typeNames[routing.type] || '对话'} · ${modelName}</div>`;
             container.appendChild(typingEl);
@@ -1913,33 +1581,6 @@
                         isStoryboardMode = false;
                         document.getElementById('inputBox').placeholder = '输入消息...';
                     }
-                }
-
-                // 🎭 角色专家注入：将角色 system prompt 追加到系统提示词
-                const activeRole = typeof RoleExpert !== 'undefined' ? RoleExpert.getActive() : null;
-                if (activeRole && !systemPrompt) {
-                    systemPrompt = activeRole.systemPrompt;
-                    // 角色可能建议更好的模型
-                    if (activeRole.modelHint && !isStoryboardMode) {
-                        routing.model = activeRole.modelHint;
-                        console.log(`🎭 角色模型建议: ${activeRole.modelHint}`);
-                    }
-                } else if (activeRole && systemPrompt) {
-                    // 分镜模式 + 角色专家叠加
-                    systemPrompt = activeRole.systemPrompt + '\n\n' + systemPrompt;
-                }
-
-                // 🧠 注入用户长期记忆
-                if (typeof getUserMemoryPrompt === 'function') {
-                    const memPrompt = getUserMemoryPrompt();
-                    if (memPrompt) {
-                        systemPrompt = systemPrompt ? (memPrompt + '\n' + systemPrompt) : memPrompt;
-                    }
-                }
-
-                // 🧠 记录模型使用偏好
-                if (typeof UserMemory !== 'undefined') {
-                    UserMemory.recordModel('text', routing.model);
                 }
                 
                 // 📎 构建最终消息（支持多模态）
@@ -1994,9 +1635,9 @@
                     
                     finalMessage = { role: 'user', content: contentParts };
                     
-                    // 有图片时切换到视觉模型（OCR模式保持不变）
+                    // 有图片时切换到视觉模型
                     const hasImages = currentFiles.some(f => f.type === 'image');
-                    if (hasImages && routing.type !== 'ocr' && !routing.model.includes('vision') && !routing.model.includes('gemini') && !routing.model.includes('gpt-4') && !routing.model.includes('deepseek-ocr')) {
+                    if (hasImages && !routing.model.includes('vision') && !routing.model.includes('gemini') && !routing.model.includes('gpt-4')) {
                         routing.model = 'gemini-2.0-flash';  // 切换到支持视觉的模型
                         console.log('🖼️ 检测到图片，切换到视觉模型:', routing.model);
                     }
@@ -2005,36 +1646,18 @@
                     finalMessage = { role: 'user', content: finalPrompt };
                 }
                 
-                // 🔍 OCR模式 + 有图片：走 vision action（专属 OCR 通道）
-                let response;
-                const hasUploadedImages = currentFiles.some(f => f.type === 'image');
-                if (routing.type === 'ocr' && hasUploadedImages) {
-                    const imageFile = currentFiles.find(f => f.type === 'image');
-                    response = await fetch('/api/yunwu', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'vision',
-                            model: 'deepseek-ocr',
-                            prompt: finalPrompt || '请识别并输出图片中的所有文字内容，保持原始格式。',
-                            image_url: imageFile.data,
-                            userId: currentUser.id
-                        })
-                    });
-                } else {
-                    response = await fetch('/api/yunwu', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'chat',
-                            messages: contextMessages.concat([finalMessage]),
-                            system: systemPrompt,
-                            model: routing.model,
-                            userId: currentUser.id,
-                            enableSearch: routing.enableSearch || false
-                        })
-                    });
-                }
+                const response = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'chat',  // 使用chat action支持多轮对话
+                        messages: contextMessages.concat([finalMessage]),
+                        system: systemPrompt,
+                        model: routing.model,
+                        userId: currentUser.id,
+                        enableSearch: routing.enableSearch || false
+                    })
+                });
 
                 // 检查响应状态
                 if (!response.ok) {
@@ -2050,41 +1673,18 @@
                 }
 
                 const aiText = data.content || data.text || data.response || '抱歉，我没有理解你的问题。';
-                let actualCost = data.billed || 0;  // 后端返回的实际扣费
+                const actualCost = data.billed || 0;  // 后端返回的实际扣费
                 const usage = data.usage || {};
-
-                // 🎭 角色专家附加费（后端已扣基础费，前端扣角色附加费）
-                let roleSurcharge = 0;
-                if (activeRole && actualCost > 0 && currentUser) {
-                    roleSurcharge = activeRole.filmSurcharge || 1;
-                    try {
-                        const surRes = await fetch('/api/supabase-proxy', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                action: 'consume', userId: currentUser.id,
-                                amount: roleSurcharge,
-                                description: `角色专家:${activeRole.name}`
-                            })
-                        });
-                        const surData = await surRes.json().catch(() => ({}));
-                        if (surData.success) {
-                            actualCost += roleSurcharge;
-                            console.log(`🎭 角色附加费: -${roleSurcharge}胶片 (${activeRole.name})`);
-                        }
-                    } catch (e) { console.warn('角色附加费失败:', e); }
-                }
                 
                 // 添加模型标识（显示实际消耗）
                 const usedModel = data.model || routing.model;
                 const displayModelName = MODEL_NAMES[usedModel] || usedModel;
                 const tokenInfo = usage.totalTokens ? ` · ${usage.totalTokens}tk` : '';
-                const roleBadge = activeRole ? ` · ${activeRole.icon}${activeRole.name}` : '';
-                const modelBadge = `<div style="font-size:10px;color:#666;margin-bottom:4px;">${routing.icon} ${displayModelName}${tokenInfo}${roleBadge} · -${actualCost}胶片</div>`;
+                const modelBadge = `<div style="font-size:10px;color:#666;margin-bottom:4px;">${routing.icon} ${displayModelName}${tokenInfo} · -${actualCost}胶片</div>`;
                 addMessageWithBadge(aiText, 'ai', modelBadge);
                 messages.push({ role: 'assistant', content: aiText });
 
-                // 更新余额显示（用后端返回的实际扣费 + 角色附加费）
+                // 更新余额显示（用后端返回的实际扣费）
                 if (actualCost > 0) {
                     userQuota = Math.max(0, userQuota - actualCost);
                     updateQuotaDisplay();
@@ -2324,8 +1924,6 @@
         // ==================== 🧩 技能系统 ====================
         let currentSkillCategory = 'all';
         let selectedSkillId = null;
-        // 🖼️ 多图存储：{ paramKey: [base64_1, base64_2, ...] }
-        const skillImageStore = {};
         
         // 打开技能选择弹窗
         function openSkillDrawer() {
@@ -2363,9 +1961,7 @@
             const categoryLabels = {
                 video: '🎬 视频',
                 image: '🎨 图像',
-                design: '🎯 设计',
                 content: '📝 内容',
-                tool: '🔍 工具',
                 automation: '🤖 自动化',
                 custom: '🔧 自定义'
             };
@@ -2440,17 +2036,13 @@
                             inputHtml = `<label style="display:flex; align-items:center; gap:10px; cursor:pointer;"><input type="checkbox" id="skill_param_${param.key}" ${param.default ? 'checked' : ''} style="width:20px; height:20px; accent-color:var(--accent);"><span style="color:#ccc;">${param.checkboxLabel || '启用'}</span></label>`;
                             break;
                         case 'image':
-                            skillImageStore[param.key] = [];
-                            inputHtml = `<div style="position:relative;">
-                                <input type="file" id="skill_param_${param.key}" accept="image/*" multiple
-                                    style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1;"
-                                    onchange="handleSkillImageUpload('${param.key}', this)">
-                                <label for="skill_param_${param.key}" id="skill_img_wrap_${param.key}"
-                                    style="display:block;border:2px dashed #444;border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:#888;">
-                                    <div style="font-size:24px;margin-bottom:4px;">📷</div>
-                                    <div class="skill-img-text" style="font-size:13px;">点击上传图片（可多选）</div>
-                                    <div id="skill_img_previews_${param.key}" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
-                                </label>
+                            inputHtml = `<div>
+                                <input type="file" id="skill_param_${param.key}" accept="image/*" style="display:none;" onchange="(function(el){var p=el.closest('div').querySelector('.skill-img-preview');if(el.files&&el.files[0]){var r=new FileReader();r.onload=function(e){p.src=e.target.result;p.style.display='block';};r.readAsDataURL(el.files[0]);}else{p.style.display='none';}})(this)">
+                                <div onclick="this.parentElement.querySelector('input[type=file]').click()" style="border:2px dashed #444; border-radius:10px; padding:20px; text-align:center; cursor:pointer; color:#888;">
+                                    <div style="font-size:24px; margin-bottom:4px;">📷</div>
+                                    <div style="font-size:13px;">点击上传图片</div>
+                                    <img class="skill-img-preview" src="" style="display:none; max-width:100%; max-height:120px; margin-top:10px; border-radius:8px;">
+                                </div>
                             </div>`;
                             break;
                         default:
@@ -2498,69 +2090,6 @@
         function closeSkillConfig() {
             document.getElementById('skillConfigModal').classList.remove('show');
             selectedSkillId = null;
-            // 清空多图存储
-            Object.keys(skillImageStore).forEach(k => { skillImageStore[k] = []; });
-        }
-        
-        // 🖼️ 多图上传处理（参考手机版 previewI2VImages 实现）
-        function handleSkillImageUpload(paramKey, input) {
-            if (!input.files || input.files.length === 0) return;
-            const files = Array.from(input.files);
-            if (!skillImageStore[paramKey]) skillImageStore[paramKey] = [];
-            
-            const processPromises = files.map(file => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.onerror = () => resolve(null);
-                    reader.readAsDataURL(file);
-                });
-            });
-            
-            Promise.all(processPromises).then(results => {
-                results.filter(Boolean).forEach(data => skillImageStore[paramKey].push(data));
-                renderSkillImagePreviews(paramKey);
-            });
-            input.value = '';
-        }
-        
-        function removeSkillImage(paramKey, index) {
-            if (!skillImageStore[paramKey]) return;
-            skillImageStore[paramKey].splice(index, 1);
-            renderSkillImagePreviews(paramKey);
-            event.stopPropagation();
-        }
-        
-        function clearSkillImages(paramKey) {
-            skillImageStore[paramKey] = [];
-            renderSkillImagePreviews(paramKey);
-            event.stopPropagation();
-        }
-        
-        function renderSkillImagePreviews(paramKey) {
-            const container = document.getElementById(`skill_img_previews_${paramKey}`);
-            const wrap = document.getElementById(`skill_img_wrap_${paramKey}`);
-            const textEl = wrap?.querySelector('.skill-img-text');
-            const images = skillImageStore[paramKey] || [];
-            
-            if (images.length === 0) {
-                container.style.display = 'none';
-                if (textEl) textEl.textContent = '点击上传图片（可多选）';
-                if (wrap) { wrap.style.borderColor = '#444'; wrap.style.background = 'transparent'; }
-                return;
-            }
-            
-            container.style.display = 'flex';
-            if (textEl) textEl.textContent = `已选择 ${images.length} 张图片（点击可继续添加）`;
-            if (wrap) { wrap.style.borderColor = 'var(--accent)'; wrap.style.background = 'rgba(251,191,36,0.05)'; }
-            
-            container.innerHTML = images.map((data, idx) => `
-                <div style="position:relative;display:inline-block;">
-                    <img src="${data}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #333;">
-                    <button onclick="removeSkillImage('${paramKey}',${idx})" 
-                        style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:#f87171;border:none;border-radius:50%;color:#fff;font-size:12px;cursor:pointer;line-height:1;">×</button>
-                </div>
-            `).join('') + (images.length > 1 ? `<button onclick="clearSkillImages('${paramKey}')" style="background:none;border:1px dashed #666;border-radius:6px;color:#888;font-size:11px;padding:4px 8px;cursor:pointer;align-self:center;">清空</button>` : '');
         }
         
         // 收集表单参数
@@ -2580,16 +2109,8 @@
                     case 'number':
                         params[param.key] = el.value ? Number(el.value) : param.default;
                         break;
-                    case 'file':
                     case 'image':
-                        // 🖼️ 多图模式：优先从 skillImageStore 读取 base64 数组
-                        if (skillImageStore[param.key] && skillImageStore[param.key].length > 0) {
-                            params[param.key] = skillImageStore[param.key];
-                        } else if (el.files && el.files.length > 0) {
-                            params[param.key] = el.files;
-                        } else {
-                            params[param.key] = null;
-                        }
+                        params[param.key] = el.files || null;
                         break;
                     default:
                         params[param.key] = el.value || param.default;
@@ -2606,16 +2127,6 @@
             const skillIdToExecute = selectedSkillId;
             const params = collectSkillParams();
             const skill = SkillManager.getById(skillIdToExecute);
-            
-            // 🔒 校验必填参数
-            for (const p of skill?.parameters || []) {
-                if (!p.required) continue;
-                const v = params[p.key];
-                if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
-                    showToast(`请填写：${p.label}`);
-                    return;
-                }
-            }
             
             // 💰 计费检查
             let filmCost = 0;
@@ -2651,7 +2162,7 @@
             
             progressModal.classList.add('show');
             progressBar.style.width = '0%';
-            progressText.textContent = filmCost > 0 ? `预估消耗 ${filmCost} 胶片，准备中...` : '准备中...';
+            progressText.textContent = filmCost > 0 ? `扣费中... (${filmCost} 胶片)` : '准备中...';
             progressSteps.innerHTML = '';
             progressIcon.textContent = skill?.icon || '🚀';
             // 🎨 初始化精美动画
@@ -2734,11 +2245,23 @@
                 });
             
             try {
-                // 💰 后端 API 已经按次扣费，前端不再重复扣费
-                // 只做余额检查（已在上面完成），直接执行技能
-                await skillApiCall();
-                // 执行完后同步后端余额
-                if (typeof loadUserQuota === 'function') loadUserQuota();
+                // 💰 使用两阶段计费执行
+                if (filmCost > 0 && typeof Billing !== 'undefined' && currentUser) {
+                    await Billing.executeWithBilling({
+                        userId: currentUser.id,
+                        filmCost: filmCost,
+                        apiCall: skillApiCall,
+                        onBalanceUpdate: (newBalance) => {
+                            userQuota = parseFloat(newBalance) || 0;
+                            localStorage.setItem('film_balance', String(userQuota));
+                            updateQuotaDisplay();
+                        },
+                        description: `技能: ${skill?.name || skillIdToExecute}`
+                    });
+                } else {
+                    // 免费技能或未登录，直接执行
+                    await skillApiCall();
+                }
             } catch (error) {
                 console.error('[chat] Skill执行失败:', error);
                 progressModal.classList.remove('show');
@@ -3102,96 +2625,22 @@
                 });
             }
             
-            // 📺 连续剧情结果（episodes）
-            if (result && result.episodes && Array.isArray(result.episodes)) {
-                result.episodes.forEach((ep, idx) => {
-                    if (ep.status === 'success') {
-                        if (ep.videoUrl && typeof saveVideoToLibrary === 'function') {
-                            saveVideoToLibrary(ep.videoUrl, `${skillName} - 第${ep.episode}集`, 'skill', ep.imageUrl);
-                            savedVideos++;
-                            if (!allMedia.some(m => m.url === ep.videoUrl)) {
-                                allMedia.push({ type: 'video', url: ep.videoUrl, step: `第${ep.episode}集` });
-                            }
-                        }
-                        if (ep.imageUrl && typeof saveImageToLibrary === 'function') {
-                            saveImageToLibrary(ep.imageUrl, `${skillName} - 第${ep.episode}集封面`, 'skill');
-                            savedImages++;
-                            if (!ep.videoUrl && !allMedia.some(m => m.url === ep.imageUrl)) {
-                                allMedia.push({ type: 'image', url: ep.imageUrl, step: `第${ep.episode}集` });
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 🎨 scenes 结果（全流程自动化分镜图）
-            if (result && result.scenes && Array.isArray(result.scenes)) {
-                result.scenes.forEach((scene, idx) => {
-                    if (scene.imageUrl && typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(scene.imageUrl, `${skillName} - 分镜${scene.index || idx + 1}`, 'skill');
-                        savedImages++;
-                        if (!allMedia.some(m => m.url === scene.imageUrl)) {
-                            allMedia.push({ type: 'image', url: scene.imageUrl, step: `分镜${scene.index || idx + 1}` });
-                        }
-                    }
-                    if (scene.videoUrl && typeof saveVideoToLibrary === 'function') {
-                        saveVideoToLibrary(scene.videoUrl, `${skillName} - 分镜${scene.index || idx + 1}视频`, 'skill');
-                        savedVideos++;
-                        if (!allMedia.some(m => m.url === scene.videoUrl)) {
-                            allMedia.push({ type: 'video', url: scene.videoUrl, step: `分镜${scene.index || idx + 1}` });
-                        }
-                    }
-                });
-            }
-            
-            // 📖 comics 结果（全流程自动化漫画页）
-            if (result && result.comics && Array.isArray(result.comics)) {
-                result.comics.forEach((comic, idx) => {
-                    if (comic.imageUrl && typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(comic.imageUrl, `${skillName} - 漫画第${comic.page || idx + 1}页`, 'comic');
-                        savedImages++;
-                        if (!allMedia.some(m => m.url === comic.imageUrl)) {
-                            allMedia.push({ type: 'image', url: comic.imageUrl, step: `漫画第${comic.page || idx + 1}页` });
-                        }
-                    }
-                });
-            }
-            
-            // 👤 charSheet 角色设定图
-            if (result && result.charSheet && typeof result.charSheet === 'string') {
-                const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && u.startsWith('http'));
-                if (_isValid(result.charSheet)) {
-                    if (typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(result.charSheet, `${skillName} - 角色设定表`, 'character');
-                        savedImages++;
-                    }
-                    if (!allMedia.some(m => m.url === result.charSheet)) {
-                        allMedia.push({ type: 'image', url: result.charSheet, step: '角色设定表' });
-                    }
-                }
-            }
-            
-            // 💾 从 generatedMedia 中保存（作为补充，跳过已通过 result 保存过的）
-            const _savedUrls = new Set();
-            if (result && result.images) result.images.forEach(img => { if (img.imageUrl) _savedUrls.add(img.imageUrl); });
-            if (result && result.videos) result.videos.forEach(v => { if (v.videoUrl) _savedUrls.add(v.videoUrl); if (v.imageUrl) _savedUrls.add(v.imageUrl); });
-            if (result && result.pages) result.pages.forEach(p => { if (p.imageUrl) _savedUrls.add(p.imageUrl); });
-            if (result && result.assets) Object.values(result.assets).forEach(u => { if (u) _savedUrls.add(u); });
-            if (result && result.episodes) result.episodes.forEach(ep => { if (ep.videoUrl) _savedUrls.add(ep.videoUrl); if (ep.imageUrl) _savedUrls.add(ep.imageUrl); });
-            if (result && result.scenes) result.scenes.forEach(s => { if (s.imageUrl) _savedUrls.add(s.imageUrl); if (s.videoUrl) _savedUrls.add(s.videoUrl); });
-            if (result && result.comics) result.comics.forEach(c => { if (c.imageUrl) _savedUrls.add(c.imageUrl); });
-            if (result && result.charSheet) _savedUrls.add(result.charSheet);
-            
+            // 💾 从 generatedMedia 中保存（作为补充，去重）
             if (generatedMedia && generatedMedia.length > 0) {
                 generatedMedia.forEach((m, idx) => {
-                    if (_savedUrls.has(m.url)) return; // 已通过 result 保存，跳过
                     if (m.type === 'image' && m.url && typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(m.url, m.step || `${skillName} - 图片${idx + 1}`, 'skill');
-                        savedImages++;
+                        const lib = JSON.parse(localStorage.getItem('material_library') || '[]');
+                        if (!lib.some(item => item.url === m.url)) {
+                            saveImageToLibrary(m.url, m.step || `${skillName} - 图片${idx + 1}`, 'skill');
+                            savedImages++;
+                        }
                     }
                     if (m.type === 'video' && m.url && typeof saveVideoToLibrary === 'function') {
-                        saveVideoToLibrary(m.url, m.step || `${skillName} - 视频${idx + 1}`, 'skill');
-                        savedVideos++;
+                        const lib = JSON.parse(localStorage.getItem('material_library') || '[]');
+                        if (!lib.some(item => item.url === m.url)) {
+                            saveVideoToLibrary(m.url, m.step || `${skillName} - 视频${idx + 1}`, 'skill');
+                            savedVideos++;
+                        }
                     }
                 });
             }
@@ -3227,12 +2676,6 @@
             if (result && result.outline && typeof result.outline === 'string') {
                 hasTextContent = true;
             }
-            // 新增：ocrText, result(string), copyText, strategy, script
-            if (result && result.ocrText) { hasTextContent = true; messageContent += `🔍 OCR识别完成\n`; }
-            if (result && typeof result.result === 'string') { hasTextContent = true; messageContent += `📝 脚本处理完成\n`; }
-            if (result && result.copyText) { hasTextContent = true; messageContent += `📝 文案生成完成\n`; }
-            if (result && result.strategy) { hasTextContent = true; messageContent += `📊 策略方案生成完成\n`; }
-            if (result && result.script && typeof result.script === 'string') { hasTextContent = true; messageContent += `📝 剧本生成完成\n`; }
             // generatedMedia 中的文本
             const textItems = (generatedMedia || []).filter(m => m.type === 'text' && m.content);
             if (textItems.length > 0) hasTextContent = true;
@@ -3274,12 +2717,6 @@
                 const segMsg = result.segments.map((s, i) => `片段${i + 1}: ${typeof s === 'string' ? s : (s.description || s.content || JSON.stringify(s)).substring(0, 200)}`).join('\n\n');
                 addMessage(segMsg, 'ai');
             }
-            // 展示 OCR / 脚本 / 文案 / 策略 / 剧本 等文本结果
-            if (result && result.ocrText) addMessage(`🔍 OCR识别结果：\n${result.ocrText}`, 'ai');
-            if (result && typeof result.result === 'string') addMessage(`📝 处理结果：\n${result.result}`, 'ai');
-            if (result && result.copyText) addMessage(`📝 文案内容：\n${result.copyText}`, 'ai');
-            if (result && result.strategy) addMessage(`📊 策略方案：\n${result.strategy}`, 'ai');
-            if (result && result.script && typeof result.script === 'string') addMessage(`📝 剧本：\n${result.script}`, 'ai');
             
             // 🎨 展示图片和视频（使用合并后的 allMedia）
             if (allImages.length > 0 || allVideos.length > 0) {

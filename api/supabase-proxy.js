@@ -1830,6 +1830,68 @@ module.exports = async function handler(req, res) {
             return;
         }
 
+        // ========== 用户长期记忆 ==========
+        if (action === 'saveUserMemory') {
+            const { data } = body || {};
+            if (!data || typeof data !== 'object') {
+                res.status(400).json({ error: 'INVALID_DATA', message: '缺少有效的 data 对象' });
+                return;
+            }
+            try {
+                // Upsert: if user_id row exists, update; otherwise insert
+                const upsertUrl = `${SUPABASE_URL}/rest/v1/user_memory`;
+                const upsertHeaders = {
+                    ...headers,
+                    Prefer: 'return=representation,resolution=merge-duplicates'
+                };
+                const payload = {
+                    user_id: userId,
+                    data: data,
+                    updated_at: new Date().toISOString()
+                };
+                const uRes = await fetch(upsertUrl, {
+                    method: 'POST',
+                    headers: upsertHeaders,
+                    body: JSON.stringify(payload)
+                });
+                if (!uRes.ok) {
+                    const errText = await uRes.text();
+                    console.error('[supabase-proxy] saveUserMemory failed:', uRes.status, errText);
+                    res.status(500).json({ error: 'SAVE_MEMORY_FAILED', message: errText || '保存用户记忆失败' });
+                    return;
+                }
+                const rows = await uRes.json().catch(() => ([]));
+                console.log(`[supabase-proxy] 🧠 用户记忆已保存: ${userId}`);
+                res.status(200).json({ success: true, memory: rows?.[0] || null });
+                return;
+            } catch (e) {
+                console.error('[supabase-proxy] saveUserMemory error:', e.message);
+                res.status(500).json({ error: 'SAVE_MEMORY_ERROR', message: e.message });
+                return;
+            }
+        }
+
+        if (action === 'getUserMemory') {
+            try {
+                const getUrl = `${SUPABASE_URL}/rest/v1/user_memory?user_id=eq.${encodeURIComponent(userId)}&select=*`;
+                const gRes = await fetch(getUrl, { headers });
+                if (!gRes.ok) {
+                    const errText = await gRes.text();
+                    console.error('[supabase-proxy] getUserMemory failed:', gRes.status, errText);
+                    res.status(500).json({ error: 'GET_MEMORY_FAILED', message: errText || '获取用户记忆失败' });
+                    return;
+                }
+                const rows = await gRes.json().catch(() => ([]));
+                const memory = rows?.[0] || null;
+                res.status(200).json({ success: true, memory });
+                return;
+            } catch (e) {
+                console.error('[supabase-proxy] getUserMemory error:', e.message);
+                res.status(500).json({ error: 'GET_MEMORY_ERROR', message: e.message });
+                return;
+            }
+        }
+
         // ========== 保存生成记录 ==========
         if (action === 'saveGenerationRecord') {
             const { recordType, contentUrl, contentText, prompt, model, cost, metadata } = body;

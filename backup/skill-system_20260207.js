@@ -45,11 +45,8 @@
         /** @type {Array<Object>} */
         _history: [],
 
-        /** @type {Map<string, Object>} 并发执行中的任务 */
-        _executions: new Map(),
-
-        /** @type {number} 最大并发数 */
-        _maxConcurrent: 3,
+        /** @type {Object|null} */
+        _currentExecution: null,
 
         /** @type {Array<Function>} */
         _listeners: [],
@@ -147,9 +144,9 @@
                 throw error;
             }
 
-            // 检查并发上限
-            if (this._executions.size >= this._maxConcurrent) {
-                const error = new Error(`已达最大并发数(${this._maxConcurrent})，请等待某个任务完成或取消`);
+            // 检查是否有正在执行的任务
+            if (this._currentExecution) {
+                const error = new Error('已有 Skill 正在执行中，请等待完成或取消');
                 callbacks.onError?.(error);
                 throw error;
             }
@@ -167,11 +164,10 @@
             const executionId = `exec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const startTime = Date.now();
 
-            const execution = {
+            this._currentExecution = {
                 id: executionId,
                 skillId,
                 skillName: skill.name,
-                skillIcon: skill.icon,
                 params,
                 startTime,
                 status: 'running',
@@ -180,36 +176,30 @@
                 cancelled: false
             };
 
-            this._executions.set(executionId, execution);
-            this._emit('executionStarted', { ...execution });
+            this._emit('executionStarted', this._currentExecution);
 
             try {
-                console.log(`🚀 [SkillManager] 开始执行 Skill: ${skill.icon} ${skill.name} (${executionId}, 并发${this._executions.size}/${this._maxConcurrent})`);
+                console.log(`🚀 [SkillManager] 开始执行 Skill: ${skill.icon} ${skill.name}`);
 
                 // 执行 Skill
                 const result = await skill.execute(params, {
                     ...callbacks,
-                    executionId,
                     onProgress: (step, progress, message) => {
-                        const exec = this._executions.get(executionId);
-                        if (exec?.cancelled) {
+                        if (this._currentExecution?.cancelled) {
                             throw new Error('用户取消执行');
                         }
-                        if (exec) {
-                            exec.progress = progress;
-                            exec.currentStep = step;
-                        }
+                        this._currentExecution.progress = progress;
+                        this._currentExecution.currentStep = step;
                         callbacks.onProgress?.(step, progress, message);
-                        this._emit('executionProgress', { ...exec, message });
+                        this._emit('executionProgress', { ...this._currentExecution, message });
                     },
                     onStepComplete: (stepName, stepResult) => {
-                        const exec = this._executions.get(executionId);
-                        if (exec) {
-                            exec.steps.push({ name: stepName, result: stepResult, time: Date.now() });
+                        if (this._currentExecution) {
+                            this._currentExecution.steps.push({ name: stepName, result: stepResult, time: Date.now() });
                         }
                         callbacks.onStepComplete?.(stepName, stepResult);
                     },
-                    isCancelled: () => this._executions.get(executionId)?.cancelled || false
+                    isCancelled: () => this._currentExecution?.cancelled || false
                 });
 
                 // 记录成功
@@ -228,7 +218,7 @@
                 };
 
                 this._addHistory(record);
-                this._executions.delete(executionId);
+                this._currentExecution = null;
                 this._emit('executionCompleted', record);
 
                 console.log(`✅ [SkillManager] Skill 执行完成: ${skill.name}, 耗时 ${((endTime - startTime) / 1000).toFixed(1)}s`);
@@ -237,7 +227,6 @@
 
             } catch (error) {
                 // 记录失败
-                const exec = this._executions.get(executionId);
                 const endTime = Date.now();
                 const record = {
                     id: executionId,
@@ -249,11 +238,11 @@
                     startTime,
                     endTime,
                     duration: endTime - startTime,
-                    status: exec?.cancelled ? 'cancelled' : 'failed'
+                    status: this._currentExecution?.cancelled ? 'cancelled' : 'failed'
                 };
 
                 this._addHistory(record);
-                this._executions.delete(executionId);
+                this._currentExecution = null;
                 this._emit('executionFailed', record);
 
                 console.error(`❌ [SkillManager] Skill 执行失败: ${skill.name}`, error);
@@ -263,68 +252,23 @@
         },
 
         /**
-         * 取消指定执行（不传参则取消全部）
-         * @param {string} [executionId] - 要取消的执行ID，留空取消所有
-         * @returns {boolean}
+         * 取消当前执行
          */
-        cancel(executionId) {
-            if (executionId) {
-                const exec = this._executions.get(executionId);
-                if (exec) {
-                    exec.cancelled = true;
-                    console.log(`🛑 [SkillManager] 已请求取消: ${exec.skillName} (${executionId})`);
-                    return true;
-                }
-                return false;
-            }
-            // 取消全部
-            if (this._executions.size > 0) {
-                for (const exec of this._executions.values()) {
-                    exec.cancelled = true;
-                }
-                console.log(`🛑 [SkillManager] 已请求取消全部 ${this._executions.size} 个任务`);
+        cancel() {
+            if (this._currentExecution) {
+                this._currentExecution.cancelled = true;
+                console.log('🛑 [SkillManager] 已请求取消当前 Skill 执行');
                 return true;
             }
             return false;
         },
 
         /**
-         * 获取所有活跃执行
-         * @returns {Array<Object>}
-         */
-        getActiveExecutions() {
-            return Array.from(this._executions.values()).map(e => ({ ...e }));
-        },
-
-        /**
-         * 获取当前执行状态（向后兼容：返回最新的执行）
+         * 获取当前执行状态
          * @returns {Object|null}
          */
         getCurrentExecution() {
-            if (this._executions.size === 0) return null;
-            // 返回最后一个添加的执行
-            let latest = null;
-            for (const exec of this._executions.values()) {
-                latest = exec;
-            }
-            return latest ? { ...latest } : null;
-        },
-
-        /**
-         * 获取活跃任务数
-         * @returns {number}
-         */
-        getActiveCount() {
-            return this._executions.size;
-        },
-
-        /**
-         * 设置最大并发数
-         * @param {number} max
-         */
-        setMaxConcurrent(max) {
-            this._maxConcurrent = Math.max(1, Math.min(10, max));
-            console.log(`🔧 [SkillManager] 最大并发数设置为: ${this._maxConcurrent}`);
+            return this._currentExecution ? { ...this._currentExecution } : null;
         },
 
         // ---------- 历史记录 ----------
@@ -609,11 +553,11 @@
                 const type = def.templateType || 'text';
                 const count = parseInt(params.count || def.count) || 1;
                 if (type === 'text') {
-                    return { film: Math.max(1, count), time: '约 30 秒' };
+                    return { film: Math.ceil(count * 0.2), time: '约 30 秒' };
                 } else if (type === 'image') {
-                    return { film: Math.ceil(count * 6), time: `约 ${count} 分钟` };
+                    return { film: Math.ceil(count * 0.5), time: `约 ${count} 分钟` };
                 } else if (type === 'video') {
-                    return { film: Math.ceil(count * 14), time: `约 ${count * 2} 分钟` }; // 图片6+视频7+文本1
+                    return { film: Math.ceil(count * 3.5), time: `约 ${count * 2} 分钟` };
                 }
                 return { film: 1, time: '约 1 分钟' };
             };
@@ -627,7 +571,7 @@
             const templateType = def.templateType || 'text';
             const promptTemplate = def.promptTemplate || '';
             const aspectRatio = def.aspectRatio || '16:9';
-            const videoModel = def.videoModel || 'sora-2-vip-all';
+            const videoModel = def.videoModel || 'sora-2-all';
             const defaultCount = parseInt(def.count) || 1;
 
             // 替换模板中的 {{key}} 为参数值
@@ -993,22 +937,17 @@
 
                     case 'file':
                     case 'image':
-                        // 🖼️ 初始化多图存储
-                        if (param.type === 'image' && typeof skillImageStore !== 'undefined') {
-                            skillImageStore[param.key] = [];
-                        }
-                        input = `<div class="skill-param-file" style="position:relative;">
+                        input = `<div class="skill-param-file">
                                     <input type="file" id="skill_param_${param.key}" 
                                            accept="${param.type === 'image' ? 'image/*' : '*'}"
-                                           ${param.type === 'image' ? 'multiple' : (param.multiple ? 'multiple' : '')}
-                                           style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1;"
-                                           onchange="${param.type === 'image' && typeof handleSkillImageUpload !== 'undefined' ? `handleSkillImageUpload('${param.key}', this)` : `SkillUI._onFileSelected('${param.key}', this)`}">
-                                    <label for="skill_param_${param.key}" class="skill-file-btn" style="cursor:pointer;display:block;border:2px dashed #444;border-radius:10px;padding:16px;text-align:center;color:#888;">
-                                        <div style="font-size:24px;margin-bottom:4px;">${param.type === 'image' ? '📷' : '📁'}</div>
-                                        <div class="skill-img-text" style="font-size:13px;">点击上传${param.type === 'image' ? '图片（可多选）' : '文件'}</div>
-                                        <div id="skill_img_previews_${param.key}" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
-                                    </label>
-                                    <span id="skill_param_${param.key}_name" class="skill-file-name" style="display:none;"></span>
+                                           ${param.multiple ? 'multiple' : ''}
+                                           style="display:none;"
+                                           onchange="SkillUI._onFileSelected('${param.key}', this)">
+                                    <button type="button" class="skill-file-btn" 
+                                            onclick="document.getElementById('skill_param_${param.key}').click()">
+                                        ${param.type === 'image' ? '📷' : '📁'} 选择${param.type === 'image' ? '图片' : '文件'}
+                                    </button>
+                                    <span id="skill_param_${param.key}_name" class="skill-file-name">未选择</span>
                                  </div>`;
                         break;
 
@@ -1095,14 +1034,7 @@
                         break;
                     case 'file':
                     case 'image':
-                        // 🖼️ 多图模式：优先从 skillImageStore 读取 base64 数组
-                        if (typeof skillImageStore !== 'undefined' && skillImageStore[param.key] && skillImageStore[param.key].length > 0) {
-                            params[param.key] = skillImageStore[param.key];
-                        } else if (el.files && el.files.length > 0) {
-                            params[param.key] = el.files;
-                        } else {
-                            params[param.key] = null;
-                        }
+                        params[param.key] = el.files;
                         break;
                     default:
                         params[param.key] = el.value || param.default;
@@ -1201,47 +1133,17 @@
         },
 
         _onExecutionCompleted(data) {
-            const panel = document.getElementById('skillProgressPanel');
-            if (!panel) return; // chat.html / mobile.html 由各自 onComplete 处理
-
-            const duration = ((data.duration || 0) / 1000).toFixed(1);
-            const text = document.getElementById('skillProgressText');
-            const bar = document.getElementById('skillProgressBar');
-            if (text) text.textContent = `🎉 ${data.skillName} 执行完成！耗时 ${duration}s`;
-            if (bar) bar.style.width = '100%';
-
-            // 将「取消 / 后台运行」按钮替换为「完成」
-            const content = panel.querySelector('.cinematic-content');
-            if (content) {
-                const lastDiv = content.lastElementChild;
-                if (lastDiv && lastDiv.querySelectorAll('button').length >= 2) {
-                    lastDiv.innerHTML = `<button onclick="document.getElementById('skillProgressPanel').style.display='none'"
-                        style="flex:1;padding:12px 20px;background:linear-gradient(135deg,var(--accent-gold,#fbbf24),#f97316);border:none;color:#000;font-weight:600;border-radius:20px;cursor:pointer;font-size:15px;">✅ 完成</button>`;
-                }
-            }
-
-            this._showCompletionMessage(data);
+            setTimeout(() => {
+                this._hideProgressPanel();
+                this._showCompletionMessage(data);
+            }, 500);
         },
 
         _onExecutionFailed(data) {
-            const panel = document.getElementById('skillProgressPanel');
-            if (!panel) return;
-
-            const text = document.getElementById('skillProgressText');
-            if (text) text.textContent = data.status === 'cancelled'
-                ? `🛑 ${data.skillName} 已取消`
-                : `❌ ${data.skillName} 执行失败: ${data.error}`;
-
-            const content = panel.querySelector('.cinematic-content');
-            if (content) {
-                const lastDiv = content.lastElementChild;
-                if (lastDiv && lastDiv.querySelectorAll('button').length >= 2) {
-                    lastDiv.innerHTML = `<button onclick="document.getElementById('skillProgressPanel').style.display='none'"
-                        style="flex:1;padding:12px 20px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#aaa;border-radius:20px;cursor:pointer;font-size:15px;">关闭</button>`;
-                }
-            }
-
-            this._showErrorMessage(data);
+            setTimeout(() => {
+                this._hideProgressPanel();
+                this._showErrorMessage(data);
+            }, 500);
         },
 
         _showCompletionMessage(data) {
@@ -1266,11 +1168,10 @@
         },
 
         /**
-         * 取消执行
-         * @param {string} [executionId] - 留空取消全部
+         * 取消当前执行
          */
-        cancelExecution(executionId) {
-            if (SkillManager.cancel(executionId)) {
+        cancelExecution() {
+            if (SkillManager.cancel()) {
                 if (typeof showToast === 'function') {
                     showToast('🛑 正在取消...', 'warning');
                 }

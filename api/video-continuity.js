@@ -181,16 +181,16 @@ async function generateVideoSegment({ prompt, model, duration, aspect_ratio, hd,
             try {
                 // 🔧 云梦API使用的字段命名（与 sora2.js 保持一致）
                 const body = {
-                    model: model || 'sora-2-all',
+                    model: model || 'sora-2-vip-all',
                     prompt
                 };
                 
                 // 🔧 模型名称标准化（与 sora2.js 保持一致）
                 const m = String(body.model || '').trim();
-                if (m === 'sora-2' || m === 'sora-2-hd' || m === 'sora-2-landscape' || m === 'sora-2-landscape-hd' || m === 'sora-2-portrait' || m === 'sora-2-portrait-hd') {
-                    body.model = 'sora-2-all';
+                if (m === 'sora-2' || m === 'sora-2-hd' || m === 'sora-2-landscape' || m === 'sora-2-landscape-hd' || m === 'sora-2-portrait' || m === 'sora-2-portrait-hd' || m === 'sora-2-all' || m === 'sora-2-pro-all') {
+                    body.model = 'sora-2-vip-all';
                 } else if (m === 'sora-2-pro') {
-                    body.model = 'sora-2-pro-all';
+                    body.model = 'sora-2-vip-all';
                 }
 
                 // ✅ HD 标志：仅对 sora 系列有意义（veo 不需要）

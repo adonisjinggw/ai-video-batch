@@ -476,8 +476,14 @@
                     <div class="preset-btns">
                         <button class="preset-btn" onclick="setComboPreset(3, 'month', 3000)">LV3月卡 (解锁3000胶片)</button>
                         <button class="preset-btn" onclick="setComboPreset(5, 'quarter', 35000)">LV5季卡 (解锁35000胶片)</button>
-                        <button class="preset-btn" onclick="setComboPreset(7, 'year', 68000)">LV7年卡 (解锁68000胶片)</option>
+                        <button class="preset-btn" onclick="setComboPreset(7, 'year', 68000)">LV7年卡 (解锁68000胶片)</button>
                         <button class="preset-btn" onclick="setComboPreset(10, 'permanent', 100000)">LV10永久 (解锁100000胶片)</button>
+                    </div>
+                    <div class="preset-btns" style="margin-top:8px;">
+                        <button class="preset-btn" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.4);color:#c084fc;" onclick="setComboByPrice(10, 'permanent', 300)">💰 LV10 ¥300 (1000胶片)</button>
+                        <button class="preset-btn" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.4);color:#c084fc;" onclick="setComboByPrice(10, 'permanent', 500)">💰 LV10 ¥500 (1667胶片)</button>
+                        <button class="preset-btn" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.4);color:#c084fc;" onclick="setComboByPrice(10, 'permanent', 800)">💰 LV10 ¥800 (2667胶片)</button>
+                        <button class="preset-btn" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.4);color:#c084fc;" onclick="setComboByPrice(10, 'permanent', 1500)">💰 LV10 ¥1500 (5000胶片)</button>
                     </div>
 
                     <div class="form-row">
@@ -506,8 +512,12 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>解锁胶片</label>
-                            <input type="number" id="comboFilm" value="35000" min="0" readonly style="background: #333; cursor: not-allowed;">
+                            <label>解锁胶片 <span style="font-size:11px;color:#a78bfa;">(可自定义)</span></label>
+                            <input type="number" id="comboFilm" value="35000" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>对应价格</label>
+                            <input type="text" id="comboPrice" value="" placeholder="¥800 (仅备注)" style="color:#a78bfa;">
                         </div>
                     </div>
 
@@ -614,17 +624,30 @@
             document.getElementById('filmPrice').value = price;
         }
 
+        // 价格→胶片换算（0.3元/胶片，即1元 ≈ 3.33胶片）
+        const PRICE_TO_FILM_RATE = 1 / 0.3;
+
         // 预设组合套餐（自动根据等级设置胶片）
         function setComboPreset(level, type, film) {
             document.getElementById('comboLevel').value = level;
             document.getElementById('comboType').value = type;
             document.getElementById('comboFilm').value = LEVEL_FILM_MAP[level] || film;
+            document.getElementById('comboPrice').value = '';
         }
 
-        // 当选择等级时自动更新胶片数量
+        // 💰 按价格设置组合套餐（LV10等级 + 按价格计算胶片）
+        function setComboByPrice(level, type, price) {
+            document.getElementById('comboLevel').value = level;
+            document.getElementById('comboType').value = type;
+            document.getElementById('comboFilm').value = Math.round(price * PRICE_TO_FILM_RATE);
+            document.getElementById('comboPrice').value = '¥' + price;
+        }
+
+        // 当选择等级时自动更新胶片数量（仅在未手动修改时）
         function updateComboFilm() {
             const level = parseInt(document.getElementById('comboLevel').value) || 5;
             document.getElementById('comboFilm').value = LEVEL_FILM_MAP[level] || 35000;
+            document.getElementById('comboPrice').value = '';
         }
 
         // 生成随机字符串

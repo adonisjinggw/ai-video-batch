@@ -1760,62 +1760,53 @@ async function callMidjourneyImageAPI(prompt, options = {}) {
     }
     
     // 调用 Midjourney API (通过 yunwu.js，后端处理扣费)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5分钟超时
+    // 🔧 移除前端 AbortController 超时（与手机版 banana.html 保持一致）
+    const user = await NVAuth.getCurrentUser();
+    const requestBody = {
+        action: 'midjourney',
+        prompt,
+        model,
+        aspect_ratio: aspectRatio,
+        version,
+        userId: user?.id
+    };
     
-    try {
-        const user = await NVAuth.getCurrentUser();
-        const requestBody = {
-            action: 'midjourney',
-            prompt,
-            model,
-            aspect_ratio: aspectRatio,
-            version,
-            userId: user?.id
-        };
-        
-        const res = await fetch('/api/yunwu', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        const data = await res.json().catch(() => ({}));
-        
-        if (!res.ok || !data.success) {
-            const msg = data.message || data.error || `Midjourney失败: ${res.status}`;
-            throw new Error(msg);
-        }
-        
-        // 提取图片URL和taskId
-        const imageUrl = data.imageUrl || data.url || '';
-        const taskId = data.taskId || '';  // 🆕 用于后续 upscale
-        const gridBase64 = data.gridBase64 || '';  // 🆕 base64 网格图，用于前端切图
-        
-        if (!imageUrl) {
-            throw new Error('Midjourney 未返回图片URL');
-        }
-        
-        // 后端已扣费，更新显示
-        if (data.billed > 0) {
-            try { updateUsageDisplay(); } catch (e) { }
-        }
-        
-        console.log(`🎨 [Midjourney] 生成成功，taskId:`, taskId, 'gridBase64:', gridBase64 ? `${Math.round(gridBase64.length/1024)}KB` : '无');
-        
-        // 🆕 返回网格图 + taskId + gridBase64，由前端切图选择后调用 upscale
-        return {
-            url: imageUrl,
-            taskId: taskId,
-            gridBase64: gridBase64,  // 前端用这个切图
-            isMjGrid: true  // 标记为 MJ 网格图
-        };
-    } finally {
-        clearTimeout(timeoutId);
+    const res = await fetch('/api/yunwu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+    });
+    
+    const data = await res.json().catch(() => ({}));
+    
+    if (!res.ok || !data.success) {
+        const msg = data.message || data.error || `Midjourney失败: ${res.status}`;
+        throw new Error(msg);
     }
+    
+    // 提取图片URL和taskId
+    const imageUrl = data.imageUrl || data.url || '';
+    const taskId = data.taskId || '';  // 🆕 用于后续 upscale
+    const gridBase64 = data.gridBase64 || '';  // 🆕 base64 网格图，用于前端切图
+    
+    if (!imageUrl) {
+        throw new Error('Midjourney 未返回图片URL');
+    }
+    
+    // 后端已扣费，更新显示
+    if (data.billed > 0) {
+        try { updateUsageDisplay(); } catch (e) { }
+    }
+    
+    console.log(`🎨 [Midjourney] 生成成功，taskId:`, taskId, 'gridBase64:', gridBase64 ? `${Math.round(gridBase64.length/1024)}KB` : '无');
+    
+    // 🆕 返回网格图 + taskId + gridBase64，由前端切图选择后调用 upscale
+    return {
+        url: imageUrl,
+        taskId: taskId,
+        gridBase64: gridBase64,  // 前端用这个切图
+        isMjGrid: true  // 标记为 MJ 网格图
+    };
 }
 
 // 暴露到全局
@@ -2028,23 +2019,14 @@ async function callBanana2ImageAPI(prompt, optionsOrAspectRatio) {
 
     try {
         const imageUrl = await retryableAPICall(async () => {
-            const isJimeng = String(model).includes('jimeng');
-            const isSeedream = String(model).includes('seedream') || String(model).includes('doubao');
-            const timeoutMs = isJimeng ? 180000 : (isSeedream ? 150000 : (isPremiumModel ? 150000 : 90000));
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-            let res;
-            try {
-                res = await fetch('/api/banana2', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-                    body: JSON.stringify(requestBodyBase),
-                    signal: controller.signal
-                });
-            } finally {
-                clearTimeout(timeoutId);
-            }
+            // 🔧 移除前端 AbortController 超时（与手机版 banana.html 保持一致）
+            // 后端 Vercel 函数已配置 maxDuration:180，客户端不需要额外超时
+            // 避免 "signal is aborted without reason" 错误
+            const res = await fetch('/api/banana2', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+                body: JSON.stringify(requestBodyBase)
+            });
 
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.success) {
@@ -2108,11 +2090,13 @@ function __estimateSoraVideoFilmCost(model, duration, hd) {
         const m = __normalizeVideoModelName(model);
         const dur = parseInt(duration, 10) || 15;
 
-        if (m === 'sora-2-pro-all') {
-            const base = Number(QUOTA_COSTS.video_sora2_pro_15s || 0);
-            if (!(base > 0)) return 0;
-            return (dur <= 15) ? base : Math.ceil(base * (dur / 15));
-        }
+    if (m === 'sora-2-pro-all') {
+        const base = Number(QUOTA_COSTS.video_sora2_pro_15s || 0);
+        if (!(base > 0)) return 0;
+        return (dur <= 15) ? base : Math.ceil(base * (dur / 15));
+    }
+    // sora-2-vip-all 过渡模型：固定费用
+    if (m === 'sora-2-vip-all') return Number(QUOTA_COSTS.video_sora2_15s || 0);
 
         if (dur <= 1) return Number(QUOTA_COSTS.video_sora2_1s || QUOTA_COSTS.video_sora2_15s || 0);
         if (dur <= 8) return Number(QUOTA_COSTS.video_sora2_8s || QUOTA_COSTS.video_sora2_15s || 0);
@@ -2155,7 +2139,7 @@ async function __consumeSoraVideoFilmIfNeeded(model, duration, hd) {
 }
 
 async function callSora2TextToVideoAPI(prompt, options = {}) {
-    const { model = 'sora-2-all', aspectRatio = '16:9', duration = 15, hd, key_value, video_url, character_username, character_usernames, character_url, character_timestamps, input_reference, style } = options;
+    const { model = 'sora-2-vip-all', aspectRatio = '16:9', duration = 10, hd, key_value, video_url, character_username, character_usernames, character_url, character_timestamps, input_reference, style } = options;
 
     // ✅ 统一模型与时长规则（避免不同入口传参不一致）
     const _m = __normalizeVideoModelName(model);
@@ -2320,11 +2304,12 @@ async function callSora2TextToVideoAPI(prompt, options = {}) {
 function __normalizeVideoModelName(model) {
     const m = String(model || '').trim();
     const ml = m.toLowerCase();
-    if (!ml) return 'sora-2-all';
-    if (ml === 'sora2' || ml === 'sora-2' || ml === 'sora-2-hd' || ml === 'sora2-hd' || ml === 'sora-2-all') return 'sora-2-all';
-    if (ml === 'sora2pro' || ml === 'sora-2-pro' || ml === 'sora2-pro' || ml === 'sora-2-pro-all') return 'sora-2-pro-all';
-    // 🔧 修复：sora-2-characters 现在转换为普通 sora-2-all，角色锁定功能通过独立选项控制
-    if (ml === 'sora-2-characters') return 'sora-2-all';
+    if (!ml) return 'sora-2-vip-all';
+    if (ml === 'sora-2-vip-all') return 'sora-2-vip-all';
+    // 🔧 旧 sora2 模型已停用，统一转换为过渡模型 sora-2-vip-all
+    if (ml === 'sora2' || ml === 'sora-2' || ml === 'sora-2-hd' || ml === 'sora2-hd' || ml === 'sora-2-all') return 'sora-2-vip-all';
+    if (ml === 'sora2pro' || ml === 'sora-2-pro' || ml === 'sora2-pro' || ml === 'sora-2-pro-all') return 'sora-2-vip-all';
+    if (ml === 'sora-2-characters') return 'sora-2-vip-all';
     if (ml === 'veo3.1fast' || ml === 'veo-3.1fast' || ml === 'veo-3.1-fast') return 'veo3.1';
     if (ml === 'veo3.1' || ml === 'veo-3.1') return 'veo3.1';
     // 兼容旧值：不展示 veo3.1-pro，但如果历史任务里选过，自动降级为 veo3.1
@@ -2337,6 +2322,7 @@ function __normalizeVideoModelName(model) {
 
 function __getFixedClipDurationByModel(model, hd) {
     const m = __normalizeVideoModelName(model);
+    if (m === 'sora-2-vip-all') return 10; // 过渡模型固定10秒
     if (m === 'sora-2-pro-all') {
         const wantHd = (typeof hd === 'undefined') ? true : !!hd;
         return wantHd ? 15 : 25;
@@ -2353,7 +2339,7 @@ function __getFixedClipDurationByModel(model, hd) {
         const durationMatch = String(m).match(/-(\d+)s[-$]/i) || String(m).match(/-(\d+)s$/i);
         return durationMatch ? parseInt(durationMatch[1]) : 6;  // 默认6秒
     }
-    if (String(m).startsWith('sora-2')) return 15;
+    if (String(m).startsWith('sora-2')) return 10;
     return 15;
 }
 
@@ -2429,8 +2415,7 @@ function __parseKlingModel(model) {
 
 function __isSora2Family(model) {
     const m = __normalizeVideoModelName(model);
-    // 🔧 修复：sora-2-characters 已合并到 sora-2-all
-    return m === 'sora-2-all' || m === 'sora-2-pro-all';
+    return m === 'sora-2-vip-all' || m === 'sora-2-all' || m === 'sora-2-pro-all';
 }
 
 function __getVideoHdFlag(obj) {
@@ -2494,7 +2479,7 @@ function __applyFixedVideoTimingToIdea(idea) {
 }
 
 async function callSora2ImageToVideoAPI(imageUrl, prompt, options = {}) {
-    const { model = 'sora-2', aspectRatio = '16:9', duration = 15, hd, key_value, video_url, character_username, character_usernames, character_url, character_timestamps, style } = options;
+    const { model = 'sora-2-vip-all', aspectRatio = '16:9', duration = 10, hd, key_value, video_url, character_username, character_usernames, character_url, character_timestamps, style } = options;
 
     // ✅ 统一模型与时长规则（避免不同入口传参不一致）
     const _m = __normalizeVideoModelName(model);
@@ -4134,7 +4119,8 @@ const QUOTA_COSTS = {
     image_free: 0,
 
     // 🎬 视频生成
-    // sora-2-all: 成本¥0.10 → 售价¥0.20 → 2胶片
+    // sora-2-vip-all: 过渡模型 10s, 2胶片
+    // sora-2-all(已停用): 成本¥0.10 → 售价¥0.20 → 2胶片
     video_generation: 2,
     video_sora2_1s: 2,
     video_sora2_8s: 2,
@@ -7351,8 +7337,9 @@ window.executeCanvasCommand = async function () {
     };
     const VIDEO_MODEL_MAP = {
         'auto': null,
-        'sora-2-all': 'sora-2-all',
-        'sora-2-pro-all': 'sora-2-pro-all',
+        'sora-2-vip-all': 'sora-2-vip-all',
+        'sora-2-all': 'sora-2-vip-all',
+        'sora-2-pro-all': 'sora-2-vip-all',
         'veo': 'veo3.1',
         'grok': 'grok-video-3',
         // Vidu 系列 - 5秒
@@ -9498,136 +9485,117 @@ async function processIdea(idea) {
             }
         }
 
-        // ⚠️ 严格顺序执行：角色图必须先完成，分镜才能使用完整角色信息保持一致性
+        // 🚀 并发优化：第三步（角色图）和第四步（分镜）同时进行，大幅缩短单任务耗时
+        // 角色图和分镜互不依赖（分镜仅需角色文本描述，不需要角色图URL）
+        const isI2VMode = idea.generationMode === 'banana-image-to-video' || idea.generationMode === 'image-to-video' || idea.generationMode === 'banana-grid-to-video';
+        const targetScenes = Math.min(Math.max(parseInt(idea.scenes) || 3, 1), 20);
 
-        // 🎨 第三步：生成角色设定图（仅完整模式）
-        // 🔧 修复：Banana2 角色设定图和 Sora-2 角色锁定是互斥的
-        // 如果用户选择了 Sora-2 角色一致性，则跳过 Banana2 角色设定图生成
-        if (pipelineMode === 'full') {
+        // === Step 3 Promise：角色设定图（与分镜并发）===
+        const _step3CharImages = (async () => {
+            if (pipelineMode !== 'full') return;
             const useSoraCharacterLock = idea.settings?.enableSoraCharacterLock === true;
             const useBananaCharSheet = idea.settings?.enableCharSheet !== false && !useSoraCharacterLock;
-            
-            // 🍌 Banana2 角色设定图模式
             const needCharImages = useBananaCharSheet && (!idea.characterImages || idea.characterImages.length === 0);
             if (needCharImages) {
                 await checkPauseState();
                 if (checkCancel(idea)) return;
-
-                addStepLog(idea, '🍌 第三步：正在用 Banana2 生成角色设定图（必须完成后才继续）...', 'processing');
-                updateCreativeScreenText('🍌 AI 正在绘制角色设定图...');
+                addStepLog(idea, '🍌 第三步：正在用 Banana2 生成角色设定图（与分镜并发）...', 'processing');
                 updateCinematicOverlaySteps('🍌 正在生成角色设定图...', 'processing', idea.id);
-
                 try {
-                    await generateCharacterImages(idea); // ✅ 严格等待
+                    await generateCharacterImages(idea);
                     const characterCount = idea.characterDescriptions?.length || (idea.characterSheets?.length) || 0;
                     if (idea.characterImages && idea.characterImages.length > 0) {
                         addStepLog(idea, `✅ 第三步完成：${characterCount} 名角色已生成双模板设定图`, 'completed');
                         updateCinematicOverlaySteps(`✅ 角色图完成: ${characterCount}人 × 2`, 'completed', idea.id);
                     } else {
-                        // 角色图失败仍允许用文本继续，但会明确提示一致性可能下降
                         addStepLog(idea, '⚠️ 第三步：角色图生成失败（将仅使用文本描述继续）', 'warning');
                     }
                 } catch (e) {
                     console.error('角色图生成失败:', e);
                     addStepLog(idea, `⚠️ 角色图生成失败：${e?.message || e}（将仅使用文本描述继续）`, 'warning');
                 }
-
-                // 保存进度并刷新UI
-                saveIdeasToHistory();
-                renderCanvas();
-                renderIdeasList();
+                saveIdeasToHistory(); renderCanvas(); renderIdeasList();
             } else if (useSoraCharacterLock) {
-                // 🧬 Sora-2 角色一致性模式：跳过 Banana2 角色设定图
                 addStepLog(idea, '🧬 第三步：使用 Sora-2 角色一致性模式，跳过 Banana2 角色设定图', 'info');
             } else if (!useBananaCharSheet) {
                 addStepLog(idea, 'ℹ️ 第三步：跳过角色图生成（已禁用）', 'info');
             }
+        })();
 
-            // 🔗 合并角色信息（描述 + 图片URL）
+        // === Step 4 Promise：分镜拉片（与角色图并发）===
+        const _step4Storyboards = (async () => {
+            let normalStoryboards = idea.normalStoryboards;
+            if (isI2VMode && pipelineMode === 'full') {
+                addStepLog(idea, '🖼️ 图生视频模式：跳过分镜生成，直接拆分场景...', 'processing');
+                updateCreativeScreenText('🖼️ 正在拆分故事场景...');
+                const script = idea.generatedScript || idea.theme || '';
+                const charContext = buildCharacterContext(idea.characterSheets, idea.characterDescriptions || []);
+                const scenePromptReq = `你是场景设计师。根据故事提取${targetScenes}个关键场景画面。\n\n【故事】${script.slice(0, 1500)}\n\n【角色】${charContext.slice(0, 500)}\n\n【要求】每行一个场景描述（人物动作、表情、环境），保持角色外观一致，不要对话/音效/镜头术语。共${targetScenes}行：`;
+                try {
+                    const sceneText = await callScriptGenerator(idea, scenePromptReq);
+                    const sceneLines = sceneText.split('\n').map(l => l.trim()).filter(l => l && l.length > 10).slice(0, targetScenes);
+                    while (sceneLines.length < targetScenes) {
+                        sceneLines.push(`场景${sceneLines.length + 1}：${script.slice(0, 100)}`);
+                    }
+                    normalStoryboards = sceneLines;
+                    idea.normalStoryboards = normalStoryboards;
+                    idea.imageToVideoScenes = sceneLines;
+                    addStepLog(idea, `✅ 已拆分 ${sceneLines.length} 个场景`, 'completed');
+                } catch (e) {
+                    normalStoryboards = Array.from({ length: targetScenes }, (_, i) => `场景${i + 1}：${script.slice(0, 100)}`);
+                    idea.normalStoryboards = normalStoryboards;
+                }
+            } else if (pipelineMode === 'full' && (!normalStoryboards || normalStoryboards.length === 0)) {
+                normalStoryboards = await generateNormalStoryboardsForIdea(idea, 'primary');
+            }
+
+            normalStoryboards = idea.normalStoryboards || [];
+            if (!isI2VMode && pipelineMode === 'full' && normalStoryboards.length < targetScenes) {
+                addStepLog(idea, `🎬 正在完善分镜结构...`, 'processing');
+                normalStoryboards = await generateNormalStoryboardsForIdea(idea, 'fill');
+                normalStoryboards = idea.normalStoryboards || normalStoryboards || [];
+            }
+            if (pipelineMode === 'full' && normalStoryboards.length < targetScenes) {
+                const base = normalStoryboards[normalStoryboards.length - 1] || (idea.generatedScript ? String(idea.generatedScript).slice(0, 120) : '');
+                while (normalStoryboards.length < targetScenes) {
+                    const idx = normalStoryboards.length + 1;
+                    normalStoryboards.push(`【补充分镜${idx}】承接上文剧情推进（同场景/同角色一致），突出关键冲突与动作变化，镜头语言清晰。参考：${base}`);
+                }
+                idea.normalStoryboards = normalStoryboards;
+                saveIdeasToHistory();
+            }
+            if (pipelineMode === 'full') {
+                try {
+                    await ensureEraConsistencyForStoryboards(idea);
+                } catch (e) {
+                    console.warn('ensureEraConsistencyForStoryboards failed:', e);
+                }
+            }
+        })();
+
+        // 🚀 等待角色图 + 分镜同时完成
+        console.log('🚀 [单任务并发] 角色图 + 分镜同时生成中...');
+        await Promise.allSettled([_step3CharImages, _step4Storyboards]);
+        console.log('✅ [单任务并发] 角色图 + 分镜均已完成');
+
+        if (checkCancel(idea)) return;
+
+        // 🔗 合并角色信息（描述 + 图片URL）—— 必须在两步都完成后
+        if (pipelineMode === 'full') {
             idea.characterSheets = mergeCharacterInfo(idea.characterDescriptions, idea.characterImages);
             console.log(`📝 角色信息合并完成: ${idea.characterSheets?.length || 0} 个角色`);
-            // 🔧 修复：立即保存并刷新UI，确保角色数据不丢失
             saveIdeasToHistory();
             renderCanvas();
         }
 
-        // 🎬 第四步：生成分镜拉片（仅完整模式需要，分镜直出已在前面处理）
-        // 🔧 图生视频模式优化：跳过分镜生成，直接根据故事拆分场景
-        const isI2VMode = idea.generationMode === 'banana-image-to-video' || idea.generationMode === 'image-to-video' || idea.generationMode === 'banana-grid-to-video';
-        const targetScenes = Math.min(Math.max(parseInt(idea.scenes) || 3, 1), 20);
-        let normalStoryboards = idea.normalStoryboards;
-
-        if (isI2VMode && pipelineMode === 'full') {
-            // 🖼️ 图生视频优化：跳过分镜生成，直接根据故事拆分场景描述
-            addStepLog(idea, '🖼️ 图生视频模式：跳过分镜生成，直接拆分场景...', 'processing');
-            updateCreativeScreenText('🖼️ 正在拆分故事场景...');
-
-            const script = idea.generatedScript || idea.theme || '';
-            const charContext = buildCharacterContext(idea.characterSheets, idea.characterDescriptions || []);
-
-            // 🎯 生成简化的场景描述（只用于图片生成，不是视频分镜）
-            const scenePromptReq = `你是场景设计师。根据故事提取${targetScenes}个关键场景画面。
-
-【故事】${script.slice(0, 1500)}
-
-【角色】${charContext.slice(0, 500)}
-
-【要求】每行一个场景描述（人物动作、表情、环境），保持角色外观一致，不要对话/音效/镜头术语。共${targetScenes}行：`;
-
-            try {
-                const sceneText = await callScriptGenerator(idea, scenePromptReq);
-                const sceneLines = sceneText.split('\n').map(l => l.trim()).filter(l => l && l.length > 10).slice(0, targetScenes);
-                while (sceneLines.length < targetScenes) {
-                    sceneLines.push(`场景${sceneLines.length + 1}：${script.slice(0, 100)}`);
-                }
-                normalStoryboards = sceneLines;
-                idea.normalStoryboards = normalStoryboards;
-                idea.imageToVideoScenes = sceneLines;
-                addStepLog(idea, `✅ 已拆分 ${sceneLines.length} 个场景`, 'completed');
-            } catch (e) {
-                normalStoryboards = Array.from({ length: targetScenes }, (_, i) => `场景${i + 1}：${script.slice(0, 100)}`);
-                idea.normalStoryboards = normalStoryboards;
-            }
-        } else if (pipelineMode === 'full' && (!normalStoryboards || normalStoryboards.length === 0)) {
-            normalStoryboards = await generateNormalStoryboardsForIdea(idea, 'primary');
-        }
-
-        normalStoryboards = idea.normalStoryboards || [];
-        // ✅ 强制补齐分镜数量（非图生视频模式）
-        if (!isI2VMode && pipelineMode === 'full' && normalStoryboards.length < targetScenes) {
-            // ✅ 静默补齐：不向用户暴露“不足/补齐”细节（避免降低信任），仅保证最终分镜数正确
-            addStepLog(idea, `🎬 正在完善分镜结构...`, 'processing');
-            normalStoryboards = await generateNormalStoryboardsForIdea(idea, 'fill');
-            normalStoryboards = idea.normalStoryboards || normalStoryboards || [];
-        }
-        // 兜底补齐：再不够就用“续写式”分镜占位，确保数组长度正确
-        if (pipelineMode === 'full' && normalStoryboards.length < targetScenes) {
-            const base = normalStoryboards[normalStoryboards.length - 1] || (idea.generatedScript ? String(idea.generatedScript).slice(0, 120) : '');
-            while (normalStoryboards.length < targetScenes) {
-                const idx = normalStoryboards.length + 1;
-                normalStoryboards.push(`【补充分镜${idx}】承接上文剧情推进（同场景/同角色一致），突出关键冲突与动作变化，镜头语言清晰。参考：${base}`);
-            }
-            idea.normalStoryboards = normalStoryboards;
-            saveIdeasToHistory();
-        }
-
         // 显示分镜内容
-        if (normalStoryboards.length > 0) {
-            console.log('%c🎬 [分镜拉片] ========================================', 'color:#22d3ee;font-weight:bold');
-            normalStoryboards.forEach((sb, idx) => console.log(`分镜 ${idx + 1}:`, sb));
-            addStepLog(idea, '━━━ 🎬 分镜拉片 ━━━', 'info');
-            normalStoryboards.forEach((sb, idx) => addStepLog(idea, `【分镜${idx + 1}】${sb}`, 'info'));
-        }
-
-        // ✅ 商用一致性：禁止穿越（默认）— 自动检测并修复分镜中的“时代漂移”
-        if (pipelineMode === 'full') {
-            try {
-                await ensureEraConsistencyForStoryboards(idea);
-                // 修复后同步本地变量
-                normalStoryboards = idea.normalStoryboards || normalStoryboards || [];
-            } catch (e) {
-                // 不阻断主流程：一致性修复失败时继续（但通常不会）
-                console.warn('ensureEraConsistencyForStoryboards failed:', e);
+        {
+            const _sb = idea.normalStoryboards || [];
+            if (_sb.length > 0) {
+                console.log('%c🎬 [分镜拉片] ========================================', 'color:#22d3ee;font-weight:bold');
+                _sb.forEach((sb, idx) => console.log(`分镜 ${idx + 1}:`, sb));
+                addStepLog(idea, '━━━ 🎬 分镜拉片 ━━━', 'info');
+                _sb.forEach((sb, idx) => addStepLog(idea, `【分镜${idx + 1}】${sb}`, 'info'));
             }
         }
 
@@ -22333,6 +22301,13 @@ window.musicNodeGenerateLyrics = async function (nodeId) {
         return;
     }
 
+    // 🔐 获取用户ID
+    let currentUserId = null;
+    try {
+        const user = await NVAuth.getCurrentUser();
+        currentUserId = user?.id || null;
+    } catch (e) {}
+
     if (statusEl) statusEl.textContent = isFromStory ? '正在根据故事生成歌词...' : '正在生成歌词...';
     d.status = 'generating_lyrics';
 
@@ -22390,7 +22365,8 @@ ${structureTags}
             body: JSON.stringify({
                 action: 'text',
                 model: 'roll',
-                prompt: prompt
+                prompt: prompt,
+                userId: currentUserId
             })
         });
 
@@ -22452,9 +22428,23 @@ window.musicNodeGenerate = async function (nodeId) {
         console.warn('获取上游提示词失败:', e);
     }
 
+    // 🔐 获取用户ID（后端要求必须提供 userId）
+    let currentUserId = null;
+    try {
+        const user = await NVAuth.getCurrentUser();
+        currentUserId = user?.id || null;
+    } catch (e) {
+        console.warn('[music] 获取用户ID失败:', e);
+    }
+    if (!currentUserId) {
+        showToast('请先登录后再使用');
+        return;
+    }
+
     // 构建请求参数
     const requestBody = {
         action: 'generate',
+        userId: currentUserId,
         mv: d.model || 'chirp-v4',
         make_instrumental: !!d.makeInstrumental
     };
@@ -22537,11 +22527,20 @@ window.musicNodeGenerate = async function (nodeId) {
             body: JSON.stringify(requestBody)
         });
 
-        const result = await res.json();
+        const result = await res.json().catch(() => ({}));
         console.log('🎵 任务提交结果:', result);
 
+        if (!res.ok) {
+            const errMsg = typeof result.message === 'string' ? result.message
+                         : typeof result.error === 'string' ? result.error
+                         : `API错误: ${res.status}`;
+            throw new Error(errMsg);
+        }
         if (!result.success || !result.task_id) {
-            throw new Error(result.message || result.error || '任务提交失败');
+            const errMsg = typeof result.message === 'string' ? result.message
+                         : typeof result.error === 'string' ? result.error
+                         : JSON.stringify(result).slice(0, 200);
+            throw new Error(errMsg || '任务提交失败');
         }
 
         d.taskId = result.task_id;
@@ -23031,8 +23030,9 @@ async function chatNodeRefund(cost, description) {
  * 🎵 MV视频模型单价（胶片/片段）
  */
 const MV_VIDEO_MODEL_COSTS = {
-    'sora-2-all': 8,
-    'sora-2-pro-all': 12,
+    'sora-2-vip-all': 8,
+    'sora-2-all': 8,       // 已停用，兼容旧任务
+    'sora-2-pro-all': 12,  // 已停用，兼容旧任务
     'veo3.1': 10,
     'grok-video-3': 6
 };
@@ -23245,7 +23245,7 @@ async function generateMusicMV(options) {
     
     // 预估成本（假设3分钟音乐）
     const estimatedDuration = 180;
-    const estimatedCost = calculateMVCost(estimatedDuration, videoModel || 'sora-2-all');
+    const estimatedCost = calculateMVCost(estimatedDuration, videoModel || 'sora-2-vip-all');
     
     // 检查余额
     const balance = getFilmBalance();
@@ -23291,7 +23291,7 @@ async function generateMusicMV(options) {
             updateProgress('video', `生成视频 ${i + 1}/${scenes.length}...`, percent);
             
             try {
-                const clipUrl = await generateMVClip(scene.prompt, videoModel || 'sora-2-all', user.id);
+                const clipUrl = await generateMVClip(scene.prompt, videoModel || 'sora-2-vip-all', user.id);
                 clips.push({ index: i, url: clipUrl, success: true });
                 actualCost += videoModelCost;
             } catch (e) {
@@ -23526,8 +23526,9 @@ function openMVGenerator() {
                 <div>
                     <label style="display:block; color:#a78bfa; font-size:13px; margin-bottom:6px;">🎬 视频模型</label>
                     <select id="mvVideoModel" onchange="updateMVCostEstimate()" style="width:100%; padding:12px; background:#0d0d1a; border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
-                        <option value="sora-2-all">Sora-2 (8胶片/片段)</option>
-                        <option value="sora-2-pro-all">Sora-2 Pro (12胶片/片段)</option>
+                        <option value="sora-2-vip-all">Sora-2 VIP 过渡 (8胶片/片段)</option>
+                        <!-- <option value="sora-2-all">Sora-2（已停用）</option> -->
+                        <!-- <option value="sora-2-pro-all">Sora-2 Pro（已停用）</option> -->
                         <option value="veo3.1">Veo 3.1 (10胶片/片段)</option>
                         <option value="grok-video-3">Grok Video 3 (6胶片/片段)</option>
                     </select>
@@ -23592,7 +23593,7 @@ function closeMVGenerator() {
  * 🎵 更新MV成本预估
  */
 function updateMVCostEstimate() {
-    const videoModel = document.getElementById('mvVideoModel')?.value || 'sora-2-all';
+    const videoModel = document.getElementById('mvVideoModel')?.value || 'sora-2-vip-all';
     const cost = calculateMVCost(180, videoModel); // 假设3分钟
     
     const estimateDiv = document.getElementById('mvCostEstimate');
@@ -35055,6 +35056,12 @@ async function checkWelcomeScreen() {
     const welcomeScreen = document.getElementById('welcomeScreen');
     console.log('🏠 checkWelcomeScreen 开始执行, welcomeScreen:', !!welcomeScreen);
 
+    // 🔧 如果开场动画正在播放，不操作 welcomeScreen（由 finishIntro 接管）
+    if (typeof _showIntro !== 'undefined' && _showIntro) {
+        console.log('🏠 开场动画正在播放，跳过 checkWelcomeScreen');
+        return true;
+    }
+
     // 1. 检查 URL 参数：从登录页跳转回来或从功能页返回时跳过欢迎页
     const urlParams = new URLSearchParams(window.location.search);
     const isLoggedInRedirect = urlParams.has('logged_in') || urlParams.has('skip_welcome');
@@ -37070,6 +37077,88 @@ function renderSkillHistory() {
 
 // 暴露给全局
 window.renderSkillHistory = renderSkillHistory;
+
+// ==================== 🧩 桌面版技能执行管理器 ====================
+
+/**
+ * 更新技能Tab上的活跃任务数 Badge
+ */
+function _updateSkillTabBadge() {
+    const badge = document.getElementById('skillTabBadge');
+    if (!badge) return;
+    if (typeof SkillManager === 'undefined') { badge.style.display = 'none'; return; }
+    const count = SkillManager.getActiveCount();
+    if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+/**
+ * 渲染技能执行管理器浮窗内容
+ */
+function _renderSkillExecManager() {
+    const manager = document.getElementById('skillExecManager');
+    const list = document.getElementById('skillExecList');
+    if (!manager || !list) return;
+    if (typeof SkillManager === 'undefined') { manager.style.display = 'none'; return; }
+
+    const execs = SkillManager.getActiveExecutions();
+    if (execs.length === 0) {
+        manager.style.display = 'none';
+        return;
+    }
+
+    manager.style.display = 'block';
+    list.innerHTML = execs.map(exec => {
+        const pct = Math.round(exec.progress || 0);
+        const elapsed = Math.round((Date.now() - exec.startTime) / 1000);
+        const elapsedStr = elapsed >= 60 ? `${Math.floor(elapsed / 60)}m${elapsed % 60}s` : `${elapsed}s`;
+        const stepText = exec.currentStep || '准备中';
+        return `
+            <div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:13px; color:#eee;">${exec.skillIcon || '🧩'} ${exec.skillName || exec.skillId}</span>
+                    <button onclick="SkillManager.cancel('${exec.id}')" style="background:none; border:none; color:#f87171; font-size:11px; cursor:pointer; padding:2px 6px;">✕</button>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:4px;">${stepText} · ${elapsedStr}</div>
+                <div style="height:4px; background:#333; border-radius:2px; overflow:hidden;">
+                    <div style="height:100%; width:${pct}%; background:linear-gradient(90deg,#fbbf24,#f59e0b); border-radius:2px; transition:width 0.3s;"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * 初始化技能执行管理器事件监听
+ */
+function _initSkillExecManagerEvents() {
+    if (typeof SkillManager === 'undefined') return;
+
+    const refresh = () => {
+        _updateSkillTabBadge();
+        _renderSkillExecManager();
+    };
+
+    SkillManager.on('executionStarted', refresh);
+    SkillManager.on('executionProgress', refresh);
+    SkillManager.on('executionCompleted', () => { refresh(); renderSkillHistory(); });
+    SkillManager.on('executionFailed', () => { refresh(); renderSkillHistory(); });
+
+    // 初始刷新
+    refresh();
+    console.log('✅ [SkillExecManager] 桌面端执行管理器已初始化');
+}
+
+// 页面加载后初始化
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(_initSkillExecManagerEvents, 500);
+} else {
+    window.addEventListener('DOMContentLoaded', () => setTimeout(_initSkillExecManagerEvents, 500));
+}
 
 /**
  * 切换产品类型（视频/漫画/技能）

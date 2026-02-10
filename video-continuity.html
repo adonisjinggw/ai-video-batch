@@ -714,8 +714,9 @@
             <div class="option-group">
                 <label>模型</label>
                 <select id="model" onchange="onModelChange()">
-                    <option value="sora-2-all">Sora-2 (15秒)</option>
-                    <option value="sora-2-pro-all">Sora-2 Pro (15秒)</option>
+                    <option value="sora-2-vip-all">Sora-2 VIP 过渡 (10秒)</option>
+                    <!-- <option value="sora-2-all">Sora-2（已停用）</option> -->
+                    <!-- <option value="sora-2-pro-all">Sora-2 Pro（已停用）</option> -->
                     <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
                         <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
                         <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
@@ -855,8 +856,9 @@
                     <div class="option-group">
                         <label>🎬 视频模型</label>
                         <select id="global-video-model">
-                            <option value="sora-2-all" selected>Sora-2 (7胶片)</option>
-                            <option value="sora-2-pro-all">Sora-2 Pro (14胶片)</option>
+                            <option value="sora-2-vip-all" selected>Sora-2 VIP 过渡 (7胶片)</option>
+                            <!-- <option value="sora-2-all">Sora-2（已停用）</option> -->
+                            <!-- <option value="sora-2-pro-all">Sora-2 Pro（已停用）</option> -->
                             <option value="veo3.1-components-4k">Veo 3.1 4K (30胶片)</option>
                             <option value="grok-video-3">Grok Video 3 6秒 (5肶片)</option>
                             <option value="grok-video-3-10s">Grok Video 3 10秒 (8肶片)</option>
@@ -1014,7 +1016,7 @@
             imageModel: null,
             mjVersion: '6.1',
             imageRatio: '16:9',
-            videoModel: 'sora-2-all'
+            videoModel: 'sora-2-vip-all'
         };
         
         // 🎬 流水线设定（人物/场景设定图）
@@ -1649,7 +1651,7 @@ ${story}
 
         // 🎬 模型费用配置
         const VIDEO_COST = {
-            'sora-2-all': 8, 'sora-2-pro-all': 12,
+            'sora-2-vip-all': 8, 'sora-2-all': 8, 'sora-2-pro-all': 12,
             'veo3.1-components-4k': 30, 'veo_3_1-fast-4K': 25,
             'vidu-q2-5s-720p': 25, 'vidu-q2-5s-1080p': 36, 'vidu-q2-turbo-5s-720p': 19,
             'vidu-q2-10s-720p': 50, 'vidu-q2-10s-1080p': 72,
@@ -2417,8 +2419,8 @@ ${content}
                         <select style="width:100%;" onchange="updatePipelineVideoModel(${index}, this.value)">
                             <option value="" ${!row.video.model ? 'selected' : ''}>🌐 全局配置</option>
                             <optgroup label="🌟 Sora 2">
-                                <option value="sora-2-all" ${row.video.model === 'sora-2-all' ? 'selected' : ''}>Sora-2 (15秒/7胶片)</option>
-                                <option value="sora-2-pro-all" ${row.video.model === 'sora-2-pro-all' ? 'selected' : ''}>Sora-2 Pro (15秒/14)</option>
+                                <option value="sora-2-vip-all" ${row.video.model === 'sora-2-vip-all' ? 'selected' : ''}>Sora-2 VIP 过渡 (10秒/7胶片)</option>
+                                <!-- sora-2-all / sora-2-pro-all 已停用 -->
                             </optgroup>
                             <optgroup label="🌟 Veo 3.1">
                                 <option value="veo3.1-components-4k" ${row.video.model === 'veo3.1-components-4k' ? 'selected' : ''}>Veo 3.1 4K (8秒/30)</option>
@@ -2906,6 +2908,7 @@ ${row.sceneText}
                 
                 // 💰 扣费检查：根据模型确定费用
                 const VIDEO_COST = {
+                    'sora-2-vip-all': 7,
                     'sora-2-all': 7,
                     'sora-2-pro-all': 14,
                     'veo3.1-components-4k': 30,
@@ -3142,7 +3145,7 @@ ${row.sceneText}
         // 计算流水线总费用
         function calculatePipelineCost() {
             const imageModel = document.getElementById('global-image-model')?.value || 'modelscope';
-            const videoModel = document.getElementById('global-video-model')?.value || 'sora-2-all';
+            const videoModel = document.getElementById('global-video-model')?.value || 'sora-2-vip-all';
             // 🔧 修复：预估分镜数，最少6个（AI通常生成6-10个）
             const sceneCount = Math.max(6, pipelineRows.length || 6);
             
@@ -3159,6 +3162,7 @@ ${row.sceneText}
             
             // 视频模型费用
             const VIDEO_COST = {
+                'sora-2-vip-all': 7,
                 'sora-2-all': 7,
                 'sora-2-pro-all': 14,
                 'veo3.1-components-4k': 30,
