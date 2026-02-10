@@ -523,9 +523,13 @@
                 </div>
                 <div class="at-result-actions">
                     <button class="at-btn at-btn-secondary" onclick="AgentUI._showView('select')">🔄 新任务</button>
+                    <button class="at-btn at-btn-secondary" onclick="AgentUI.showTeamHistory()">📂 历史</button>
                     <button class="at-btn at-btn-primary" onclick="AgentUI.close()">完成</button>
                 </div>
             `;
+
+            // 自动保存团队结果
+            this._saveTeamResult(result);
         },
 
         _renderDeliverable(d, idx) {
@@ -554,6 +558,150 @@
                 `;
             }
             return '';
+        },
+
+        // ==================== 团队结果持久化 ====================
+
+        _TEAM_HISTORY_KEY: 'rollroll_team_history',
+        _TEAM_HISTORY_MAX: 20,
+
+        /** 保存团队执行结果 */
+        _saveTeamResult(result) {
+            try {
+                const team = this._currentTeam;
+                const tpl = this._selectedTemplate;
+                const templates = typeof AgentTeamFactory !== 'undefined' ? AgentTeamFactory.getTemplates() : [];
+                const tplInfo = templates.find(t => t.id === tpl);
+
+                // 压缩 deliverables，过滤 base64
+                const compactDeliverables = (result.deliverables || []).map(d => {
+                    const c = { type: d.type, agent: d.agent, icon: d.icon, description: d.description };
+                    if (d.url && !d.url.startsWith('data:')) c.url = d.url;
+                    if (d.content) c.content = d.content.substring(0, 2000);
+                    return c;
+                });
+
+                const record = {
+                    id: Date.now(),
+                    timestamp: Date.now(),
+                    teamId: tpl || 'custom',
+                    teamName: tplInfo?.name || team?.name || '自由团队',
+                    teamIcon: tplInfo?.icon || team?.icon || '🤖',
+                    goal: document.getElementById('atGoalInput')?.value?.trim() || '',
+                    deliverables: compactDeliverables,
+                    stats: {
+                        totalDeliverables: (result.deliverables || []).length,
+                        images: (result.deliverables || []).filter(d => d.type === 'image').length,
+                        videos: (result.deliverables || []).filter(d => d.type === 'video').length,
+                        texts: (result.deliverables || []).filter(d => d.type === 'text' || d.type === 'summary').length
+                    }
+                };
+
+                const history = this._loadTeamHistory();
+                history.unshift(record);
+                if (history.length > this._TEAM_HISTORY_MAX) history.length = this._TEAM_HISTORY_MAX;
+                localStorage.setItem(this._TEAM_HISTORY_KEY, JSON.stringify(history));
+                console.log('💾 [AgentUI] 团队结果已保存');
+            } catch (e) {
+                console.warn('[AgentUI] 保存团队结果失败:', e);
+            }
+        },
+
+        /** 加载团队历史 */
+        _loadTeamHistory() {
+            try {
+                return JSON.parse(localStorage.getItem(this._TEAM_HISTORY_KEY) || '[]');
+            } catch { return []; }
+        },
+
+        /** 删除单条团队历史 */
+        deleteTeamHistoryItem(id) {
+            const history = this._loadTeamHistory().filter(r => r.id !== id);
+            localStorage.setItem(this._TEAM_HISTORY_KEY, JSON.stringify(history));
+            this.showTeamHistory(); // 刷新列表
+        },
+
+        /** 显示团队历史列表 */
+        showTeamHistory() {
+            this._showView('result');
+            const resultArea = document.getElementById('atResultArea');
+            if (!resultArea) return;
+
+            const history = this._loadTeamHistory();
+            if (history.length === 0) {
+                resultArea.innerHTML = `
+                    <div style="text-align:center;padding:60px 20px;">
+                        <div style="font-size:48px;margin-bottom:16px;">📂</div>
+                        <div style="font-size:16px;color:#999;margin-bottom:8px;">还没有团队执行记录</div>
+                        <div style="font-size:13px;color:#666;margin-bottom:24px;">使用团队完成任务后，结果会自动保存到这里</div>
+                        <button class="at-btn at-btn-primary" onclick="AgentUI._showView('select')">🔄 去创建任务</button>
+                    </div>
+                `;
+                return;
+            }
+
+            resultArea.innerHTML = `
+                <div class="at-result-header">
+                    <div class="at-result-title">📂 团队历史记录</div>
+                    <div class="at-result-stats">${history.length} 条记录</div>
+                </div>
+                <div class="at-deliverables" style="gap:10px;">
+                    ${history.map(r => {
+                        const timeStr = new Date(r.timestamp).toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+                        const statsArr = [];
+                        if (r.stats?.images) statsArr.push(`🖼️${r.stats.images}`);
+                        if (r.stats?.videos) statsArr.push(`🎬${r.stats.videos}`);
+                        if (r.stats?.texts) statsArr.push(`📝${r.stats.texts}`);
+                        const statsStr = statsArr.length ? statsArr.join(' ') : `${r.stats?.totalDeliverables || 0}项`;
+                        const goalStr = (r.goal || '').substring(0, 50);
+                        return `
+                            <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:14px;cursor:pointer;border:1px solid rgba(255,255,255,0.08);" onclick="AgentUI.viewTeamHistoryItem(${r.id})">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                                    <div style="font-size:14px;font-weight:600;color:#fff;">${r.teamIcon || '🤖'} ${r.teamName}</div>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span style="font-size:11px;color:#666;">${timeStr}</span>
+                                        <button onclick="event.stopPropagation();AgentUI.deleteTeamHistoryItem(${r.id})" style="background:none;border:none;color:#666;cursor:pointer;font-size:13px;padding:0 2px;" title="删除">✕</button>
+                                    </div>
+                                </div>
+                                <div style="font-size:12px;color:#999;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${goalStr}</div>
+                                <div style="font-size:12px;color:#a78bfa;">${statsStr}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="at-result-actions">
+                    <button class="at-btn at-btn-secondary" onclick="AgentUI._showView('select')">🔄 新任务</button>
+                    <button class="at-btn at-btn-primary" onclick="AgentUI.close()">关闭</button>
+                </div>
+            `;
+        },
+
+        /** 查看单条团队历史详情 */
+        viewTeamHistoryItem(id) {
+            const history = this._loadTeamHistory();
+            const record = history.find(r => r.id === id);
+            if (!record) { if (typeof showToast === 'function') showToast('记录未找到'); return; }
+
+            this._showView('result');
+            const resultArea = document.getElementById('atResultArea');
+            if (!resultArea) return;
+
+            const deliverables = record.deliverables || [];
+            resultArea.innerHTML = `
+                <div class="at-result-header">
+                    <div class="at-result-title">${record.teamIcon || '🤖'} ${record.teamName}</div>
+                    <div class="at-result-stats">${deliverables.length} 项交付物</div>
+                </div>
+                ${record.goal ? `<div style="font-size:13px;color:#999;padding:0 4px 8px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:8px;">🎯 ${this._escapeHtml(record.goal)}</div>` : ''}
+                <div class="at-deliverables">
+                    ${deliverables.map((d, i) => this._renderDeliverable(d, i)).join('')}
+                </div>
+                <div class="at-result-actions">
+                    <button class="at-btn at-btn-secondary" onclick="AgentUI.showTeamHistory()">← 返回列表</button>
+                    <button class="at-btn at-btn-secondary" onclick="AgentUI._showView('select')">🔄 新任务</button>
+                    <button class="at-btn at-btn-primary" onclick="AgentUI.close()">关闭</button>
+                </div>
+            `;
         },
 
         // ==================== 工具函数 ====================
