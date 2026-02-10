@@ -930,6 +930,22 @@ ${agentList}
             return parts.join('\n');
         }
 
+        /** 判断URL的媒体类型 */
+        _detectMediaType(url) {
+            if (!url || typeof url !== 'string') return 'text';
+            const lower = url.toLowerCase();
+            // 音频检测
+            if (lower.includes('.mp3') || lower.includes('.wav') || lower.includes('.ogg') ||
+                lower.includes('.aac') || lower.includes('.flac') || lower.includes('.m4a') ||
+                lower.includes('/audio/') || lower.includes('audio_url')) return 'audio';
+            // 视频检测
+            if (lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov') ||
+                lower.includes('/video/') || lower.includes('video_url')) return 'video';
+            // 图片检测
+            if (lower.startsWith('http') || lower.startsWith('data:image')) return 'image';
+            return 'text';
+        }
+
         /** 处理结果，提取交付物 */
         _processResult(agent, result) {
             if (!result) return;
@@ -940,17 +956,47 @@ ${agentList}
 
             if (result.type === 'tool_result' && result.result) {
                 const r = result.result;
-                // 图片URL
-                if (typeof r === 'string' && (r.startsWith('http') || r.startsWith('data:image'))) {
-                    this.deliverables.push({ type: 'image', url: r, agent: agent.name, icon: agent.icon, tool: result.tool });
+                
+                // 🎵 Suno 音乐对象: {taskId, music: [{audio_url, title, ...}]}
+                if (r && typeof r === 'object' && !Array.isArray(r) && r.music && Array.isArray(r.music)) {
+                    for (const track of r.music) {
+                        if (track.audio_url) {
+                            this.deliverables.push({
+                                type: 'audio',
+                                url: track.audio_url,
+                                title: track.title || '生成音乐',
+                                imageUrl: track.image_url || '',
+                                videoUrl: track.video_url || '',
+                                duration: track.duration || 0,
+                                tags: track.tags || '',
+                                agent: agent.name,
+                                icon: agent.icon,
+                                tool: result.tool
+                            });
+                        }
+                    }
+                    return;
                 }
-                // 视频URL
-                else if (typeof r === 'string' && r.includes('video')) {
-                    this.deliverables.push({ type: 'video', url: r, agent: agent.name, icon: agent.icon, tool: result.tool });
+                
+                // URL字符串结果
+                if (typeof r === 'string' && (r.startsWith('http') || r.startsWith('data:'))) {
+                    const mediaType = this._detectMediaType(r);
+                    this.deliverables.push({ type: mediaType, url: r, agent: agent.name, icon: agent.icon, tool: result.tool });
                 }
                 // 其他文本
-                else if (typeof r === 'string') {
+                else if (typeof r === 'string' && r.length > 0) {
                     this.deliverables.push({ type: 'text', content: r, agent: agent.name, icon: agent.icon });
+                }
+                // 其他对象结果（非音乐），尝试提取URL
+                else if (r && typeof r === 'object') {
+                    const url = r.url || r.audioUrl || r.audio_url || r.imageUrl || r.videoUrl || '';
+                    if (url && typeof url === 'string' && url.startsWith('http')) {
+                        const mediaType = this._detectMediaType(url);
+                        this.deliverables.push({ type: mediaType, url, agent: agent.name, icon: agent.icon, tool: result.tool });
+                    } else {
+                        const text = r.content || r.text || r.summary || JSON.stringify(r).substring(0, 500);
+                        if (text) this.deliverables.push({ type: 'text', content: text, agent: agent.name, icon: agent.icon });
+                    }
                 }
             }
 
@@ -958,10 +1004,29 @@ ${agentList}
                 for (const step of result.results) {
                     if (step.status === 'success' && step.result) {
                         const r = step.result;
-                        if (typeof r === 'string' && (r.startsWith('http') || r.startsWith('data:'))) {
-                            const isVideo = r.includes('.mp4') || r.includes('video');
+                        // 🎵 音乐对象
+                        if (r && typeof r === 'object' && !Array.isArray(r) && r.music && Array.isArray(r.music)) {
+                            for (const track of r.music) {
+                                if (track.audio_url) {
+                                    this.deliverables.push({
+                                        type: 'audio',
+                                        url: track.audio_url,
+                                        title: track.title || '生成音乐',
+                                        imageUrl: track.image_url || '',
+                                        videoUrl: track.video_url || '',
+                                        duration: track.duration || 0,
+                                        tags: track.tags || '',
+                                        agent: agent.name,
+                                        icon: agent.icon,
+                                        description: step.description
+                                    });
+                                }
+                            }
+                        }
+                        else if (typeof r === 'string' && (r.startsWith('http') || r.startsWith('data:'))) {
+                            const mediaType = this._detectMediaType(r);
                             this.deliverables.push({
-                                type: isVideo ? 'video' : 'image',
+                                type: mediaType,
                                 url: r,
                                 agent: agent.name,
                                 icon: agent.icon,

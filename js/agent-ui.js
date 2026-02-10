@@ -557,6 +557,23 @@
                     </div>
                 `;
             }
+            if (d.type === 'audio') {
+                const durationStr = d.duration ? `${Math.floor(d.duration / 60)}:${String(Math.floor(d.duration % 60)).padStart(2, '0')}` : '';
+                return `
+                    <div class="at-deliverable at-deliverable-audio" style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:16px;">
+                        <div class="at-d-header" style="margin-bottom:10px;">${d.icon || '🎵'} ${d.agent || ''} ${d.description || ''}</div>
+                        ${d.imageUrl ? `<img src="${d.imageUrl}" alt="封面" style="width:100%;max-width:280px;border-radius:8px;margin-bottom:10px;cursor:pointer;" onclick="window.open('${d.imageUrl}','_blank')">` : ''}
+                        <div style="font-size:14px;font-weight:600;color:#e0d0ff;margin-bottom:6px;">🎵 ${this._escapeHtml(d.title || '生成音乐')}</div>
+                        ${d.tags ? `<div style="font-size:11px;color:#a78bfa;margin-bottom:8px;">🏷️ ${this._escapeHtml(d.tags)}</div>` : ''}
+                        ${durationStr ? `<div style="font-size:11px;color:#888;margin-bottom:8px;">⏱ ${durationStr}</div>` : ''}
+                        <audio src="${d.url}" controls preload="metadata" style="width:100%;margin-top:4px;"></audio>
+                        <div style="margin-top:8px;display:flex;gap:8px;">
+                            <a href="${d.url}" target="_blank" download style="font-size:12px;color:#a78bfa;text-decoration:none;">⬇️ 下载音频</a>
+                            ${d.videoUrl ? `<a href="${d.videoUrl}" target="_blank" style="font-size:12px;color:#a78bfa;text-decoration:none;">🎬 查看MV</a>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
             if (d.type === 'text' || d.type === 'summary') {
                 return `
                     <div class="at-deliverable at-deliverable-text">
@@ -601,6 +618,7 @@
                         totalDeliverables: (result.deliverables || []).length,
                         images: (result.deliverables || []).filter(d => d.type === 'image').length,
                         videos: (result.deliverables || []).filter(d => d.type === 'video').length,
+                        audios: (result.deliverables || []).filter(d => d.type === 'audio').length,
                         texts: (result.deliverables || []).filter(d => d.type === 'text' || d.type === 'summary').length
                     }
                 };
@@ -674,6 +692,7 @@
                         const statsArr = [];
                         if (r.stats?.images) statsArr.push(`🖼️${r.stats.images}`);
                         if (r.stats?.videos) statsArr.push(`🎬${r.stats.videos}`);
+                        if (r.stats?.audios) statsArr.push(`🎵${r.stats.audios}`);
                         if (r.stats?.texts) statsArr.push(`📝${r.stats.texts}`);
                         const statsStr = statsArr.length ? statsArr.join(' ') : `${r.stats?.totalDeliverables || 0}项`;
                         const goalStr = (r.goal || '').substring(0, 50);
