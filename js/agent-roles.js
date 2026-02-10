@@ -336,10 +336,10 @@
 4. **逐段配音**：对每段使用对应角色的engine/voice/speed调用 tts_generate
 5. **输出**：返回所有音频URL列表，按顺序标注角色
 
-## 配音引擎与音色
+## 配音引擎与音色（优先使用 dubbingx）
+- engine:dubbingx（优先推荐2胶片） — 多种高质量音色，质量最佳
 - engine:gemini（快速1胶片） — Kore(女),Puck(男),Charon(低沉男),Aoede(温柔女)
-- engine:kling（高质量2胶片） — zhifeng_zz(男),zhimiao_emo(女)
-- engine:dubbingx（多音色2胶片） — 多种音色
+- engine:kling（2胶片） — zhifeng_zz(男),zhimiao_emo(女)
 - speed: 0.5慢 / 1.0正常 / 1.2偏快 / 1.5快 / 2.0极快
 - 单次文本≤500字，超过请分段调用
 
@@ -550,7 +550,7 @@
         icon: '🏢',
         description: '品牌策略 + 视觉设计 + 文案创作，一站式品牌方案',
         roles: ['coordinator', 'brand_strategist', 'copywriter', 'visual_artist'],
-        estimatedCost: 25, // 文本多次 + 图片×2-3
+        estimatedCost: 20, // 参考值：后端按次扣费（文本1×3 + 图片5×3）
         suggestedGoals: [
             '为我的奶茶品牌"茶屿"设计完整品牌形象',
             '新品"冰鲜椰乳"需要一套营销物料',
@@ -565,7 +565,7 @@
         icon: '📱',
         description: '脚本 + 画面 + 配音 + 音乐 + 视频制作，打造爆款短视频',
         roles: ['coordinator', 'copywriter', 'visual_artist', 'video_producer', 'voice_artist', 'music_producer'],
-        estimatedCost: 40, // 文本1 + 图片6 + 视频7 + 配音2 + 音乐8
+        estimatedCost: 50, // 参考值：后端按次扣费（文本1×2 + 图片5×3 + 视频15×1 + TTS2×2 + 音么9）
         suggestedGoals: [
             '制作一个30秒美食探店短视频',
             '为新款手机做一个产品展示视频',
@@ -580,7 +580,7 @@
         icon: '🧸',
         description: '角色设计 + 衍生品 + 视觉应用',
         roles: ['coordinator', 'character_designer', 'visual_artist'],
-        estimatedCost: 30, // 文本1 + 图片6×4-5
+        estimatedCost: 22, // 参考值：后端按次扣费（文本1×2 + 图片5×4）
         suggestedGoals: [
             '设计一个可爱的猫咪IP角色和周边',
             '为儿童教育品牌设计吉祥物',
@@ -595,7 +595,7 @@
         icon: '🛒',
         description: '产品文案 + 主图/详情图，电商上架全套',
         roles: ['coordinator', 'copywriter', 'visual_artist'],
-        estimatedCost: 25, // 文本×2 + 图片6×3
+        estimatedCost: 18, // 参考值：后端按次扣费（文本1×2 + 图片5×3）
         suggestedGoals: [
             '为新款蓝牙耳机制作淘宝主图和详情图',
             '设计一套护肤品的小红书种草图文',
@@ -610,7 +610,7 @@
         icon: '🎧',
         description: '配音 + 音乐制作，为视频或项目生成专业音频',
         roles: ['coordinator', 'voice_artist', 'music_producer', 'copywriter'],
-        estimatedCost: 15, // TTS2×多段 + Suno8
+        estimatedCost: 15, // 参考值：后端按次扣费（TTS2×3 + 文本1×2 + 音么9）
         suggestedGoals: [
             '为产品宣传视频配音并制作BGM',
             '创作一首关于旅行的原创歌曲',
@@ -625,7 +625,7 @@
         icon: '🎯',
         description: '自由选择 Agent 组合，灵活应对各种需求',
         roles: ['coordinator'], // 最少包含coordinator
-        estimatedCost: 20, // 自由组队默认估算
+        estimatedCost: 15, // 参考值：后端按次扣费
         isCustom: true,
         suggestedGoals: []
     });
@@ -637,7 +637,7 @@
         icon: '📻',
         description: '作家写作 + 多角色配音 + 音乐制作，制作有声小说/广播剧',
         roles: ['coordinator', 'writer', 'voice_artist', 'music_producer'],
-        estimatedCost: 25, // 文本1 + TTS2×多段 + 音乐8
+        estimatedCost: 20, // 参考值：后端按次扣费（文本1×2 + TTS2×4 + 音么9）
         suggestedGoals: [
             '将这篇短篇小说制作成有声小说',
             '制作一集广播剧（多角色配音）',
@@ -652,7 +652,7 @@
         icon: '📚',
         description: '作家编剧 + 分镜设计 + 漫画绘制，全流程漫画创作',
         roles: ['coordinator', 'writer', 'storyboard_master', 'comic_artist'],
-        estimatedCost: 40, // 文本1 + 图片6×6页
+        estimatedCost: 32, // 参考值：后端按次扣费（文本1×2 + 图片5×6）
         suggestedGoals: [
             '创作一个4页短篇漫画故事',
             '把这个故事改编成漫画',
@@ -667,7 +667,7 @@
         icon: '🎞️',
         description: '导演统筹 + 编剧 + 分镜 + 视觉 + 视频 + 配音 + 音乐，全流程影视制作',
         roles: ['coordinator', 'director', 'writer', 'storyboard_master', 'visual_artist', 'video_producer', 'voice_artist', 'music_producer'],
-        estimatedCost: 80, // 大型团队
+        estimatedCost: 70, // 参考值：后端按次扣费（大型团队）
         suggestedGoals: [
             '制作一部1分钟的品牌微电影',
             '创作一个科幻短片（剧本+分镜+视频+配音+配乐）',

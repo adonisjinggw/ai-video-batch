@@ -262,15 +262,15 @@
 
                     // 每个视频：剧本(1) + 图片(6) + 视频(按模型)
                     const im = params.imageModel || 'nano-banana-2';
-                    let imgFilm = 6; // banana2
+                    let imgFilm = 5; // banana2
                     if (im.startsWith('midjourney')) imgFilm = 12;
                     if (im === 'modelscope') imgFilm = 0;
-                    let videoFilm = 7; // Sora-2 默认
-                    if (model.includes('pro')) videoFilm = 14;
+                    if (im === 'seedream') imgFilm = 8;
+                    let videoFilm = 15; // Sora-2
                     if (model.includes('veo')) videoFilm = 30;
                     if (model.includes('grok')) videoFilm = 5;
-                    if (model.includes('kling')) videoFilm = duration <= 5 ? 5 : 10;
-                    if (model.includes('hailuo')) videoFilm = duration <= 6 ? 7 : 11;
+                    if (model.includes('kling')) videoFilm = duration <= 5 ? 10 : 20;
+                    if (model.includes('hailuo')) videoFilm = duration <= 6 ? 8 : 14;
                     if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
 
                     const perVideo = 1 + imgFilm + videoFilm;
@@ -404,16 +404,15 @@
                 estimateCost: (params) => {
                     const episodes = params.episodes || 3;
                     const model = params.videoModel || 'sora-2-vip-all';
-                    let videoFilm = 7; // Sora-2
-                    if (model.includes('pro')) videoFilm = 14;
+                    let videoFilm = 15; // Sora-2
                     if (model.includes('veo')) videoFilm = 30;
                     if (model.includes('grok')) videoFilm = 5;
-                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 10 : 5;
-                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 11 : 7;
+                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 20 : 10;
+                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 14 : 8;
                     if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
-                    // 每集: 文本1 + 图片6 + 视频
+                    // 每集: 文本1 + 图片5 + 视频
                     return {
-                        film: Math.ceil(episodes * (1 + 6 + videoFilm)),
+                        film: Math.ceil(episodes * (1 + 5 + videoFilm)),
                         time: `约 ${episodes * 3} 分钟`
                     };
                 },
@@ -556,12 +555,11 @@ ${story}
                 estimateCost: (params) => {
                     const imageCount = params.images?.length || 1;
                     const model = params.videoModel || 'sora-2-vip-all';
-                    let videoFilm = 7; // Sora-2
-                    if (model.includes('pro')) videoFilm = 14;
+                    let videoFilm = 15; // Sora-2
                     if (model.includes('veo')) videoFilm = 30;
                     if (model.includes('grok')) videoFilm = 5;
-                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 10 : 5;
-                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 11 : 7;
+                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 20 : 10;
+                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 14 : 8;
                     if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
                     return {
                         film: Math.ceil(imageCount * videoFilm),
@@ -676,9 +674,10 @@ ${story}
                     const subjects = (params.subjects || '').split('\n').filter(s => s.trim());
                     const count = Math.max(subjects.length, 1);
                     const im = params.imageModel || 'nano-banana-2';
-                    let perImage = 6; // banana2
+                    let perImage = 5; // banana2
                     if (im.startsWith('midjourney')) perImage = 12; // MJ 高质量
                     if (im === 'modelscope') perImage = 0; // 免费
+                    if (im === 'seedream') perImage = 8; // 星梦画师
                     return {
                         film: count * perImage,
                         time: `约 ${Math.ceil(count * (im.startsWith('midjourney') ? 1.5 : 0.5))} 分钟`
@@ -827,9 +826,10 @@ ${story}
                     if (params.includeExpressions) count += 1;
                     if (params.includeActions) count += 1;
                     const im = params.imageModel || 'nano-banana-2';
-                    let perImg = 6;
+                    let perImg = 5;
                     if (im.startsWith('midjourney')) perImg = 12;
                     if (im === 'modelscope') perImg = 0;
+                    if (im === 'seedream') perImg = 8;
                     return {
                         film: Math.ceil(count * perImg) + 1, // +1文本
                         time: `约 ${count} 分钟`
@@ -982,7 +982,7 @@ ${story}
                 estimateCost: (params) => {
                     const pages = params.pageCount || 4;
                     return {
-                        film: Math.ceil(pages * 6) + 1, // 6胶片/页 + 文本1
+                        film: Math.ceil(pages * 5) + 1, // 5胶片/页 + 文本1
                         time: `约 ${pages} 分钟`
                     };
                 },
@@ -1524,7 +1524,7 @@ ${story}
                 estimateCost: (params) => {
                     const pages = params.pageCount || 6;
                     return {
-                        film: Math.ceil(pages * 6) + 1, // 6胶片/页 + 文本1
+                        film: Math.ceil(pages * 5) + 1, // 5胶片/页 + 文本1
                         time: `约 ${pages + 2} 分钟`
                     };
                 },
@@ -1785,21 +1785,20 @@ ${script.substring(0, 4000)}
                     const duration = parseInt(params.duration) || 60;
                     const scenes = Math.ceil(duration / 15);
                     const model = params.videoModel || 'sora-2-vip-all';
-                    let videoFilm = 7; // Sora-2
-                    if (model.includes('pro')) videoFilm = 14;
+                    let videoFilm = 15; // Sora-2
                     if (model.includes('veo')) videoFilm = 30;
                     if (model.includes('grok')) videoFilm = 5;
-                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 10 : 5;
-                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 11 : 7;
+                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 20 : 10;
+                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 14 : 8;
                     if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
                     let film = 1; // 剧本
 
-                    if (params.includeCharacter) film += 7; // 角色设定(文本1+图片6)
+                    if (params.includeCharacter) film += 6; // 角色设定(文本1+图片5)
                     if (params.outputType === 'video' || params.outputType === 'both') {
-                        film += scenes * (6 + videoFilm); // 每个分镜：图片6+视频
+                        film += scenes * (5 + videoFilm); // 每个分镜：图片5+视频
                     }
                     if (params.outputType === 'comic' || params.outputType === 'both') {
-                        film += Math.ceil(scenes / 2) * 6; // 漫画页6胶片/页
+                        film += Math.ceil(scenes / 2) * 5; // 漫画页5胶片/页
                     }
 
                     return {
@@ -2490,7 +2489,7 @@ ${colorPref ? '色彩偏好：' + colorPref : ''}
                     const panels = params.panelCount || 6;
                     let count = panels; // 每个分镜 1 张图
                     if (params.includeCharSheet) count += 1; // 角色设定表
-                    return { film: count * 6, time: `约 ${Math.ceil(count * 0.5)} 分钟` };
+                    return { film: count * 5, time: `约 ${Math.ceil(count * 0.5)} 分钟` };
                 },
                 execute: async (params, callbacks) => {
                     const { story, refImage, panelCount, includeCharSheet, style, aspectRatio } = params;

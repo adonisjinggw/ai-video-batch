@@ -343,19 +343,17 @@
                 return;
             }
 
-            // 💰 获取估算费用
-            const templates = typeof AgentTeamFactory !== 'undefined' ? AgentTeamFactory.getTemplates() : [];
-            const tpl = templates.find(t => t.id === this._selectedTemplate);
-            const filmCost = tpl?.estimatedCost || 8; // 默认8胶片
-
-            // 💰 检查登录和余额
+            // 💰 检查登录（后端按次扣费，不再前端预扣）
             if (typeof currentUser !== 'undefined' && !currentUser) {
                 if (typeof showToast === 'function') showToast('请先登录后再使用团队功能');
                 return;
             }
-            if (typeof userQuota !== 'undefined' && userQuota < filmCost) {
-                if (typeof showToast === 'function') showToast(`胶片不足，需要约${filmCost}胶片，当前${userQuota}`);
-                return;
+            // 余额软提示（仅参考，实际按后端调用扣费）
+            const templates = typeof AgentTeamFactory !== 'undefined' ? AgentTeamFactory.getTemplates() : [];
+            const tpl = templates.find(t => t.id === this._selectedTemplate);
+            const estCost = tpl?.estimatedCost || 8;
+            if (typeof userQuota !== 'undefined' && userQuota < estCost) {
+                if (!confirm(`余额(${userQuota}胶片)可能不足（预估约${estCost}胶片），是否继续？`)) return;
             }
 
             // 创建团队
@@ -389,28 +387,9 @@
                 this._addMessage('system', 'info', `📷 参考图处理完成，开始执行任务`, '✅', '系统');
             }
 
-            // 💰 包裹执行函数（带计费）
-            const teamApiCall = () => this._currentTeam.run(goal);
-
+            // 💰 团队不再前端扣费，后端每次API调用独立计费（避免双重扣费）
             try {
-                let result;
-                if (filmCost > 0 && typeof Billing !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) {
-                    result = await Billing.executeWithBilling({
-                        userId: currentUser.id,
-                        filmCost: filmCost,
-                        apiCall: teamApiCall,
-                        onBalanceUpdate: (newBalance) => {
-                            if (typeof userQuota !== 'undefined') {
-                                window.userQuota = parseFloat(newBalance) || 0;
-                                localStorage.setItem('film_balance', String(window.userQuota));
-                            }
-                            if (typeof updateQuotaDisplay === 'function') updateQuotaDisplay();
-                        },
-                        description: `Agent团队: ${tpl?.name || '自由团队'}`
-                    });
-                } else {
-                    result = await teamApiCall();
-                }
+                const result = await this._currentTeam.run(goal);
                 this._isRunning = false;
                 this._showResultView(result);
             } catch (err) {
@@ -597,10 +576,25 @@
                     }
                 };
 
-                const history = this._loadTeamHistory();
+                let history = this._loadTeamHistory();
                 history.unshift(record);
                 if (history.length > this._TEAM_HISTORY_MAX) history.length = this._TEAM_HISTORY_MAX;
-                localStorage.setItem(this._TEAM_HISTORY_KEY, JSON.stringify(history));
+
+                // 防止 localStorage 配额溢出：写入失败时逐步裁剪
+                let saved = false;
+                while (!saved && history.length > 0) {
+                    try {
+                        localStorage.setItem(this._TEAM_HISTORY_KEY, JSON.stringify(history));
+                        saved = true;
+                    } catch (quotaErr) {
+                        // 配额不足：去掉最旧的记录再重试
+                        history.pop();
+                        if (history.length === 0) {
+                            // 还是不行就清空
+                            try { localStorage.removeItem(this._TEAM_HISTORY_KEY); } catch (_) {}
+                        }
+                    }
+                }
                 console.log('💾 [AgentUI] 团队结果已保存');
             } catch (e) {
                 console.warn('[AgentUI] 保存团队结果失败:', e);

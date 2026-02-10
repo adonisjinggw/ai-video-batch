@@ -183,12 +183,12 @@
             // TTS配音
             this.register('tts_generate', {
                 name: 'TTS配音',
-                description: 'AI文字转语音配音。参数: text(配音文本), engine(引擎: gemini/kling/dubbingx,默认gemini), voiceId(音色ID,可选), speed(语速0.5-2,默认1)',
+                description: 'AI文字转语音配音。参数: text(配音文本), engine(引擎: dubbingx/gemini/kling,默认dubbingx), voiceId(音色ID,可选), speed(语速0.5-2,默认1)',
                 params: ['text', 'engine', 'voiceId', 'speed'],
                 fn: async (p) => {
                     if (typeof callTTSAPI === 'function') {
                         return await callTTSAPI(p.text, {
-                            engine: p.engine || 'gemini',
+                            engine: p.engine || 'dubbingx',
                             voiceId: p.voiceId || '',
                             speed: parseFloat(p.speed) || 1
                         });
