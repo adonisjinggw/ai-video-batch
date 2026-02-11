@@ -453,30 +453,42 @@
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
 
-        // 🔧 参考图兼容
+        // 🔧 参考图兼容：支持单图和多图
         const refImageUrl = options.imageUrl || options.image_url || options.refImage || undefined;
+        const refImagesArr = options.refImages || options.image_urls || undefined;
 
-        // 🔧 fetch 级超时（60s），后端实际超时45s，前端留足余量
+        // 星梦/即梦等模型超时更长
+        const model = options.model || 'nano-banana-2';
+        const isSlow = model.includes('seedream') || model.includes('doubao') || model.includes('jimeng');
+        const timeoutMs = isSlow ? 150000 : 60000;
+
+        // 🔧 fetch 级超时
         const _abortCtl = new AbortController();
-        const _abortTimer = setTimeout(() => _abortCtl.abort(), 60000);
+        const _abortTimer = setTimeout(() => _abortCtl.abort(), timeoutMs);
         let res;
         try {
+            const body = {
+                prompt,
+                model,
+                aspect_ratio: options.aspectRatio || options.aspect_ratio || '16:9',
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
+            };
+            // 多参考图优先，否则单图
+            if (refImagesArr && Array.isArray(refImagesArr) && refImagesArr.length > 0) {
+                body.image_urls = refImagesArr;
+            } else if (refImageUrl) {
+                body.image_url = refImageUrl;
+            }
             res = await fetch('/api/banana2', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt,
-                    model: options.model || 'nano-banana-2',
-                    aspect_ratio: options.aspectRatio || options.aspect_ratio || '16:9',
-                    image_url: refImageUrl,
-                    userId,
-                    skip_billing: _billingSessionCount > 0 || undefined
-                }),
+                body: JSON.stringify(body),
                 signal: _abortCtl.signal
             });
         } catch (fetchErr) {
             clearTimeout(_abortTimer);
-            throw new Error(`Banana2网络错误: ${fetchErr.name === 'AbortError' ? '请求超时(60s)' : fetchErr.message}`);
+            throw new Error(`Banana2网络错误: ${fetchErr.name === 'AbortError' ? '请求超时' : fetchErr.message}`);
         }
         clearTimeout(_abortTimer);
         const data = await res.json().catch(() => ({}));

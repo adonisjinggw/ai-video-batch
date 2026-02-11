@@ -42,11 +42,12 @@
 - 有参考图→必须在视觉类任务描述中包含参考图URL和分析结论
 
 ## ⭐ 图片模型选择规则（很重要）
-- IP角色/吉祥物/表情包/角色设计 → 必须用 image_mj (Midjourney)，质量最高，支持参考图
-- 品牌视觉/海报/封面/高质量图片 → 优先 image_mj (Midjourney)
-- 快速草图/测试概念/简单插图 → 可用 image_banana (Banana2快速)
+- 有多张参考图的IP/角色/吉祥物/表情包设计 → 必须用 image_seedream (星梦画师)，多参考图融合能力最强
+- IP角色/品牌视觉/高质量设计 → 优先 image_seedream (星梦) 或 image_banana (Banana2/Gemini3)
+- 单张参考图的高质量场景 → 可用 image_mj (Midjourney) 或 image_seedream
+- 快速草图/测试概念/简单插图 → 可用 image_banana (Banana2快速免费)
 - 绝对不要用 image_modelscope 做 IP/角色/品牌类设计，其质量不足
-- 在任务描述中明确告诉专家用哪个图片工具，例如"请用image_mj生成"
+- 在任务描述中明确告诉专家用哪个图片工具，例如"请用image_seedream生成，用refImages传入参考图"
 
 ## 并行调度原则
 - 文案撰写 和 音乐制作 通常可并行（互不依赖）
@@ -87,7 +88,7 @@
         name: '视觉设计师',
         role: 'visual_artist',
         icon: '🎨',
-        tools: ['image_mj', 'image_banana', 'image_modelscope', 'image_analyze', 'save_image'],
+        tools: ['image_seedream', 'image_banana', 'image_mj', 'image_modelscope', 'image_analyze', 'save_image'],
         systemPrompt: `你是一位专业视觉设计师，擅长：
 - 品牌视觉设计（Logo、名片、包装）
 - 社交媒体图片、海报、Banner
@@ -95,8 +96,10 @@
 - 插画、角色概念图、场景图
 
 ## ⭐ 模型选择（很重要）
-- IP角色/品牌视觉/海报/封面/高质量设计 → 必须用 image_mj (Midjourney)
-- 快速草图/测试/简单配图 → 可用 image_banana (Banana2)
+- 有参考图的IP/角色/品牌设计 → 必须用 image_seedream (星梦画师，多参考图融合最强)
+- 高质量设计/海报/封面 → 优先 image_seedream 或 image_banana (Gemini3)
+- 单张参考图的精细场景 → image_mj (Midjourney) 也可
+- 快速草图/测试/简单配图 → image_banana (Banana2快速免费)
 - image_modelscope 质量有限，只用于简单的多图编辑场景
 
 ## 图片生成要求
@@ -163,7 +166,7 @@
         name: '角色设计师',
         role: 'character_designer',
         icon: '🧸',
-        tools: ['image_mj', 'image_banana', 'image_analyze', 'text_gen', 'save_character'],
+        tools: ['image_seedream', 'image_banana', 'image_mj', 'image_analyze', 'text_gen', 'save_character'],
         systemPrompt: `你是一位专业IP角色设计师，擅长：
 - IP角色概念设计（卡通、写实、Q版等风格）
 - 角色设定图（正面/侧面/背面三视图）
@@ -172,9 +175,10 @@
 - 角色一致性维护
 
 ## ⭐ 模型选择（很重要）
-- 角色设计、IP形象、表情包、衍生品 → 必须使用 image_mj (Midjourney)，不要用其他工具
-- Midjourney 支持参考图(refImage)，质量最高，角色一致性最好
-- 只有在快速草图/测试时才可以用 image_banana
+- 有参考图的角色设计、IP形象、表情包 → 必须用 image_seedream (星梦画师)，多参考图融合最强
+- 无参考图的角色设计 → 优先 image_seedream 或 image_banana (Gemini3快速免费)
+- image_mj (Midjourney) 只支持单张参考图，适合单图参考的精细场景
+- 多张参考图时用 refImages 参数传入URL数组
 
 ## 设计要求
 - 图片提示词(prompt)必须用英文，详细描述角色特征

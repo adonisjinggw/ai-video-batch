@@ -72,14 +72,15 @@
 
             // 图片生成
             this.register('image_banana', {
-                name: 'Banana2图片',
-                description: '高质量图片生成（快速）。参数: prompt(英文提示词), aspectRatio(比例,默认16:9), refImage(参考图URL,可选)',
-                params: ['prompt', 'aspectRatio', 'refImage'],
+                name: 'Banana2图片(Gemini3)',
+                description: '高质量图片生成（快速,免费）。支持多参考图融合。参数: prompt(英文提示词), aspectRatio(比例,默认16:9), refImage(单张参考图URL,可选), refImages(多张参考图URL数组,可选)',
+                params: ['prompt', 'aspectRatio', 'refImage', 'refImages'],
                 fn: async (p) => {
                     if (typeof callBanana2ImageAPI === 'function') {
                         return await callBanana2ImageAPI(p.prompt, {
                             aspectRatio: p.aspectRatio || '16:9',
-                            refImage: p.refImage
+                            refImage: p.refImage,
+                            refImages: p.refImages
                         });
                     }
                     throw new Error('callBanana2ImageAPI 不可用');
@@ -98,6 +99,23 @@
                         });
                     }
                     throw new Error('callModelScopeImageAPI 不可用');
+                }
+            });
+
+            this.register('image_seedream', {
+                name: '星梦画师(Seedream)',
+                description: '星梦画师，豆包旗下高质量图片模型，特别擅长多参考图融合、IP角色设计、风格迁移。参数: prompt(英文提示词), aspectRatio(比例,默认16:9), refImage(单张参考图URL,可选), refImages(多张参考图URL数组,可选)',
+                params: ['prompt', 'aspectRatio', 'refImage', 'refImages'],
+                fn: async (p) => {
+                    if (typeof callBanana2ImageAPI === 'function') {
+                        return await callBanana2ImageAPI(p.prompt, {
+                            model: 'doubao-seedream-4-5-251128',
+                            aspectRatio: p.aspectRatio || '16:9',
+                            refImage: p.refImage,
+                            refImages: p.refImages
+                        });
+                    }
+                    throw new Error('callBanana2ImageAPI 不可用');
                 }
             });
 
