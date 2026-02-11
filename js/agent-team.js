@@ -176,7 +176,7 @@
                         composition: '请分析这张图片的构图方式，包括：构图法则(三分法/对称/引导线等)、视觉焦点位置、空间层次、适合的应用场景。用JSON格式输出: {"composition":"","focalPoint":"","layers":"","useCase":""}',
                         all: '请全面分析这张图片，包括以下维度：\n1. 内容：主体、背景、细节\n2. 风格：艺术风格、质感、氛围\n3. 色彩：主色调、配色方案、明暗\n4. 构图：构图方式、视觉焦点\n5. 文字：图中所有文字内容\n6. 建议：如何用AI复现类似风格的英文prompt关键词\n用JSON格式输出完整分析结果。'
                     };
-                    return await callOCRAPI(p.imageUrl, prompts[type] || prompts.all, 'gemini-2.0-flash');
+                    return await callOCRAPI(p.imageUrl, prompts[type] || prompts.all, 'gemini-2.5-flash');
                 }
             });
 
