@@ -188,59 +188,15 @@ const YUNWU_ENDPOINTS = [
 // 默认使用第一个（国内最快）
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
 
-/**
- * 带故障转移的fetch请求
- * @param {string} path - API路径
- * @param {object} options - fetch选项
- * @returns {Promise<Response>}
- */
-async function fetchWithFallback(path, options) {
+/** 内部单次轮询所有端点 */
+async function _tryAllEndpoints(path, options, timeoutMs) {
     let lastError = null;
+    let got429 = false;
     
     for (const endpoint of YUNWU_ENDPOINTS) {
         try {
             const url = `${endpoint.url}${path}`;
-            console.log(`[yunwu] 尝试 ${endpoint.name}: ${url}`);
-            
-            const response = await fetch(url, {
-                ...options,
-                // 设置超时
-                signal: AbortSignal.timeout(30000)
-            });
-            
-            // 如果是429限速，尝试下一个节点
-            if (response.status === 429) {
-                console.warn(`[yunwu] ${endpoint.name} 限速，尝试下一节点...`);
-                continue;
-            }
-            
-            // 成功则返回
-            if (response.ok || response.status < 500) {
-                console.log(`[yunwu] ✅ ${endpoint.name} 成功`);
-                return response;
-            }
-            
-            console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
-        } catch (err) {
-            console.warn(`[yunwu] ${endpoint.name} 失败:`, err.message);
-            lastError = err;
-        }
-    }
-    
-    throw lastError || new Error('所有云雾节点均不可用');
-}
-
-/**
- * fetchWithFallback 的可配置超时版本
- * 说明：云雾的部分模型（例如 4K/高质量）响应可能超过 60s，必须提升超时。
- */
-async function fetchWithFallbackWithTimeout(path, options, timeoutMs = 30000) {
-    let lastError = null;
-    
-    for (const endpoint of YUNWU_ENDPOINTS) {
-        try {
-            const url = `${endpoint.url}${path}`;
-            console.log(`[yunwu] 尝试 ${endpoint.name}: ${url} (timeout ${Math.round(timeoutMs / 1000)}s)`);
+            console.log(`[yunwu] 尝试 ${endpoint.name}: ${url.substring(0, 80)}... (timeout ${Math.round(timeoutMs / 1000)}s)`);
             
             const response = await fetch(url, {
                 ...options,
@@ -248,20 +204,71 @@ async function fetchWithFallbackWithTimeout(path, options, timeoutMs = 30000) {
             });
             
             if (response.status === 429) {
-                console.warn(`[yunwu] ${endpoint.name} 限速，尝试下一节点...`);
+                console.warn(`[yunwu] ${endpoint.name} 限速(429)，尝试下一节点...`);
+                got429 = true;
                 continue;
             }
             
             if (response.ok || response.status < 500) {
-                console.log(`[yunwu] ✅ ${endpoint.name} 成功`);
-                return response;
+                console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
+                return { response };
             }
             
             console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
+            lastError = new Error(`${endpoint.name} 返回 ${response.status}`);
         } catch (err) {
             console.warn(`[yunwu] ${endpoint.name} 失败:`, err.message);
             lastError = err;
         }
+    }
+    
+    return { error: lastError, got429 };
+}
+
+/**
+ * 带故障转移 + 429重试的fetch请求
+ * 逻辑：先轮询所有节点，如果全部429则等待2s后再试一轮（最多3轮）
+ */
+async function fetchWithFallback(path, options) {
+    const MAX_ROUNDS = 3;
+    let lastError = null;
+    
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+        if (round > 0) {
+            const delay = 1500 * round;
+            console.log(`[yunwu] 全节点限速，等待${delay}ms后第${round + 1}轮重试...`);
+            await new Promise(r => setTimeout(r, delay));
+        }
+        
+        const result = await _tryAllEndpoints(path, options, 30000);
+        if (result.response) return result.response;
+        
+        lastError = result.error;
+        if (!result.got429) break;  // 非429错误，不用重试
+    }
+    
+    throw lastError || new Error('所有云雾节点均不可用');
+}
+
+/**
+ * fetchWithFallback 的可配置超时版本（同样支持429重试）
+ */
+async function fetchWithFallbackWithTimeout(path, options, timeoutMs = 30000) {
+    const MAX_ROUNDS = 3;
+    let lastError = null;
+    
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+        if (round > 0) {
+            const delay = 1500 * round;
+            console.log(`[yunwu] 全节点限速，等待${delay}ms后第${round + 1}轮重试...`);
+            await new Promise(r => setTimeout(r, delay));
+        }
+        
+        const result = await _tryAllEndpoints(path, options, timeoutMs);
+        if (result.response) return result.response;
+        
+        lastError = result.error;
+        if (!result.got429) break;
     }
     
     throw lastError || new Error('所有云雾节点均不可用');
