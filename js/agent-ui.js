@@ -287,24 +287,37 @@
         /** 处理参考图上传 */
         _handleRefImageUpload(input) {
             const files = Array.from(input.files || []);
+            // ✅ 立即重置 input，允许重复上传同一文件、关闭后再次上传
+            input.value = '';
             if (files.length === 0) return;
 
-            let loaded = 0;
-            for (const file of files) {
-                if (!file.type.startsWith('image/')) continue;
-                if (file.size > 10 * 1024 * 1024) {
-                    if (typeof showToast === 'function') showToast(`${file.name} 超过10MB，已跳过`);
-                    continue;
+            // 只处理有效的图片文件
+            const validFiles = files.filter(f => {
+                if (!f.type.startsWith('image/')) return false;
+                if (f.size > 10 * 1024 * 1024) {
+                    if (typeof showToast === 'function') showToast(`${f.name} 超过10MB，已跳过`);
+                    return false;
                 }
+                return true;
+            });
+            if (validFiles.length === 0) return;
+
+            let loaded = 0;
+            for (const file of validFiles) {
                 const reader = new FileReader();
                 reader.onload = () => {
                     this._refImages.push({ base64: reader.result, name: file.name, size: file.size });
                     loaded++;
-                    if (loaded >= files.length) {
+                    if (loaded >= validFiles.length) {
                         this._refreshRefPreviews();
                     }
                 };
-                reader.onerror = () => { loaded++; };
+                reader.onerror = () => {
+                    loaded++;
+                    if (loaded >= validFiles.length) {
+                        this._refreshRefPreviews();
+                    }
+                };
                 reader.readAsDataURL(file);
             }
         },
