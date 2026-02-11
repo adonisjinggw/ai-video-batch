@@ -3112,10 +3112,12 @@ module.exports = async function handler(req, res) {
                     });
                 } else {
                     // 尝试多种路径提取直接返回的音频URL
-                    const audioUrl = data?.data?.task_result?.works?.[0]?.resource?.resource ||
+                    const audioUrl = data?.data?.task_result?.audios?.[0]?.url ||  // ✅ Kling TTS 实际格式
+                                    data?.data?.task_result?.works?.[0]?.resource?.resource ||
                                     data?.data?.task_result?.works?.[0]?.audio?.resource ||
                                     data?.data?.works?.[0]?.resource?.resource ||
                                     data?.data?.works?.[0]?.audio?.resource ||
+                                    data?.data?.audios?.[0]?.url ||
                                     data?.data?.audio_url ||
                                     data?.audio_url;
                     
@@ -3185,7 +3187,8 @@ module.exports = async function handler(req, res) {
                 const taskCode = data?.code ?? data?.data?.code;
                 
                 // 先尝试从任何位置提取音频URL（即使状态判断失败也能工作）
-                const audioUrl = data?.data?.task_result?.works?.[0]?.resource?.resource ||
+                const audioUrl = data?.data?.task_result?.audios?.[0]?.url ||  // ✅ Kling TTS 实际格式
+                                data?.data?.task_result?.works?.[0]?.resource?.resource ||
                                 data?.data?.task_result?.works?.[0]?.audio?.resource ||
                                 data?.data?.task_result?.works?.[0]?.audio?.resource_without_watermark ||
                                 data?.data?.task_result?.works?.[0]?.url ||
@@ -3193,6 +3196,8 @@ module.exports = async function handler(req, res) {
                                 data?.data?.works?.[0]?.audio?.resource ||
                                 data?.data?.works?.[0]?.audio?.resource_without_watermark ||
                                 data?.data?.works?.[0]?.url ||
+                                data?.data?.task_result?.audios?.[0]?.resource ||  // 备选
+                                data?.data?.audios?.[0]?.url ||  // 备选
                                 data?.data?.audio_url ||
                                 data?.audio_url ||
                                 data?.data?.task_result?.resource ||
