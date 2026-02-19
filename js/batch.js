@@ -2309,13 +2309,13 @@ function __normalizeVideoModelName(model) {
     if (ml === 'sora-2-vip-all') return 'sora-2-vip-all';
     // 🔧 旧 sora2 模型已停用，统一转换为过渡模型 sora-2-vip-all
     if (ml === 'sora2' || ml === 'sora-2' || ml === 'sora-2-hd' || ml === 'sora2-hd' || ml === 'sora-2-all') return 'sora-2-vip-all';
-    if (ml === 'sora2pro' || ml === 'sora-2-pro' || ml === 'sora2-pro' || ml === 'sora-2-pro-all') return 'sora-2-vip-all';
+    if (ml === 'sora2pro' || ml === 'sora-2-pro' || ml === 'sora2-pro' || ml === 'sora-2-pro-all') return 'sora-2-pro-all';
     if (ml === 'sora-2-characters') return 'sora-2-vip-all';
-    if (ml === 'veo3.1fast' || ml === 'veo-3.1fast' || ml === 'veo-3.1-fast') return 'veo3.1';
-    if (ml === 'veo3.1' || ml === 'veo-3.1') return 'veo3.1';
-    // 兼容旧值：不展示 veo3.1-pro，但如果历史任务里选过，自动降级为 veo3.1
-    if (ml === 'veo3.1-pro' || ml === 'veo-3.1-pro' || ml === 'veo3.1pro') return 'veo3.1';
-    if (ml === 'grok3' || ml === 'grok-video-3' || ml === 'grok-video-3-text' || ml === 'grok-video-3-hd') return 'grok-video-3';
+    if (ml === 'veo3.1fast' || ml === 'veo-3.1fast' || ml === 'veo-3.1-fast' || ml === 'veo3.1' || ml === 'veo-3.1' || ml === 'veo') return 'veo';
+    // 兼容旧值：不展示 veo3.1-pro，但如果历史任务里选过，自动降级为 veo
+    if (ml === 'veo3.1-pro' || ml === 'veo-3.1-pro' || ml === 'veo3.1pro') return 'veo';
+    if (ml === 'grok3' || ml === 'grok-video-3' || ml === 'grok-video-3-text' || ml === 'grok-video-3-hd' || ml === 'grok') return 'grok';
+    if (ml === 'grok-10s' || ml === 'grok10s') return 'grok-10s';
     // 🎬 Vidu/Hailuo/Kling 模型：保持原名称
     if (ml.startsWith('vidu-') || ml.startsWith('hailuo-') || ml.startsWith('kling-')) return m;
     return m;
@@ -2323,17 +2323,19 @@ function __normalizeVideoModelName(model) {
 
 function __getFixedClipDurationByModel(model, hd) {
     const m = __normalizeVideoModelName(model);
-    if (m === 'sora-2-vip-all') return 10; // 过渡模型固定10秒
+    if (m === 'modelscope-video') return 5;
+    if (m === 'sora-2-vip-all') return 10;
     if (m === 'sora-2-pro-all') {
         const wantHd = (typeof hd === 'undefined') ? true : !!hd;
         return wantHd ? 15 : 25;
     }
-    if (m === 'grok-video-3') return 6;
-    if (m === 'veo3.1') return 8;
+    if (m === 'grok' || m === 'grok-video-3') return 6;
+    if (m === 'grok-10s') return 10;
+    if (m === 'veo3.1' || m === 'veo') return 8;
     // 🎬 Vidu 模型：从模型名提取时长 (vidu-q2-5s-720p -> 5, vidu-q2-10s-1080p -> 10)
     if (String(m).startsWith('vidu-') || String(m).startsWith('kling-')) {
         const durationMatch = String(m).match(/-(\d+)s[-$]/i) || String(m).match(/-(\d+)s$/i);
-        return durationMatch ? parseInt(durationMatch[1]) : 5;  // 默认5秒
+        return durationMatch ? parseInt(durationMatch[1]) : 5;
     }
     // 🐚 Hailuo 模型：默认6秒
     if (String(m).startsWith('hailuo-')) {
@@ -19880,11 +19882,16 @@ function closeContextMenu() {
 function _videoModelOptionsHtml(selected) {
     const v = __normalizeVideoModelName(String(selected || 'sora-2'));
     const opts = [
-        { v: 'sora-2', label: 'Sora-2' },
-        { v: 'sora-2-pro', label: 'Sora-2 Pro' },
-        { v: 'sora-2-characters', label: 'Sora-2 Characters(锁角色)' },
-        { v: 'veo3.1', label: 'Veo-3.1' },
-        { v: 'grok-video-3', label: '🚀 Grok Video 3' }
+        { v: 'modelscope-video', label: '🆓 魔塔视频（免费）' },
+        { v: 'sora-2-all', label: '🎬 Sora-2' },
+        { v: 'sora-2-pro-all', label: '⭐ Sora-2 Pro' },
+        { v: 'veo', label: '🎬 Veo 3.1' },
+        { v: 'grok', label: '🚀 Grok Video 3 (6秒)' },
+        { v: 'grok-10s', label: '🚀 Grok Video 3 (10秒)' },
+        { v: 'vidu-q2-turbo-5s-720p', label: '🎬 Vidu Turbo 5秒' },
+        { v: 'vidu-q2-5s-1080p', label: '🎬 Vidu 5秒 1080P' },
+        { v: 'vidu-q2-turbo-10s-720p', label: '🎬 Vidu Turbo 10秒' },
+        { v: 'vidu-q2-10s-1080p', label: '🎬 Vidu 10秒 1080P' }
     ];
     return opts.map(o => `<option value="${o.v}" ${v === o.v ? 'selected' : ''}>${o.label}</option>`).join('');
 }
