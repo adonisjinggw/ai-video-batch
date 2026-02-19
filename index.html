@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RollRoll - 让创意转动 V8.6.6</title>
+    <title>RollRoll - 让创意转动 V8.6.5</title>
     <!-- 📱 手机端自动跳转 -->
     <script>
         (function () {
@@ -28,7 +28,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="css/style.css?v=8.6.6">
+    <link rel="stylesheet" href="css/style.css?v=8.6.5">
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Supabase SDK （本地域名代理，避免被插件拦截） -->
@@ -306,7 +306,7 @@
                             stroke-width="2">
                             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                         </svg>
-                        <span>🧩技能<span id="skillTabBadge" style="display:none;margin-left:4px;padding:1px 6px;background:var(--accent-gold);color:#000;border-radius:10px;font-size:10px;font-weight:700;"></span></span>
+                        <span>🧩技能</span>
                     </button>
                 </div>
 
@@ -379,6 +379,7 @@
                         <div class="option-group">
                             <label for="quickGenMode">模式</label>
                             <select id="quickGenMode" title="选择生成模式" onchange="onGenModeChange(this.value)">
+                                <option value="modelscope-video">🆓 魔塔视频（免费）</option>
                                 <option value="text-to-video">Sora-2 (文生视频)</option>
                                 <option value="image-to-video">Flux + Sora-2 (图生视频)</option>
                                 <option value="banana-image-to-video">Gemini-3 + Sora-2 (图生视频)</option>
@@ -586,7 +587,7 @@
                         </div>
 
                         <!-- 技能卡片网格 -->
-                        <div id="skillsGrid" class="skills-grid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; max-height:calc(100vh - 480px); overflow-y:auto; padding-right:4px;">
+                        <div id="skillsGrid" class="skills-grid" style="display:grid; grid-template-columns:1fr; gap:10px; max-height:calc(100vh - 480px); overflow-y:auto; padding-right:4px;">
                             <!-- 由 JS 动态渲染 -->
                         </div>
 
@@ -644,15 +645,6 @@
                 </div>
             </div>
         </aside>
-
-        <!-- 🧩 技能执行管理器浮窗 -->
-        <div id="skillExecManager" style="display:none; position:fixed; bottom:20px; right:20px; z-index:9000; width:320px; max-height:360px; background:#1a1a2e; border:1px solid rgba(251,191,36,0.3); border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,0.5); overflow:hidden;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(251,191,36,0.1); border-bottom:1px solid rgba(255,255,255,0.1);">
-                <span style="font-size:13px; font-weight:700; color:#fbbf24;">⚡ 执行中的技能</span>
-                <button onclick="SkillManager.cancel(); showToast('✅ 已取消全部')" style="background:none; border:1px solid #555; border-radius:6px; color:#f87171; font-size:11px; padding:4px 10px; cursor:pointer;">全部取消</button>
-            </div>
-            <div id="skillExecList" style="padding:8px 12px; max-height:280px; overflow-y:auto;"></div>
-        </div>
 
         <!-- 右侧主内容区 (单页面布局) -->
         <main class="content-area">
@@ -783,7 +775,7 @@
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('画1张赛博朋克风格的城市夜景')">🌆 赛博</button>
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1张日系治愈风格的插画')">🌸 日系</button>
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('画1张游戏角色立绘')">🎮 角色</button>
-                        <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1个短视频', 'sora-2-vip-all')">🎬 视频</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1个短视频', 'sora-2-all')">🎬 视频</button>
                         <button class="quick-cmd-btn" onclick="openMVGenerator()" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">🎵 音乐MV</button>
                     </div>
                     <!-- 📎 参考图/视频预览区 -->
@@ -847,9 +839,8 @@
                             </optgroup>
                             <optgroup label="🎬 视频模型">
                                 <option value="modelscope-video">🆓 魔塔视频（免费）</option>
-                                <option value="sora-2-vip-all">🎬 Sora-2 VIP（过渡 10s）</option>
-                                <!-- <option value="sora-2-all">🎬 Sora-2（已停用）</option> -->
-                                <!-- <option value="sora-2-pro-all">⭐ Sora-2 Pro（已停用）</option> -->
+                                <option value="sora-2-all">🎬 Sora-2</option>
+                                <option value="sora-2-pro-all">⭐ Sora-2 Pro</option>
                                 <option value="veo">🎬 Veo 3.1</option>
                                 <option value="grok">🚀 Grok Video 3 (6秒)</option>
                                 <option value="grok-10s">🚀 Grok Video 3 (10秒)</option>
@@ -1680,11 +1671,11 @@
 
             <!-- 控制按钮 -->
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button type="button" onclick="event.preventDefault();event.stopPropagation();SkillUI.cancelExecution()" 
+                <button onclick="SkillUI.cancelExecution()" 
                     style="flex: 1; padding: 10px 20px; background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.4); color: #ff8a80; border-radius: 20px; cursor: pointer;">
                     ⏹️ 取消
                 </button>
-                <button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('skillProgressPanel').style.display='none'" 
+                <button onclick="document.getElementById('skillProgressPanel').style.display='none'" 
                     style="flex: 1; padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #aaa; border-radius: 20px; cursor: pointer;">
                     ↙️ 后台运行
                 </button>
@@ -1700,12 +1691,9 @@
     <!-- 🛡️ 弹性 API 网关 - 负载均衡、熔断降级、成本优化 -->
     <script src="js/resilient-api.js?v=1.0.0"></script>
     <!-- 🧩 Skill 技能系统 - 用户可选择不同技能完成任务 -->
-    <script src="js/user-memory.js?v=1.0.0"></script>
-    <script src="js/writing-vault.js?v=1.0.0"></script>
-    <script src="js/skill-system.js?v=2.2&t=20260209b"></script>
-    <script src="js/skill-presets.js?v=2.2&t=20260209b"></script>
-    <script src="js/watermark.js?v=20260211a"></script>
-    <script src="js/batch.js?v=8.6.6&t=202602150932"></script>
+    <script src="js/skill-system.js?v=1.0.0"></script>
+    <script src="js/skill-presets.js?v=1.0.0"></script>
+    <script src="js/batch.js?v=8.6.5&t=202601140058"></script>
     <script src="js/help_modal.js"></script>
 
     <!-- 视频编辑器模态框 -->
