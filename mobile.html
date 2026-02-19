@@ -11201,12 +11201,8 @@ ${story}
         function finishIntro() {
             if (!animationRunning) return;
             animationRunning = false;
-            // 🔧 移除注入的CSS，恢复正常页面布局
-            if (typeof _introStyleTag !== 'undefined' && _introStyleTag) {
-                _introStyleTag.remove();
-                _introStyleTag = null;
-            }
-            // 先准备欢迎页(不可见但已渲染)
+            // 🔧 不移除注入的CSS，避免登录后页面闪现
+            // 直接通过CSS控制显示欢迎页和隐藏开场动画
             var welcome = document.getElementById('welcomeScreen');
             if (welcome) {
                 welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
