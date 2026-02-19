@@ -1508,12 +1508,18 @@
     </div>
 
     <script>
-    // 开场动画/欢迎页显示逻辑（强制显示，无论什么条件都不能跳过）
+    // 开场动画/欢迎页显示逻辑（登录后可以跳过，其他情况强制显示）
     var _showIntro = false;
     var _introStyleTag = null;
     (function() {
-        // 🔒 强制流程：每次打开都显示开场动画 → 欢迎页 → 登录
-        // 没有任何条件可以跳过
+        // 🔒 只有登录后跳转（logged_in=1 或 skip_welcome=1）才跳过
+        // 其他情况强制显示开场动画和欢迎页
+        if(location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1){
+            history.replaceState({}, '', location.pathname);
+            _showIntro = false;
+            return;
+        }
+        // 强制显示开场动画和欢迎页
         _showIntro = true;
         var style = document.createElement('style');
         style.id = 'cinemaIntroInjectedStyle';
@@ -11135,6 +11141,8 @@ ${story}
 
         // 播放动画
         function playIntro() {
+            // 添加 active 类显示开场动画
+            intro.classList.add('active');
             createParticles();
             resetAll();
             var t = 0;
