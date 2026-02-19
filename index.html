@@ -156,11 +156,11 @@
 
         /* 宫格效果 - 时代卡片 */
         .era-card { position: absolute; z-index: 25; text-align: center; opacity: 0; pointer-events: none; }
-        .era-card.show { animation: eraCardShow 1.5s ease-out forwards; }
+        .era-card.show { animation: eraCardShow 1.8s ease-out forwards; }
         @keyframes eraCardShow {
             0% { opacity: 0; transform: scale(0.7) translateY(20px); }
             15% { opacity: 1; transform: scale(1) translateY(0); }
-            85% { opacity: 1; }
+            75% { opacity: 1; }
             100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
         }
         .era-year { font-size: 80px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: -3px; margin-bottom: 8px; }
@@ -1991,6 +1991,21 @@
             eraCards.forEach(function(card) { card.classList.remove('show'); });
         }
 
+        // 显示单个时代
+        function showEra(i) {
+            // 先隐藏所有背景
+            eraBgs.forEach(function(bg, j) { bg.classList.toggle('active', j === i); });
+            // 先隐藏所有卡片
+            eraCards.forEach(function(card, j) { card.classList.remove('show'); });
+            // 强制重绘确保动画重置
+            void eraCards[i].offsetWidth;
+            // 显示当前卡片
+            eraCards[i].classList.add('show');
+            lightSweep.classList.remove('animate');
+            void lightSweep.offsetWidth;
+            lightSweep.classList.add('animate');
+        }
+
         // 播放动画
         function playIntro() {
             // 添加 active 类显示开场动画
@@ -2010,19 +2025,14 @@
             eras.forEach(function(i) {
                 setTimeout(function() {
                     if (!animationRunning) return;
-                    eraBgs.forEach(function(bg, j) { bg.classList.toggle('active', j === i); });
-                    eraCards[i].classList.add('show');
-                    lightSweep.classList.remove('animate');
-                    void lightSweep.offsetWidth;
-                    lightSweep.classList.add('animate');
+                    showEra(i);
                 }, t);
-                t += 1200;
+                t += 1800;
                 setTimeout(function() {
                     if (!animationRunning) return;
                     glitch.classList.add('active');
                     setTimeout(function() { glitch.classList.remove('active'); }, 150);
-                }, t);
-                t += 100;
+                }, t - 200);
             });
 
             // 倒计时
