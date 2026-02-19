@@ -20,6 +20,7 @@
 
     // 🎬 通用视频模型选项
     const VIDEO_MODEL_OPTIONS = [
+        { value: 'modelscope-video', label: '🆓 魔塔视频（免费）' },
         { value: 'sora-2-vip-all', label: 'Sora-2 VIP（过渡 10s）' },
         // { value: 'sora-2-all', label: 'Sora-2（已停用）' },
         // { value: 'sora-2-pro-all', label: 'Sora-2 Pro（已停用）' },
@@ -34,8 +35,21 @@
         { value: 'hailuo-02-768p-10s', label: '海螺 02 768p 10s' },
         { value: 'hailuo-fast-768p-6s', label: '海螺 Fast 768p 6s' },
         { value: 'vidu-q2-pro-8s-1080p', label: 'Vidu Q2 Pro 1080p 8s' },
+        { value: 'vidu-q3-pro-8s-1080p', label: 'Vidu Q3 Pro 1080p 8s' },
         { value: 'vidu-q2-turbo-4s-720p', label: 'Vidu Q2 Turbo 720p 4s' },
-        { value: 'vidu-q2-4s-720p', label: 'Vidu Q2 720p 4s' }
+        { value: 'vidu-q2-4s-720p', label: 'Vidu Q2 720p 4s' },
+        { value: 'wan26-720p-5s', label: 'Wan2.6 720p 5s' },
+        { value: 'wan26-1080p-5s', label: 'Wan2.6 1080p 5s' },
+        { value: 'wan26-720p-10s', label: 'Wan2.6 720p 10s' },
+        { value: 'wan26-1080p-10s', label: 'Wan2.6 1080p 10s' },
+        { value: 'wan26-720p-15s', label: 'Wan2.6 720p 15s' },
+        { value: 'wan26-1080p-15s', label: 'Wan2.6 1080p 15s' },
+        { value: 'wan26-720p-5s-audio', label: 'Wan2.6 720p 5s 有声' },
+        { value: 'wan26-1080p-5s-audio', label: 'Wan2.6 1080p 5s 有声' },
+        { value: 'wan26-720p-10s-audio', label: 'Wan2.6 720p 10s 有声' },
+        { value: 'wan26-1080p-10s-audio', label: 'Wan2.6 1080p 10s 有声' },
+        { value: 'wan26-720p-15s-audio', label: 'Wan2.6 720p 15s 有声' },
+        { value: 'wan26-1080p-15s-audio', label: 'Wan2.6 1080p 15s 有声' }
     ];
 
     // 等待 SkillManager 加载
@@ -77,6 +91,43 @@
         }));
         const valid = results.filter(Boolean);
         return { first: valid[0] || null, all: valid };
+    }
+
+    /**
+     * 🖼️ 图片压缩函数：避免413错误
+     * @param {string} dataUrl - base64图片
+     * @param {number} maxSize - 最大尺寸（宽或高）
+     * @param {number} quality - 压缩质量 0-1
+     * @returns {Promise<string>} 压缩后的base64
+     */
+    function compressDataUrl(dataUrl, maxSize = 1200, quality = 0.85) {
+        return new Promise((resolve) => {
+            if (!dataUrl || dataUrl.length < 100 * 1024) {
+                resolve(dataUrl);
+                return;
+            }
+            const img = new Image();
+            img.onload = () => {
+                let { width, height } = img;
+                if (width > maxSize || height > maxSize) {
+                    if (width > height) {
+                        height = Math.round(height * (maxSize / width));
+                        width = maxSize;
+                    } else {
+                        width = Math.round(width * (maxSize / height));
+                        height = maxSize;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = () => resolve(dataUrl);
+            img.src = dataUrl;
+        });
     }
 
     /**
@@ -123,6 +174,154 @@
         throw new Error('图片生成功能不可用');
     }
 
+    // ==================== 💰 统一成本计算函数（与 yunwu.js 保持一致） ====================
+    
+    function calculateImageCost(imageModel) {
+        const im = String(imageModel || 'nano-banana-2').toLowerCase();
+        if (im.startsWith('midjourney')) return 12;
+        if (im === 'modelscope') return 0;
+        if (im.includes('seedream') || im.includes('doubao')) return 8;
+        if (im.includes('4k')) return 10;
+        if (im.includes('qwen')) return 8;
+        return 5;
+    }
+    
+    function calculateVideoCost(videoModel, duration = 5) {
+        const m = String(videoModel || 'sora-2-vip-all').toLowerCase();
+        const d = parseInt(duration) || 5;
+        
+        if (m.includes('modelscope')) return 0;
+        
+        if (m.includes('veo')) return 30;
+        if (m.includes('grok')) {
+            const baseCost = m.includes('10s') ? 8 : 5;
+            const baseDur = m.includes('10s') ? 10 : 6;
+            return Math.ceil((baseCost / baseDur) * d);
+        }
+        
+        if (m.startsWith('vidu-')) {
+            let baseCost = 25;
+            let baseDur = 5;
+            if (m.includes('q3-pro')) {
+                baseCost = m.includes('1080p') ? 77 : 72;
+            } else if (m.includes('q2-pro')) {
+                baseCost = m.includes('1080p') ? 54 : 27;
+            } else if (m.includes('q2-turbo')) {
+                baseCost = m.includes('1080p') ? 36 : 19;
+            } else {
+                baseCost = m.includes('1080p') ? 36 : 25;
+            }
+            return Math.ceil((baseCost / baseDur) * d);
+        }
+        
+        if (m.startsWith('hailuo-')) {
+            let baseCost = 7;
+            let baseDur = 6;
+            if (m.includes('02') && m.includes('768p')) {
+                baseCost = m.includes('10s') ? 12 : 7;
+                baseDur = m.includes('10s') ? 10 : 6;
+            } else if (m.includes('02') && m.includes('1080p')) {
+                baseCost = m.includes('10s') ? 20 : 12;
+                baseDur = m.includes('10s') ? 10 : 6;
+            } else if (m.includes('fast') && m.includes('768p')) {
+                baseCost = m.includes('10s') ? 8 : 5;
+                baseDur = m.includes('10s') ? 10 : 6;
+            } else if (m.includes('fast') && m.includes('1080p')) {
+                baseCost = m.includes('10s') ? 14 : 8;
+                baseDur = m.includes('10s') ? 10 : 6;
+            } else {
+                baseCost = m.includes('10s') ? 14 : 8;
+                baseDur = m.includes('10s') ? 10 : 6;
+            }
+            return Math.ceil((baseCost / baseDur) * d);
+        }
+        
+        if (m.startsWith('kling-')) {
+            let baseCost = 16;
+            let baseDur = 5;
+            if (m.includes('o1')) {
+                if (m.includes('720p')) {
+                    baseCost = m.includes('10s') ? 31 : 16;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                } else {
+                    baseCost = m.includes('10s') ? 41 : 21;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                }
+            } else if (m.includes('2.5')) {
+                if (m.includes('720p')) {
+                    baseCost = m.includes('10s') ? 11 : 6;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                } else {
+                    baseCost = m.includes('10s') ? 17 : 9;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                }
+            } else if (m.includes('2.1')) {
+                if (m.includes('720p')) {
+                    baseCost = m.includes('10s') ? 12 : 6;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                } else {
+                    baseCost = m.includes('10s') ? 20 : 10;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                }
+            } else if (m.includes('2.0')) {
+                if (m.includes('720p')) {
+                    baseCost = m.includes('10s') ? 14 : 7;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                } else {
+                    baseCost = m.includes('10s') ? 24 : 12;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                }
+            } else if (m.includes('1.6')) {
+                if (m.includes('720p')) {
+                    baseCost = m.includes('10s') ? 16 : 8;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                } else {
+                    baseCost = m.includes('10s') ? 28 : 14;
+                    baseDur = m.includes('10s') ? 10 : 5;
+                }
+            } else {
+                baseCost = m.includes('10s') ? 20 : 10;
+                baseDur = m.includes('10s') ? 10 : 5;
+            }
+            return Math.ceil((baseCost / baseDur) * d);
+        }
+        
+        if (m.startsWith('wan26-')) {
+            let baseCost = 3;
+            let baseDur = 5;
+            const hasAudio = m.includes('audio');
+            if (m.includes('720p')) {
+                if (m.includes('15s')) {
+                    baseCost = hasAudio ? 11 : 7;
+                    baseDur = 15;
+                } else if (m.includes('10s')) {
+                    baseCost = hasAudio ? 7 : 5;
+                    baseDur = 10;
+                } else {
+                    baseCost = hasAudio ? 4 : 3;
+                    baseDur = 5;
+                }
+            } else if (m.includes('1080p')) {
+                if (m.includes('15s')) {
+                    baseCost = hasAudio ? 21 : 13;
+                    baseDur = 15;
+                } else if (m.includes('10s')) {
+                    baseCost = hasAudio ? 14 : 9;
+                    baseDur = 10;
+                } else {
+                    baseCost = hasAudio ? 7 : 5;
+                    baseDur = 5;
+                }
+            } else {
+                baseCost = hasAudio ? 7 : 5;
+                baseDur = 5;
+            }
+            return Math.ceil((baseCost / baseDur) * d);
+        }
+        
+        return Math.ceil(15 / 5 * d);
+    }
+    
     // ==================== 🧠 智能分析辅助函数 ====================
 
     /** 检测配音场景 */
@@ -219,7 +418,28 @@
                             { value: 'realistic', label: '📸 真人写实' },
                             { value: 'chinese', label: '🏮 国风古典' },
                             { value: '3d', label: '🎮 3D 渲染' },
-                            { value: 'watercolor', label: '🎨 水彩插画' }
+                            { value: 'watercolor', label: '🎨 水彩插画' },
+                            { value: 'cyberpunk', label: '🌃 赛博朋克' },
+                            { value: 'retro', label: '📺 复古怀旧' },
+                            { value: 'comic', label: '💥 美式漫画' },
+                            { value: 'pixel', label: '🎮 像素艺术' },
+                            { value: 'vintage', label: '📷 老照片风格' },
+                            { value: 'studio', label: '🎬 工作室质感' },
+                            { value: 'documentary', label: '🎥 纪录片风格' }
+                        ]
+                    },
+                    {
+                        key: 'aspectRatio',
+                        label: '视频比例',
+                        type: 'select',
+                        default: '16:9',
+                        options: [
+                            { value: '16:9', label: '16:9 横屏（推荐）' },
+                            { value: '9:16', label: '9:16 竖屏（抖音/快手）' },
+                            { value: '1:1', label: '1:1 方形（Instagram）' },
+                            { value: '4:3', label: '4:3 传统电视' },
+                            { value: '3:4', label: '3:4 小红书' },
+                            { value: '21:9', label: '21:9 宽银幕电影' }
                         ]
                     },
                     {
@@ -232,6 +452,20 @@
                             { value: '10', label: '10 秒' },
                             { value: '15', label: '15 秒（推荐）' },
                             { value: '30', label: '30 秒' }
+                        ]
+                    },
+                    {
+                        key: 'aspectRatio',
+                        label: '视频比例',
+                        type: 'select',
+                        default: '16:9',
+                        options: [
+                            { value: '16:9', label: '16:9 横屏（推荐）' },
+                            { value: '9:16', label: '9:16 竖屏（抖音/快手）' },
+                            { value: '1:1', label: '1:1 方形（Instagram）' },
+                            { value: '4:3', label: '4:3 传统电视' },
+                            { value: '3:4', label: '3:4 小红书' },
+                            { value: '21:9', label: '21:9 宽银幕电影' }
                         ]
                     },
                     {
@@ -258,20 +492,9 @@
                 estimateCost: (params) => {
                     const count = params.count || 3;
                     const duration = parseInt(params.duration) || 15;
-                    const model = params.videoModel || 'sora-2-vip-all';
 
-                    // 每个视频：剧本(1) + 图片(6) + 视频(按模型)
-                    const im = params.imageModel || 'nano-banana-2';
-                    let imgFilm = 5; // banana2
-                    if (im.startsWith('midjourney')) imgFilm = 12;
-                    if (im === 'modelscope') imgFilm = 0;
-                    if (im === 'seedream') imgFilm = 8;
-                    let videoFilm = 15; // Sora-2
-                    if (model.includes('veo')) videoFilm = 30;
-                    if (model.includes('grok')) videoFilm = 5;
-                    if (model.includes('kling')) videoFilm = duration <= 5 ? 10 : 20;
-                    if (model.includes('hailuo')) videoFilm = duration <= 6 ? 8 : 14;
-                    if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
+                    const imgFilm = calculateImageCost(params.imageModel);
+                    const videoFilm = calculateVideoCost(params.videoModel, duration);
 
                     const perVideo = 1 + imgFilm + videoFilm;
                     const totalFilm = Math.ceil(count * perVideo);
@@ -283,7 +506,7 @@
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { topic, count, style, duration, videoModel, styleRef, imageModel } = params;
+                    const { topic, count, style, aspectRatio, duration, videoModel, styleRef, imageModel } = params;
                     // 🖼️ 解析参考图（支持多图）
                     const refs = await resolveRefImages(styleRef);
                     const userRefImage = refs.first;
@@ -294,7 +517,14 @@
                         realistic: 'photorealistic, cinematic lighting, detailed',
                         chinese: 'Chinese traditional style, ink painting influence',
                         '3d': '3D rendered, Pixar style, high quality CGI',
-                        watercolor: 'watercolor painting, soft colors, artistic'
+                        watercolor: 'watercolor painting, soft colors, artistic',
+                        cyberpunk: 'cyberpunk style, neon lights, futuristic city, high contrast',
+                        retro: 'retro 80s/90s style, vintage aesthetic, film grain',
+                        comic: 'American comic style, bold lines, vibrant colors',
+                        pixel: 'pixel art, retro game style, 8-bit/16-bit aesthetic',
+                        vintage: 'vintage photo style, film grain, warm tones, nostalgic',
+                        studio: 'studio photography, professional lighting, clean composition',
+                        documentary: 'documentary style, realistic, handheld camera feel'
                     };
 
                     // 🎨 一致性策略：无参考图时，先生成第1张图作为风格参考
@@ -302,8 +532,8 @@
                     if (!_autoRef && count > 1) {
                         callbacks.onProgress?.('生成风格基准', 3, '先生成第1张图片作为风格参考...');
                         try {
-                            const _seedPrompt = `${stylePrompts[style] || ''}, ${topic}, establishing shot, high quality, 16:9 aspect ratio`;
-                            _autoRef = await callImageAPIWithRefs(_seedPrompt, { aspectRatio: '16:9', imageModel }, allRefImages);
+                            const _seedPrompt = `${stylePrompts[style] || ''}, ${topic}, establishing shot, high quality, ${aspectRatio} aspect ratio`;
+                            _autoRef = await callImageAPIWithRefs(_seedPrompt, { aspectRatio, imageModel }, allRefImages);
                             callbacks.onStepComplete?.('风格基准图', { imageUrl: _autoRef });
                         } catch (e) { console.warn('风格基准图生成失败, 继续无参考生成:', e.message); }
                     }
@@ -325,18 +555,24 @@
                             } else { throw new Error('文本生成功能不可用'); }
                             callbacks.onStepComplete?.(`视频${i + 1} 剧本`, { script: script.substring(0, 100) + '...' });
 
-                            const imagePrompt = `${stylePrompts[style] || ''}, ${script.substring(0, 200)}, high quality, 16:9 aspect ratio`;
-                            const imgOpts = { aspectRatio: '16:9', imageModel };
+                            const imagePrompt = `${stylePrompts[style] || ''}, ${script.substring(0, 200)}, high quality, ${aspectRatio} aspect ratio`;
+                            const imgOpts = { aspectRatio, imageModel };
                             if (_autoRef) imgOpts.refImage = _autoRef;
                             const imageUrl = await callImageAPIWithRefs(imagePrompt, imgOpts, allRefImages);
                             callbacks.onStepComplete?.(`视频${i + 1} 封面图`, { imageUrl });
 
                             let videoUrl = '';
                             const videoPrompt = script.substring(0, 500);
-                            if (imageUrl && typeof callSora2ImageToVideoAPI === 'function') {
-                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, videoPrompt, { model: videoModel, duration: parseInt(duration), aspectRatio: '16:9' });
+                            if (videoModel && String(videoModel).toLowerCase().includes('modelscope')) {
+                                if (imageUrl && typeof callModelScopeImageToVideoAPI === 'function') {
+                                    videoUrl = await callModelScopeImageToVideoAPI(videoPrompt, imageUrl, { duration: parseInt(duration), aspectRatio, model: videoModel });
+                                } else if (typeof callModelScopeVideoAPI === 'function') {
+                                    videoUrl = await callModelScopeVideoAPI(videoPrompt, { duration: parseInt(duration), aspectRatio, model: videoModel });
+                                }
+                            } else if (imageUrl && typeof callSora2ImageToVideoAPI === 'function') {
+                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, videoPrompt, { model: videoModel, duration: parseInt(duration), aspectRatio });
                             } else if (typeof callSora2TextToVideoAPI === 'function') {
-                                videoUrl = await callSora2TextToVideoAPI(videoPrompt, { model: videoModel, duration: parseInt(duration), aspectRatio: '16:9' });
+                                videoUrl = await callSora2TextToVideoAPI(videoPrompt, { model: videoModel, duration: parseInt(duration), aspectRatio });
                             }
                             callbacks.onStepComplete?.(`视频${i + 1} 完成`, { videoUrl });
 
@@ -390,7 +626,30 @@
                         options: [
                             { value: 'anime', label: '🎌 日系动漫' },
                             { value: 'realistic', label: '📸 电影质感' },
-                            { value: 'chinese', label: '🏮 国风古典' }
+                            { value: 'chinese', label: '🏮 国风古典' },
+                            { value: '3d', label: '🎮 3D 渲染' },
+                            { value: 'watercolor', label: '🎨 水彩插画' },
+                            { value: 'cyberpunk', label: '🌃 赛博朋克' },
+                            { value: 'retro', label: '📺 复古怀旧' },
+                            { value: 'comic', label: '💥 美式漫画' },
+                            { value: 'pixel', label: '🎮 像素艺术' },
+                            { value: 'vintage', label: '📷 老照片风格' },
+                            { value: 'studio', label: '🎬 工作室质感' },
+                            { value: 'documentary', label: '🎥 纪录片风格' }
+                        ]
+                    },
+                    {
+                        key: 'aspectRatio',
+                        label: '视频比例',
+                        type: 'select',
+                        default: '16:9',
+                        options: [
+                            { value: '16:9', label: '16:9 横屏（推荐）' },
+                            { value: '9:16', label: '9:16 竖屏（抖音/快手）' },
+                            { value: '1:1', label: '1:1 方形（Instagram）' },
+                            { value: '4:3', label: '4:3 传统电视' },
+                            { value: '3:4', label: '3:4 小红书' },
+                            { value: '21:9', label: '21:9 宽银幕电影' }
                         ]
                     },
                     {
@@ -403,21 +662,16 @@
                 ],
                 estimateCost: (params) => {
                     const episodes = params.episodes || 3;
-                    const model = params.videoModel || 'sora-2-vip-all';
-                    let videoFilm = 15; // Sora-2
-                    if (model.includes('veo')) videoFilm = 30;
-                    if (model.includes('grok')) videoFilm = 5;
-                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 20 : 10;
-                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 14 : 8;
-                    if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
+                    const videoFilm = calculateVideoCost(params.videoModel, 15);
+                    const imgFilm = calculateImageCost(params.imageModel || 'nano-banana-2');
                     // 每集: 文本1 + 图片5 + 视频
                     return {
-                        film: Math.ceil(episodes * (1 + 5 + videoFilm)),
+                        film: Math.ceil(episodes * (1 + imgFilm + videoFilm)),
                         time: `约 ${episodes * 3} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { story, episodes, style, videoModel } = params;
+                    const { story, episodes, style, aspectRatio, videoModel } = params;
                     const results = [];
 
                     // 先生成分集大纲
@@ -458,23 +712,38 @@ ${story}
                             const styleMap = {
                                 anime: 'anime style, Japanese animation',
                                 realistic: 'cinematic, photorealistic',
-                                chinese: 'Chinese traditional art'
+                                chinese: 'Chinese traditional art',
+                                '3d': '3D rendered, Pixar style, high quality CGI',
+                                watercolor: 'watercolor painting, soft colors, artistic',
+                                cyberpunk: 'cyberpunk style, neon lights, futuristic city',
+                                retro: 'retro 80s/90s style, vintage aesthetic',
+                                comic: 'American comic style, bold lines, vibrant colors',
+                                pixel: 'pixel art, retro game style',
+                                vintage: 'vintage photo style, film grain, warm tones',
+                                studio: 'studio photography, professional lighting',
+                                documentary: 'documentary style, realistic, handheld camera'
                             };
 
-                            const imagePrompt = `${styleMap[style]}, ${segment.substring(0, 300)}, sequential storytelling, 16:9`;
+                            const imagePrompt = `${styleMap[style]}, ${segment.substring(0, 300)}, sequential storytelling, ${aspectRatio} aspect ratio`;
 
                             let imageUrl = '';
-                            const _storyOpts = { aspectRatio: '16:9' };
+                            const _storyOpts = { aspectRatio };
                             if (lastImageUrl) _storyOpts.refImage = lastImageUrl;
                             imageUrl = await callImageAPIWithRefs(imagePrompt, _storyOpts, []);
 
                             // 生成视频
                             let videoUrl = '';
-                            if (imageUrl && typeof callSora2ImageToVideoAPI === 'function') {
+                            if (videoModel && String(videoModel).toLowerCase().includes('modelscope')) {
+                                if (imageUrl && typeof callModelScopeImageToVideoAPI === 'function') {
+                                    videoUrl = await callModelScopeImageToVideoAPI(segment, imageUrl, { duration: 15, aspectRatio, model: videoModel });
+                                } else if (typeof callModelScopeVideoAPI === 'function') {
+                                    videoUrl = await callModelScopeVideoAPI(segment, { duration: 15, aspectRatio, model: videoModel });
+                                }
+                            } else if (imageUrl && typeof callSora2ImageToVideoAPI === 'function') {
                                 videoUrl = await callSora2ImageToVideoAPI(imageUrl, segment, {
                                     model: videoModel || 'sora-2-all',
                                     duration: 15,
-                                    aspectRatio: '16:9'
+                                    aspectRatio
                                 });
                             }
 
@@ -554,20 +823,15 @@ ${story}
                 ],
                 estimateCost: (params) => {
                     const imageCount = params.images?.length || 1;
-                    const model = params.videoModel || 'sora-2-vip-all';
-                    let videoFilm = 15; // Sora-2
-                    if (model.includes('veo')) videoFilm = 30;
-                    if (model.includes('grok')) videoFilm = 5;
-                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 20 : 10;
-                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 14 : 8;
-                    if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
+                    const duration = parseInt(params.duration) || 5;
+                    const videoFilm = calculateVideoCost(params.videoModel, duration);
                     return {
                         film: Math.ceil(imageCount * videoFilm),
                         time: `约 ${imageCount * 2} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { images, motion, duration, videoModel } = params;
+                    const { images, motion, duration, aspectRatio, videoModel } = params;
                     if (!images || images.length === 0) {
                         throw new Error('请上传至少一张图片');
                     }
@@ -596,8 +860,12 @@ ${story}
                             }
                             const prompt = `${motionPrompts[motion]}, animate this image with ${motion} effect`;
                             let videoUrl = '';
-                            if (typeof callSora2ImageToVideoAPI === 'function') {
-                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, prompt, { model: videoModel || 'sora-2-all', duration: parseInt(duration), aspectRatio: '16:9' });
+                            if (videoModel && String(videoModel).toLowerCase().includes('modelscope')) {
+                                if (typeof callModelScopeImageToVideoAPI === 'function') {
+                                    videoUrl = await callModelScopeImageToVideoAPI(prompt, imageUrl, { duration: parseInt(duration), aspectRatio, model: videoModel });
+                                }
+                            } else if (typeof callSora2ImageToVideoAPI === 'function') {
+                                videoUrl = await callSora2ImageToVideoAPI(imageUrl, prompt, { model: videoModel || 'sora-2-all', duration: parseInt(duration), aspectRatio });
                             }
                             _i2vDone++;
                             callbacks.onProgress?.(`已完成 ${_i2vDone}/${images.length}`, Math.round((_i2vDone / images.length) * 95) + 5, `✅ 图片${i + 1}`);
@@ -673,14 +941,10 @@ ${story}
                 estimateCost: (params) => {
                     const subjects = (params.subjects || '').split('\n').filter(s => s.trim());
                     const count = Math.max(subjects.length, 1);
-                    const im = params.imageModel || 'nano-banana-2';
-                    let perImage = 5; // banana2
-                    if (im.startsWith('midjourney')) perImage = 12; // MJ 高质量
-                    if (im === 'modelscope') perImage = 0; // 免费
-                    if (im === 'seedream') perImage = 8; // 星梦画师
+                    const imgFilm = calculateImageCost(params.imageModel);
                     return {
-                        film: count * perImage,
-                        time: `约 ${Math.ceil(count * (im.startsWith('midjourney') ? 1.5 : 0.5))} 分钟`
+                        film: count * imgFilm,
+                        time: `约 ${Math.ceil(count * (params.imageModel?.startsWith('midjourney') ? 1.5 : 0.5))} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
@@ -825,13 +1089,9 @@ ${story}
                     let count = 2; // 基础：三视图 + 设定海报
                     if (params.includeExpressions) count += 1;
                     if (params.includeActions) count += 1;
-                    const im = params.imageModel || 'nano-banana-2';
-                    let perImg = 5;
-                    if (im.startsWith('midjourney')) perImg = 12;
-                    if (im === 'modelscope') perImg = 0;
-                    if (im === 'seedream') perImg = 8;
+                    const imgFilm = calculateImageCost(params.imageModel);
                     return {
-                        film: Math.ceil(count * perImg) + 1, // +1文本
+                        film: Math.ceil(count * imgFilm) + 1, // +1文本
                         time: `约 ${count} 分钟`
                     };
                 },
@@ -1739,7 +1999,9 @@ ${script.substring(0, 4000)}
                         options: [
                             { value: 'anime', label: '🎌 日系动漫' },
                             { value: 'realistic', label: '📸 写实电影' },
-                            { value: 'chinese', label: '🏮 国风古典' }
+                            { value: 'chinese', label: '🏮 国风古典' },
+                            { value: '3d', label: '🎮 3D 渲染' },
+                            { value: 'watercolor', label: '🎨 水彩插画' }
                         ]
                     },
                     {
@@ -1784,21 +2046,16 @@ ${script.substring(0, 4000)}
                 estimateCost: (params) => {
                     const duration = parseInt(params.duration) || 60;
                     const scenes = Math.ceil(duration / 15);
-                    const model = params.videoModel || 'sora-2-vip-all';
-                    let videoFilm = 15; // Sora-2
-                    if (model.includes('veo')) videoFilm = 30;
-                    if (model.includes('grok')) videoFilm = 5;
-                    if (model.includes('kling')) videoFilm = model.includes('10s') ? 20 : 10;
-                    if (model.includes('hailuo')) videoFilm = model.includes('10s') ? 14 : 8;
-                    if (model.includes('vidu')) videoFilm = model.includes('pro') ? 54 : 25;
+                    const videoFilm = calculateVideoCost(params.videoModel, 15);
+                    const imgFilm = calculateImageCost(params.imageModel);
                     let film = 1; // 剧本
 
-                    if (params.includeCharacter) film += 6; // 角色设定(文本1+图片5)
+                    if (params.includeCharacter) film += 1 + (4 * imgFilm); // 角色设定(文本1+图片4)
                     if (params.outputType === 'video' || params.outputType === 'both') {
-                        film += scenes * (5 + videoFilm); // 每个分镜：图片5+视频
+                        film += scenes * (imgFilm + videoFilm); // 每个分镜：图片+视频
                     }
                     if (params.outputType === 'comic' || params.outputType === 'both') {
-                        film += Math.ceil(scenes / 2) * 5; // 漫画页5胶片/页
+                        film += Math.ceil(scenes / 2) * imgFilm; // 漫画页
                     }
 
                     return {
@@ -2171,90 +2428,126 @@ ${colorPref ? '色彩偏好：' + colorPref : ''}
                 }
             },
 
-            // 13. 电商产品套图 (E-commerce Product Listing Kit)
+            // 13. 电商全套图 (E-commerce Complete Kit)
             {
-                id: 'ecommerce_product_kit',
-                name: '电商产品套图',
+                id: 'ecommerce_complete',
+                name: '电商全套图',
                 icon: '🛒',
                 category: 'design',
-                description: '一张产品图生成完整电商套图：白底主图、卖点图、场景图、细节图、A+页面。支持淘宝/京东/亚马逊/拼多多。',
+                description: '一站式生成全套电商素材：产品套图 + 商详页 + 社交长图。支持淘宝/京东/亚马逊/小红书等平台。',
                 parameters: [
                     { key: 'product', label: '产品名称', type: 'text', required: true, placeholder: '例如：无线蓝牙耳机、素皮双肩包...' },
                     { key: 'productImage', label: '产品参考图（推荐）', type: 'image', hint: '上传产品实拍图或3D渲染图，AI 基于此生成全套电商图' },
                     { key: 'sellingPoints', label: '核心卖点', type: 'textarea', required: true, placeholder: '每行一个卖点，例如：\n降噪40dB\n续航30小时\nIPX5防水' },
+                    { key: 'scenes', label: '使用场景', type: 'textarea', placeholder: '例如：\n通勤路上\n健身房\n办公室\n居家休闲' },
+                    { key: 'price', label: '价格/促销', type: 'text', placeholder: '例如：¥99 限时特惠 原价¥199' },
                     { key: 'platform', label: '目标平台', type: 'select', default: 'taobao', options: [
                         { value: 'taobao', label: '淘宝/天猫' }, { value: 'jd', label: '京东' },
-                        { value: 'amazon', label: '亚马逊' }, { value: 'pdd', label: '拼多多' }
+                        { value: 'amazon', label: '亚马逊' }, { value: 'xiaohongshu', label: '小红书' },
+                        { value: 'douyin', label: '抖音' }, { value: 'wechat', label: '朋友圈' }
                     ]},
                     { key: 'style', label: '视觉风格', type: 'select', default: 'premium', options: [
                         { value: 'premium', label: '高端品质' }, { value: 'minimal', label: '极简白底' },
-                        { value: 'lifestyle', label: '生活场景' }, { value: 'tech', label: '科技感' }
+                        { value: 'lifestyle', label: '生活场景' }, { value: 'tech', label: '科技感' },
+                        { value: 'luxury', label: '高端奢华' }
                     ]}
                 ],
-                estimateCost: () => ({ film: 5, time: '约 3-4 分钟' }),
+                estimateCost: () => ({ film: 12, time: '约 6-8 分钟' }),
                 execute: async (params, callbacks) => {
-                    const { product, productImage, sellingPoints, platform, style } = params;
+                    const { product, productImage, sellingPoints, scenes, price, platform, style } = params;
                     const points = sellingPoints.split('\n').filter(s => s.trim());
                     const styleMap = {
                         premium: 'premium product photography, studio lighting, high-end feel',
                         minimal: 'minimalist white background, clean product shot',
                         lifestyle: 'lifestyle product photography, in-use scenario, warm lighting',
-                        tech: 'tech product showcase, dark background, neon accents, futuristic'
+                        tech: 'tech product showcase, dark background, neon accents, futuristic',
+                        luxury: 'luxury premium design, dark background, gold accents, elegant typography'
                     };
+                    const platformStyles = {
+                        xiaohongshu: 'Xiaohongshu style, warm aesthetic, soft colors, cute elements',
+                        wechat: 'WeChat Moments style, clean layout, bold price tag',
+                        douyin: 'Douyin style, dynamic layout, high contrast, energetic',
+                        taobao: 'Taobao/Tmall style, bright, clean, shopping oriented',
+                        jd: 'JD style, professional, trustworthy, premium',
+                        amazon: 'Amazon style, white background, clean, professional'
+                    };
+                    
                     const designStyle = styleMap[style] || styleMap.premium;
-                    // 🖼️ 解析产品参考图（支持多图）
+                    const platformStyle = platformStyles[platform] || platformStyles.taobao;
+                    
                     const prodRefs = await resolveRefImages(productImage);
                     let productRefImage = prodRefs.first;
                     const allProdRefImages = prodRefs.all;
+                    
+                    if (productRefImage) {
+                        productRefImage = await compressDataUrl(productRefImage, 1000, 0.8);
+                    }
+                    const compressedAllRefs = await Promise.all(allProdRefImages.map(url => compressDataUrl(url, 1000, 0.8)));
 
-                    const shots = [
-                        { name: '白底主图', prompt: `${product}, pure white background, studio product photography, centered, clean, professional ${platform === 'amazon' ? 'Amazon' : ''} listing main image, high resolution`, ratio: '1:1' },
-                        { name: '卖点信息图', prompt: `${product} infographic, product features highlight, ${points.slice(0, 3).join(', ')}, ${designStyle}, annotated product image with feature callouts, icons and text overlay, marketing design`, ratio: '1:1' },
-                        { name: '场景图', prompt: `${product} lifestyle photography, person using/wearing the product in real life scenario, ${designStyle}, natural lighting, aspirational, editorial quality`, ratio: '1:1' },
-                        { name: '细节特写', prompt: `${product} detail close-up shots, material texture, craftsmanship, quality details, macro photography, ${designStyle}, showing premium quality`, ratio: '1:1' },
-                        { name: '尺寸对比图', prompt: `${product} size comparison, product next to common objects for scale reference, dimensions labeled, clean infographic style, white background`, ratio: '1:1' },
-                        { name: 'A+品牌横幅', prompt: `Brand banner for ${product}, premium brand story header, ${designStyle}, wide horizontal banner, brand values, elegant typography, marketing page hero image`, ratio: '16:9' }
-                    ];
+                    const sceneList = scenes ? scenes.split('\n').filter(s => s.trim()) : [];
+
+                    const shots = [];
+                    
+                    shots.push({ name: '白底主图', prompt: `${product}, pure white background, studio product photography, centered, clean, professional listing main image, high resolution, ${designStyle}`, ratio: '1:1' });
+                    shots.push({ name: '卖点信息图', prompt: `${product} infographic, product features highlight, ${points.slice(0, 3).join(', ')}, ${designStyle}, annotated product image with feature callouts, icons and text overlay, marketing design`, ratio: '1:1' });
+                    shots.push({ name: '场景展示', prompt: `${product} lifestyle photography, person using/wearing the product in real life scenario, ${designStyle}, natural lighting, aspirational, editorial quality`, ratio: '1:1' });
+                    shots.push({ name: '细节特写', prompt: `${product} detail close-up shots, material texture, craftsmanship, quality details, macro photography, ${designStyle}, showing premium quality`, ratio: '1:1' });
+                    shots.push({ name: '尺寸对比', prompt: `${product} size comparison, product next to common objects for scale reference, dimensions labeled, clean infographic style, white background`, ratio: '1:1' });
+                    shots.push({ name: '品牌横幅', prompt: `Brand banner for ${product}, premium brand story header, ${designStyle}, wide horizontal banner, brand values, elegant typography, marketing page hero image`, ratio: '16:9' });
+                    
+                    shots.push({ name: '商详首屏', prompt: `${product} hero banner, premium product showcase, ${designStyle}, eye-catching, marketing poster, vertical format 9:16, professional typography`, ratio: '9:16' });
+                    points.slice(0, 4).forEach((point, i) => {
+                        shots.push({ name: `功能展示${i + 1}`, prompt: `${product} feature showcase, highlighting: ${point}, ${designStyle}, infographic style, icons and text annotations, clear communication, vertical 9:16`, ratio: '9:16' });
+                    });
+                    sceneList.slice(0, 2).forEach((s, i) => {
+                        shots.push({ name: `场景展示${i + 1}`, prompt: `${product} in ${s} scenario, lifestyle photography, person using the product, ${designStyle}, natural lighting, authentic atmosphere, vertical 9:16`, ratio: '9:16' });
+                    });
+                    shots.push({ name: '商详细节', prompt: `${product} detail close-up, material texture, craftsmanship, quality details, macro photography, ${designStyle}, showing premium quality, vertical 9:16`, ratio: '9:16' });
+                    shots.push({ name: '品牌背书', prompt: `${product} brand story section, trust badges, warranty info, quality guarantee, ${designStyle}, professional trust-building design, vertical 9:16`, ratio: '9:16' });
+                    
+                    shots.push({ name: '社交主图', prompt: `${product} e-commerce social media post, ${platformStyle}, ${price ? `price tag showing ${price}, ` : ''}product main showcase, eye-catching design, vertical format 9:16, professional typography, ${designStyle}`, ratio: '9:16' });
+                    shots.push({ name: '社交卖点', prompt: `${product} selling points infographic, ${points.slice(0, 4).join(', ')}, ${platformStyle}, clear feature icons, text annotations, vertical 9:16, easy to read, ${designStyle}`, ratio: '9:16' });
+                    shots.push({ name: '社交场景', prompt: `${product} lifestyle scene, ${platformStyle}, showing product quality and usage, vertical 9:16, ${designStyle}`, ratio: '9:16' });
+                    shots.push({ name: '社交CTA', prompt: `${product} call-to-action, ${platformStyle}, shop now, limited time offer, urgency, vertical 9:16, ${designStyle}`, ratio: '9:16' });
 
                     // 🎯 无参考图时，先生成首张作为风格锚点
-                    let _firstProdUrl = null;
+                    let _firstUrl = null;
                     if (!productRefImage && shots.length > 1) {
-                        callbacks.onProgress?.('生成风格基准', 3, '先生成首张电商图确定产品风格...');
+                        callbacks.onProgress?.('生成风格基准', 2, '先生成首张图确定风格...');
                         try {
                             const firstShot = shots[0];
-                            _firstProdUrl = await callImageAPIWithRefs(firstShot.prompt, { aspectRatio: firstShot.ratio }, allProdRefImages);
-                            productRefImage = _firstProdUrl;
-                            callbacks.onStepComplete?.(firstShot.name + '(风格基准)', { imageUrl: _firstProdUrl });
+                            _firstUrl = await callImageAPIWithRefs(firstShot.prompt, { aspectRatio: firstShot.ratio }, compressedAllRefs);
+                            productRefImage = _firstUrl;
+                            callbacks.onStepComplete?.(firstShot.name + '(风格基准)', { imageUrl: _firstUrl });
                         } catch (e) { console.warn('风格基准图失败:', e.message); }
                     }
 
-                    callbacks.onProgress?.('并行生成', 5, `同时生成 ${shots.length} 张电商套图...`);
-                    let _eDone = 0;
-                    const results = await Promise.all(shots.map((shot, _eIdx) => {
-                        // 首张已作为基准图生成过，直接复用
-                        if (_eIdx === 0 && _firstProdUrl) {
-                            _eDone++;
-                            callbacks.onProgress?.(`已完成 ${_eDone}/${shots.length}`, 5 + Math.round((_eDone / shots.length) * 90), `✅ ${shot.name}`);
-                            callbacks.onStepComplete?.(shot.name, { imageUrl: _firstProdUrl });
-                            return Promise.resolve({ subject: shot.name, imageUrl: _firstProdUrl, status: 'success' });
+                    callbacks.onProgress?.('并行生成', 5, `同时生成 ${shots.length} 张电商全套图...`);
+                    let _done = 0;
+                    const results = await Promise.all(shots.map((shot, idx) => {
+                        if (idx === 0 && _firstUrl) {
+                            _done++;
+                            callbacks.onProgress?.(`已完成 ${_done}/${shots.length}`, 5 + Math.round((_done / shots.length) * 90), `✅ ${shot.name}`);
+                            callbacks.onStepComplete?.(shot.name, { imageUrl: _firstUrl });
+                            return Promise.resolve({ subject: shot.name, imageUrl: _firstUrl, status: 'success' });
                         }
                         const opts = { aspectRatio: shot.ratio };
                         if (productRefImage) opts.refImage = productRefImage;
-                        return callImageAPIWithRefs(shot.prompt, opts, allProdRefImages)
+                        return callImageAPIWithRefs(shot.prompt, opts, compressedAllRefs)
                             .then(imageUrl => {
-                                _eDone++;
-                                callbacks.onProgress?.(`已完成 ${_eDone}/${shots.length}`, 5 + Math.round((_eDone / shots.length) * 90), `✅ ${shot.name}`);
+                                _done++;
+                                callbacks.onProgress?.(`已完成 ${_done}/${shots.length}`, 5 + Math.round((_done / shots.length) * 90), `✅ ${shot.name}`);
                                 callbacks.onStepComplete?.(shot.name, { imageUrl });
                                 return { subject: shot.name, imageUrl, status: 'success' };
                             })
                             .catch(e => {
-                                _eDone++;
-                                callbacks.onProgress?.(`已完成 ${_eDone}/${shots.length}`, 5 + Math.round((_eDone / shots.length) * 90), `❌ ${shot.name}`);
+                                _done++;
+                                callbacks.onProgress?.(`已完成 ${_done}/${shots.length}`, 5 + Math.round((_done / shots.length) * 90), `❌ ${shot.name}`);
                                 return { subject: shot.name, error: e.message, status: 'failed' };
                             });
                     }));
 
-                    callbacks.onProgress?.('完成', 100, `电商套图已生成！共 ${results.filter(r => r.status === 'success').length} 张`);
+                    callbacks.onProgress?.('完成', 100, `电商全套图已生成！共 ${results.filter(r => r.status === 'success').length} 张`);
                     return { images: results };
                 }
             },
