@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -36,7 +36,7 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js"></script>
+    <script src="/js/supabase-config.js?v=20260211a"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
     <script src="/js/api-core.js?v=20260210c&t=20260210c"></script>
     <script src="/js/user-memory.js?v=20260210c"></script>
@@ -71,6 +71,11 @@
             color: var(--text);
             min-height: 100vh;
             padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.02); opacity: 0.95; }
         }
 
         /* 顶部导航 */
@@ -1757,11 +1762,17 @@
                 <div class="option-group">
                     <label for="quickGenMode">🎯 生成模式</label>
                     <select id="quickGenMode" title="选择生成模式" onchange="onGenModeChange(this.value)">
+                        <option value="modelscope-video">🆓 魔塔视频（免费）</option>
                         <option value="text-to-video">Sora-2 (文生视频)</option>
                         <option value="image-to-video">Flux + Sora-2 (图生视频)</option>
                         <option value="banana-image-to-video">Gemini-3 + Sora-2 (图生视频)</option>
                         <option value="banana-grid-to-video">🎯 网格图省费版 (1图切N分镜)</option>
-                        <option value="veo3.1">Veo-3.1 4K (超清+音频)</option>
+                        <optgroup label="🎬 Veo 3.1 系列">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                            <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                            <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                            <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                        </optgroup>
                         <optgroup label="🎬 Vidu 系列 - 5秒">
                             <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
                             <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
@@ -1769,6 +1780,8 @@
                             <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
                             <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
                             <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5秒 720P (72胶片/顶级)</option>
+                            <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5秒 1080P (77胶片/顶级)</option>
                         </optgroup>
                         <optgroup label="🎬 Vidu 系列 - 10秒">
                             <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
@@ -1777,6 +1790,8 @@
                             <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
                             <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
                             <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10秒 720P (144胶片/顶级)</option>
+                            <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10秒 1080P (154胶片/顶级)</option>
                         </optgroup>
                         <optgroup label="🐚 海螺 Hailuo - 6秒">
                             <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
@@ -2143,26 +2158,26 @@
             <!-- 参数配置页 -->
             <div class="skill-config-page" id="skillConfigPage">
                 <div class="skill-config-header">
-                    <button class="skill-config-back" onclick="mobileSkillBack()">←</button>
+                    <button type="button" class="skill-config-back" onclick="mobileSkillBack(event)">←</button>
                     <span id="skillConfigTitle" style="font-size:16px;font-weight:600;color:#fff;"></span>
                 </div>
                 <div class="skill-config-body" id="skillConfigBody"></div>
                 <div class="skill-config-footer">
                     <div id="skillCostArea"></div>
-                    <button class="skill-exec-btn" id="skillExecBtn" onclick="mobileSkillExecute()">⚡ 开始执行</button>
+                    <button type="button" class="skill-exec-btn" id="skillExecBtn" onclick="mobileSkillExecute(event)">⚡ 开始执行</button>
                 </div>
             </div>
 
             <!-- 结果页 -->
             <div class="skill-result-page" id="skillResultPage">
                 <div class="skill-config-header">
-                    <button class="skill-config-back" onclick="mobileSkillCloseResult()">←</button>
+                    <button type="button" class="skill-config-back" onclick="mobileSkillCloseResult(event)">←</button>
                     <span style="font-size:16px;font-weight:600;color:#fff;">✅ 执行结果</span>
                 </div>
                 <div class="skill-result-body" id="skillResultBody"></div>
                 <div class="skill-config-footer" style="display:flex;gap:10px;">
-                    <button class="skill-exec-btn" onclick="mobileSkillCloseResult()" style="background:#333;color:#fff;flex:1;">完成</button>
-                    <button class="skill-exec-btn" onclick="mobileSkillPublish()" style="flex:1;">📤 发布</button>
+                    <button type="button" class="skill-exec-btn" onclick="mobileSkillCloseResult(event)" style="background:#333;color:#fff;flex:1;">完成</button>
+                    <button type="button" class="skill-exec-btn" onclick="mobileSkillPublish()" style="flex:1;">📤 发布</button>
                 </div>
             </div>
 
@@ -2680,9 +2695,67 @@
             comic_cover: 5.5,
         };
 
+        // 🎬 视频生成费用配置（与 video-tools.html 完全对齐）
+        const VIDEO_COST = {
+            'modelscope-video': 0,
+            'sora-2-vip-all': 7,
+            'sora-2-all': 7,
+            'sora-2-pro-all': 14,
+            // Veo 3.1 系列
+            'veo3.1': 30,
+            'veo3.1-components-4k': 30,
+            'veo_3_1-fast-4K': 25,
+            'veo_3_1-fast-components-4K': 28,
+            'veo_3_1-components-4K': 30,
+            'grok-video-3': 5,
+            'grok-video-3-10s': 8,
+            // Vidu 模型 - 5秒版本
+            'vidu-q2-5s-720p': 25,
+            'vidu-q2-5s-1080p': 36,
+            'vidu-q2-pro-5s-720p': 27,
+            'vidu-q2-pro-5s-1080p': 54,
+            'vidu-q2-turbo-5s-720p': 19,
+            'vidu-q2-turbo-5s-1080p': 36,
+            // Vidu 模型 - 10秒版本
+            'vidu-q2-10s-720p': 50,
+            'vidu-q2-10s-1080p': 72,
+            'vidu-q2-pro-10s-720p': 54,
+            'vidu-q2-pro-10s-1080p': 108,
+            'vidu-q2-turbo-10s-720p': 38,
+            'vidu-q2-turbo-10s-1080p': 72,
+            // Vidu Q3 Pro 模型 - 顶级质量
+            'vidu-q3-pro-5s-720p': 72,
+            'vidu-q3-pro-5s-1080p': 77,
+            'vidu-q3-pro-10s-720p': 144,
+            'vidu-q3-pro-10s-1080p': 154,
+            // Hailuo 海螺模型
+            'hailuo-02-768p-6s': 7,
+            'hailuo-02-768p-10s': 11,
+            'hailuo-02-1080p-6s': 12,
+            'hailuo-02-1080p-10s': 20,
+            'hailuo-fast-768p-6s': 5,
+            'hailuo-fast-768p-10s': 8,
+            'hailuo-fast-1080p-6s': 8,
+            'hailuo-fast-1080p-10s': 13,
+            // Kling 可灵模型
+            'kling-o1-720p-5s': 15,
+            'kling-o1-720p-10s': 31,
+            'kling-o1-1080p-5s': 20,
+            'kling-o1-1080p-10s': 41,
+            'kling-2.5-720p-5s': 5,
+            'kling-2.5-720p-10s': 10,
+            'kling-2.5-1080p-5s': 9,
+            'kling-2.5-1080p-10s': 17,
+            'kling-2.0-720p-5s': 7,
+            'kling-2.0-720p-10s': 14,
+            'kling-2.0-1080p-5s': 12,
+            'kling-2.0-1080p-10s': 24
+        };
+
         // 🎬 视频模型名称标准化
         function __normalizeVideoModelName(model) {
             const m = String(model || '').toLowerCase().trim();
+            if (m.includes('modelscope')) return 'modelscope-video';
             if (m === 'sora-2-vip-all') return 'sora-2-vip-all';
             // 🔧 旧 sora2 模型已停用，统一转换为过渡模型
             if (m.includes('pro') && m.includes('sora')) return 'sora-2-vip-all';
@@ -2781,6 +2854,74 @@
             return null;
         }
 
+        // ==================== 素材库返回处理 ====================
+        function checkAndFillFromLibrary() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const fromLibrary = urlParams.get('from_library') === '1';
+                
+                if (!fromLibrary) return;
+                
+                const savedData = sessionStorage.getItem('library_selected_item');
+                if (!savedData) return;
+                
+                const data = JSON.parse(savedData);
+                if (!data || !data.item) return;
+                
+                const { tab, item } = data;
+                console.log('[mobile] 从素材库返回:', { tab, item });
+                
+                // 清除已使用的数据
+                sessionStorage.removeItem('library_selected_item');
+                
+                // 根据不同的标签页处理
+                if (tab === 'chars') {
+                    // 角色：设置为选中角色
+                    window.__mobileSelectedCharacter = item;
+                    const display = document.getElementById('selectedCharacterDisplay');
+                    const charImg = document.getElementById('selectedCharImg');
+                    const charName = document.getElementById('selectedCharName');
+                    
+                    if (display) {
+                        display.style.display = 'block';
+                        // 添加动画效果让用户注意到
+                        display.style.animation = 'pulse 0.6s ease-in-out 2';
+                    }
+                    if (charImg && item.image) {
+                        charImg.src = item.image;
+                        charImg.style.display = 'block';
+                    }
+                    if (charName) charName.textContent = item.name;
+                    
+                    showToast(`✅ 已选择角色: ${item.name}\n💡 这个角色会在生成时使用！`, 4000);
+                } else if (tab === 'prompts' || tab === 'styles' || tab === 'scenes') {
+                    // 提示词、风格、场景：填充到当前激活的输入框
+                    const text = item.desc || item.name;
+                    
+                    // 尝试找到并填充到输入框
+                    const promptInput = document.getElementById('ideaPrompt') || document.querySelector('.input-box');
+                    if (promptInput && promptInput.tagName === 'TEXTAREA') {
+                        const currentVal = promptInput.value;
+                        if (currentVal && !currentVal.endsWith('\n')) {
+                            promptInput.value = currentVal + '\n' + text;
+                        } else {
+                            promptInput.value = currentVal + text;
+                        }
+                        promptInput.focus();
+                        // 滚动到输入框
+                        promptInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        showToast(`✅ 已填充: ${item.name}\n💡 提示词已填入输入框！`, 4000);
+                    } else {
+                        // 如果没有找到输入框，复制到剪贴板
+                        navigator.clipboard.writeText(text);
+                        showToast(`✅ 已复制: ${item.name}\n💡 请粘贴到输入框中使用！`, 4000);
+                    }
+                }
+            } catch (e) {
+                console.warn('[mobile] 处理素材库返回失败:', e);
+            }
+        }
+
         // ==================== 更新未登录状态UI ====================
         function updateUIForLoggedOut() {
             isLoggedIn = false;
@@ -2808,6 +2949,9 @@
             console.log('[mobile] 页面加载完成，开始初始化...');
             // 临时调试：显示初始化开始
             // alert('初始化开始');
+            
+            // 0. 检测是否从素材库返回，并自动填充内容
+            checkAndFillFromLibrary();
             
             // 1. 初始化 Supabase 客户端
             __mobileSupabaseClient = getSupabase();
@@ -2853,19 +2997,20 @@
                 if (!window.__mobileAuthListenerBound) {
                     window.__mobileAuthListenerBound = true;
                     NVAuth.onAuthStateChange(async (event, session) => {
-                        console.log('[mobile] 认证状态变化:', event);
+                        console.log('[mobile] 认证状态变化:', event, session ? '有session' : '无session');
                         if (event === 'SIGNED_OUT') {
                             updateUIForLoggedOut();
                             return;
                         }
-                        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+                        // 🔧 修复：同时处理 INITIAL_SESSION（Supabase v2 首次订阅时触发）
+                        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
                             const u = session?.user;
                             if (u) {
-                                console.log('[mobile] 监听器检测到登录:', u.email);
+                                console.log('[mobile] 监听器检测到登录:', u.email, 'event:', event);
                                 isLoggedIn = true;
                                 await loadUserProfile(u);
-                            } else {
-                                // session.user 可能不同步，兜底再取一次
+                            } else if (event !== 'INITIAL_SESSION') {
+                                // session.user 可能不同步，兆底再取一次（INITIAL_SESSION 无session时不需要兆底）
                                 try {
                                     const u2 = await NVAuth.getCurrentUser();
                                     if (u2) {
@@ -2972,6 +3117,27 @@
             } catch (e) { }
             
             console.log('[mobile] 初始化完成，isLoggedIn:', isLoggedIn, 'userQuota:', userQuota);
+        });
+
+        // 🔧 bfcache 恢复时重新检查登录状态（从 auth.html 返回时可能从缓存恢复）
+        window.addEventListener('pageshow', async (e) => {
+            if (!e.persisted) return; // 只处理 bfcache 恢复
+            console.log('[mobile] 🔄 页面从 bfcache 恢复，重新检查登录状态');
+            try {
+                if (typeof NVAuth !== 'undefined') {
+                    const user = await NVAuth.getCurrentUser(true); // 强制刷新
+                    if (user && !isLoggedIn) {
+                        console.log('[mobile] bfcache 恢复后检测到用户已登录:', user.email);
+                        isLoggedIn = true;
+                        await loadUserProfile(user);
+                    } else if (!user && isLoggedIn) {
+                        console.log('[mobile] bfcache 恢复后检测到用户已登出');
+                        updateUIForLoggedOut();
+                    }
+                }
+            } catch (e) {
+                console.warn('[mobile] bfcache 登录检查失败:', e);
+            }
         });
 
         // ==================== 写作转生成功能 ====================
@@ -4021,6 +4187,46 @@
             console.log('[mobile] 已清空所有图片');
         }
         
+        // 🎬 从漫画页跳转到图生视频
+        function jumpToI2VFromComic(imageUrl, pageNum = '') {
+            // 先清空现有图片
+            clearI2VImages();
+            
+            // 将漫画页添加到参考图列表
+            i2vImageDataList.push(imageUrl);
+            i2vImageData = imageUrl;
+            
+            // 更新UI
+            const uploadText = document.getElementById('i2vUploadText');
+            const uploadArea = document.getElementById('i2vUploadArea');
+            const singlePreview = document.getElementById('i2vPreview');
+            const previewContainer = document.getElementById('i2vPreviewContainer');
+            const mergeOptions = document.getElementById('i2vMergeOptions');
+            
+            uploadArea.style.borderColor = 'var(--accent)';
+            uploadArea.style.background = 'rgba(251, 191, 36, 0.1)';
+            singlePreview.src = imageUrl;
+            singlePreview.style.display = 'block';
+            previewContainer.style.display = 'none';
+            mergeOptions.style.display = 'none';
+            uploadText.textContent = `漫画第${pageNum || ''}页`;
+            
+            // 切换到图生视频模式
+            const genModeSelect = document.getElementById('genModeSelect');
+            if (genModeSelect) {
+                genModeSelect.value = 'image-to-video';
+                onGenModeChange('image-to-video');
+            }
+            
+            // 滚动到视频生成区域
+            const videoSection = document.querySelector('#create .content-section:first-child');
+            if (videoSection) {
+                videoSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            
+            showToast(`✅ 已将漫画第${pageNum || ''}页设置为参考图，请填写提示词后生成视频！`, 3000);
+        }
+        
         // 🆕 合并多张图片为一张（用于 Sora2 多图参考）
         async function mergeImages(imageDataList, mode = 'grid') {
             if (!imageDataList || imageDataList.length === 0) return null;
@@ -4365,12 +4571,10 @@ Output must look like a frame from a Japanese anime series. The character should
             // 🎬 计算实际所需胶片（与PC版完全对齐）
             let requiredQuota = 0;
             if (currentMode === 'video') {
-                // 获取视频参数
-                const videoModel = currentGenMode.includes('grok') ? 'grok-video-3' :
-                                   currentGenMode.includes('veo') ? 'veo3' : 'sora-2-vip-all';
-                const videoHd = false;
+                // 🎬 使用 VIDEO_COST 配置表获取各模型费用
+                const baseCost = VIDEO_COST[currentGenMode] || VIDEO_COST['sora-2-vip-all'] || 7;
                 // ✅ 按分镜数计算费用（每个分镜单独计费）
-                requiredQuota = __estimateSoraVideoFilmCost(videoModel, clipDuration, videoHd) * sceneCount;
+                requiredQuota = baseCost * sceneCount;
                 // 加上文本生成费用
                 requiredQuota += Number(QUOTA_COSTS.text_generation || 0.25);
             } else {
@@ -5479,19 +5683,6 @@ ${panelDescriptions.join('\n')}
                     baseRequestBody.preserve_subject = true;   // 保持主体不变
                     baseRequestBody.motion_intensity = 'medium'; // 中等运动强度
                     break;
-                case 'veo3.1':
-                    apiEndpoint = '/api/yunwu';
-                    baseRequestBody = { 
-                        action: 'veo3', 
-                        duration: clipDuration, 
-                        with_audio: true,
-                        skip_billing: true,
-                        image_url: hasReferenceImage ? finalImageData : undefined,
-                        image_weight: hasReferenceImage ? 0.95 : undefined,  // 🧲 提高权重
-                        preserve_subject: hasReferenceImage ? true : undefined,
-                        motion_intensity: hasReferenceImage ? 'medium' : undefined
-                    };
-                    break;
                 case 'grok-video-3-text':
                     baseRequestBody.model = 'grok-video-3';
                     baseRequestBody.skip_billing = true;
@@ -5536,22 +5727,86 @@ ${panelDescriptions.join('\n')}
                     baseRequestBody.start_panel_index = 1;  // 0-indexed，从第2格开始
                     break;
                 default:
+                    // 🎬 检查是否是 Veo 模型
+                    if (genMode && genMode.startsWith('veo')) {
+                        apiEndpoint = '/api/yunwu';
+                        baseRequestBody = { 
+                            action: 'veo3', 
+                            model: genMode,
+                            duration: clipDuration, 
+                            with_audio: true,
+                            skip_billing: true,
+                            image_url: hasReferenceImage ? finalImageData : undefined,
+                            image_weight: hasReferenceImage ? 0.95 : undefined,
+                            preserve_subject: hasReferenceImage ? true : undefined,
+                            motion_intensity: hasReferenceImage ? 'medium' : undefined
+                        };
+                        console.log(`[mobile] 使用 Veo 模型: ${genMode}`);
+                    }
                     // 🎬 检查是否是 Vidu 模型
-                    if (genMode && genMode.startsWith('vidu-')) {
-                        // 解析 Vidu 模型参数
-                        const viduMatch = genMode.match(/vidu-(q2-pro|q2-turbo|q2)-(720p|1080p)/i);
+                    else if (genMode && genMode.startsWith('vidu-')) {
+                        // 解析 Vidu 模型参数 (vidu-q2-5s-720p -> { version, duration, resolution })
+                        const viduMatch = genMode.match(/vidu-(q3-pro|q2-pro|q2-turbo|q2)-(\d+)s-(720p|1080p)/i);
                         const viduVersion = viduMatch ? viduMatch[1] : 'q2';
-                        const viduResolution = viduMatch ? viduMatch[2].toUpperCase() : '720P';
+                        const viduDuration = viduMatch ? parseInt(viduMatch[2]) : 5;
+                        const viduResolution = viduMatch ? viduMatch[3].toUpperCase() : '720P';
                         
                         apiEndpoint = '/api/yunwu';
                         baseRequestBody = {
                             action: 'vidu',
                             model_version: viduVersion,
                             resolution: viduResolution,
-                            duration: 5,  // Vidu 默认 5 秒
-                            skip_billing: true
+                            duration: viduDuration,
+                            skip_billing: true,
+                            image_url: hasReferenceImage ? finalImageData : undefined,
+                            image_weight: hasReferenceImage ? 0.95 : undefined,
+                            preserve_subject: hasReferenceImage ? true : undefined
                         };
-                        console.log(`[mobile] 使用 Vidu 模型: version=${viduVersion}, resolution=${viduResolution}`);
+                        console.log(`[mobile] 使用 Vidu 模型: version=${viduVersion}, duration=${viduDuration}s, resolution=${viduResolution}, hasImage=${hasReferenceImage}`);
+                    }
+                    // 🐚 检查是否是 Hailuo 模型
+                    else if (genMode && genMode.startsWith('hailuo-')) {
+                        // 解析 Hailuo 模型参数 (hailuo-02-768p-6s -> { version, resolution, duration })
+                        const hailuoMatch = genMode.match(/hailuo-(02|fast)-(768p|1080p)-(\d+)s/i);
+                        const hailuoVersion = hailuoMatch ? hailuoMatch[1] : '02';
+                        const hailuoResolution = hailuoMatch ? hailuoMatch[2].toUpperCase() : '768P';
+                        const hailuoDuration = hailuoMatch ? parseInt(hailuoMatch[3]) : 6;
+                        
+                        apiEndpoint = '/api/yunwu';
+                        baseRequestBody = {
+                            action: 'hailuo',
+                            model_version: hailuoVersion,
+                            resolution: hailuoResolution,
+                            duration: hailuoDuration,
+                            skip_billing: true,
+                            image_url: hasReferenceImage ? finalImageData : undefined,
+                            image_weight: hasReferenceImage ? 0.95 : undefined,
+                            preserve_subject: hasReferenceImage ? true : undefined
+                        };
+                        console.log(`[mobile] 使用 Hailuo 模型: version=${hailuoVersion}, duration=${hailuoDuration}s, resolution=${hailuoResolution}, hasImage=${hasReferenceImage}`);
+                    }
+                    // ✨ 检查是否是 Kling 模型
+                    else if (genMode && genMode.startsWith('kling-')) {
+                        // 解析 Kling 模型参数 (kling-2.5-720p-5s -> { version, resolution, duration })
+                        const klingMatch = genMode.match(/kling-(2\.5|2\.0|o1)-(720p|1080p)-(\d+)s/i);
+                        const klingVersion = klingMatch ? klingMatch[1] : '2.5';
+                        const klingResolution = klingMatch ? klingMatch[2].toUpperCase() : '720P';
+                        const klingDuration = klingMatch ? parseInt(klingMatch[3]) : 5;
+                        
+                        apiEndpoint = '/api/yunwu';
+                        baseRequestBody = {
+                            action: 'kling',
+                            model_version: klingVersion,
+                            resolution: klingResolution,
+                            duration: klingDuration,
+                            skip_billing: true,
+                            image_url: hasReferenceImage ? finalImageData : undefined,
+                            image_weight: hasReferenceImage ? 0.95 : undefined,
+                            preserve_subject: hasReferenceImage ? true : undefined,
+                            motion_intensity: hasReferenceImage ? 'medium' : undefined,
+                            style_consistency: hasReferenceImage ? true : undefined
+                        };
+                        console.log(`[mobile] 使用 Kling 模型: version=${klingVersion}, duration=${klingDuration}s, resolution=${klingResolution}, hasImage=${hasReferenceImage}`);
                     } else {
                         console.warn('[mobile] 未知的生成模式，使用默认Sora-2:', effectiveGenMode);
                     }
@@ -5706,7 +5961,7 @@ ${scriptLine}
                     idea.apiConsumed = true;
 
                     // 5. 轮询等待当前分镜视频生成完成
-                    const videoUrl = await pollVideoCompletion(taskId, apiEndpoint, _source, _endpoint, taskIndex + 1, sceneCount);
+                    const videoUrl = await pollVideoCompletion(taskId, apiEndpoint, _source, _endpoint, taskIndex + 1, sceneCount, genMode);
                     console.log(`[mobile] ✅ 分镜${taskIndex + 1}完成: ${videoUrl}`);
                     return { index: taskIndex, videoUrl };
                 })();
@@ -5747,7 +6002,7 @@ ${scriptLine}
         }
 
         // ==================== 视频轮询等待 ====================
-        async function pollVideoCompletion(taskId, apiEndpoint, _source, _endpoint, currentScene, totalScenes) {
+        async function pollVideoCompletion(taskId, apiEndpoint, _source, _endpoint, currentScene, totalScenes, genMode) {
             const maxAttempts = 120;
             const pollInterval = 5000;
             let consecutiveNetworkErrors = 0;  // 网络错误计数
@@ -5759,11 +6014,22 @@ ${scriptLine}
                 await new Promise(resolve => setTimeout(resolve, pollInterval));
 
                 try {
-                    const pollRequestBody = { action: 'poll', task_id: taskId };
+                    // 🔧 根据模型类型选择正确的轮询action
+                    let pollAction = 'poll';
+                    if (apiEndpoint === '/api/yunwu' && genMode) {
+                        // Vidu/Hailuo/Kling 使用 poll-vod
+                        if (genMode.startsWith('vidu-') || genMode.startsWith('hailuo-') || genMode.startsWith('kling-')) {
+                            pollAction = 'poll-vod';
+                            console.log(`[mobile] 使用 poll-vod 轮询模型: ${genMode}`);
+                        }
+                    }
+                    
+                    const pollRequestBody = { action: pollAction, task_id: taskId };
                     if (apiEndpoint === '/api/sora2') {
                         pollRequestBody._source = _source;
                         pollRequestBody._endpoint = _endpoint;
-                    } else if (apiEndpoint === '/api/yunwu') {
+                    } else if (apiEndpoint === '/api/yunwu' && pollAction === 'poll') {
+                        // Veo 模型才需要 model 参数
                         pollRequestBody.model = 'veo3';
                     }
 
@@ -7616,16 +7882,58 @@ ${idea.theme}${characterPrompt}
             const idea = ideas.find(i => i.id === id);
             if (!idea) return;
 
-            const shareUrl = idea.videoUrl || idea.coverImage;
-            if (navigator.share) {
-                navigator.share({
-                    title: idea.theme,
-                    text: `我用RollRoll生成的${idea.type === 'video' ? '视频' : '漫画'}`,
-                    url: shareUrl
-                });
+            let shareUrl = null;
+            let shareType = idea.type === 'video' ? '视频' : '作品';
+            
+            if (idea.videoUrl) {
+                shareUrl = idea.videoUrl;
+                shareType = '视频';
+            } else if (idea.videoUrls && idea.videoUrls.length > 0) {
+                shareUrl = idea.videoUrls[0];
+                shareType = '视频';
+            } else if (idea.coverImage) {
+                shareUrl = idea.coverImage;
+                shareType = '图片';
+            } else if (idea.panelImages && idea.panelImages.length > 0) {
+                const panel = idea.panelImages.find(p => p.url);
+                if (panel) {
+                    shareUrl = panel.url;
+                    shareType = '分镜';
+                }
+            } else if (idea.previewImages && idea.previewImages.length > 0) {
+                shareUrl = idea.previewImages[0];
+                shareType = '图片';
+            } else if (idea.resultImage) {
+                shareUrl = idea.resultImage;
+                shareType = '图片';
+            } else if (idea.resultImages && idea.resultImages.length > 0) {
+                shareUrl = idea.resultImages[0];
+                shareType = '图片';
+            }
+
+            if (shareUrl) {
+                if (navigator.share) {
+                    navigator.share({
+                        title: idea.theme || 'AI创作内容',
+                        text: `我用RollRoll生成的${shareType}`,
+                        url: shareUrl
+                    }).catch(e => {
+                        console.warn('[Share] 分享失败:', e);
+                        if (navigator.clipboard) {
+                            navigator.clipboard.writeText(shareUrl);
+                            showToast('链接已复制到剪贴板');
+                        }
+                    });
+                } else {
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(shareUrl);
+                        showToast('链接已复制到剪贴板');
+                    } else {
+                        showToast('您的浏览器不支持分享功能');
+                    }
+                }
             } else {
-                navigator.clipboard.writeText(shareUrl);
-                showToast('链接已复制');
+                showToast('没有可分享的内容');
             }
         }
 
@@ -8688,7 +8996,11 @@ ${idea.theme}${characterPrompt}
             return params;
         }
 
-        function mobileSkillBack() {
+        function mobileSkillBack(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             document.getElementById('skillConfigPage').classList.remove('show');
             _mobileSkillSelected = null;
             Object.keys(_mobileSkillImageStore).forEach(k => { _mobileSkillImageStore[k] = []; });
@@ -8746,7 +9058,11 @@ ${idea.theme}${characterPrompt}
             `).join('') + (images.length > 1 ? `<button onclick="_mobileSkillClearImages('${paramKey}')" style="background:none;border:1px dashed #666;border-radius:6px;color:#888;font-size:11px;padding:4px 8px;cursor:pointer;">清空</button>` : '');
         }
 
-        async function mobileSkillExecute() {
+        async function mobileSkillExecute(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             if (!_mobileSkillSelected) return;
             const skill = SkillManager.getById(_mobileSkillSelected);
             if (!skill) return;
@@ -8957,7 +9273,10 @@ ${idea.theme}${characterPrompt}
                             <img src="${page.imageUrl}" class="skill-result-img" onclick="openImageViewer('${page.imageUrl.replace(/'/g, "\\'")}')"
                                 style="cursor:pointer;">
                             <div style="font-size:12px;color:#aaa;margin-bottom:6px;">📖 第${page.page || ''}页</div>
-                            <a href="${page.imageUrl}" download="page_${page.page || ''}.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                            <div style="display:flex;gap:8px;">
+                                <a href="${page.imageUrl}" download="page_${page.page || ''}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                                <button onclick="jumpToI2VFromComic('${page.imageUrl.replace(/'/g, "\\'")}', '${page.page || ''}')" style="flex:1;padding:8px;background:linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1));border:1px solid rgba(139,92,246,0.5);border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">🎬 图生视频</button>
+                            </div>
                         </div>`;
                     }
                 }
@@ -9017,7 +9336,11 @@ ${idea.theme}${characterPrompt}
                         }
                         html += `<div class="skill-result-item">
                             <img src="${comic.imageUrl}" class="skill-result-img" onclick="openImageViewer('${comic.imageUrl.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
-                            <div style="font-size:12px;color:#aaa;">📖 漫画第${comic.page || ''}页</div>
+                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">📖 漫画第${comic.page || ''}页</div>
+                            <div style="display:flex;gap:8px;">
+                                <a href="${comic.imageUrl}" download="comic_page_${comic.page || ''}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                                <button onclick="jumpToI2VFromComic('${comic.imageUrl.replace(/'/g, "\\\\'")}', '${comic.page || ''}')" style="flex:1;padding:8px;background:linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1));border:1px solid rgba(139,92,246,0.5);border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">🎬 图生视频</button>
+                            </div>
                         </div>`;
                     }
                 }
@@ -9127,7 +9450,11 @@ ${idea.theme}${characterPrompt}
             }
         }
 
-        function mobileSkillCloseResult() {
+        function mobileSkillCloseResult(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             document.getElementById('skillResultPage').classList.remove('show');
             closeMobileSkillPanel();
         }
@@ -9155,49 +9482,123 @@ ${idea.theme}${characterPrompt}
                 return;
             }
 
-            // 将task数据桥接为 _mobileSkillLastResult 格式
             const bridgedResult = {};
             const bridgedSkill = {
                 name: idea.theme || '我的作品',
                 category: idea.type === 'video' ? 'video' : 'image'
             };
 
-            // 文本内容
-            bridgedResult.content = `${idea.theme || ''}${idea.script ? '\n\n' + idea.script : ''}`;
+            const textParts = [];
+            if (idea.theme) textParts.push(idea.theme);
+            if (idea.script) textParts.push(idea.script);
+            if (idea.content) textParts.push(idea.content);
+            if (idea.description) textParts.push(idea.description);
+            if (idea.prompt) textParts.push(idea.prompt);
+            if (idea.text) textParts.push(idea.text);
+            if (idea.copywriting) textParts.push(idea.copywriting);
+            if (idea.result) textParts.push(idea.result);
+            if (idea.output) textParts.push(idea.output);
+            bridgedResult.content = textParts.join('\n\n');
 
-            // 图片
             const images = [];
-            if (idea.coverImage) images.push({ status: 'success', imageUrl: idea.coverImage, subject: '封面' });
+            const addImage = (url, subject = '图片') => {
+                if (url && typeof url === 'string' && (url.startsWith('http') || url.startsWith('data:'))) {
+                    if (!images.find(i => i.imageUrl === url)) {
+                        images.push({ status: 'success', imageUrl: url, subject });
+                    }
+                }
+            };
+
+            if (idea.coverImage) addImage(idea.coverImage, '封面');
+            if (idea.resultImage) addImage(idea.resultImage, '结果');
+            if (idea.imageUrl) addImage(idea.imageUrl, '图片');
+            
             if (idea.panelImages) {
                 idea.panelImages.forEach((p, idx) => {
-                    if (p.url) images.push({ status: 'success', imageUrl: p.url, subject: `分镜${idx + 1}` });
+                    if (p.url) addImage(p.url, `分镜${idx + 1}`);
                 });
             }
             if (idea.previewImages) {
                 idea.previewImages.forEach((img, idx) => {
-                    if (img && img.startsWith('http') && !images.find(i => i.imageUrl === img)) {
-                        images.push({ status: 'success', imageUrl: img, subject: `预览${idx + 1}` });
-                    }
+                    if (img) addImage(img, `预览${idx + 1}`);
                 });
             }
+            if (idea.resultImages) {
+                idea.resultImages.forEach((img, idx) => {
+                    if (img) addImage(img, `结果${idx + 1}`);
+                });
+            }
+            if (idea.images) {
+                idea.images.forEach((img, idx) => {
+                    if (typeof img === 'string') addImage(img, `图片${idx + 1}`);
+                    else if (img && img.url) addImage(img.url, img.subject || `图片${idx + 1}`);
+                    else if (img && img.imageUrl) addImage(img.imageUrl, img.subject || `图片${idx + 1}`);
+                });
+            }
+            if (idea.pages) {
+                idea.pages.forEach((p, idx) => {
+                    if (p.imageUrl) addImage(p.imageUrl, `第${p.page || idx + 1}页`);
+                });
+            }
+            if (idea.comics) {
+                idea.comics.forEach((c, idx) => {
+                    if (c.imageUrl) addImage(c.imageUrl, `漫画第${c.page || idx + 1}页`);
+                });
+            }
+            if (idea.scenes) {
+                idea.scenes.forEach((s, idx) => {
+                    if (s.imageUrl) addImage(s.imageUrl, `分镜${s.index || idx + 1}`);
+                });
+            }
+            if (idea.charSheet) addImage(idea.charSheet, '角色设定表');
+            
             if (images.length > 0) bridgedResult.images = images;
 
-            // 视频
-            const videoUrls = idea.videoUrls || (idea.videoUrl ? [idea.videoUrl] : []);
-            if (videoUrls.length > 0) {
-                bridgedResult.videos = videoUrls.map((url, idx) => ({
-                    status: 'success',
-                    videoUrl: url,
-                    imageUrl: idea.previewImages?.[idx] || '',
-                    index: idx + 1
-                }));
+            const videos = [];
+            const addVideo = (url, imageUrl = '', index = 1) => {
+                if (url && typeof url === 'string' && (url.startsWith('http') || url.startsWith('data:'))) {
+                    if (!videos.find(v => v.videoUrl === url)) {
+                        videos.push({
+                            status: 'success',
+                            videoUrl: url,
+                            imageUrl,
+                            index
+                        });
+                    }
+                }
+            };
+
+            if (idea.videoUrl) addVideo(idea.videoUrl, idea.coverImage, 1);
+            if (idea.videoUrls) {
+                idea.videoUrls.forEach((url, idx) => {
+                    addVideo(url, idea.previewImages?.[idx] || '', idx + 1);
+                });
+            }
+            if (idea.videos) {
+                idea.videos.forEach((v, idx) => {
+                    if (typeof v === 'string') addVideo(v, '', idx + 1);
+                    else if (v && v.videoUrl) addVideo(v.videoUrl, v.imageUrl || '', v.index || idx + 1);
+                });
+            }
+            if (idea.episodes) {
+                idea.episodes.forEach((e, idx) => {
+                    if (e.videoUrl) addVideo(e.videoUrl, e.imageUrl || '', e.episode || idx + 1);
+                });
+            }
+            
+            if (videos.length > 0) bridgedResult.videos = videos;
+
+            if (idea.audioUrl) {
+                bridgedResult.audioUrl = idea.audioUrl;
+                bridgedResult.textLength = idea.textLength;
+                bridgedResult.engine = idea.engine;
+            }
+            if (idea.music) {
+                bridgedResult.music = idea.music;
             }
 
-            // 设置全局发布数据
             _mobileSkillLastResult = bridgedResult;
             _mobileSkillLastSkill = bridgedSkill;
-
-            // 打开发布面板
             const sheet = document.getElementById('publishSheet');
             if (sheet) sheet.classList.add('show');
         }
@@ -9311,76 +9712,145 @@ ${idea.theme}${characterPrompt}
 
         async function publishAction(action) {
             if (action === 'share') {
-                // Web Share API
                 const text = _publishGetTexts();
-                const { images, videos } = _publishGetMediaUrls();
+                const { images, videos, audios } = _publishGetMediaUrls();
+                const hasMedia = images.length > 0 || videos.length > 0 || audios.length > 0;
+                
+                if (!text && !hasMedia) {
+                    showToast('没有可分享的内容');
+                    closePublishSheet();
+                    return;
+                }
+                
                 const shareData = {
                     title: _mobileSkillLastSkill?.name || 'AI创作内容',
                     text: text ? text.slice(0, 500) : '查看我用RollRoll AI创作的内容',
                 };
-                // 尝试分享文件
-                const { audios } = _publishGetMediaUrls();
-                if (navigator.canShare && (images.length > 0 || videos.length > 0 || audios.length > 0)) {
+                
+                if (navigator.canShare && hasMedia) {
                     try {
                         const files = [];
                         for (let i = 0; i < Math.min(images.length, 4); i++) {
-                            const resp = await fetch(images[i]);
-                            const blob = await resp.blob();
-                            files.push(new File([blob], `image_${i+1}.png`, { type: blob.type || 'image/png' }));
+                            try {
+                                const resp = await fetch(images[i]);
+                                const blob = await resp.blob();
+                                files.push(new File([blob], `image_${i+1}.png`, { type: blob.type || 'image/png' }));
+                            } catch(e) {
+                                console.warn('[Publish] 加载图片失败:', e);
+                            }
                         }
                         for (let i = 0; i < Math.min(videos.length, 1); i++) {
-                            const resp = await fetch(videos[i]);
-                            const blob = await resp.blob();
-                            files.push(new File([blob], `video_${i+1}.mp4`, { type: blob.type || 'video/mp4' }));
+                            try {
+                                const resp = await fetch(videos[i]);
+                                const blob = await resp.blob();
+                                files.push(new File([blob], `video_${i+1}.mp4`, { type: blob.type || 'video/mp4' }));
+                            } catch(e) {
+                                console.warn('[Publish] 加载视频失败:', e);
+                            }
                         }
                         for (let i = 0; i < Math.min(audios.length, 4); i++) {
-                            const resp = await fetch(audios[i].url);
-                            const blob = await resp.blob();
-                            files.push(new File([blob], `${audios[i].name}.mp3`, { type: blob.type || 'audio/mpeg' }));
+                            try {
+                                const resp = await fetch(audios[i].url);
+                                const blob = await resp.blob();
+                                files.push(new File([blob], `${audios[i].name}.mp3`, { type: blob.type || 'audio/mpeg' }));
+                            } catch(e) {
+                                console.warn('[Publish] 加载音频失败:', e);
+                            }
                         }
                         if (files.length > 0) shareData.files = files;
                     } catch(e) {
                         console.warn('[Publish] 加载媒体文件失败:', e);
                     }
                 }
+                
                 if (navigator.share) {
                     try {
                         await navigator.share(shareData);
                         showToast('✅ 分享成功');
+                        closePublishSheet();
+                        return;
                     } catch(e) {
-                        if (e.name !== 'AbortError') showToast('分享失败: ' + e.message);
+                        if (e.name !== 'AbortError') {
+                            console.warn('[Publish] 分享失败:', e);
+                        }
+                    }
+                }
+                
+                if (hasMedia) {
+                    const allUrls = [...images, ...videos].join('\n');
+                    try {
+                        await navigator.clipboard.writeText(allUrls || shareData.text);
+                        showToast('✅ 链接已复制到剪贴板');
+                    } catch(e) {
+                        showToast('链接复制失败');
                     }
                 } else {
-                    // 回退到复制
                     publishAction('copyText');
+                    return;
                 }
             } else if (action === 'copyText') {
                 const text = _publishGetTexts();
-                if (!text) { showToast('无可复制的文本内容'); closePublishSheet(); return; }
+                const { images, videos } = _publishGetMediaUrls();
+                
+                if (!text && images.length === 0 && videos.length === 0) {
+                    showToast('没有可复制的内容');
+                    closePublishSheet();
+                    return;
+                }
+                
+                const copyContent = text || [...images, ...videos].join('\n') || '查看我用RollRoll AI创作的内容';
+                
                 try {
-                    await navigator.clipboard.writeText(text);
-                    showToast('✅ 已复制文案到剪贴板');
+                    await navigator.clipboard.writeText(copyContent);
+                    showToast(text ? '✅ 已复制文案到剪贴板' : '✅ 已复制链接到剪贴板');
                 } catch(e) {
-                    // fallback
                     const ta = document.createElement('textarea');
-                    ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px';
-                    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                    ta.value = copyContent; 
+                    ta.style.cssText = 'position:fixed;left:-9999px';
+                    document.body.appendChild(ta); 
+                    ta.select(); 
+                    document.execCommand('copy');
                     document.body.removeChild(ta);
                     showToast('✅ 已复制');
                 }
             } else if (action === 'downloadAll') {
                 const { images, videos, audios } = _publishGetMediaUrls();
                 const total = images.length + videos.length + audios.length;
-                if (total === 0) { showToast('无可下载的媒体文件'); closePublishSheet(); return; }
+                if (total === 0) { 
+                    showToast('无可下载的媒体文件'); 
+                    closePublishSheet(); 
+                    return; 
+                }
                 let count = 0;
                 for (const url of images) {
-                    const a = document.createElement('a'); a.href = url; a.download = `image_${++count}.png`; a.click();
+                    try {
+                        const a = document.createElement('a'); 
+                        a.href = url; 
+                        a.download = `image_${++count}.png`; 
+                        a.click();
+                    } catch(e) {
+                        console.warn('[Download] 下载图片失败:', e);
+                    }
                 }
                 for (const url of videos) {
-                    const a = document.createElement('a'); a.href = url; a.download = `video_${++count}.mp4`; a.click();
+                    try {
+                        const a = document.createElement('a'); 
+                        a.href = url; 
+                        a.download = `video_${++count}.mp4`; 
+                        a.click();
+                    } catch(e) {
+                        console.warn('[Download] 下载视频失败:', e);
+                    }
                 }
                 for (const audio of audios) {
-                    const a = document.createElement('a'); a.href = audio.url; a.download = `${audio.name}.mp3`; a.click();
+                    try {
+                        const a = document.createElement('a'); 
+                        a.href = audio.url; 
+                        a.download = `${audio.name}.mp3`; 
+                        a.click();
+                    } catch(e) {
+                        console.warn('[Download] 下载音频失败:', e);
+                    }
                 }
                 showToast(`✅ 开始下载 ${total} 个文件`);
             }
@@ -9464,11 +9934,11 @@ ${idea.theme}${characterPrompt}
             document.getElementById('loadingOverlay').classList.remove('show');
         }
 
-        function showToast(message) {
+        function showToast(message, duration = 2500) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2500);
+            setTimeout(() => toast.classList.remove('show'), duration);
         }
 
         // ==================== 🎨 Midjourney 图片选择器 ====================

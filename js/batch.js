@@ -210,7 +210,7 @@ ${isChinese ? '- 【重要】必须是中国古典国风风格\n- 水墨画韵�
  * @description 角色生成优化 + 自动托管模式 + 全面Bug修复
  */
 
-const APP_VERSION = 'V8.6.5'; // 优化多主题提示词解析：支持"一张图画猫，一张图画狗"拆分为独立任务
+const APP_VERSION = 'V8.6.6'; // 优化多主题提示词解析：支持"一张图画猫，一张图画狗"拆分为独立任务
 
 // 🔒 简单转义，防止 XSS 注入
 function escapeHtml(str = '') {
@@ -2305,6 +2305,7 @@ function __normalizeVideoModelName(model) {
     const m = String(model || '').trim();
     const ml = m.toLowerCase();
     if (!ml) return 'sora-2-vip-all';
+    if (ml.includes('modelscope')) return 'modelscope-video';
     if (ml === 'sora-2-vip-all') return 'sora-2-vip-all';
     // 🔧 旧 sora2 模型已停用，统一转换为过渡模型 sora-2-vip-all
     if (ml === 'sora2' || ml === 'sora-2' || ml === 'sora-2-hd' || ml === 'sora2-hd' || ml === 'sora-2-all') return 'sora-2-vip-all';
@@ -6094,6 +6095,10 @@ function refundQuota(count = 1) {
 async function pollSora2Task(taskId, options = {}) {
     const maxAttempts = 300; // 最多轮询300次（约15分钟）- Sora2高峰期可能需要更长时间
     const { _source, _endpoint } = options;
+    
+    // 🔧 2026-02-17 优化：记录连续失败次数，避免单次失败就放弃
+    let consecutiveFailures = 0;
+    const MAX_CONSECUTIVE_FAILURES = 10; // 连续10次失败才考虑放弃
 
     for (let i = 0; i < maxAttempts; i++) {
         await sleep(3000); // 每3秒轮询一次
@@ -6113,8 +6118,18 @@ async function pollSora2Task(taskId, options = {}) {
 
             if (!res.ok) {
                 console.warn(`⚠️ 轮询请求失败: ${res.status} (${i + 1}/${maxAttempts})`);
+                consecutiveFailures++;
+                
+                // 🔧 只有连续失败超过阈值才继续
+                if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                    console.error(`❌ 轮询连续失败${consecutiveFailures}次，但仍然继续等待...`);
+                    // 不抛出错误，继续等待，可能后端只是暂时不可用
+                }
                 continue;
             }
+
+            // 轮询成功，重置连续失败计数
+            consecutiveFailures = 0;
 
             const data = await res.json();
 
@@ -6148,6 +6163,23 @@ async function pollSora2Task(taskId, options = {}) {
 
             // ❌ 失败状态（兼容更多格式）
             if (status === 'FAILURE' || status === 'FAILED' || status === 'ERROR' || status === 'FAIL' || status === 'CANCELLED' || status === 'CANCELED') {
+                // 🔧 2026-02-17 优化：即使状态显示失败，也要检查是否有视频URL！
+                // 有时候上游会返回失败状态但实际有视频
+                const videoUrl =
+                    data.video_url ||
+                    data.videoUrl ||
+                    data.url ||
+                    data.data?.output ||
+                    data.data?.video_url ||
+                    data.data?.url ||
+                    data.result?.url ||
+                    data.result?.video_url;
+                
+                if (videoUrl) {
+                    console.warn(`⚠️ 任务状态显示${status}，但发现视频URL，视为成功:`, videoUrl);
+                    return videoUrl;
+                }
+                
                 const errorMsg = data.fail_reason || data.error || data.message || data.error_message || data.detail || '未知错误';
                 console.error(`❌ Sora2任务失败: ${errorMsg}`, data);
                 throw new Error(`视频生成失败: ${errorMsg}`);
@@ -6155,6 +6187,13 @@ async function pollSora2Task(taskId, options = {}) {
 
             // 🔧 检查data内部的失败状态
             if (data.data?.status && ['FAILURE', 'FAILED', 'ERROR', 'FAIL'].includes(String(data.data.status).toUpperCase())) {
+                // 同样检查是否有视频URL
+                const videoUrl = data.data?.video_url || data.data?.url;
+                if (videoUrl) {
+                    console.warn(`⚠️ 任务内部状态显示失败，但发现视频URL，视为成功:`, videoUrl);
+                    return videoUrl;
+                }
+                
                 const errorMsg = data.data.fail_reason || data.data.error || data.data.message || '任务执行失败';
                 console.error(`❌ Sora2任务内部失败: ${errorMsg}`, data);
                 throw new Error(`视频生成失败: ${errorMsg}`);
@@ -6162,14 +6201,23 @@ async function pollSora2Task(taskId, options = {}) {
 
             // ⏳ 进行中（避免刷屏：每10次打印一次）
             if (i === 0 || ((i + 1) % 10 === 0)) {
-                console.log(`⏳ Sora2任务进行中... (${i + 1}/${maxAttempts})`);
+                console.log(`⏳ Sora2任务进行中... (${i + 1}/${maxAttempts}), status=${status}`);
             }
 
         } catch (pollError) {
-            if (pollError.message.includes('视频生成失败')) {
+            consecutiveFailures++;
+            
+            // 🔧 只有明确的"视频生成失败"错误才抛出
+            if (pollError.message && pollError.message.includes('视频生成失败')) {
                 throw pollError; // 重新抛出失败错误
             }
-            console.warn(`⚠️ 轮询异常: ${pollError.message}`);
+            
+            console.warn(`⚠️ 轮询异常: ${pollError.message} (连续失败:${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES})`);
+            
+            // 🔧 连续失败过多时，给用户一个提示，但不要直接放弃
+            if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES && (i + 1) % 20 === 0) {
+                console.warn(`⚠️ 轮询已连续失败${consecutiveFailures}次，但继续等待...`);
+            }
         }
     }
 
@@ -7337,6 +7385,7 @@ window.executeCanvasCommand = async function () {
     };
     const VIDEO_MODEL_MAP = {
         'auto': null,
+        'modelscope-video': 'modelscope-video',
         'sora-2-vip-all': 'sora-2-vip-all',
         'sora-2-all': 'sora-2-vip-all',
         'sora-2-pro-all': 'sora-2-vip-all',
@@ -33488,7 +33537,16 @@ function showCharImageMenu(event, imageUrl, charName) {
  */
 async function downloadImage(url, filename) {
     try {
-        const response = await fetch(url);
+        // 🔒 非 VIP 用户下载时烧录水印
+        let downloadUrl = url;
+        if (typeof Watermark !== 'undefined' && Watermark.shouldApply()) {
+            try {
+                downloadUrl = await Watermark.burnWatermark(url);
+            } catch (e) {
+                console.warn('[Watermark] 下载水印失败:', e.message);
+            }
+        }
+        const response = await fetch(downloadUrl);
         const blob = await response.blob();
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
