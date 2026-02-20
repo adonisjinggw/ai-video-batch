@@ -581,7 +581,7 @@ module.exports = async function handler(req, res) {
         function __getNumericMembershipLevelFromProfileRow(row) {
             try {
                 const lv = Number(row?.membership_level);
-                if (Number.isFinite(lv) &amp;&amp; lv &gt; 0) return Math.max(0, Math.min(10, Math.floor(lv)));
+                if (Number.isFinite(lv) && lv > 0) return Math.max(0, Math.min(10, Math.floor(lv)));
             } catch (e) { }
             return getMembershipLevel(row?.membership_type || 'free');
         }
@@ -792,8 +792,8 @@ module.exports = async function handler(req, res) {
         if (action === 'checkFreeVideoCount') {
             const membershipLevel = __getNumericMembershipLevelFromProfileRow(profileRow);
             const freeVideoCount = Number(profileRow?.free_video_count) || 0;
-            const isVip = membershipLevel &gt; 0;
-            const canUseFree = isVip || freeVideoCount &gt; 0;
+            const isVip = membershipLevel > 0;
+            const canUseFree = isVip || freeVideoCount > 0;
             res.status(200).json({
                 success: true,
                 freeVideoCount,
@@ -806,7 +806,7 @@ module.exports = async function handler(req, res) {
 
         if (action === 'useFreeVideo') {
             const membershipLevel = __getNumericMembershipLevelFromProfileRow(profileRow);
-            const isVip = membershipLevel &gt; 0;
+            const isVip = membershipLevel > 0;
             
             if (isVip) {
                 res.status(200).json({
@@ -819,7 +819,7 @@ module.exports = async function handler(req, res) {
             }
             
             const freeVideoCount = Number(profileRow?.free_video_count) || 0;
-            if (freeVideoCount &lt;= 0) {
+            if (freeVideoCount <= 0) {
                 res.status(400).json({
                     error: 'NO_FREE_VIDEOS',
                     message: '免费次数已用完，请充值后继续使用'

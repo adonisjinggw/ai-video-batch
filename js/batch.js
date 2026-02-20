@@ -2253,28 +2253,30 @@ async function callSora2TextToVideoAPI(prompt, options = {}) {
             return url;
         }
         
+        const requestBody = {
+            action: 'text-to-video',
+            prompt,
+            model: _m,
+            duration: parseInt(_dur) || 15,
+            aspect_ratio: aspectRatio,
+            hd: !!_hd,
+            key_value,
+            video_url,
+            character_username,
+            character_usernames,
+            character_url,
+            character_timestamps,
+            input_reference,
+            style,
+            userId
+        };
+        if (_m === 'modelscope-video') {
+            requestBody.skip_billing = true;
+        }
         const res = await fetch('/api/sora2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'text-to-video',
-                prompt,
-                model: _m,
-                duration: parseInt(_dur) || 15,
-                aspect_ratio: aspectRatio,
-                hd: !!_hd,
-                key_value,
-                video_url,
-                character_username,
-                character_usernames,
-                character_url,
-                character_timestamps,
-                input_reference,
-                style,
-                userId,
-                // 🔧 2026-01-09 修复：移除 skip_billing 标志，确保后端正常扣费
-                // skip_billing: true // 前端预扣费机制已禁用
-            })
+            body: JSON.stringify(requestBody)
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || data.error || `Sora2失败: ${res.status}`);
@@ -2517,28 +2519,31 @@ async function callSora2ImageToVideoAPI(imageUrl, prompt, options = {}) {
         if (!userId) {
             throw new Error('请先登录后再使用此功能');
         }
+        
+        const requestBody = {
+            action: 'image-to-video',
+            image_url: sketchImageUrl,
+            prompt: enhancedPrompt,
+            model: _m,
+            duration: parseInt(_dur) || 15,
+            aspect_ratio: aspectRatio,
+            hd: !!_hd,
+            key_value,
+            video_url,
+            character_username,
+            character_usernames,
+            character_url,
+            character_timestamps,
+            style,
+            userId
+        };
+        if (_m === 'modelscope-video') {
+            requestBody.skip_billing = true;
+        }
         const res = await fetch('/api/sora2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({
-                action: 'image-to-video',
-                image_url: sketchImageUrl,
-                prompt: enhancedPrompt,
-                model: _m,
-                duration: parseInt(_dur) || 15,
-                aspect_ratio: aspectRatio,
-                hd: !!_hd,
-                key_value,
-                video_url,
-                character_username,
-                character_usernames,
-                character_url,
-                character_timestamps,
-                style,
-                userId,
-                // 🔧 2026-01-09 修复：移除 skip_billing 标志，确保后端正常扣费
-                // skip_billing: true // 前端预扣费机制已禁用
-            })
+            body: JSON.stringify(requestBody)
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || data.error || `Sora2失败: ${res.status}`);
@@ -3758,15 +3763,100 @@ function showAutoLevelHint(val) {
     }
 }
 
-// 🎬 生成模式切换处理（显示/隐藏连续性视频提示）
+// 🎬 生成模式切换处理（显示/隐藏连续性视频提示 + 价格提示）
+const MODEL_PRICES = {
+    'modelscope-video': { cost: 0, label: '免费', warning: null },
+    'text-to-video': { cost: 7, label: '7胶片', warning: null },
+    'image-to-video': { cost: 7, label: '7胶片', warning: null },
+    'banana-image-to-video': { cost: 7, label: '7胶片', warning: null },
+    'banana-grid-to-video': { cost: 3, label: '3胶片/分镜', warning: null },
+    'sora-2-vip-all': { cost: 7, label: '7胶片', warning: null },
+    'sora-2-all': { cost: 7, label: '7胶片', warning: null },
+    'sora-2-pro-all': { cost: 14, label: '14胶片', warning: null },
+    'sora-2-characters': { cost: 7, label: '7胶片', warning: null },
+    'veo3': { cost: 30, label: '30胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'veo3.1': { cost: 30, label: '30胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'veo3.1-components-4k': { cost: 30, label: '30胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'veo_3_1-fast-4K': { cost: 25, label: '25胶片', warning: null },
+    'veo_3_1-fast-components-4K': { cost: 28, label: '28胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'veo_3_1-components-4K': { cost: 30, label: '30胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q2-5s-720p': { cost: 25, label: '25胶片', warning: null },
+    'vidu-q2-5s-1080p': { cost: 36, label: '36胶片', warning: null },
+    'vidu-q2-pro-5s-720p': { cost: 27, label: '27胶片', warning: null },
+    'vidu-q2-pro-5s-1080p': { cost: 54, label: '54胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q2-turbo-5s-720p': { cost: 19, label: '19胶片', warning: null },
+    'vidu-q2-turbo-5s-1080p': { cost: 36, label: '36胶片', warning: null },
+    'vidu-q2-10s-720p': { cost: 50, label: '50胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q2-10s-1080p': { cost: 72, label: '72胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q2-pro-10s-720p': { cost: 54, label: '54胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q2-pro-10s-1080p': { cost: 108, label: '108胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q2-turbo-10s-720p': { cost: 38, label: '38胶片', warning: null },
+    'vidu-q2-turbo-10s-1080p': { cost: 72, label: '72胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q3-pro-5s-720p': { cost: 72, label: '72胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q3-pro-5s-1080p': { cost: 77, label: '77胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'vidu-q3-pro-10s-720p': { cost: 144, label: '144胶片', warning: '⚠️ 这是超高价模型，请确认您确实需要！' },
+    'vidu-q3-pro-10s-1080p': { cost: 154, label: '154胶片', warning: '⚠️ 这是超高价模型，请确认您确实需要！' },
+    'hailuo-02-768p-6s': { cost: 7, label: '7胶片', warning: null },
+    'hailuo-02-1080p-6s': { cost: 12, label: '12胶片', warning: null },
+    'hailuo-fast-768p-6s': { cost: 5, label: '5胶片', warning: null },
+    'hailuo-fast-1080p-6s': { cost: 8, label: '8胶片', warning: null },
+    'hailuo-02-768p-10s': { cost: 11, label: '11胶片', warning: null },
+    'hailuo-02-1080p-10s': { cost: 20, label: '20胶片', warning: null },
+    'hailuo-fast-768p-10s': { cost: 8, label: '8胶片', warning: null },
+    'hailuo-fast-1080p-10s': { cost: 13, label: '13胶片', warning: null },
+    'kling-2.5-720p-5s': { cost: 5, label: '5胶片', warning: null },
+    'kling-2.5-1080p-5s': { cost: 9, label: '9胶片', warning: null },
+    'kling-2.0-720p-5s': { cost: 7, label: '7胶片', warning: null },
+    'kling-2.0-1080p-5s': { cost: 12, label: '12胶片', warning: null },
+    'kling-o1-720p-5s': { cost: 15, label: '15胶片', warning: null },
+    'kling-o1-1080p-5s': { cost: 20, label: '20胶片', warning: null },
+    'kling-2.5-720p-10s': { cost: 10, label: '10胶片', warning: null },
+    'kling-2.5-1080p-10s': { cost: 17, label: '17胶片', warning: null },
+    'kling-2.0-720p-10s': { cost: 14, label: '14胶片', warning: null },
+    'kling-2.0-1080p-10s': { cost: 24, label: '24胶片', warning: null },
+    'kling-o1-720p-10s': { cost: 31, label: '31胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'kling-o1-1080p-10s': { cost: 41, label: '41胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
+    'grok-video-3-text': { cost: 5, label: '5胶片', warning: null },
+    'grok-video-3': { cost: 5, label: '5胶片', warning: null },
+    'grok-video-3-10s-text': { cost: 8, label: '8胶片', warning: null },
+    'grok-video-3-10s': { cost: 8, label: '8胶片', warning: null },
+    'video-continuity': { cost: 3, label: '3胶片/分镜', warning: null }
+};
+
 function onGenModeChange(mode) {
     const hint = document.getElementById('continuityModeHint');
     
     // 🖼️ 图生视频模式：显示/隐藏角色图上传区域
     const refImageSection = document.getElementById('quickRefImageSection');
     if (refImageSection) {
-        const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3';
+        const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s';
         refImageSection.style.display = isImageMode ? 'block' : 'none';
+    }
+
+    // 💰 显示价格提示
+    const priceHintArea = document.getElementById('priceHintArea');
+    const priceHintContent = document.getElementById('priceHintContent');
+    
+    if (priceHintArea && priceHintContent) {
+        const priceInfo = MODEL_PRICES[mode];
+        
+        if (priceInfo) {
+            priceHintArea.style.display = 'block';
+            
+            let content = `<div style="font-weight: 700; font-size: 18px; color: #60a5fa;">${priceInfo.cost === 0 ? '🆓 免费' : '🎞️ ' + priceInfo.label}</div>`;
+            
+            if (priceInfo.warning) {
+                content += `<div style="margin-top: 8px; padding: 8px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 6px; color: #fca5a5; font-size: 13px;">${priceInfo.warning}</div>`;
+            }
+            
+            if (priceInfo.cost === 0) {
+                content += `<div style="margin-top: 8px; color: #888; font-size: 12px;">• 新用户有3次免费机会<br>• VIP用户无限制</div>`;
+            }
+            
+            priceHintContent.innerHTML = content;
+        } else {
+            priceHintArea.style.display = 'none';
+        }
     }
 
     if (!hint) return;
