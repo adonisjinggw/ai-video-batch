@@ -575,6 +575,17 @@ module.exports = async function handler(req, res) {
             'Prefer': 'return=minimal'
         };
 
+        // 🔧 有效的 membership_type 值列表（数据库约束）
+        const VALID_MEMBERSHIP_TYPES = ['free', 'creator', 'vip', 'pro', 'studio'];
+
+        function __getNumericMembershipLevelFromProfileRow(row) {
+            try {
+                const lv = Number(row?.membership_level);
+                if (Number.isFinite(lv) &amp;&amp; lv &gt; 0) return Math.max(0, Math.min(10, Math.floor(lv)));
+            } catch (e) { }
+            return getMembershipLevel(row?.membership_type || 'free');
+        }
+
         const GIFT_TOTAL = 100000;
         // 🎁 解锁上限配置
         // - 无邀请码注册的免费用户：100积分
@@ -632,8 +643,8 @@ module.exports = async function handler(req, res) {
 
         async function fetchProfileRow() {
             // 尝试获取完整字段，如果失败则回退到基础字段
-            const selectFull = 'quota_balance,quota_used,membership_type,membership_level,membership_expires_at,invited_by';
-            const selectLegacy = 'quota_balance,quota_used,membership_type,invited_by';
+            const selectFull = 'quota_balance,quota_used,membership_type,membership_level,membership_expires_at,invited_by,free_video_count';
+            const selectLegacy = 'quota_balance,quota_used,membership_type,invited_by,free_video_count';
             const url1 = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}&select=${encodeURIComponent(selectFull)}`;
             const r1 = await fetch(url1, { headers });
             if (r1.ok) {
@@ -777,22 +788,87 @@ module.exports = async function handler(req, res) {
         
         profileRow = await checkAndDowngradeMembership(profileRow); // 🔄 自动降级检查
 
+        // ========== 🎬 免费视频生成次数检查和扣减 ==========
+        if (action === 'checkFreeVideoCount') {
+            const membershipLevel = __getNumericMembershipLevelFromProfileRow(profileRow);
+            const freeVideoCount = Number(profileRow?.free_video_count) || 0;
+            const isVip = membershipLevel &gt; 0;
+            const canUseFree = isVip || freeVideoCount &gt; 0;
+            res.status(200).json({
+                success: true,
+                freeVideoCount,
+                isVip,
+                canUseFree,
+                message: isVip ? 'VIP用户无限制' : (canUseFree ? `剩余免费次数：${freeVideoCount}` : '免费次数已用完')
+            });
+            return;
+        }
+
+        if (action === 'useFreeVideo') {
+            const membershipLevel = __getNumericMembershipLevelFromProfileRow(profileRow);
+            const isVip = membershipLevel &gt; 0;
+            
+            if (isVip) {
+                res.status(200).json({
+                    success: true,
+                    usedFree: false,
+                    isVip: true,
+                    message: 'VIP用户无需使用免费次数'
+                });
+                return;
+            }
+            
+            const freeVideoCount = Number(profileRow?.free_video_count) || 0;
+            if (freeVideoCount &lt;= 0) {
+                res.status(400).json({
+                    error: 'NO_FREE_VIDEOS',
+                    message: '免费次数已用完，请充值后继续使用'
+                });
+                return;
+            }
+            
+            const newFreeVideoCount = freeVideoCount - 1;
+            const updateUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`;
+            const updateData = { free_video_count: newFreeVideoCount };
+            
+            try {
+                await fetch(updateUrl, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify(updateData)
+                });
+                
+                const logUrl = `${SUPABASE_URL}/rest/v1/quota_logs`;
+                await fetch(logUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        user_id: userId,
+                        action_type: 'free_video_used',
+                        amount: -1,
+                        balance_after: newFreeVideoCount,
+                        description: '使用免费视频生成次数'
+                    })
+                });
+                
+                res.status(200).json({
+                    success: true,
+                    usedFree: true,
+                    remaining: newFreeVideoCount,
+                    message: `已使用免费次数，剩余 ${newFreeVideoCount} 次`
+                });
+                return;
+            } catch (e) {
+                res.status(500).json({ error: 'UPDATE_FAILED', message: e.message });
+                return;
+            }
+        }
+
         const currentBalance = profileRow?.quota_balance || 0;
         const currentUsed = profileRow?.quota_used || 0;
         const currentMembershipType = profileRow?.membership_type || 'free';
         const hasGiftBalanceField = profileRow && Object.prototype.hasOwnProperty.call(profileRow, 'gift_film_balance');
         const filmLotsSupported = await checkFilmLotsSupported();
-
-        // 🔧 有效的 membership_type 值列表（数据库约束）
-        const VALID_MEMBERSHIP_TYPES = ['free', 'creator', 'vip', 'pro', 'studio'];
-
-        function __getNumericMembershipLevelFromProfileRow(row) {
-            try {
-                const lv = Number(row?.membership_level);
-                if (Number.isFinite(lv) && lv > 0) return Math.max(0, Math.min(10, Math.floor(lv)));
-            } catch (e) { }
-            return getMembershipLevel(row?.membership_type || 'free');
-        }
 
         if (action === 'runninghubHdStart' || action === 'runninghubHdPoll' || action === 'runninghubHdCancel') {
             const lv = __getNumericMembershipLevelFromProfileRow(profileRow);
