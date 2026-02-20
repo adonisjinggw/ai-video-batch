@@ -2026,6 +2026,9 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'text-to-video', prompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                    if (model === 'modelscope-video') {
+                        requestBody.skip_billing = true;
+                    }
                 }
                 
                 const response = await fetch(apiEndpoint, { 
@@ -2160,6 +2163,9 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'image-to-video', prompt, image_url: finalImageUrl, model, aspect_ratio: ratio, duration, userId: currentUser?.id, image_weight: 0.98, preserve_subject: true };
+                    if (model === 'modelscope-video') {
+                        requestBody.skip_billing = true;
+                    }
                 }
                 
                 const response = await fetch(apiEndpoint, { 

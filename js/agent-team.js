@@ -138,7 +138,7 @@
             // 视频生成
             this.register('video_text', {
                 name: '文生视频',
-                description: '文字描述生成视频。参数: prompt(英文提示词), model(视频模型: sora-2-vip-all/veo3.1/grok-video-3/kling-2.5-720p-5s/hailuo-02-768p-6s/vidu-q2-pro-8s-1080p等,默认sora-2-vip-all), aspectRatio(比例)',
+                description: '文字描述生成视频。参数: prompt(英文提示词), model(视频模型: sora-2-vip-all/veo3.1/grok-video-3/kling-2.5-720p-5s/hailuo-02-768p-6s/vidu-q2-pro-8s-1080p/vidu-q3-pro-8s-1080p/wan26-720p-5s/wan26-1080p-10s-audio等,默认sora-2-vip-all), aspectRatio(比例)',
                 params: ['prompt', 'model', 'aspectRatio'],
                 fn: async (p) => {
                     if (typeof callSora2TextToVideoAPI === 'function') {
@@ -153,7 +153,7 @@
 
             this.register('video_image', {
                 name: '图生视频',
-                description: '图片动态化生成视频。参数: imageUrl(图片URL), prompt(英文动作描述), model(视频模型: sora-2-vip-all/veo3.1/grok-video-3等,默认sora-2-vip-all), aspectRatio(比例)',
+                description: '图片动态化生成视频。参数: imageUrl(图片URL), prompt(英文动作描述), model(视频模型: sora-2-vip-all/veo3.1/grok-video-3/kling-2.5-720p-5s/hailuo-02-768p-6s/vidu-q2-pro-8s-1080p/vidu-q3-pro-8s-1080p/wan26-720p-5s/wan26-1080p-10s-audio等,默认sora-2-vip-all), aspectRatio(比例)',
                 params: ['imageUrl', 'prompt', 'model', 'aspectRatio'],
                 fn: async (p) => {
                     if (typeof callSora2ImageToVideoAPI === 'function') {
@@ -313,6 +313,22 @@
         return 60000; // 默认 1分钟
     }
 
+    // ==================== 工具降级映射 ====================
+    /** 同类工具降级顺序：当主工具失败时自动尝试同类替代工具 */
+    const TOOL_FALLBACKS = {
+        // 图片生成类：互为备选
+        image_seedream:   ['image_banana', 'image_modelscope', 'image_mj'],
+        image_banana:     ['image_seedream', 'image_modelscope', 'image_mj'],
+        image_modelscope: ['image_banana', 'image_seedream', 'image_mj'],
+        image_mj:         ['image_banana', 'image_seedream', 'image_modelscope'],
+        // 文本类
+        text_gen:   ['text_write'],
+        text_write: ['text_gen'],
+        // 视频类
+        video_text:  ['video_image'],
+        video_image: ['video_text'],
+    };
+
     // ==================== Agent 智能体 ====================
     class Agent {
         constructor(config) {
@@ -347,11 +363,17 @@
                 `- ${t.id}: ${t.description}`
             ).join('\n');
 
+            // 构建可用工具ID列表（用于提示词强调）
+            const toolIds = toolDescs.map(t => t.id);
+
             // 构建提示词
             const thinkPrompt = `${this.systemPrompt}
 
 你可以使用以下工具:
 ${toolList}
+
+【严格限制】你只能使用上面列出的工具ID: [${toolIds.join(', ')}]
+绝对禁止使用未列出的工具ID。如果你需要的功能不在上述工具列表中，请使用 text_output 返回文字描述。
 
 ${context ? `当前项目上下文:\n${context}\n` : ''}
 请根据以下任务返回 JSON 决策。务必返回纯 JSON，不要包裹 markdown 代码块。
@@ -370,24 +392,41 @@ ${input}`;
 
             try {
                 // 带重试的 LLM 调用（120s超时，复杂任务/参考图上下文需要更长时间）
-                const response = await withRetry(async () => {
-                    // 优先使用 callZhenzhenTextAPI (更稳定的JSON输出)
-                    if (typeof callZhenzhenTextAPI === 'function') {
-                        return await withTimeout(
-                            callZhenzhenTextAPI(thinkPrompt, { model: 'gemini-3-pro-preview', temperature: 0.3, max_tokens: 4096 }),
-                            120000, `${this.name} LLM推理`
-                        );
-                    } else if (typeof callWriterLLM === 'function') {
+                // 🔧 修复：callZhenzhenTextAPI 失败时自动降级到 callWriterLLM
+                const response = await withRetry(async (attempt) => {
+                    // 第1次尝试：优先 callZhenzhenTextAPI（更稳定的JSON输出）
+                    if (attempt <= 1 && typeof callZhenzhenTextAPI === 'function') {
+                        try {
+                            return await withTimeout(
+                                callZhenzhenTextAPI(thinkPrompt, { model: 'gemini-3-pro-preview', temperature: 0.3, max_tokens: 4096 }),
+                                120000, `${this.name} LLM推理`
+                            );
+                        } catch (e) {
+                            console.warn(`⚠️ [${this.name}] callZhenzhenTextAPI 失败，降级到 callWriterLLM:`, e.message);
+                            // 降级到 callWriterLLM
+                            if (typeof callWriterLLM === 'function') {
+                                return await withTimeout(
+                                    callWriterLLM([
+                                        { role: 'system', content: this.systemPrompt },
+                                        { role: 'user', content: thinkPrompt }
+                                    ], { temperature: 0.3, max_tokens: 4096 }),
+                                    120000, `${this.name} LLM推理(降级)`
+                                );
+                            }
+                            throw e; // 无可用降级，抛出原始错误
+                        }
+                    }
+                    // 第2+次重试 或 callZhenzhenTextAPI 不可用：直接用 callWriterLLM
+                    if (typeof callWriterLLM === 'function') {
                         return await withTimeout(
                             callWriterLLM([
                                 { role: 'system', content: this.systemPrompt },
                                 { role: 'user', content: thinkPrompt }
-                            ], { temperature: 0.3 }),
+                            ], { temperature: 0.3, max_tokens: 4096 }),
                             120000, `${this.name} LLM推理`
                         );
-                    } else {
-                        throw new Error('无可用的 LLM 服务');
                     }
+                    throw new Error('无可用的 LLM 服务');
                 }, 2, 5000, `${this.name}推理`);
 
                 this.addMemory('assistant', response);
@@ -428,18 +467,32 @@ ${input}`;
                     return { type: 'delegate', targetAgent: decision.targetAgent, task: decision.task };
                 }
 
-                // 单个工具调用
+                // 单个工具调用（带自动降级）
                 if (!this.tools.includes(decision.action)) {
                     throw new Error(`Agent [${this.name}] 没有权限使用工具: ${decision.action}`);
                 }
 
-                const timeout = getToolTimeout(decision.action);
-                const result = await withTimeout(
-                    ToolRegistry.execute(decision.action, decision.params || {}),
-                    timeout, `工具 ${decision.action}`
-                );
-                this.status = 'done';
-                return { type: 'tool_result', tool: decision.action, result };
+                const toolChain = [decision.action, ...this._getToolFallbacks(decision.action)];
+                let lastErr = null;
+                for (const toolId of toolChain) {
+                    try {
+                        if (toolId !== decision.action) {
+                            console.warn(`⚠️ [${this.name}] ${lastErr ? lastErr.message.substring(0, 60) : '失败'}，自动切换: ${decision.action} → ${toolId}`);
+                        }
+                        const timeout = getToolTimeout(toolId);
+                        const result = await withTimeout(
+                            ToolRegistry.execute(toolId, decision.params || {}),
+                            timeout, `工具 ${toolId}`
+                        );
+                        this.status = 'done';
+                        return { type: 'tool_result', tool: toolId, result };
+                    } catch (e) {
+                        lastErr = e;
+                        console.warn(`⚠️ [${this.name}] 工具 ${toolId} 失败: ${e.message}`);
+                    }
+                }
+                // 所有备选都失败
+                throw lastErr || new Error(`工具 ${decision.action} 及其所有备选均失败`);
 
             } catch (err) {
                 this.status = 'error';
@@ -465,17 +518,38 @@ ${input}`;
                 try {
                     // 将前序结果注入参数（支持链式引用）
                     const params = this._resolveParams(step.params, results);
-                    const timeout = getToolTimeout(step.tool);
 
-                    // 带重试 + 超时的工具调用
-                    const result = await withRetry(async () => {
-                        return await withTimeout(
-                            ToolRegistry.execute(step.tool, params),
-                            timeout, `${step.tool}`
-                        );
-                    }, 2, 3000, `${this.name} 步骤${i + 1}`);
+                    // 带降级的工具调用：主工具失败后自动尝试同类备选
+                    const toolChain = [step.tool, ...this._getToolFallbacks(step.tool)];
+                    let stepSuccess = false;
+                    let lastStepErr = null;
 
-                    results.push({ step: i + 1, tool: step.tool, result, status: 'success', description: step.description });
+                    for (const toolId of toolChain) {
+                        try {
+                            if (toolId !== step.tool) {
+                                console.warn(`⚠️ [${this.name}] 步骤${i + 1} 自动切换: ${step.tool} → ${toolId}`);
+                            }
+                            const timeout = getToolTimeout(toolId);
+                            const result = await withRetry(async () => {
+                                return await withTimeout(
+                                    ToolRegistry.execute(toolId, params),
+                                    timeout, `${toolId}`
+                                );
+                            }, 2, 3000, `${this.name} 步骤${i + 1}`);
+
+                            results.push({ step: i + 1, tool: toolId, result, status: 'success', description: step.description });
+                            stepSuccess = true;
+                            break;
+                        } catch (e) {
+                            lastStepErr = e;
+                            console.warn(`⚠️ [${this.name}] 步骤${i + 1} 工具 ${toolId} 失败: ${e.message}`);
+                        }
+                    }
+
+                    if (!stepSuccess) {
+                        results.push({ step: i + 1, tool: step.tool, error: lastStepErr ? lastStepErr.message : '所有备选均失败', status: 'failed' });
+                        console.warn(`⚠️ [${this.name}] 步骤${i + 1}所有备选均失败`);
+                    }
                 } catch (err) {
                     results.push({ step: i + 1, tool: step.tool, error: err.message, status: 'failed' });
                     console.warn(`⚠️ [${this.name}] 步骤${i + 1}最终失败:`, err.message);
@@ -511,33 +585,128 @@ ${input}`;
                 return { action: 'text_output', content: String(text || ''), reasoning: '无法解析' };
             }
 
+            let parsed = null;
+
             // 尝试直接解析
             try {
-                const parsed = JSON.parse(text.trim());
-                if (parsed.action) return parsed;
+                const p = JSON.parse(text.trim());
+                if (p.action) parsed = p;
             } catch (e) { /* continue */ }
 
             // 尝试从 markdown 代码块提取
-            const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-            if (jsonMatch) {
-                try {
-                    const parsed = JSON.parse(jsonMatch[1].trim());
-                    if (parsed.action) return parsed;
-                } catch (e) { /* continue */ }
+            if (!parsed) {
+                const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+                if (jsonMatch) {
+                    try {
+                        const p = JSON.parse(jsonMatch[1].trim());
+                        if (p.action) parsed = p;
+                    } catch (e) { /* continue */ }
+                }
             }
 
             // 尝试找到第一个 { 和最后一个 }
-            const firstBrace = text.indexOf('{');
-            const lastBrace = text.lastIndexOf('}');
-            if (firstBrace !== -1 && lastBrace > firstBrace) {
-                try {
-                    const parsed = JSON.parse(text.substring(firstBrace, lastBrace + 1));
-                    if (parsed.action) return parsed;
-                } catch (e) { /* continue */ }
+            if (!parsed) {
+                const firstBrace = text.indexOf('{');
+                const lastBrace = text.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace > firstBrace) {
+                    try {
+                        const p = JSON.parse(text.substring(firstBrace, lastBrace + 1));
+                        if (p.action) parsed = p;
+                    } catch (e) { /* continue */ }
+                }
             }
 
             // 兜底：作为纯文本输出
-            return { action: 'text_output', content: text, reasoning: 'LLM未返回有效JSON，作为文本输出' };
+            if (!parsed) {
+                return { action: 'text_output', content: text, reasoning: 'LLM未返回有效JSON，作为文本输出' };
+            }
+
+            // ========== 验证工具ID合法性 ==========
+            const SPECIAL_ACTIONS = ['text_output', 'done', 'plan', 'delegate'];
+
+            // 验证单个action
+            if (!SPECIAL_ACTIONS.includes(parsed.action)) {
+                if (!this.tools.includes(parsed.action)) {
+                    const corrected = this._findClosestTool(parsed.action);
+                    if (corrected) {
+                        console.warn(`🔧 [${this.name}] 工具ID自动纠正: ${parsed.action} → ${corrected}`);
+                        parsed.action = corrected;
+                    } else {
+                        console.warn(`🔧 [${this.name}] LLM使用了不存在的工具: ${parsed.action}，转为文本输出`);
+                        return { action: 'text_output', content: parsed.reasoning || JSON.stringify(parsed), reasoning: `LLM尝试使用不存在的工具: ${parsed.action}` };
+                    }
+                }
+            }
+
+            // 验证plan中每个step的tool（跳过协调器级别的agent分工计划）
+            if (parsed.action === 'plan' && Array.isArray(parsed.steps)) {
+                // 协调器计划使用 {agent, task} 格式，不含 tool 字段，无需验证工具ID
+                const isCoordinatorPlan = parsed.steps.length > 0 && parsed.steps[0].agent && !parsed.steps[0].tool;
+                if (!isCoordinatorPlan) {
+                    parsed.steps = parsed.steps.filter(step => {
+                        if (!step.tool) return false;
+                        if (this.tools.includes(step.tool)) return true;
+                        const corrected = this._findClosestTool(step.tool);
+                        if (corrected) {
+                            console.warn(`🔧 [${this.name}] 计划步骤工具ID纠正: ${step.tool} → ${corrected}`);
+                            step.tool = corrected;
+                            return true;
+                        }
+                        console.warn(`🔧 [${this.name}] 计划中移除不存在的工具步骤: ${step.tool}`);
+                        return false;
+                    });
+                    // 如果所有步骤都被移除，转为文本输出
+                    if (parsed.steps.length === 0) {
+                        return { action: 'text_output', content: parsed.reasoning || '计划中所有工具均不可用', reasoning: '计划步骤全部无效' };
+                    }
+                }
+            }
+
+            return parsed;
+        }
+
+        /** 查找最接近的合法工具ID（用于纠正LLM幻觉） */
+        _findClosestTool(toolId) {
+            if (!toolId) return null;
+            const tid = toolId.toLowerCase().replace(/[\s-]/g, '_');
+
+            // 常见幻觉工具名 → 真实工具ID映射
+            const HALLUCINATION_MAP = {
+                'generate_image': 'image_banana', 'gen_image': 'image_banana',
+                'create_image': 'image_banana', 'draw': 'image_banana', 'paint': 'image_banana',
+                'image_generate': 'image_banana', 'image_gen': 'image_banana', 'image_create': 'image_banana',
+                'generate_video': 'video_text', 'gen_video': 'video_text', 'create_video': 'video_text',
+                'video_generate': 'video_text', 'video_gen': 'video_text', 'video_create': 'video_text',
+                'generate_text': 'text_gen', 'write_text': 'text_write', 'write': 'text_write',
+                'text_generate': 'text_gen', 'text_create': 'text_gen',
+                'generate_music': 'music_generate', 'create_music': 'music_generate',
+                'music_gen': 'music_generate', 'music_create': 'music_generate',
+                'tts': 'tts_generate', 'voice': 'tts_generate', 'generate_voice': 'tts_generate',
+                'voice_generate': 'tts_generate', 'speech': 'tts_generate',
+                'analyze_image': 'image_analyze', 'image_analysis': 'image_analyze',
+                'save': 'save_image',
+                'generate_seedream': 'image_seedream', 'seedream': 'image_seedream',
+                'midjourney': 'image_mj', 'mj': 'image_mj',
+                'modelscope': 'image_modelscope',
+            };
+
+            // 直接映射
+            const mapped = HALLUCINATION_MAP[tid];
+            if (mapped && this.tools.includes(mapped)) return mapped;
+
+            // 子串匹配：幻觉ID包含真实工具ID，或反过来
+            for (const tool of this.tools) {
+                if (tid.includes(tool) || tool.includes(tid)) return tool;
+            }
+
+            return null;
+        }
+
+        /** 获取同类备选工具（只返回当前Agent有权限的） */
+        _getToolFallbacks(toolId) {
+            const fallbacks = TOOL_FALLBACKS[toolId];
+            if (!fallbacks) return [];
+            return fallbacks.filter(t => this.tools.includes(t));
         }
 
         /** 重置状态 */
@@ -607,15 +776,67 @@ ${input}`;
         _getReferenceContext() {
             const refs = this.sharedBoard.referenceImages;
             if (refs.length === 0) return '';
-            const parts = ['📷 用户提供的参考图:'];
+            const parts = ['📷 用户提供的参考图（必须参考！）:'];
             refs.forEach((ref, i) => {
-                parts.push(`参考图${i + 1}${ref.label ? '(' + ref.label + ')' : ''}: ${ref.url.substring(0, 80)}`);
+                parts.push(`参考图${i + 1}${ref.label ? '(' + ref.label + ')' : ''}: ${ref.url}`);
                 if (ref.analysis) {
-                    const a = typeof ref.analysis === 'string' ? ref.analysis.substring(0, 500) : JSON.stringify(ref.analysis).substring(0, 500);
+                    const a = typeof ref.analysis === 'string' ? ref.analysis.substring(0, 800) : JSON.stringify(ref.analysis).substring(0, 800);
                     parts.push(`  分析: ${a}`);
                 }
             });
+            const refUrls = refs.map(r => r.url).filter(Boolean);
+            parts.push(`\n【重要】所有图片生成工具调用必须在params中传入参考图:`);
+            if (refUrls.length === 1) {
+                parts.push(`  "refImage": "${refUrls[0]}"`);
+            } else {
+                parts.push(`  "refImages": ${JSON.stringify(refUrls)}`);
+            }
+            parts.push(`同时prompt必须融合参考图分析结果中的风格、色彩、构图等要素。`);
             return parts.join('\n');
+        }
+
+        /** 📷 自动注入参考图到图片生成工具的params（防止LLM遗忘） */
+        _injectRefImages(decision) {
+            const refs = this.sharedBoard.referenceImages;
+            if (!refs || refs.length === 0) return decision;
+
+            const IMAGE_TOOLS = ['image_banana', 'image_seedream', 'image_modelscope', 'image_mj'];
+            const refUrls = refs.map(r => r.url).filter(Boolean);
+            if (refUrls.length === 0) return decision;
+
+            const inject = (params) => {
+                if (!params) params = {};
+                // 只在LLM未主动传入时注入
+                if (!params.refImage && !params.refImages) {
+                    if (refUrls.length === 1) {
+                        params.refImage = refUrls[0];
+                    } else {
+                        params.refImages = refUrls;
+                    }
+                    return { params, injected: true };
+                }
+                return { params, injected: false };
+            };
+
+            // 单个工具调用
+            if (IMAGE_TOOLS.includes(decision.action)) {
+                const { params, injected } = inject(decision.params);
+                decision.params = params;
+                if (injected) console.log(`📷 [自动注入] ${decision.action} 注入 ${refUrls.length} 张参考图`);
+            }
+
+            // 计划中的步骤
+            if (decision.action === 'plan' && Array.isArray(decision.steps)) {
+                for (const step of decision.steps) {
+                    if (IMAGE_TOOLS.includes(step.tool)) {
+                        const { params, injected } = inject(step.params);
+                        step.params = params;
+                        if (injected) console.log(`📷 [自动注入] 计划步骤 ${step.tool} 注入 ${refUrls.length} 张参考图`);
+                    }
+                }
+            }
+
+            return decision;
         }
 
         /** 添加 Agent */
@@ -704,7 +925,7 @@ ${agentList}
 规则：
 - 每个步骤必须指定 agent（从上面列表选择）和具体 task
 - 如果步骤之间有依赖，用 dependsOn 指定依赖的步骤索引（0-based）
-- 没有依赖的步骤会自动并行执行（重要！尽量让独立任务并行）
+- 没有依赖的步骤可以并行执行，但视觉类任务会自动串行以保证风格一致性
 - 如果有参考图，视觉类任务必须在task描述中包含参考图URL和分析结果
 - 同一个 Agent 可以被分配多个步骤（不同子任务）
 - 步骤数量控制在 3-12 步以内`;
@@ -788,12 +1009,20 @@ ${agentList}
                     break;
                 }
 
-                // 🚀 同一波次内的步骤并行执行
+                // 🚀 同一波次内的步骤并行执行（带错峰启动避免API限速）
                 if (wave.length > 1) {
                     this._log(this.coordinator.id, 'info', `⚡ 并行执行 ${wave.length} 个任务: ${wave.map(i => `步骤${i+1}`).join(', ')}`);
                 }
 
-                const wavePromises = wave.map(i => this._executeStep(i, steps[i], steps, stepResults, completed, userGoal));
+                // 🔧 错峰启动：每个任务间隔 500ms 启动，避免同时请求API限速
+                const wavePromises = wave.map((i, idx) => {
+                    const delay = idx * 500;
+                    return new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve(this._executeStep(i, steps[i], steps, stepResults, completed, userGoal));
+                        }, delay);
+                    });
+                });
                 const waveResults = await Promise.allSettled(wavePromises);
 
                 // 统计结果
@@ -817,8 +1046,41 @@ ${agentList}
             }
         }
 
-        /** 将步骤按依赖关系分成波次（无依赖的同一波并行） */
+        /** 智能波次构建：根据任务类型自动决定并行/串行 */
         _buildExecutionWaves(steps) {
+            const VISUAL_TOOLS = ['image_banana', 'image_seedream', 'image_modelscope', 'image_mj', 'video_text', 'video_image'];
+
+            // 1. 分析每个步骤的类型
+            const stepTypes = steps.map(step => {
+                const agent = this.agents.get(step.agent);
+                const tools = agent ? agent.tools : [];
+                const hasVisual = tools.some(t => VISUAL_TOOLS.includes(t));
+                return { agent: step.agent, isVisual: hasVisual };
+            });
+
+            // 2. 构建有效依赖（显式 + 智能隐式）
+            let lastVisualIdx = -1;
+            const effectiveDeps = steps.map((step, i) => {
+                const deps = new Set(step.dependsOn || []);
+
+                // 规则A: 同一Agent的步骤必须串行（保持记忆连贯性）
+                for (let j = i - 1; j >= 0; j--) {
+                    if (steps[j].agent === step.agent) {
+                        deps.add(j);
+                        break; // 只依赖同一Agent的最近一步
+                    }
+                }
+
+                // 规则B: 视觉任务链式串行（风格一致性）
+                if (stepTypes[i].isVisual && lastVisualIdx >= 0) {
+                    deps.add(lastVisualIdx);
+                }
+                if (stepTypes[i].isVisual) lastVisualIdx = i;
+
+                return deps;
+            });
+
+            // 3. 按有效依赖分波
             const waves = [];
             const scheduled = new Set();
             let safety = 0;
@@ -827,15 +1089,19 @@ ${agentList}
                 const wave = [];
                 for (let i = 0; i < steps.length; i++) {
                     if (scheduled.has(i)) continue;
-                    const deps = steps[i].dependsOn || [];
-                    if (deps.every(d => scheduled.has(d))) {
+                    if ([...effectiveDeps[i]].every(d => scheduled.has(d))) {
                         wave.push(i);
                     }
                 }
-                if (wave.length === 0) break; // 无法继续（循环依赖）
+                if (wave.length === 0) break;
                 wave.forEach(i => scheduled.add(i));
                 waves.push(wave);
             }
+
+            // 4. 日志调度结果
+            const parallelWaves = waves.filter(w => w.length > 1).length;
+            const seqWaves = waves.filter(w => w.length === 1).length;
+            console.log(`🚀 [调度] ${waves.length}波次: ${parallelWaves}并行 + ${seqWaves}串行`);
             return waves;
         }
 
@@ -865,6 +1131,9 @@ ${agentList}
                 const decision = await agent.think(step.task, context);
                 if (this._cancelled) throw new Error('任务已取消');
 
+                // 📷 自动注入参考图到图片生成工具参数
+                this._injectRefImages(decision);
+
                 this._log(agent.id, 'tool_call', `决策: ${decision.action}`, decision);
 
                 // 处理委托
@@ -873,6 +1142,7 @@ ${agentList}
                     if (targetAgent) {
                         this._log(agent.id, 'delegate', `委托给 ${targetAgent.name}: ${decision.task}`);
                         const delegateDecision = await targetAgent.think(decision.task, context);
+                        this._injectRefImages(delegateDecision);
                         const delegateResult = await targetAgent.executeDecision(delegateDecision);
                         this._processResult(targetAgent, delegateResult);
                         return delegateResult;

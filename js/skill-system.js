@@ -262,14 +262,17 @@
                 return result;
 
             } catch (error) {
-                // 💰 失败退还预扣费用
-                if (_skillBillingDone && typeof Billing !== 'undefined') {
-                    try {
-                        const _uid = await getCurrentUserId();
-                        if (_uid) await Billing.releaseFilm(_uid, executionId, _filmCost);
-                        if (typeof refreshBalance === 'function') refreshBalance();
-                    } catch (re) { console.warn('[SkillManager] 退款失败:', re.message); }
-                }
+                // 🔧 2026-02-17 修复：后端统一处理扣费和退款，前端不自动退款
+                // 💰 避免双重退款：即使任务失败，也由后端决定是否退款
+                // if (_skillBillingDone && typeof Billing !== 'undefined') {
+                //     try {
+                //         const _uid = await getCurrentUserId();
+                //         if (_uid) await Billing.releaseFilm(_uid, executionId, _filmCost);
+                //         if (typeof refreshBalance === 'function') refreshBalance();
+                //     } catch (re) { console.warn('[SkillManager] 退款失败:', re.message); }
+                // }
+
+                console.warn('[SkillManager] ⚠️ 任务失败，由后端统一处理退款逻辑');
 
                 // 记录失败
                 const exec = this._executions.get(executionId);
@@ -646,13 +649,13 @@
                 const type = def.templateType || 'text';
                 const count = parseInt(params.count || def.count) || 1;
                 if (type === 'text') {
-                    return { film: Math.max(1, count), time: '约 30 秒' };
+                    return { film: Math.max(10, count * 10), time: '约 30 秒' };
                 } else if (type === 'image') {
-                    return { film: Math.ceil(count * 6), time: `约 ${count} 分钟` };
+                    return { film: Math.ceil(count * 15), time: `约 ${count} 分钟` };
                 } else if (type === 'video') {
-                    return { film: Math.ceil(count * 14), time: `约 ${count * 2} 分钟` }; // 图片6+视频7+文本1
+                    return { film: Math.ceil(count * 35), time: `约 ${count * 2} 分钟` };
                 }
-                return { film: 1, time: '约 1 分钟' };
+                return { film: 10, time: '约 1 分钟' };
             };
         },
 
@@ -1252,7 +1255,7 @@
             if (content) {
                 const lastDiv = content.lastElementChild;
                 if (lastDiv && lastDiv.querySelectorAll('button').length >= 2) {
-                    lastDiv.innerHTML = `<button onclick="document.getElementById('skillProgressPanel').style.display='none'"
+                    lastDiv.innerHTML = `<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('skillProgressPanel').style.display='none'"
                         style="flex:1;padding:12px 20px;background:linear-gradient(135deg,var(--accent-gold,#fbbf24),#f97316);border:none;color:#000;font-weight:600;border-radius:20px;cursor:pointer;font-size:15px;">✅ 完成</button>`;
                 }
             }
@@ -1273,7 +1276,7 @@
             if (content) {
                 const lastDiv = content.lastElementChild;
                 if (lastDiv && lastDiv.querySelectorAll('button').length >= 2) {
-                    lastDiv.innerHTML = `<button onclick="document.getElementById('skillProgressPanel').style.display='none'"
+                    lastDiv.innerHTML = `<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('skillProgressPanel').style.display='none'"
                         style="flex:1;padding:12px 20px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#aaa;border-radius:20px;cursor:pointer;font-size:15px;">关闭</button>`;
                 }
             }

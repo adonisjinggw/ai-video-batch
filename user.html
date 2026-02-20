@@ -693,6 +693,334 @@
                     </div>
                 </div>
 
+                <!-- API管理 -->
+                <div class="section-title">🔑 API管理</div>
+                <div class="section-card">
+                    <div style="margin-bottom: 16px;">
+                        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px;">
+                            通过API Key可以程序化访问RollRoll AI的开放接口。
+                        </p>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <input type="text" id="newKeyName" placeholder="Key名称 (如：我的应用)" 
+                                style="flex: 1; min-width: 200px; padding: 12px 16px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; font-size: 14px;">
+                            <select id="newKeyQuota" style="padding: 12px 16px; background: #1a1a2e; border: 1px solid var(--border-color); border-radius: 8px; color: #fff; font-size: 14px; min-width: 120px;">
+                                <option value="100" style="background: #1a1a2e; color: #fff;">100次/天</option>
+                                <option value="500" selected style="background: #1a1a2e; color: #fff;">500次/天</option>
+                                <option value="1000" style="background: #1a1a2e; color: #fff;">1000次/天</option>
+                                <option value="5000" style="background: #1a1a2e; color: #fff;">5000次/天</option>
+                            </select>
+                            <button onclick="createApiKey()" class="btn-sync" style="width: auto; padding: 12px 24px;">
+                                🔐 创建Key
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 创建成功后的Key显示区域 -->
+                    <div id="newKeyDisplay" style="display: none; margin-bottom: 16px; padding: 16px; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-weight: 600; color: #4ade80;">✅ API Key创建成功！请立即复制保存</span>
+                            <button onclick="hideNewKeyDisplay()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px;">×</button>
+                        </div>
+                        <div style="background: var(--bg-dark); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; word-break: break-all; margin-bottom: 12px;" id="newKeyValue"></div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="copyNewKey()" style="padding: 8px 16px; background: var(--accent-gold); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer;">📋 复制Key</button>
+                            <button onclick="hideNewKeyDisplay()" style="padding: 8px 16px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; cursor: pointer;">已保存</button>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 12px; margin-top: 12px;">⚠️ 此Key仅显示一次，关闭后无法再次查看，请妥善保管！</p>
+                    </div>
+                    
+                    <div id="apiKeysList" style="margin-top: 16px;">
+                        <div class="loading-state">
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- API调用示例 -->
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div style="font-weight: 600; color: var(--accent-gold);">📖 API调用示例</div>
+                            <button onclick="toggleApiExamples()" style="font-size: 12px; padding: 6px 12px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; color: #fff; cursor: pointer;">
+                                <span id="examplesToggleText">展开</span>
+                            </button>
+                        </div>
+                        <div id="apiExamples" style="display: none;">
+                            <div style="background: var(--bg-dark); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #4ade80; margin-bottom: 8px;">JavaScript (Fetch)</div>
+                                <pre style="font-size: 11px; color: #a0aec0; overflow-x: auto; white-space: pre-wrap; margin: 0;"><code>const API_KEY = '你的API Key';
+const API_ENDPOINT = 'https://lossloop.cn/api/proxy';
+
+async function callApi(action, data = {}) {
+  const response = await fetch(API_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': \`Bearer \${API_KEY}\`
+    },
+    body: JSON.stringify({
+      apiType: 'public-api',
+      action,
+      ...data
+    })
+  });
+  return response.json();
+}
+
+// 调用示例
+callApi('health').then(console.log);
+callApi('skills').then(console.log);</code></pre>
+                            </div>
+                            
+                            <div style="background: var(--bg-dark); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #60a5fa; margin-bottom: 8px;">Python (requests)</div>
+                                <pre style="font-size: 11px; color: #a0aec0; overflow-x: auto; white-space: pre-wrap; margin: 0;"><code>import requests
+
+API_KEY = '你的API Key'
+API_ENDPOINT = 'https://lossloop.cn/api/proxy'
+
+def call_api(action, data=None):
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {API_KEY}'
+    }
+    payload = {
+        'apiType': 'public-api',
+        'action': action,
+        **(data or {})
+    }
+    response = requests.post(API_ENDPOINT, json=payload, headers=headers)
+    return response.json()
+
+# 调用示例
+print(call_api('health'))
+print(call_api('skills'))</code></pre>
+                            </div>
+                            
+                            <div style="background: var(--bg-dark); border-radius: 8px; padding: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #f59e0b; margin-bottom: 8px;">cURL</div>
+                                <pre style="font-size: 11px; color: #a0aec0; overflow-x: auto; white-space: pre-wrap; margin: 0;"><code>curl -X POST https://lossloop.cn/api/proxy \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 你的API Key" \
+  -d '{
+    "apiType": "public-api",
+    "action": "skills"
+  }'</code></pre>
+                            </div>
+                            
+                            <p style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
+                                💡 完整文档请查看下方
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- 完整API文档 -->
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div style="font-weight: 600; color: var(--accent-gold);">📚 完整API文档</div>
+                            <button onclick="toggleFullApiDocs()" style="font-size: 12px; padding: 6px 12px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; color: #fff; cursor: pointer;">
+                                <span id="fullDocsToggleText">展开</span>
+                            </button>
+                        </div>
+                        <div id="fullApiDocs" style="display: none; max-height: 600px; overflow-y: auto;">
+                            <div style="padding: 12px; background: var(--bg-dark); border-radius: 8px; font-size: 13px; line-height: 1.6;">
+                                <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 15px;">基础信息</h4>
+                                <ul style="color: #a0aec0; margin: 0 0 16px 20px; padding: 0;">
+                                    <li><strong>API端点:</strong> <code style="background: #2d3748; padding: 2px 6px; border-radius: 4px;">https://lossloop.cn/api/proxy</code></li>
+                                    <li><strong>请求方法:</strong> GET/POST</li>
+                                    <li><strong>Content-Type:</strong> application/json</li>
+                                    <li><strong>apiType参数:</strong> public-api (必需)</li>
+                                </ul>
+                                
+                                <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 15px;">认证方式</h4>
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+                                    <div style="color: #a0aec0; font-family: monospace; font-size: 12px;">
+                                        Authorization: Bearer rk_your_api_key_here
+                                    </div>
+                                </div>
+                                
+                                <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 15px;">公共API接口</h4>
+                                
+                                <div style="margin-bottom: 12px;">
+                                    <div style="color: #4ade80; font-weight: 600; margin-bottom: 4px;">1. health - 健康检查</div>
+                                    <div style="background: #1a202c; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px;">
+                                        {
+                                          "apiType": "public-api",
+                                          "action": "health"
+                                        }
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-bottom: 12px;">
+                                    <div style="color: #4ade80; font-weight: 600; margin-bottom: 4px;">2. skills - 获取技能列表</div>
+                                    <div style="background: #1a202c; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px;">
+                                        {
+                                          "apiType": "public-api",
+                                          "action": "skills"
+                                        }
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-bottom: 12px;">
+                                    <div style="color: #4ade80; font-weight: 600; margin-bottom: 4px;">3. info - 项目信息</div>
+                                    <div style="background: #1a202c; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px;">
+                                        {
+                                          "apiType": "public-api",
+                                          "action": "info"
+                                        }
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-bottom: 12px;">
+                                    <div style="color: #4ade80; font-weight: 600; margin-bottom: 4px;">4. generate - 图像生成</div>
+                                    <div style="background: #1a202c; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px;">
+                                        {
+                                          "apiType": "public-api",
+                                          "action": "generate",
+                                          "prompt": "一只可爱的猫咪",
+                                          "aspectRatio": "1:1"
+                                        }
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-bottom: 12px;">
+                                    <div style="color: #4ade80; font-weight: 600; margin-bottom: 4px;">5. proxy - 代理内部API</div>
+                                    <div style="background: #1a202c; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px;">
+                                        {
+                                          "apiType": "public-api",
+                                          "action": "proxy",
+                                          "targetApi": "banana2",
+                                          "prompt": "一只可爱的猫咪",
+                                          "aspectRatio": "1:1"
+                                        }
+                                    </div>
+                                    <div style="color: #a0aec0; font-size: 11px; margin-top: 4px;">
+                                        targetApi可选: yunwu, banana2, modelscope, sora2, suno, writer-llm, video-continuity, mv-merge
+                                    </div>
+                                </div>
+                                
+                                <h4 style="color: #fff; margin: 16px 0 8px 0; font-size: 15px;">📱 手机版完整功能</h4>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #60a5fa; font-weight: 600; margin-bottom: 8px;">🔧 独立工具页面</div>
+                                    <div style="color: #a0aec0; font-size: 11px;">
+                                        提示词(knolling.html), 画图(banana.html), 音乐(music.html), 视频(video-tools.html), 对话(chat.html), 写作(writing.html), 表情包(sticker.html), 分镜(video-continuity.html), 涂鸦(sketchpad.html), 填空(prompt-fill.html), 素材库(library.html), 角色库(内部), 音乐MV(内部), 配音(voice.html), Sora2角色(内部)
+                                    </div>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #f59e0b; font-weight: 600; margin-bottom: 8px;">🎬 视频生成模型</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li><strong>Sora系列:</strong> 文生视频, 图生视频, 网格图省费版</li>
+                                        <li><strong>Veo 3.1系列:</strong> Veo 3.1 4K, Veo 3.1 Fast 4K, Veo 3.1 Fast Components</li>
+                                        <li><strong>Vidu系列:</strong> 5秒/10秒, q2/q2-pro/q2-turbo/q3-pro, 720P/1080P</li>
+                                        <li><strong>海螺Hailuo系列:</strong> 6秒/10秒, 02/Fast, 768P/1080P</li>
+                                        <li><strong>可灵Kling系列:</strong> 5秒/10秒, 2.5/2.0/O1, 720P/1080P</li>
+                                        <li><strong>Grok Video 3系列:</strong> 6秒/10秒, 文生视频/图生视频</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #a855f7; font-weight: 600; margin-bottom: 8px;">🎨 图像生成模型</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li><strong>智能绘图:</strong> 免费</li>
+                                        <li><strong>Banana系列:</strong> 标准版(0.7胶片), 2K超清(0.7胶片), 4K顶级(1.2胶片)</li>
+                                        <li><strong>星梦画师:</strong> 文/图生图(7胶片)</li>
+                                        <li><strong>通义万相Max:</strong> (8胶片)</li>
+                                        <li><strong>Midjourney系列:</strong> Fast/Turbo/Relax(各2胶片)</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #10b981; font-weight: 600; margin-bottom: 8px;">🧩 填空模板系统 (100+个)</div>
+                                    <div style="color: #a0aec0; font-size: 11px;">
+                                        涵盖类别: 梦幻光效、动漫风格、樱花场景、史诗战斗、月光夜景、多重身份、房间设计、Q版可爱、彩虹渐变、复古胶片、像素游戏、水下世界、赛博朋克、森林精灵、油画艺术、超级英雄、马戏团、中世纪、中国风、表情包、印象派、京剧脸谱、女超人、月亮公主、太阳神、小丑女、星际战士、蝙蝠侠、蜘蛛侠、猫耳娘、狐狸精、狼人、吸血鬼、幽灵、机器人、Lolita、摇滚、图书馆、咖啡馆、独角兽、女武士、精灵弓箭手、魔法少女、绅士、皇室贵族、毕业纪念、职场精英、甜品师、向日葵、麦田、沙漠探险、雪山登顶、火山、时空漩涡、烟花、城市夜景、蒸汽朋克、小丑、旋转木马、摩天轮、过山车、杂技、射箭、足球、篮球、网球、游泳、自行车、瑜伽、SPA、美甲、化妆、时装走秀、摄影师、导演、歌手、钢琴、小提琴、架子鼓、DJ、拉面师傅、寿司大师、蛋糕装饰、披萨制作、圣诞视频、春节视频、圣诞贺卡、圣诞红包、春节贺卡、春节红包、Knolling、人物关系图、Y2K海报、极简黑白、人物名片、钥匙扣、Cosplay、角色设定、手办场景、LINE表情包、吉卜力、Pixar、赛博朋克、水彩、油画、像素、照片转动漫、照片增强、复古胶片、专业人像、街头摄影、胶片质感、微距特写、圣诞节、春节、情人节、万圣节、印象派、超现实主义、波普艺术、水墨画、游戏UI、游戏卡牌、App图标、文字形状、象形图、信息图表、房间改造、微缩世界、年龄变换、内心小孩、时尚模特、毛绒玩具、珐琅徽章、纹身设计
+                                    </div>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #f43f5e; font-weight: 600; margin-bottom: 8px;">📖 漫画风格</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li>日式漫画、日式彩漫、美式漫画、韩式条漫、沙雕漫画、儿童绘本</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #3b82f6; font-weight: 600; margin-bottom: 8px;">🎥 运镜选项</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li>35mm广角建立, 50mm中景叙事, 85mm人像特写浅景深, 手持纪实轻微晃动, 斯坦尼康平滑推进, 推镜头强调情绪, 拉镜头揭示环境, 环绕镜头360度旋转</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #ec4899; font-weight: 600; margin-bottom: 8px;">📤 发布平台</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li>小红书、抖音、微博、公众号、B站、快手</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #8b5cf6; font-weight: 600; margin-bottom: 8px;">👆 交互功能</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li>下拉刷新、左滑删除/分享、长按菜单、双指缩放图片预览、手势操作</li>
+                                    </ul>
+                                </div>
+                                
+                                <h4 style="color: #fff; margin: 16px 0 8px 0; font-size: 15px;">项目全部API（直接调用）</h4>
+                                <div style="color: #a0aec0; font-size: 12px; margin-bottom: 12px;">
+                                    项目包含以下完整API，可直接通过 <code style="background: #2d3748; padding: 2px 6px; border-radius: 4px;">/api/{apiName}</code> 调用：
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #60a5fa; font-weight: 600; margin-bottom: 8px;">📹 视频生成</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li><strong>yunwu</strong> - 云雾AI（图片/视频/文本/角色/分析）</li>
+                                        <li><strong>sora2</strong> - Sora2视频生成</li>
+                                        <li><strong>video-continuity</strong> - 视频连续性生成</li>
+                                        <li><strong>mv-merge</strong> - 多视频合并</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #f59e0b; font-weight: 600; margin-bottom: 8px;">🎨 图像生成</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li><strong>banana2</strong> - 香蕉AI图像生成</li>
+                                        <li><strong>modelscope</strong> - ModelScope图像生成</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="color: #ec4899; font-weight: 600; margin-bottom: 8px;">🎵 音频生成</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li><strong>suno</strong> - Suno音乐生成</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #1a202c; padding: 12px; border-radius: 6px;">
+                                    <div style="color: #8b5cf6; font-weight: 600; margin-bottom: 8px;">✍️ 文本创作</div>
+                                    <ul style="color: #a0aec0; font-size: 11px; margin: 0 0 0 20px; padding: 0;">
+                                        <li><strong>writer-llm</strong> - 写作LLM</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="color: #a0aec0; font-size: 11px; margin-top: 12px;">
+                                    💡 提示：需要API Key认证的功能，请先在上方创建API Key！
+                                </div>
+                                
+                                <h4 style="color: #fff; margin: 12px 0 8px 0; font-size: 15px;">错误响应</h4>
+                                <div style="background: #1a202c; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px;">
+                                    {
+                                      "success": false,
+                                      "error": "ERROR_CODE",
+                                      "message": "错误描述"
+                                    }
+                                </div>
+                                <div style="color: #a0aec0; font-size: 11px; margin-top: 4px;">
+                                    常见错误码: MISSING_PARAMS, INVALID_ACTION, MISSING_API_KEY, INVALID_API_KEY, QUOTA_EXCEEDED
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 额度记录 -->
                 <div class="section-title">📜 额度记录</div>
                 <div class="section-card">
@@ -769,6 +1097,7 @@
                 // 填充数据
                 renderUserInfo();
                 loadQuotaLogs();
+                loadApiKeys();
 
             } catch (error) {
                 console.error('初始化失败:', error);
@@ -1060,6 +1389,187 @@
                 alert('退出失败: ' + error.message);
             }
         }
+
+        // ==================== API Key管理功能 ====================
+        async function callPublicApi(action, data = {}) {
+            try {
+                const response = await fetch('/api/proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        apiType: 'public-api',
+                        action,
+                        userId: currentUser.id,
+                        ...data
+                    })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || result.error);
+                }
+                return result;
+            } catch (error) {
+                console.error('[Public API] 错误:', error);
+                throw error;
+            }
+        }
+
+        let currentNewKey = '';
+
+        function showNewKeyDisplay(apiKey) {
+            currentNewKey = apiKey;
+            document.getElementById('newKeyValue').textContent = apiKey;
+            document.getElementById('newKeyDisplay').style.display = 'block';
+        }
+
+        function hideNewKeyDisplay() {
+            currentNewKey = '';
+            document.getElementById('newKeyValue').textContent = '';
+            document.getElementById('newKeyDisplay').style.display = 'none';
+        }
+
+        async function copyNewKey() {
+            try {
+                await navigator.clipboard.writeText(currentNewKey);
+                alert('✅ API Key已复制到剪贴板！');
+            } catch (e) {
+                const textarea = document.createElement('textarea');
+                textarea.value = currentNewKey;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('✅ API Key已复制到剪贴板！');
+            }
+        }
+
+        function toggleApiExamples() {
+            const container = document.getElementById('apiExamples');
+            const toggleText = document.getElementById('examplesToggleText');
+            
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                toggleText.textContent = '收起';
+            } else {
+                container.style.display = 'none';
+                toggleText.textContent = '展开';
+            }
+        }
+
+        function toggleFullApiDocs() {
+            const container = document.getElementById('fullApiDocs');
+            const toggleText = document.getElementById('fullDocsToggleText');
+            
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                toggleText.textContent = '收起';
+            } else {
+                container.style.display = 'none';
+                toggleText.textContent = '展开';
+            }
+        }
+
+        async function loadApiKeys() {
+            const container = document.getElementById('apiKeysList');
+            try {
+                const result = await callPublicApi('list-keys');
+                const keys = result.data || [];
+                
+                if (keys.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无API Key，创建一个开始使用吧！</p>';
+                    return;
+                }
+
+                container.innerHTML = keys.map(key => {
+                    const statusColor = key.status === 'active' ? '#4ade80' : '#9ca3af';
+                    const quotaUsed = key.quota_used || 0;
+                    const quotaLimit = key.quota_limit || 1000;
+                    const quotaPercent = Math.min(100, (quotaUsed / quotaLimit) * 100);
+                    
+                    return `
+                        <div style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-weight: 600;">${key.key_name}</span>
+                                        <span style="font-size: 12px; padding: 2px 8px; border-radius: 12px; background: ${statusColor}20; color: ${statusColor};">
+                                            ${key.status === 'active' ? '使用中' : '已撤销'}
+                                        </span>
+                                    </div>
+                                    <div style="font-family: monospace; font-size: 13px; color: var(--text-secondary);">
+                                        ${key.key_prefix}...
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    ${key.status === 'active' ? `
+                                        <button onclick="revokeApiKey(${key.id})" 
+                                            style="padding: 8px 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: #ef4444; cursor: pointer; font-size: 13px;">
+                                            撤销
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">
+                                    <span>今日配额</span>
+                                    <span>${quotaUsed} / ${quotaLimit}</span>
+                                </div>
+                                <div style="background: var(--border-color); height: 6px; border-radius: 3px; overflow: hidden;">
+                                    <div style="background: var(--accent-gold); height: 100%; width: ${quotaPercent}%; border-radius: 3px;"></div>
+                                </div>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                创建于 ${new Date(key.created_at).toLocaleString()}
+                                ${key.last_used_at ? ` · 最后使用 ${new Date(key.last_used_at).toLocaleString()}` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                container.innerHTML = `<p style="color: #ef4444; text-align: center;">加载失败: ${error.message}</p>`;
+            }
+        }
+
+        async function createApiKey() {
+            const nameInput = document.getElementById('newKeyName');
+            const quotaSelect = document.getElementById('newKeyQuota');
+            const keyName = nameInput.value.trim();
+            
+            if (!keyName) {
+                alert('请输入Key名称');
+                return;
+            }
+
+            try {
+                const result = await callPublicApi('create-key', {
+                    keyName,
+                    quotaLimit: parseInt(quotaSelect.value, 10)
+                });
+                
+                const { api_key } = result.data;
+                
+                nameInput.value = '';
+                showNewKeyDisplay(api_key);
+                loadApiKeys();
+            } catch (error) {
+                alert('创建失败: ' + error.message);
+            }
+        }
+
+        async function revokeApiKey(keyId) {
+            if (!confirm('确定要撤销这个API Key吗？撤销后将无法使用。')) {
+                return;
+            }
+
+            try {
+                await callPublicApi('revoke-key', { keyId });
+                alert('✅ API Key已撤销');
+                loadApiKeys();
+            } catch (error) {
+                alert('撤销失败: ' + error.message);
+            }
+        }
+        // ============================================================
 
         // 🎞️ 胶片充值相关（与index.html统一）
         let selectedPackage = 'standard';

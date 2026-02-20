@@ -15,6 +15,8 @@ const FILM_COST = {
     'video': 15,             // 视频生成（基础）
     'video-hd': 25,          // 视频生成（高清）
     'veo3': 30,              // Veo3 4K视频 (升级为4k版本)
+    'grok-video-3': 5,       // Grok Video 3 6秒
+    'grok-video-3-10s': 8,   // Grok Video 3 10秒
     'create-character': 5,   // 创建角色
     // Vidu 视频模型 - 按分辨率和版本计费（70%利润，按秒计费，默认5秒）
     'vidu-q2-720p': 25,       // ¥0.288/秒 × 5秒 / 0.59 = ¥2.45
@@ -23,22 +25,24 @@ const FILM_COST = {
     'vidu-q2-pro-1080p': 54,  // ¥0.630/秒 × 5秒 / 0.59 = ¥5.36
     'vidu-q2-turbo-720p': 19, // ¥0.225/秒 × 5秒 / 0.59 = ¥1.91
     'vidu-q2-turbo-1080p': 36, // ¥0.423/秒 × 5秒 / 0.59 = ¥3.60
+    'vidu-q3-pro-720p': 72,    // ⚡0.843/秒 × 5秒 × 17.1 = 72
+    'vidu-q3-pro-1080p': 77,   // ⚡0.900/秒 × 5秒 × 17.1 = 77
     // Hailuo 海螺视频模型 - 固定时长计费（闪电×0.5=成本，70%利润，1胶片=¥0.3）
     'hailuo-02-768p-6s': 7,       // ⚡2.376×0.5×1.7/0.3 = 7
-    'hailuo-02-768p-10s': 11,     // ⚡3.960×0.5×1.7/0.3 = 11
+    'hailuo-02-768p-10s': 12,     // ⚡3.960×0.5×1.7/0.3 = 11.22 → ceil = 12
     'hailuo-02-1080p-6s': 12,     // ⚡4.176×0.5×1.7/0.3 = 12
     'hailuo-02-1080p-10s': 20,    // ⚡6.960×0.5×1.7/0.3 = 20
     'hailuo-fast-768p-6s': 5,     // ⚡1.656×0.5×1.7/0.3 = 5
     'hailuo-fast-768p-10s': 8,    // ⚡2.760×0.5×1.7/0.3 = 8
     'hailuo-fast-1080p-6s': 8,    // ⚡2.808×0.5×1.7/0.3 = 8
-    'hailuo-fast-1080p-10s': 13,  // ⚡4.680×0.5×1.7/0.3 = 13
+    'hailuo-fast-1080p-10s': 14,  // ⚡4.680×0.5×1.7/0.3 = 13.26 → ceil = 14
     // Kling 可灵视频模型 - 固定时长计费（闪电×0.5=成本，70%利润，1胶片=¥0.3）
-    'kling-o1-720p-5s': 15,       // ⚡5.400×0.5×1.7/0.3 = 15
+    'kling-o1-720p-5s': 16,       // ⚡5.400×0.5×1.7/0.3 = 15.3 → ceil = 16
     'kling-o1-720p-10s': 31,      // ⚡10.800×0.5×1.7/0.3 = 31
-    'kling-o1-1080p-5s': 20,      // ⚡7.200×0.5×1.7/0.3 = 20
+    'kling-o1-1080p-5s': 21,      // ⚡7.200×0.5×1.7/0.3 = 20.4 → ceil = 21
     'kling-o1-1080p-10s': 41,     // ⚡14.400×0.5×1.7/0.3 = 41
-    'kling-2.5-720p-5s': 5,       // ⚡1.800×0.5×1.7/0.3 = 5
-    'kling-2.5-720p-10s': 10,     // ⚡3.600×0.5×1.7/0.3 = 10
+    'kling-2.5-720p-5s': 6,       // ⚡1.800×0.5×1.7/0.3 = 5.1 → ceil = 6
+    'kling-2.5-720p-10s': 11,     // ⚡3.600×0.5×1.7/0.3 = 10.2 → ceil = 11
     'kling-2.5-1080p-5s': 9,      // ⚡3.000×0.5×1.7/0.3 = 9
     'kling-2.5-1080p-10s': 17,    // ⚡6.000×0.5×1.7/0.3 = 17
     'kling-2.1-720p-5s': 6,       // 2.1版本 - 估算2.0和2.5之间
@@ -53,6 +57,20 @@ const FILM_COST = {
     'kling-1.6-720p-10s': 16,
     'kling-1.6-1080p-5s': 14,
     'kling-1.6-1080p-10s': 28,
+    // Wan2.6 图生视频模型 - alibailian API（⚡×0.49=成本¥，70%利润，1胶片=¥0.3）
+    // 公式: ceil(⚡cost × 0.49 × 1.7 / 0.3)
+    'wan26-720p-5s': 3,            // 无声 ⚡0.750 → 3
+    'wan26-720p-10s': 5,           // 无声 ⚡1.500 → 5
+    'wan26-720p-15s': 7,           // 无声 ⚡2.250 → 7
+    'wan26-1080p-5s': 5,           // 无声 ⚡1.500 → 5
+    'wan26-1080p-10s': 9,          // 无声 ⚡3.000 → 9
+    'wan26-1080p-15s': 13,         // 无声 ⚡4.500 → 13
+    'wan26-720p-5s-audio': 4,      // 有声 ⚡1.250 → 4
+    'wan26-720p-10s-audio': 7,     // 有声 ⚡2.500 → 7
+    'wan26-720p-15s-audio': 11,    // 有声 ⚡3.750 → 11
+    'wan26-1080p-5s-audio': 7,     // 有声 ⚡2.500 → 7
+    'wan26-1080p-10s-audio': 14,   // 有声 ⚡5.000 → 14
+    'wan26-1080p-15s-audio': 21,   // 有声 ⚡7.500 → 21
     // TTS 语音合成模型
     'tts-dubbingx': 2,             // DubbingX TTS 2胶片/次
     'tts-gemini-flash': 1,         // Gemini Flash TTS 1胶片/次 (便宜快速)
@@ -155,7 +173,18 @@ async function __billing(billingAction, userId, amount, description) {
     }
 }
 
-const YUNWU_API_KEY = process.env.YUNWU_API_KEY || '';
+const YUNWU_API_KEYS = (() => {
+    const keys = [];
+    const key1 = (process.env.YUNWU_API_KEY || process.env.YUNMENG_API_KEY || '').trim();
+    const key2 = (process.env.YUNWU_API_KEY_2 || process.env.YUNMENG_API_KEY_2 || '').trim();
+    const key3 = (process.env.YUNWU_API_KEY_3 || process.env.YUNMENG_API_KEY_3 || '').trim();
+    if (key1) keys.push(key1);
+    if (key2) keys.push(key2);
+    if (key3) keys.push(key3);
+    console.log(`[yunwu] 🔑 初始化: 读取到 ${keys.length} 个 API_KEY`);
+    return keys;
+})();
+const YUNWU_API_KEY = YUNWU_API_KEYS[0] || '';
 
 // ========== DubbingX TTS 配置 ==========
 // DubbingX 只需要 apiKey（第一个key），不需要 apiSecret
@@ -179,50 +208,83 @@ let ttsQueue = [];  // 等待队列
  * 4. CF站 - 全球CDN备用
  */
 const YUNWU_ENDPOINTS = [
-    { url: 'https://api3.wlai.vip', name: '国内服务器' },
-    { url: 'https://yunwu.zeabur.app', name: 'ZeaBur-CDN' },
-    { url: 'https://yunwu.ai', name: '主站' },
-    { url: 'https://api.apiplus.org', name: 'CF站' }
+    { url: 'https://api3.wlai.vip', name: '国内服务器', keyIdx: 0 },
+    { url: 'https://yunwu.zeabur.app', name: 'ZeaBur-CDN', keyIdx: 1 },
+    { url: 'https://yunwu.ai', name: '主站', keyIdx: 2 },
+    { url: 'https://api.apiplus.org', name: 'CF站', keyIdx: 0 }
 ];
 
 // 默认使用第一个（国内最快）
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
 
-/** 内部单次轮询所有端点 */
+/** 🚀 并行请求所有端点，任一成功立即返回（与 banana2.js 一致） */
 async function _tryAllEndpoints(path, options, timeoutMs) {
-    let lastError = null;
-    let got429 = false;
+    console.log(`[yunwu] 🚀 并行请求 ${YUNWU_ENDPOINTS.length} 个端点...`);
     
-    for (const endpoint of YUNWU_ENDPOINTS) {
-        try {
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        let failCount = 0;
+        const totalRequests = YUNWU_ENDPOINTS.length;
+        const errors = [];
+        let got429 = false;
+        
+        YUNWU_ENDPOINTS.forEach((endpoint, idx) => {
             const url = `${endpoint.url}${path}`;
-            console.log(`[yunwu] 尝试 ${endpoint.name}: ${url.substring(0, 80)}... (timeout ${Math.round(timeoutMs / 1000)}s)`);
             
-            const response = await fetch(url, {
+            // 🔑 每个端点使用对应的 API Key
+            const keyIdx = endpoint.keyIdx ?? 0;
+            const apiKey = YUNWU_API_KEYS[keyIdx] || YUNWU_API_KEYS[0] || YUNWU_API_KEY;
+            const headers = { ...(options.headers || {}) };
+            if (apiKey) {
+                headers['Authorization'] = `Bearer ${apiKey}`;
+            }
+            
+            fetch(url, {
                 ...options,
+                headers,
                 signal: AbortSignal.timeout(timeoutMs)
+            })
+            .then(response => {
+                if (settled) return;
+                
+                if (response.status === 429) {
+                    console.warn(`[yunwu] ${endpoint.name} 限速(429)`);
+                    got429 = true;
+                    errors.push({ endpoint: endpoint.name, status: 429 });
+                    failCount++;
+                } else if (response.ok) {
+                    console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
+                    settled = true;
+                    resolve({ response });
+                } else {
+                    console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
+                    errors.push({ endpoint: endpoint.name, status: response.status });
+                    failCount++;
+                }
+                
+                if (failCount >= totalRequests && !settled) {
+                    settled = true;
+                    const has4xx = errors.find(e => e.status >= 400 && e.status < 500);
+                    if (has4xx) {
+                        resolve({ error: new Error(`请求失败: ${has4xx.status}`), got429 });
+                    } else {
+                        resolve({ error: new Error('所有端点均不可用'), got429 });
+                    }
+                }
+            })
+            .catch(err => {
+                if (settled) return;
+                console.warn(`[yunwu] ${endpoint.name} 异常:`, err.message);
+                errors.push({ endpoint: endpoint.name, error: err.message });
+                failCount++;
+                
+                if (failCount >= totalRequests && !settled) {
+                    settled = true;
+                    resolve({ error: new Error(errors.map(e => e.error || e.status).join(', ')), got429 });
+                }
             });
-            
-            if (response.status === 429) {
-                console.warn(`[yunwu] ${endpoint.name} 限速(429)，尝试下一节点...`);
-                got429 = true;
-                continue;
-            }
-            
-            if (response.ok || response.status < 500) {
-                console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
-                return { response };
-            }
-            
-            console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
-            lastError = new Error(`${endpoint.name} 返回 ${response.status}`);
-        } catch (err) {
-            console.warn(`[yunwu] ${endpoint.name} 失败:`, err.message);
-            lastError = err;
-        }
-    }
-    
-    return { error: lastError, got429 };
+        });
+    });
 }
 
 /**
@@ -307,7 +369,7 @@ module.exports = async function handler(req, res) {
 
         // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫒）
         // 豁免某些只读操作（不扣费）
-        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll', 'vc-list'];  // 获取音色列表和轮询不需要登录
+        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll', 'vc-list', 'wan26-poll'];  // 获取音色列表和轮询不需要登录
         if (!userId && !exemptActions.includes(action)) {
             json(401, { error: 'UNAUTHORIZED', message: '请先登录后再使用此功能' });
             return;
@@ -850,6 +912,69 @@ module.exports = async function handler(req, res) {
 
             const timeoutMs = 120000;  // 2分钟超时
 
+            // 🔧 优先尝试 MODELSCOPE（更稳定）
+            const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || '';
+            if (MODELSCOPE_API_KEY) {
+                try {
+                    console.log('[yunwu] chat 尝试魔塔模型...');
+                    const msResponse = await fetch('https://api-inference.modelscope.cn/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${MODELSCOPE_API_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: 'Qwen/Qwen3-Coder-480B-A35B-Instruct',
+                            messages: finalMessages,
+                            temperature,
+                            max_tokens,
+                            stream: false
+                        }),
+                        signal: AbortSignal.timeout(180000)
+                    });
+
+                    if (msResponse.ok) {
+                        const msData = await msResponse.json();
+                        const msContent = msData?.choices?.[0]?.message?.content;
+                        const msUsage = msData?.usage || {};
+                        
+                        // 📊 计算实际token消耗和费用
+                        const promptTokens = msUsage.prompt_tokens || 0;
+                        const completionTokens = msUsage.completion_tokens || 0;
+                        const totalTokens = promptTokens + completionTokens;
+                        const filmCost = Math.max(1, Math.ceil(totalTokens / 4000)); // 简化计费
+                        
+                        console.log(`[yunwu] 📊 魔塔Token: ${totalTokens} → ${filmCost}胶片`);
+                        
+                        // 💰 扣费
+                        let billingSuccess = false;
+                        if (!skipBilling && filmCost > 0 && userId) {
+                            const billingResult = await __billing('consume', userId, filmCost, `AI对话:roll(${totalTokens}tokens)`);
+                            if (!billingResult.success && !billingResult.skipped) {
+                                json(400, { success: false, error: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                                return;
+                            }
+                            billingSuccess = billingResult.success && !billingResult.skipped;
+                        }
+                        
+                        await __saveGenerationRecord(userId, 'chat', msContent?.trim() || '', messages[messages.length - 1]?.content || '', 'roll', filmCost, { promptTokens, completionTokens, totalTokens });
+                        
+                        json(200, { 
+                            success: true, 
+                            content: msContent?.trim() || '', 
+                            usage: { promptTokens, completionTokens, totalTokens },
+                            cost: { film: filmCost },
+                            billed: billingSuccess ? filmCost : 0,
+                            model: 'roll'
+                        });
+                        return;
+                    }
+                    console.warn('[yunwu] 魔塔模型失败，回退到云雾:', msResponse.status);
+                } catch (msErr) {
+                    console.warn('[yunwu] 魔塔模型异常，回退到云雾:', msErr.message);
+                }
+            }
+
             try {
                 const requestBody = {
                     model,
@@ -1166,8 +1291,16 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
-            // 💰 计费配置
-            const filmCost = hd ? (FILM_COST['video-hd'] || 25) : (FILM_COST['video'] || 15);
+            // 💰 计费配置 - 支持多种模型
+            let filmCost = 15; // 默认
+            const modelLc = String(model).toLowerCase();
+            if (FILM_COST[model]) {
+                filmCost = FILM_COST[model];
+            } else if (modelLc.startsWith('veo') || modelLc.startsWith('grok-video') || modelLc.startsWith('vidu') || modelLc.startsWith('hailuo') || modelLc.startsWith('kling') || modelLc.startsWith('wan26')) {
+                filmCost = FILM_COST[model] || 15;
+            } else if (hd) {
+                filmCost = FILM_COST['video-hd'] || 25;
+            }
             let billingSuccess = false;
 
             // 根据参数选择合适的模型
@@ -2000,6 +2133,202 @@ module.exports = async function handler(req, res) {
                     await __billing('refund', userId, filmCost, 'Kling异常退款');
                 }
                 json(500, { success: false, error: 'API_ERROR', error_code: 'API_ERROR', message: err.message, billed: 0 });
+                return;
+            }
+        }
+
+        // ========== Wan2.6 图生视频 (alibailian API) ==========
+        if (action === 'wan26') {
+            const {
+                prompt,
+                img_url,
+                negative_prompt = '',
+                resolution = '720P',
+                duration = 5,
+                audio = false,
+                image_weight = 0.3,
+                prompt_extend = true,
+                seed
+            } = body;
+
+            if (!img_url) {
+                json(400, {
+                    success: false,
+                    error: 'MISSING_IMAGE',
+                    error_code: 'MISSING_IMAGE',
+                    message: 'wan2.6-i2v-flash 必须提供参考图片 (img_url)',
+                    billed: 0
+                });
+                return;
+            }
+
+            // 根据参数计算费用
+            const dur = parseInt(duration) || 5;
+            const res720 = String(resolution).includes('720');
+            const resKey = res720 ? '720p' : '1080p';
+            const durKey = `${dur}s`;
+            const audioSuffix = audio ? '-audio' : '';
+            const costKey = `wan26-${resKey}-${durKey}${audioSuffix}`;
+            const filmCost = FILM_COST[costKey] || FILM_COST['wan26-720p-5s'] || 3;
+            let billingSuccess = false;
+
+            console.log('[yunwu] Wan2.6图生视频:', { resolution: resKey, duration: dur, audio, image_weight, costKey, filmCost, promptLen: prompt?.length, hasImage: !!img_url });
+
+            // 🔒 先扣费
+            if (!skipBilling && filmCost > 0 && userId) {
+                const billingResult = await __billing('consume', userId, filmCost, `Wan2.6:${resKey}-${durKey}${audioSuffix}`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                    return;
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            } else if (skipBilling) {
+                console.log(`[yunwu] 💰 Wan2.6跳过扣费: 前端已处理`);
+            }
+
+            try {
+                // 构建 alibailian API 请求体
+                const requestBody = {
+                    model: 'wan2.6-i2v-flash',
+                    input: {
+                        prompt: prompt || '让图片动起来，平滑过渡',
+                        img_url: img_url
+                    },
+                    parameters: {
+                        resolution: res720 ? '720P' : '1080P',
+                        duration: dur,
+                        prompt_extend: prompt_extend !== false,
+                        watermark: false,
+                        audio: !!audio,
+                        image_weight: Number(image_weight) || 0.3
+                    }
+                };
+                if (negative_prompt) {
+                    requestBody.input.negative_prompt = negative_prompt;
+                }
+                if (seed) {
+                    requestBody.parameters.seed = seed;
+                }
+
+                console.log('[yunwu] Wan2.6请求体:', JSON.stringify(requestBody).substring(0, 500));
+
+                const response = await fetchWithFallbackWithTimeout(
+                    `/alibailian/api/v1/services/aigc/video-generation/video-synthesis`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(requestBody)
+                    },
+                    120000  // 120秒超时
+                );
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[yunwu] Wan2.6错误:', response.status, errorText);
+                    let errorDetail = '';
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorDetail = errorJson?.error?.message || errorJson?.message || errorText.substring(0, 200);
+                    } catch (e) {
+                        errorDetail = errorText.substring(0, 200);
+                    }
+                    if (billingSuccess) {
+                        await __billing('refund', userId, filmCost, 'Wan2.6API失败退款');
+                    }
+                    json(500, {
+                        success: false, error: 'API_ERROR', error_code: 'API_ERROR',
+                        message: `Wan2.6生成失败 (${response.status}): ${errorDetail}`, billed: 0
+                    });
+                    return;
+                }
+
+                const data = await response.json();
+                // alibailian 返回格式: { output: { task_id, task_status }, request_id, usage }
+                const taskId = data?.output?.task_id || data?.task_id || data?.request_id || data?.id || '';
+                const taskStatus = data?.output?.task_status || data?.status || 'PENDING';
+                await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, 'wan2.6-i2v-flash', filmCost, { resolution: resKey, duration: dur, audio, image_weight });
+
+                json(200, {
+                    success: true,
+                    task_id: taskId,
+                    id: taskId,
+                    status: taskStatus,
+                    _source: 'wan26',
+                    ...data,
+                    billed: billingSuccess ? filmCost : 0
+                });
+                return;
+            } catch (err) {
+                console.error('[yunwu] Wan2.6异常:', err);
+                if (billingSuccess) {
+                    await __billing('refund', userId, filmCost, 'Wan2.6异常退款');
+                }
+                json(500, { success: false, error: 'API_ERROR', error_code: 'API_ERROR', message: err.message, billed: 0 });
+                return;
+            }
+        }
+
+        // ========== Wan2.6 任务轮询 ==========
+        if (action === 'wan26-poll') {
+            const { task_id } = body;
+            if (!task_id) {
+                json(400, { success: false, error: 'MISSING_TASK_ID', message: '缺少 task_id' });
+                return;
+            }
+
+            try {
+                const response = await fetchWithFallbackWithTimeout(
+                    `/alibailian/api/v1/tasks/${encodeURIComponent(task_id)}`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                            'Accept': 'application/json'
+                        }
+                    },
+                    30000
+                );
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.warn('[yunwu] Wan2.6轮询失败:', response.status, errorText);
+                    json(200, { success: false, status: 'PENDING', error: `轮询失败: ${response.status}` });
+                    return;
+                }
+
+                const data = await response.json();
+                // alibailian 轮询返回: { output: { task_id, task_status, video_url }, request_id, usage }
+                const taskStatus = String(data?.output?.task_status || data?.status || 'PENDING').toUpperCase();
+                const videoUrl = data?.output?.video_url || data?.video_url || '';
+
+                // 映射状态到统一格式
+                let normalizedStatus = 'PENDING';
+                if (taskStatus === 'SUCCEEDED' || taskStatus === 'SUCCESS' || taskStatus === 'COMPLETED' || taskStatus === 'DONE') {
+                    normalizedStatus = 'SUCCESS';
+                } else if (taskStatus === 'FAILED' || taskStatus === 'FAILURE' || taskStatus === 'ERROR' || taskStatus === 'CANCELED') {
+                    normalizedStatus = 'FAILED';
+                } else if (taskStatus === 'RUNNING' || taskStatus === 'PROCESSING' || taskStatus === 'PENDING' || taskStatus === 'QUEUING') {
+                    normalizedStatus = 'PENDING';
+                }
+
+                console.log(`[yunwu] Wan2.6轮询: taskId=${task_id}, status=${taskStatus} → ${normalizedStatus}, hasVideo=${!!videoUrl}`);
+
+                json(200, {
+                    success: normalizedStatus === 'SUCCESS',
+                    status: normalizedStatus,
+                    task_status: taskStatus,
+                    video_url: videoUrl,
+                    url: videoUrl,
+                    ...data
+                });
+                return;
+            } catch (err) {
+                console.warn('[yunwu] Wan2.6轮询异常:', err.message);
+                json(200, { success: false, status: 'PENDING', error: `轮询异常: ${err.message}` });
                 return;
             }
         }

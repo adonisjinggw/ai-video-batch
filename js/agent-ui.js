@@ -247,8 +247,8 @@
                     <textarea id="atGoalInput" class="at-goal-input" rows="3" placeholder="描述你的项目目标..."></textarea>
                     ${suggestions.length > 0 ? `
                         <div class="at-suggestions">
-                            ${suggestions.map(s => `
-                                <button class="at-suggest-btn" onclick="document.getElementById('atGoalInput').value='${s.replace(/'/g, "\\'")}'">💡 ${s}</button>
+                            ${suggestions.map((s, i) => `
+                                <button class="at-suggest-btn" data-suggestion="${i}">💡 ${s}</button>
                             `).join('')}
                         </div>
                     ` : ''}
@@ -258,6 +258,24 @@
                     <button class="at-btn at-btn-primary" id="atStartBtn" onclick="AgentUI.startTeam()">🚀 开始执行</button>
                 </div>
             `;
+
+            // 🔧 绑定快捷按钮点击事件（避免 onclick 中的特殊字符问题）
+            this._currentSuggestions = suggestions;
+            console.log('[AgentUI] 快捷按钮绑定, suggestions:', suggestions);
+            configArea.querySelectorAll('.at-suggest-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const idx = parseInt(btn.getAttribute('data-suggestion'), 10);
+                    console.log('[AgentUI] 快捷按钮点击, idx:', idx, 'suggestions:', this._currentSuggestions);
+                    const text = this._currentSuggestions[idx];
+                    if (text) {
+                        document.getElementById('atGoalInput').value = text;
+                        console.log('[AgentUI] 已填入目标:', text);
+                    } else {
+                        console.warn('[AgentUI] 未找到文本, idx:', idx);
+                    }
+                });
+            });
         },
 
         // ==================== 🖼️ 参考图上传 ====================
@@ -554,19 +572,22 @@
         },
 
         _renderDeliverable(d, idx) {
+            const _wm = (typeof Watermark !== 'undefined' && Watermark.shouldApply());
             if (d.type === 'image') {
+                const imgTag = `<img src="${d.url}" alt="生成图片" class="at-d-img" onclick="window.open('${d.url}','_blank')">`;
                 return `
                     <div class="at-deliverable at-deliverable-image">
                         <div class="at-d-header">${d.icon || '🎨'} ${d.agent || ''} ${d.description || ''}</div>
-                        <img src="${d.url}" alt="生成图片" class="at-d-img" onclick="window.open('${d.url}','_blank')">
+                        ${_wm ? Watermark.wrapImage(imgTag) : imgTag}
                     </div>
                 `;
             }
             if (d.type === 'video') {
+                const vidTag = `<video src="${d.url}" controls class="at-d-video"></video>`;
                 return `
                     <div class="at-deliverable at-deliverable-video">
                         <div class="at-d-header">${d.icon || '🎬'} ${d.agent || ''}</div>
-                        <video src="${d.url}" controls class="at-d-video"></video>
+                        ${_wm ? Watermark.wrapVideo(vidTag) : vidTag}
                     </div>
                 `;
             }

@@ -8,6 +8,13 @@ const YUNMENG_API_KEY = process.env.YUNMENG_API_KEY || process.env.YUNWU_API_KEY
 const YUNMENG_BASE_URL = (process.env.YUNMENG_BASE_URL || 'https://yunwu.ai/v1').replace(/\/$/, '');
 const YUNMENG_MODEL = process.env.YUNMENG_MODEL || process.env.YUNWU_MODEL || 'qwen-plus';
 
+// 🚀 云雾多端点配置（与 banana2.js 一致）
+const YUNMENG_ENDPOINTS = [
+    'https://api3.wlai.vip',
+    'https://yunwu.zeabur.app',
+    'https://yunwu.ai'
+];
+
 // 魔塔API（可选，仅在设置 KEY 且前端显式请求时使用）
 const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || '';
 const MODELSCOPE_BASE_URL = 'https://api-inference.modelscope.cn/v1';
@@ -256,7 +263,7 @@ module.exports = async function handler(req, res) {
         const preferYunwu = (modelLc === 'yunwu' || modelLc === 'yunmeng' || modelLc.startsWith('yunwu:') || modelLc === 'qwen-plus' || modelLc.startsWith('qwen-') || modelLc.startsWith('grok-'));
         
         // 1b) MIMO（主通道）
-        if ((preferMimo || (!preferYunwu && !useModelScope)) && WRITER_MIMO_API_KEY) {
+        if ((preferMimo || (!preferYunwu)) && WRITER_MIMO_API_KEY) {
             try {
                 let mimoModel = reqModel;
                 if (modelLc === 'mimo') mimoModel = WRITER_MIMO_MODEL || 'mimo-v2-flash';
@@ -299,50 +306,94 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        // 2b) 云雾（需配置模型，支持 grok-4-fast）
-        if ((preferYunwu || (!preferMimo && !useModelScope)) && YUNMENG_API_KEY) {
-            try {
-                let yunwuModel = YUNMENG_MODEL || 'grok-4-fast';  // 🌟 默认使用 grok-4-fast
-                if (modelLc === 'qwen-plus' || modelLc.startsWith('qwen-')) yunwuModel = reqModel;
-                if (modelLc.startsWith('grok-')) yunwuModel = reqModel;  // 🌟 支持 grok 系列模型
-                if (modelLc.startsWith('yunwu:')) yunwuModel = reqModel.split(':').slice(1).join(':') || 'grok-4-fast';
-                const payload = {
-                    model: yunwuModel,
-                    messages: finalMessages,
-                    max_tokens: max_completion_tokens,
-                    temperature,
-                    top_p,
-                    stream: false
-                };
+        // 2b) 云雾（需配置模型，支持 grok-4-fast）- 🚀 多端点并行请求
+        if ((preferYunwu || (!preferMimo)) && YUNMENG_API_KEY) {
+            let yunwuModel = YUNMENG_MODEL || 'grok-4-fast';
+            if (modelLc === 'qwen-plus' || modelLc.startsWith('qwen-')) yunwuModel = reqModel;
+            if (modelLc.startsWith('grok-')) yunwuModel = reqModel;
+            if (modelLc.startsWith('yunwu:')) yunwuModel = reqModel.split(':').slice(1).join(':') || 'grok-4-fast';
+            const payload = {
+                model: yunwuModel,
+                messages: finalMessages,
+                max_tokens: max_completion_tokens,
+                temperature,
+                top_p,
+                stream: false
+            };
 
-                const url = `${YUNMENG_BASE_URL}/chat/completions`;
-                response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${YUNMENG_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(120000)
+            // 🚀 并行请求所有端点，任一成功立即返回
+            console.log(`[writer-llm] 🚀 云雾并行请求 ${YUNMENG_ENDPOINTS.length} 个端点...`);
+            
+            const result = await new Promise((resolve) => {
+                let settled = false;
+                let failCount = 0;
+                const totalRequests = YUNMENG_ENDPOINTS.length;
+                const errors = [];
+                
+                YUNMENG_ENDPOINTS.forEach((endpoint, idx) => {
+                    const url = `${endpoint}/v1/chat/completions`;
+                    
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${YUNMENG_API_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload),
+                        signal: AbortSignal.timeout(120000)
+                    })
+                    .then(res => {
+                        if (settled) return;
+                        
+                        if (res.ok) {
+                            console.log(`[writer-llm] ✅ ${endpoint} 成功`);
+                            settled = true;
+                            resolve({ success: true, response: res, endpoint });
+                        } else {
+                            console.warn(`[writer-llm] ${endpoint} 返回 ${res.status}`);
+                            errors.push({ endpoint, status: res.status });
+                            failCount++;
+                            
+                            if (failCount >= totalRequests && !settled) {
+                                settled = true;
+                                resolve({ success: false, errors });
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        if (settled) return;
+                        console.warn(`[writer-llm] ${endpoint} 异常:`, err.message);
+                        errors.push({ endpoint, error: err.message });
+                        failCount++;
+                        
+                        if (failCount >= totalRequests && !settled) {
+                            settled = true;
+                            resolve({ success: false, errors });
+                        }
+                    });
                 });
+            });
 
-                if (response.ok) {
-                    data = await response.json();
+            if (result.success) {
+                try {
+                    data = await result.response.json();
                     content = data?.choices?.[0]?.message?.content;
                     await __saveGenerationRecord(userId, 'text', content?.trim() || '', finalMessages[0]?.content || '', '云雾', filmCost, {});
                     json(200, { success: true, content: typeof content === 'string' ? content.trim() : '', raw: data, billed: billingSuccess ? filmCost : 0 });
                     return;
+                } catch (parseErr) {
+                    console.warn('[writer-llm] 解析响应失败:', parseErr.message);
                 }
-
-                const errorText = await response.text();
-                if (billingSuccess) {
-                    await __billing('refund', userId, filmCost, '写作助手API失败退款');
-                }
-                json(500, { success: false, error: 'WRITER_LLM_FAILED', error_code: 'API_ERROR', status: response.status, message: errorText?.slice(0, 800) || '', billed: 0 });
-                return;
-            } catch (e) {
-                console.warn('[writer-llm] 云雾API异常:', e.message);
             }
+
+            // 所有端点失败
+            console.error('[writer-llm] 云雾所有端点均失败');
+            if (billingSuccess) {
+                await __billing('refund', userId, filmCost, '写作助手API失败退款');
+            }
+            const firstError = result.errors?.[0];
+            json(500, { success: false, error: 'WRITER_LLM_FAILED', error_code: 'API_ERROR', status: firstError?.status || 500, message: '云雾所有节点均不可用', billed: 0 });
+            return;
         }
 
         // 所有通道失败 → 退款

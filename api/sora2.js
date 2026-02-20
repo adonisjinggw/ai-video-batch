@@ -5,26 +5,66 @@
  * 💰 计费通过 /api/supabase-proxy 统一处理
  */
 
-// ========== 计费配置（与 mobile.html QUOTA_COSTS 对齐） ==========
+// ========== 计费配置（与 mobile.html VIDEO_COST 完全对齐） ==========
 const FILM_COST = {
-    'sora-2-vip-all': 7,   // Sora2 VIP 过渡模型（10s）
-    'sora-2-all': 7,       // Sora2 通用（已停用，兼容旧任务）
-    'sora-2-pro-all': 14,  // Sora2 Pro 通用（已停用，兼容旧任务）
-    'sora-2-characters': 7, // 角色锁定模式
-    'grok-video-3': 5,     // Grok Video 3 (6秒)
-    'grok-video-3-10s': 8, // Grok Video 3 (10秒)
-    'veo3': 30,            // Veo3 4K版本
-    'veo3.1': 30,          // Veo 3.1 4K版本
-    // 🔧 补充常见模型别名，避免默认7胶片的误计算
-    'sora-2': 7,           // Sora2 基础模型
-    'sora2': 7,            // Sora2 兼容名称
-    'sora2-hd': 7,         // Sora2 HD 兼容名称
-    'sora-image': 7,       // Sora 图生视频模型
-    'sora-2-landscape': 7, // Sora2 横屏
-    'sora-2-portrait': 7,  // Sora2 竖屏
-    'sora-2-landscape-hd': 7, // Sora2 横屏HD
-    'sora-2-portrait-hd': 7,  // Sora2 竖屏HD
-    'sora-2-hd': 7,        // Sora2 HD
+    'modelscope-video': 0,
+    'sora-2-vip-all': 7,
+    'sora-2-all': 7,
+    'sora-2-pro-all': 14,
+    'sora-2-characters': 7,
+    'grok-video-3': 5,
+    'grok-video-3-10s': 8,
+    'veo3': 30,
+    'veo3.1': 30,
+    'veo3.1-components-4k': 30,
+    'veo_3_1-fast-4K': 25,
+    'veo_3_1-fast-components-4K': 28,
+    'veo_3_1-components-4K': 30,
+    'vidu-q2-5s-720p': 25,
+    'vidu-q2-5s-1080p': 36,
+    'vidu-q2-pro-5s-720p': 27,
+    'vidu-q2-pro-5s-1080p': 54,
+    'vidu-q2-turbo-5s-720p': 19,
+    'vidu-q2-turbo-5s-1080p': 36,
+    'vidu-q2-10s-720p': 50,
+    'vidu-q2-10s-1080p': 72,
+    'vidu-q2-pro-10s-720p': 54,
+    'vidu-q2-pro-10s-1080p': 108,
+    'vidu-q2-turbo-10s-720p': 38,
+    'vidu-q2-turbo-10s-1080p': 72,
+    'vidu-q3-pro-5s-720p': 72,
+    'vidu-q3-pro-5s-1080p': 77,
+    'vidu-q3-pro-10s-720p': 144,
+    'vidu-q3-pro-10s-1080p': 154,
+    'hailuo-02-768p-6s': 7,
+    'hailuo-02-768p-10s': 11,
+    'hailuo-02-1080p-6s': 12,
+    'hailuo-02-1080p-10s': 20,
+    'hailuo-fast-768p-6s': 5,
+    'hailuo-fast-768p-10s': 8,
+    'hailuo-fast-1080p-6s': 8,
+    'hailuo-fast-1080p-10s': 13,
+    'kling-o1-720p-5s': 15,
+    'kling-o1-720p-10s': 31,
+    'kling-o1-1080p-5s': 20,
+    'kling-o1-1080p-10s': 41,
+    'kling-2.5-720p-5s': 5,
+    'kling-2.5-720p-10s': 10,
+    'kling-2.5-1080p-5s': 9,
+    'kling-2.5-1080p-10s': 17,
+    'kling-2.0-720p-5s': 7,
+    'kling-2.0-720p-10s': 14,
+    'kling-2.0-1080p-5s': 12,
+    'kling-2.0-1080p-10s': 24,
+    'sora-2': 7,
+    'sora2': 7,
+    'sora2-hd': 7,
+    'sora-image': 7,
+    'sora-2-landscape': 7,
+    'sora-2-portrait': 7,
+    'sora-2-landscape-hd': 7,
+    'sora-2-portrait-hd': 7,
+    'sora-2-hd': 7,
 };
 
 /**
@@ -115,6 +155,161 @@ async function __billing(billingAction, userId, amount, description) {
         }
         console.error(`[sora2] 退款异常:`, e.message);
         return { success: false, error: e.message };
+    }
+}
+
+/**
+ * 🎬 检查和使用免费视频次数
+ * 优先使用免费次数，VIP用户不受限制
+ */
+async function __checkAndUseFreeVideo(userId) {
+    console.log(`[sora2] 🎬 检查免费视频次数: userId=${userId}`);
+    
+    if (!userId) {
+        return { success: false, error: '缺少用户ID' };
+    }
+    
+    try {
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'https://www.rollroll.art';
+        
+        const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'useFreeVideo',
+                userId
+            })
+        });
+        
+        let data;
+        try {
+            data = await res.json();
+        } catch {
+            data = {};
+        }
+        
+        if (!res.ok || !data.success) {
+            console.log(`[sora2] 🎬 无法使用免费次数:`, data.error || data.message);
+            return { 
+                success: false, 
+                error: data.error || data.message || '免费次数检查失败',
+                canUseFree: false,
+                needBilling: true
+            };
+        }
+        
+        if (data.isVip) {
+            console.log(`[sora2] 🎬 VIP用户，无需使用免费次数`);
+            return { 
+                success: true, 
+                usedFree: false, 
+                isVip: true, 
+                needBilling: false 
+            };
+        }
+        
+        if (data.usedFree) {
+            console.log(`[sora2] 🎬 已使用免费次数，剩余: ${data.remaining}`);
+            return { 
+                success: true, 
+                usedFree: true, 
+                remaining: data.remaining, 
+                needBilling: false 
+            };
+        }
+        
+        return { 
+            success: false, 
+            error: data.message || '免费次数已用完',
+            canUseFree: false,
+            needBilling: true
+        };
+    } catch (e) {
+        console.error(`[sora2] 🎬 免费次数检查异常:`, e.message);
+        return { 
+            success: false, 
+            error: e.message || '免费次数检查异常',
+            canUseFree: false,
+            needBilling: true
+        };
+    }
+}
+
+/**
+ * 🎬 检查免费视频次数（只读，不扣减）
+ */
+async function __checkFreeVideoCount(userId) {
+    if (!userId) {
+        return { success: false, error: '缺少用户ID' };
+    }
+    
+    try {
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'https://www.rollroll.art';
+        
+        const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'checkFreeVideoCount',
+                userId
+            })
+        });
+        
+        let data;
+        try {
+            data = await res.json();
+        } catch {
+            data = {};
+        }
+        
+        if (!res.ok || !data.success) {
+            return { success: false, error: data.error || data.message };
+        }
+        
+        return data;
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * 🚫 检查模型限制 - 防止免费用户使用昂贵的模型
+ */
+async function __checkModelRestriction(userId, model) {
+    console.log(`[sora2] 🚫 检查模型限制: userId=${userId}, model=${model}`);
+    
+    if (!userId) {
+        return { success: false, error: '缺少用户ID' };
+    }
+    
+    const EXPENSIVE_MODELS = ['veo3', 'veo3.1'];
+    
+    if (!EXPENSIVE_MODELS.includes(model)) {
+        return { success: true, allowed: true };
+    }
+    
+    try {
+        const checkResult = await __checkFreeVideoCount(userId);
+        
+        if (checkResult.success && checkResult.isVip) {
+            console.log(`[sora2] 🚫 VIP用户，允许使用${model}模型`);
+            return { success: true, allowed: true };
+        }
+        
+        console.log(`[sora2] 🚫 非VIP用户，禁止使用${model}模型`);
+        return { 
+            success: false, 
+            allowed: false, 
+            error: 'MODEL_RESTRICTED',
+            message: `该模型(${model})仅对VIP用户开放，请充值后使用`
+        };
+    } catch (e) {
+        console.error(`[sora2] 🚫 模型限制检查异常:`, e.message);
+        return { success: true, allowed: true };
     }
 }
 
@@ -695,13 +890,38 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
-            // 💰 先扣费模式：调用上游API前先扣费
+            // 🎬 优先使用免费视频次数
+            const skipBilling = body.skip_billing === true;
+            let useFreeResult = null;
+            let needBilling = true;
+            
+            if (!skipBilling && userId) {
+                useFreeResult = await __checkAndUseFreeVideo(userId);
+                needBilling = useFreeResult.needBilling;
+                
+                if (useFreeResult.success && !useFreeResult.needBilling) {
+                    console.log(`[sora2] 🎬 使用免费次数生成视频:`, useFreeResult);
+                } else if (!useFreeResult.success && useFreeResult.needBilling === false) {
+                    json(400, { error: 'NO_FREE_VIDEOS', message: useFreeResult.error || '免费次数已用完，请充值后继续使用' });
+                    return;
+                }
+            }
+
+            // 🚫 检查模型限制 - 防止使用昂贵模型
+            if (!skipBilling && userId) {
+                const modelCheck = await __checkModelRestriction(userId, model);
+                if (!modelCheck.success || !modelCheck.allowed) {
+                    json(400, { error: modelCheck.error || 'MODEL_RESTRICTED', message: modelCheck.message || '该模型仅对VIP用户开放' });
+                    return;
+                }
+            }
+
+            // 💰 先扣费模式：调用上游API前先扣费（如果需要）
             const filmCost = FILM_COST[model] || FILM_COST['sora-2-vip-all'] || 7;
             let billingSuccess = false;
             let billingSkipped = false;
-            const skipBilling = body.skip_billing === true;
             
-            if (!skipBilling && filmCost > 0 && userId) {
+            if (needBilling && !skipBilling && filmCost > 0 && userId) {
                 try {
                     const billingResult = await __billing('consume', userId, filmCost, `视频生成:${model}`);
                     if (!billingResult.success && !billingResult.skipped) {
@@ -718,6 +938,7 @@ module.exports = async function handler(req, res) {
             } else {
                 billingSkipped = true;
                 if (skipBilling) console.log(`[sora2] 💰 跳过扣费: 前端已处理`);
+                if (useFreeResult?.success) console.log(`[sora2] 💰 跳过扣费: 使用免费次数`);
             }
 
             // 构建请求体，支持更多参数
@@ -918,13 +1139,38 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
-            // 💰 先扣费模式：调用上游API前先扣费
+            // 🎬 优先使用免费视频次数
+            const i2vSkipBilling = body.skip_billing === true;
+            let i2vUseFreeResult = null;
+            let i2vNeedBilling = true;
+            
+            if (!i2vSkipBilling && userId) {
+                i2vUseFreeResult = await __checkAndUseFreeVideo(userId);
+                i2vNeedBilling = i2vUseFreeResult.needBilling;
+                
+                if (i2vUseFreeResult.success && !i2vUseFreeResult.needBilling) {
+                    console.log(`[sora2] 🎬 图生视频使用免费次数:`, i2vUseFreeResult);
+                } else if (!i2vUseFreeResult.success && i2vUseFreeResult.needBilling === false) {
+                    json(400, { error: 'NO_FREE_VIDEOS', message: i2vUseFreeResult.error || '免费次数已用完，请充值后继续使用' });
+                    return;
+                }
+            }
+
+            // 🚫 检查模型限制 - 防止使用昂贵模型
+            if (!i2vSkipBilling && userId) {
+                const modelCheck = await __checkModelRestriction(userId, model);
+                if (!modelCheck.success || !modelCheck.allowed) {
+                    json(400, { error: modelCheck.error || 'MODEL_RESTRICTED', message: modelCheck.message || '该模型仅对VIP用户开放' });
+                    return;
+                }
+            }
+
+            // 💰 先扣费模式：调用上游API前先扣费（如果需要）
             const i2vFilmCost = FILM_COST[model] || FILM_COST['sora-2-vip-all'] || 7;
             let i2vBillingSuccess = false;
             let i2vBillingSkipped = false;
-            const i2vSkipBilling = body.skip_billing === true;
             
-            if (!i2vSkipBilling && i2vFilmCost > 0 && userId) {
+            if (i2vNeedBilling && !i2vSkipBilling && i2vFilmCost > 0 && userId) {
                 try {
                     const billingResult = await __billing('consume', userId, i2vFilmCost, `图生视频:${model}`);
                     if (!billingResult.success && !billingResult.skipped) {
@@ -941,6 +1187,7 @@ module.exports = async function handler(req, res) {
             } else {
                 i2vBillingSkipped = true;
                 if (i2vSkipBilling) console.log(`[sora2] 💰 图生视频跳过扣费: 前端已处理`);
+                if (i2vUseFreeResult?.success) console.log(`[sora2] 💰 图生视频跳过扣费: 使用免费次数`);
             }
 
             // 🆕 如果是 base64 图片，先上传到图床获取真实URL

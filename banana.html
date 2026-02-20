@@ -1919,6 +1919,24 @@
                 });
             }
             
+            // 🔧 修复：结果区域按钮支持触摸事件（移动端点击无响应问题）
+            document.querySelectorAll('.result-btn').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[banana] 结果按钮被触摸:', this.textContent.trim());
+                    this.click();
+                });
+            });
+            
+            // 🔧 修复：批量结果按钮支持触摸事件
+            document.querySelectorAll('.batch-action-btn').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[banana] 批量操作按钮被触摸:', this.textContent.trim());
+                    this.click();
+                });
+            });
+            
             // 🔧 修复：与 music.html 保持一致的认证逻辑
             if (typeof NVAuth !== 'undefined') {
                 await checkUser();
@@ -2474,51 +2492,137 @@
         function downloadImage() { if (!currentImageUrl) { showToast('没有可下载的图片'); return; } const a = document.createElement('a'); a.href = currentImageUrl; a.download = 'rollroll_' + Date.now() + '.png'; a.click(); showToast('开始下载'); }
         function shareImage() { if (!currentImageUrl) { showToast('没有可分享的图片'); return; } if (navigator.share) { navigator.share({ title: 'RollRoll AI画图', text: '看看我用AI画的图！', url: currentImageUrl }); } else { navigator.clipboard.writeText(currentImageUrl); showToast('链接已复制'); } }
         
+        // 🔧 IndexedDB 存储工具（解决 localStorage 5MB 限制问题）
+        const imageTransferDB = {
+            dbName: 'RollRollImageTransfer',
+            storeName: 'images',
+            db: null,
+            
+            async init() {
+                if (this.db) return this.db;
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 1);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        resolve(this.db);
+                    };
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName, { keyPath: 'key' });
+                        }
+                    };
+                });
+            },
+            
+            async set(key, data) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readwrite');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.put({ key, data, timestamp: Date.now() });
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            },
+            
+            async get(key) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readonly');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result?.data || null);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+            
+            async remove(key) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readwrite');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.delete(key);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+        };
+        
         // 🎬 单个模式：推送到视频工具
-        function pushToVideoTool() {
+        async function pushToVideoTool() {
+            console.log('[banana] pushToVideoTool 被调用, currentImageUrl:', currentImageUrl ? currentImageUrl.substring(0, 50) + '...' : 'null');
+            
             if (!currentImageUrl) {
                 showToast('没有可推送的图片');
+                console.warn('[banana] currentImageUrl 为空，无法跳转');
                 return;
             }
             
-            // 保存图片到 localStorage
-            const transferData = {
-                imageUrl: currentImageUrl,
-                prompt: document.getElementById('promptInput').value.trim(),
-                mode: 'image-to-video',
-                timestamp: Date.now()
-            };
-            localStorage.setItem('banana_to_video', JSON.stringify(transferData));
-            
-            showToast('正在跳转到视频工具...');
-            setTimeout(() => {
-                location.href = 'video-tools.html?from_banana=1&force=mobile';
-            }, 300);
+            try {
+                // 🔧 使用 IndexedDB 存储大数据（解决 localStorage 5MB 限制）
+                const transferData = {
+                    imageUrl: currentImageUrl,
+                    prompt: document.getElementById('promptInput').value.trim(),
+                    mode: 'image-to-video',
+                    timestamp: Date.now()
+                };
+                await imageTransferDB.set('banana_to_video', transferData);
+                
+                // 同时设置一个标记到 localStorage（用于检测是否有数据）
+                localStorage.setItem('banana_to_video_flag', '1');
+                
+                console.log('[banana] 已保存数据到 IndexedDB, 准备跳转');
+                
+                showToast('正在跳转到视频工具...');
+                setTimeout(() => {
+                    const targetUrl = 'video-tools.html?from_banana=1&force=mobile';
+                    console.log('[banana] 跳转到:', targetUrl);
+                    location.href = targetUrl;
+                }, 300);
+            } catch (err) {
+                console.error('[banana] 保存数据失败:', err);
+                showToast('保存图片失败，请重试');
+            }
         }
         
         // 🎬 批量模式：推送选中的图片到视频工具
-        function useSelectedImages() {
+        async function useSelectedImages() {
+            console.log('[banana] useSelectedImages 被调用, batchResults:', batchResults.length);
             const selected = batchResults.filter(r => r.selected && r.imageUrl && !r.error);
+            console.log('[banana] 选中的图片数量:', selected.length);
+            
             if (selected.length === 0) {
                 showToast('请先选择要生视频的图片');
                 return;
             }
             
-            // 保存所有选中的图片到 localStorage
-            const transferData = {
-                images: selected.map(r => ({
-                    imageUrl: r.imageUrl,
-                    prompt: r.prompt
-                })),
-                mode: 'batch-image-to-video',
-                timestamp: Date.now()
-            };
-            localStorage.setItem('banana_batch_to_video', JSON.stringify(transferData));
-            
-            showToast(`正在推送 ${selected.length} 张图片到视频工具...`);
-            setTimeout(() => {
-                location.href = 'video-tools.html?from_banana=1&batch=1&force=mobile';
-            }, 300);
+            try {
+                // 🔧 使用 IndexedDB 存储大数据
+                const transferData = {
+                    images: selected.map(r => ({
+                        imageUrl: r.imageUrl,
+                        prompt: r.prompt
+                    })),
+                    mode: 'batch-image-to-video',
+                    timestamp: Date.now()
+                };
+                await imageTransferDB.set('banana_batch_to_video', transferData);
+                localStorage.setItem('banana_batch_to_video_flag', '1');
+                
+                console.log('[banana] 已保存批量数据到 IndexedDB, 图片数:', selected.length);
+                
+                showToast(`正在推送 ${selected.length} 张图片到视频工具...`);
+                setTimeout(() => {
+                    const targetUrl = 'video-tools.html?from_banana=1&batch=1&force=mobile';
+                    console.log('[banana] 跳转到:', targetUrl);
+                    location.href = targetUrl;
+                }, 300);
+            } catch (err) {
+                console.error('[banana] 保存批量数据失败:', err);
+                showToast('保存图片失败，请重试');
+            }
         }
         // 🔧 异步压缩图片用于历史记录（高质量缩略图）
         async function compressImageForHistory(base64Url, maxWidth = 150, quality = 0.7) {

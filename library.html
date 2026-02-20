@@ -612,6 +612,26 @@
 
         function useItem(index) {
             const item = items[index];
+            // 保存到 sessionStorage 以便返回到 mobile.html 时使用
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                try {
+                    sessionStorage.setItem('library_selected_item', JSON.stringify({
+                        tab: currentTab,
+                        item: item,
+                        timestamp: Date.now()
+                    }));
+                    console.log('[library] 已保存选中项到 sessionStorage，准备返回');
+                    // 返回到 mobile.html
+                    location.href = 'mobile.html?skip_welcome=1&from_library=1';
+                    return;
+                } catch (e) {
+                    console.warn('[library] 保存到 sessionStorage 失败，回退到剪贴板方式:', e);
+                }
+            }
+            
             // 复制提示词到剪贴板
             const text = item.desc || item.name;
             navigator.clipboard.writeText(text);

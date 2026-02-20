@@ -171,76 +171,73 @@ async function fetchWithFallback(requestBody, isGemini3Native = false) {
         throw new Error('未配置YUNMENG_API_KEY环境变量，无法调用图片生成API');
     }
 
-    // 🚀 并行请求所有端点，第一个成功的就返回
+    // 🚀 并行请求所有端点，第一个成功的就返回（使用 Promise.race 加速）
     const apiKey = YUNMENG_API_KEYS[0];
-    const requests = YUNMENG_ENDPOINTS.map(endpoint => {
-        const url = `${endpoint}${apiPath}`;
-        console.log(`[banana2] ☁️ 并行请求: ${endpoint}`);
-        return fetchWithTimeout(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                ...(requestBody?.__idempotencyKey ? { 'Idempotency-Key': String(requestBody.__idempotencyKey) } : {})
-            },
-            body: JSON.stringify(requestBody)
-        }, timeoutMs)
-        .then(response => {
-            if (response.ok) {
-                console.log(`[banana2] ☁️ ✅ ${endpoint} 成功`);
-                return { success: true, response, endpoint };
-            }
-            return { success: false, status: response.status, endpoint };
-        })
-        .catch(err => {
-            console.warn(`[banana2] ☁️ ${endpoint} 失败:`, err.message);
-            return { success: false, error: err.message, endpoint };
+    
+    // 🆕 使用 Promise.race + Promise.all 组合：任一成功立即返回，全部失败才报错
+    return new Promise((resolve, reject) => {
+        let settled = false;  // 🔒 防止多次 resolve/reject
+        let successCount = 0;
+        let failCount = 0;
+        const totalRequests = YUNMENG_ENDPOINTS.length;
+        const errors = [];
+        
+        YUNMENG_ENDPOINTS.forEach((endpoint, idx) => {
+            const url = `${endpoint}${apiPath}`;
+            console.log(`[banana2] ☁️ 并行请求 ${idx + 1}/${totalRequests}: ${endpoint}`);
+            
+            fetchWithTimeout(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    ...(requestBody?.__idempotencyKey ? { 'Idempotency-Key': String(requestBody.__idempotencyKey) } : {})
+                },
+                body: JSON.stringify(requestBody)
+            }, timeoutMs)
+            .then(response => {
+                if (settled) return;  // 已经有结果了，忽略
+                
+                if (response.ok) {
+                    console.log(`[banana2] ☁️ ✅ ${endpoint} 成功 (第${idx + 1}个)`);
+                    settled = true;
+                    resolve(response);
+                } else {
+                    console.warn(`[banana2] ☁️ ${endpoint} 返回 ${response.status}`);
+                    errors.push({ endpoint, status: response.status });
+                    failCount++;
+                    
+                    // 🆕 所有请求都失败了，才返回错误
+                    if (failCount >= totalRequests && !settled) {
+                        settled = true;
+                        // 检查是否有429
+                        const has429 = errors.some(e => e.status === 429);
+                        if (has429) {
+                            reject(new Error('请求过于频繁，请稍后重试'));
+                        } else {
+                            const clientError = errors.find(e => e.status >= 400 && e.status < 500);
+                            if (clientError) {
+                                reject(new Error(`请求失败: ${clientError.status}`));
+                            } else {
+                                reject(new Error('云梦API节点均不可访问'));
+                            }
+                        }
+                    }
+                }
+            })
+            .catch(err => {
+                if (settled) return;
+                console.warn(`[banana2] ☁️ ${endpoint} 异常:`, err.message);
+                errors.push({ endpoint, error: err.message });
+                failCount++;
+                
+                if (failCount >= totalRequests && !settled) {
+                    settled = true;
+                    reject(new Error(`云梦API节点均不可访问: ${errors.map(e => e.error || e.status).join(', ')}`));
+                }
+            });
         });
     });
-
-    // 等待第一个成功的请求
-    const results = await Promise.all(requests);
-    const successResult = results.find(r => r.success);
-    
-    if (successResult) {
-        return successResult.response;
-    }
-
-    // 如果并行都失败，尝试其他 Key（串行）
-    if (YUNMENG_API_KEYS.length > 1) {
-        for (let i = 1; i < YUNMENG_API_KEYS.length; i++) {
-            const key = YUNMENG_API_KEYS[i];
-            for (const endpoint of YUNMENG_ENDPOINTS) {
-                try {
-                    console.log(`[banana2] ☁️ 备用Key${i+1}: ${endpoint}`);
-                    const response = await fetchWithTimeout(`${endpoint}${apiPath}`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${key}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(requestBody)
-                    }, timeoutMs);
-                    if (response.ok) {
-                        console.log(`[banana2] ☁️ ✅ 备用Key成功: ${endpoint}`);
-                        return response;
-                    }
-                    if (response.status < 500) return response;
-                } catch (err) {
-                    console.warn(`[banana2] ☁️ 备用Key失败:`, err.message);
-                }
-            }
-        }
-    }
-
-    // 检查是否有4xx错误（可能是内容审核等）
-    const clientError = results.find(r => r.status && r.status >= 400 && r.status < 500);
-    if (clientError) {
-        // 返回一个假的response让上层处理错误
-        return { ok: false, status: clientError.status, text: async () => JSON.stringify({ error: `HTTP ${clientError.status}` }) };
-    }
-
-    throw new Error(`云梦API节点均不可访问（已并行尝试${YUNMENG_ENDPOINTS.length}个节点），请稍后重试`);
 }
 
 /**

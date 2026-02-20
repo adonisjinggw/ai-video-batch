@@ -7,7 +7,9 @@ const ZHENZHEN_API_KEY = process.env.ZHENZHEN_API_KEY || '';
 const FILM_COST = {
     'image': 3,           // 图片生成
     'image2image': 4,     // 图生图
-    'text': 1             // 文本生成
+    'text': 1,             // 文本生成
+    'video': 0,            // 视频生成（免费）
+    'image2video': 0       // 图生视频（免费）
 };
 
 /**
@@ -62,6 +64,8 @@ const TEXT_MODEL = 'Qwen/Qwen2.5-72B-Instruct';
 const IMAGE_MODEL = 'Tongyi-MAI/Z-Image-Turbo';
 // 🖼️ 图生图/多图编辑模型（升级到2511版本）
 const IMAGE_EDIT_MODEL = 'Qwen/Qwen-Image-Edit-2511';
+// 🎬 视频生成模型（通义万相）
+const VIDEO_MODEL = 'Wan-AI/Wan2.1-T2V-1.3B';
 
 // ✅ 超时控制函数
 function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
@@ -258,6 +262,93 @@ async function pollImageTask(taskId, apiKey) {
     throw new Error('图像生成超时，请稍后重试');
 }
 
+/**
+ * 轮询视频任务状态
+ */
+async function pollVideoTask(taskId, apiKey) {
+    const maxAttempts = 120; // 6分钟超时（视频生成可能较慢）
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 3000)); // 3秒轮询间隔
+        try {
+            const pollRes = await callModelScope(`v1/tasks/${taskId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'X-ModelScope-Task-Type': 'video_generation'
+                }
+            }, 30000);
+            const data = await pollRes.json();
+            console.log(`[modelscope] 🎬 视频轮询 ${attempt + 1}/${maxAttempts}: ${data.task_status}`);
+            if (data.task_status === 'SUCCEED') {
+                const outputVideos = data.output_videos || [];
+                return {
+                    videos: outputVideos,
+                    taskId
+                };
+            }
+            if (data.task_status === 'FAILED') {
+                throw new Error(data?.error_msg || 'Video Generation Failed');
+            }
+        } catch (err) {
+            if (err.message === 'UPSTREAM_TIMEOUT') {
+                console.warn(`[modelscope] 视频轮询超时，继续重试...`);
+                continue;
+            }
+            throw err;
+        }
+    }
+    throw new Error('视频生成超时，请稍后重试');
+}
+
+async function handleVideoGeneration(prompt, apiKey, aspectRatio = '16:9', duration = 5) {
+    const videoSize = aspectRatioToSize(aspectRatio);
+    const submitRes = await callModelScope('v1/videos/generations', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'X-ModelScope-Async-Mode': 'true'
+        },
+        body: JSON.stringify({
+            model: VIDEO_MODEL,
+            prompt,
+            width: videoSize.width,
+            height: videoSize.height,
+            duration: duration
+        })
+    });
+
+    const { task_id: taskId } = await submitRes.json();
+    if (!taskId) throw new Error('未获取到视频生成task_id');
+
+    return await pollVideoTask(taskId, apiKey);
+}
+
+async function handleImageToVideoGeneration(prompt, imageUrls, apiKey, aspectRatio = '16:9', duration = 5) {
+    const videoSize = aspectRatioToSize(aspectRatio);
+    const submitRes = await callModelScope('v1/videos/generations', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'X-ModelScope-Async-Mode': 'true'
+        },
+        body: JSON.stringify({
+            model: VIDEO_MODEL,
+            prompt,
+            image_url: imageUrls,
+            width: videoSize.width,
+            height: videoSize.height,
+            duration: duration
+        })
+    });
+
+    const { task_id: taskId } = await submitRes.json();
+    if (!taskId) throw new Error('未获取到图生视频task_id');
+
+    return await pollVideoTask(taskId, apiKey);
+}
+
 async function handleTextGeneration(prompt, apiKey) {
     const response = await callModelScope('v1/chat/completions', {
         method: 'POST',
@@ -303,10 +394,11 @@ module.exports = async function handler(req, res) {
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-        const { action, prompt, aspectRatio, aspect_ratio, imageUrls, userId, skip_billing } = body || {};
+        const { action, prompt, aspectRatio, aspect_ratio, imageUrls, image_url, userId, skip_billing } = body || {};
         const skipBilling = skip_billing === true;
         // 兼容两种命名风格
         const finalAspectRatio = aspectRatio || aspect_ratio || '1:1';
+        const finalImageUrls = imageUrls || (image_url ? [image_url] : []);
 
         if (!action || !prompt) {
             json(400, { error: 'MISSING_PARAMS' });
@@ -387,7 +479,7 @@ module.exports = async function handler(req, res) {
 
         // 🆕 图生图：使用 FLUX.2-dev 模型
         if (action === 'image2image') {
-            if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+            if (!finalImageUrls || !Array.isArray(finalImageUrls) || finalImageUrls.length === 0) {
                 json(400, { error: 'MISSING_IMAGE_URLS', message: '图生图需要提供参考图' });
                 return;
             }
@@ -416,8 +508,8 @@ module.exports = async function handler(req, res) {
                 console.log(`[modelscope] 🎨 图生图智能切换: ${body.model || '无'} -> ${IMAGE_EDIT_MODEL}`);
                 
                 // 🔧 调试：输出参考图信息
-                console.log(`[modelscope] 🖼️ 参考图数量: ${imageUrls.length}`);
-                imageUrls.forEach((img, idx) => {
+                console.log(`[modelscope] 🖼️ 参考图数量: ${finalImageUrls.length}`);
+                finalImageUrls.forEach((img, idx) => {
                     const imgType = img?.startsWith('data:') ? 'base64' : (img?.startsWith('http') ? 'url' : 'unknown');
                     const imgLen = img?.length || 0;
                     console.log(`[modelscope] 🖼️ 图片${idx + 1}: ${imgType}, 长度=${Math.round(imgLen/1024)}KB`);
@@ -433,7 +525,7 @@ module.exports = async function handler(req, res) {
                 messageContent.push({ type: 'text', text: prompt });
                 
                 // 添加图片引用
-                for (const imgUrl of imageUrls) {
+                for (const imgUrl of finalImageUrls) {
                     if (imgUrl.startsWith('data:')) {
                         // base64 格式
                         messageContent.push({ type: 'image_url', image_url: { url: imgUrl } });
@@ -483,17 +575,17 @@ module.exports = async function handler(req, res) {
                 
                 // 🔧 同步模式：直接从 choices 中提取图片
                 const content = submitData?.choices?.[0]?.message?.content;
-                let imageUrls = [];
+                let resultImageUrls = [];
                 
                 if (typeof content === 'string') {
                     // 可能是JSON字符串或直接URL
                     if (content.startsWith('http')) {
-                        imageUrls = [content];
+                        resultImageUrls = [content];
                     } else if (content.startsWith('[')) {
                         try {
                             const parsed = JSON.parse(content);
                             if (Array.isArray(parsed)) {
-                                imageUrls = parsed.map(item => item.url || item).filter(u => u && typeof u === 'string');
+                                resultImageUrls = parsed.map(item => item.url || item).filter(u => u && typeof u === 'string');
                             }
                         } catch (e) {
                             console.warn('[modelscope] 解析JSON失败:', content.substring(0, 100));
@@ -503,21 +595,21 @@ module.exports = async function handler(req, res) {
                     // 数组格式
                     for (const item of content) {
                         if (typeof item === 'string' && item.startsWith('http')) {
-                            imageUrls.push(item);
+                            resultImageUrls.push(item);
                         } else if (item?.type === 'image_url' && item?.image_url?.url) {
-                            imageUrls.push(item.image_url.url);
+                            resultImageUrls.push(item.image_url.url);
                         } else if (item?.url) {
-                            imageUrls.push(item.url);
+                            resultImageUrls.push(item.url);
                         }
                     }
                 }
                 
-                if (imageUrls.length === 0) {
+                if (resultImageUrls.length === 0) {
                     console.error('[modelscope] 未从响应中提取到图片:', JSON.stringify(submitData).substring(0, 500));
                     throw new Error('图片编辑未返回有效图片');
                 }
                 
-                json(200, { success: true, images: imageUrls, billed: billingSuccess ? filmCost : 0 });
+                json(200, { success: true, images: resultImageUrls, billed: billingSuccess ? filmCost : 0 });
                 return;
             } catch (err) {
                 // 🔐 仅在未获取 task_id 时退款（上游未消耗）
@@ -554,6 +646,130 @@ module.exports = async function handler(req, res) {
                 return;
             } catch (err) {
                 if (billingSuccess) await __billing('refund', userId, filmCost, 'ModelScope文本:异常退款');
+                throw err;
+            }
+        }
+
+        if (action === 'video') {
+            // 💰 计费（免费）
+            const filmCost = FILM_COST['video'] || 0;
+            let billingSuccess = false;
+            let taskIdObtained = false;
+            if (!skipBilling && filmCost > 0 && userId) {
+                try {
+                    const billingResult = await __billing('consume', userId, filmCost, 'ModelScope视频生成');
+                    if (!billingResult.success && !billingResult.skipped) {
+                        json(400, { error: 'BILLING_FAILED', message: billingResult.error || '扣费失败' });
+                        return;
+                    }
+                    billingSuccess = !billingResult.skipped;
+                } catch (billingErr) {
+                    json(400, { error: 'BILLING_FAILED', message: billingErr.message });
+                    return;
+                }
+            }
+
+            try {
+                const modelToUse = body.model || VIDEO_MODEL;
+                const finalAspectRatio = aspectRatio || aspect_ratio || '16:9';
+                const duration = body.duration || 5;
+                const videoSize = aspectRatioToSize(finalAspectRatio);
+                console.log(`[modelscope] 🎬 视频尺寸: ${finalAspectRatio} -> ${videoSize.width}x${videoSize.height}, 时长: ${duration}秒`);
+                
+                const submitRes = await callModelScope('v1/videos/generations', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'X-ModelScope-Async-Mode': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: modelToUse,
+                        prompt,
+                        width: videoSize.width,
+                        height: videoSize.height,
+                        duration: duration
+                    })
+                });
+                const { task_id: taskId } = await submitRes.json();
+                if (!taskId) throw new Error('未获取到视频生成task_id');
+                
+                taskIdObtained = true;
+                
+                const result = await pollVideoTask(taskId, apiKey);
+                json(200, { success: true, ...result, billed: billingSuccess ? filmCost : 0 });
+                return;
+            } catch (err) {
+                if (billingSuccess && !taskIdObtained) {
+                    await __billing('refund', userId, filmCost, 'ModelScope视频:异常退款');
+                } else if (billingSuccess && taskIdObtained) {
+                    console.warn('[modelscope] ⚠️ 视频轮询失败，但上游已消耗，不退款:', err?.message);
+                }
+                throw err;
+            }
+        }
+
+        if (action === 'image2video') {
+            if (!finalImageUrls || !Array.isArray(finalImageUrls) || finalImageUrls.length === 0) {
+                json(400, { error: 'MISSING_IMAGE_URLS', message: '图生视频需要提供参考图' });
+                return;
+            }
+
+            // 💰 计费（免费）
+            const filmCost = FILM_COST['image2video'] || 0;
+            let billingSuccess = false;
+            let taskIdObtained = false;
+            if (!skipBilling && filmCost > 0 && userId) {
+                try {
+                    const billingResult = await __billing('consume', userId, filmCost, 'ModelScope图生视频');
+                    if (!billingResult.success && !billingResult.skipped) {
+                        json(400, { error: 'BILLING_FAILED', message: billingResult.error || '扣费失败' });
+                        return;
+                    }
+                    billingSuccess = !billingResult.skipped;
+                } catch (billingErr) {
+                    json(400, { error: 'BILLING_FAILED', message: billingErr.message });
+                    return;
+                }
+            }
+
+            try {
+                const modelToUse = body.model || VIDEO_MODEL;
+                const finalAspectRatio = aspectRatio || aspect_ratio || '16:9';
+                const duration = body.duration || 5;
+                const videoSize = aspectRatioToSize(finalAspectRatio);
+                console.log(`[modelscope] 🎬 图生视频尺寸: ${finalAspectRatio} -> ${videoSize.width}x${videoSize.height}, 时长: ${duration}秒`);
+                
+                const submitRes = await callModelScope('v1/videos/generations', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'X-ModelScope-Async-Mode': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: modelToUse,
+                        prompt,
+                        image_url: finalImageUrls,
+                        width: videoSize.width,
+                        height: videoSize.height,
+                        duration: duration
+                    })
+                });
+                const { task_id: taskId } = await submitRes.json();
+                if (!taskId) throw new Error('未获取到图生视频task_id');
+                
+                taskIdObtained = true;
+                
+                const result = await pollVideoTask(taskId, apiKey);
+                json(200, { success: true, ...result, billed: billingSuccess ? filmCost : 0 });
+                return;
+            } catch (err) {
+                if (billingSuccess && !taskIdObtained) {
+                    await __billing('refund', userId, filmCost, 'ModelScope图生视频:异常退款');
+                } else if (billingSuccess && taskIdObtained) {
+                    console.warn('[modelscope] ⚠️ 图生视频轮询失败，但上游已消耗，不退款:', err?.message);
+                }
                 throw err;
             }
         }
