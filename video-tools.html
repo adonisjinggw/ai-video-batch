@@ -1173,6 +1173,14 @@
                 btn.addEventListener('touchend', debounceGenerate(generateRef, '视频克隆'));
             });
             
+            // 批量生成按钮
+            const batchBtns = document.querySelectorAll('#panel-batch .generate-btn');
+            batchBtns.forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', debounceGenerate(generateBatch, '批量生成'));
+                btn.addEventListener('touchend', debounceGenerate(generateBatch, '批量生成'));
+            });
+            
             console.log('[video-tools] 按钮事件已绑定');
             
             // 🧩 初始化批量文生视频宫格（页面首次进入）
