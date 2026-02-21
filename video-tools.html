@@ -488,7 +488,7 @@
                     </select>
                 </div>
             </div>
-            <button class="generate-btn" onclick="generateT2V()">⚡ 生成视频</button>
+            <button class="generate-btn">⚡ 生成视频</button>
             <div class="loading" id="t2vLoading">
                 <div class="spinner"></div>
                 <div>视频生成中，大约需要1-3分钟...</div>
@@ -497,7 +497,7 @@
                 <div class="result-title">🎬 生成结果</div><video class="result-video" id="t2vVideo" controls
                     playsinline></video>
                 <div class="result-actions"><button class="result-btn" onclick="downloadVideo('t2v')">⬇️
-                        下载</button><button class="result-btn primary" onclick="generateT2V()">🔄 重新生成</button></div>
+                        下载</button><button class="result-btn primary">🔄 重新生成</button></div>
             </div>
         </div>
         <div class="panel" id="panel-i2v">
@@ -602,7 +602,7 @@
                         <option value="1:1">1:1 方形</option>
                     </select></div>
             </div>
-            <button class="generate-btn" onclick="generateI2V()">⚡ 生成视频</button>
+            <button class="generate-btn">⚡ 生成视频</button>
             <div class="loading" id="i2vLoading">
                 <div class="spinner"></div>
                 <div>视频生成中...</div>
@@ -611,7 +611,7 @@
                 <div class="result-title">🎬 生成结果</div><video class="result-video" id="i2vVideo" controls
                     playsinline></video>
                 <div class="result-actions"><button class="result-btn" onclick="downloadVideo('i2v')">⬇️
-                        下载</button><button class="result-btn primary" onclick="generateI2V()">🔄 重新生成</button></div>
+                        下载</button><button class="result-btn primary">🔄 重新生成</button></div>
             </div>
         </div>
         <!-- 🎯 批量视频生成面板 -->
@@ -741,7 +741,7 @@
                 </div>
             </div>
             
-            <button class="generate-btn" onclick="generateBatch()">🚀 并发生成视频</button>
+            <button class="generate-btn">🚀 并发生成视频</button>
             
             <!-- 批量生成进度 -->
             <div id="batchProgress" style="display:none;margin-top:20px;padding:16px;background:var(--bg-card);border-radius:12px;">
@@ -855,7 +855,7 @@
                         <option value="1:1">1:1</option>
                     </select></div>
             </div>
-            <button class="generate-btn" onclick="generateRef()">⚡ 克隆视频</button>
+            <button class="generate-btn">⚡ 克隆视频</button>
             <div class="loading" id="refLoading">
                 <div class="spinner"></div>
                 <div id="refLoadingText">视频克隆中...</div>
@@ -864,7 +864,7 @@
                 <div class="result-title">🎬 克隆结果</div><video class="result-video" id="refVideo" controls
                     playsinline></video>
                 <div class="result-actions"><button class="result-btn" onclick="downloadVideo('ref')">⬇️
-                        下载</button><button class="result-btn primary" onclick="generateRef()">🔄 重新克隆</button></div>
+                        下载</button><button class="result-btn primary">🔄 重新克隆</button></div>
             </div>
         </div>
         
@@ -1154,24 +1154,24 @@
                 };
             }
             
-            // 文生视频按钮
-            const t2vBtns = document.querySelectorAll('#panel-t2v .generate-btn');
+            // 文生视频按钮（包括生成和重新生成）
+            const t2vBtns = document.querySelectorAll('#panel-t2v .generate-btn, #panel-t2v .result-btn.primary');
             t2vBtns.forEach(btn => {
                 btn.onclick = null;
                 btn.addEventListener('click', debounceGenerate(generateT2V, '文生视频'));
                 btn.addEventListener('touchend', debounceGenerate(generateT2V, '文生视频'));
             });
             
-            // 图生视频按钮
-            const i2vBtns = document.querySelectorAll('#panel-i2v .generate-btn');
+            // 图生视频按钮（包括生成和重新生成）
+            const i2vBtns = document.querySelectorAll('#panel-i2v .generate-btn, #panel-i2v .result-btn.primary');
             i2vBtns.forEach(btn => {
                 btn.onclick = null;
                 btn.addEventListener('click', debounceGenerate(generateI2V, '图生视频'));
                 btn.addEventListener('touchend', debounceGenerate(generateI2V, '图生视频'));
             });
             
-            // 视频克隆按钮
-            const refBtns = document.querySelectorAll('#panel-ref .generate-btn');
+            // 视频克隆按钮（包括生成和重新克隆）
+            const refBtns = document.querySelectorAll('#panel-ref .generate-btn, #panel-ref .result-btn.primary');
             refBtns.forEach(btn => {
                 btn.onclick = null;
                 btn.addEventListener('click', debounceGenerate(generateRef, '视频克隆'));
