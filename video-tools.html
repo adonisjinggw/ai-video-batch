@@ -1136,13 +1136,18 @@
             // 🔧 修复：确保所有生成按钮事件正确绑定（支持移动端触摸）
             // 使用防抖避免重复触发
             let isGenerating = false;
+            let lastClickTime = 0;
+            const DEBOUNCE_MS = 1000; // 1秒内不响应重复点击
             function debounceGenerate(fn, type) {
                 return function(e) {
-                    if (isGenerating) {
-                        console.log(`[video-tools] ${type} 正在生成中，忽略重复点击`);
+                    const now = Date.now();
+                    if (isGenerating || (now - lastClickTime) < DEBOUNCE_MS) {
+                        console.log(`[video-tools] ${type} 正在生成中或点击过快，忽略`);
+                        e.preventDefault();
                         return;
                     }
                     e.preventDefault();
+                    lastClickTime = now;
                     isGenerating = true;
                     console.log(`[video-tools] ${type}按钮被点击`);
                     fn().finally(() => { isGenerating = false; });
