@@ -1971,12 +1971,12 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             document.getElementById('t2vLoading').style.display = 'block'; 
             document.getElementById('t2vResult').style.display = 'none'; 
             try { 
-                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6模型使用yunwu API，其他使用sora2
+                // 🎬 Veo/Vidu/Hailuo/Kling模型使用yunwu API，其他(包括Wan2.6文生视频)使用sora2
                 const isVeo = isVeoModel(model);
                 const isVidu = isViduModel(model);
                 const isHailuo = isHailuoModel(model);
                 const isKling = isKlingModel(model);
-                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26;
+                const useYunwu = isVeo || isVidu || isHailuo || isKling;
                 let apiEndpoint, requestBody;
                 
                 if (isVidu) {
@@ -2024,19 +2024,17 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     apiEndpoint = '/api/yunwu';
                     requestBody = { action: 'veo3', prompt, model, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id, skip_billing: true };
                 } else if (isWan26) {
-                    // 🎬 Wan2.6模型 - 文生视频
-                    const wan26Params = parseWan26Model(model);
-                    apiEndpoint = '/api/yunwu';
+                    // 🎬 Wan2.6模型 - 文生视频回退到sora2 API
+                    console.log(`[t2v] Wan2.6文生视频回退到sora2 API: ${model}`);
+                    apiEndpoint = '/api/sora2';
                     requestBody = { 
-                        action: 'wan26', 
+                        action: 'generate', 
+                        model: model, 
                         prompt: prompt, 
-                        resolution: wan26Params.resolution,
-                        duration: wan26Params.duration,
-                        audio: wan26Params.audio,
+                        aspect_ratio: ratio, 
                         userId: currentUser?.id,
-                        skip_billing: true
+                        skip_billing: true  // 前端已预扣费
                     };
-                    console.log(`[t2v] Wan2.6文生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'text-to-video', prompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
