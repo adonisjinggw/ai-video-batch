@@ -1414,7 +1414,8 @@ module.exports = async function handler(req, res) {
 
         // ========== Grok Video 3 视频生成 ==========
         // 支持模型: grok-video-3 (6秒), grok-video-3-10s (10秒)
-        if (action === 'grok' || (action === 'text-to-video' && model?.startsWith('grok-video')) || (action === 'image-to-video' && model?.startsWith('grok-video'))) {
+        const bodyModel = body.model || '';
+        if (action === 'grok' || (action === 'text-to-video' && bodyModel.startsWith('grok-video')) || (action === 'image-to-video' && bodyModel.startsWith('grok-video'))) {
             let { prompt, image_url, model: grokModel = 'grok-video-3', aspect_ratio = '16:9', duration } = body;
             
             if (!prompt && !image_url) {
