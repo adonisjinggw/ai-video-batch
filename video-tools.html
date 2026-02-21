@@ -1959,18 +1959,19 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             const ratio = document.getElementById('t2vRatio').value; 
             const duration = getFixedDuration(model);
             const isWan26 = isWan26Model(model);
+            const isGrok = model && model.startsWith('grok-video');
             const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);  // 🎯 确保中文配音+时长控制
             const cost = VIDEO_COST[model] || 8; 
             if (!await preDeduct(cost, '文生视频')) return; 
             document.getElementById('t2vLoading').style.display = 'block'; 
             document.getElementById('t2vResult').style.display = 'none'; 
             try { 
-                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6模型使用yunwu API
+                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6/Grok模型使用yunwu API
                 const isVeo = isVeoModel(model);
                 const isVidu = isViduModel(model);
                 const isHailuo = isHailuoModel(model);
                 const isKling = isKlingModel(model);
-                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26;
+                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok;
                 let apiEndpoint, requestBody;
                 
                 if (isVidu) {
@@ -2031,6 +2032,19 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         skip_billing: true
                     };
                     console.log(`[t2v] Wan2.6文生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
+                } else if (isGrok) {
+                    // 🎬 Grok模型 - 使用yunwu API
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'text-to-video', 
+                        prompt, 
+                        model, 
+                        aspect_ratio: ratio, 
+                        duration, 
+                        userId: currentUser?.id,
+                        skip_billing: true
+                    };
+                    console.log(`[t2v] Grok文生视频: ${model}`);
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'text-to-video', prompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
@@ -2077,18 +2091,19 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             const ratio = document.getElementById('i2vRatio').value; 
             const duration = getFixedDuration(model);
             const isWan26 = isWan26Model(model);
+            const isGrok = model && model.startsWith('grok-video');
             const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);  // 🎯 确保中文配音+时长控制
             const cost = VIDEO_COST[model] || 8; 
             if (!await preDeduct(cost, '图生视频')) return; 
             document.getElementById('i2vLoading').style.display = 'block'; 
             document.getElementById('i2vResult').style.display = 'none'; 
             try { 
-                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6模型使用yunwu API，其他使用sora2
+                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6/Grok模型使用yunwu API，其他使用sora2
                 const isVeo = isVeoModel(model);
                 const isVidu = isViduModel(model);
                 const isHailuo = isHailuoModel(model);
                 const isKling = isKlingModel(model);
-                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26;
+                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok;
                 
                 // 🎨 直接使用原图（线稿转换会丢失结构，已禁用）
                 let finalImageUrl = i2vImageData || i2vImageDataList[0];
@@ -2168,6 +2183,22 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         skip_billing: true
                     };
                     console.log(`[i2v] Wan2.6图生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
+                } else if (isGrok) {
+                    // 🎬 Grok模型 - 使用yunwu API
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'image-to-video', 
+                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        image_url: finalImageUrl, 
+                        model, 
+                        aspect_ratio: ratio, 
+                        duration, 
+                        userId: currentUser?.id,
+                        skip_billing: true,
+                        image_weight: 0.98,
+                        preserve_subject: true
+                    };
+                    console.log(`[i2v] Grok图生视频: ${model}`);
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'image-to-video', prompt, image_url: finalImageUrl, model, aspect_ratio: ratio, duration, userId: currentUser?.id, image_weight: 0.98, preserve_subject: true };
@@ -2236,6 +2267,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 const isVidu = isViduModel(model);
                 const isHailuo = isHailuoModel(model);
                 const isKling = isKlingModel(model);
+                const isGrok = model && model.startsWith('grok-video');
                 
                 // ========== 模式1: 首帧克隆 ==========
                 if (cloneMode === 'frame') {
@@ -2339,6 +2371,21 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                             skip_billing: true
                         };
                         console.log(`[ref] Wan2.6视频克隆: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
+                    } else if (isGrok) {
+                        // 🎬 Grok模型 - 使用yunwu API
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'image-to-video', 
+                            prompt: enhancedPrompt, 
+                            image_url: refExtractedFrame, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
+                            userId: currentUser?.id,
+                            skip_billing: true,
+                            image_weight: 0.98,
+                            preserve_subject: true
+                        };
                     } else {
                         // Sora-2 / Grok 等
                         apiEndpoint = '/api/sora2';
@@ -2416,15 +2463,30 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     } else {
                         // 其他模型回退到普通首帧模式
                         showToast('当前模型不支持首尾帧，已回退到首帧模式');
-                        apiEndpoint = '/api/sora2';
-                        requestBody = { 
-                            action: 'image-to-video', 
-                            prompt, 
-                            image_url: refExtractedFrame, 
-                            model, 
-                            aspect_ratio: ratio, 
-                            duration, 
-                            userId: currentUser?.id,
+                        if (isGrok) {
+                            apiEndpoint = '/api/yunwu';
+                            requestBody = { 
+                                action: 'image-to-video', 
+                                prompt, 
+                                image_url: refExtractedFrame, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                userId: currentUser?.id,
+                                skip_billing: true,
+                                image_weight: 0.98,
+                                preserve_subject: true
+                            };
+                        } else {
+                            apiEndpoint = '/api/sora2';
+                            requestBody = { 
+                                action: 'image-to-video', 
+                                prompt, 
+                                image_url: refExtractedFrame, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                userId: currentUser?.id,
                             image_weight: 0.98,
                             preserve_subject: true
                         };
@@ -2502,6 +2564,18 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                             prompt: finalPrompt, 
                             aspect_ratio: ratio, 
                             with_audio: true, 
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isGrok) {
+                        // 🎬 Grok模型 - 使用yunwu API
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'text-to-video', 
+                            prompt: finalPrompt, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
                             userId: currentUser?.id,
                             skip_billing: true
                         };
@@ -3040,6 +3114,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             const isHailuo = isHailuoModel(model);
             const isKling = isKlingModel(model);
             const isWan26 = isWan26Model(model);
+            const isGrok = model && model.startsWith('grok-video');
             
             let tasks = [];
             
@@ -3130,8 +3205,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             // if (mode === 'i2v' && !isVidu && !isHailuo && !isKling) { ... }
             
             // 🚀 并发执行所有任务
-            // Vidu/Hailuo/Kling/Veo/Wan2.6 都走 yunwu API，其他走 sora2 API
-            const apiEndpoint = (isVeo || isVidu || isHailuo || isKling || isWan26) ? '/api/yunwu' : '/api/sora2';
+            // Vidu/Hailuo/Kling/Veo/Wan2.6/Grok 都走 yunwu API，其他走 sora2 API
+            const apiEndpoint = (isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok) ? '/api/yunwu' : '/api/sora2';
             
             // 🎯 处理提示词：添加中文语音指令 + 强制语音在视频结束前1秒结束
             const audioEndTime = Math.max(duration - 1, 3);
@@ -3223,6 +3298,17 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                                 userId: currentUser?.id,
                                 skip_billing: true
                             };
+                        } else if (isGrok) {
+                            // 🎬 Grok模型 - 文生视频
+                            requestBody = { 
+                                action: 'text-to-video', 
+                                prompt: finalPrompt, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
                         } else {
                             requestBody = { action: 'text-to-video', prompt: finalPrompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
                         }
@@ -3310,7 +3396,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                                 image_url: task.image, 
                                 model, 
                                 aspect_ratio: ratio, 
-                                userId: currentUser?.id, 
+                                userId: currentUser?.id,
+                                skip_billing: true,
                                 image_weight: 0.98,         // Grok用更高权重
                                 preserve_subject: true,
                                 fidelity: 'high',           // 高保真度
