@@ -217,56 +217,42 @@ const YUNWU_ENDPOINTS = [
 // 默认使用第一个（国内最快）
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
 
-/** 🚀 顺序请求端点，失败时尝试下一个（避免创建重复任务） */
+/** 🚀 只使用第一个端点（避免创建重复任务） */
 async function _tryAllEndpoints(path, options, timeoutMs) {
-    console.log(`[yunwu] 🔄 顺序尝试 ${YUNWU_ENDPOINTS.length} 个端点...`);
+    // 🔧 只使用第一个端点，避免多个端点同时创建任务
+    const endpoint = YUNWU_ENDPOINTS[0];
+    const url = `${endpoint.url}${path}`;
     
-    const errors = [];
-    
-    for (let idx = 0; idx < YUNWU_ENDPOINTS.length; idx++) {
-        const endpoint = YUNWU_ENDPOINTS[idx];
-        const url = `${endpoint.url}${path}`;
-        
-        // 🔑 每个端点使用对应的 API Key
-        const keyIdx = endpoint.keyIdx ?? 0;
-        const apiKey = YUNWU_API_KEYS[keyIdx] || YUNWU_API_KEYS[0] || YUNWU_API_KEY;
-        const headers = { ...(options.headers || {}) };
-        if (apiKey) {
-            headers['Authorization'] = `Bearer ${apiKey}`;
-        }
-        
-        try {
-            const response = await fetch(url, {
-                ...options,
-                headers,
-                signal: AbortSignal.timeout(timeoutMs)
-            });
-            
-            if (response.status === 429) {
-                console.warn(`[yunwu] ${endpoint.name} 限速(429)，尝试下一个...`);
-                errors.push({ endpoint: endpoint.name, status: 429 });
-                continue;
-            } else if (response.ok) {
-                console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
-                return { response };
-            } else {
-                console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
-                errors.push({ endpoint: endpoint.name, status: response.status });
-                continue;
-            }
-        } catch (err) {
-            console.warn(`[yunwu] ${endpoint.name} 异常:`, err.message);
-            errors.push({ endpoint: endpoint.name, error: err.message });
-        }
+    // 🔑 使用第一个 API Key
+    const apiKey = YUNWU_API_KEYS[0] || YUNWU_API_KEY;
+    const headers = { ...(options.headers || {}) };
+    if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
     }
     
-    // 所有端点都失败
-    const has4xx = errors.find(e => e.status >= 400 && e.status < 500);
-    const got429 = errors.some(e => e.status === 429);
-    if (has4xx) {
-        return { error: new Error(`请求失败: ${has4xx.status}`), got429 };
+    console.log(`[yunwu] 🔄 使用端点: ${endpoint.name}`);
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers,
+            signal: AbortSignal.timeout(timeoutMs)
+        });
+        
+        if (response.ok) {
+            console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
+            return { response };
+        } else if (response.status === 429) {
+            console.warn(`[yunwu] ${endpoint.name} 限速(429)`);
+            return { error: new Error('RATE_LIMIT'), got429: true };
+        } else {
+            console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
+            return { error: new Error(`请求失败: ${response.status}`), got429: false };
+        }
+    } catch (err) {
+        console.warn(`[yunwu] ${endpoint.name} 异常:`, err.message);
+        return { error: new Error(err.message), got429: false };
     }
-    return { error: new Error('所有端点均不可用'), got429 };
 }
 
 /**
@@ -1411,7 +1397,8 @@ module.exports = async function handler(req, res) {
             }
             
             const is10s = grokModel.includes('10s');
-            const actualModel = is10s ? 'grok-video-3-10s' : 'grok-video-3';
+            // 🔧 不转换模型名，直接使用前端发送的模型名
+            const actualModel = grokModel;
             const filmCost = FILM_COST[actualModel] || (is10s ? 8 : 5);
             let billingSuccess = false;
 

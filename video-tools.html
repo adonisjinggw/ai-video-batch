@@ -458,8 +458,8 @@
                             <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
                             <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
                         </optgroup>
-                        <option value="grok-video-3">Grok Video 3 (6秒)</option>
-                        <option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
+                        <option value="grok-video-3">Grok Video 3 6秒 (文生视频)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 10秒 (文生视频)</option>
                         <optgroup label="🎬 Wan2.6 - 5秒">
                             <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
                             <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
@@ -1795,7 +1795,10 @@ Output a concise English prompt that can be directly used for AI video generatio
         function getFixedDuration(model) { 
             if (model.includes('modelscope')) return 5;
             if (model.includes('sora-2-vip')) return 10;
-            if (model.includes('grok')) return 6; 
+            if (model.includes('grok')) {
+                if (model.includes('10s')) return 10;
+                return 6;
+            } 
             if (model.includes('veo')) return 8; 
             if (model.includes('wan26')) {
                 const durationMatch = model.match(/-(\d+)s[-$]/i) || model.match(/-(\d+)s$/i);
@@ -1965,10 +1968,12 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             const rawPrompt = document.getElementById('t2vPrompt').value.trim(); 
             if (!rawPrompt) { showToast('请输入视频描述'); return; } 
             const model = document.getElementById('t2vModel').value; 
+            console.log('[t2v] 选择的模型:', model);
             const ratio = document.getElementById('t2vRatio').value; 
             const duration = getFixedDuration(model);
             const isWan26 = isWan26Model(model);
             const isGrok = model && model.startsWith('grok-video');
+            console.log('[t2v] isGrok:', isGrok, 'model:', model);
             const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);  // 🎯 确保中文配音+时长控制
             const cost = VIDEO_COST[model] || 8; 
             if (!await preDeduct(cost, '文生视频')) return; 
@@ -1981,6 +1986,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 const isHailuo = isHailuoModel(model);
                 const isKling = isKlingModel(model);
                 const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok;
+                console.log('[t2v] useYunwu:', useYunwu, 'isGrok:', isGrok, 'isWan26:', isWan26);
                 let apiEndpoint, requestBody;
                 
                 if (isVidu) {
@@ -2055,6 +2061,7 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     };
                     console.log(`[t2v] Grok文生视频: ${model}`);
                 } else {
+                    console.log('[t2v] 进入else分支，使用sora2');
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'text-to-video', prompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
                     if (model === 'modelscope-video') {

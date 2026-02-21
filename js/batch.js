@@ -21096,7 +21096,7 @@ window.vnodeRunT2V = async function (nodeId) {
     // ✅ 有上游用上游；没上游用本地输入
     const prompts = (upstreamPrompts && upstreamPrompts.length > 0)
         ? upstreamPrompts
-        : (localText ? localText.split('\n').map(s => s.trim()).filter(s => s.length > 5) : []);
+        : (localText ? localText.split('\n').map(s => s.trim()).filter(s => s.length > 0) : []);
     if (!prompts || prompts.length === 0) {
         // 恢复按钮状态
         if (generateBtn) {

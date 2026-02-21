@@ -1720,7 +1720,7 @@ ${story}
                         copywritings = result.split(/\n+/)
                             .filter(line => line.trim())
                             .map(line => line.replace(/^\d+[\.\)、]\s*/, '').trim())
-                            .filter(line => line.length > 5)
+                            .filter(line => line.length > 0)
                             .slice(0, count);
 
                     } catch (error) {
