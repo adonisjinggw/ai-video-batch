@@ -2023,6 +2023,20 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 } else if (isVeo) {
                     apiEndpoint = '/api/yunwu';
                     requestBody = { action: 'veo3', prompt, model, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id, skip_billing: true };
+                } else if (isWan26) {
+                    // 🎬 Wan2.6模型
+                    const wan26Params = parseWan26Model(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'wan26', 
+                        prompt: prompt, 
+                        resolution: wan26Params.resolution,
+                        duration: wan26Params.duration,
+                        audio: wan26Params.audio,
+                        userId: currentUser?.id,
+                        skip_billing: true
+                    };
+                    console.log(`[t2v] Wan2.6文生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'text-to-video', prompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
