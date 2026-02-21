@@ -217,74 +217,56 @@ const YUNWU_ENDPOINTS = [
 // 默认使用第一个（国内最快）
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
 
-/** 🚀 并行请求所有端点，任一成功立即返回（与 banana2.js 一致） */
+/** 🚀 顺序请求端点，失败时尝试下一个（避免创建重复任务） */
 async function _tryAllEndpoints(path, options, timeoutMs) {
-    console.log(`[yunwu] 🚀 并行请求 ${YUNWU_ENDPOINTS.length} 个端点...`);
+    console.log(`[yunwu] 🔄 顺序尝试 ${YUNWU_ENDPOINTS.length} 个端点...`);
     
-    return new Promise((resolve, reject) => {
-        let settled = false;
-        let failCount = 0;
-        const totalRequests = YUNWU_ENDPOINTS.length;
-        const errors = [];
-        let got429 = false;
+    const errors = [];
+    
+    for (let idx = 0; idx < YUNWU_ENDPOINTS.length; idx++) {
+        const endpoint = YUNWU_ENDPOINTS[idx];
+        const url = `${endpoint.url}${path}`;
         
-        YUNWU_ENDPOINTS.forEach((endpoint, idx) => {
-            const url = `${endpoint.url}${path}`;
-            
-            // 🔑 每个端点使用对应的 API Key
-            const keyIdx = endpoint.keyIdx ?? 0;
-            const apiKey = YUNWU_API_KEYS[keyIdx] || YUNWU_API_KEYS[0] || YUNWU_API_KEY;
-            const headers = { ...(options.headers || {}) };
-            if (apiKey) {
-                headers['Authorization'] = `Bearer ${apiKey}`;
-            }
-            
-            fetch(url, {
+        // 🔑 每个端点使用对应的 API Key
+        const keyIdx = endpoint.keyIdx ?? 0;
+        const apiKey = YUNWU_API_KEYS[keyIdx] || YUNWU_API_KEYS[0] || YUNWU_API_KEY;
+        const headers = { ...(options.headers || {}) };
+        if (apiKey) {
+            headers['Authorization'] = `Bearer ${apiKey}`;
+        }
+        
+        try {
+            const response = await fetch(url, {
                 ...options,
                 headers,
                 signal: AbortSignal.timeout(timeoutMs)
-            })
-            .then(response => {
-                if (settled) return;
-                
-                if (response.status === 429) {
-                    console.warn(`[yunwu] ${endpoint.name} 限速(429)`);
-                    got429 = true;
-                    errors.push({ endpoint: endpoint.name, status: 429 });
-                    failCount++;
-                } else if (response.ok) {
-                    console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
-                    settled = true;
-                    resolve({ response });
-                } else {
-                    console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
-                    errors.push({ endpoint: endpoint.name, status: response.status });
-                    failCount++;
-                }
-                
-                if (failCount >= totalRequests && !settled) {
-                    settled = true;
-                    const has4xx = errors.find(e => e.status >= 400 && e.status < 500);
-                    if (has4xx) {
-                        resolve({ error: new Error(`请求失败: ${has4xx.status}`), got429 });
-                    } else {
-                        resolve({ error: new Error('所有端点均不可用'), got429 });
-                    }
-                }
-            })
-            .catch(err => {
-                if (settled) return;
-                console.warn(`[yunwu] ${endpoint.name} 异常:`, err.message);
-                errors.push({ endpoint: endpoint.name, error: err.message });
-                failCount++;
-                
-                if (failCount >= totalRequests && !settled) {
-                    settled = true;
-                    resolve({ error: new Error(errors.map(e => e.error || e.status).join(', ')), got429 });
-                }
             });
-        });
-    });
+            
+            if (response.status === 429) {
+                console.warn(`[yunwu] ${endpoint.name} 限速(429)，尝试下一个...`);
+                errors.push({ endpoint: endpoint.name, status: 429 });
+                continue;
+            } else if (response.ok) {
+                console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
+                return { response };
+            } else {
+                console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
+                errors.push({ endpoint: endpoint.name, status: response.status });
+                continue;
+            }
+        } catch (err) {
+            console.warn(`[yunwu] ${endpoint.name} 异常:`, err.message);
+            errors.push({ endpoint: endpoint.name, error: err.message });
+        }
+    }
+    
+    // 所有端点都失败
+    const has4xx = errors.find(e => e.status >= 400 && e.status < 500);
+    const got429 = errors.some(e => e.status === 429);
+    if (has4xx) {
+        return { error: new Error(`请求失败: ${has4xx.status}`), got429 };
+    }
+    return { error: new Error('所有端点均不可用'), got429 };
 }
 
 /**
