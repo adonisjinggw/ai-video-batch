@@ -1412,6 +1412,115 @@ module.exports = async function handler(req, res) {
             }
         }
 
+        // ========== Grok Video 3 视频生成 ==========
+        // 支持模型: grok-video-3 (6秒), grok-video-3-10s (10秒)
+        if (action === 'grok' || (action === 'text-to-video' && model?.startsWith('grok-video')) || (action === 'image-to-video' && model?.startsWith('grok-video'))) {
+            let { prompt, image_url, model: grokModel = 'grok-video-3', aspect_ratio = '16:9', duration } = body;
+            
+            if (!prompt && !image_url) {
+                json(400, { 
+                    success: false,
+                    error: 'MISSING_PROMPT_OR_IMAGE',
+                    error_code: 'MISSING_PROMPT_OR_IMAGE',
+                    billed: 0
+                });
+                return;
+            }
+            
+            const is10s = grokModel.includes('10s');
+            const actualModel = is10s ? 'grok-video-3-10s' : 'grok-video-3';
+            const filmCost = FILM_COST[actualModel] || (is10s ? 8 : 5);
+            let billingSuccess = false;
+
+            // Grok 使用不同的 aspect_ratio 格式
+            let grokAspectRatio = aspect_ratio;
+            if (aspect_ratio === '16:9') grokAspectRatio = '3:2';
+            else if (aspect_ratio === '9:16') grokAspectRatio = '2:3';
+
+            console.log(`[yunwu] 🎬 Grok视频: ${actualModel}, duration=${is10s ? 10 : 6}s, hasImage=${!!image_url}`);
+
+            // 🔒 先扣费
+            if (!skipBilling && filmCost > 0 && userId) {
+                const billingResult = await __billing('consume', userId, filmCost, `Grok视频:${actualModel}`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                    return;
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            }
+
+            const requestBody = {
+                model: actualModel,
+                prompt: prompt || '',
+                aspect_ratio: grokAspectRatio,
+                size: '720P'
+            };
+
+            if (is10s) {
+                requestBody.duration = 10;
+            }
+
+            if (image_url) {
+                requestBody.images = [image_url];
+            }
+
+            try {
+                const response = await fetchWithFallbackWithTimeout(`/v1/video/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                }, 60000);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[yunwu] Grok视频生成错误:', response.status, errorText);
+                    
+                    if (billingSuccess) {
+                        await __billing('refund', userId, filmCost, 'Grok视频生成API失败退款');
+                    }
+                    
+                    let errorDetail = '';
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorDetail = errorJson?.error?.message || errorJson?.message || '';
+                    } catch (e) {
+                        errorDetail = errorText.substring(0, 200);
+                    }
+                    
+                    json(500, { 
+                        success: false,
+                        error: 'API_ERROR',
+                        error_code: 'API_ERROR',
+                        message: `Grok视频生成失败 (${response.status}): ${errorDetail}`,
+                        billed: 0
+                    });
+                    return;
+                }
+
+                const data = await response.json();
+                const taskId = data?.task_id || data?.id || '';
+                await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, actualModel, filmCost, { aspect_ratio, duration: is10s ? 10 : 6 });
+                
+                json(200, { success: true, ...data, billed: billingSuccess ? filmCost : 0 });
+                return;
+            } catch (err) {
+                if (billingSuccess) {
+                    await __billing('refund', userId, filmCost, 'Grok视频生成异常退款');
+                }
+                json(500, { 
+                    success: false,
+                    error: 'API_ERROR',
+                    error_code: 'API_ERROR',
+                    message: err.message,
+                    billed: 0
+                });
+                return;
+            }
+        }
+
         // ========== Veo 视频生成 - 使用官方 /v1/video/create API ==========
         // 支持模型: veo2, veo2-fast, veo2-pro, veo3, veo3-fast, veo3-pro, veo3.1-components 等
         // 🔧 图生视频必须使用 -frames 后缀模型（如 veo3-fast-frames）
