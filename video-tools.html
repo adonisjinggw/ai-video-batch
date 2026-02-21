@@ -1134,49 +1134,43 @@
             console.log('[video-tools] 页面加载完成，开始初始化...');
             
             // 🔧 修复：确保所有生成按钮事件正确绑定（支持移动端触摸）
+            // 使用防抖避免重复触发
+            let isGenerating = false;
+            function debounceGenerate(fn, type) {
+                return function(e) {
+                    if (isGenerating) {
+                        console.log(`[video-tools] ${type} 正在生成中，忽略重复点击`);
+                        return;
+                    }
+                    e.preventDefault();
+                    isGenerating = true;
+                    console.log(`[video-tools] ${type}按钮被点击`);
+                    fn().finally(() => { isGenerating = false; });
+                };
+            }
+            
             // 文生视频按钮
             const t2vBtns = document.querySelectorAll('#panel-t2v .generate-btn');
             t2vBtns.forEach(btn => {
                 btn.onclick = null;
-                btn.addEventListener('click', function(e) {
-                    console.log('[video-tools] 文生视频按钮被点击 (click)');
-                    generateT2V();
-                });
-                btn.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    console.log('[video-tools] 文生视频按钮被点击 (touchend)');
-                    generateT2V();
-                });
+                btn.addEventListener('click', debounceGenerate(generateT2V, '文生视频'));
+                btn.addEventListener('touchend', debounceGenerate(generateT2V, '文生视频'));
             });
             
             // 图生视频按钮
             const i2vBtns = document.querySelectorAll('#panel-i2v .generate-btn');
             i2vBtns.forEach(btn => {
                 btn.onclick = null;
-                btn.addEventListener('click', function(e) {
-                    console.log('[video-tools] 图生视频按钮被点击 (click)');
-                    generateI2V();
-                });
-                btn.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    console.log('[video-tools] 图生视频按钮被点击 (touchend)');
-                    generateI2V();
-                });
+                btn.addEventListener('click', debounceGenerate(generateI2V, '图生视频'));
+                btn.addEventListener('touchend', debounceGenerate(generateI2V, '图生视频'));
             });
             
             // 视频克隆按钮
             const refBtns = document.querySelectorAll('#panel-ref .generate-btn');
             refBtns.forEach(btn => {
                 btn.onclick = null;
-                btn.addEventListener('click', function(e) {
-                    console.log('[video-tools] 视频克隆按钮被点击 (click)');
-                    generateRef();
-                });
-                btn.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    console.log('[video-tools] 视频克隆按钮被点击 (touchend)');
-                    generateRef();
-                });
+                btn.addEventListener('click', debounceGenerate(generateRef, '视频克隆'));
+                btn.addEventListener('touchend', debounceGenerate(generateRef, '视频克隆'));
             });
             
             console.log('[video-tools] 按钮事件已绑定');
