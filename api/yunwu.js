@@ -2137,7 +2137,8 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        // ========== Wan2.6 文生视频/图生视频 (alibailian API) ==========
+        // ========== Wan2.6 图生视频 (alibailian API) ==========
+        // 云雾API只支持: wan2.6-i2v, wan2.6-i2v-flash (图生视频)
         if (action === 'wan26') {
             const {
                 prompt,
@@ -2151,7 +2152,16 @@ module.exports = async function handler(req, res) {
                 seed
             } = body;
 
-            const isTextToVideo = !img_url;
+            if (!img_url) {
+                json(400, {
+                    success: false,
+                    error: 'MISSING_IMAGE',
+                    error_code: 'MISSING_IMAGE',
+                    message: 'Wan2.6只支持图生视频，必须提供参考图片 (img_url)',
+                    billed: 0
+                });
+                return;
+            }
 
             // 根据参数计算费用
             const dur = parseInt(duration) || 5;
@@ -2163,7 +2173,7 @@ module.exports = async function handler(req, res) {
             const filmCost = FILM_COST[costKey] || FILM_COST['wan26-720p-5s'] || 3;
             let billingSuccess = false;
 
-            console.log('[yunwu] Wan2.6视频:', { type: isTextToVideo ? '文生视频' : '图生视频', resolution: resKey, duration: dur, audio, image_weight, costKey, filmCost, promptLen: prompt?.length, hasImage: !!img_url });
+            console.log('[yunwu] Wan2.6图生视频:', { resolution: resKey, duration: dur, audio, image_weight, costKey, filmCost, promptLen: prompt?.length, hasImage: !!img_url });
 
             // 🔒 先扣费
             if (!skipBilling && filmCost > 0 && userId) {
@@ -2180,24 +2190,21 @@ module.exports = async function handler(req, res) {
             try {
                 // 构建 alibailian API 请求体
                 const requestBody = {
-                    model: isTextToVideo ? 'wan2.6-t2v-flash' : 'wan2.6-i2v-flash',
+                    model: 'wan2.6-i2v-flash',
                     input: {
-                        prompt: prompt || '让图片动起来，平滑过渡'
+                        prompt: prompt || '让图片动起来，平滑过渡',
+                        img_url: img_url
                     },
                     parameters: {
                         resolution: res720 ? '720P' : '1080P',
                         duration: dur,
                         prompt_extend: prompt_extend !== false,
                         watermark: false,
-                        audio: !!audio
+                        audio: !!audio,
+                        image_weight: Number(image_weight) || 0.3
                     }
                 };
 
-                // 图生视频添加img_url
-                if (!isTextToVideo) {
-                    requestBody.input.img_url = img_url;
-                    requestBody.parameters.image_weight = Number(image_weight) || 0.3;
-                }
                 if (negative_prompt) {
                     requestBody.input.negative_prompt = negative_prompt;
                 }
