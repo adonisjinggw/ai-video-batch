@@ -512,8 +512,8 @@ async function fetchWithFallback(requestBody, action) {
             delete out.seconds;
             delete out.hd;
 
-            // 确保 model 名称正确 (10秒版本使用 grok-video-3-10s)
-            out.model = is10s ? 'grok-video-3-10s' : 'grok-video-3';
+            // 🔧 不转换模型名，直接使用前端发送的模型名
+            out.model = m;
         } else {
             // ✅ 云梦某些节点要求 size（否则 400: "size is required for sora-2"）
             // 这里按比例+hd 给一个稳妥尺寸，避免过大导致失败
@@ -1302,11 +1302,11 @@ module.exports = async function handler(req, res) {
                 const is10s = model && model.includes('10s');
                 if (is10s) {
                     requestBody.duration = 10;
-                    requestBody.model = 'grok-video-3-10s';
                 } else {
                     delete requestBody.duration;  // 6秒版本不使用 duration
-                    requestBody.model = 'grok-video-3';
                 }
+                // 🔧 不转换模型名，直接使用前端发送的模型名
+                requestBody.model = model;
                 
                 console.log(`[sora2] 🎮 Grok图生视频: model=${requestBody.model}, fidelity=${requestBody.fidelity}, image_weight=${requestBody.image_weight}`);
             } else if (model && model.startsWith('veo')) {
