@@ -948,6 +948,8 @@ module.exports = async function handler(req, res) {
             // 7. 文生视频
             if (action === 'text-to-video') {
                 const { prompt, model, aspect_ratio, seconds, size, ...otherParams } = requestBody || {};
+                // 🔧 去掉 -text 后缀
+                const cleanModel = model ? model.replace(/-text$/, '') : undefined;
                 if (!prompt) {
                     const responseTime = Date.now() - startTime;
                     await logApiCall(authResult.key_id, authResult.user_id, 'text-to-video', requestBody, 400, false, '缺少 prompt 参数', responseTime, 0);
@@ -969,7 +971,7 @@ module.exports = async function handler(req, res) {
                         body: JSON.stringify({
                             action: 'text-to-video',
                             prompt,
-                            model: model || 'grok-video-3',
+                            model: cleanModel || 'grok-video-3',
                             aspect_ratio,
                             seconds,
                             size,
@@ -1012,6 +1014,8 @@ module.exports = async function handler(req, res) {
             // 8. 图生视频
             if (action === 'image-to-video') {
                 const { image_url, prompt, model, image_weight, motion_intensity, preserve_subject, ...otherParams } = requestBody || {};
+                // 🔧 去掉 -text 后缀
+                const cleanModel = model ? model.replace(/-text$/, '') : undefined;
                 if (!image_url) {
                     const responseTime = Date.now() - startTime;
                     await logApiCall(authResult.key_id, authResult.user_id, 'image-to-video', requestBody, 400, false, '缺少 image_url 参数', responseTime, 0);
@@ -1034,7 +1038,7 @@ module.exports = async function handler(req, res) {
                             action: 'image-to-video',
                             image_url,
                             prompt,
-                            model: model || 'grok-video-3',
+                            model: cleanModel || 'grok-video-3',
                             image_weight: image_weight || 0.98,
                             motion_intensity,
                             preserve_subject: preserve_subject !== false,
