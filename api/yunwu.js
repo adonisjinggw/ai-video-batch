@@ -1397,8 +1397,8 @@ module.exports = async function handler(req, res) {
             }
             
             const is10s = grokModel.includes('10s');
-            // 🔧 不转换模型名，直接使用前端发送的模型名
-            const actualModel = grokModel;
+            // 🔧 去掉 -text 后缀
+            const actualModel = grokModel.replace(/-text$/, '');
             const filmCost = FILM_COST[actualModel] || (is10s ? 8 : 5);
             let billingSuccess = false;
 

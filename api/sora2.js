@@ -490,7 +490,7 @@ async function fetchWithFallback(requestBody, action) {
         }
 
         // 🆕 Grok Video 3 特殊参数处理 (6秒和10秒版本)
-        const isGrokVideo = m === 'grok-video-3' || m === 'grok-video-3-hd' || m === 'grok-video-3-10s' || m === 'grok-video-3-10s-hd';
+        const isGrokVideo = m.startsWith('grok-video-3');
         if (isGrokVideo) {
             // Grok 使用不同的 aspect_ratio 格式
             if (out.aspect_ratio === '16:9') out.aspect_ratio = '3:2';
@@ -512,8 +512,8 @@ async function fetchWithFallback(requestBody, action) {
             delete out.seconds;
             delete out.hd;
 
-            // 🔧 不转换模型名，直接使用前端发送的模型名
-            out.model = m;
+            // 🔧 去掉 -text 后缀
+            out.model = m.replace(/-text$/, '');
         } else {
             // ✅ 云梦某些节点要求 size（否则 400: "size is required for sora-2"）
             // 这里按比例+hd 给一个稳妥尺寸，避免过大导致失败
@@ -1305,8 +1305,8 @@ module.exports = async function handler(req, res) {
                 } else {
                     delete requestBody.duration;  // 6秒版本不使用 duration
                 }
-                // 🔧 不转换模型名，直接使用前端发送的模型名
-                requestBody.model = model;
+                // 🔧 去掉 -text 后缀
+                requestBody.model = model.replace(/-text$/, '');
                 
                 console.log(`[sora2] 🎮 Grok图生视频: model=${requestBody.model}, fidelity=${requestBody.fidelity}, image_weight=${requestBody.image_weight}`);
             } else if (model && model.startsWith('veo')) {
