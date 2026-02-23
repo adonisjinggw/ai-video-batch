@@ -17,6 +17,7 @@ const FILM_COST = {
     'veo3': 30,              // Veo3 4K视频 (升级为4k版本)
     'grok-video-3': 5,       // Grok Video 3 6秒
     'grok-video-3-10s': 8,   // Grok Video 3 10秒
+    'grok-video-3-15s': 12,  // Grok Video 3 15秒
     'create-character': 5,   // 创建角色
     // Vidu 视频模型 - 按分辨率和版本计费（70%利润，按秒计费，默认5秒）
     'vidu-q2-720p': 25,       // ¥0.288/秒 × 5秒 / 0.59 = ¥2.45
@@ -1381,7 +1382,7 @@ module.exports = async function handler(req, res) {
         }
 
         // ========== Grok Video 3 视频生成 ==========
-        // 支持模型: grok-video-3 (6秒), grok-video-3-10s (10秒)
+        // 支持模型: grok-video-3 (6秒), grok-video-3-10s (10秒), grok-video-3-15s (15秒)
         const bodyModel = body.model || '';
         if (action === 'grok' || (action === 'text-to-video' && bodyModel.startsWith('grok-video')) || (action === 'image-to-video' && bodyModel.startsWith('grok-video'))) {
             let { prompt, image_url, model: grokModel = 'grok-video-3', aspect_ratio = '16:9', duration } = body;
@@ -1397,9 +1398,10 @@ module.exports = async function handler(req, res) {
             }
             
             const is10s = grokModel.includes('10s');
+            const is15s = grokModel.includes('15s');
             // 🔧 去掉 -text 后缀
             const actualModel = grokModel.replace(/-text$/, '');
-            const filmCost = FILM_COST[actualModel] || (is10s ? 8 : 5);
+            const filmCost = FILM_COST[actualModel] || (is15s ? 12 : is10s ? 8 : 5);
             let billingSuccess = false;
 
             // Grok 使用不同的 aspect_ratio 格式
@@ -1407,7 +1409,7 @@ module.exports = async function handler(req, res) {
             if (aspect_ratio === '16:9') grokAspectRatio = '3:2';
             else if (aspect_ratio === '9:16') grokAspectRatio = '2:3';
 
-            console.log(`[yunwu] 🎬 Grok视频: ${actualModel}, duration=${is10s ? 10 : 6}s, hasImage=${!!image_url}`);
+            console.log(`[yunwu] 🎬 Grok视频: ${actualModel}, duration=${is15s ? 15 : is10s ? 10 : 6}s, hasImage=${!!image_url}`);
 
             // 🔒 先扣费
             if (!skipBilling && filmCost > 0 && userId) {
@@ -1428,6 +1430,8 @@ module.exports = async function handler(req, res) {
 
             if (is10s) {
                 requestBody.duration = 10;
+            } else if (is15s) {
+                requestBody.duration = 15;
             }
 
             if (image_url) {

@@ -811,6 +811,8 @@ module.exports = async function handler(req, res) {
                             { id: 'grok-video-3', name: 'Grok Video 3 6秒 (图生视频)', series: 'Grok', duration: '6s' },
                             { id: 'grok-video-3-10s-text', name: 'Grok Video 3 10秒 (文生视频)', series: 'Grok', duration: '10s' },
                             { id: 'grok-video-3-10s', name: 'Grok Video 3 10秒 (图生视频)', series: 'Grok', duration: '10s' },
+                            { id: 'grok-video-3-15s-text', name: 'Grok Video 3 15秒 (文生视频)', series: 'Grok', duration: '15s' },
+                            { id: 'grok-video-3-15s', name: 'Grok Video 3 15秒 (图生视频)', series: 'Grok', duration: '15s' },
                             { id: 'video-continuity', name: '连续性视频 (逐帧衔接)', series: 'Continuity' }
                         ],
                         

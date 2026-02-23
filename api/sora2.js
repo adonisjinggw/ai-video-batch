@@ -14,6 +14,7 @@ const FILM_COST = {
     'sora-2-characters': 7,
     'grok-video-3': 5,
     'grok-video-3-10s': 8,
+    'grok-video-3-15s': 12,
     'veo3': 30,
     'veo3.1': 30,
     'veo3.1-components-4k': 30,
@@ -430,7 +431,7 @@ async function fetchWithFallback(requestBody, action) {
     const toYunmengBody = (b) => {
         const out = {};
         if (!b || typeof b !== 'object') return out;
-        if (b.model != null) out.model = b.model;
+        if (b.model != null) out.model = String(b.model).replace(/-text$/, '');
         if (b.prompt != null) out.prompt = b.prompt;
         if (Array.isArray(b.images)) out.images = b.images;
         if (b.aspect_ratio != null) out.aspect_ratio = b.aspect_ratio;

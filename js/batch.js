@@ -1,4 +1,4 @@
-﻿async function createCharacterImageVariants({ name, summary, storyContext, styleAnalysis, userCharStyle, useModelScope = false, useBestModel = false, imageModel = null, maxRetries = 3, retryDelayMs = 2000 }) {
+async function createCharacterImageVariants({ name, summary, storyContext, styleAnalysis, userCharStyle, useModelScope = false, useBestModel = false, imageModel = null, maxRetries = 3, retryDelayMs = 2000 }) {
     const analysis = styleAnalysis || analyzeStoryStyle(`${name} ${summary} ${storyContext}`);
     const variants = [];
 
@@ -2332,7 +2332,8 @@ function __getFixedClipDurationByModel(model, hd) {
         return wantHd ? 15 : 25;
     }
     if (m === 'grok' || m === 'grok-video-3') return 6;
-    if (m === 'grok-10s') return 10;
+    if (m === 'grok-10s' || m === 'grok-video-3-10s') return 10;
+    if (m === 'grok-video-3-15s') return 15;
     if (m === 'veo3.1' || m === 'veo') return 8;
     // 🎬 Vidu 模型：从模型名提取时长 (vidu-q2-5s-720p -> 5, vidu-q2-10s-1080p -> 10)
     if (String(m).startsWith('vidu-') || String(m).startsWith('kling-')) {
@@ -3820,6 +3821,8 @@ const MODEL_PRICES = {
     'grok-video-3': { cost: 5, label: '5胶片', warning: null },
     'grok-video-3-10s-text': { cost: 8, label: '8胶片', warning: null },
     'grok-video-3-10s': { cost: 8, label: '8胶片', warning: null },
+    'grok-video-3-15s-text': { cost: 12, label: '12胶片', warning: null },
+    'grok-video-3-15s': { cost: 12, label: '12胶片', warning: null },
     'video-continuity': { cost: 3, label: '3胶片/分镜', warning: null }
 };
 
@@ -3829,7 +3832,7 @@ function onGenModeChange(mode) {
     // 🖼️ 图生视频模式：显示/隐藏角色图上传区域
     const refImageSection = document.getElementById('quickRefImageSection');
     if (refImageSection) {
-        const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s';
+        const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s' || mode === 'grok-video-3-15s';
         refImageSection.style.display = isImageMode ? 'block' : 'none';
     }
 
@@ -8212,6 +8215,8 @@ async function quickAddIdea(options = {}) {
     let videoModel = 'sora-2';
     if (mode === 'veo3.1' || mode === 'veo3.1-pro') videoModel = 'veo3.1';
     if (mode === 'grok-video-3' || mode === 'grok-video-3-text') videoModel = 'grok-video-3';
+    if (mode === 'grok-video-3-10s' || mode === 'grok-video-3-10s-text') videoModel = 'grok-video-3-10s';
+    if (mode === 'grok-video-3-15s' || mode === 'grok-video-3-15s-text') videoModel = 'grok-video-3-15s';
     videoModel = __normalizeVideoModelName(videoModel);
     let clipDuration = __getFixedClipDurationByModel(videoModel, undefined);
 
@@ -8407,6 +8412,8 @@ function openTaskSettings(id) {
                             <option value="sora-2-pro" ${videoModel === 'sora-2-pro' ? 'selected' : ''}>Sora-2 Pro（HD 15秒 / 720p 25秒）</option>
                             <option value="veo3.1" ${videoModel === 'veo3.1' ? 'selected' : ''}>🎬 Veo 3.1 4K（超清+音频，8秒）</option>
                             <option value="grok-video-3" ${videoModel === 'grok-video-3' ? 'selected' : ''}>🚀 Grok Video 3（6秒）</option>
+                            <option value="grok-video-3-10s" ${videoModel === 'grok-video-3-10s' ? 'selected' : ''}>🚀 Grok Video 3（10秒）</option>
+                            <option value="grok-video-3-15s" ${videoModel === 'grok-video-3-15s' ? 'selected' : ''}>🚀 Grok Video 3（15秒）</option>
                         </select>
                     </div>
                     
@@ -15857,6 +15864,7 @@ window.openAdvancedTaskSettings = function (ideaId) {
                                 <option value="veo3.1" ${__normalizeVideoModelName(s.videoModel) === 'veo3.1' ? 'selected' : ''}>🎬 Veo 3.1（快速+音频，8秒）</option>
                                 <option value="grok-video-3" ${s.videoModel === 'grok-video-3' ? 'selected' : ''}>🚀 Grok Video 3（6秒）</option>
                                 <option value="grok-video-3-10s" ${s.videoModel === 'grok-video-3-10s' ? 'selected' : ''}>🚀 Grok Video 3（10秒）</option>
+                                <option value="grok-video-3-15s" ${s.videoModel === 'grok-video-3-15s' ? 'selected' : ''}>🚀 Grok Video 3（15秒）</option>
                             </select>
                         </div>
                         <div class="setting-item">
@@ -20022,6 +20030,8 @@ function _videoModelOptionsHtml(selected) {
         { v: 'grok-video-3', label: 'Grok Video 3 6秒 (图生视频)' },
         { v: 'grok-video-3-10s-text', label: 'Grok Video 3 10秒 (文生视频)' },
         { v: 'grok-video-3-10s', label: 'Grok Video 3 10秒 (图生视频)' },
+        { v: 'grok-video-3-15s-text', label: 'Grok Video 3 15秒 (文生视频)' },
+        { v: 'grok-video-3-15s', label: 'Grok Video 3 15秒 (图生视频)' },
         { v: 'wan26-720p-5s', label: '🎬 Wan2.6 720p 5秒' },
         { v: 'wan26-1080p-5s', label: '🎬 Wan2.6 1080p 5秒' },
         { v: 'wan26-720p-5s-audio', label: '🎬 Wan2.6 720p 5秒 有声' },

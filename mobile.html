@@ -1825,6 +1825,8 @@
                         <option value="grok-video-3">Grok Video 3 6秒 (图生视频)</option>
                         <option value="grok-video-3-10s-text">Grok Video 3 10秒 (文生视频)</option>
                         <option value="grok-video-3-10s">Grok Video 3 10秒 (图生视频)</option>
+                        <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option>
+                        <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option>
                         <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
                     </select>
                 </div>
@@ -2709,6 +2711,7 @@
             'veo_3_1-components-4K': 30,
             'grok-video-3': 5,
             'grok-video-3-10s': 8,
+            'grok-video-3-15s': 12,
             // Vidu 模型 - 5秒版本
             'vidu-q2-5s-720p': 25,
             'vidu-q2-5s-1080p': 36,
@@ -2759,6 +2762,7 @@
             if (m === 'sora-2-vip-all') return 'sora-2-vip-all';
             // 🔧 旧 sora2 模型已停用，统一转换为过渡模型
             if (m.includes('pro') && m.includes('sora')) return 'sora-2-vip-all';
+            if (m.includes('grok') && m.includes('15')) return 'grok-video-3-15s';
             if (m.includes('grok') && m.includes('10')) return 'grok-video-3-10s';
             if (m.includes('grok')) return 'grok-video-3';
             if (m.includes('veo')) return 'veo3';
@@ -4058,6 +4062,8 @@
             'grok-video-3': { cost: 5, label: '5胶片', warning: null },
             'grok-video-3-10s-text': { cost: 8, label: '8胶片', warning: null },
             'grok-video-3-10s': { cost: 8, label: '8胶片', warning: null },
+            'grok-video-3-15s-text': { cost: 12, label: '12胶片', warning: null },
+            'grok-video-3-15s': { cost: 12, label: '12胶片', warning: null },
             'video-continuity': { cost: 3, label: '3胶片/分镜', warning: null }
         };
         
@@ -4068,7 +4074,7 @@
             const imageUploadSection = document.getElementById('imageUploadSection');
             if (imageUploadSection) {
                 // 🔧 修复：添加 banana-grid-to-video（网格图多镜头）模式支持
-                const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'banana-grid-to-video';
+                const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s' || mode === 'grok-video-3-15s' || mode === 'banana-grid-to-video';
                 imageUploadSection.style.display = isImageMode ? 'block' : 'none';
             }
 
@@ -5316,7 +5322,7 @@ ${isGrok10s ? `- 【强制】10秒视频：所有语音必须在第8秒前完成
             console.log('[mobile] 开始生成视频，生成模式:', genMode, '分镜数:', sceneCount);
 
             // 🖼️ 检测是否为图生视频模式
-            const isImageToVideo = genMode.includes('image-to-video') || genMode === 'grok-video-3' || genMode === 'banana-image-to-video' || genMode === 'banana-grid-to-video';
+            const isImageToVideo = genMode.includes('image-to-video') || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-') || genMode === 'banana-image-to-video' || genMode === 'banana-grid-to-video';
             
             // 🆕 多图合并支持：如果有多张图片，先合并再生成
             let finalImageData = i2vImageData;
@@ -5687,7 +5693,7 @@ ${panelDescriptions.join('\n')}
             }
             
             // 🖼️ 普通图生视频：若无参考图，则基于“剧本+优化分镜”生成一张与剧本匹配的参考图
-            if (!finalImageData && (genMode === 'image-to-video' || genMode === 'banana-image-to-video' || genMode === 'grok-video-3')) {
+            if (!finalImageData && (genMode === 'image-to-video' || genMode === 'banana-image-to-video' || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-'))) {
                 console.log('[mobile] 普通图生视频，剧本已生成，开始根据剧本生成参考图...');
                 showLoading('🖼️ 正在根据剧本生成参考图片...');
                 try {
@@ -5793,6 +5799,20 @@ ${panelDescriptions.join('\n')}
                 case 'grok-video-3-10s':
                     baseRequestBody.action = 'image-to-video';
                     baseRequestBody.model = 'grok-video-3-10s';
+                    baseRequestBody.image_url = finalImageData;
+                    baseRequestBody.skip_billing = true;
+                    baseRequestBody.image_weight = 0.98;       // 🧲 高图片权重
+                    baseRequestBody.fidelity = 'high';         // 高保真度
+                    baseRequestBody.preserve_subject = true;   // 保持主体不变
+                    baseRequestBody.motion_intensity = 'medium'; // 中等运动强度
+                    break;
+                case 'grok-video-3-15s-text':
+                    baseRequestBody.model = 'grok-video-3-15s';
+                    baseRequestBody.skip_billing = true;
+                    break;
+                case 'grok-video-3-15s':
+                    baseRequestBody.action = 'image-to-video';
+                    baseRequestBody.model = 'grok-video-3-15s';
                     baseRequestBody.image_url = finalImageData;
                     baseRequestBody.skip_billing = true;
                     baseRequestBody.image_weight = 0.98;       // 🧲 高图片权重
@@ -5910,6 +5930,27 @@ ${panelDescriptions.join('\n')}
                             style_consistency: hasReferenceImage ? true : undefined
                         };
                         console.log(`[mobile] 使用 Kling 模型: version=${klingVersion}, duration=${klingDuration}s, resolution=${klingResolution}, hasImage=${hasReferenceImage}`);
+                    }
+                    // 🎬 检查是否是 Wan2.6 模型
+                    else if (genMode && genMode.startsWith('wan26-')) {
+                        // 解析 Wan2.6 模型参数 (wan26-720p-10s-audio -> { resolution, duration, audio })
+                        const wanMatch = genMode.match(/wan26-(\d+p)-(\d+)s(-audio)?/i);
+                        const wanResolution = wanMatch ? wanMatch[1].toUpperCase() : '720P';
+                        const wanDuration = wanMatch ? parseInt(wanMatch[2]) : 5;
+                        const wanAudio = !!wanMatch?.[3];
+                        
+                        apiEndpoint = '/api/yunwu';
+                        baseRequestBody = {
+                            action: 'wan26',
+                            prompt: finalPrompt,
+                            resolution: wanResolution,
+                            duration: wanDuration,
+                            audio: wanAudio,
+                            skip_billing: true,
+                            img_url: hasReferenceImage ? finalImageData : undefined,
+                            image_weight: hasReferenceImage ? 0.3 : undefined
+                        };
+                        console.log(`[mobile] 使用 Wan2.6 模型: resolution=${wanResolution}, duration=${wanDuration}s, audio=${wanAudio}, hasImage=${hasReferenceImage}`);
                     } else {
                         console.warn('[mobile] 未知的生成模式，使用默认Sora-2:', effectiveGenMode);
                     }
@@ -5980,7 +6021,7 @@ ${panelDescriptions.join('\n')}
                 let scenePrompt;
                 
                 // 🔑 图生视频：必须“按剧本动起来”+“严格保持参考图人物/风格不变”
-                const isImageToVideoMode = currentPanelImageUrl && (genMode === 'image-to-video' || genMode === 'banana-grid-to-video' || genMode === 'banana-image-to-video' || genMode === 'grok-video-3');
+                const isImageToVideoMode = currentPanelImageUrl && (genMode === 'image-to-video' || genMode === 'banana-grid-to-video' || genMode === 'banana-image-to-video' || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-'));
                 if (isImageToVideoMode) {
                     // 🎬 从剧本中提取具体动作指令
                     const scriptLine = (optimizedPrompts && optimizedPrompts[i]) || (scenePrompts && scenePrompts[i]) || idea.theme;
@@ -6025,7 +6066,7 @@ ${scriptLine}
                     
                     // 🎨 为每个分镜设置对应的参考图
                     const requestBody = { ...baseRequestBody, prompt: scenePrompt };
-                    if (panelImageForThisTask && (genMode === 'banana-grid-to-video' || genMode === 'image-to-video' || genMode === 'banana-image-to-video' || genMode === 'grok-video-3')) {
+                    if (panelImageForThisTask && (genMode === 'banana-grid-to-video' || genMode === 'image-to-video' || genMode === 'banana-image-to-video' || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-'))) {
                         requestBody.image_url = panelImageForThisTask;
                         requestBody.action = 'image-to-video';
                     }
@@ -10371,7 +10412,7 @@ ${idea.theme}${characterPrompt}
                         <!-- 🤖 从故事自动创建 -->
                         <div style="padding:16px 20px; border-bottom:1px solid #222;">
                             <h4 style="margin:0 0 12px 0; color:#fff; font-size:14px;">🤖 从故事自动创建</h4>
-                            <textarea id="sora2StoryInput" placeholder="粘贴你的故事内容... AI会自动分析故事，提取角色并生成参考视频，最后创建固定角色。" 
+                            <textarea id="sora2StoryInput" placeholder="粘贴你的故事内容...AI会自动分析故事，提取角色并生成参考视频，最后创建固定角色。" 
                                 style="width:100%; min-height:100px; padding:10px; margin-bottom:10px; background:var(--bg-card); border:1px solid #444; border-radius:8px; color:#fff; font-size:13px; box-sizing:border-box; resize:vertical; font-family:inherit; line-height:1.5;"></textarea>
                             <button onclick="autoCreateCharactersMobile()" id="sora2AutoCreateBtn"
                                 style="width:100%; padding:12px; background:linear-gradient(135deg, #8b5cf6, #ec4899); border:none; border-radius:8px; color:#fff; font-weight:bold; cursor:pointer; font-size:14px;">
