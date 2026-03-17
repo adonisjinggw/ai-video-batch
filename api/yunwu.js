@@ -309,8 +309,8 @@ let ttsQueue = [];  // 等待队列
  */
 const YUNWU_ENDPOINTS = [
     { url: 'https://api3.wlai.vip', name: '国内服务器', keyIdx: 0 },
-    { url: 'https://yunwu.zeabur.app', name: 'ZeaBur-CDN', keyIdx: 1 },
-    { url: 'https://yunwu.ai', name: '主站', keyIdx: 2 },
+    { url: 'https://yunwu.zeabur.app', name: 'ZeaBur-CDN', keyIdx: 0 },  // 改为使用key1
+    { url: 'https://yunwu.ai', name: '主站', keyIdx: 0 },                // 改为使用key1
     { url: 'https://api.apiplus.org', name: 'CF站', keyIdx: 0 }
 ];
 
