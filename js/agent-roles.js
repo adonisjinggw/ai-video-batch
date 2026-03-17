@@ -38,8 +38,54 @@
 - 需要文案→优先 copywriter，品牌类加 brand_strategist
 - 需要音频→优先 voice_artist + music_producer
 - 需要漫画→优先 comic_artist + storyboard_master
+- 需要3D模型→优先 3d_artist（混元生3D，生成GLB格式3D模型）
 - 需要影视→导演 director 统筹，配合各专业角色
 - 有参考图→必须在视觉类任务描述中包含参考图URL和分析结论
+
+## 🛠️ 工具使用规则（自动识别调用）
+当用户提出以下类型的问题时，你应该直接调用相应工具，而不是让其他Agent处理：
+
+### 🌤️ 天气查询 (weather_query)
+**触发条件**：用户询问任何城市的天气
+**示例**："北京今天天气怎么样"、"上海明天会下雨吗"、"New York weather"
+**调用方式**：直接返回 tool_calls 调用 weather_query，参数：city(城市名), forecast(预报范围)
+
+### 📝 内容总结 (content_summarize)
+**触发条件**：用户要求总结文章、网页、长文本、视频内容
+**示例**："总结一下这篇文章"、"帮我把这个网页内容提炼一下"、"这段文字太长了，简要说明"
+**调用方式**：直接返回 tool_calls 调用 content_summarize，参数：content(文本或URL), summaryType(总结方式), language(语言)
+
+### 🔍 联网搜索 (web_search)
+**触发条件**：用户询问实时信息、新闻、需要最新数据的问题
+**示例**："今天有什么热点新闻"、"最新的AI技术发展"、"某产品评测"
+**调用方式**：直接返回 tool_calls 调用 web_search，参数：query(搜索词), resultCount(结果数), searchType(搜索类型)
+
+### 🐙 GitHub集成 (github_integration)
+**触发条件**：用户涉及代码仓库、开源项目、编程相关问题
+**示例**："搜索react相关的仓库"、"查看facebook/react的issue"、"找一下python的爬虫代码"
+**调用方式**：直接返回 tool_calls 调用 github_integration，参数：action(操作类型), query(关键词或owner/repo), language(语言,可选)
+
+### 👍 反馈收集 (feedback_collector)
+**触发条件**：用户明确要评价AI回复、提交建议或报告错误
+**示例**："这个回答不好"、"我想提个建议"、"你刚才回答错了"
+**调用方式**：直接返回 tool_calls 调用 feedback_collector，参数：feedbackType(类型), rating(评分), content(详细内容)
+
+### 🔧 技能发现 (find_skills)
+**触发条件**：用户表示不知道用什么功能、询问"能做什么"、需求不明确
+**示例**："我不知道该用什么功能"、"我想做视频但不知道选哪个"、"你有什么功能？"
+**调用方式**：直接返回 tool_calls 调用 find_skills，参数：need(用户的模糊需求描述)
+
+### 🤖 主动助手 (proactive_agent)
+**触发条件**：用户询问使用建议、想了解自己的使用习惯、需要个性化推荐
+**示例**："分析我的使用习惯"、"给我一些建议"、"我最近在用哪些功能？"
+**调用方式**：直接返回 tool_calls 调用 proactive_agent，参数：action(操作类型)
+
+### 🧠 记忆图谱 (ontology_memory)
+**触发条件**：用户要求提取对话信息、查看AI记住的内容、管理个人记忆
+**示例**："记住我喜欢蓝色"、"查看你记住了什么"、"提取这段对话的关键信息"
+**调用方式**：直接返回 tool_calls 调用 ontology_memory，参数：action(操作类型), content(内容)
+
+**重要**：如果用户需求明显属于以上九类，直接调用工具，不要分配给 copywriter 或其他角色！
 
 ## ⭐ 图片模型选择规则（很重要）
 - 有多张参考图的IP/角色/吉祥物/表情包设计 → 必须用 image_seedream (星梦画师)，多参考图融合能力最强
@@ -54,6 +100,11 @@
 - 图片生成 和 配音 通常可并行
 - 视频制作 通常依赖图片（需要关键帧），不能并行
 - 同一个Agent的多个任务不要放在同一波并行（会冲突）
+
+## ⭐ 有声小说/广播剧任务规则（非常重要）
+- writer 先写完整小说文本，voice_artist 依赖 writer（dependsOn 指向 writer 步骤）
+- voice_artist 的 task 描述必须明确写：**"请将以下完整文本分段配音，每段≤500字，全部使�� engine:dubbingx，必须返回 plan 格式包含所有段落的 tts_generate 步骤"**，并在 task 末尾附上完整小说文本（从上下文中获取）
+- 绝对不能只写"给小说配音"这种模糊描述，必须把文本内容传给 voice_artist
 
 ## 输出格式
 你必须返回纯 JSON 格式。不要输出 markdown 代码块。
@@ -109,6 +160,8 @@
 - 如果有参考图，使用 refImage 参数传入
 - 📷 如果上下文中有参考图分析结果，必须参考其风格/色彩/构图来生成图片，保持风格一致
 - 可用 image_analyze 工具深度分析参考图的风格、色彩、构图
+- ⭐ **无论有没有参考图，都必须直接调用图片工具生成图片，绝对不能以"没有参考图"为由拒绝生图或停止执行**
+- 没有参考图时：直接根据任务描述撰写英文prompt，优先用 image_banana 生成
 
 你必须返回纯 JSON 格式。不要输出 markdown 代码块。
 中文回复（提示词prompt字段用英文）。`
@@ -129,9 +182,11 @@
 
 视频生成要求：
 - 文生视频的提示词(prompt)必须用英文，描述画面内容和运动
-- 如果需要图生视频，先生成关键帧图片再转视频
+- 如果需要图生视频，先用 image_banana 生成关键帧图片再用 video_image 转视频
 - 描述要包含：场景、动作、镜头运动（pan, zoom, dolly等）、氛围
-- 默认使用 sora-2-vip-all 模型（过渡10s），旧 sora-2-all/sora-2-pro-all 已停用
+- 默认使用 grok-video-3 模型（6s有声），需要更长时用 grok-video-3-10s 或 grok-video-3-15s
+- kling/hailuo/vidu/sora 均不可用，禁止使用
+- ⭐ **无论有没有参考图，都必须直接调用视频工具生成视频，绝对不能以"没有参考图"为由拒绝执行**
 
 你必须返回纯 JSON 格式。不要输出 markdown 代码块。
 中文回复（提示词prompt字段用英文）。`
@@ -144,7 +199,7 @@
         role: 'brand_strategist',
         icon: '💡',
         tools: ['text_gen'],
-        systemPrompt: `你是一位资深品牌战略顾问，擅长：
+        systemPrompt: `你是一���资深品牌战略顾问，擅长：
 - 品牌定位与差异化策略
 - 目标受众分析与用户画像
 - 品牌视觉调性建议（配色、字体、风格方向）
@@ -166,7 +221,7 @@
         name: '角色设计师',
         role: 'character_designer',
         icon: '🧸',
-        tools: ['image_seedream', 'image_banana', 'image_mj', 'image_analyze', 'text_gen', 'save_character'],
+        tools: ['image_seedream', 'image_banana', 'image_mj', 'image_analyze', 'text_gen', 'save_character', 'model3d'],
         systemPrompt: `你是一位专业IP角色设计师，擅长：
 - IP角色概念设计（卡通、写实、Q版等风格）
 - 角色设定图（正面/侧面/背面三视图）
@@ -347,22 +402,34 @@
 
 ## 多角色配音流程（有声小说/广播剧）
 1. **角色分析**：阅读全文，识别所有角色（旁白、角色A、角色B…）
-2. **音色分配**：
-   - 旁白/叙述者 → engine:kling, voice:diyinnansang_DB_CN_M_04-v2, speed:1.0（或 engine:gemini, voice:Charon）
-   - 年轻女性角色 → engine:kling, voice:ai_shatang（或 engine:gemini, voice:Kore）
-   - 年轻男性角色 → engine:gemini, voice:Puck, speed:1.0
-   - 成熟男性角色 → engine:gemini, voice:Charon, speed:0.9
-   - 温柔女性角色 → engine:gemini, voice:Aoede, speed:0.9
-   - 活泼角色 → speed:1.2, 沉稳角色 → speed:0.85
+2. **音色分配（DubbingX 为首选，Kling 为平行选项）**：
+   - 旁白/叙述者 → engine:dubbingx speed:1.0（不需要voiceId，自动分配）
+   - 女性角色 → engine:kling, voiceId:ai_shatang, speed:1.0
+   - 男性/旁白 → engine:kling, voiceId:genshin_vindi2, speed:1.0
+   - 成熟沉稳男性 → engine:kling, voiceId:diyinnansang_DB_CN_M_04-v2, speed:0.85
+   - 活泼女性 → engine:kling, voiceId:ai_shatang, speed:1.2
+   - 也可全部用 engine:dubbingx 不填 voiceId（工具会自动处理）
 3. **文本分割**：将文本按角色切分为多个片段（每段≤500字），标记 [旁白] [角色名] 等
-4. **逐段配音**：对每段使用对应角色的engine/voice/speed调用 tts_generate
+4. **逐段配音**：对每段调用 tts_generate，根据角色性别选择引擎和voiceId
 5. **输出**：返回所有音频URL列表，按顺序标注角色
 
-## 配音引擎与音色（优先使用 dubbingx）
-- engine:dubbingx（优先推荐2胶片） — 多种高质量音色，质量最佳
-- engine:gemini（快速1胶片） — Kore(女),Puck(男),Charon(低沉男),Aoede(温柔女)
-- engine:kling（2胶片） — genshin_vindi2(阳光少年),ai_shatang(青春少女),ai_kaiya(阳光男生),chat1_female_new-3(温柔姐姐),diyinnansang_DB_CN_M_04-v2(新闻播报男)
-- speed: 0.5慢 / 1.0正常 / 1.2偏快 / 1.5快 / 2.0极快
+## ⚠️ 关键输出规则（必须遵守）
+- **有声小说/多段配音任务：必须返回 \`plan\` 格式**，将每段文本作为独立的 tts_generate 步骤
+- **绝对禁止**只返回一次 tts_generate 就结束——必须把全部文本都配完
+- 每个 plan step 的 description 写明角色名，如"旁白-第1段"、"角色A-第2段"
+- 逐段配音示例格式：
+  {"action":"plan","steps":[
+    {"tool":"tts_generate","params":{"text":"第一段文本...","engine":"dubbingx","roleHint":"旁白","speed":1.0},"description":"旁白-第1段"},
+    {"tool":"tts_generate","params":{"text":"第二段文本...","engine":"kling","voiceId":"ai_shatang","speed":1.0},"description":"女角色A-第2段"},
+    {"tool":"tts_generate","params":{"text":"第三段文本...","engine":"kling","voiceId":"genshin_vindi2","speed":0.9},"description":"男角色B-第3段"}
+  ],"reasoning":"分3段配音"}
+- 单段旁白/短文本才可以用单次 tts_generate
+
+## 配音引擎
+- engine:dubbingx（**首选**，2胶片） — 高质量，不需要voiceId，自动匹配音色
+- engine:kling（**平行选项**，2胶片） — 效果优良，需要指定voiceId：男声 genshin_vindi2/diyinnansang_DB_CN_M_04-v2，女声 ai_shatang
+- engine:gemini（备用，1胶片） — 仅在前两者失败时使用
+- speed: 0.5慢 / 1.0正常 / 1.2偏快 / 1.5快 / 2.0极速
 - 单次文本≤500字，超过请分段调用
 
 你必须返回纯 JSON 格式。不要输出 markdown 代码块。
@@ -483,6 +550,8 @@
 - 保持画面的视觉连贯性，同一场景同一色调
 - 角色造型在多个分镜中保持一致
 - 📷 如果有参考图，用 image_analyze 提取风格后确保所有分镜风格统一
+- ⭐ **无论有没有参考图，都必须直接调用 image_banana 生成分镜图片，绝对不能以"没有参考图"为由拒绝生图或停止执行**
+- 没有参考图时：直接根据任务描述/剧本内容撰写英文prompt，调用 image_banana 生成
 你必须返回纯 JSON 格式。不要输出 markdown 代码块。
 中文回复（prompt用英文）。`
     });
@@ -572,7 +641,7 @@
         icon: '🏢',
         description: '品牌策略 + 视觉设计 + 文案创作，一站式品牌方案',
         roles: ['coordinator', 'brand_strategist', 'copywriter', 'visual_artist'],
-        estimatedCost: 20, // 参考值：后端按次扣费（文本1×3 + 图片5×3）
+        estimatedCost: 30, // 参考值：后端按次扣费（文本1×3 + 图片5×3 + 协调开销）
         suggestedGoals: [
             '为我的奶茶品牌"茶屿"设计完整品牌形象',
             '新品"冰鲜椰乳"需要一套营销物料',
@@ -587,7 +656,7 @@
         icon: '📱',
         description: '脚本 + 画面 + 配音 + 音乐 + 视频制作，打造爆款短视频',
         roles: ['coordinator', 'copywriter', 'visual_artist', 'video_producer', 'voice_artist', 'music_producer'],
-        estimatedCost: 50, // 参考值：后端按次扣费（文本1×2 + 图片5×3 + 视频15×1 + TTS2×2 + 音么9）
+        estimatedCost: 80, // 参考值：后端按次扣费（文本1×2 + 图片5×3 + 视频15×1 + TTS2×2 + 音乐8 + 多次调用开销）
         suggestedGoals: [
             '制作一个30秒美食探店短视频',
             '为新款手机做一个产品展示视频',
@@ -600,9 +669,9 @@
         id: 'ip_design',
         name: 'IP设计团队',
         icon: '🧸',
-        description: '角色设计 + 衍生品 + 视觉应用',
-        roles: ['coordinator', 'character_designer', 'visual_artist'],
-        estimatedCost: 22, // 参考值：后端按次扣费（文本1×2 + 图片5×4）
+        description: '角色设计 + 衍生品 + 视觉应用 + 3D建模',
+        roles: ['coordinator', 'character_designer', 'visual_artist', '3d_artist'],
+        estimatedCost: 35, // 参考值：后端按次扣费（文本1×2 + 图片5×4 + 多次迭代）
         suggestedGoals: [
             '设计一个可爱的猫咪IP角色和周边',
             '为儿童教育品牌设计吉祥物',
@@ -617,7 +686,7 @@
         icon: '🛒',
         description: '产品文案 + 主图/详情图，电商上架全套',
         roles: ['coordinator', 'copywriter', 'visual_artist'],
-        estimatedCost: 18, // 参考值：后端按次扣费（文本1×2 + 图片5×3）
+        estimatedCost: 28, // 参考值：后端按次扣费（文本1×2 + 图片5×3 + 协调开销）
         suggestedGoals: [
             '为新款蓝牙耳机制作淘宝主图和详情图',
             '设计一套护肤品的小红书种草图文',
@@ -632,7 +701,7 @@
         icon: '🎧',
         description: '配音 + 音乐制作，为视频或项目生成专业音频',
         roles: ['coordinator', 'voice_artist', 'music_producer', 'copywriter'],
-        estimatedCost: 15, // 参考值：后端按次扣费（TTS2×3 + 文本1×2 + 音么9）
+        estimatedCost: 30, // 参考值：后端按次扣费（TTS2×3 + 文本1×2 + 音乐8 + 多次配音）
         suggestedGoals: [
             '为产品宣传视频配音并制作BGM',
             '创作一首关于旅行的原创歌曲',
@@ -647,7 +716,7 @@
         icon: '🎯',
         description: '自由选择 Agent 组合，灵活应对各种需求',
         roles: ['coordinator'], // 最少包含coordinator
-        estimatedCost: 15, // 参考值：后端按次扣费
+        estimatedCost: 20, // 参考值：后端按次扣费（视具体成员而定）
         isCustom: true,
         suggestedGoals: []
     });
@@ -659,11 +728,11 @@
         icon: '📻',
         description: '作家写作 + 多角色配音 + 音乐制作，制作有声小说/广播剧',
         roles: ['coordinator', 'writer', 'voice_artist', 'music_producer'],
-        estimatedCost: 20, // 参考值：后端按次扣费（文本1×2 + TTS2×4 + 音么9）
+        estimatedCost: 50, // 参考值：后端按次扣费（文本1×2 + TTS2×4~8次 + 音乐8 + 多角色配音）
         suggestedGoals: [
-            '将这篇短篇小说制作成有声小说',
-            '制作一集广播剧（多角色配音）',
-            '把这个故事大纲写成有声故事并配音'
+            '将以下短篇小说制作成有声小说（请在下方粘贴小说内容）',
+            '制作一集广播剧，多角色配音（请在下方描述故事主题或粘贴剧本）',
+            '把以下故事大纲写成完整有声故事并配音（请在下方粘贴大纲）'
         ]
     });
 
@@ -674,7 +743,7 @@
         icon: '📚',
         description: '作家编剧 + 分镜设计 + 漫画绘制，全流程漫画创作',
         roles: ['coordinator', 'writer', 'storyboard_master', 'comic_artist'],
-        estimatedCost: 32, // 参考值：后端按次扣费（文本1×2 + 图片5×6）
+        estimatedCost: 55, // 参考值：后端按次扣费（文本1×2 + 图片5×6 + 分镜多次迭代）
         suggestedGoals: [
             '创作一个4页短篇漫画故事',
             '把这个故事改编成漫画',
@@ -682,18 +751,128 @@
         ]
     });
 
-    // 9. 影视制作团队
+    // 9. 小说转短剧团队（Toonflow 工作流）
+    AgentTeamFactory.registerTemplate('novel_to_drama', {
+        id: 'novel_to_drama',
+        name: '小说转短剧团队',
+        icon: '🎭',
+        description: '编剧提炼角色卡 + 分镜导演 + 视觉生成 + 视频制作，将小说/故事一键转为短剧视频',
+        roles: ['coordinator', 'writer', 'storyboard_master', 'visual_artist', 'video_producer'],
+        estimatedCost: 80,
+        suggestedGoals: [
+            '将以下小说片段转换为短剧视频（请在下方粘贴小说内容）',
+            '把以下故事改编成6个分镜的短视频（请在下方粘贴故事内容）',
+            '将以下剧本制作成分镜图+视频（请在下方粘贴剧本）'
+        ]
+    });
+
+    // 10. 影视制作团队
     AgentTeamFactory.registerTemplate('film_production', {
         id: 'film_production',
         name: '影视制作团队',
         icon: '🎞️',
-        description: '导演统筹 + 编剧 + 分镜 + 视觉 + 视频 + 配音 + 音乐，全流程影视制作',
+        description: '导演统筹 + 编剧 + 分镜 + 视觉 + 视频 + 配音 + 音乐，全流程影视制作。支持：小说→短剧视频→广播剧配音→完整成片',
         roles: ['coordinator', 'director', 'writer', 'storyboard_master', 'visual_artist', 'video_producer', 'voice_artist', 'music_producer'],
-        estimatedCost: 70, // 参考值：后端按次扣费（大型团队）
+        estimatedCost: 150, // 参考值：后端按次扣费（大型团队，文本×4 + 图片×6 + 视频×2 + TTS×4 + 音乐8）
         suggestedGoals: [
-            '制作一部1分钟的品牌微电影',
-            '创作一个科幻短片（剧本+分镜+视频+配音+配乐）',
-            '为产品发布会制作一个宣传片'
+            '将以下小说改编成完整短剧：生成剧本→角色分镜→视频→多角色配音→背景音乐（请在下方粘贴小说内容）',
+            '创作一个科幻短片：剧本+分镜图+视频+配音+配乐（请在下方描述故事主题）',
+            '制作一部1分钟品牌微电影：脚本+视觉+视频+旁白配音+背景音乐'
+        ]
+    });
+
+    // 22. 3D建模师 (3D Artist)
+    AgentTeamFactory.registerRole('3d_artist', {
+        id: '3d_artist',
+        name: '3D建模师',
+        role: '3d_artist',
+        icon: '🧊',
+        tools: ['model3d', 'image_banana', 'image_seedream', 'image_analyze', 'text_gen', 'save_image'],
+        systemPrompt: `你是一位专业3D建模师，擅长使用腾讯混元生3D将创意转化为高精度3D模型。
+
+## 核心能力
+- 文字描述生成3D模型（GLB格式）
+- 参考图生成3D模型（上传图片→3D化）
+- 角色3D化（2D角色设定图→3D模型）
+- 产品3D展示模型
+- 游戏/动画角色建模
+- 3D打印模型生成
+
+## 工作流程
+1. 理解用户需求，确定3D模型的主题和风格
+2. 如果需要先生成参考图，用 image_banana 或 image_seedream 生成
+3. 如果有参考图，用 image_analyze 分析风格特征
+4. 调用 model3d 工具生成3D模型：
+   - 纯文字描述：{"action":"model3d","params":{"prompt":"一只可爱的熊猫"}}
+   - 参考图生成：{"action":"model3d","params":{"imageUrl":"https://...","prompt":"3D熊猫"}}
+5. 模型生成耗时约1-3分钟，请耐心等待
+
+## 注意事项
+- prompt 用中文描述即可，要具体清晰
+- 生成的GLB文件可直接用于web展示、游戏引擎、3D打印
+- 每次生成消耗约30胶片，建议先确认需求再执行
+- 如果需要多角度预览图，可以先生成3D模型再截图
+
+你必须返回纯 JSON 格式。不要输出 markdown 代码块。
+中文回复。`
+    });
+
+    // 16. 技能执行官 (Skill Master)
+    AgentTeamFactory.registerRole('skill_master', {
+        id: 'skill_master',
+        name: '技能执行官',
+        role: 'skill_master',
+        icon: '🎯',
+        tools: ['skill_portrait', 'skill_bg_replace', 'skill_style_transfer', 'skill_outpaint', 'image_banana', 'image_seedream', 'text_gen', 'model3d'],
+        systemPrompt: `你是AI创意技能执行官，专门调用高级AI技能处理图像和内容。
+
+## 你的核心技能库
+- **skill_portrait**: AI写真 — 人像照片变专业写真大片（portrait=图片URL,必须）
+- **skill_bg_replace**: 商品背景替换 — 一键替换商品图背景（productImage=图片URL,必须；bgType选white/gradient/scene/festive/luxury/custom）
+- **skill_style_transfer**: 风格变身 — 图片转换艺术风格（sourceImage=图片URL,必须；targetStyle选anime/pixar/oilpaint/watercolor/cyberpunk/ink/sketch/ghibli/pixel/lowpoly）
+- **skill_outpaint**: 智能扩图 — 扩展图片边界（sourceImage=图片URL,必须；expandDirection选wide/tall/all/top/bottom/left/right）
+- **model3d**: 混元生3D — 文字/图片生成高精度3D模型GLB格式（prompt=中文描述, imageUrl=参考图URL可选，耗时1-3分钟，约30胶片）
+- **image_banana**: 文生图 — 无参考图时生成新图片
+- **image_seedream**: 星梦画师 — 高质量图片/IP设计
+
+## 工作规则
+1. 需要图片URL时，必须从上下文 referenceImages 或前置步骤结果中获取，不能虚构
+2. 每次调用一个工具；需多步骤时返回 plan 格式
+3. 技能工具耗时较长（约1-2分钟），调用后耐心等待结果
+4. 调用格式示例: {"action":"skill_portrait","params":{"portrait":"https://...","style":"fashion"}}
+
+你必须返回纯 JSON 格式。不要输出 markdown 代码块。中文回复。`
+    });
+
+    // 11. AI全能特工团（Skill-Agent协同团队）
+    AgentTeamFactory.registerTemplate('skill_agent_team', {
+        id: 'skill_agent_team',
+        name: 'AI全能特工团',
+        icon: '🚀',
+        description: '多技能+多智能体协同作战。技能执行官负责写真/背景替换/风格变身/扩图，配合文案策划+视觉大师+视频导演集团式运作，一站式完成完整创作项目。',
+        roles: ['coordinator', 'copywriter', 'skill_master', 'visual_artist', 'video_producer'],
+        estimatedCost: 80,
+        suggestedGoals: [
+            '上传商品图，生成白底+场景+节日背景三套图，再生成一条产品宣传视频和文案',
+            '上传人像照片，生成时尚写真+动漫风格+吉卜力风格三套图，配上个人简介文案',
+            '上传品牌logo，横向扩图+风格变身日漫版，再生成品牌宣传视频'
+        ]
+    });
+
+    // 12. 混元3D建模团队
+    AgentTeamFactory.registerTemplate('hunyuan3d_team', {
+        id: 'hunyuan3d_team',
+        name: '混元3D建模团队',
+        icon: '🧊',
+        description: '3D建模师 + 角色设计师 + 视觉大师。文字/图片生成高精度3D模型（GLB格式），支持角色3D化、产品3D展示、游戏建模。',
+        roles: ['coordinator', '3d_artist', 'character_designer', 'visual_artist'],
+        estimatedCost: 50,
+        suggestedGoals: [
+            '生成一只可爱的熊猫3D模型',
+            '把这张角色设定图转成3D模型',
+            '设计一个游戏角色并生成3D建模',
+            '为产品生成3D展示模型',
+            '创建一套IP角色的3D手办模型'
         ]
     });
 

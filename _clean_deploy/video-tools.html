@@ -1,0 +1,4006 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 视频工具 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .tabs {
+            display: flex;
+            padding: 12px 20px;
+            gap: 8px;
+            border-bottom: 1px solid #222;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: #000;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 100px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select,
+        .setting-item input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .upload-area {
+            background: var(--bg-card);
+            border: 2px dashed #333;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .upload-area .icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+        }
+
+        .upload-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            display: none;
+        }
+
+        .result-title {
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .result-video {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+        }
+        
+        /* 批量输入宫格布局（文字/图片配置区域） */
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+        @media (max-width: 900px) {
+            .batch-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .batch-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* 批量结果宫格：固定两列小格，不再单列 */
+        .batch-video-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .batch-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 2px solid var(--bg-input);
+            overflow: hidden;
+        }
+        .batch-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(251, 191, 36, 0.1);
+            border-bottom: 1px solid var(--bg-input);
+        }
+        .batch-card-num {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .batch-card-del {
+            background: #ef4444;
+            color: white;
+            border: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .batch-card-body {
+            padding: 12px;
+        }
+        .batch-card-preview {
+            width: 100%;
+            aspect-ratio: 1 / 1;  /* 方形预览，与其他页面一致 */
+            background: var(--bg-input);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .batch-card-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .batch-card-preview-placeholder {
+            color: var(--text-dim);
+            font-size: 11px;
+        }
+        .batch-card textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 8px;
+        }
+        .batch-card-config {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .batch-card-config select {
+            width: 100%;
+            padding: 6px;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 11px;
+        }
+        .batch-card.generating {
+            border-color: var(--accent);
+        }
+        .batch-card.done {
+            border-color: #22c55e;
+        }
+        .batch-card.error {
+            border-color: #ef4444;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+            display: none;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>🎬 视频工具</h1>
+        <div style="width:50px;"></div>
+    </header>
+    <div class="tabs">
+        <button class="tab active" onclick="switchPanel('t2v')">📝 文生</button>
+        <button class="tab" onclick="switchPanel('i2v')">🖼️ 图生</button>
+        <button class="tab" onclick="switchPanel('batch')">🎯 批量</button>
+        <button class="tab" onclick="switchPanel('ref')">🔗 克隆</button>
+        <button class="tab" onclick="switchPanel('gif')">🎞️ 转GIF</button>
+    </div>
+    <main class="main">
+        <div class="panel active" id="panel-t2v">
+            <div class="input-section">
+                <label class="input-label">✨ 描述你想要的视频内容</label>
+                <textarea class="input-box" id="t2vPrompt" placeholder="例如：一只可爱的猫咪在草地上奔跑..."></textarea>
+            </div>
+            <div class="settings-row">
+                <div class="setting-item"><label>模型</label>
+                    <select id="t2vModel">
+                        <option value="modelscope-video">🆓 魔塔视频（免费）</option>
+                        <option value="sora-2-vip-all">Sora-2 VIP 过渡 (10秒)</option>
+                        <!-- <option value="sora-2-all">Sora-2（已停用）</option> -->
+                        <!-- <option value="sora-2-pro-all">Sora-2 Pro（已停用）</option> -->
+                        <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                            <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                            <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                            <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 5秒">
+                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+                            <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                            <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5秒 720P (72胶片/顶级)</option>
+                            <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5秒 1080P (77胶片/顶级)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 10秒">
+                            <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
+                            <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+                            <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+                            <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+                            <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10秒 720P (144胶片/顶级)</option>
+                            <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10秒 1080P (154胶片/顶级)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo - 6秒">
+                            <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
+                            <option value="hailuo-02-1080p-6s">海螺 02 6秒 1080P (12胶片)</option>
+                            <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
+                            <option value="hailuo-fast-1080p-6s">海螺 Fast 6秒 1080P (8胶片)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo - 10秒">
+                            <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
+                            <option value="hailuo-02-1080p-10s">海螺 02 10秒 1080P (20胶片)</option>
+                            <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
+                            <option value="hailuo-fast-1080p-10s">海螺 Fast 10秒 1080P (13胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling - 5秒">
+                            <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
+                            <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
+                            <option value="kling-2.0-720p-5s">可灵 2.0 5秒 720P (7胶片)</option>
+                            <option value="kling-2.0-1080p-5s">可灵 2.0 5秒 1080P (12胶片)</option>
+                            <option value="kling-o1-720p-5s">可灵 O1 5秒 720P (15胶片/顶级)</option>
+                            <option value="kling-o1-1080p-5s">可灵 O1 5秒 1080P (20胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling - 10秒">
+                            <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
+                            <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
+                            <option value="kling-2.0-720p-10s">可灵 2.0 10秒 720P (14胶片)</option>
+                            <option value="kling-2.0-1080p-10s">可灵 2.0 10秒 1080P (24胶片)</option>
+                            <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
+                            <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
+                        </optgroup>
+                        <option value="grok-video-3">Grok Video 3 6秒 (文生视频)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 10秒 (文生视频)</option>
+                        <option value="grok-video-3-15s">Grok Video 3 15秒 (文生视频)</option>
+                        <optgroup label="🎬 Wan2.6 - 5秒">
+                            <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
+                            <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
+                            <option value="wan26-720p-5s-audio">Wan2.6 720p 5秒 有声 (4胶片)</option>
+                            <option value="wan26-1080p-5s-audio">Wan2.6 1080p 5秒 有声 (7胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Wan2.6 - 10秒">
+                            <option value="wan26-720p-10s">Wan2.6 720p 10秒 (5胶片)</option>
+                            <option value="wan26-1080p-10s">Wan2.6 1080p 10秒 (9胶片)</option>
+                            <option value="wan26-720p-10s-audio">Wan2.6 720p 10秒 有声 (7胶片)</option>
+                            <option value="wan26-1080p-10s-audio">Wan2.6 1080p 10秒 有声 (14胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Wan2.6 - 15秒">
+                            <option value="wan26-720p-15s">Wan2.6 720p 15秒 (7胶片)</option>
+                            <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
+                            <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
+                            <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="setting-item"><label>比例</label>
+                    <select id="t2vRatio">
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                    </select>
+                </div>
+            </div>
+            <button class="generate-btn">⚡ 生成视频</button>
+            <div class="loading" id="t2vLoading">
+                <div class="spinner"></div>
+                <div>视频生成中，大约需要1-3分钟...</div>
+            </div>
+            <div class="result-section" id="t2vResult">
+                <div class="result-title">🎬 生成结果</div><video class="result-video" id="t2vVideo" controls
+                    playsinline></video>
+                <div class="result-actions"><button class="result-btn" onclick="downloadVideo('t2v')">⬇️
+                        下载</button><button class="result-btn primary">🔄 重新生成</button></div>
+            </div>
+        </div>
+        <div class="panel" id="panel-i2v">
+            <div class="input-section">
+                <label class="input-label">🖼️ 上传参考图片 <span id="i2vImageCount" style="color:#888;font-size:12px;"></span></label>
+                <input type="file" id="i2vImageInput" accept="image/*" multiple style="display:none"
+                    onchange="previewI2VImages(this)">
+                <div class="upload-area" onclick="document.getElementById('i2vImageInput').click()" style="min-height:100px;">
+                    <div class="icon">📷</div>
+                    <div>点击上传图片（支持多选）</div>
+                    <div id="i2vPreviewContainer" style="display:none;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px;"></div>
+                    <img class="upload-preview" id="i2vPreview" style="display:none;">
+                </div>
+                <div id="i2vImageTip" style="display:none;font-size:11px;color:#fbbf24;margin-top:6px;">💡 Vidu q2 模型支持最多7张参考图，其他模型仅使用第1张</div>
+            </div>
+            <div class="input-section"><label class="input-label">✨ 动作描述（可选）</label><textarea class="input-box"
+                    id="i2vPrompt" placeholder="例如：图片中的人物转头微笑..." style="min-height:60px;"></textarea></div>
+            <div class="settings-row">
+                <div class="setting-item"><label>模型</label><select id="i2vModel">
+                        <option value="modelscope-video">🆓 魔塔视频（免费）</option>
+                        <option value="sora-2-vip-all">Sora-2 VIP 过渡 (10秒)</option>
+                        <!-- <option value="sora-2-all">Sora-2（已停用）</option> -->
+                        <!-- <option value="sora-2-pro-all">Sora-2 Pro（已停用）</option> -->
+                        <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                            <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                            <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                            <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 5秒">
+                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片/支持7图)</option>
+                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片/支持7图)</option>
+                            <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+                            <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                            <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5秒 720P (72胶片/顶级)</option>
+                            <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5秒 1080P (77胶片/顶级)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 10秒">
+                            <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片/支持7图)</option>
+                            <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片/支持7图)</option>
+                            <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+                            <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+                            <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+                            <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10秒 720P (144胶片/顶级)</option>
+                            <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10秒 1080P (154胶片/顶级)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo - 6秒">
+                            <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
+                            <option value="hailuo-02-1080p-6s">海螺 02 6秒 1080P (12胶片)</option>
+                            <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
+                            <option value="hailuo-fast-1080p-6s">海螺 Fast 6秒 1080P (8胶片)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo - 10秒">
+                            <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
+                            <option value="hailuo-02-1080p-10s">海螺 02 10秒 1080P (20胶片)</option>
+                            <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
+                            <option value="hailuo-fast-1080p-10s">海螺 Fast 10秒 1080P (13胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling - 5秒">
+                            <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
+                            <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
+                            <option value="kling-2.0-720p-5s">可灵 2.0 5秒 720P (7胶片)</option>
+                            <option value="kling-2.0-1080p-5s">可灵 2.0 5秒 1080P (12胶片)</option>
+                            <option value="kling-o1-720p-5s">可灵 O1 5秒 720P (15胶片/顶级)</option>
+                            <option value="kling-o1-1080p-5s">可灵 O1 5秒 1080P (20胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling - 10秒">
+                            <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
+                            <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
+                            <option value="kling-2.0-720p-10s">可灵 2.0 10秒 720P (14胶片)</option>
+                            <option value="kling-2.0-1080p-10s">可灵 2.0 10秒 1080P (24胶片)</option>
+                            <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
+                            <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
+                        </optgroup>
+                        <option value="grok-video-3">Grok Video 3 (6秒)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
+                        <option value="grok-video-3-15s">Grok Video 3 (15秒)</option>
+                        <optgroup label="🎬 Wan2.6 - 5秒">
+                            <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
+                            <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
+                            <option value="wan26-720p-5s-audio">Wan2.6 720p 5秒 有声 (4胶片)</option>
+                            <option value="wan26-1080p-5s-audio">Wan2.6 1080p 5秒 有声 (7胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Wan2.6 - 10秒">
+                            <option value="wan26-720p-10s">Wan2.6 720p 10秒 (5胶片)</option>
+                            <option value="wan26-1080p-10s">Wan2.6 1080p 10秒 (9胶片)</option>
+                            <option value="wan26-720p-10s-audio">Wan2.6 720p 10秒 有声 (7胶片)</option>
+                            <option value="wan26-1080p-10s-audio">Wan2.6 1080p 10秒 有声 (14胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Wan2.6 - 15秒">
+                            <option value="wan26-720p-15s">Wan2.6 720p 15秒 (7胶片)</option>
+                            <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
+                            <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
+                            <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+                        </optgroup>
+                    </select></div>
+                <div class="setting-item"><label>比例</label><select id="i2vRatio">
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                    </select></div>
+            </div>
+            <button class="generate-btn">⚡ 生成视频</button>
+            <div class="loading" id="i2vLoading">
+                <div class="spinner"></div>
+                <div>视频生成中...</div>
+            </div>
+            <div class="result-section" id="i2vResult">
+                <div class="result-title">🎬 生成结果</div><video class="result-video" id="i2vVideo" controls
+                    playsinline></video>
+                <div class="result-actions"><button class="result-btn" onclick="downloadVideo('i2v')">⬇️
+                        下载</button><button class="result-btn primary">🔄 重新生成</button></div>
+            </div>
+        </div>
+        <!-- 🎯 批量视频生成面板 -->
+        <div class="panel" id="panel-batch">
+            <div class="input-section">
+                <label class="input-label">🎯 批量生成模式</label>
+                <select id="batchMode" onchange="onBatchModeChange()" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;">
+                    <option value="t2v">📝 文生视频 - 多个提示词并发生成</option>
+                    <option value="i2v">🖼️ 图生视频 - 多张图片并发生成</option>
+                </select>
+            </div>
+            
+            <!-- 文生视频批量输入 -->
+            <div id="batchT2vSection">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <label class="input-label" style="margin:0;">🎬 视频列表</label>
+                    <button onclick="addBatchT2vCard()" style="padding:6px 12px;background:var(--accent);border:none;border-radius:6px;color:#000;font-size:12px;cursor:pointer;font-weight:600;">➕ 添加</button>
+                </div>
+                <div class="batch-grid" id="batchT2vGrid">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+            
+            <!-- 图生视频批量输入 - 宫格布局 -->
+            <div id="batchI2vSection" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <label class="input-label" style="margin:0;">🖼️ 图片列表</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="file" id="batchImageInput" accept="image/*" multiple style="display:none" onchange="handleBatchImageUpload(this)">
+                        <button onclick="document.getElementById('batchImageInput').click()" style="padding:6px 12px;background:var(--accent);border:none;border-radius:6px;color:#000;font-size:12px;cursor:pointer;font-weight:600;">➕ 添加图片</button>
+                        <button onclick="clearBatchImages()" style="padding:6px 12px;background:#ef4444;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">❌ 清空</button>
+                    </div>
+                </div>
+                <div class="batch-grid" id="batchImageGrid">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+            
+            <div class="settings-row">
+                <div class="setting-item"><label>模型</label>
+                    <select id="batchModel">
+                        <option value="sora-2-vip-all">Sora-2 VIP (10秒/7胶片)</option>
+                        <!-- <option value="sora-2-all">Sora-2 (已停用)</option> -->
+                        <!-- <option value="sora-2-pro-all">Sora-2 Pro (已停用)</option> -->
+                        <optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                            <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                            <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                            <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 5秒">
+                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+                            <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                            <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5秒 720P (72胶片/顶级)</option>
+                            <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5秒 1080P (77胶片/顶级)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 10秒">
+                            <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
+                            <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+                            <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+                            <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+                            <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10秒 720P (144胶片/顶级)</option>
+                            <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10秒 1080P (154胶片/顶级)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo - 6秒">
+                            <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
+                            <option value="hailuo-02-1080p-6s">海螺 02 6秒 1080P (12胶片)</option>
+                            <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
+                            <option value="hailuo-fast-1080p-6s">海螺 Fast 6秒 1080P (8胶片)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo - 10秒">
+                            <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
+                            <option value="hailuo-02-1080p-10s">海螺 02 10秒 1080P (20胶片)</option>
+                            <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
+                            <option value="hailuo-fast-1080p-10s">海螺 Fast 10秒 1080P (13胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling - 5秒">
+                            <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
+                            <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
+                            <option value="kling-2.0-720p-5s">可灵 2.0 5秒 720P (7胶片)</option>
+                            <option value="kling-2.0-1080p-5s">可灵 2.0 5秒 1080P (12胶片)</option>
+                            <option value="kling-o1-720p-5s">可灵 O1 5秒 720P (15胶片/顶级)</option>
+                            <option value="kling-o1-1080p-5s">可灵 O1 5秒 1080P (20胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling - 10秒">
+                            <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
+                            <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
+                            <option value="kling-2.0-720p-10s">可灵 2.0 10秒 720P (14胶片)</option>
+                            <option value="kling-2.0-1080p-10s">可灵 2.0 10秒 1080P (24胶片)</option>
+                            <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
+                            <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
+                        </optgroup>
+                        <option value="grok-video-3">Grok Video 3 (6秒)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
+                        <option value="grok-video-3-15s">Grok Video 3 (15秒)</option>
+                        <optgroup label="🎬 Wan2.6 - 5秒">
+                            <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
+                            <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
+                            <option value="wan26-720p-5s-audio">Wan2.6 720p 5秒 有声 (4胶片)</option>
+                            <option value="wan26-1080p-5s-audio">Wan2.6 1080p 5秒 有声 (7胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Wan2.6 - 10秒">
+                            <option value="wan26-720p-10s">Wan2.6 720p 10秒 (5胶片)</option>
+                            <option value="wan26-1080p-10s">Wan2.6 1080p 10秒 (9胶片)</option>
+                            <option value="wan26-720p-10s-audio">Wan2.6 720p 10秒 有声 (7胶片)</option>
+                            <option value="wan26-1080p-10s-audio">Wan2.6 1080p 10秒 有声 (14胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Wan2.6 - 15秒">
+                            <option value="wan26-720p-15s">Wan2.6 720p 15秒 (7胶片)</option>
+                            <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
+                            <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
+                            <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="setting-item"><label>比例</label>
+                    <select id="batchRatio">
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button class="generate-btn">🚀 并发生成视频</button>
+            
+            <!-- 批量生成进度 -->
+            <div id="batchProgress" style="display:none;margin-top:20px;padding:16px;background:var(--bg-card);border-radius:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span id="batchProgressText">🚀 批量生成中...</span>
+                    <span id="batchProgressCount">0/0</span>
+                </div>
+                <div style="height:6px;background:#333;border-radius:3px;overflow:hidden;">
+                    <div id="batchProgressBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div>
+                </div>
+            </div>
+            
+            <!-- 批量生成结果 -->
+            <div id="batchResult" style="display:none;margin-top:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div class="result-title" style="margin:0;">🎬 批量生成结果</div>
+                    <button onclick="downloadAllBatchVideos()" style="padding:8px 16px;background:var(--accent);border:none;border-radius:6px;color:#000;font-size:12px;cursor:pointer;">📦 下载全部</button>
+                </div>
+                <div id="batchVideoGrid" class="batch-video-grid"></div>
+            </div>
+        </div>
+        
+        <div class="panel" id="panel-ref">
+            <div class="input-section">
+                <label class="input-label">📁 上传参考视频或输入URL</label>
+                <input type="file" id="refVideoInput" accept="video/*" onchange="previewRefVideo(this)"
+                    style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:12px;">
+                <input type="text" id="refUrl" placeholder="或粘贴视频链接（支持抖音/快手/微信视频号/云存储等URL）"
+                    style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:12px;">
+                <div style="font-size:11px;color:#888;margin-bottom:12px;">
+                    💡 获取视频链接：<a href="https://www.wenshushu.cn" target="_blank" style="color:var(--accent);">文叔叔</a>(免费)、<a href="https://www.123pan.com" target="_blank" style="color:var(--accent);">123云盘</a>(免费)、或任意云存储的视频直链
+                </div>
+                <video id="refPreviewVideo" controls style="width:100%;display:none;border-radius:8px;margin-bottom:12px;"></video>
+                <!-- 首帧预览 -->
+                <div id="refFramePreview" style="display:none;margin-bottom:12px;">
+                    <div style="font-size:12px;color:#888;margin-bottom:6px;">🖼️ 提取的参考帧：</div>
+                    <img id="refFrameImg" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;background:#000;">
+                </div>
+            </div>
+            
+            <!-- 克隆模式选择 -->
+            <div class="input-section">
+                <label class="input-label">🎯 克隆模式</label>
+                <select id="refCloneMode" onchange="updateRefCloneMode()" style="width:100%;background:var(--bg-input);border:1px solid #333;border-radius:8px;padding:12px;color:var(--text);margin-bottom:8px;">
+                    <option value="frame">🖼️ 首帧克隆 - 提取首帧图生视频（所有模型）</option>
+                    <option value="firstlast">🎬 首尾帧克隆 - 提取首尾帧控制过渡（Vidu Pro/Kling）</option>
+                    <option value="ai">🧠 智能分析 - AI描述视频后生成（所有模型）</option>
+                    <option value="native">🎬 原生克隆 - Sora-2 Remix（仅Sora-2）</option>
+                </select>
+                <div id="refModeHint" style="font-size:11px;color:#888;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;">
+                    🖼️ <b>首帧克隆</b>：提取视频第一帧作为参考图，用图生视频功能生成，可保持视觉风格一致性
+                </div>
+                <!-- 🌟 尾帧预览（首尾帧模式时显示） -->
+                <div id="refLastFramePreview" style="display:none;margin-top:12px;">
+                    <div style="font-size:12px;color:#888;margin-bottom:6px;">🎬 提取的尾帧：</div>
+                    <img id="refLastFrameImg" style="width:100%;max-height:150px;object-fit:contain;border-radius:8px;background:#000;">
+                </div>
+            </div>
+            
+            <div class="input-section"><label class="input-label">✨ 克隆提示词</label><textarea class="input-box"
+                    id="refPrompt" placeholder="例如：保持视频风格，但把主角换成一只熊猫..." style="min-height:80px;"></textarea></div>
+            
+            <div class="settings-row">
+                <div class="setting-item"><label>模型</label><select id="refModel" onchange="updateRefModelForMode()">
+                        <optgroup label="🌟 推荐" id="refModelRecommend">
+                            <option value="grok-video-3-15s">Grok 3 15秒 (12胶片)</option>
+                            <option value="grok-video-3-10s">Grok 3 10秒 (8胶片)</option>
+                            <option value="grok-video-3">Grok 3 6秒 (5胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu Pro/Turbo (支持首尾帧)">
+                            <option value="vidu-q2-pro-5s-1080p">Vidu Pro 5秒 1080P (54胶片) ⭐首尾帧</option>
+                            <option value="vidu-q2-turbo-5s-1080p">Vidu Turbo 5秒 1080P (36胶片) ⭐首尾帧</option>
+                            <option value="vidu-q2-pro-5s-720p">Vidu Pro 5秒 720P (27胶片) ⭐首尾帧</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu Turbo 5秒 720P (19胶片) ⭐首尾帧</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling (支持尾帧)">
+                            <option value="kling-2.1-1080p-5s">可灵2.1 5秒 1080P (10胶片) ⭐尾帧</option>
+                            <option value="kling-2.1-1080p-10s">可灵2.1 10秒 1080P (20胶片) ⭐尾帧</option>
+                            <option value="kling-2.5-720p-5s">可灵2.5 5秒 (5胶片)</option>
+                            <option value="kling-2.5-720p-10s">可灵2.5 10秒 (10胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Sora-2 (支持原生克隆)">
+                            <option value="sora-2-vip-all">Sora-2 VIP (10秒/7胶片)</option>
+                            <!-- <option value="sora-2-all">Sora-2 (已停用)</option> -->
+                            <!-- <option value="sora-2-pro-all">Sora-2 Pro (已停用)</option> -->
+                        </optgroup>
+                        <optgroup label="🌐 Veo 3.1">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (30胶片)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺">
+                            <option value="hailuo-02-768p-6s">海螺02 6秒 (7胶片)</option>
+                            <option value="hailuo-02-768p-10s">海螺02 10秒 (11胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Wan2.6">
+                            <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
+                            <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
+                            <option value="wan26-720p-10s">Wan2.6 720p 10秒 (5胶片)</option>
+                            <option value="wan26-1080p-10s">Wan2.6 1080p 10秒 (9胶片)</option>
+                            <option value="wan26-720p-15s">Wan2.6 720p 15秒 (7胶片)</option>
+                            <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
+                            <option value="wan26-720p-5s-audio">Wan2.6 720p 5秒 有声 (4胶片)</option>
+                            <option value="wan26-1080p-5s-audio">Wan2.6 1080p 5秒 有声 (7胶片)</option>
+                            <option value="wan26-720p-10s-audio">Wan2.6 720p 10秒 有声 (7胶片)</option>
+                            <option value="wan26-1080p-10s-audio">Wan2.6 1080p 10秒 有声 (14胶片)</option>
+                            <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
+                            <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+                        </optgroup>
+                    </select></div>
+                <div class="setting-item"><label>比例</label><select id="refRatio">
+                        <option value="16:9">16:9</option>
+                        <option value="9:16">9:16</option>
+                        <option value="1:1">1:1</option>
+                    </select></div>
+            </div>
+            <button class="generate-btn">⚡ 克隆视频</button>
+            <div class="loading" id="refLoading">
+                <div class="spinner"></div>
+                <div id="refLoadingText">视频克隆中...</div>
+            </div>
+            <div class="result-section" id="refResult">
+                <div class="result-title">🎬 克隆结果</div><video class="result-video" id="refVideo" controls
+                    playsinline></video>
+                <div class="result-actions"><button class="result-btn" onclick="downloadVideo('ref')">⬇️
+                        下载</button><button class="result-btn primary">🔄 重新克隆</button></div>
+            </div>
+        </div>
+        
+        <!-- 🎞️ 视频转 GIF 面板 -->
+        <div class="panel" id="panel-gif">
+            <div class="input-section">
+                <label class="input-label">🎬 上传视频（支持 MP4/WebM/MOV）</label>
+                <input type="file" id="gifVideoInput" accept="video/*" style="display:none" onchange="previewGifVideo(this)">
+                <div class="upload-area" onclick="document.getElementById('gifVideoInput').click()">
+                    <div class="icon">🎬</div>
+                    <div>点击上传视频</div>
+                </div>
+                <video id="gifVideoPreview" controls playsinline style="width:100%;display:none;border-radius:8px;margin-top:12px;max-height:300px;"></video>
+            </div>
+            
+            <!-- 视频片段选择 -->
+            <div id="gifTimeRange" style="display:none;">
+                <div class="input-section">
+                    <label class="input-label">✂️ 选择转换片段（建议不超过10秒）</label>
+                    <div class="settings-row">
+                        <div class="setting-item">
+                            <label>开始时间 (秒)</label>
+                            <input type="number" id="gifStartTime" value="0" min="0" step="0.1" oninput="updateGifPreviewTime()">
+                        </div>
+                        <div class="setting-item">
+                            <label>结束时间 (秒)</label>
+                            <input type="number" id="gifEndTime" value="5" min="0.5" step="0.1" oninput="updateGifPreviewTime()">
+                        </div>
+                    </div>
+                    <div style="font-size:11px;color:#888;margin-top:4px;">
+                        💡 视频时长: <span id="gifDuration">0</span> 秒 | 当前片段: <span id="gifClipDuration">5</span> 秒
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>输出宽度</label>
+                    <select id="gifWidth">
+                        <option value="320">320px (表情包)</option>
+                        <option value="480" selected>480px (标准)</option>
+                        <option value="640">640px (高清)</option>
+                        <option value="800">800px (超清)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>帧率 (FPS)</label>
+                    <select id="gifFps">
+                        <option value="8">8 FPS (超小)</option>
+                        <option value="10" selected>10 FPS (标准)</option>
+                        <option value="15">15 FPS (流畅)</option>
+                        <option value="20">20 FPS (高质量)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>质量模式</label>
+                    <select id="gifQuality">
+                        <option value="low">低质量 (最小体积)</option>
+                        <option value="medium" selected>中质量 (推荐)</option>
+                        <option value="high">高质量 (超清晰)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>循环播放</label>
+                    <select id="gifLoop">
+                        <option value="0" selected>无限循环</option>
+                        <option value="1">播放1次</option>
+                        <option value="3">播放3次</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button class="generate-btn" onclick="convertToGif()">🎞️ 开始转换</button>
+            
+            <div class="loading" id="gifLoading">
+                <div class="spinner"></div>
+                <div id="gifLoadingText">正在转换中...</div>
+                <div id="gifProgress" style="margin-top:8px;font-size:12px;color:var(--accent);"></div>
+            </div>
+            
+            <div class="result-section" id="gifResult">
+                <div class="result-title">🎞️ GIF 结果</div>
+                <img id="gifOutput" style="width:100%;border-radius:12px;background:#000;">
+                <div style="margin-top:8px;font-size:12px;color:var(--text-dim);" id="gifInfo"></div>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadGif()">⬇️ 下载GIF</button>
+                    <button class="result-btn primary" onclick="convertToGif()">🔄 重新转换</button>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px;padding:16px;background:var(--bg-card);border-radius:12px;">
+                <div style="font-size:14px;font-weight:600;margin-bottom:8px;">💡 使用技巧</div>
+                <ul style="font-size:12px;color:var(--text-dim);padding-left:16px;line-height:1.8;">
+                    <li>表情包建议：320px宽度 + 10FPS + 3-5秒</li>
+                    <li>微信/QQ分享：保持文件小于5MB</li>
+                    <li>片段越长、分辨率越高，文件越大</li>
+                    <li>全程浏览器本地处理，不上传视频</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+    <div class="toast" id="toast"></div>
+    <script>
+        // 返回函数 - 优先使用历史记录，否则跳转到主页
+        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        // 使用 NVAuth 模块
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        let authInitialized = false;
+
+        // 视频生成费用（成本×2，1胶片=￥0.1）
+        const VIDEO_COST = {
+            'modelscope-video': 0,
+            'sora-2-vip-all': 7,
+            'sora-2-all': 7,       // 已停用，保留兼容
+            'sora-2-pro-all': 14,  // 已停用，保留兼容
+            // Veo 3.1 系列
+            'veo3.1': 30,           // Veo 3.1 4K 版本（兼容旧名称）
+            'veo3.1-components-4k': 30,
+            'veo_3_1-fast-4K': 25,
+            'veo_3_1-fast-components-4K': 28,
+            'veo_3_1-components-4K': 30,
+            'grok-video-3': 5,      // Grok Video 3 (6秒)
+            'grok-video-3-10s': 8,  // Grok Video 3 (10秒)
+            'grok-video-3-15s': 12, // Grok Video 3 (15秒)
+            // Vidu 模型 - 5秒版本
+            'vidu-q2-5s-720p': 25,
+            'vidu-q2-5s-1080p': 36,
+            'vidu-q2-pro-5s-720p': 27,
+            'vidu-q2-pro-5s-1080p': 54,
+            'vidu-q2-turbo-5s-720p': 19,
+            'vidu-q2-turbo-5s-1080p': 36,
+            // Vidu 模型 - 10秒版本
+            'vidu-q2-10s-720p': 50,
+            'vidu-q2-10s-1080p': 72,
+            'vidu-q2-pro-10s-720p': 54,
+            'vidu-q2-pro-10s-1080p': 108,
+            'vidu-q2-turbo-10s-720p': 38,
+            'vidu-q2-turbo-10s-1080p': 72,
+            // Vidu Q3 Pro 模型 - 顶级质量
+            'vidu-q3-pro-5s-720p': 72,
+            'vidu-q3-pro-5s-1080p': 77,
+            'vidu-q3-pro-10s-720p': 144,
+            'vidu-q3-pro-10s-1080p': 154,
+            // Hailuo 海螺模型
+            'hailuo-02-768p-6s': 7,
+            'hailuo-02-768p-10s': 11,
+            'hailuo-02-1080p-6s': 12,
+            'hailuo-02-1080p-10s': 20,
+            'hailuo-fast-768p-6s': 5,
+            'hailuo-fast-768p-10s': 8,
+            'hailuo-fast-1080p-6s': 8,
+            'hailuo-fast-1080p-10s': 13,
+            // Kling 可灵模型
+            'kling-o1-720p-5s': 15,
+            'kling-o1-720p-10s': 31,
+            'kling-o1-1080p-5s': 20,
+            'kling-o1-1080p-10s': 41,
+            'kling-2.5-720p-5s': 5,
+            'kling-2.5-720p-10s': 10,
+            'kling-2.5-1080p-5s': 9,
+            'kling-2.5-1080p-10s': 17,
+            'kling-2.0-720p-5s': 7,
+            'kling-2.0-720p-10s': 14,
+            'kling-2.0-1080p-5s': 12,
+            'kling-2.0-1080p-10s': 24,
+            // Wan2.6 图生视频模型
+            'wan26-720p-5s': 3,
+            'wan26-720p-10s': 5,
+            'wan26-720p-15s': 7,
+            'wan26-1080p-5s': 5,
+            'wan26-1080p-10s': 9,
+            'wan26-1080p-15s': 13,
+            'wan26-720p-5s-audio': 4,
+            'wan26-720p-10s-audio': 7,
+            'wan26-720p-15s-audio': 11,
+            'wan26-1080p-5s-audio': 7,
+            'wan26-1080p-10s-audio': 14,
+            'wan26-1080p-15s-audio': 21,
+            // 兼容旧模型名称（默认5秒）
+            'vidu-q2-720p': 25,
+            'vidu-q2-1080p': 36,
+            'vidu-q2-pro-720p': 27,
+            'vidu-q2-pro-1080p': 54,
+            'vidu-q2-turbo-720p': 19,
+            'vidu-q2-turbo-1080p': 36
+        };
+
+        // 🔧 图片压缩函数（防止413错误）
+        function compressImage(dataUrl, maxWidth = 1200, quality = 0.8) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.width, h = img.height;
+                    if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => resolve(dataUrl);
+                img.src = dataUrl;
+            });
+        }
+
+        // 🔧 IndexedDB 存储工具（解决 localStorage 5MB 限制问题）
+        const imageTransferDB = {
+            dbName: 'RollRollImageTransfer',
+            storeName: 'images',
+            db: null,
+            
+            async init() {
+                if (this.db) return this.db;
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 1);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        resolve(this.db);
+                    };
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName, { keyPath: 'key' });
+                        }
+                    };
+                });
+            },
+            
+            async get(key) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readonly');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result?.data || null);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+            
+            async remove(key) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readwrite');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.delete(key);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[video-tools] 页面加载完成，开始初始化...');
+            
+            // 🔧 修复：确保所有生成按钮事件正确绑定（支持移动端触摸）
+            // 使用防抖避免重复触发
+            let isGenerating = false;
+            let lastClickTime = 0;
+            const DEBOUNCE_MS = 1000; // 1秒内不响应重复点击
+            function debounceGenerate(fn, type) {
+                return function(e) {
+                    const now = Date.now();
+                    if (isGenerating || (now - lastClickTime) < DEBOUNCE_MS) {
+                        console.log(`[video-tools] ${type} 正在生成中或点击过快，忽略`);
+                        e.preventDefault();
+                        return;
+                    }
+                    e.preventDefault();
+                    lastClickTime = now;
+                    isGenerating = true;
+                    console.log(`[video-tools] ${type}按钮被点击`);
+                    fn().finally(() => { isGenerating = false; });
+                };
+            }
+            
+            // 文生视频按钮（包括生成和重新生成）
+            const t2vBtns = document.querySelectorAll('#panel-t2v .generate-btn, #panel-t2v .result-btn.primary');
+            t2vBtns.forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', debounceGenerate(generateT2V, '文生视频'));
+            });
+            
+            // 图生视频按钮（包括生成和重新生成）
+            const i2vBtns = document.querySelectorAll('#panel-i2v .generate-btn, #panel-i2v .result-btn.primary');
+            i2vBtns.forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', debounceGenerate(generateI2V, '图生视频'));
+            });
+            
+            // 视频克隆按钮（包括生成和重新克隆）
+            const refBtns = document.querySelectorAll('#panel-ref .generate-btn, #panel-ref .result-btn.primary');
+            refBtns.forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', debounceGenerate(generateRef, '视频克隆'));
+            });
+            
+            // 批量生成按钮
+            const batchBtns = document.querySelectorAll('#panel-batch .generate-btn');
+            batchBtns.forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', debounceGenerate(generateBatch, '批量生成'));
+            });
+            
+            console.log('[video-tools] 按钮事件已绑定');
+            
+            // 🧩 初始化批量文生视频宫格（页面首次进入）
+            if (batchT2vCards.length === 0) {
+                // 默认创建8个卡片
+                for (let i = 0; i < 8; i++) addBatchT2vCard('');
+            }
+            renderBatchT2vGrid();
+            
+            if (typeof NVAuth !== 'undefined') {
+                await checkUser();
+            }
+            
+            // 🎬 从 localStorage 读取提示词（从提示词填空页面跳转过来）
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('prompt') === '1') {
+                const savedPrompt = localStorage.getItem('video_prompt');
+                if (savedPrompt) {
+                    document.getElementById('t2vPrompt').value = savedPrompt;
+                    localStorage.removeItem('video_prompt'); // 清除已使用的提示词
+                    showToast('提示词已加载');
+                    console.log('[video-tools] 从 localStorage 加载提示词');
+                }
+            }
+            
+            // 🎬 从 banana.html 单个模式跳转过来（图生视频）
+            if (urlParams.get('from_banana') === '1' && urlParams.get('batch') !== '1') {
+                console.log('[video-tools] 检测到从 banana.html 跳转');
+                
+                // 🔧 优先从 IndexedDB 读取（解决 localStorage 5MB 限制）
+                let bananaData = await imageTransferDB.get('banana_to_video');
+                console.log('[video-tools] IndexedDB 数据:', bananaData ? '存在' : '不存在');
+                
+                // 兼容旧版 localStorage
+                if (!bananaData) {
+                    const lsData = localStorage.getItem('banana_to_video');
+                    if (lsData) {
+                        try {
+                            bananaData = JSON.parse(lsData);
+                            console.log('[video-tools] 从 localStorage 读取到数据（旧版兼容）');
+                        } catch (e) {}
+                    }
+                }
+                
+                if (bananaData) {
+                    try {
+                        console.log('[video-tools] 解析数据:', { hasImage: !!bananaData.imageUrl, hasPrompt: !!bananaData.prompt });
+                        if (bananaData.imageUrl) {
+                            // 切换到图生视频面板
+                            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                            document.querySelector('.tab:nth-child(2)').classList.add('active');
+                            document.getElementById('panel-i2v').classList.add('active');
+                            
+                            // 加载图片到预览
+                            i2vImageData = bananaData.imageUrl;
+                            document.getElementById('i2vPreview').src = bananaData.imageUrl;
+                            document.getElementById('i2vPreview').style.display = 'block';
+                            
+                            // 填充提示词
+                            if (bananaData.prompt) {
+                                document.getElementById('i2vPrompt').value = bananaData.prompt;
+                            }
+                            
+                            // 清理数据
+                            await imageTransferDB.remove('banana_to_video');
+                            localStorage.removeItem('banana_to_video');
+                            localStorage.removeItem('banana_to_video_flag');
+                            showToast('图片已加载，点击生成视频');
+                            console.log('[video-tools] 从 banana.html 加载单张图片成功');
+                        }
+                    } catch (e) {
+                        console.error('[video-tools] 解析 banana 数据失败:', e);
+                    }
+                } else {
+                    console.warn('[video-tools] 未找到 banana_to_video 数据');
+                }
+            }
+            
+            // 🎬 从 localStorage 读取批量图片（从 banana.html 跳转过来）
+            if (urlParams.get('batch') === '1') {
+                console.log('[video-tools] 检测到批量模式跳转');
+                // 🆕 先检查是否有文字提示词批量（从 prompt-fill.html / writing.html 跳转过来）
+                const promptBatchData = localStorage.getItem('video_batch_prompts');
+                if (promptBatchData && (urlParams.get('from_promptfill') === '1' || urlParams.get('from_writing') === '1')) {
+                    try {
+                        const prompts = JSON.parse(promptBatchData);
+                        if (prompts && prompts.length > 0) {
+                            // 切换到批量面板
+                            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                            document.querySelector('.tab:nth-child(3)').classList.add('active');
+                            document.getElementById('panel-batch').classList.add('active');
+                            
+                            // 切换到文生视频模式
+                            document.getElementById('batchMode').value = 't2v';
+                            onBatchModeChange();
+                            
+                            // 填充提示词（每行一个）
+                            document.getElementById('batchPrompts').value = prompts.join('\n');
+                            
+                            localStorage.removeItem('video_batch_prompts');
+                            showToast(`已加载 ${prompts.length} 个提示词，点击批量生成`);
+                            console.log('[video-tools] 从 prompt-fill/writing 加载了', prompts.length, '个提示词');
+                        }
+                    } catch (e) {
+                        console.error('[video-tools] 解析提示词失败:', e);
+                    }
+                } else {
+                    // 🔧 图片批量模式：优先从 IndexedDB 读取，再尝试 localStorage
+                    let batchData = await imageTransferDB.get('banana_batch_to_video');
+                    let isNewFormat = !!batchData;
+                    console.log('[video-tools] IndexedDB 批量图片数据:', batchData ? '存在' : '不存在');
+                    
+                    // 兼容旧版 localStorage
+                    if (!batchData) {
+                        const lsData = localStorage.getItem('banana_batch_to_video');
+                        if (lsData) {
+                            try {
+                                batchData = JSON.parse(lsData);
+                                isNewFormat = true;
+                                console.log('[video-tools] 从 localStorage 读取到批量数据（旧版兼容）');
+                            } catch (e) {}
+                        }
+                    }
+                    
+                    // 再尝试更旧格式
+                    if (!batchData) {
+                        const lsData = localStorage.getItem('banana_batch_images');
+                        if (lsData) {
+                            try {
+                                batchData = JSON.parse(lsData);
+                                isNewFormat = false;
+                                console.log('[video-tools] 从 localStorage 读取到旧格式数据');
+                            } catch (e) {}
+                        }
+                    }
+                    
+                    if (batchData) {
+                        try {
+                            let images = [];
+                            let prompts = [];
+                            
+                            if (isNewFormat && batchData.images) {
+                                // 新格式：{ images: [{ imageUrl, prompt }], mode, timestamp }
+                                images = batchData.images.map(item => item.imageUrl);
+                                prompts = batchData.images.map(item => item.prompt || '');
+                            } else if (Array.isArray(batchData)) {
+                                // 旧格式：纯URL数组
+                                images = batchData;
+                                prompts = batchData.map(() => '');
+                            }
+                            
+                            console.log('[video-tools] 解析批量图片:', images.length, '张');
+                            
+                            if (images.length > 0) {
+                                batchImages = images;
+                                batchImagePrompts = prompts;
+                                
+                                // 切换到批量面板
+                                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                                document.querySelector('.tab:nth-child(3)').classList.add('active');
+                                document.getElementById('panel-batch').classList.add('active');
+                                
+                                // 切换到图生视频模式
+                                document.getElementById('batchMode').value = 'i2v';
+                                onBatchModeChange();
+                                
+                                // 渲染图片预览
+                                renderBatchImageGrid();
+                                
+                                // 清理数据
+                                await imageTransferDB.remove('banana_batch_to_video');
+                                localStorage.removeItem('banana_batch_to_video');
+                                localStorage.removeItem('banana_batch_to_video_flag');
+                                localStorage.removeItem('banana_batch_images');
+                                
+                                showToast(`已加载 ${images.length} 张图片，点击批量生成`);
+                                console.log('[video-tools] 从 banana.html 加载了', images.length, '张批量图片');
+                            }
+                        } catch (e) {
+                            console.error('[video-tools] 解析批量图片失败:', e);
+                        }
+                    }
+                }
+            }
+            
+            console.log('[video-tools] 初始化完成');
+        });
+
+        async function checkUser() {
+            try {
+                // 等待认证状态就绪
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+                
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[video-tools] 用户已登录:', currentUser.email);
+                    await loadUserQuota();
+                } else {
+                    console.log('[video-tools] 用户未登录');
+                }
+            } catch (e) { console.error('检查用户失败:', e); }
+            
+            // 标记认证初始化完成
+            authInitialized = true;
+            console.log('[video-tools] 认证初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                console.log('[video-tools] 用户胶片:', userQuota);
+            } catch (e) { console.error('加载配额失败:', e); }
+        }
+
+        // 预扣费函数
+        async function preDeduct(cost, description) {
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
+            cost = Math.ceil(cost);
+            
+            // 等待认证初始化完成
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) { showToast('请先登录'); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+                
+                // 🔧 修复：先检查 HTTP 状态码
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('余额不足，请先充值');
+                    }
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
+                }
+                
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    console.log(`🎞️ 预扣费成功: -${cost}胶片, 余额=${userQuota}`);
+                    return true;
+                }
+                throw new Error(data.message || data.error || '扣费失败');
+            } catch (e) { showToast('扣费失败: ' + e.message); return false; }
+        }
+
+        // ✅ 已移除退款函数 - 后端成功扣费后不再退款，避免成本损耗
+
+        let currentVideoUrls = { t2v: '', i2v: '', ref: '' };
+        let i2vImageData = '', refVideoData = '';
+        let i2vImageDataList = [];  // 多图上传列表
+        function switchPanel(panel) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); event.target.classList.add('active'); document.getElementById('panel-' + panel).classList.add('active'); }
+        // 旧版单图上传函数（已废弃，保留兼容）
+        function previewI2VImage(input) { previewI2VImages(input); }
+        // 新版多图上传函数
+        async function previewI2VImages(input) {
+            if (!input.files || input.files.length === 0) return;
+            const files = Array.from(input.files);
+            const maxImages = 7;  // Vidu q2 最多支持 7 张
+            
+            // 清空之前的图片
+            i2vImageDataList = [];
+            i2vImageData = '';
+            
+            // 显示加载提示
+            showToast(`正在处理 ${Math.min(files.length, maxImages)} 张图片...`);
+            
+            for (let i = 0; i < Math.min(files.length, maxImages); i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                const dataUrl = await new Promise(resolve => {
+                    reader.onload = e => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+                const compressed = await compressImage(dataUrl, 1200, 0.8);
+                i2vImageDataList.push(compressed);
+            }
+            
+            // 第一张作为主图（兼容旧逻辑）
+            i2vImageData = i2vImageDataList[0] || '';
+            
+            // 渲染预览
+            renderI2VPreview();
+            updateI2VImageTip();
+            
+            if (files.length > maxImages) {
+                showToast(`已选择前 ${maxImages} 张图片（最多支持7张）`);
+            } else {
+                showToast(`已上传 ${i2vImageDataList.length} 张图片`);
+            }
+        }
+        // 渲染图片预览
+        function renderI2VPreview() {
+            const container = document.getElementById('i2vPreviewContainer');
+            const singlePreview = document.getElementById('i2vPreview');
+            const countSpan = document.getElementById('i2vImageCount');
+            
+            if (i2vImageDataList.length === 0) {
+                container.style.display = 'none';
+                singlePreview.style.display = 'none';
+                countSpan.textContent = '';
+                return;
+            }
+            
+            if (i2vImageDataList.length === 1) {
+                // 单图模式
+                container.style.display = 'none';
+                singlePreview.src = i2vImageDataList[0];
+                singlePreview.style.display = 'block';
+                countSpan.textContent = '(1张)';
+            } else {
+                // 多图模式
+                singlePreview.style.display = 'none';
+                container.style.display = 'flex';
+                countSpan.textContent = `(${i2vImageDataList.length}张)`;
+                container.innerHTML = i2vImageDataList.map((img, idx) => `
+                    <div style="position:relative;">
+                        <img src="${img}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid ${idx === 0 ? '#fbbf24' : '#333'};">
+                        <div style="position:absolute;top:-4px;left:-4px;background:${idx === 0 ? '#fbbf24' : '#666'};color:${idx === 0 ? '#000' : '#fff'};font-size:9px;padding:1px 4px;border-radius:3px;">${idx + 1}</div>
+                        <button onclick="event.stopPropagation();removeI2VImage(${idx})" style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border:none;width:16px;height:16px;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+                    </div>
+                `).join('');
+            }
+        }
+        // 删除单张图片
+        function removeI2VImage(idx) {
+            i2vImageDataList.splice(idx, 1);
+            i2vImageData = i2vImageDataList[0] || '';
+            renderI2VPreview();
+            updateI2VImageTip();
+            if (i2vImageDataList.length === 0) {
+                document.getElementById('i2vImageInput').value = '';
+            }
+        }
+        // 更新多图提示
+        function updateI2VImageTip() {
+            const tip = document.getElementById('i2vImageTip');
+            const model = document.getElementById('i2vModel').value;
+            // 只有 Vidu q2 (不是 pro/turbo) 才支持多图
+            const supportsMulti = model.match(/vidu-q2-(5s|10s)/i) && !model.includes('pro') && !model.includes('turbo');
+            
+            if (i2vImageDataList.length > 1) {
+                if (supportsMulti) {
+                    tip.style.display = 'block';
+                    tip.innerHTML = `✅ Vidu q2 模型将使用全部 ${i2vImageDataList.length} 张参考图`;
+                    tip.style.color = '#22c55e';
+                } else {
+                    tip.style.display = 'block';
+                    tip.innerHTML = `⚠️ 当前模型仅支持单图，将只使用第1张图片`;
+                    tip.style.color = '#f59e0b';
+                }
+            } else {
+                tip.style.display = i2vImageDataList.length > 0 ? 'none' : 'none';
+            }
+        }
+        // 模型选择变化时更新提示
+        document.addEventListener('DOMContentLoaded', () => {
+            const modelSelect = document.getElementById('i2vModel');
+            if (modelSelect) {
+                modelSelect.addEventListener('change', updateI2VImageTip);
+            }
+        });
+        // 上传视频到图床获取URL（带备用方案）
+        async function uploadVideoToHost(base64Data) {
+            const base64 = base64Data.replace(/^data:video\/\w+;base64,/, '');
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'video/mp4' });
+            const fileSizeMB = blob.size / 1024 / 1024;
+            
+            console.log(`[video-tools] 视频大小: ${fileSizeMB.toFixed(2)}MB`);
+            
+            // 方案１：小文件(< 3MB)尝试后端代理上传（Vercel有body大小限制）
+            if (fileSizeMB < 3) {
+                try {
+                    showToast('正在上传视频...');
+                    const proxyRes = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'upload-file',
+                            fileData: base64Data,
+                            fileType: 'video/mp4',
+                            fileName: 'video.mp4'
+                        })
+                    });
+                    const proxyData = await proxyRes.json();
+                    if (proxyData.success && proxyData.url) {
+                        console.log('[video-tools] 视频上传成功(代理):', proxyData.url);
+                        return proxyData.url;
+                    }
+                } catch (e) {
+                    console.warn('[video-tools] 后端代理上传失败:', e.message);
+                }
+            } else {
+                console.log('[video-tools] 视频超过3MB，跳过后端代理');
+            }
+            
+            // 方案２：直接使用 base64 传输（Grok模型支持）
+            // Grok Video API 支持直接接收 base64 视频数据
+            if (fileSizeMB < 20) {  // 小于20MB可以直接传base64
+                console.log('[video-tools] 使用base64直接传输');
+                showToast('使用直传模式...');
+                return base64Data;
+            }
+            
+            // 方案３：提示用户手动输入URL
+            showToast('视频过大，请手动上传到图床后输入URL');
+            return null;
+        }
+        
+        let refVideoFile = null;
+        let refExtractedFrame = null;  // 存储提取的首帧
+        let refExtractedLastFrame = null;  // 🌟 存储提取的尾帧（用于首尾帧克隆）
+        
+        function previewRefVideo(input) { 
+            if (input.files && input.files[0]) { 
+                const file = input.files[0];
+                if (file.size > 50 * 1024 * 1024) {
+                    showToast('视频文件不能超过50MB');
+                    input.value = '';
+                    return;
+                }
+                refVideoFile = file;
+                const url = URL.createObjectURL(file); 
+                const video = document.getElementById('refPreviewVideo');
+                video.src = url; 
+                video.style.display = 'block';
+                
+                // 视频加载后自动提取首帧
+                video.onloadeddata = () => {
+                    extractVideoFrame(video, 0.1);  // 提取第0.1秒的帧
+                };
+                
+                showToast('视频已选择，正在提取参考帧...');
+            } 
+        }
+        
+        // 🖼️ 提取视频帧（支持首帧和尾帧）
+        function extractVideoFrame(video, time = 0.1, isLastFrame = false) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const doExtract = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    
+                    if (isLastFrame) {
+                        refExtractedLastFrame = dataUrl;
+                        // 更新尾帧预览
+                        const lastFrameImg = document.getElementById('refLastFrameImg');
+                        if (lastFrameImg) {
+                            lastFrameImg.src = dataUrl;
+                            document.getElementById('refLastFramePreview').style.display = 'block';
+                        }
+                        console.log('[video-tools] 尾帧提取成功');
+                    } else {
+                        refExtractedFrame = dataUrl;
+                        // 显示首帧预览
+                        document.getElementById('refFrameImg').src = dataUrl;
+                        document.getElementById('refFramePreview').style.display = 'block';
+                        console.log('[video-tools] 首帧提取成功');
+                    }
+                    
+                    showToast(isLastFrame ? '尾帧提取成功' : '首帧提取成功');
+                    resolve(dataUrl);
+                };
+                
+                if (video.readyState >= 2) {
+                    video.currentTime = time;
+                    video.onseeked = doExtract;
+                } else {
+                    video.onloadeddata = () => {
+                        video.currentTime = time;
+                        video.onseeked = doExtract;
+                    };
+                }
+            });
+        }
+        
+        // 🌟 提取视频首尾帧（用于首尾帧克隆模式）
+        async function extractFirstAndLastFrame(video) {
+            const duration = video.duration;
+            if (!duration || duration < 0.5) {
+                throw new Error('视频时长不足');
+            }
+            
+            // 提取首帧（0.1秒处）
+            await extractVideoFrame(video, 0.1, false);
+            
+            // 提取尾帧（倒数15帧位置）
+            const lastFrameTime = Math.max(0.5, duration - 0.5);
+            await extractVideoFrame(video, lastFrameTime, true);
+            
+            return { firstFrame: refExtractedFrame, lastFrame: refExtractedLastFrame };
+        }
+        
+        // 🎯 更新克隆模式提示
+        function updateRefCloneMode() {
+            const mode = document.getElementById('refCloneMode').value;
+            const hint = document.getElementById('refModeHint');
+            const model = document.getElementById('refModel');
+            const video = document.getElementById('refPreviewVideo');
+            
+            const hints = {
+                'frame': '🖼️ <b>首帧克隆</b>：提取视频第一帧作为参考图，用图生视频功能生成，可保持视觉风格一致性',
+                'firstlast': '🎬 <b>首尾帧克隆</b>：提取视频的第一帧和最后一帧，AI生成过渡动画。<b>支持模型</b>: Vidu q2-pro/q2-turbo、Kling 2.1(1080P)',
+                'ai': '🧠 <b>智能分析</b>：AI先分析视频内容生成详细描述，结合你的修改需求后用文生视频生成',
+                'native': '🎬 <b>原生克隆</b>：Sora-2的Remix功能，真正基于原视频进行编辑（仅Sora-2模型支持）'
+            };
+            hint.innerHTML = hints[mode] || hints['frame'];
+            
+            // 首尾帧模式时自动提取首尾帧
+            if (mode === 'firstlast' && video.src && video.duration) {
+                extractFirstAndLastFrame(video).catch(e => console.warn('首尾帧提取失败:', e));
+                // 推荐切换到支持的模型
+                if (!model.value.includes('vidu-q2-pro') && !model.value.includes('vidu-q2-turbo') && !model.value.includes('kling-2.1')) {
+                    model.value = 'vidu-q2-pro-5s-1080p';
+                    showToast('已切换到 Vidu Pro 模型（支持首尾帧）');
+                }
+            }
+            
+            // 原生模式时自动切换到Sora-2
+            if (mode === 'native') {
+                model.value = 'sora-2-vip-all';
+            }
+            
+            // 显示/隐藏尾帧预览
+            const lastFramePreview = document.getElementById('refLastFramePreview');
+            if (lastFramePreview) {
+                lastFramePreview.style.display = (mode === 'firstlast' && refExtractedLastFrame) ? 'block' : 'none';
+            }
+        }
+        
+        // 检查模型是否支持原生克隆
+        function updateRefModelForMode() {
+            const mode = document.getElementById('refCloneMode').value;
+            const model = document.getElementById('refModel').value;
+            
+            // 如果是原生模式但选了非Sora-2模型，自动切换到首帧模式
+            if (mode === 'native' && !model.startsWith('sora-2')) {
+                document.getElementById('refCloneMode').value = 'frame';
+                updateRefCloneMode();
+                showToast('当前模型不支持原生克隆，已切换到首帧模式');
+            }
+        }
+        
+        // 🧠 AI分析视频内容
+        async function analyzeVideoContent(frameDataUrl) {
+            try {
+                showToast('AI正在分析视频内容...');
+                const response = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'vision',
+                        // 使用后端默认模型 grok-4-fast-non-reasoning
+                        prompt: `Analyze this video frame and describe it in detail for AI video generation. Include:
+1. Scene/environment (indoor/outdoor, location, background)
+2. Characters (appearance, clothing, pose, expression)
+3. Lighting and mood (time of day, light quality, color tone)
+4. Visual style (cinematic/anime/realistic)
+5. Suggested action/motion
+
+Output a concise English prompt that can be directly used for AI video generation.`,
+                        image_url: frameDataUrl,
+                        userId: currentUser?.id
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error('[video-tools] AI分析API错误:', response.status, errText);
+                    throw new Error(`API错误(${response.status})`);
+                }
+                
+                const data = await response.json();
+                if (data.text) {
+                    console.log('[video-tools] AI分析成功:', data.text.substring(0, 100));
+                    return data.text;
+                }
+                if (data.content) {
+                    return data.content;
+                }
+                throw new Error(data.message || data.error || '分析失败');
+            } catch (e) {
+                console.error('[video-tools] AI分析失败:', e);
+                showToast('AI分析失败，将使用首帧克隆模式');
+                return null;
+            }
+        }
+        function getFixedDuration(model) { 
+            if (model.includes('modelscope')) return 5;
+            if (model.includes('sora-2-vip')) return 10;
+            if (model.includes('grok')) {
+                if (model.includes('10s')) return 10;
+                return 6;
+            } 
+            if (model.includes('veo')) return 8; 
+            if (model.includes('wan26')) {
+                const durationMatch = model.match(/-(\d+)s[-$]/i) || model.match(/-(\d+)s$/i);
+                return durationMatch ? parseInt(durationMatch[1]) : 5;
+            }
+            // Vidu/Hailuo/Kling模型：从模型名提取时长
+            if (model.includes('vidu') || model.includes('kling')) {
+                const durationMatch = model.match(/-(\d+)s[-$]/i) || model.match(/-(\d+)s$/i);
+                return durationMatch ? parseInt(durationMatch[1]) : 5;  // 默认5秒
+            }
+            if (model.includes('hailuo')) {
+                const durationMatch = model.match(/-(\d+)s[-$]/i) || model.match(/-(\d+)s$/i);
+                return durationMatch ? parseInt(durationMatch[1]) : 6;  // 海螺默认6秒
+            }
+            return 15; 
+        }
+        // 🎬 判断是否是Veo模型（需要特殊API处理）
+        function isVeoModel(model) { return model && (model.includes('veo') || model.startsWith('veo')); }
+        // 🎬 判断是否是Vidu模型
+        function isViduModel(model) { return model && model.startsWith('vidu-'); }
+        // 🐚 判断是否是Hailuo模型
+        function isHailuoModel(model) { return model && model.startsWith('hailuo-'); }
+        // ✨ 判断是否是Kling模型
+        function isKlingModel(model) { return model && model.startsWith('kling-'); }
+        // 🎬 判断是否是Wan2.6模型
+        function isWan26Model(model) { return model && model.startsWith('wan26-'); }
+        // 🎬 解析Wan2.6模型参数 (wan26-720p-10s-audio -> { resolution: '720p', duration: 10, audio: true })
+        function parseWan26Model(model) {
+            const match = model.match(/wan26-(\d+p)-(\d+)s(-audio)?/i);
+            if (match) {
+                return {
+                    resolution: match[1].toUpperCase(),
+                    duration: parseInt(match[2]),
+                    audio: !!match[3]
+                };
+            }
+            return { resolution: '720P', duration: 5, audio: false };
+        }
+        // 🎬 解析Vidu模型参数 (vidu-q2-5s-720p -> { version: 'q2', duration: 5, resolution: '720P' })
+        function parseViduModel(model) {
+            // 新格式: vidu-{version}-{duration}s-{resolution}
+            const newMatch = model.match(/vidu-(q3-pro|q2-pro|q2-turbo|q2)-(\d+)s-(720p|1080p)/i);
+            if (newMatch) {
+                return {
+                    version: newMatch[1],                    // q2, q2-pro, q2-turbo, q3-pro
+                    duration: parseInt(newMatch[2]),         // 5, 10
+                    resolution: newMatch[3].toUpperCase()    // 720P, 1080P
+                };
+            }
+            // 兼容旧格式: vidu-{version}-{resolution}
+            const oldMatch = model.match(/vidu-(q3-pro|q2-pro|q2-turbo|q2)-(720p|1080p)/i);
+            if (oldMatch) {
+                return {
+                    version: oldMatch[1],
+                    duration: 5,  // 旧格式默认5秒
+                    resolution: oldMatch[2].toUpperCase()
+                };
+            }
+            return { version: 'q2', duration: 5, resolution: '720P' };
+        }
+        // 🐚 解析Hailuo模型参数 (hailuo-02-768p-6s -> { version: '02', duration: 6, resolution: '768P' })
+        function parseHailuoModel(model) {
+            // 格式: hailuo-{version}-{resolution}-{duration}s
+            const match = model.match(/hailuo-(02|fast)-(768p|1080p)-(\d+)s/i);
+            if (match) {
+                // 版本映射: 02 -> 02, fast -> 2.3-fast
+                const versionMap = { '02': '02', 'fast': '2.3-fast' };
+                return {
+                    version: versionMap[match[1].toLowerCase()] || match[1],
+                    resolution: match[2].toUpperCase(),
+                    duration: parseInt(match[3])
+                };
+            }
+            return { version: '02', duration: 6, resolution: '768P' };
+        }
+        // ✨ 解析Kling模型参数 (kling-2.5-720p-5s -> { version: '2.5', duration: 5, resolution: '720P' })
+        function parseKlingModel(model) {
+            // 格式: kling-{version}-{resolution}-{duration}s
+            const match = model.match(/kling-(o1|2\.5|2\.0|2\.1|1\.6)-(720p|1080p)-(\d+)s/i);
+            if (match) {
+                // O1 需要转为大写
+                const version = match[1].toUpperCase() === 'O1' ? 'O1' : match[1];
+                return {
+                    version: version,
+                    resolution: match[2].toUpperCase(),
+                    duration: parseInt(match[3])
+                };
+            }
+            return { version: '2.5', duration: 5, resolution: '720P' };
+        }
+        
+        // 🎨 将图片转换为线稿风格（规避 Sora2/Veo 内容审核）
+        // 统一使用 banana2 的 Gemini-3 模型进行图生图转换
+        async function convertToSketch(imageUrl) {
+            if (!imageUrl) return imageUrl;
+            // 🎨 线稿转换提示词（去除真人特征，保留结构）
+            const sketchPrompt = `Convert this image into a clean LINE SKETCH / LINE ART style:
+★ OUTPUT: Black and white line drawing, pencil sketch style
+★ LINES: Clean outlines, simple strokes, no shading or colors
+★ STYLE: Technical sketch, architectural drawing style, minimal details
+★ REMOVE: All colors, textures, skin details, realistic features
+★ KEEP: Basic shapes, poses, composition, structural outlines only
+The result should look like a simple black-and-white pencil sketch or blueprint.`;
+            try {
+                console.log('[video-tools] 开始使用 Banana2 转换为线稿...');
+                showToast('✏️ 正在转换为线稿...');
+                const res = await fetch('/api/banana2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: sketchPrompt,
+                        model: 'nano-banana-2',
+                        image_url: imageUrl,
+                        aspect_ratio: '16:9',
+                        userId: currentUser?.id
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.success) {
+                    const sketchUrl = data.url || (data.urls && data.urls[0]) || (data.data && data.data[0] && data.data[0].url);
+                    if (sketchUrl) {
+                        console.log('[video-tools] ✅ 线稿转换成功');
+                        return sketchUrl;
+                    }
+                }
+                console.warn('[video-tools] 线稿转换失败:', data.message || data.error || '未知错误');
+                console.warn('[video-tools] 转换失败，使用原图继续');
+                return imageUrl;
+            } catch (e) {
+                console.warn('[video-tools] 线稿转换异常:', e.message);
+                return imageUrl;
+            }
+        }
+        // 🎯 处理提示词：添加中文语音指令 + 强制语音在视频结束前1秒结束
+        function ensureChineseAudio(prompt, duration = 15, isWan26 = false) {
+            // 🔧 计算语音必须结束的时间点（Wan2.6 提前2秒，其他提前1秒）
+            const bufferTime = isWan26 ? 2 : 1;
+            const audioEndTime = Math.max(duration - bufferTime, 3);
+            const wan26Hint = isWan26 ? '【Wan2.6特有】语速适中，断句自然，不要超时，最后保持2秒静音' : '';
+            const audioDurationHint = `【重要】所有语音/旁白/对话必须在第${audioEndTime}秒前结束，最后${bufferTime}秒保持静音画面`;
+            
+            if (!prompt) return `让图片动起来，平滑过渡，使用中文配音。${audioDurationHint} ${wan26Hint}`.trim();
+            const lower = prompt.toLowerCase();
+            // 检测用户是否明确要求英文
+            const wantsEnglish = lower.includes('english') || lower.includes('in english') || lower.includes('英文配音') || lower.includes('英语旁白');
+            // 检测是否已包含中文语音指令
+            const hasChineseAudio = prompt.includes('中文配音') || prompt.includes('中文旁白') || prompt.includes('普通话');
+            // 检测是否已包含时长控制指令
+            const hasTimeControl = prompt.includes('秒前结束') || prompt.includes('静音画面') || prompt.includes('结束语音');
+            
+            let result = prompt;
+            // 添加中文语音指令（如果用户没要求英文且未包含）
+            if (!wantsEnglish && !hasChineseAudio) {
+                result += '，使用中文配音';
+            }
+            // 添加时长控制指令（如果未包含）
+            if (!hasTimeControl) {
+                result += `。${audioDurationHint}`;
+            }
+            // 添加Wan2.6特有提示
+            if (isWan26 && !result.includes('【Wan2.6特有】')) {
+                result += ` ${wan26Hint}`;
+            }
+            return result.trim();
+        }
+        async function generateT2V() { 
+            const rawPrompt = document.getElementById('t2vPrompt').value.trim(); 
+            if (!rawPrompt) { showToast('请输入视频描述'); return; } 
+            const model = document.getElementById('t2vModel').value; 
+            console.log('[t2v] 选择的模型:', model);
+            const ratio = document.getElementById('t2vRatio').value; 
+            const duration = getFixedDuration(model);
+            const isWan26 = isWan26Model(model);
+            const isGrok = model && model.startsWith('grok-video');
+            console.log('[t2v] isGrok:', isGrok, 'model:', model);
+            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);  // 🎯 确保中文配音+时长控制
+            const cost = VIDEO_COST[model] || 8; 
+            if (!await preDeduct(cost, '文生视频')) return; 
+            document.getElementById('t2vLoading').style.display = 'block'; 
+            document.getElementById('t2vResult').style.display = 'none'; 
+            try { 
+                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6/Grok模型使用yunwu API
+                const isVeo = isVeoModel(model);
+                const isVidu = isViduModel(model);
+                const isHailuo = isHailuoModel(model);
+                const isKling = isKlingModel(model);
+                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok;
+                console.log('[t2v] useYunwu:', useYunwu, 'isGrok:', isGrok, 'isWan26:', isWan26);
+                let apiEndpoint, requestBody;
+                
+                if (isVidu) {
+                    // Vidu模型
+                    const viduParams = parseViduModel(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'vidu', 
+                        prompt, 
+                        model_version: viduParams.version,
+                        aspect_ratio: ratio, 
+                        duration: duration,
+                        resolution: viduParams.resolution,
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
+                    };
+                } else if (isHailuo) {
+                    // 🐚 Hailuo海螺模型
+                    const hailuoParams = parseHailuoModel(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'hailuo', 
+                        prompt, 
+                        model_version: hailuoParams.version,
+                        duration: hailuoParams.duration,
+                        resolution: hailuoParams.resolution,
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
+                    };
+                } else if (isKling) {
+                    // ✨ Kling可灵模型
+                    const klingParams = parseKlingModel(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'kling', 
+                        prompt, 
+                        model_version: klingParams.version,
+                        aspect_ratio: ratio,
+                        duration: klingParams.duration,
+                        resolution: klingParams.resolution,
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
+                    };
+                } else if (isVeo) {
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { action: 'veo3', prompt, model, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id, skip_billing: true };
+                } else if (isWan26) {
+                    // 🎬 Wan2.6模型 - 文生视频/图生视频都使用yunwu API
+                    const wan26Params = parseWan26Model(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'wan26', 
+                        prompt: prompt, 
+                        resolution: wan26Params.resolution,
+                        duration: wan26Params.duration,
+                        audio: wan26Params.audio,
+                        userId: currentUser?.id,
+                        skip_billing: true
+                    };
+                    console.log(`[t2v] Wan2.6文生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
+                } else if (isGrok) {
+                    // 🎬 Grok模型 - 使用yunwu API
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'text-to-video', 
+                        prompt, 
+                        model, 
+                        aspect_ratio: ratio, 
+                        duration, 
+                        userId: currentUser?.id,
+                        skip_billing: true
+                    };
+                    console.log(`[t2v] Grok文生视频: ${model}`);
+                } else {
+                    console.log('[t2v] 进入else分支，使用sora2');
+                    apiEndpoint = '/api/sora2';
+                    requestBody = { action: 'text-to-video', prompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                    if (model === 'modelscope-video') {
+                        requestBody.skip_billing = true;
+                    }
+                }
+                
+                const response = await fetch(apiEndpoint, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(requestBody) 
+                }); 
+                if (!response.ok) throw new Error('API错误: ' + response.status); 
+                const data = await response.json(); 
+                if (data.error) throw new Error(data.message || data.error); 
+                if (data.task_id || data.id) { 
+                    showToast('视频生成中，请稍候...'); 
+                    const taskId = data.task_id || data.id; 
+                    const isVodModel = isVidu || isHailuo || isKling;  // 腾讯VOD轮询
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, useYunwu, isVodModel, isWan26);
+                    if (videoUrl) { 
+                        currentVideoUrls.t2v = videoUrl; 
+                        document.getElementById('t2vVideo').src = videoUrl; 
+                        document.getElementById('t2vResult').style.display = 'block'; 
+                        showToast('视频生成成功！'); 
+                    } else { throw new Error('未获取到视频'); } 
+                } else if (data.video_url || data.url) {
+                    currentVideoUrls.t2v = data.video_url || data.url; 
+                    document.getElementById('t2vVideo').src = currentVideoUrls.t2v; 
+                    document.getElementById('t2vResult').style.display = 'block'; 
+                    showToast('视频生成成功！'); 
+                } else { throw new Error('未获取到视频'); } 
+            } catch (error) { 
+                showToast('生成失败：' + error.message); 
+            } finally { 
+                document.getElementById('t2vLoading').style.display = 'none'; 
+            } 
+        }
+        async function generateI2V() { 
+            if (!i2vImageData && i2vImageDataList.length === 0) { showToast('请先上传图片'); return; } 
+            const rawPrompt = document.getElementById('i2vPrompt').value.trim(); 
+            const model = document.getElementById('i2vModel').value; 
+            const ratio = document.getElementById('i2vRatio').value; 
+            const duration = getFixedDuration(model);
+            const isWan26 = isWan26Model(model);
+            const isGrok = model && model.startsWith('grok-video');
+            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);  // 🎯 确保中文配音+时长控制
+            const cost = VIDEO_COST[model] || 8; 
+            if (!await preDeduct(cost, '图生视频')) return; 
+            document.getElementById('i2vLoading').style.display = 'block'; 
+            document.getElementById('i2vResult').style.display = 'none'; 
+            try { 
+                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6/Grok模型使用yunwu API，其他使用sora2
+                const isVeo = isVeoModel(model);
+                const isVidu = isViduModel(model);
+                const isHailuo = isHailuoModel(model);
+                const isKling = isKlingModel(model);
+                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok;
+                
+                // 🎨 直接使用原图（线稿转换会丢失结构，已禁用）
+                let finalImageUrl = i2vImageData || i2vImageDataList[0];
+                
+                // 🖼️ 检查是否支持多图 (Vidu q2 不带 pro/turbo)
+                const supportsMultiImage = isVidu && model.match(/vidu-q2-(5s|10s)/i) && !model.includes('pro') && !model.includes('turbo');
+                const useMultiImage = supportsMultiImage && i2vImageDataList.length > 1;
+                
+                let apiEndpoint, requestBody;
+                
+                if (isVidu) {
+                    // Vidu模型 - 支持图生视频
+                    const viduParams = parseViduModel(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'vidu', 
+                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        model_version: viduParams.version,
+                        aspect_ratio: ratio, 
+                        duration: duration,
+                        resolution: viduParams.resolution,
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
+                    };
+                    // 🖼️ 多图模式: 使用 image_urls 数组
+                    if (useMultiImage) {
+                        requestBody.image_urls = i2vImageDataList;
+                        console.log(`[i2v] Vidu q2 多图模式: ${i2vImageDataList.length} 张参考图`);
+                    } else {
+                        requestBody.image_url = finalImageUrl;
+                    }
+                } else if (isHailuo) {
+                    // 🐚 Hailuo海螺模型 - 支持图生视频
+                    const hailuoParams = parseHailuoModel(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'hailuo', 
+                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        image_url: finalImageUrl,
+                        model_version: hailuoParams.version,
+                        duration: hailuoParams.duration,
+                        resolution: hailuoParams.resolution,
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
+                    };
+                } else if (isKling) {
+                    // ✨ Kling可灵模型 - 支持图生视频
+                    const klingParams = parseKlingModel(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'kling', 
+                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        image_url: finalImageUrl,
+                        model_version: klingParams.version,
+                        aspect_ratio: ratio,
+                        duration: klingParams.duration,
+                        resolution: klingParams.resolution,
+                        userId: currentUser?.id,
+                        skip_billing: true  // 前端已预扣费
+                    };
+                } else if (isVeo) {
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { action: 'veo3', prompt, model, image_url: finalImageUrl, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id, skip_billing: true };
+                } else if (isWan26) {
+                    // 🎬 Wan2.6模型
+                    const wan26Params = parseWan26Model(model);
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'wan26', 
+                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        img_url: finalImageUrl,
+                        resolution: wan26Params.resolution,
+                        duration: wan26Params.duration,
+                        audio: wan26Params.audio,
+                        image_weight: 0.3,  // 较低的权重，避免第一帧显示原图
+                        userId: currentUser?.id,
+                        skip_billing: true
+                    };
+                    console.log(`[i2v] Wan2.6图生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
+                } else if (isGrok) {
+                    // 🎬 Grok模型 - 使用yunwu API
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'image-to-video', 
+                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        image_url: finalImageUrl, 
+                        model, 
+                        aspect_ratio: ratio, 
+                        duration, 
+                        userId: currentUser?.id,
+                        skip_billing: true,
+                        image_weight: 0.98,
+                        preserve_subject: true
+                    };
+                    console.log(`[i2v] Grok图生视频: ${model}`);
+                } else {
+                    apiEndpoint = '/api/sora2';
+                    requestBody = { action: 'image-to-video', prompt, image_url: finalImageUrl, model, aspect_ratio: ratio, duration, userId: currentUser?.id, image_weight: 0.98, preserve_subject: true };
+                    if (model === 'modelscope-video') {
+                        requestBody.skip_billing = true;
+                    }
+                }
+                
+                const response = await fetch(apiEndpoint, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(requestBody) 
+                }); 
+                if (!response.ok) throw new Error('API错误: ' + response.status); 
+                const data = await response.json(); 
+                if (data.error) throw new Error(data.message || data.error); 
+                if (data.task_id || data.id) { 
+                    showToast('视频生成中，请稍候...'); 
+                    const taskId = data.task_id || data.id; 
+                    const isVodModel = isVidu || isHailuo || isKling;  // 腾讯VOD轮询
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, useYunwu, isVodModel, isWan26); 
+                    if (videoUrl) { 
+                        currentVideoUrls.i2v = videoUrl;
+                        document.getElementById('i2vVideo').src = videoUrl; 
+                        document.getElementById('i2vResult').style.display = 'block'; 
+                        showToast('视频生成成功！'); 
+                    } else { throw new Error('未获取到视频'); } 
+                } else if (data.video_url || data.url) {
+                    currentVideoUrls.i2v = data.video_url || data.url; 
+                    document.getElementById('i2vVideo').src = currentVideoUrls.i2v; 
+                    document.getElementById('i2vResult').style.display = 'block'; 
+                    showToast('视频生成成功！'); 
+                } else { throw new Error('未获取到视频'); } 
+            } catch (error) { 
+                showToast('生成失败：' + error.message); 
+            } finally { 
+                document.getElementById('i2vLoading').style.display = 'none'; 
+            } 
+        }
+        async function generateRef() { 
+            const cloneMode = document.getElementById('refCloneMode').value;
+            const rawPrompt = document.getElementById('refPrompt').value.trim(); 
+            if (!rawPrompt) { showToast('请输入克隆提示词'); return; } 
+            
+            const model = document.getElementById('refModel').value; 
+            const ratio = document.getElementById('refRatio').value; 
+            const duration = getFixedDuration(model);
+            const isWan26 = isWan26Model(model);
+            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);
+            const cost = VIDEO_COST[model] || 8; 
+            
+            // 检查是否有参考视频
+            if (!refVideoFile && !refExtractedFrame) {
+                showToast('请先上传参考视频'); 
+                return;
+            }
+            
+            if (!await preDeduct(cost, '视频克隆')) return; 
+            document.getElementById('refLoading').style.display = 'block'; 
+            document.getElementById('refResult').style.display = 'none';
+            const loadingText = document.getElementById('refLoadingText');
+            
+            try {
+                let apiEndpoint, requestBody;
+                const isVeo = isVeoModel(model);
+                const isVidu = isViduModel(model);
+                const isHailuo = isHailuoModel(model);
+                const isKling = isKlingModel(model);
+                const isGrok = model && model.startsWith('grok-video');
+                
+                // ========== 模式1: 首帧克隆 ==========
+                if (cloneMode === 'frame') {
+                    loadingText.textContent = '🖼️ 提取参考帧...';
+                    
+                    // 确保有提取的帧
+                    if (!refExtractedFrame) {
+                        const video = document.getElementById('refPreviewVideo');
+                        if (video.src) {
+                            await extractVideoFrame(video, 0.1);
+                        } else {
+                            throw new Error('请先上传视频');
+                        }
+                    }
+                    
+                    // 🎯 先用AI分析参考帧，获取详细描述
+                    loadingText.textContent = '🧠 分析参考图片...';
+                    let frameDescription = '';
+                    try {
+                        frameDescription = await analyzeVideoContent(refExtractedFrame) || '';
+                        console.log('[video-tools] 参考帧分析结果:', frameDescription.substring(0, 100));
+                    } catch (e) {
+                        console.warn('[video-tools] 参考帧分析失败:', e.message);
+                    }
+                    
+                    // 📝 构建增强提示词：参考图描述 + 用户需求
+                    let enhancedPrompt = prompt;
+                    if (frameDescription) {
+                        enhancedPrompt = `[Reference image: ${frameDescription}]\n\n[User request: ${prompt}]\n\nIMPORTANT: Keep the visual style, characters, and scene from the reference image. Only modify as requested.`;
+                        enhancedPrompt = ensureChineseAudio(enhancedPrompt, duration);
+                    }
+                    
+                    loadingText.textContent = '🎬 图生视频中...';
+                    
+                    // 使用图生视频API（增强提示词 + 参考图双保险）
+                    if (isVidu) {
+                        const viduParams = parseViduModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'vidu', 
+                            prompt: enhancedPrompt, 
+                            image_url: refExtractedFrame,
+                            model_version: viduParams.version,
+                            aspect_ratio: ratio, 
+                            duration: viduParams.duration,
+                            resolution: viduParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isHailuo) {
+                        const hailuoParams = parseHailuoModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'hailuo', 
+                            prompt: enhancedPrompt, 
+                            image_url: refExtractedFrame,
+                            model_version: hailuoParams.version,
+                            duration: hailuoParams.duration,
+                            resolution: hailuoParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isKling) {
+                        const klingParams = parseKlingModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'kling', 
+                            prompt: enhancedPrompt, 
+                            image_url: refExtractedFrame,
+                            model_version: klingParams.version,
+                            aspect_ratio: ratio,
+                            duration: klingParams.duration,
+                            resolution: klingParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isVeo) {
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'veo3', 
+                            prompt: enhancedPrompt, 
+                            image_url: refExtractedFrame, 
+                            aspect_ratio: ratio, 
+                            with_audio: true, 
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isWan26) {
+                        // 🎬 Wan2.6模型
+                        const wan26Params = parseWan26Model(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'wan26', 
+                            prompt: enhancedPrompt, 
+                            img_url: refExtractedFrame,
+                            resolution: wan26Params.resolution,
+                            duration: wan26Params.duration,
+                            audio: wan26Params.audio,
+                            image_weight: 0.3,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                        console.log(`[ref] Wan2.6视频克隆: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
+                    } else if (isGrok) {
+                        // 🎬 Grok模型 - 使用yunwu API
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'image-to-video', 
+                            prompt: enhancedPrompt, 
+                            image_url: refExtractedFrame, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
+                            userId: currentUser?.id,
+                            skip_billing: true,
+                            image_weight: 0.98,
+                            preserve_subject: true
+                        };
+                    } else {
+                        // Sora-2 / Grok 等
+                        apiEndpoint = '/api/sora2';
+                        requestBody = { 
+                            action: 'image-to-video', 
+                            prompt: enhancedPrompt, 
+                            image_url: refExtractedFrame, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
+                            userId: currentUser?.id,
+                            image_weight: 0.98,
+                            preserve_subject: true
+                        };
+                    }
+                }
+                // ========== 模式2: 首尾帧克隆 (Vidu Pro/Turbo, Kling 2.1) ==========
+                else if (cloneMode === 'firstlast') {
+                    loadingText.textContent = '🎬 提取首尾帧...';
+                    
+                    // 提取首尾帧
+                    const video = document.getElementById('refPreviewVideo');
+                    if (!video.src) {
+                        throw new Error('请先上传视频');
+                    }
+                    await extractFirstAndLastFrame(video);
+                    
+                    if (!refExtractedFrame || !refExtractedLastFrame) {
+                        throw new Error('首尾帧提取失败');
+                    }
+                    
+                    // 检查模型是否支持尾帧
+                    const supportsLastFrame = model.includes('vidu-q2-pro') || model.includes('vidu-q2-turbo') || 
+                                              (model.includes('kling-2.1') && model.includes('1080p'));
+                    
+                    if (!supportsLastFrame) {
+                        showToast('当前模型不支持尾帧，将仅使用首帧');
+                    }
+                    
+                    loadingText.textContent = '🎬 首尾帧图生视频中...';
+                    
+                    // 使用首尾帧图生视频
+                    if (isVidu) {
+                        const viduParams = parseViduModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'vidu', 
+                            prompt: prompt || '让图片动起来，平滑过渡到尾帧', 
+                            image_url: refExtractedFrame,
+                            last_frame_url: supportsLastFrame ? refExtractedLastFrame : undefined,
+                            model_version: viduParams.version,
+                            aspect_ratio: ratio, 
+                            duration: viduParams.duration,
+                            resolution: viduParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                        console.log('[video-tools] Vidu首尾帧克隆:', { version: viduParams.version, hasLastFrame: !!requestBody.last_frame_url });
+                    } else if (isKling) {
+                        const klingParams = parseKlingModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'kling', 
+                            prompt: prompt || '让图片动起来，平滑过渡到尾帧', 
+                            image_url: refExtractedFrame,
+                            last_frame_url: supportsLastFrame ? refExtractedLastFrame : undefined,
+                            model_version: klingParams.version,
+                            aspect_ratio: ratio,
+                            duration: klingParams.duration,
+                            resolution: klingParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                        console.log('[video-tools] Kling首尾帧克隆:', { version: klingParams.version, resolution: klingParams.resolution, hasLastFrame: !!requestBody.last_frame_url });
+                    } else {
+                        // 其他模型回退到普通首帧模式
+                        showToast('当前模型不支持首尾帧，已回退到首帧模式');
+                        if (isGrok) {
+                            apiEndpoint = '/api/yunwu';
+                            requestBody = { 
+                                action: 'image-to-video', 
+                                prompt, 
+                                image_url: refExtractedFrame, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                userId: currentUser?.id,
+                                skip_billing: true,
+                                image_weight: 0.98,
+                                preserve_subject: true
+                            };
+                        } else {
+                            apiEndpoint = '/api/sora2';
+                            requestBody = { 
+                                action: 'image-to-video', 
+                                prompt, 
+                                image_url: refExtractedFrame, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                userId: currentUser?.id,
+                                image_weight: 0.98,
+                                preserve_subject: true
+                            };
+                        }
+                    }
+                }
+                // ========== 模式3: 智能分析 ==========
+                else if (cloneMode === 'ai') {
+                    loadingText.textContent = '🧠 AI分析视频内容...';
+                    
+                    // 确保有提取的帧
+                    if (!refExtractedFrame) {
+                        const video = document.getElementById('refPreviewVideo');
+                        if (video.src) {
+                            await extractVideoFrame(video, 0.1);
+                        } else {
+                            throw new Error('请先上传视频');
+                        }
+                    }
+                    
+                    // AI分析视频内容
+                    const videoDescription = await analyzeVideoContent(refExtractedFrame);
+                    if (!videoDescription) {
+                        throw new Error('AI分析失败，请重试');
+                    }
+                    
+                    // 组合提示词
+                    const combinedPrompt = `Based on this video style: ${videoDescription}\n\nUser modification: ${prompt}`;
+                    const finalPrompt = ensureChineseAudio(combinedPrompt, duration, isWan26);
+                    
+                    loadingText.textContent = '🎬 文生视频中...';
+                    
+                    // 使用文生视频API
+                    if (isVidu) {
+                        const viduParams = parseViduModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'vidu', 
+                            prompt: finalPrompt, 
+                            model_version: viduParams.version,
+                            aspect_ratio: ratio, 
+                            duration: viduParams.duration,
+                            resolution: viduParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isHailuo) {
+                        const hailuoParams = parseHailuoModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'hailuo', 
+                            prompt: finalPrompt, 
+                            model_version: hailuoParams.version,
+                            duration: hailuoParams.duration,
+                            resolution: hailuoParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isKling) {
+                        const klingParams = parseKlingModel(model);
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'kling', 
+                            prompt: finalPrompt, 
+                            model_version: klingParams.version,
+                            aspect_ratio: ratio,
+                            duration: klingParams.duration,
+                            resolution: klingParams.resolution,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isVeo) {
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'veo3', 
+                            prompt: finalPrompt, 
+                            aspect_ratio: ratio, 
+                            with_audio: true, 
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else if (isGrok) {
+                        // 🎬 Grok模型 - 使用yunwu API
+                        apiEndpoint = '/api/yunwu';
+                        requestBody = { 
+                            action: 'text-to-video', 
+                            prompt: finalPrompt, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        };
+                    } else {
+                        apiEndpoint = '/api/sora2';
+                        requestBody = { 
+                            action: 'text-to-video', 
+                            prompt: finalPrompt, 
+                            model, 
+                            aspect_ratio: ratio, 
+                            duration, 
+                            userId: currentUser?.id
+                        };
+                    }
+                }
+                // ========== 模式3: 原生克隆 (Sora-2 Only) ==========
+                else if (cloneMode === 'native') {
+                    loadingText.textContent = '🎬 Sora-2 原生克隆中...';
+                    
+                    if (!model.startsWith('sora-2')) {
+                        throw new Error('原生克隆仅支持 Sora-2 模型');
+                    }
+                    
+                    // 需要上传视频获取URL
+                    let refUrl = '';
+                    if (refVideoFile) {
+                        loadingText.textContent = '上传视频中...';
+                        const reader = new FileReader();
+                        const base64 = await new Promise((resolve) => {
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsDataURL(refVideoFile);
+                        });
+                        refUrl = await uploadVideoToHost(base64);
+                        if (!refUrl || !refUrl.startsWith('http')) {
+                            throw new Error('视频上传失败，请尝试首帧克隆模式');
+                        }
+                    } else {
+                        throw new Error('原生克隆需要上传视频文件');
+                    }
+                    
+                    loadingText.textContent = '🎬 Sora-2 Remix中...';
+                    apiEndpoint = '/api/sora2';
+                    requestBody = { 
+                        action: 'text-to-video', 
+                        prompt, 
+                        video_url: refUrl, 
+                        model, 
+                        aspect_ratio: ratio, 
+                        duration, 
+                        userId: currentUser?.id
+                    };
+                }
+                
+                // 发送请求
+                const response = await fetch(apiEndpoint, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(requestBody) 
+                }); 
+                if (!response.ok) throw new Error('API错误: ' + response.status); 
+                const data = await response.json(); 
+                if (data.error) throw new Error(data.message || data.error); 
+                
+                if (data.task_id || data.id) { 
+                    loadingText.textContent = '视频生成中...';
+                    const taskId = data.task_id || data.id;
+                    const isVodModel = isVidu || isHailuo || isKling;
+                    const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26;
+                    const videoUrl = await pollVideoResult(taskId, data._source, data._endpoint, useYunwu, isVodModel, isWan26); 
+                    if (videoUrl) { 
+                        currentVideoUrls.ref = videoUrl; 
+                        document.getElementById('refVideo').src = videoUrl; 
+                        document.getElementById('refResult').style.display = 'block'; 
+                        showToast('视频克隆成功！'); 
+                    } else { throw new Error('未获取到视频'); } 
+                } else if (data.video_url || data.url) { 
+                    currentVideoUrls.ref = data.video_url || data.url; 
+                    document.getElementById('refVideo').src = currentVideoUrls.ref; 
+                    document.getElementById('refResult').style.display = 'block'; 
+                    showToast('视频克隆成功！'); 
+                } else { throw new Error('未获取到视频'); } 
+            } catch (error) { 
+                showToast('克隆失败：' + error.message); 
+            } finally { 
+                document.getElementById('refLoading').style.display = 'none'; 
+                document.getElementById('refLoadingText').textContent = '视频克隆中...';
+            } 
+        }
+        
+        // 轮询视频生成结果
+        // 🆕 isVod 参数用于区分 Vidu/Hailuo/Kling (腾讯VOD) 和 Veo
+        async function pollVideoResult(taskId, source, endpoint, isYunwu = false, isVod = false, isWan26 = false) {
+            const maxAttempts = 60;
+            // 🎬 腾讯VOD模型使用 poll-vod，Veo使用 poll，Wan2.6使用 wan26-poll，其他使用 sora2
+            const pollEndpoint = (isYunwu || isVod || isWan26) ? '/api/yunwu' : '/api/sora2';
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 5000));
+                try {
+                    // 🆕 区分 VOD、Veo 和 Wan2.6 的轮询 action
+                    let pollBody;
+                    if (isWan26) {
+                        // Wan2.6 使用专用轮询接口
+                        pollBody = { action: 'wan26-poll', task_id: taskId, userId: currentUser?.id };
+                    } else if (isVod) {
+                        // Vidu/Hailuo/Kling 使用腾讯VOD轮询接口
+                        pollBody = { action: 'poll-vod', task_id: taskId, userId: currentUser?.id };
+                    } else if (isYunwu) {
+                        // Veo 使用普通轮询
+                        pollBody = { action: 'poll', task_id: taskId, userId: currentUser?.id };
+                    } else {
+                        // Sora2
+                        pollBody = { action: 'poll', task_id: taskId, _source: source, _endpoint: endpoint, userId: currentUser?.id };
+                    }
+                    const res = await fetch(pollEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(pollBody)
+                    });
+                    if (!res.ok) {
+                        console.warn(`[轮询] 第${i+1}次失败: ${res.status}`);
+                        continue;
+                    }
+                    const data = await res.json();
+                    const status = (data.status || data.state || data?.output?.task_status || '').toUpperCase();
+                    console.log(`[轮询] 第${i+1}次, 状态: ${status}, 数据:`, JSON.stringify(data).substring(0, 300));
+                    if (status === 'COMPLETED' || status === 'SUCCEEDED' || status === 'SUCCESS' || status === 'DONE' || status === 'FINISH') {
+                        // 🔧 全面提取视频URL，支持多种返回格式，包括 Wan2.6 的 output.video_url
+                        const videoUrl = data.output_url || data.video_url || data.url 
+                            || data.data?.output_url || data.data?.video_url || data.data?.url
+                            || data.result?.url || data.result?.video_url
+                            || data.output?.video_url;
+                        console.log(`[轮询] ✅ 完成, 视频URL: ${videoUrl ? videoUrl.substring(0, 80) : '无'}`);
+                        if (videoUrl) return videoUrl;
+                        // 如果状态是完成但没有URL，继续轮询（可能是URL还在生成中）
+                        console.warn(`[轮询] 状态完成但无URL，继续轮询...`);
+                        continue;
+                    }
+                    if (status === 'FAILED' || status === 'ERROR' || status === 'FAIL') {
+                        throw new Error(data.error || data.message || '视频生成失败');
+                    }
+                    const progress = data.progress || 0;
+                    console.log(`[轮询] 第${i+1}次, 状态: ${status || 'PENDING'}${progress ? ` ${progress}%` : ''}`);
+                } catch (e) { if (e.message.includes('失败')) throw e; }
+            }
+            throw new Error('视频生成超时');
+        }
+        function downloadVideo(type) { const url = currentVideoUrls[type]; if (!url) return; const a = document.createElement('a'); a.href = url; a.download = 'video_' + Date.now() + '.mp4'; a.target = '_blank'; a.click(); showToast('开始下载'); }
+        function showToast(msg) { const toast = document.getElementById('toast'); toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500); }
+        
+        // ==================== 🎯 批量视频生成功能 ====================
+        let batchImages = [];  // 存储批量上传的图片
+        let batchVideoResults = [];  // 存储批量生成结果
+        let batchGenerating = false;  // 是否正在生成中
+        
+        // ==================== 页面状态持久化 ====================
+        function saveVideoToolsState() {
+            try {
+                const state = {
+                    // 批量生成面板状态
+                    batchImages,
+                    batchImagePrompts,
+                    batchVideoResults,
+                    batchGenerating,
+                    batchT2vCards,  // 文生视频卡片数据
+                    batchMode: document.getElementById('batchMode')?.value,
+                    batchModel: document.getElementById('batchModel')?.value,
+                    batchRatio: document.getElementById('batchRatio')?.value,
+                    batchProgressVisible: document.getElementById('batchProgress')?.style.display === 'block',
+                    batchResultVisible: document.getElementById('batchResult')?.style.display === 'block',
+                    // 文生视频面板状态
+                    t2vPrompt: document.getElementById('t2vPrompt')?.value || '',
+                    t2vModel: document.getElementById('t2vModel')?.value || '',
+                    t2vRatio: document.getElementById('t2vRatio')?.value || '',
+                    t2vVideoUrl: currentVideoUrls.t2v || '',
+                    t2vResultVisible: document.getElementById('t2vResult')?.style.display === 'block',
+                    // 图生视频面板状态
+                    i2vPrompt: document.getElementById('i2vPrompt')?.value || '',
+                    i2vModel: document.getElementById('i2vModel')?.value || '',
+                    i2vRatio: document.getElementById('i2vRatio')?.value || '',
+                    i2vImageData: i2vImageData || '',
+                    i2vVideoUrl: currentVideoUrls.i2v || '',
+                    i2vResultVisible: document.getElementById('i2vResult')?.style.display === 'block',
+                    // 视频克隆面板状态
+                    refPrompt: document.getElementById('refPrompt')?.value || '',
+                    refModel: document.getElementById('refModel')?.value || '',
+                    refRatio: document.getElementById('refRatio')?.value || '',
+                    refUrl: document.getElementById('refUrl')?.value || '',
+                    refVideoUrl: currentVideoUrls.ref || '',
+                    refResultVisible: document.getElementById('refResult')?.style.display === 'block',
+                    // 当前激活的面板
+                    activePanel: document.querySelector('.tab.active')?.textContent || '',
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_videotools_state', JSON.stringify(state));
+                console.log('[video-tools] 状态已保存');
+            } catch (e) {
+                console.warn('[video-tools] 保存状态失败:', e);
+            }
+        }
+        
+        // 兼容旧函数名
+        function saveBatchState() { saveVideoToolsState(); }
+        
+        function restoreVideoToolsState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_videotools_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                // 检查是否过期（30分钟）
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_videotools_state');
+                    return;
+                }
+                console.log('[video-tools] 恢复状态...');
+                
+                // 恢复批量生成面板
+                batchImages = state.batchImages || [];
+                batchImagePrompts = state.batchImagePrompts || [];
+                batchVideoResults = state.batchVideoResults || [];
+                batchGenerating = state.batchGenerating || false;
+                
+                if (state.batchMode) document.getElementById('batchMode').value = state.batchMode;
+                if (state.batchModel) document.getElementById('batchModel').value = state.batchModel;
+                if (state.batchRatio) document.getElementById('batchRatio').value = state.batchRatio;
+                
+                // 恢复文生视频卡片
+                if (state.batchT2vCards && state.batchT2vCards.length > 0) {
+                    batchT2vCards = state.batchT2vCards;
+                    renderBatchT2vGrid();
+                }
+                
+                onBatchModeChange();
+                
+                if (batchImages.length > 0) {
+                    while (batchImagePrompts.length < batchImages.length) {
+                        batchImagePrompts.push('');
+                    }
+                    renderBatchImageGrid();
+                }
+                
+                if (batchVideoResults.length > 0) {
+                    document.getElementById('batchVideoGrid').innerHTML = '';
+                    batchVideoResults.forEach(r => addBatchVideoToGrid(r));
+                    document.getElementById('batchResult').style.display = 'block';
+                }
+                
+                if (state.batchProgressVisible && batchGenerating) {
+                    document.getElementById('batchProgress').style.display = 'block';
+                    document.getElementById('batchProgressText').textContent = '⏳ 任务进行中...';
+                }
+                
+                // 恢复文生视频面板
+                if (state.t2vPrompt) document.getElementById('t2vPrompt').value = state.t2vPrompt;
+                if (state.t2vModel) document.getElementById('t2vModel').value = state.t2vModel;
+                if (state.t2vRatio) document.getElementById('t2vRatio').value = state.t2vRatio;
+                if (state.t2vVideoUrl) {
+                    currentVideoUrls.t2v = state.t2vVideoUrl;
+                    document.getElementById('t2vVideo').src = state.t2vVideoUrl;
+                    document.getElementById('t2vResult').style.display = 'block';
+                }
+                
+                // 恢复图生视频面板
+                if (state.i2vPrompt) document.getElementById('i2vPrompt').value = state.i2vPrompt;
+                if (state.i2vModel) document.getElementById('i2vModel').value = state.i2vModel;
+                if (state.i2vRatio) document.getElementById('i2vRatio').value = state.i2vRatio;
+                if (state.i2vImageData) {
+                    i2vImageData = state.i2vImageData;
+                    document.getElementById('i2vPreview').src = state.i2vImageData;
+                    document.getElementById('i2vPreview').style.display = 'block';
+                }
+                if (state.i2vVideoUrl) {
+                    currentVideoUrls.i2v = state.i2vVideoUrl;
+                    document.getElementById('i2vVideo').src = state.i2vVideoUrl;
+                    document.getElementById('i2vResult').style.display = 'block';
+                }
+                
+                // 恢复视频克隆面板
+                if (state.refPrompt) document.getElementById('refPrompt').value = state.refPrompt;
+                if (state.refModel) document.getElementById('refModel').value = state.refModel;
+                if (state.refRatio) document.getElementById('refRatio').value = state.refRatio;
+                if (state.refUrl) document.getElementById('refUrl').value = state.refUrl;
+                if (state.refVideoUrl) {
+                    currentVideoUrls.ref = state.refVideoUrl;
+                    document.getElementById('refVideo').src = state.refVideoUrl;
+                    document.getElementById('refResult').style.display = 'block';
+                }
+                
+                console.log('[video-tools] 状态恢复完成');
+            } catch (e) {
+                console.error('[video-tools] 恢复状态失败:', e);
+            }
+        }
+        
+        // 兼容旧函数名
+        function restoreBatchState() { restoreVideoToolsState(); }
+        
+        // 页面可见性变化时保存状态
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                saveVideoToolsState();
+            }
+        });
+        
+        // 页面卸载前保存
+        window.addEventListener('beforeunload', saveVideoToolsState);
+        window.addEventListener('pagehide', saveVideoToolsState);
+        
+        // 页面加载时恢复
+        window.addEventListener('load', () => {
+            setTimeout(restoreVideoToolsState, 100);
+        });
+        
+        // 切换批量模式
+        function onBatchModeChange() {
+            const mode = document.getElementById('batchMode').value;
+            document.getElementById('batchT2vSection').style.display = mode === 't2v' ? 'block' : 'none';
+            document.getElementById('batchI2vSection').style.display = mode === 'i2v' ? 'block' : 'none';
+            
+            if (mode === 'i2v') {
+                // 切换到图生视频时，确保渲染宫格（显示空状态或已有图片）
+                renderBatchImageGrid();
+            } else {
+                // 切换到文生视频时，渲染宫格卡片（默认8张）
+                if (batchT2vCards.length === 0) {
+                    for (let i = 0; i < 8; i++) addBatchT2vCard('');
+                }
+                renderBatchT2vGrid();
+            }
+        }
+        
+        // ==================== 文生视频宫格卡片 ====================
+        let batchT2vCards = [];  // 存储文生视频卡片数据 { prompt, model, ratio }
+        
+        // 添加文生视频卡片
+        function addBatchT2vCard(prompt = '', model = '', ratio = '') {
+            batchT2vCards.push({ prompt, model, ratio });
+            renderBatchT2vGrid();
+        }
+        
+        // 渲染文生视频宫格
+        function renderBatchT2vGrid() {
+            const grid = document.getElementById('batchT2vGrid');
+            if (!grid) return;  // DOM未就绪时跳过，稍后再渲染
+            grid.innerHTML = batchT2vCards.map((card, i) => `
+                <div class="batch-card" id="t2vCard${i}">
+                    <div class="batch-card-header">
+                        <span class="batch-card-num">🎬 #${i + 1}</span>
+                        <button class="batch-card-del" onclick="removeBatchT2vCard(${i})">×</button>
+                    </div>
+                    <div class="batch-card-body">
+                        <div class="batch-card-preview">
+                            <div class="batch-card-preview-placeholder">📝 文生视频</div>
+                        </div>
+                        <textarea placeholder="输入视频描述..."
+                            onchange="updateBatchT2vPrompt(${i}, this.value)">${card.prompt || ''}</textarea>
+                        <div class="batch-card-config">
+                            <select onchange="updateBatchT2vModel(${i}, this.value)">
+                                <option value="">🌐 全局配置</option>
+                                <option value="sora-2-vip-all" ${card.model === 'sora-2-vip-all' ? 'selected' : ''}>Sora-2 VIP</option>
+                                <option value="veo3.1-components-4k" ${card.model === 'veo3.1-components-4k' ? 'selected' : ''}>Veo 3.1 4K</option>
+                                <option value="grok-video-3" ${card.model === 'grok-video-3' ? 'selected' : ''}>Grok 3 6秒</option>
+                                <option value="grok-video-3-10s" ${card.model === 'grok-video-3-10s' ? 'selected' : ''}>Grok 3 10秒</option>
+                                <option value="grok-video-3-15s" ${card.model === 'grok-video-3-15s' ? 'selected' : ''}>Grok 3 15秒</option>
+                                <option value="hailuo-02-768p-6s" ${card.model === 'hailuo-02-768p-6s' ? 'selected' : ''}>海螺02 6秒</option>
+                                <option value="kling-2.5-720p-5s" ${card.model === 'kling-2.5-720p-5s' ? 'selected' : ''}>可灵2.5 5秒</option>
+                            </select>
+                            <select onchange="updateBatchT2vRatio(${i}, this.value)">
+                                <option value="">🌐 全局</option>
+                                <option value="16:9" ${card.ratio === '16:9' ? 'selected' : ''}>16:9</option>
+                                <option value="9:16" ${card.ratio === '9:16' ? 'selected' : ''}>9:16</option>
+                                <option value="1:1" ${card.ratio === '1:1' ? 'selected' : ''}>1:1</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 更新卡片数据
+        function updateBatchT2vPrompt(index, value) {
+            if (batchT2vCards[index]) batchT2vCards[index].prompt = value;
+        }
+        function updateBatchT2vModel(index, value) {
+            if (batchT2vCards[index]) batchT2vCards[index].model = value || null;
+        }
+        function updateBatchT2vRatio(index, value) {
+            if (batchT2vCards[index]) batchT2vCards[index].ratio = value || null;
+        }
+        
+        // 删除卡片
+        function removeBatchT2vCard(index) {
+            batchT2vCards.splice(index, 1);
+            if (batchT2vCards.length === 0) {
+                addBatchT2vCard();  // 保持至少一张卡片
+            } else {
+                renderBatchT2vGrid();
+            }
+        }
+        
+        // 初始化文生视频卡片（延迟到 DOMContentLoaded 中执行）
+        
+        // 处理批量图片上传 - 九宫格布局，每张图片有独立提示词
+        let batchImagePrompts = [];  // 存储每张图片的独立提示词
+        
+        async function handleBatchImageUpload(input) {
+            if (!input.files || input.files.length === 0) return;
+            
+            const files = Array.from(input.files);  // 无限制
+            batchImages = [];
+            batchImagePrompts = [];
+            
+            showToast(`正在处理 ${files.length} 张图片...`);
+            
+            for (const file of files) {
+                const reader = new FileReader();
+                const dataUrl = await new Promise(resolve => {
+                    reader.onload = e => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+                // 压缩图片
+                const compressed = await compressImage(dataUrl, 1200, 0.8);
+                batchImages.push(compressed);
+                batchImagePrompts.push('');  // 默认空提示词
+            }
+            
+            // 显示九宫格预览，每张图片下面有提示词输入框
+            renderBatchImageGrid();
+            showToast(`已上传 ${batchImages.length} 张图片`);
+        }
+        
+        // 渲染宫格图片列表（两列，每个卡片有独立配置）
+        function renderBatchImageGrid() {
+            const grid = document.getElementById('batchImageGrid');
+            
+            // 如果没有图片，显示8个空状态卡片
+            if (batchImages.length === 0) {
+                grid.innerHTML = Array.from({length: 8}).map(() => `
+                    <div class=\"batch-card\" style=\"border-style:dashed;cursor:pointer;\" onclick=\"document.getElementById('batchImageInput').click()\">
+                        <div class=\"batch-card-body\" style=\"display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;\">
+                            <div style=\"font-size:28px;margin-bottom:8px;\">📷</div>
+                            <div style=\"color:var(--text-dim);font-size:12px;\">点击添加图片</div>
+                        </div>
+                    </div>
+                `).join('');
+                return;
+            }
+            
+            grid.innerHTML = batchImages.map((img, i) => `
+                <div class="batch-card">
+                    <div class="batch-card-header">
+                        <span class="batch-card-num">🖼️ #${i + 1}</span>
+                        <button class="batch-card-del" onclick="removeBatchImage(${i})">×</button>
+                    </div>
+                    <div class="batch-card-body">
+                        <div class="batch-card-preview">
+                            <img src="${img}" alt="图片 ${i + 1}">
+                        </div>
+                        <textarea placeholder="描述这个场景的动作...（留空则智能生成）"
+                            onchange="updateBatchImagePrompt(${i}, this.value)">${batchImagePrompts[i] || ''}</textarea>
+                        <div class="batch-card-config">
+                            <select onchange="updateBatchImageModel(${i}, this.value)">
+                                <option value="">🌐 全局配置</option>
+                                <option value="sora-2-vip-all">Sora-2 VIP</option>
+                                <option value="veo3.1-components-4k">Veo 3.1 4K</option>
+                                <option value="grok-video-3">Grok 3 6秒</option>
+                                <option value="grok-video-3-10s">Grok 3 10秒</option>
+                                <option value="grok-video-3-15s">Grok 3 15秒</option>
+                                <option value="hailuo-02-768p-6s">海螺02 6秒</option>
+                                <option value="kling-2.5-720p-5s">可灵2.5 5秒</option>
+                            </select>
+                            <select onchange="updateBatchImageRatio(${i}, this.value)">
+                                <option value="">🌐 全局</option>
+                                <option value="16:9">16:9</option>
+                                <option value="9:16">9:16</option>
+                                <option value="1:1">1:1</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 更新单张图片的提示词
+        function updateBatchImagePrompt(index, value) {
+            batchImagePrompts[index] = value;
+        }
+        
+        // 图生视频独立配置存储
+        let batchImageConfigs = [];  // { model, ratio }
+        
+        function updateBatchImageModel(index, value) {
+            if (!batchImageConfigs[index]) batchImageConfigs[index] = {};
+            batchImageConfigs[index].model = value || null;
+        }
+        
+        function updateBatchImageRatio(index, value) {
+            if (!batchImageConfigs[index]) batchImageConfigs[index] = {};
+            batchImageConfigs[index].ratio = value || null;
+        }
+        
+        // 删除单张图片
+        function removeBatchImage(index) {
+            batchImages.splice(index, 1);
+            batchImagePrompts.splice(index, 1);
+            if (batchImages.length === 0) {
+                clearBatchImages();
+            } else {
+                renderBatchImageGrid();
+            }
+        }
+        
+        // 清空批量图片
+        function clearBatchImages() {
+            batchImages = [];
+            batchImagePrompts = [];
+            batchImageConfigs = [];
+            document.getElementById('batchImageInput').value = '';
+            renderBatchImageGrid();  // 重新渲染显示空状态
+        }
+        
+        // 批量生成主函数
+        async function generateBatch() {
+            const mode = document.getElementById('batchMode').value;
+            let model = document.getElementById('batchModel').value;
+            const ratio = document.getElementById('batchRatio').value;
+            
+            // 🔧 修复：规范化 Veo 模型名称（下划线转点号），在获取duration之前处理
+            if (model && model.includes('veo_')) {
+                const oldModel = model;
+                model = model.replace(/_/g, '.');
+                console.log('[batch] 规范化Veo模型名:', oldModel, '->', model);
+            }
+            
+            const duration = getFixedDuration(model);
+            const cost = VIDEO_COST[model] || VIDEO_COST['veo3.1'] || 30;
+            const isVeo = isVeoModel(model);
+            const isVidu = isViduModel(model);
+            const isHailuo = isHailuoModel(model);
+            const isKling = isKlingModel(model);
+            const isWan26 = isWan26Model(model);
+            const isGrok = model && model.startsWith('grok-video');
+            
+            let tasks = [];
+            
+            if (mode === 't2v') {
+                // 文生视频模式：从宫格卡片读取
+                const validCards = batchT2vCards.filter(c => c.prompt && c.prompt.trim());
+                
+                if (validCards.length === 0) {
+                    showToast('请至少输入一个视频描述');
+                    return;
+                }
+                tasks = validCards.map(card => ({ 
+                    type: 't2v', 
+                    prompt: card.prompt.trim(),
+                    customModel: card.model || null,
+                    customRatio: card.ratio || null
+                }));
+            } else {
+                // 图生视频模式 - 每张图片使用独立提示词
+                if (batchImages.length === 0) {
+                    showToast('请先上传图片');
+                    return;
+                }
+                // 每张图片使用独立提示词，留空则智能生成
+                tasks = batchImages.map((img, i) => ({ 
+                    type: 'i2v', 
+                    image: img, 
+                    prompt: batchImagePrompts[i]?.trim() || ''  // 留空表示智能生成
+                }));
+            }
+            
+            const totalCost = tasks.length * cost;
+            
+            // 🔧 修复：等待认证初始化完成后再检查登录状态
+            if (!authInitialized) {
+                showToast('正在初始化，请稍候...');
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 5000) {
+                    await new Promise(r => setTimeout(r, 200));
+                }
+                // 重新检查用户状态
+                if (!currentUser) {
+                    await checkUser();
+                }
+            }
+            
+            // 检查登录和余额
+            if (!currentUser) {
+                showToast('请先登录');
+                return;
+            }
+            if (userQuota < totalCost) {
+                showToast(`胶片不足，需要 ${totalCost} 胶片`);
+                return;
+            }
+            
+            // 确认
+            const modelName = isVidu ? 'Vidu' : isHailuo ? 'Hailuo海螺' : isKling ? 'Kling可灵' : model.includes('veo') ? 'Veo 3.1 4K' : model.includes('grok') ? 'Grok Video' : 'Sora-2';
+            if (!confirm(`将使用 ${modelName} 并发生成 ${tasks.length} 个视频\n共需 ${totalCost} 胶片，确认继续？`)) {
+                return;
+            }
+            
+            // 预扣费
+            if (!await preDeduct(totalCost, `批量${mode === 't2v' ? '文' : '图'}生视频x${tasks.length}`)) {
+                return;
+            }
+            
+            // 显示进度
+            batchGenerating = true;
+            document.getElementById('batchProgress').style.display = 'block';
+            document.getElementById('batchResult').style.display = 'none';
+            document.getElementById('batchVideoGrid').innerHTML = '';
+            batchVideoResults = [];
+            saveBatchState();
+            
+            let completed = 0;
+            const total = tasks.length;
+            
+            function updateProgress(text, subText = '') {
+                document.getElementById('batchProgressText').textContent = text || `🚀 批量生成中...`;
+                document.getElementById('batchProgressCount').textContent = `${completed}/${total}`;
+                document.getElementById('batchProgressBar').style.width = `${(completed/total)*100}%`;
+            }
+            updateProgress(`🚀 已提交 ${total} 个任务，等待生成中...`);
+            
+            // 🎨 2026-01-27：禁用线稿转换，直接使用原图（保留动态表情包等场景的图片一致性）
+            // 之前为了规避 Veo/Sora2 内容审核会转线稿，但会改变参考图，现已禁用
+            // if (mode === 'i2v' && !isVidu && !isHailuo && !isKling) { ... }
+            
+            // 🚀 并发执行所有任务
+            // Vidu/Hailuo/Kling/Veo/Wan2.6/Grok 都走 yunwu API，其他走 sora2 API
+            const apiEndpoint = (isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok) ? '/api/yunwu' : '/api/sora2';
+            
+            // 🎯 处理提示词：添加中文语音指令 + 强制语音在视频结束前1秒结束
+            const audioEndTime = Math.max(duration - 1, 3);
+            const audioDurationHint = `【重要】所有语音/旁白/对话必须在第${audioEndTime}秒前结束，最后1秒保持静音画面`;
+            
+            const processPrompt = (prompt, isI2v = false) => {
+                // 如果是图生视频且提示词为空，让AI智能生成
+                if (isI2v && !prompt) {
+                    return `根据图片内容智能生成动画，使用中文配音。${audioDurationHint}`;
+                }
+                if (!prompt) return `使用中文配音。${audioDurationHint}`;
+                const lower = prompt.toLowerCase();
+                // 检测用户是否明确要求英文
+                const wantsEnglish = lower.includes('english') || lower.includes('in english') || lower.includes('英文配音') || lower.includes('英语旁白');
+                // 检测是否已包含中文语音指令
+                const hasChineseAudio = prompt.includes('中文配音') || prompt.includes('中文旁白') || prompt.includes('普通话');
+                // 检测是否已包含时长控制指令
+                const hasTimeControl = prompt.includes('秒前结束') || prompt.includes('静音画面') || prompt.includes('结束语音');
+                
+                let result = prompt;
+                // 添加中文语音指令
+                if (!wantsEnglish && !hasChineseAudio) {
+                    result += '，使用中文配音';
+                }
+                // 添加时长控制指令
+                if (!hasTimeControl) {
+                    result += `。${audioDurationHint}`;
+                }
+                return result;
+            };
+            
+            // 🎬 解析各模型参数
+            const viduParams = isVidu ? parseViduModel(model) : null;
+            const hailuoParams = isHailuo ? parseHailuoModel(model) : null;
+            const klingParams = isKling ? parseKlingModel(model) : null;
+            
+            const promises = tasks.map(async (task, index) => {
+                try {
+                    let requestBody;
+                    const finalPrompt = processPrompt(task.prompt, task.type === 'i2v');
+                    
+                    if (task.type === 't2v') {
+                        // 文生视频
+                        if (isVidu) {
+                            requestBody = { 
+                                action: 'vidu', 
+                                prompt: finalPrompt, 
+                                model_version: viduParams.version,
+                                aspect_ratio: ratio, 
+                                duration: duration,
+                                resolution: viduParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (isHailuo) {
+                            // 🐚 Hailuo海螺模型
+                            requestBody = { 
+                                action: 'hailuo', 
+                                prompt: finalPrompt, 
+                                model_version: hailuoParams.version,
+                                duration: hailuoParams.duration,
+                                resolution: hailuoParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (isKling) {
+                            // ✨ Kling可灵模型
+                            requestBody = { 
+                                action: 'kling', 
+                                prompt: finalPrompt, 
+                                model_version: klingParams.version,
+                                aspect_ratio: ratio,
+                                duration: klingParams.duration,
+                                resolution: klingParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (isVeo) {
+                            requestBody = { action: 'veo3', prompt: finalPrompt, model, aspect_ratio: ratio, duration, with_audio: true, userId: currentUser?.id, skip_billing: true };
+                        } else if (isWan26) {
+                            // 🎬 Wan2.6模型 - 文生视频
+                            const wan26Params = parseWan26Model(model);
+                            requestBody = { 
+                                action: 'wan26', 
+                                prompt: finalPrompt, 
+                                resolution: wan26Params.resolution,
+                                duration: wan26Params.duration,
+                                audio: wan26Params.audio,
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (isGrok) {
+                            // 🎬 Grok模型 - 文生视频
+                            requestBody = { 
+                                action: 'text-to-video', 
+                                prompt: finalPrompt, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else {
+                            requestBody = { action: 'text-to-video', prompt: finalPrompt, model, aspect_ratio: ratio, duration, userId: currentUser?.id };
+                        }
+                    } else {
+                        // 🧲 图生视频 - 所有模型统一添加参考图一致性参数
+                        const imageConsistencyParams = {
+                            image_weight: 0.95,           // 高图片权重
+                            preserve_subject: true,       // 保持主体不变
+                            motion_intensity: 'medium',   // 中等运动强度，避免形变过大
+                            style_consistency: true       // 风格一致性
+                        };
+                        
+                        if (isVidu) {
+                            requestBody = { 
+                                action: 'vidu', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡，保持主体外观不变', 
+                                image_url: task.image,
+                                model_version: viduParams.version,
+                                aspect_ratio: ratio, 
+                                duration: duration,
+                                resolution: viduParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true,
+                                ...imageConsistencyParams
+                            };
+                        } else if (isHailuo) {
+                            // 🐚 Hailuo海螺模型 - 图生视频
+                            requestBody = { 
+                                action: 'hailuo', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡，保持主体外观不变', 
+                                image_url: task.image,
+                                model_version: hailuoParams.version,
+                                duration: hailuoParams.duration,
+                                resolution: hailuoParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true,
+                                ...imageConsistencyParams
+                            };
+                        } else if (isKling) {
+                            // ✨ Kling可灵模型 - 图生视频
+                            requestBody = { 
+                                action: 'kling', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡，保持主体外观不变', 
+                                image_url: task.image,
+                                model_version: klingParams.version,
+                                aspect_ratio: ratio,
+                                duration: klingParams.duration,
+                                resolution: klingParams.resolution,
+                                userId: currentUser?.id,
+                                skip_billing: true,
+                                ...imageConsistencyParams
+                            };
+                        } else if (isVeo) {
+                            requestBody = { 
+                                action: 'veo3', 
+                                prompt: finalPrompt || '让图片动起来，保持主体外观不变', 
+                                model, 
+                                image_url: task.image, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                with_audio: true, 
+                                userId: currentUser?.id, 
+                                skip_billing: true,
+                                ...imageConsistencyParams
+                            };
+                        } else if (isWan26) {
+                            // 🎬 Wan2.6模型 - 图生视频
+                            const wan26Params = parseWan26Model(model);
+                            requestBody = { 
+                                action: 'wan26', 
+                                prompt: finalPrompt || '让图片动起来，平滑过渡', 
+                                img_url: task.image,
+                                resolution: wan26Params.resolution,
+                                duration: wan26Params.duration,
+                                audio: wan26Params.audio,
+                                image_weight: 0.3,
+                                userId: currentUser?.id,
+                                skip_billing: true
+                            };
+                        } else if (model && model.startsWith('grok-video')) {
+                            // 🎮 Grok 图生视频 - 增强参考图一致性
+                            requestBody = { 
+                                action: 'image-to-video', 
+                                prompt: finalPrompt || '让图片动起来，保持主体外观不变', 
+                                image_url: task.image, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                userId: currentUser?.id,
+                                skip_billing: true,
+                                image_weight: 0.98,         // Grok用更高权重
+                                preserve_subject: true,
+                                fidelity: 'high',           // 高保真度
+                                motion_intensity: 'medium'
+                            };
+                        } else {
+                            // Sora 等其他模型
+                            requestBody = { 
+                                action: 'image-to-video', 
+                                prompt: finalPrompt || '让图片动起来，保持主体外观不变', 
+                                image_url: task.image, 
+                                model, 
+                                aspect_ratio: ratio, 
+                                duration, 
+                                userId: currentUser?.id, 
+                                image_weight: 0.98, 
+                                preserve_subject: true,
+                                motion_intensity: 'medium'
+                            };
+                        }
+                    }
+                    
+                    const response = await fetch(apiEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+                    
+                    const data = await response.json();
+                    if (!response.ok || data.error) {
+                        throw new Error(data.message || data.error || 'API错误');
+                    }
+                    
+                    // 获取视频URL
+                    let videoUrl = data.video_url || data.url;
+                    if (!videoUrl && (data.task_id || data.id)) {
+                        // 需要轮询（Vidu/Hailuo/Kling/Veo都需要）
+                        const isVodModel = isVidu || isHailuo || isKling;  // 腾讯VOD轮询
+                        videoUrl = await pollVideoResult(data.task_id || data.id, data._source, data._endpoint, isVeo || isVidu || isHailuo || isKling, isVodModel);
+                    }
+                    
+                    if (videoUrl) {
+                        return { index, success: true, videoUrl, prompt: task.prompt };
+                    }
+                    throw new Error('未获取到视频');
+                } catch (err) {
+                    console.error(`[批量] 第${index + 1}个失败:`, err);
+                    return { index, success: false, error: err.message, prompt: task.prompt };
+                }
+            });
+            
+            // 等待所有任务完成，实时更新进度
+            const results = await Promise.all(promises.map(async (p) => {
+                const result = await p;
+                completed++;
+                if (result.success) {
+                    batchVideoResults.push(result);
+                    addBatchVideoToGrid(result);
+                } else {
+                    addBatchVideoToGrid(result);
+                }
+                updateProgress(`已完成 ${completed}/${total}`);
+                saveBatchState();  // 每完成一个任务保存状态
+                return result;
+            }));
+            
+            // 完成
+            batchGenerating = false;
+            document.getElementById('batchProgress').style.display = 'none';
+            document.getElementById('batchResult').style.display = 'block';
+            saveBatchState();
+            
+            const successCount = results.filter(r => r.success).length;
+            if (successCount > 0) {
+                showToast(`✅ 成功生成 ${successCount}/${total} 个视频！`);
+            } else {
+                showToast('✖ 所有视频生成失败');
+            }
+        }
+        
+        // 添加批量视频到网格
+        function addBatchVideoToGrid(result) {
+            const grid = document.getElementById('batchVideoGrid');
+            const item = document.createElement('div');
+            item.style.cssText = 'background:var(--bg-card);border-radius:12px;overflow:hidden;';
+            
+            if (result.success) {
+                item.innerHTML = `
+                    <video src="${result.videoUrl}" style="width:100%;aspect-ratio:16/9;object-fit:cover;" controls playsinline></video>
+                    <div style="padding:8px;">
+                        <div style="font-size:11px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px;">${result.prompt ? result.prompt.substring(0, 30) + '...' : '🤖 智能生成'}</div>
+                        <button onclick="downloadBatchVideo('${result.videoUrl}', ${result.index})" style="width:100%;padding:8px;background:var(--accent);border:none;border-radius:6px;color:#000;font-size:12px;cursor:pointer;">⬇️ 下载</button>
+                    </div>
+                `;
+            } else {
+                item.innerHTML = `
+                    <div style="aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:#1a1a1a;color:#666;font-size:12px;text-align:center;padding:16px;">
+                        #${result.index + 1} 失败<br>${result.error || ''}
+                    </div>
+                `;
+            }
+            grid.appendChild(item);
+        }
+        
+        // 下载单个批量视频
+        function downloadBatchVideo(url, index) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `batch_video_${index + 1}_${Date.now()}.mp4`;
+            a.target = '_blank';
+            a.click();
+        }
+        
+        // 下载所有批量视频
+        function downloadAllBatchVideos() {
+            if (batchVideoResults.length === 0) {
+                showToast('没有可下载的视频');
+                return;
+            }
+            batchVideoResults.forEach((item, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = item.videoUrl;
+                    a.download = `batch_video_${item.index + 1}_${Date.now()}.mp4`;
+                    a.target = '_blank';
+                    a.click();
+                }, i * 500);
+            });
+            showToast(`开始下载 ${batchVideoResults.length} 个视频...`);
+        }
+        
+        // ========== 🎞️ 视频转 GIF 功能 ==========
+        let gifVideoFile = null;
+        let gifBlobUrl = null;
+        
+        // 预览上传的视频
+        function previewGifVideo(input) {
+            if (!input.files || !input.files[0]) return;
+            gifVideoFile = input.files[0];
+            
+            const video = document.getElementById('gifVideoPreview');
+            const url = URL.createObjectURL(gifVideoFile);
+            video.src = url;
+            video.style.display = 'block';
+            
+            video.onloadedmetadata = () => {
+                const duration = video.duration;
+                document.getElementById('gifDuration').textContent = duration.toFixed(1);
+                document.getElementById('gifEndTime').value = Math.min(5, duration).toFixed(1);
+                document.getElementById('gifEndTime').max = duration;
+                document.getElementById('gifStartTime').max = duration - 0.5;
+                document.getElementById('gifTimeRange').style.display = 'block';
+                updateGifPreviewTime();
+            };
+            
+            // 隐藏上传区域
+            input.parentElement.querySelector('.upload-area').style.display = 'none';
+            showToast('视频已加载，请设置转换参数');
+        }
+        
+        // 更新预览时间
+        function updateGifPreviewTime() {
+            const start = parseFloat(document.getElementById('gifStartTime').value) || 0;
+            let end = parseFloat(document.getElementById('gifEndTime').value) || 5;
+            const duration = parseFloat(document.getElementById('gifDuration').textContent) || 0;
+            
+            // 确保结束时间不超过视频时长
+            if (end > duration) {
+                end = duration;
+                document.getElementById('gifEndTime').value = end.toFixed(1);
+            }
+            // 确保开始时间小于结束时间
+            if (start >= end) {
+                document.getElementById('gifStartTime').value = Math.max(0, end - 0.5).toFixed(1);
+            }
+            
+            const clipDuration = Math.max(0.5, end - start);
+            document.getElementById('gifClipDuration').textContent = clipDuration.toFixed(1);
+            
+            // 跳转到开始时间预览
+            const video = document.getElementById('gifVideoPreview');
+            if (video.readyState >= 1) {
+                video.currentTime = start;
+            }
+        }
+        
+        // 主转换函数
+        async function convertToGif() {
+            if (!gifVideoFile) {
+                showToast('请先上传视频');
+                return;
+            }
+            
+            const video = document.getElementById('gifVideoPreview');  // 直接使用预览视频
+            const startTime = parseFloat(document.getElementById('gifStartTime').value) || 0;
+            const endTime = parseFloat(document.getElementById('gifEndTime').value) || 5;
+            const width = parseInt(document.getElementById('gifWidth').value);
+            const fps = parseInt(document.getElementById('gifFps').value);
+            const quality = document.getElementById('gifQuality').value;
+            const loop = parseInt(document.getElementById('gifLoop').value);
+            
+            if (endTime - startTime > 15) {
+                showToast('片段过长，建议不超过10秒');
+            }
+            
+            // 显示加载状态
+            document.getElementById('gifLoading').style.display = 'block';
+            document.getElementById('gifResult').style.display = 'none';
+            document.getElementById('gifProgress').textContent = '准备中...';
+            
+            try {
+                // 等待视频加载完成
+                if (video.readyState < 2) {
+                    document.getElementById('gifProgress').textContent = '等待视频加载...';
+                    await new Promise((resolve, reject) => {
+                        const check = () => {
+                            if (video.readyState >= 2) resolve();
+                            else setTimeout(check, 100);
+                        };
+                        check();
+                        setTimeout(() => resolve(), 5000); // 5秒超时强制继续
+                    });
+                }
+                
+                // 创建离屏canvas - 确保所有尺寸是整数
+                const vw = video.videoWidth || 640;
+                const vh = video.videoHeight || 360;
+                if (!vw || !vh) {
+                    throw new Error('无法获取视频尺寸');
+                }
+                const w = Math.floor(width);
+                const h = Math.floor(w * vh / vw);
+                if (h <= 0) {
+                    throw new Error('视频尺寸异常');
+                }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                
+                // 提取帧
+                const frames = [];
+                const frameDuration = 1000 / fps;
+                const totalFrames = Math.ceil((endTime - startTime) * fps);
+                
+                document.getElementById('gifLoadingText').textContent = '正在提取帧...';
+                
+                // 封装seek函数 - 等待帧渲染完成
+                const seekAndCapture = (time) => {
+                    return new Promise((resolve) => {
+                        video.currentTime = time;
+                        
+                        // 使用 requestVideoFrameCallback 确保帧已渲染（如果支持）
+                        if ('requestVideoFrameCallback' in video) {
+                            video.requestVideoFrameCallback(() => {
+                                ctx.drawImage(video, 0, 0, w, h);
+                                resolve();
+                            });
+                            // 超时保护
+                            setTimeout(() => {
+                                ctx.drawImage(video, 0, 0, w, h);
+                                resolve();
+                            }, 300);
+                        } else {
+                            // 回退方案：等待seeked事件 + 额外延迟
+                            const onSeeked = () => {
+                                video.removeEventListener('seeked', onSeeked);
+                                // 额外等待100ms让帧渲染
+                                setTimeout(() => {
+                                    ctx.drawImage(video, 0, 0, w, h);
+                                    resolve();
+                                }, 100);
+                            };
+                            video.addEventListener('seeked', onSeeked);
+                            setTimeout(onSeeked, 400);
+                        }
+                    });
+                };
+                
+                for (let i = 0; i < totalFrames; i++) {
+                    const time = startTime + i / fps;
+                    await seekAndCapture(time);
+                    
+                    // 获取像素数据
+                    try {
+                        const imageData = ctx.getImageData(0, 0, w, h);
+                        frames.push(imageData);
+                    } catch (e) {
+                        console.warn('帧提取失败，跳过:', e.message);
+                    }
+                    
+                    document.getElementById('gifProgress').textContent = `提取帧: ${i + 1}/${totalFrames}`;
+                    
+                    // 让UI更新
+                    await new Promise(r => setTimeout(r, 0));
+                }
+                
+                if (frames.length === 0) {
+                    throw new Error('未能提取任何帧，请尝试其他视频');
+                }
+                
+                // 生成GIF
+                document.getElementById('gifLoadingText').textContent = '正在生成GIF...';
+                document.getElementById('gifProgress').textContent = '编码中...';
+                
+                const gifBlob = await createGifFromFrames(frames, w, h, frameDuration, quality, loop, (progress) => {
+                    document.getElementById('gifProgress').textContent = `编码: ${Math.round(progress * 100)}%`;
+                });
+                
+                // 显示结果
+                if (gifBlobUrl) URL.revokeObjectURL(gifBlobUrl);
+                gifBlobUrl = URL.createObjectURL(gifBlob);
+                
+                document.getElementById('gifOutput').src = gifBlobUrl;
+                document.getElementById('gifInfo').textContent = `尺寸: ${w}×${h} | 帧数: ${frames.length} | 大小: ${(gifBlob.size / 1024 / 1024).toFixed(2)} MB`;
+                document.getElementById('gifLoading').style.display = 'none';
+                document.getElementById('gifResult').style.display = 'block';
+                
+                showToast('🎉 GIF生成成功！');
+                
+            } catch (err) {
+                console.error('GIF转换失败:', err);
+                document.getElementById('gifLoading').style.display = 'none';
+                showToast('转换失败: ' + err.message);
+            }
+        }
+        
+        // 使用纯JS生成GIF（简化版GIF编码器）
+        async function createGifFromFrames(frames, width, height, delay, quality, loop, onProgress) {
+            // 质量映射到颜色数量
+            const colorBits = { low: 4, medium: 6, high: 8 }[quality] || 6;
+            const colorCount = 1 << colorBits;
+            
+            const encoder = new GifEncoder(width, height, loop);
+            
+            for (let i = 0; i < frames.length; i++) {
+                encoder.addFrame(frames[i].data, delay, colorBits);
+                if (onProgress) onProgress((i + 1) / frames.length);
+                // 让UI更新
+                await new Promise(r => setTimeout(r, 0));
+            }
+            
+            return encoder.finish();
+        }
+        
+        // 简化版GIF编码器
+        class GifEncoder {
+            constructor(width, height, loop) {
+                this.width = width;
+                this.height = height;
+                this.loop = loop;
+                this.frames = [];
+                this.data = [];
+            }
+            
+            addFrame(pixels, delay, colorBits) {
+                // 量化颜色
+                const colorCount = 1 << colorBits;
+                const { palette, indexed } = this.quantize(pixels, colorCount);
+                this.frames.push({ palette, indexed, delay: Math.round(delay / 10), colorBits });
+            }
+            
+            // 简单的中位切分颜色量化
+            quantize(pixels, colorCount) {
+                // 收集所有颜色
+                const colors = [];
+                for (let i = 0; i < pixels.length; i += 4) {
+                    colors.push([pixels[i], pixels[i + 1], pixels[i + 2]]);
+                }
+                
+                // 使用简单的均匀采样生成调色板
+                const palette = this.buildPalette(colors, colorCount);
+                
+                // 将像素映射到调色板索引
+                const indexed = new Uint8Array(this.width * this.height);
+                for (let i = 0; i < colors.length; i++) {
+                    indexed[i] = this.findClosestColor(colors[i], palette);
+                }
+                
+                return { palette, indexed };
+            }
+            
+            buildPalette(colors, count) {
+                // 简单采样生成调色板
+                const step = Math.max(1, Math.floor(colors.length / count));
+                const palette = [];
+                const seen = new Set();
+                
+                for (let i = 0; i < colors.length && palette.length < count; i += step) {
+                    const key = colors[i].join(',');
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        palette.push(colors[i]);
+                    }
+                }
+                
+                // 填充剩余
+                while (palette.length < count) {
+                    palette.push([0, 0, 0]);
+                }
+                
+                return palette.slice(0, count);
+            }
+            
+            findClosestColor(color, palette) {
+                let minDist = Infinity, minIdx = 0;
+                for (let i = 0; i < palette.length; i++) {
+                    const d = Math.pow(color[0] - palette[i][0], 2) + 
+                              Math.pow(color[1] - palette[i][1], 2) + 
+                              Math.pow(color[2] - palette[i][2], 2);
+                    if (d < minDist) { minDist = d; minIdx = i; }
+                }
+                return minIdx;
+            }
+            
+            finish() {
+                const stream = [];
+                
+                // GIF Header
+                this.writeString(stream, 'GIF89a');
+                
+                // Logical Screen Descriptor
+                this.writeShort(stream, this.width);
+                this.writeShort(stream, this.height);
+                stream.push(0x70); // No global color table
+                stream.push(0);    // Background color
+                stream.push(0);    // Pixel aspect ratio
+                
+                // Netscape Extension for looping
+                if (this.loop !== 1) {
+                    stream.push(0x21, 0xFF, 0x0B);
+                    this.writeString(stream, 'NETSCAPE2.0');
+                    stream.push(0x03, 0x01);
+                    this.writeShort(stream, this.loop === 0 ? 0 : this.loop);
+                    stream.push(0x00);
+                }
+                
+                // Write frames
+                for (const frame of this.frames) {
+                    this.writeFrame(stream, frame);
+                }
+                
+                // Trailer
+                stream.push(0x3B);
+                
+                return new Blob([new Uint8Array(stream)], { type: 'image/gif' });
+            }
+            
+            writeFrame(stream, frame) {
+                // Graphic Control Extension
+                stream.push(0x21, 0xF9, 0x04);
+                stream.push(0x04); // Disposal: restore to background
+                this.writeShort(stream, frame.delay);
+                stream.push(0x00); // No transparent color
+                stream.push(0x00);
+                
+                // Image Descriptor
+                stream.push(0x2C);
+                this.writeShort(stream, 0); // Left
+                this.writeShort(stream, 0); // Top
+                this.writeShort(stream, this.width);
+                this.writeShort(stream, this.height);
+                stream.push(0x80 | (frame.colorBits - 1)); // Local color table
+                
+                // Local Color Table
+                for (const color of frame.palette) {
+                    stream.push(color[0], color[1], color[2]);
+                }
+                
+                // LZW Minimum Code Size
+                stream.push(frame.colorBits);
+                
+                // LZW Compressed Data
+                const lzw = this.lzwEncode(frame.indexed, frame.colorBits);
+                
+                // Write in sub-blocks
+                for (let i = 0; i < lzw.length; i += 255) {
+                    const chunk = lzw.slice(i, i + 255);
+                    stream.push(chunk.length);
+                    for (const b of chunk) stream.push(b);
+                }
+                stream.push(0x00); // Block terminator
+            }
+            
+            // LZW编码
+            lzwEncode(data, minCodeSize) {
+                const clearCode = 1 << minCodeSize;
+                const eoiCode = clearCode + 1;
+                let codeSize = minCodeSize + 1;
+                let nextCode = eoiCode + 1;
+                const maxCode = 4096;
+                
+                const output = [];
+                let bits = 0, bitCount = 0;
+                
+                const writeBits = (code, size) => {
+                    bits |= code << bitCount;
+                    bitCount += size;
+                    while (bitCount >= 8) {
+                        output.push(bits & 0xFF);
+                        bits >>= 8;
+                        bitCount -= 8;
+                    }
+                };
+                
+                // Initialize dictionary
+                let dict = new Map();
+                const resetDict = () => {
+                    dict = new Map();
+                    for (let i = 0; i < clearCode; i++) {
+                        dict.set(String(i), i);
+                    }
+                    codeSize = minCodeSize + 1;
+                    nextCode = eoiCode + 1;
+                };
+                
+                resetDict();
+                writeBits(clearCode, codeSize);
+                
+                let current = String(data[0]);
+                for (let i = 1; i < data.length; i++) {
+                    const next = String(data[i]);
+                    const combined = current + ',' + next;
+                    
+                    if (dict.has(combined)) {
+                        current = combined;
+                    } else {
+                        writeBits(dict.get(current), codeSize);
+                        
+                        if (nextCode < maxCode) {
+                            dict.set(combined, nextCode++);
+                            if (nextCode > (1 << codeSize) && codeSize < 12) {
+                                codeSize++;
+                            }
+                        } else {
+                            writeBits(clearCode, codeSize);
+                            resetDict();
+                        }
+                        
+                        current = next;
+                    }
+                }
+                
+                writeBits(dict.get(current), codeSize);
+                writeBits(eoiCode, codeSize);
+                
+                if (bitCount > 0) {
+                    output.push(bits & 0xFF);
+                }
+                
+                return output;
+            }
+            
+            writeString(stream, str) {
+                for (let i = 0; i < str.length; i++) {
+                    stream.push(str.charCodeAt(i));
+                }
+            }
+            
+            writeShort(stream, val) {
+                stream.push(val & 0xFF);
+                stream.push((val >> 8) & 0xFF);
+            }
+        }
+        
+        // 下载GIF
+        function downloadGif() {
+            if (!gifBlobUrl) {
+                showToast('没有可下载的GIF');
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = gifBlobUrl;
+            a.download = `video_to_gif_${Date.now()}.gif`;
+            a.click();
+            showToast('GIF下载中...');
+        }
+    </script>
+</body>
+
+</html>

@@ -33,12 +33,12 @@ function safeStorageSet(key, value) {
     }
     try {
         sessionStorage.setItem(key, value);
-    } catch (e) {}
+    } catch (e) { }
     // 🔧 Cookie 备份（用于某些浏览器限制 localStorage 的情况）
     try {
         const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString();
         document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expiry}; path=/; SameSite=Lax`;
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function safeStorageGet(key) {
@@ -46,24 +46,24 @@ function safeStorageGet(key) {
     try {
         const val = localStorage.getItem(key);
         if (val) return val;
-    } catch (e) {}
+    } catch (e) { }
     // 备份 sessionStorage
     try {
         const val = sessionStorage.getItem(key);
         if (val) return val;
-    } catch (e) {}
+    } catch (e) { }
     // 备份 Cookie
     try {
         const match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
         if (match) return decodeURIComponent(match[2]);
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
 function safeStorageRemove(key) {
-    try { localStorage.removeItem(key); } catch (e) {}
-    try { sessionStorage.removeItem(key); } catch (e) {}
-    try { document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`; } catch (e) {}
+    try { localStorage.removeItem(key); } catch (e) { }
+    try { sessionStorage.removeItem(key); } catch (e) { }
+    try { document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`; } catch (e) { }
 }
 
 function saveAuthCache(user, session) {
@@ -160,7 +160,7 @@ function getSupabase() {
                                     return;
                                 }
                                 window.__nvLoginSyncInProgress = true;
-                                
+
                                 console.log('🔄 [登录同步] 开始同步云端数据...');
                                 // 🔧 立即执行，不延迟（缩短等待时间）
                                 try {
@@ -223,12 +223,12 @@ async function signUpWithEmail(email, password, nickname = '', inviteCode = '') 
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'authSignUp', email, password, nickname, inviteCode })
         });
-        
+
         const proxyData = await proxyRes.json();
-        
+
         if (proxyRes.ok && proxyData.success && proxyData.user) {
             console.log('✅ [注册] 代理注册成功');
-            
+
             // 如果返回了 token，存入 Supabase
             if (proxyData.access_token) {
                 const client = getSupabase();
@@ -246,7 +246,7 @@ async function signUpWithEmail(email, password, nickname = '', inviteCode = '') 
                 };
                 saveAuthCache(proxyData.user, __nvCachedSession);
             }
-            
+
             // 处理邀请码奖励
             if (inviteCode && proxyData.user?.id) {
                 try {
@@ -255,10 +255,10 @@ async function signUpWithEmail(email, password, nickname = '', inviteCode = '') 
                     console.warn('邀请码处理失败:', e.message);
                 }
             }
-            
+
             return { session: __nvCachedSession, user: proxyData.user };
         }
-        
+
         // 代理返回错误
         if (proxyData.error || proxyData.message) {
             throw new Error(proxyData.message || proxyData.error || '注册失败');
@@ -270,7 +270,7 @@ async function signUpWithEmail(email, password, nickname = '', inviteCode = '') 
             throw proxyErr;
         }
     }
-    
+
     // 回退：使用原始 Supabase SDK
     const client = getSupabase();
     if (!client) throw new Error('Supabase 未初始化');
@@ -310,11 +310,11 @@ async function signInWithEmail(email, password) {
     // 🚀 优先使用代理加速国内访问
     try {
         console.log('🚀 [登录] 尝试使用代理登录...');
-        
+
         // 🔧 添加超时机制，避免代理请求卡住导致无限加载
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
-        
+
         const proxyRes = await fetch('/api/supabase-proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -322,12 +322,12 @@ async function signInWithEmail(email, password) {
             signal: controller.signal
         });
         clearTimeout(timeoutId);
-        
+
         const proxyData = await proxyRes.json();
-        
+
         if (proxyRes.ok && proxyData.success && proxyData.access_token) {
             console.log('✅ [登录] 代理登录成功');
-            
+
             // 将 token 存入 Supabase 本地存储，让 SDK 识别登录状态
             const client = getSupabase();
             if (client) {
@@ -336,7 +336,7 @@ async function signInWithEmail(email, password) {
                     refresh_token: proxyData.refresh_token
                 });
             }
-            
+
             // 更新缓存
             __nvCachedUser = proxyData.user;
             __nvCachedSession = {
@@ -346,15 +346,15 @@ async function signInWithEmail(email, password) {
                 user: proxyData.user
             };
             saveAuthCache(proxyData.user, __nvCachedSession);
-            
+
             // 更新最后登录时间
             if (proxyData.user?.id) {
-                updateLastLogin(proxyData.user.id).catch(() => {});
+                updateLastLogin(proxyData.user.id).catch(() => { });
             }
-            
+
             return { session: __nvCachedSession, user: proxyData.user };
         }
-        
+
         // 代理返回错误
         if (proxyData.error || proxyData.message) {
             throw new Error(proxyData.message || proxyData.error || '登录失败');
@@ -366,7 +366,7 @@ async function signInWithEmail(email, password) {
             throw proxyErr;
         }
     }
-    
+
     // 回退：使用原始 Supabase SDK
     const client = getSupabase();
     if (!client) throw new Error('Supabase 未初始化');
@@ -388,7 +388,7 @@ async function signInWithEmail(email, password) {
 
     // 更新最后登录时间
     if (data.user) {
-        updateLastLogin(data.user.id).catch(() => {});
+        updateLastLogin(data.user.id).catch(() => { });
     }
 
     return data;
@@ -437,7 +437,7 @@ async function getCurrentUser(forceRefresh = false) {
         }
         return __nvCachedUser;
     }
-    
+
     // 🚀 其次使用本地缓存
     const cache = getAuthCache();
     if (!forceRefresh && cache?.user) {
@@ -446,7 +446,7 @@ async function getCurrentUser(forceRefresh = false) {
         refreshSessionBackground();
         return cache.user;
     }
-    
+
     const client = getSupabase();
     if (!client) {
         return cache?.user || null;
@@ -460,7 +460,7 @@ async function getCurrentUser(forceRefresh = false) {
             saveAuthCache(__nvCachedUser, __nvCachedSession);
             return __nvCachedUser;
         }
-        
+
         // Session 为空，尝试从缓存恢复
         if (cache?.accessToken && cache?.refreshToken) {
             try {
@@ -474,9 +474,9 @@ async function getCurrentUser(forceRefresh = false) {
                     saveAuthCache(__nvCachedUser, __nvCachedSession);
                     return __nvCachedUser;
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
-        
+
         return null;
     } catch (e) {
         console.warn('⚠️ [Auth] getSession异常:', e?.message);
@@ -489,11 +489,11 @@ let __refreshingSession = false;
 async function refreshSessionBackground() {
     if (__refreshingSession) return;
     __refreshingSession = true;
-    
+
     try {
         const client = getSupabase();
         if (!client) return;
-        
+
         const { data } = await client.auth.refreshSession();
         if (data?.session) {
             __nvCachedSession = data.session;
@@ -515,7 +515,7 @@ async function refreshSessionBackground() {
 async function refreshSession() {
     const client = getSupabase();
     if (!client) return false;
-    
+
     try {
         const { data, error } = await client.auth.refreshSession();
         if (data?.session) {
@@ -565,7 +565,7 @@ async function checkAuthStatus(refreshQuota = true) {
         }
         return { valid: true, user, quota, message: '' };
     }
-    
+
     // 第一次失败，尝试强制刷新
     console.log('🔄 [Auth] 用户为空，尝试刷新Session...');
     const refreshed = await refreshSession();
@@ -588,12 +588,12 @@ async function checkAuthStatus(refreshQuota = true) {
             return { valid: true, user, quota, message: '' };
         }
     }
-    
+
     // 🚨 登录失败，清除本地缓存防止不一致
     localStorage.removeItem('film_balance');
     localStorage.removeItem('cloud_film_balance');
     saveAuthCache(null, null);
-    
+
     return { valid: false, user: null, quota: 0, message: '登录已过期，请重新登录' };
 }
 
@@ -1282,17 +1282,17 @@ async function validateInviteCode(inviteCode) {
     if (!inviteCode || inviteCode.trim() === '') {
         return { valid: false, message: '请输入邀请码' };
     }
-    
+
     const code = inviteCode.trim().toUpperCase();
-    
+
     // 检查邀请码格式（NV开头+8位字符）
     if (!/^NV[A-Z0-9]{8}$/i.test(code)) {
         return { valid: false, message: '邀请码格式不正确' };
     }
-    
+
     const client = getSupabase();
     if (!client) return { valid: false, message: '系统初始化失败' };
-    
+
     try {
         // 🔧 修复：通过服务端 API 验证邀请码，绕过 RLS 限制
         // 因为 user_profiles 的 RLS 策略只允许用户查看自己的配置
@@ -1305,13 +1305,13 @@ async function validateInviteCode(inviteCode) {
                 inviteCode: code
             })
         });
-        
+
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             console.error('邀请码验证API失败:', response.status, errData);
             return { valid: false, message: errData?.message || '邀请码验证失败，请重试' };
         }
-        
+
         const result = await response.json();
         return {
             valid: result.valid === true,
@@ -1509,13 +1509,13 @@ if (typeof document !== 'undefined') {
             }
         }
     });
-    
+
     // 🔧 定期检查 Session 状态（每10分钟）
     setInterval(async () => {
         if (document.visibilityState !== 'visible') return;
         const cache = getAuthCache();
         if (!cache?.user) return;
-        
+
         // 检查是否即将过期（提前10分钟刷新）
         if (cache.expiresAt) {
             const expiresAt = cache.expiresAt * 1000;
@@ -1535,16 +1535,16 @@ if (typeof document !== 'undefined') {
  * - STT: Whisper (via yunwu API)
  * - Intent: Qwen/roll 免费模型
  */
-(function() {
+(function () {
     'use strict';
-    
+
     // 配置
     const AGENT_CONFIG = {
         enabled: true,
         showButton: true,  // 默认显示悬浮按钮
         position: 'bottom-right'  // 按钮位置
     };
-    
+
     // 从localStorage读取用户设置
     const STORAGE_KEY = 'rollroll_agent_enabled';
     function isAgentEnabled() {
@@ -1554,13 +1554,13 @@ if (typeof document !== 'undefined') {
     function setAgentEnabled(val) {
         localStorage.setItem(STORAGE_KEY, val ? 'true' : 'false');
     }
-    
+
     // 状态
     let isListening = false;
     let recognition = null;
     let mediaRecorder = null;
     let audioChunks = [];
-    
+
     // 🎤 初始化语音识别（优先使用 MediaRecorder + Whisper API）
     function initSpeechRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1568,19 +1568,19 @@ if (typeof document !== 'undefined') {
             console.warn('[🎤 Agent] 浏览器不支持语音识别');
             return null;
         }
-        
+
         const rec = new SpeechRecognition();
         rec.lang = 'zh-CN';  // 中文
         rec.continuous = false;  // 单次识别
         rec.interimResults = false;  // 不要中间结果
         rec.maxAlternatives = 1;
-        
+
         rec.onresult = async (event) => {
             const text = event.results[0][0].transcript;
             console.log('[🎤 Agent] 识别结果:', text);
             isListening = false;
             updateAgentUI('processing');
-            
+
             if (text && text.trim()) {
                 showAgentMessage(`您说: "${text}"`, 'user');
                 const intent = await recognizeIntent(text);
@@ -1590,7 +1590,7 @@ if (typeof document !== 'undefined') {
             }
             updateAgentUI('idle');
         };
-        
+
         rec.onerror = (event) => {
             console.error('[🎤 Agent] 识别错误:', event.error);
             isListening = false;
@@ -1609,61 +1609,61 @@ if (typeof document !== 'undefined') {
                 showAgentMessage('语音识别不可用，请长按使用文字输入');
             }
         };
-        
+
         rec.onend = () => {
             if (isListening) {
                 isListening = false;
                 updateAgentUI('idle');
             }
         };
-        
+
         return rec;
     }
-    
+
     // 🎤 开始语音识别（使用 MediaRecorder + Whisper API）
     async function startListening() {
         if (isListening) return;
-        
+
         try {
             // 请求麦克风权限
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
+
             // 创建录音器
             audioChunks = [];
             mediaRecorder = new MediaRecorder(stream);
-            
+
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     audioChunks.push(event.data);
                 }
             };
-            
+
             mediaRecorder.onstop = async () => {
                 // 合并音频数据
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 console.log('[🎤 Agent] 录音完成，大小:', audioBlob.size, 'bytes');
-                
+
                 // 停止所有轨道
                 stream.getTracks().forEach(track => track.stop());
-                
+
                 // 发送到后端进行语音识别
                 updateAgentUI('processing');
                 await processAudioBlob(audioBlob);
                 updateAgentUI('idle');
             };
-            
+
             // 开始录音
             mediaRecorder.start();
             isListening = true;
             updateAgentUI('listening');
             showAgentMessage('正在录音...（再次点击停止）');
             console.log('[🎤 Agent] 开始录音...');
-            
+
         } catch (err) {
             console.error('[🎤 Agent] 启动失败:', err);
             isListening = false;
             updateAgentUI('idle');
-            
+
             if (err.name === 'NotAllowedError') {
                 showAgentMessage('需要麦克风权限，请在浏览器设置中允许');
             } else {
@@ -1671,27 +1671,27 @@ if (typeof document !== 'undefined') {
             }
         }
     }
-    
+
     // 🛑 停止录音
     function stopListening() {
         if (!isListening) return;
-        
+
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
             console.log('[🎤 Agent] 停止录音');
         }
         isListening = false;
     }
-    
+
     // 📤 处理录音数据，发送到 Whisper API 进行识别
     async function processAudioBlob(audioBlob) {
         try {
             showAgentMessage('正在识别语音...');
-            
+
             // 转换为 base64
             const base64Audio = await blobToBase64(audioBlob);
-            
-            
+
+
             // 获取当前用户ID
             let userId = null;
             try {
@@ -1700,7 +1700,7 @@ if (typeof document !== 'undefined') {
             } catch (e) {
                 console.warn('[Agent] 获取用户ID失败:', e);
             }
-            
+
             // 调用 yunwu API 的 Whisper
             const response = await fetch('/api/yunwu', {
                 method: 'POST',
@@ -1712,23 +1712,23 @@ if (typeof document !== 'undefined') {
                     userId: userId
                 })
             });
-            
+
             // 🔧 检查响应状态
             if (!response.ok) {
                 const errText = await response.text();
                 console.error('[🎤 Agent] API错误:', response.status, errText);
                 throw new Error(`语音服务错误: ${response.status}`);
             }
-            
+
             const result = await response.json();
             console.log('[🎤 Agent] 识别结果:', result);
-            
+
             if (result.error) {
                 throw new Error(result.error);
             }
-            
+
             const text = result.text || result.content || '';
-            
+
             if (text && text.trim()) {
                 showAgentMessage(`您说: "${text}"`, 'user');
                 const intent = await recognizeIntent(text);
@@ -1736,13 +1736,13 @@ if (typeof document !== 'undefined') {
             } else {
                 showAgentMessage('没有听清，请再试一次');
             }
-            
+
         } catch (err) {
             console.error('[🎤 Agent] 语音识别失败:', err);
             showAgentMessage('语音识别失败，请重试或长按使用文字输入');
         }
     }
-    
+
     // 💾 Blob 转 Base64
     function blobToBase64(blob) {
         return new Promise((resolve, reject) => {
@@ -1755,12 +1755,12 @@ if (typeof document !== 'undefined') {
             reader.readAsDataURL(blob);
         });
     }
-    
+
     // 📝 获取当前页面完整上下文（所有可操作元素+函数）
     function getPageContext() {
         const page = location.pathname.split('/').pop().replace('.html', '') || 'index';
         const context = { page, elements: [], functions: [], selects: [] };
-        
+
         // 1️⃣ 收集所有 select 下拉框及其选项
         document.querySelectorAll('select').forEach(sel => {
             if (sel.offsetParent === null) return; // 不可见跳过
@@ -1770,7 +1770,7 @@ if (typeof document !== 'undefined') {
             });
             if (selInfo.options.length > 0) context.selects.push(selInfo);
         });
-        
+
         // 2️⃣ 收集所有可点击元素（button, [onclick], .btn, etc）
         document.querySelectorAll('button, [onclick], .btn, .generate-btn, .tab, .model-item, .ratio-btn, .style-item').forEach(el => {
             if (el.offsetParent === null) return;
@@ -1788,7 +1788,7 @@ if (typeof document !== 'undefined') {
                 });
             }
         });
-        
+
         // 3️⃣ 收集所有输入框
         document.querySelectorAll('textarea, input[type="text"], input[type="search"], input:not([type])').forEach(el => {
             if (el.offsetParent === null) return;
@@ -1799,7 +1799,7 @@ if (typeof document !== 'undefined') {
                 selector: getSelector(el)
             });
         });
-        
+
         // 4️⃣ 收集滑块/range
         document.querySelectorAll('input[type="range"]').forEach(el => {
             if (el.offsetParent === null) return;
@@ -1812,26 +1812,26 @@ if (typeof document !== 'undefined') {
                 selector: getSelector(el)
             });
         });
-        
+
         // 5️⃣ 收集页面上的全局函数
         const globalFuncs = [];
-        const commonFuncs = ['generateImage','generateVideo','generateMusic','generateStickers','generateTTS',
-            'generateContent','generateBatch','downloadImage','downloadVideo','downloadMusic','downloadAudio',
-            'selectModel','selectRatio','selectStyle','applyStyle','clearRefImage','clearRefImages',
-            'setBatchMode','goBack','regenerate','copyResult','shareImage','pushToVideoTool','pushToImageGen',
-            'filterVoices','selectVoice','playVoiceSample','generateVideoVoice','generateImgVoice',
-            'askQuestion','addMessage','clearLyrics','copyLyrics','generateLyrics','generateMusicWithLyrics'];
+        const commonFuncs = ['generateImage', 'generateVideo', 'generateMusic', 'generateStickers', 'generateTTS',
+            'generateContent', 'generateBatch', 'downloadImage', 'downloadVideo', 'downloadMusic', 'downloadAudio',
+            'selectModel', 'selectRatio', 'selectStyle', 'applyStyle', 'clearRefImage', 'clearRefImages',
+            'setBatchMode', 'goBack', 'regenerate', 'copyResult', 'shareImage', 'pushToVideoTool', 'pushToImageGen',
+            'filterVoices', 'selectVoice', 'playVoiceSample', 'generateVideoVoice', 'generateImgVoice',
+            'askQuestion', 'addMessage', 'clearLyrics', 'copyLyrics', 'generateLyrics', 'generateMusicWithLyrics'];
         commonFuncs.forEach(fn => {
             if (typeof window[fn] === 'function') globalFuncs.push(fn);
         });
         context.functions = globalFuncs;
-        
+
         // 限制数量
         context.elements = context.elements.slice(0, 50);
         context.selects = context.selects.slice(0, 10);
         return context;
     }
-    
+
     // 判断元素类型
     function getElementType(el, onclick, cls) {
         if (onclick.includes('Model') || cls.includes('model')) return 'model';
@@ -1844,7 +1844,7 @@ if (typeof document !== 'undefined') {
         if (cls.includes('tab')) return 'tab';
         return 'clickable';
     }
-    
+
     // 获取元素选择器
     function getSelector(el) {
         if (el.id) return '#' + el.id;
@@ -1859,16 +1859,16 @@ if (typeof document !== 'undefined') {
         if (cls) return tag + cls;
         return tag;
     }
-    
+
     // 🧠 AI 意图识别（全功能版）
     async function recognizeIntent(text) {
         try {
             const ctx = getPageContext();
             // 简化上下文信息
             const elementsInfo = ctx.elements.slice(0, 25).map(e => `${e.type}:"${e.text}"`);
-            const selectsInfo = ctx.selects.map(s => `${s.id}:[${s.options.slice(0,5).map(o=>o.text).join(',')}]`);
+            const selectsInfo = ctx.selects.map(s => `${s.id}:[${s.options.slice(0, 5).map(o => o.text).join(',')}]`);
             const funcsInfo = ctx.functions.join(',');
-            
+
             const prompt = `你是RollRoll AI网站的全能控制助手。
 当前页面: ${ctx.page}
 可点击元素: ${elementsInfo.join('; ')}
@@ -1908,7 +1908,7 @@ if (typeof document !== 'undefined') {
 "去画图页面" -> {intent:"navigate",target:"banana",reply:"正在跳转"}
 
 只返回JSON。`;
-            
+
             const response = await fetch('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1917,7 +1917,7 @@ if (typeof document !== 'undefined') {
             const data = await response.json();
             const content = data.content || data.text || '';
             console.log('[🎙️ Agent] AI:', content);
-            
+
             const jsonMatch = content.match(/\{[\s\S]*\}/);
             if (jsonMatch) return JSON.parse(jsonMatch[0]);
             return { intent: 'chat', reply: '抱歉，请试着说"选择XX模型"或"生成图片"。' };
@@ -1926,7 +1926,7 @@ if (typeof document !== 'undefined') {
             return { intent: 'chat', reply: '网络错误，请重试。' };
         }
     }
-    
+
     // 📌 点击元素（支持多种查找方式）
     function clickElement(selector, targetText) {
         // 1. 直接用selector
@@ -1948,7 +1948,7 @@ if (typeof document !== 'undefined') {
         }
         return false;
     }
-    
+
     // 📝 输入内容（找到第一个可见输入框）
     function inputContent(value, selector) {
         // 优先用selector
@@ -1984,7 +1984,7 @@ if (typeof document !== 'undefined') {
         }
         return false;
     }
-    
+
     // 📥 选择下拉框选项
     function selectOption(selectId, optionValue) {
         // 通过id找
@@ -2000,7 +2000,7 @@ if (typeof document !== 'undefined') {
             }
         }
         if (!sel) return false;
-        
+
         // 找到匹配的option
         const valL = (optionValue || '').toLowerCase();
         for (const opt of sel.options) {
@@ -2013,7 +2013,7 @@ if (typeof document !== 'undefined') {
         }
         return false;
     }
-    
+
     // 📞 调用全局函数
     function callFunction(fnName, args = []) {
         if (typeof window[fnName] === 'function') {
@@ -2027,52 +2027,52 @@ if (typeof document !== 'undefined') {
         }
         return false;
     }
-    
+
     // 🚀 执行意图（全功能版）
     async function executeIntent(intent) {
         const { intent: type, target, params = {}, reply } = intent;
         if (reply) showAgentMessage(reply);
-        
+
         switch (type) {
             case 'navigate':
                 navigateToPage(target);
                 break;
-                
+
             case 'click':
                 if (!clickElement(params.selector, target)) {
                     showAgentMessage(`找不到"${target}"，请检查名称`);
                 }
                 break;
-                
+
             case 'input':
                 if (!inputContent(params.inputValue || target, params.selector)) {
                     showAgentMessage('找不到输入框');
                 }
                 break;
-                
+
             case 'select':
                 if (!selectOption(params.selectId, params.selectValue || target)) {
                     showAgentMessage(`找不到下拉选项"${params.selectValue || target}"`);
                 }
                 break;
-                
+
             case 'call':
                 if (!callFunction(params.functionName, params.functionArgs || [])) {
                     // 回退到点击
                     clickElement(null, target);
                 }
                 break;
-                
+
             default:
                 break;
         }
     }
-    
+
     // 📍 页面跳转
     function navigateToPage(page) {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
         const suffix = isMobile ? '?force=mobile' : '';
-        
+
         const pages = {
             'home': 'index.html',
             '首页': 'index.html',
@@ -2093,31 +2093,31 @@ if (typeof document !== 'undefined') {
             'writing': 'writing.html',
             '写作': 'writing.html'
         };
-        
+
         const url = pages[page] || pages[page.toLowerCase()];
         if (url) {
             window.location.href = url + suffix;
         }
     }
-    
+
     // 💬 处理文字输入
     async function processTextInput(text) {
         if (!text || !text.trim()) return;
-        
+
         updateAgentUI('processing');
         showAgentMessage(`您说: "${text}"`, 'user');
-        
+
         const intent = await recognizeIntent(text);
         await executeIntent(intent);
-        
+
         updateAgentUI('idle');
     }
-    
+
     // 🎨 UI 更新
     function updateAgentUI(state) {
         const btn = document.getElementById('aiAgentBtn');
         if (!btn) return;
-        
+
         btn.className = 'ai-agent-btn ' + state;
         switch (state) {
             case 'listening':
@@ -2133,7 +2133,7 @@ if (typeof document !== 'undefined') {
                 btn.title = '点击说话或输入文字';
         }
     }
-    
+
     function showAgentMessage(msg, type = 'agent') {
         // 创建浮动消息
         let msgBox = document.getElementById('aiAgentMsg');
@@ -2145,15 +2145,15 @@ if (typeof document !== 'undefined') {
         }
         msgBox.textContent = msg;
         msgBox.style.display = 'block';
-        
+
         // 3秒后自动隐藏
         setTimeout(() => { msgBox.style.display = 'none'; }, 3000);
     }
-    
+
     // 🔧 初始化 UI
     function initAgentUI() {
         if (!AGENT_CONFIG.showButton) return;
-        
+
         // 创建容器
         const container = document.createElement('div');
         container.id = 'aiAgentContainer';
@@ -2166,7 +2166,7 @@ if (typeof document !== 'undefined') {
             gap: 8px;
             z-index: 9999;
         `;
-        
+
         // 创建开关按钮（右上角小按钮）
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'aiAgentToggle';
@@ -2195,7 +2195,7 @@ if (typeof document !== 'undefined') {
             }
         };
         container.appendChild(toggleBtn);
-        
+
         // 创建主按钮（默认启用）
         if (isAgentEnabled()) {
             const btn = document.createElement('button');
@@ -2218,7 +2218,7 @@ if (typeof document !== 'undefined') {
                 align-items: center;
                 justify-content: center;
             `;
-            
+
             // 点击事件
             btn.onclick = () => {
                 if (isListening) {
@@ -2227,7 +2227,7 @@ if (typeof document !== 'undefined') {
                     startListening();
                 }
             };
-            
+
             // 长按显示文字输入框
             let longPressTimer = null;
             btn.onmousedown = btn.ontouchstart = (e) => {
@@ -2238,12 +2238,48 @@ if (typeof document !== 'undefined') {
             btn.onmouseup = btn.ontouchend = btn.onmouseleave = () => {
                 if (longPressTimer) clearTimeout(longPressTimer);
             };
-            
+
             container.appendChild(btn);
         }
-        
+
+        // 🖐️ 拖拽功能：让用户可以移动浮动按钮位置
+        let _dragState = null;
+        container.addEventListener('touchstart', (e) => {
+            const t = e.touches[0];
+            _dragState = { startX: t.clientX, startY: t.clientY, origLeft: container.offsetLeft, origTop: container.offsetTop, moved: false };
+        }, { passive: true });
+        container.addEventListener('touchmove', (e) => {
+            if (!_dragState) return;
+            const t = e.touches[0];
+            const dx = t.clientX - _dragState.startX, dy = t.clientY - _dragState.startY;
+            if (!_dragState.moved && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+            _dragState.moved = true;
+            e.preventDefault();
+            container.style.right = 'auto';
+            container.style.bottom = 'auto';
+            container.style.left = Math.max(0, Math.min(window.innerWidth - 60, _dragState.origLeft + dx)) + 'px';
+            container.style.top = Math.max(0, Math.min(window.innerHeight - 60, _dragState.origTop + dy)) + 'px';
+        }, { passive: false });
+        container.addEventListener('touchend', () => {
+            if (_dragState && _dragState.moved) {
+                // 保存位置到localStorage
+                try { localStorage.setItem('agentBtnPos', JSON.stringify({ left: container.style.left, top: container.style.top })); } catch (_) { }
+            }
+            _dragState = null;
+        });
+        // 恢复上次保存的位置
+        try {
+            const saved = JSON.parse(localStorage.getItem('agentBtnPos'));
+            if (saved && saved.left && saved.top) {
+                container.style.right = 'auto';
+                container.style.bottom = 'auto';
+                container.style.left = saved.left;
+                container.style.top = saved.top;
+            }
+        } catch (_) { }
+
         document.body.appendChild(container);
-        
+
         // 添加样式
         const style = document.createElement('style');
         style.id = 'aiAgentStyles';
@@ -2258,7 +2294,7 @@ if (typeof document !== 'undefined') {
             document.head.appendChild(style);
         }
     }
-    
+
     // 关闭助手
     function disableAgent() {
         setAgentEnabled(false);
@@ -2274,7 +2310,7 @@ if (typeof document !== 'undefined') {
         }
         showAgentMessage('语音助手已关闭');
     }
-    
+
     // 开启助手
     function enableAgent() {
         setAgentEnabled(true);
@@ -2283,7 +2319,7 @@ if (typeof document !== 'undefined') {
         initAgentUI();
         showAgentMessage('语音助手已开启');
     }
-    
+
     // 📝 文字输入对话框
     function showTextInputDialog() {
         let dialog = document.getElementById('aiAgentDialog');
@@ -2292,7 +2328,7 @@ if (typeof document !== 'undefined') {
             dialog.querySelector('input')?.focus();
             return;
         }
-        
+
         dialog = document.createElement('div');
         dialog.id = 'aiAgentDialog';
         dialog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10001;';
@@ -2312,7 +2348,7 @@ if (typeof document !== 'undefined') {
             </div>
         `;
         document.body.appendChild(dialog);
-        
+
         // 回车发送
         const input = dialog.querySelector('input');
         input.focus();
@@ -2323,7 +2359,7 @@ if (typeof document !== 'undefined') {
             }
         };
     }
-    
+
     // 🚀 导出 API
     window.RollAgent = {
         startListening,
@@ -2335,14 +2371,14 @@ if (typeof document !== 'undefined') {
         isEnabled: isAgentEnabled,
         config: AGENT_CONFIG
     };
-    
+
     // 页面加载完成后初始化
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initAgentUI);
     } else {
         initAgentUI();
     }
-    
+
     console.log('✅ RollRoll AI Agent 已加载');
 })();
 

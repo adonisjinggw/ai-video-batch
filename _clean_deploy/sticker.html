@@ -1,0 +1,3624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>😀 表情包生成器 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 14px 12px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mode-tab:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .mode-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .mode-content {
+            display: none;
+        }
+
+        .mode-content.active {
+            display: block;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 80px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .quick-tag {
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .quick-tag:active {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .result-section {
+            margin-top: 24px;
+        }
+
+        .result-image-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bg-card);
+            margin-bottom: 16px;
+        }
+
+        .result-image-container img {
+            width: 100%;
+            display: block;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .segment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .segment-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            background: var(--bg-card);
+        }
+
+        .segment-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .segment-item .seg-actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 4px;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            gap: 4px;
+        }
+
+        .segment-item .seg-actions button {
+            flex: 1;
+            padding: 6px;
+            border: none;
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .upload-area {
+            border: 2px dashed #444;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 16px;
+            transition: all 0.3s;
+        }
+
+        .upload-area:active {
+            border-color: var(--accent);
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .upload-area.has-image {
+            padding: 10px;
+        }
+
+        .upload-area img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .section-title {
+            color: var(--accent);
+            font-size: 14px;
+            margin: 20px 0 12px;
+            padding-top: 16px;
+            border-top: 1px solid #333;
+        }
+
+        /* MJ 图片选择器样式 - 精致可爱风格 */
+        .mj-picker-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, rgba(45, 35, 55, 0.98) 0%, rgba(25, 20, 35, 0.99) 100%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .mj-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(255, 182, 193, 0.15) 0%, rgba(255, 218, 233, 0.1) 100%);
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+
+        .mj-picker-header h3 {
+            color: #ffb6c1;
+            font-size: 15px;
+            font-weight: 600;
+            text-shadow: 0 0 20px rgba(255, 182, 193, 0.5);
+        }
+
+        .mj-picker-close {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #ffb6c1;
+            font-size: 22px;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .mj-picker-close:hover {
+            background: rgba(255, 182, 193, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .mj-picker-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 8px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 20px;
+        }
+
+        .mj-picker-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .mj-picker-item:hover {
+            border-color: rgba(255, 182, 193, 0.6);
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(255, 182, 193, 0.25);
+        }
+
+        .mj-picker-item.selected {
+            border-color: #ff69b4;
+            box-shadow: 0 0 0 3px rgba(255, 105, 180, 0.3), 0 8px 30px rgba(255, 105, 180, 0.4);
+            transform: scale(1.02);
+        }
+
+        .mj-picker-item.selected::after {
+            content: '✔';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 105, 180, 0.8);
+            animation: checkPop 0.3s ease-out;
+        }
+
+        @keyframes checkPop {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .mj-picker-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: all 0.3s;
+        }
+
+        .mj-picker-item.selected img {
+            filter: brightness(0.7);
+        }
+
+        .mj-picker-item .item-number {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 26px;
+            height: 26px;
+            background: linear-gradient(135deg, rgba(255, 182, 193, 0.9) 0%, rgba(255, 105, 180, 0.9) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(255, 105, 180, 0.5);
+        }
+
+        .mj-picker-item.selected .item-number {
+            background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+            box-shadow: 0 0 15px rgba(255, 105, 180, 0.8);
+        }
+
+        .mj-picker-actions {
+            display: flex;
+            gap: 10px;
+            padding: 16px 8px 8px;
+        }
+
+        .mj-picker-btn {
+            flex: 1;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mj-picker-btn.primary {
+            background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.4);
+        }
+
+        .mj-picker-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 105, 180, 0.5);
+        }
+
+        .mj-picker-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffb6c1;
+            border: 1px solid rgba(255, 182, 193, 0.3);
+        }
+
+        .mj-picker-btn.secondary:hover {
+            background: rgba(255, 182, 193, 0.15);
+            border-color: rgba(255, 182, 193, 0.5);
+        }
+
+        .mj-picker-tip {
+            text-align: center;
+            color: rgba(255, 182, 193, 0.7);
+            font-size: 12px;
+            margin-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        .mj-picker-tip::before {
+            content: '✨ ';
+        }
+
+        .mj-picker-tip::after {
+            content: ' ✨';
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>😀 表情包生成器</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <div class="mode-tabs">
+            <div class="mode-tab active" onclick="switchMode('generate')">📝 生成</div>
+            <div class="mode-tab" onclick="switchMode('split')">✂️ 分割</div>
+            <div class="mode-tab" onclick="switchMode('gif')">🎞️ 转GIF</div>
+        </div>
+
+        <!-- 📚 批量模式区域 -->
+        <div id="batchModeSection" style="display:none;">
+            <div
+                style="margin-bottom:16px; padding:12px 16px; background:linear-gradient(135deg, rgba(251,191,36,0.15), rgba(245,158,11,0.1)); border:1px solid rgba(251,191,36,0.3); border-radius:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div style="font-size:16px; font-weight:600; color:#fbbf24;">📚 批量表情包模式</div>
+                    <button onclick="exitStickerBatchMode()"
+                        style="padding:4px 10px; background:#333; border:none; border-radius:6px; color:#888; font-size:12px; cursor:pointer;">退出批量</button>
+                </div>
+                <div style="font-size:12px; color:#fbbf24;">已加载 <span id="batchStickerCount">0</span> 个任务，将并发生成</div>
+            </div>
+
+            <!-- 批量设置 -->
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>🤖 统一模型</label>
+                    <select id="batchModelSelect">
+                        <option value="nano-banana-2" data-cost="6">🍌 Banana (6胶片)</option>
+                        <option value="nano-banana-2-2k" data-cost="6">🌟 Banana 2K (6胶片)</option>
+                        <option value="nano-banana-2-4k" data-cost="10">💎 Banana 4K (10胶片)</option>
+                        <option value="doubao-seedream-5-0-260128" data-cost="7">🌟 星梦5.0 (7胶片)</option>
+                        <option value="doubao-seedream-4-5-251128" data-cost="7">✨ 星梦4.5 (7胶片)</option>
+                        <option value="gemini-3.1-flash-image-preview" data-cost="4">⚡ Gemini Flash (4胶片)</option>
+                        <option value="gemini-3.1-flash-image-preview-4k" data-cost="7">💎 Gemini 4K (7胶片)</option>
+                        <option value="Qwen/Qwen-Image-2512" data-cost="8">🎨 万象MAX (8胶片)</option>
+                        <option value="modelscope" data-cost="0">🆓 智能绘图 (免费)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>风格</label>
+                    <select id="batchStyleSelect">
+                        <option value="cute">🥰 可爱Q版</option>
+                        <option value="anime">🎌 动漫风</option>
+                        <option value="3d">🎪 3D卡通</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 批量任务列表 -->
+            <div id="batchStickerTaskList"
+                style="display:grid; gap:8px; margin-bottom:16px; max-height:300px; overflow-y:auto;"></div>
+
+            <!-- 批量生成按钮 -->
+            <button id="batchStickerGenerateBtn" onclick="startBatchStickerGenerate()"
+                style="width:100%; padding:16px; background:linear-gradient(135deg, #fbbf24, #f59e0b); border:none; border-radius:12px; color:#000; font-size:16px; font-weight:600; cursor:pointer;">
+                🚀 开始并发生成表情包
+            </button>
+
+            <!-- 批量进度区域 -->
+            <div id="batchStickerProgressSection" style="display:none; margin-top:16px;">
+                <div style="font-size:13px; color:#888; margin-bottom:8px;">生成进度</div>
+                <div id="batchStickerProgressList" style="display:grid; gap:6px;"></div>
+            </div>
+
+            <!-- 批量结果区域 -->
+            <div id="batchStickerResultSection" style="display:none; margin-top:16px;">
+                <div style="font-size:14px; color:#4ade80; font-weight:600; margin-bottom:12px;">✅ 批量生成完成</div>
+                <div id="batchStickerResultList" style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px;">
+                </div>
+                <button onclick="downloadAllBatchStickers()"
+                    style="width:100%; margin-top:12px; padding:12px; background:#333; border:none; border-radius:8px; color:#fff; font-size:14px; cursor:pointer;">
+                    📦 下载全部结果
+                </button>
+            </div>
+        </div>
+
+        <!-- 生成模式 -->
+        <div id="generateMode" class="mode-content active">
+            <div class="input-section">
+                <label class="input-label">✨ 描述你想要的表情包</label>
+                <textarea class="input-box" id="promptInput" placeholder="例如：一只柴犬做出各种表情，带文字..."></textarea>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span style="color:#888;font-size:12px;">🐾 角色：</span>
+                    <span class="quick-tag" onclick="insertTag('柴犬')">🐕 柴犬</span>
+                    <span class="quick-tag" onclick="insertTag('猫咪')">🐱 猫咪</span>
+                    <span class="quick-tag" onclick="insertTag('熊猫')">🐼 熊猫</span>
+                    <span class="quick-tag" onclick="insertTag('兔子')">🐰 兔子</span>
+                    <span class="quick-tag" onclick="insertTag('仓鼠')">🐹 仓鼠</span>
+                    <span class="quick-tag" onclick="insertTag('企鹅')">🐧 企鹅</span>
+                    <span class="quick-tag" onclick="insertTag('小鸡')">🐤 小鸡</span>
+                    <span class="quick-tag" onclick="insertTag('狐狸')">🦊 狐狸</span>
+                    <span class="quick-tag" onclick="insertTag('恐龙')">🦖 恐龙</span>
+                    <span class="quick-tag" onclick="insertTag('独角兽')">🦄 独角兽</span>
+                </div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span style="color:#888;font-size:12px;">😀 表情：</span>
+                    <span class="quick-tag" onclick="insertTag('无语')">😑 无语</span>
+                    <span class="quick-tag" onclick="insertTag('开心')">😄 开心</span>
+                    <span class="quick-tag" onclick="insertTag('生气')">😠 生气</span>
+                    <span class="quick-tag" onclick="insertTag('委屈')">😢 委屈</span>
+                    <span class="quick-tag" onclick="insertTag('惊讶')">😲 惊讶</span>
+                    <span class="quick-tag" onclick="insertTag('困')">😴 困</span>
+                    <span class="quick-tag" onclick="insertTag('害羞')">😊 害羞</span>
+                    <span class="quick-tag" onclick="insertTag('得意')">😏 得意</span>
+                    <span class="quick-tag" onclick="insertTag('可怜')">🥺 可怜</span>
+                    <span class="quick-tag" onclick="insertTag('酷')">😎 酷</span>
+                </div>
+                <div class="quick-tags">
+                    <span style="color:#888;font-size:12px;">💬 动作：</span>
+                    <span class="quick-tag" onclick="insertTag('比心')">💕 比心</span>
+                    <span class="quick-tag" onclick="insertTag('点赞')">👍 点赞</span>
+                    <span class="quick-tag" onclick="insertTag('摊手')">🤷 摊手</span>
+                    <span class="quick-tag" onclick="insertTag('加油')">💪 加油</span>
+                    <span class="quick-tag" onclick="insertTag('吃瓜')">🍉 吃瓜</span>
+                    <span class="quick-tag" onclick="insertTag('干杯')">🍻 干杯</span>
+                    <span class="quick-tag" onclick="insertTag('打工')">💼 打工</span>
+                    <span class="quick-tag" onclick="insertTag('摸鱼')">🐟 摸鱼</span>
+                </div>
+                <!-- 🖼️ 多参考图上传 -->
+                <div class="section-title" style="margin-top:16px;border-top:none;padding-top:8px;">🖼️ 参考图（可选，支持多图）
+                </div>
+                <div id="refImageArea"
+                    style="border:2px dashed #444; border-radius:12px; padding:20px; text-align:center; cursor:pointer; margin-bottom:12px;"
+                    onclick="document.getElementById('refImageInput').click()">
+                    <input type="file" id="refImageInput" accept="image/*" multiple style="display:none"
+                        onchange="handleRefImageUpload(this)">
+                    <div id="refImagePreview" style="display:none;">
+                        <div id="refImageThumbs" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
+                        </div>
+                        <div style="font-size:12px; color:#888; margin-top:6px;">点击添加更多图片</div>
+                    </div>
+                    <div id="refImagePlaceholder">
+                        <div style="font-size:32px;">🖼️</div>
+                        <div style="font-size:12px; color:#888;">上传参考图，AI会参考其风格生成</div>
+                        <div style="font-size:11px; color:#666; margin-top:4px;">🍌 Banana/🎨 万象MAX/⭐ 星梦/💫 即梦
+                            支持多图（0-3张）</div>
+                    </div>
+                </div>
+                <button id="clearRefBtn"
+                    style="display:none; width:100%; padding:8px; background:#ef4444; color:#fff; border:none; border-radius:8px; font-size:12px; cursor:pointer; margin-bottom:12px;"
+                    onclick="clearRefImages()">❌ 清除所有参考图</button>
+
+                <div class="section-title" style="margin-top:8px;border-top:none;padding-top:0;">📋 快捷模板</div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('daily')" style="background:rgba(251,191,36,0.15);">🌟
+                        日常聊天包</span>
+                    <span class="quick-tag" onclick="useTemplate('work')" style="background:rgba(251,191,36,0.15);">💼
+                        打工人专属</span>
+                    <span class="quick-tag" onclick="useTemplate('love')" style="background:rgba(251,191,36,0.15);">💕
+                        恋爱甜蜜包</span>
+                    <span class="quick-tag" onclick="useTemplate('angry')" style="background:rgba(251,191,36,0.15);">😤
+                        怨人专用</span>
+                </div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('cute')" style="background:rgba(251,191,36,0.15);">🥺
+                        卖萌撒娇包</span>
+                    <span class="quick-tag" onclick="useTemplate('food')" style="background:rgba(251,191,36,0.15);">🍔
+                        吃货表情包</span>
+                    <span class="quick-tag" onclick="useTemplate('sleep')" style="background:rgba(251,191,36,0.15);">😴
+                        摸鱼睡觉包</span>
+                    <span class="quick-tag" onclick="useTemplate('festival')"
+                        style="background:rgba(251,191,36,0.15);">🎉 节日祝福包</span>
+                </div>
+                <!-- 🌟 更多模板 -->
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('meme')" style="background:rgba(236,72,153,0.15);">🤡
+                        沩图恶搞</span>
+                    <span class="quick-tag" onclick="useTemplate('shock')" style="background:rgba(236,72,153,0.15);">😲
+                        震惊吸气</span>
+                    <span class="quick-tag" onclick="useTemplate('emo')" style="background:rgba(236,72,153,0.15);">😢
+                        丧系EMO</span>
+                    <span class="quick-tag" onclick="useTemplate('rich')" style="background:rgba(236,72,153,0.15);">💰
+                        财富密码</span>
+                </div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('social')" style="background:rgba(139,92,246,0.15);">😶
+                        社恐专属</span>
+                    <span class="quick-tag" onclick="useTemplate('gaming')" style="background:rgba(139,92,246,0.15);">🎮
+                        游戏玩家</span>
+                    <span class="quick-tag" onclick="useTemplate('student')"
+                        style="background:rgba(139,92,246,0.15);">📚 学生党</span>
+                    <span class="quick-tag" onclick="useTemplate('couple')" style="background:rgba(139,92,246,0.15);">💑
+                        情侣撩妒</span>
+                </div>
+                <div class="quick-tags" style="margin-bottom:8px;">
+                    <span class="quick-tag" onclick="useTemplate('cat_special')"
+                        style="background:rgba(34,197,94,0.15);">🐱 猫片人</span>
+                    <span class="quick-tag" onclick="useTemplate('dog_special')"
+                        style="background:rgba(34,197,94,0.15);">🐶 柴犬控</span>
+                    <span class="quick-tag" onclick="useTemplate('panda_special')"
+                        style="background:rgba(34,197,94,0.15);">🐼 滚滚粉</span>
+                    <span class="quick-tag" onclick="useTemplate('bunny_special')"
+                        style="background:rgba(34,197,94,0.15);">🐰 兔兔控</span>
+                </div>
+                <div class="quick-tags">
+                    <span class="quick-tag" onclick="useTemplate('spring')" style="background:rgba(239,68,68,0.15);">🧧
+                        新年贺岁</span>
+                    <span class="quick-tag" onclick="useTemplate('xmas')" style="background:rgba(239,68,68,0.15);">🎄
+                        圣诞节</span>
+                    <span class="quick-tag" onclick="useTemplate('birthday')"
+                        style="background:rgba(239,68,68,0.15);">🎂 生日快乐</span>
+                    <span class="quick-tag" onclick="useTemplate('programmer')"
+                        style="background:rgba(59,130,246,0.15);">💻 程序员</span>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>🤖 模型</label>
+                    <select id="modelSelect" onchange="updateModelCost()">
+                        <option value="nano-banana-2" data-cost="6">🍌 Banana (6胶片)</option>
+                        <option value="nano-banana-2-2k" data-cost="6">🌟 Banana 2K (6胶片)</option>
+                        <option value="nano-banana-2-4k" data-cost="10">💎 Banana 4K (10胶片)</option>
+                        <option value="doubao-seedream-5-0-260128" data-cost="7">🌟 星梦5.0 (7胶片)</option>
+                        <option value="doubao-seedream-4-5-251128" data-cost="7">✨ 星梦4.5 (7胶片)</option>
+                        <option value="gemini-3.1-flash-image-preview" data-cost="4">⚡ Gemini Flash (4胶片)</option>
+                        <option value="gemini-3.1-flash-image-preview-2k" data-cost="4">⚡ Gemini 2K (4胶片)</option>
+                        <option value="gemini-3.1-flash-image-preview-4k" data-cost="7">💎 Gemini 4K (7胶片)</option>
+                        <!-- 即梦已停用 <option value="jimeng-4.5" data-cost="7">💫 即梦4.5 (7胶片)</option> -->
+                        <option value="Qwen/Qwen-Image-2512" data-cost="8">🎨 万象MAX (8胶片)</option>
+                        <option value="midjourney-fast" data-cost="15">🌟 MJ Fast (15胶片)</option>
+                        <option value="midjourney-turbo" data-cost="25">🚀 MJ Turbo (25胶片)</option>
+                        <option value="modelscope" data-cost="0">🆓 智能绘图 (免费)</option>
+                        <option value="midjourney-relax" data-cost="8">🌙 MJ Relax (8胶片)</option>
+                    </select>
+                    <!-- 🎯 MJ版本选择器 -->
+                    <div id="mjVersionGroup" style="display:none; margin-top:8px;">
+                        <label style="font-size:12px; color:#888;">🎯 MJ版本</label>
+                        <select id="mjVersion"
+                            style="width:100%; padding:10px; background:var(--bg-card); border:1px solid #333; border-radius:8px; color:#fff; margin-top:4px;">
+                            <option value="7">v7 最新</option>
+                            <option value="6.1" selected>v6.1 稳定</option>
+                            <option value="6">v6.0</option>
+                            <option value="5.2">v5.2</option>
+                            <option value="niji7">Niji 7 动漫（最新）</option>
+                            <option value="niji6">Niji 6 动漫</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label>风格</label>
+                    <select id="styleSelect">
+                        <option value="cute">🥰 可爱Q版</option>
+                        <option value="realistic">📸 写实风</option>
+                        <option value="anime">🎌 动漫风</option>
+                        <option value="pixel">👾 像素风</option>
+                        <option value="3d">🎪 3D卡通</option>
+                        <option value="sketch">✏️ 手绘涂鸦</option>
+                        <option value="flat">🎨 扁平插画</option>
+                        <option value="watercolor">💧 水彩风</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>数量</label>
+                    <select id="countSelect">
+                        <option value="4">4张</option>
+                        <option value="9" selected>9宫格</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="generateBtn" onclick="generateStickers()">
+                ⚡ 生成表情包
+            </button>
+
+            <div class="loading" id="loading" style="display:none;">
+                <div class="spinner"></div>
+                <div id="loadingText">正在生成9宫格表情包...</div>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display:none;">
+                <div class="result-image-container">
+                    <img id="resultImage" src="" alt="生成结果">
+                </div>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadFullImage()">💾 下载整图</button>
+                    <button class="result-btn primary" onclick="splitImage()">✂️ 分割</button>
+                    <button class="result-btn" onclick="regenerate()">🔄 重新生成</button>
+                </div>
+                <div id="segmentSection" style="display:none;">
+                    <div class="section-title">✂️ 分割结果 <span style="font-size:12px;color:#888;">(点击选择要转动态的表情)</span>
+                    </div>
+                    <div class="segment-grid" id="segmentGrid"></div>
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button class="result-btn" style="flex:1;" onclick="downloadAllSegments()">📦 下载全部</button>
+                        <button class="result-btn primary" style="flex:1;" onclick="convertToAnimatedStickers()">🎬
+                            转动态表情</button>
+                    </div>
+                    <div style="margin-top:8px;font-size:12px;color:#888;text-align:center;" id="animatedStickerHint">
+                        💡 选中表情后点击「转动态表情」
+                    </div>
+                    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                        <label style="font-size:12px;color:#888;white-space:nowrap;">🎬 视频模型:</label>
+                        <select id="animatedModelSelect"
+                            style="flex:1;padding:8px;background:var(--bg-input);border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;"
+                            onchange="updateAnimatedCostHint()">
+                            <option value="grok-video-3" data-cost="5" data-duration="6">🚀 Grok Video 3 (6秒, 5胶片)
+                            </option>
+                            <option value="veo_3_1-4K" data-cost="30" data-duration="8">🎬 Veo 3.1 4K (8秒, 30胶片)
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 🎬 动态表情生成结果区域 -->
+                <div id="animatedSection" style="display:none;">
+                    <div class="section-title">🎬 动态表情生成结果</div>
+                    <div class="segment-grid" id="animatedGrid" style="grid-template-columns:repeat(2,1fr);"></div>
+                    <div id="animatedProgress"
+                        style="display:none;margin-top:12px;padding:12px;background:var(--bg-card);border-radius:8px;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                            <span id="animatedProgressText">正在生成动态表情...</span>
+                            <span id="animatedProgressCount">0/0</span>
+                        </div>
+                        <div style="height:4px;background:#333;border-radius:2px;overflow:hidden;">
+                            <div id="animatedProgressBar"
+                                style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+                    <button class="result-btn" style="margin-top:12px;width:100%;"
+                        onclick="downloadAllAnimatedStickers()">📦 下载全部动态表情</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分割模式 -->
+        <div id="splitMode" class="mode-content">
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📷</div>
+                <div class="upload-text">点击上传9宫格图片</div>
+                <input type="file" id="fileInput" accept="image/*" style="display:none;"
+                    onchange="handleImageUpload(event)">
+            </div>
+            <div id="previewArea" style="display:none;">
+                <div class="result-image-container">
+                    <img id="previewImg" src="" alt="预览">
+                </div>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="resetUpload()">🔄 重新上传</button>
+                    <button class="result-btn primary" onclick="splitUploadedImage()">✂️ 开始分割</button>
+                </div>
+            </div>
+            <div class="loading" id="splitLoading" style="display:none;">
+                <div class="spinner"></div>
+                <div>正在分割图片...</div>
+            </div>
+            <div id="splitResults" style="display:none;">
+                <div class="section-title">✂️ 分割结果 <span style="font-size:12px;color:#888;">(点击选择要转动态的表情)</span></div>
+                <div class="segment-grid" id="splitGrid"></div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="result-btn" style="flex:1;" onclick="downloadAllSplitSegments()">📦 下载全部</button>
+                    <button class="result-btn primary" style="flex:1;" onclick="convertSplitToAnimated()">🎬
+                        转动态表情</button>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:#888;text-align:center;" id="splitAnimatedHint">
+                    💡 选中表情后点击「转动态表情」
+                </div>
+                <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                    <label style="font-size:12px;color:#888;white-space:nowrap;">🎬 视频模型:</label>
+                    <select id="splitAnimatedModelSelect"
+                        style="flex:1;padding:8px;background:var(--bg-input);border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;">
+                        <option value="grok-video-3" data-cost="5" data-duration="6">🚀 Grok Video 3 (6秒, 5胶片)</option>
+                        <option value="veo_3_1-4K" data-cost="30" data-duration="8">🎬 Veo 3.1 4K (8秒, 30胶片)</option>
+                    </select>
+                </div>
+                <!-- 🎬 分割模式的动态表情生成结果 -->
+                <div id="splitAnimatedSection" style="display:none;margin-top:16px;">
+                    <div class="section-title">🎬 动态表情生成结果</div>
+                    <div class="segment-grid" id="splitAnimatedGrid" style="grid-template-columns:repeat(2,1fr);"></div>
+                    <div id="splitAnimatedProgress"
+                        style="display:none;margin-top:12px;padding:12px;background:var(--bg-card);border-radius:8px;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                            <span id="splitAnimatedProgressText">正在生成动态表情...</span>
+                            <span id="splitAnimatedProgressCount">0/0</span>
+                        </div>
+                        <div style="height:4px;background:#333;border-radius:2px;overflow:hidden;">
+                            <div id="splitAnimatedProgressBar"
+                                style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+                    <button class="result-btn" style="margin-top:12px;width:100%;"
+                        onclick="downloadAllSplitAnimatedStickers()">📦 下载全部动态表情</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎞️ 视频转GIF模式 -->
+        <div id="gifMode" class="mode-content">
+            <div class="input-section">
+                <label class="input-label">🎬 上传视频文件</label>
+                <input type="file" id="gifVideoInput" accept="video/*" style="display:none"
+                    onchange="previewGifVideo(this)">
+                <div class="upload-area" onclick="document.getElementById('gifVideoInput').click()"
+                    style="padding:30px;">
+                    <div style="font-size:40px;">📹</div>
+                    <div style="color:#888;font-size:13px;margin-top:8px;">点击上传视频</div>
+                </div>
+                <video id="gifVideoPreview" style="display:none;width:100%;border-radius:12px;margin-top:12px;" controls
+                    playsinline></video>
+            </div>
+
+            <div id="gifTimeRange" style="display:none;margin-bottom:16px;">
+                <div style="display:flex;gap:12px;margin-bottom:12px;">
+                    <div style="flex:1;">
+                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">开始时间(秒)</label>
+                        <input type="number" id="gifStartTime" value="0" min="0" step="0.1"
+                            onchange="updateGifPreviewTime()"
+                            style="width:100%;padding:10px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">结束时间(秒)</label>
+                        <input type="number" id="gifEndTime" value="5" min="0.5" step="0.1"
+                            onchange="updateGifPreviewTime()"
+                            style="width:100%;padding:10px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    </div>
+                </div>
+                <div style="font-size:12px;color:#888;text-align:center;">
+                    视频时长: <span id="gifDuration">0</span>秒 | 截取: <span id="gifClipDuration">5</span>秒
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>宽度</label>
+                    <select id="gifWidth">
+                        <option value="240">240px (小)</option>
+                        <option value="320" selected>320px (中)</option>
+                        <option value="480">480px (大)</option>
+                        <option value="640">640px (超大)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>帧率</label>
+                    <select id="gifFps">
+                        <option value="8">8fps (省空间)</option>
+                        <option value="10" selected>10fps (标准)</option>
+                        <option value="15">15fps (流畅)</option>
+                        <option value="20">20fps (高清)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>质量</label>
+                    <select id="gifQuality">
+                        <option value="low">低 (文件小)</option>
+                        <option value="medium" selected>中 (平衡)</option>
+                        <option value="high">高 (色彩好)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>循环</label>
+                    <select id="gifLoop">
+                        <option value="0">无限循环</option>
+                        <option value="1">不循环</option>
+                        <option value="3">3次</option>
+                        <option value="5">5次</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="generate-btn" onclick="convertToGif()">
+                🎞️ 转换为GIF
+            </button>
+
+            <div id="gifLoading" style="display:none;text-align:center;padding:30px;">
+                <div class="spinner"></div>
+                <div id="gifLoadingText" style="margin-top:12px;color:#888;">正在转换...</div>
+                <div id="gifProgress" style="margin-top:8px;font-size:12px;color:#666;">准备中...</div>
+            </div>
+
+            <div id="gifResult" style="display:none;margin-top:20px;">
+                <div class="section-title">🎞️ 转换结果</div>
+                <img id="gifOutput" src="" alt="GIF结果" style="width:100%;border-radius:12px;background:#000;">
+                <div id="gifInfo" style="font-size:12px;color:#888;text-align:center;margin-top:8px;"></div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="result-btn" style="flex:1;" onclick="downloadGif()">⬇️ 下载GIF</button>
+                    <button class="result-btn primary" style="flex:1;" onclick="resetGifTool()">🔄 重新转换</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 返回函数 - 直接返回 mobile.html 工作区
+        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        // 使用 NVAuth 模块
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        let authInitialized = false;
+        let STICKER_COST = 6; // 表情包生成费用（根据模型动态调整）
+        const ANIMATED_STICKER_COST = 5; // 动态表情费用（每个5胶片，使用短视频模型）
+
+        // 🤖 更新模型费用显示
+        function updateModelCost() {
+            const modelSelect = document.getElementById('modelSelect');
+            const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+            STICKER_COST = parseInt(selectedOption.dataset.cost) || 6;
+            console.log('[sticker] 模型切换:', modelSelect.value, '费用:', STICKER_COST);
+
+            // 🎯 显示/隐藏 MJ 版本选择器
+            const isMidjourney = modelSelect.value && modelSelect.value.startsWith('midjourney-');
+            const mjVersionGroup = document.getElementById('mjVersionGroup');
+            if (mjVersionGroup) {
+                mjVersionGroup.style.display = isMidjourney ? 'block' : 'none';
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[sticker] 页面加载完成，开始初始化...');
+
+            // 🔧 修复：确保按钮事件正确绑定（支持移动端触摸）
+            const generateBtn = document.getElementById('generateBtn');
+            if (generateBtn) {
+                generateBtn.onclick = null;
+                generateBtn.addEventListener('click', function (e) {
+                    console.log('[sticker] 生成按钮被点击 (click)');
+                    generateStickers();
+                });
+                generateBtn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    console.log('[sticker] 生成按钮被点击 (touchend)');
+                    generateStickers();
+                });
+                console.log('[sticker] 按钮事件已绑定');
+            }
+
+            // 🔧 修复：更健壮的认证初始化
+            await initAuth();
+            console.log('[sticker] 初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+
+            // 🌟 从 prompt-fill.html / writing.html 跳转过来时加载提示词
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // 单个模式：从 prompt-fill 或 knolling 跳转过来
+            if (urlParams.get('from_promptfill') === '1' && urlParams.get('batch') !== '1') {
+                const stickerPrompt = localStorage.getItem('promptfill_to_sticker');
+                if (stickerPrompt) {
+                    document.getElementById('promptInput').value = stickerPrompt;
+                    localStorage.removeItem('promptfill_to_sticker');
+                    showToast('已加载提示词，点击生成');
+                    console.log('[sticker] 从 prompt-fill 加载单个提示词');
+                }
+            }
+
+            // 🆕 从 knolling.html 跳转过来（使用 sticker_prompt）
+            const knollingPrompt = localStorage.getItem('sticker_prompt');
+            if (knollingPrompt) {
+                document.getElementById('promptInput').value = knollingPrompt;
+                localStorage.removeItem('sticker_prompt');
+                showToast('已加载提示词，点击生成');
+                console.log('[sticker] 从 knolling 加载单个提示词');
+            }
+
+            // 批量模式：从 prompt-fill 或 writing 跳转过来
+            if (urlParams.get('batch') === '1') {
+                const savedPrompts = localStorage.getItem('sticker_batch_prompts');
+                if (savedPrompts) {
+                    try {
+                        const prompts = JSON.parse(savedPrompts);
+                        if (prompts && prompts.length > 0) {
+                            // 📚 进入批量模式
+                            enterStickerBatchMode(prompts);
+                            localStorage.removeItem('sticker_batch_prompts');
+
+                            const source = urlParams.get('from_promptfill') === '1' ? '提示词填空' :
+                                (urlParams.get('from_writing') === '1' ? 'AI写作' : '批量');
+                            console.log('[sticker] 从', source, '加载了', prompts.length, '个批量提示词');
+                        }
+                    } catch (e) {
+                        console.error('[sticker] 解析批量提示词失败:', e);
+                    }
+                }
+            }
+        });
+
+        async function initAuth() {
+            try {
+                // 等待 NVAuth 模块加载
+                let waitCount = 0;
+                while (typeof NVAuth === 'undefined' && waitCount < 30) {
+                    await new Promise(r => setTimeout(r, 100));
+                    waitCount++;
+                }
+
+                if (typeof NVAuth === 'undefined') {
+                    console.warn('[sticker] NVAuth 模块未加载');
+                    authInitialized = true;
+                    return;
+                }
+
+                // 等待认证状态就绪
+                if (typeof __nvAuthReadyPromise !== 'undefined') {
+                    await Promise.race([
+                        __nvAuthReadyPromise,
+                        new Promise(resolve => setTimeout(resolve, 5000))
+                    ]);
+                }
+
+                await checkUser();
+            } catch (e) {
+                console.error('[sticker] 认证初始化失败:', e);
+            } finally {
+                authInitialized = true;
+            }
+        }
+
+        async function checkUser() {
+            try {
+                // 轮询获取用户（避免首次为空）
+                for (let i = 0; i < 10; i++) {
+                    try {
+                        currentUser = await NVAuth.getCurrentUser();
+                        if (currentUser) break;
+                    } catch (e) { }
+                    await new Promise(r => setTimeout(r, 300));
+                }
+
+                if (currentUser) {
+                    console.log('[sticker] 用户已登录:', currentUser.email);
+                    await loadUserQuota();
+                } else {
+                    console.log('[sticker] 用户未登录');
+                }
+            } catch (e) { console.error('检查用户失败:', e); }
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                console.log('[sticker] 用户胶片:', userQuota);
+            } catch (e) { console.error('加载配额失败:', e); }
+        }
+
+        // 预扣费函数
+        async function preDeduct(cost, description) {
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
+            cost = Math.ceil(cost);
+
+            // 等待认证初始化完成
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+
+            if (!currentUser) { showToast('请先登录'); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+
+                // 🔧 修复：先检查 HTTP 状态码
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('余额不足，请先充值');
+                    }
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
+                }
+
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    console.log(`🎞️ 预扣费成功: -${cost}胶片, 余额=${userQuota}`);
+                    return true;
+                }
+                throw new Error(data.message || data.error || '扣费失败');
+            } catch (e) { showToast('扣费失败: ' + e.message); return false; }
+        }
+
+        // ✅ 已移除退款函数 - 后端成功扣费后不再退款，避免成本损耗
+
+        let currentImageUrl = '';
+        let segmentedImages = [];
+        let uploadedImageData = null;
+        let splitSegments = [];
+
+        // 表情包模板库 - 超丰富多样化（每个模板严格9个表情）
+        const stickerTemplates = {
+            // 基础日常系列
+            daily: '可爱小动物做出日常聊天表情：开心、无语、OK、谢谢、再见、哈哈、好的、收到、晚安',
+            work: '打工人小动物表情包：上班、下班、摸鱼、加班、困、累、周一痛苦、周五狂喜、发工资',
+            love: '甜蜜恋爱小动物表情包：比心、亲亲、抱抱、想你、爱你、害羞、撒娇、吃醋、晚安',
+            angry: '生气怨人小动物表情包：生气、白眼、嫌弃、滚、闭嘴、无语、翻白眼、哼、不理你',
+            cute: '卖萌撒娇小动物表情包：可怜巴巴、求求了、抱抱我、委屈、嘤嘤嘤、人家不要、哄哄我、给糖吃、揉揉',
+            food: '吃货小动物表情包：好饿、吃饭、好吃、干饭、减肥、暴食、奶茶、火锅、烧烤',
+            sleep: '摸鱼睡觉小动物表情包：困了、睡觉、摸鱼、划水、偷懒、打哈欠、做梦、起床困难、午休',
+            festival: '节日祝福小动物表情包：新年好、恭喜发财、生日快乐、节日快乐、红包拿来、放假、庆祝、撒花、干杯',
+            // 🌟 新增多样化模板
+            meme: '沩图恶搞小动物表情包：小丑是我、偷着乐、梦想成真、面无表情、眷了、这谁顶得住、完了要完、笑不活、绝了',
+            shock: '震惊吸气小动物表情包：这也行、不是吧、奇怪的知识、什么情况、惊了、演都不演、难以置信、呆住、懵了',
+            emo: '丧系emo小动物表情包：我裂开了、想哭、活着好累、想静静、不想努力、无所谓、不开心、自闭中、会谢',
+            rich: '财富发大小动物表情包：我超有钱、钱到账了、爆富、旺旺旺、招财进宝、提钱到手软、发大财、暴富、恭喜',
+            social: '社恐小动物表情包：不想社交、请勿打扰、我的强项是宅、社死现场、我谁我在哪、在线隐身、不熟勿cue、i人、想逃',
+            pet: '家有宠物表情包：铲屎官上线、吃啦、求摸摸、不开心、看看谁回来了、摆烂、你的宠物上线、喜提、唱反调',
+            gaming: '游戏玩家小动物表情包：GG、MVP、菜、开黑吗、我要开大了、输了、赢了、卡成PPT、上分',
+            student: '学生党小动物表情包：学废了、考试加油、终于放假、作业写不完、看不懂、上课打盹、晚修绝望、别抽我、开学',
+            couple: '情侣撩妻小动物表情包：想你、哪去了、快回来、不开心了哄我、老婆最棒、老公爱你、亲一个、抱抱、谁惹你了',
+            office: '职场生存小动物表情包：收到请回复、开会中、在线等、领导说得对、好的、收到、马上处理、已反馈、进度正常',
+            // 🎈 可爱动物专题
+            cat_special: '猫片人专属橘猫表情包：喂我、走开勿cue、厌弃了、蹭蹭你、睡了别吵、被子给我、赖上你了、伸懒腰、舔毛',
+            dog_special: '狗狗吧专属柴犬表情包：汪汪汪、摇尾巴、出去走走、给我给我、叫爸爸、无辜眼神、乖巧坐好、蹭蹭、摸头',
+            panda_special: '滚滚粉专属熊猫表情包：吃竹子、蹭蹭你、干嘛呢、俯卧撑、满地打滚、被子给我、知道可爱、发呆中、胖嘟嘟',
+            bunny_special: '兔兔控专属白兔子表情包：吐舌头、揪耳朵、蹦蹦跳、抱胡萝卜、眼红红、吃吃吃、胖了一圈、缩成团、躲起来',
+            // 🎉 节日专题
+            spring: '新年快乐贺岁表情包：恭喜发财、红包拿来、大吉大利、过年好、年夜饭、拜年啦、新年快乐、龙年大吉、财源广进',
+            xmas: '圣诞节庆祝表情包：圣诞快乐、礼物呈上、圣诞老人来啦、叮叮当当、圣诞树、雪人、麋鹿、袜子有礼物、庆祝',
+            birthday: '生日快乐表情包：生日快乐、吹蜡烛、许愿、吃蛋糕、越来越年轻、年年有今日、寿星高照、开心每天、礼物',
+            valentine: '情人节特辑表情包：我爱你、比心、爱的魔力、小甜蜜、在一起、单身狗、孤独、吃狗粮、原地结婚',
+            // 🎮 超生动表情
+            action_pack: '动作大片小动物表情包：放大招、偷袭、踊跃转圈、全力冲刺、倒地、弹开、大变身、超级赛亚人、飞踢',
+            reaction_pack: '奇怪反应小动物表情包：喝水喷出来、脸都绿了、口吐芬芳、裂开了、翻跑、嘴都歪了、意味深长、无语、震惊',
+            vibe_check: '氛围感小动物表情包：nice、vibe、氛围到了、今天也很棒、就这样吧、摸鱼时刻、没啥事、平平无奇、活着',
+            programmer: '程序员专属小动物表情包：在debug、bug又来了、代码跑了、上线成功、git push、呼叫同事、建议重构、又是bug、优化中'
+        };
+
+        // 🖼️ 多参考图状态
+        let refImageDataArray = [];  // 存储多个参考图
+
+        // 🔧 图片压缩函数（避免 413 Payload Too Large）
+        function compressImage(dataUrl, maxWidth = 1024, quality = 0.8) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.width, h = img.height;
+                    if (w > maxWidth) {
+                        h = Math.round(h * maxWidth / w);
+                        w = maxWidth;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => resolve(dataUrl);
+                img.src = dataUrl;
+            });
+        }
+
+        // 🖼️ 多参考图上传处理
+        async function handleRefImageUpload(input) {
+            const files = input.files;
+            if (!files || files.length === 0) return;
+
+            // 最多支持3张参考图
+            const remainingSlots = 3 - refImageDataArray.length;
+            if (remainingSlots <= 0) {
+                showToast('最多支持3张参考图');
+                input.value = '';
+                return;
+            }
+
+            const filesToProcess = Array.from(files).slice(0, remainingSlots);
+            showToast(`正在处理 ${filesToProcess.length} 张图片...`);
+
+            for (const file of filesToProcess) {
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast(`图片 ${file.name} 大小不能超过10MB`);
+                    continue;
+                }
+
+                // 读取文件
+                const dataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(file);
+                });
+
+                if (!dataUrl) continue;
+
+                // 🔧 压缩图片（最大800px，质量0.6，避免413错误）
+                const compressed = await compressImage(dataUrl, 800, 0.6);
+                refImageDataArray.push(compressed);
+                console.log(`[sticker] 参考图压缩: ${Math.round(dataUrl.length / 1024)}KB -> ${Math.round(compressed.length / 1024)}KB`);
+            }
+
+            updateRefImageDisplay();
+            showToast(`已上传 ${refImageDataArray.length} 张参考图`);
+            input.value = '';
+        }
+
+        // 更新参考图显示
+        function updateRefImageDisplay() {
+            const thumbsContainer = document.getElementById('refImageThumbs');
+            thumbsContainer.innerHTML = '';
+
+            refImageDataArray.forEach((imgData, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'position:relative; width:100px; height:80px;';
+
+                const img = document.createElement('img');
+                img.src = imgData;
+                img.style.cssText = 'width:100%; height:100%; object-fit:cover; border-radius:8px;';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '×';
+                deleteBtn.style.cssText = 'position:absolute; top:2px; right:2px; width:20px; height:20px; border:none; background:rgba(0,0,0,0.7); color:#fff; border-radius:50%; cursor:pointer; font-size:14px; line-height:1;';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeRefImage(index);
+                };
+
+                wrapper.appendChild(img);
+                wrapper.appendChild(deleteBtn);
+                thumbsContainer.appendChild(wrapper);
+            });
+
+            if (refImageDataArray.length > 0) {
+                document.getElementById('refImagePreview').style.display = 'block';
+                document.getElementById('refImagePlaceholder').style.display = 'none';
+                document.getElementById('clearRefBtn').style.display = 'block';
+            } else {
+                document.getElementById('refImagePreview').style.display = 'none';
+                document.getElementById('refImagePlaceholder').style.display = 'block';
+                document.getElementById('clearRefBtn').style.display = 'none';
+            }
+        }
+
+        // 删除单个参考图
+        function removeRefImage(index) {
+            refImageDataArray.splice(index, 1);
+            updateRefImageDisplay();
+            showToast('已删除参考图');
+        }
+
+        function clearRefImages() {
+            refImageDataArray = [];
+            updateRefImageDisplay();
+            showToast('所有参考图已清除');
+        }
+
+        function insertTag(tag) {
+            const input = document.getElementById('promptInput');
+            input.value = input.value ? input.value + '，' + tag : tag;
+        }
+
+        function useTemplate(templateKey) {
+            const template = stickerTemplates[templateKey];
+            if (template) {
+                document.getElementById('promptInput').value = template;
+                showToast('已填入模板，可自行修改');
+            }
+        }
+
+        function switchMode(mode) {
+            document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.mode-content').forEach(content => content.classList.remove('active'));
+
+            const tabs = document.querySelectorAll('.mode-tab');
+            if (mode === 'generate') {
+                tabs[0].classList.add('active');
+                document.getElementById('generateMode').classList.add('active');
+            } else if (mode === 'split') {
+                tabs[1].classList.add('active');
+                document.getElementById('splitMode').classList.add('active');
+            } else if (mode === 'gif') {
+                tabs[2].classList.add('active');
+                document.getElementById('gifMode').classList.add('active');
+            }
+        }
+
+        async function generateStickers() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) {
+                showToast('请输入表情包描述');
+                return;
+            }
+
+            const style = document.getElementById('styleSelect').value;
+            const count = parseInt(document.getElementById('countSelect').value);
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const resultSection = document.getElementById('resultSection');
+            const segmentSection = document.getElementById('segmentSection');
+
+            // 🔐 等待认证初始化完成
+            if (!authInitialized) {
+                showToast('正在初始化，请稍候...');
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 5000) {
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            }
+
+            // 🔐 检查用户是否已登录
+            if (!currentUser) {
+                // 尝试重新获取用户信息
+                if (typeof NVAuth !== 'undefined') {
+                    try {
+                        currentUser = await NVAuth.getCurrentUser();
+                        if (currentUser) {
+                            await loadUserQuota();
+                        }
+                    } catch (e) {
+                        console.error('[sticker] 获取用户失败:', e);
+                    }
+                }
+
+                if (!currentUser) {
+                    showToast('请先登录后再生成');
+                    return;
+                }
+            }
+
+            // ✅ 检查余额是否足够（不预扣费，后端成功后扣费）
+            // 🤖 根据选择的模型更新费用
+            updateModelCost();
+            if (userQuota < STICKER_COST) {
+                showToast(`余额不足，需要${STICKER_COST}胶片，请先充值`);
+                return;
+            }
+
+            // 🤖 获取选择的模型
+            const selectedModel = document.getElementById('modelSelect').value;
+            const isMidjourney = selectedModel && selectedModel.startsWith('midjourney-');
+
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            resultSection.style.display = 'none';
+            segmentSection.style.display = 'none';
+
+            // 🎨 优化风格提示词，确保所有风格都能正常生成网格表情包
+            const styleMap = {
+                cute: 'cute chibi kawaii style, big head small body, round shapes, adorable cartoon character, simple clean lines',
+                realistic: 'photorealistic real human portrait style, high-quality photography, natural skin texture, realistic facial expressions, professional portrait lighting, real person photo',
+                anime: 'Japanese anime manga style, big expressive eyes, colorful hair, soft cel-shading, anime character design',
+                pixel: 'pixel art 8-bit retro game style, blocky pixelated character, limited color palette, nostalgic game aesthetic',
+                '3d': 'Pixar Disney 3D cartoon style, smooth CGI render, vibrant colors, cute 3D character with round features',
+                sketch: 'hand-drawn pencil sketch doodle style, rough pencil lines, artistic texture, simple black and white cartoon',
+                flat: 'flat vector illustration style, minimal shading, bold solid colors, simple geometric shapes, modern design',
+                watercolor: 'watercolor painting artistic style, soft color bleeding edges, artistic brush strokes, painted cartoon character'
+            };
+
+            // 根据数量选择网格布局
+            const gridLayout = count === 9 ? '3x3' : '2x2';
+            const panelCount = count === 9 ? 9 : 4;
+            document.getElementById('loadingText').textContent = `正在生成${panelCount}宫格表情包...`;
+
+            // 🔧 构建更精确的网格提示词
+            // 🎨 根据风格调整提示词（写实风不强制卡通）
+            const isRealistic = style === 'realistic';
+            const styleInstruction = isRealistic
+                ? '8. PHOTOREALISTIC: Real human photo style, NOT cartoon or illustrated'
+                : '8. ILLUSTRATED: Cartoon/illustrated style, expressive and cute';
+
+            const gridPrompt = `Create a ${gridLayout} GRID LAYOUT image with ${panelCount} EQUAL-SIZED SQUARE PANELS arranged in a perfect grid.
+
+CONTENT: ${prompt}
+STYLE: ${styleMap[style]}
+
+CRITICAL REQUIREMENTS:
+1. GRID STRUCTURE: Exactly ${panelCount} panels in a ${gridLayout} grid, separated by thin white lines (2-3px)
+2. EQUAL SIZE: All panels must be exactly the same size, perfectly aligned
+3. WHITE BACKGROUND: Clean white/light background in each panel
+4. EXPRESSIONS: Each panel shows a DIFFERENT facial expression or action
+5. CHINESE TEXT: Add short Chinese text caption in each panel (like "开心", "生气", "无语" etc.)
+6. CHARACTER CONSISTENCY: Same character/person in all panels, only expression changes
+7. STICKER STYLE: Chat app sticker/emoji aesthetic, expressive
+${styleInstruction}
+
+Output: A single square image containing ${panelCount} sticker panels in a clean ${gridLayout} grid layout.`;
+
+            try {
+                console.log('[sticker] 使用模型:', selectedModel, '费用:', STICKER_COST, '有参考图:', refImageDataArray.length > 0, 'MJ:', isMidjourney);
+
+                let response;
+
+                // 🌟 Midjourney 走 yunwu API
+                if (isMidjourney) {
+                    document.getElementById('loadingText').textContent = '正在调用 Midjourney...（可能需要 1-2 分钟）';
+                    // 🎯 获取用户选择的 MJ 版本
+                    const mjVersionSelect = document.getElementById('mjVersion');
+                    const mjVersion = mjVersionSelect ? mjVersionSelect.value : '6.1';
+
+                    const mjBody = {
+                        action: 'midjourney',
+                        prompt: gridPrompt,
+                        model: selectedModel,
+                        aspect_ratio: '1:1',
+                        version: mjVersion,  // 🎯 传递版本参数（支持 niji7 等）
+                        userId: currentUser.id
+                    };
+                    // MJ 也支持参考图（图生图，但只支持单图）
+                    if (refImageDataArray.length > 0) {
+                        mjBody.image_url = refImageDataArray[0];  // MJ 只支持单图，取第一张
+                        if (refImageDataArray.length > 1) {
+                            showToast('🔔 MJ 仅支持单图，已使用第1张参考图');
+                        }
+                    }
+                    console.log('[sticker] MJ 请求:', { model: selectedModel, version: mjVersion });
+                    response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(mjBody)
+                    });
+                } else {
+                    // 其他模型走 banana2 API
+                    const requestBody = {
+                        prompt: gridPrompt,
+                        model: selectedModel,
+                        aspect_ratio: '1:1',
+                        userId: currentUser.id
+                    };
+
+                    // 🖼️ 如果有参考图，且模型支持，添加到请求中
+                    // 支持多图的模型：Banana, Qwen/万象MAX, doubao/星梦画师
+                    const supportsMultipleImages = (
+                        selectedModel === 'nano-banana-2' ||
+                        selectedModel.startsWith('Qwen/') ||
+                        selectedModel.includes('doubao') ||
+                        selectedModel.includes('seedream')
+                    );
+
+                    if (refImageDataArray.length > 0) {
+                        if (supportsMultipleImages) {
+                            // 🌟 支持多图的模型
+                            if (refImageDataArray.length === 1) {
+                                requestBody.image_url = refImageDataArray[0];
+                                requestBody.strength = 0.5;
+                                console.log('[sticker] 添加单参考图到请求');
+                            } else {
+                                requestBody.image_urls = refImageDataArray;
+                                requestBody.strength = 0.5;
+                                console.log(`[sticker] 添加 ${refImageDataArray.length} 张参考图到请求`);
+                            }
+                        } else {
+                            // 其他模型只支持单图，取第一张
+                            requestBody.image_url = refImageDataArray[0];
+                            if (refImageDataArray.length > 1) {
+                                showToast(`🔔 ${selectedModel} 仅支持单图，已使用第1张参考图`);
+                            }
+                            console.log('[sticker] 添加单参考图到请求（模型仅支持单图）');
+                        }
+                    }
+
+                    response = await fetch('/api/banana2', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+                }
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.message || data.error);
+
+                // 💰 更新余额显示（后端已扣费）
+                if (data.billed && data.billed > 0) {
+                    userQuota = Math.max(0, userQuota - data.billed);
+                    console.log(`🎞️ 扣费: -${data.billed}胶片, 余额=${userQuota}`);
+                }
+
+                // 🌟 MJ/Niji 返回 gridBase64 或 imageUrl
+                if (isMidjourney) {
+                    // 优先使用 gridBase64（已转 base64 解决跨域问题）
+                    if (data.gridBase64) {
+                        currentImageUrl = data.gridBase64;
+                        console.log('[sticker] MJ 网格图获取成功 (base64)');
+                    } else if (data.imageUrl || data.url) {
+                        // 备用：直接使用 URL
+                        currentImageUrl = data.imageUrl || data.url;
+                        console.log('[sticker] MJ 网格图获取成功 (url)');
+                    } else {
+                        throw new Error('MJ 未返回图片');
+                    }
+                } else {
+                    // 其他模型
+                    currentImageUrl = data.url || data.image_url || data.imageUrl || data.data?.url || data.data?.image_url || '';
+                    if (!currentImageUrl && data.images && data.images.length > 0) {
+                        currentImageUrl = data.images[0].url || data.images[0];
+                    }
+                }
+                if (!currentImageUrl) throw new Error('未获取到图片');
+
+                // 🎯 MJ模型显示4宫格选择器，其他模型直接显示
+                if (isMidjourney) {
+                    showMjPicker(currentImageUrl);
+                    showToast('MJ生成完成！请选择一张图片');
+                } else {
+                    document.getElementById('resultImage').src = currentImageUrl;
+                    resultSection.style.display = 'block';
+                    showToast('生成成功！点击分割按钮可拆分为单张');
+                }
+            } catch (error) {
+                // ✅ 后端成功才扣费，失败不扣费，无需退款
+                showToast('生成失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function regenerate() {
+            generateStickers();
+        }
+
+        function downloadFullImage() {
+            if (!currentImageUrl) {
+                showToast('没有可下载的图片');
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = currentImageUrl;
+            a.download = 'sticker_grid_' + Date.now() + '.png';
+            a.target = '_blank';
+            a.click();
+            showToast('开始下载');
+        }
+
+        async function splitImage() {
+            if (!currentImageUrl) {
+                showToast('请先生成图片');
+                return;
+            }
+
+            showToast('正在分割...');
+
+            try {
+                // 🔧 检查是否是 base64 图片，如果不是则通过代理获取避免 CORS 问题
+                let imageDataUrl = currentImageUrl;
+                if (!currentImageUrl.startsWith('data:')) {
+                    // 外部 URL，通过代理获取 base64
+                    console.log('[sticker] 通过代理获取图片...');
+                    try {
+                        const proxyRes = await fetch('/api/proxy?method=GET', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ targetUrl: currentImageUrl, method: 'GET' })
+                        });
+                        const proxyData = await proxyRes.json();
+                        if (proxyData.success && proxyData.dataUrl) {
+                            imageDataUrl = proxyData.dataUrl;
+                            console.log('[sticker] 代理获取成功');
+                        } else {
+                            throw new Error('代理获取失败');
+                        }
+                    } catch (proxyErr) {
+                        console.warn('[sticker] 代理失败，尝试直接加载:', proxyErr);
+                        // 回退到直接加载（可能会 CORS 失败）
+                    }
+                }
+
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = imageDataUrl;
+                });
+
+                const count = parseInt(document.getElementById('countSelect').value);
+                const cols = count === 9 ? 3 : 2;
+                const rows = count === 9 ? 3 : 2;
+
+                // 🔧 默认使用简单均分模式，更准确
+                segmentedImages = await splitImageToGrid(img, cols, rows, true);
+
+                const grid = document.getElementById('segmentGrid');
+                grid.innerHTML = segmentedImages.map((dataUrl, i) => `
+                    <div class="segment-item" data-index="${i}" onclick="toggleSegmentSelection(${i})">
+                        <img src="${dataUrl}" alt="分割${i + 1}">
+                        <div class="seg-check" style="position:absolute;top:4px;right:4px;width:24px;height:24px;background:rgba(0,0,0,0.5);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;opacity:0;transition:opacity 0.2s;">✓</div>
+                        <div class="seg-actions">
+                            <button onclick="event.stopPropagation();downloadSegment(${i})">⬇️</button>
+                            <button onclick="event.stopPropagation();shareSegment(${i})">📤</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // 重置选择状态
+                selectedSegmentIndices = [];
+
+                document.getElementById('segmentSection').style.display = 'block';
+                showToast(`成功分割出 ${segmentedImages.length} 张表情包！`);
+            } catch (error) {
+                showToast('分割失败：' + error.message);
+            }
+        }
+
+        async function splitImageToGrid(img, cols, rows, forceSimple = false) {
+            // 使用图片的自然尺寸，避免浏览器缩放导致取样偏差
+            const W = img.naturalWidth || img.width;
+            const H = img.naturalHeight || img.height;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = W;
+            canvas.height = H;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, 0, 0, W, H);
+
+            // 🔧 如果强制简单模式，直接均分
+            if (forceSimple) {
+                console.log('[sticker] 使用简单均分模式');
+                return simpleGridSplit(canvas, cols, rows);
+            }
+
+            // 从图像中自动检测分割线（支持白色或黑色细分隔线/留白）
+            const imgData = ctx.getImageData(0, 0, W, H).data;
+
+            const getColUniformScore = (x) => {
+                let white = 0, black = 0, gray = 0;
+                for (let y = 0; y < H; y++) {
+                    const i = (y * W + x) * 4;
+                    const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2], a = imgData[i + 3];
+                    if (a < 16) { white++; continue; } // 透明按白处理
+                    if (r > 240 && g > 240 && b > 240) white++;
+                    else if (r < 15 && g < 15 && b < 15) black++;
+                    // 🔧 增加灰色检测（某些模型使用灰色分割线）
+                    else if (Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && r > 100 && r < 180) gray++;
+                }
+                return Math.max(white / H, black / H, gray / H * 0.8);
+            };
+
+            const getRowUniformScore = (y) => {
+                let white = 0, black = 0, gray = 0;
+                for (let x = 0; x < W; x++) {
+                    const i = (y * W + x) * 4;
+                    const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2], a = imgData[i + 3];
+                    if (a < 16) { white++; continue; }
+                    if (r > 240 && g > 240 && b > 240) white++;
+                    else if (r < 15 && g < 15 && b < 15) black++;
+                    else if (Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && r > 100 && r < 180) gray++;
+                }
+                return Math.max(white / W, black / W, gray / W * 0.8);
+            };
+
+            const colScore = new Array(W);
+            for (let x = 0; x < W; x++) colScore[x] = getColUniformScore(x);
+            const rowScore = new Array(H);
+            for (let y = 0; y < H; y++) rowScore[y] = getRowUniformScore(y);
+
+            // 找出连续高分（>=0.9）的列/行，作为候选分割线（降低阈值以适应更多模型）
+            function findRuns(scoreArr, threshold) {
+                const runs = [];
+                let s = -1;
+                for (let i = 0; i < scoreArr.length; i++) {
+                    if (scoreArr[i] >= threshold) {
+                        if (s === -1) s = i;
+                    } else if (s !== -1) {
+                        runs.push([s, i - 1]);
+                        s = -1;
+                    }
+                }
+                if (s !== -1) runs.push([s, scoreArr.length - 1]);
+                return runs;
+            }
+
+            // 🔧 尝试多个阈值，从严格到宽松
+            let colRuns = [], rowRuns = [];
+            for (const threshold of [0.95, 0.9, 0.8, 0.7]) {
+                colRuns = findRuns(colScore, threshold);
+                rowRuns = findRuns(rowScore, threshold);
+                // 如果找到足够的分割线，停止搜索
+                if (colRuns.length >= cols - 1 || rowRuns.length >= rows - 1) {
+                    console.log(`[sticker] 使用阈值 ${threshold} 检测到分割线: col=${colRuns.length}, row=${rowRuns.length}`);
+                    break;
+                }
+            }
+
+            // 🔧 如果找不到足够的分割线，回退到简单均分模式
+            if (colRuns.length < cols - 1 && rowRuns.length < rows - 1) {
+                console.log('[sticker] 未检测到明显分割线，回退到均分模式');
+                return simpleGridSplit(canvas, cols, rows);
+            }
+
+            // 将连续区段的中点作为候选分割线
+            const colCenters = colRuns.map(([l, r]) => Math.round((l + r) / 2));
+            const rowCenters = rowRuns.map(([l, r]) => Math.round((l + r) / 2));
+
+            // 期望分割位置（均分基准）
+            const expectCols = [];
+            for (let c = 1; c < cols; c++) expectCols.push(Math.round(W * c / cols));
+            const expectRows = [];
+            for (let r = 1; r < rows; r++) expectRows.push(Math.round(H * r / rows));
+
+            // 在候选分割线中为每个期望位置选择最近的一条（±5%宽/高内搜索，扩大范围）
+            function pickSeparators(centers, scores, expectList, span) {
+                const res = [];
+                for (const exp of expectList) {
+                    let best = null, bestDist = Infinity;
+                    for (const c of centers) {
+                        const d = Math.abs(c - exp);
+                        if (d <= span && d < bestDist) { best = c; bestDist = d; }
+                    }
+                    if (best === null) {
+                        // 在窗口内找分数最高的列/行
+                        const L = Math.max(0, exp - span);
+                        const R = Math.min(scores.length - 1, exp + span);
+                        let idx = exp, sc = -1; // 默认使用期望位置
+                        for (let i = L; i <= R; i++) {
+                            if (scores[i] > sc) { sc = scores[i]; idx = i; }
+                        }
+                        best = idx;
+                    }
+                    res.push(best);
+                }
+                // 去重并排序
+                return Array.from(new Set(res)).sort((a, b) => a - b);
+            }
+
+            // 🔧 扩大搜索范围到 5%
+            const sepX = pickSeparators(colCenters, colScore, expectCols, Math.round(W * 0.05));
+            const sepY = pickSeparators(rowCenters, rowScore, expectRows, Math.round(H * 0.05));
+
+            // 构造切割边界（包含左右上下边界）
+            const xCuts = [0, ...sepX, W];
+            const yCuts = [0, ...sepY, H];
+
+            const segments = [];
+            // 安全内边距，避免把分割线/边缘白边带进去
+            const basePad = Math.max(1, Math.floor(Math.min(W / (cols * 200), H / (rows * 200)))); // 随尺寸自适应 1-4 像素
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x0 = xCuts[c], x1 = xCuts[c + 1];
+                    const y0 = yCuts[r], y1 = yCuts[r + 1];
+                    const pad = basePad;
+                    const sx = Math.max(0, x0 + pad);
+                    const sy = Math.max(0, y0 + pad);
+                    const sw = Math.max(1, x1 - x0 - pad * 2);
+                    const sh = Math.max(1, y1 - y0 - pad * 2);
+
+                    const cellCanvas = document.createElement('canvas');
+                    const cellCtx = cellCanvas.getContext('2d');
+                    cellCanvas.width = sw;
+                    cellCanvas.height = sh;
+                    cellCtx.imageSmoothingEnabled = false;
+                    cellCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+                    segments.push(cellCanvas.toDataURL('image/png'));
+                }
+            }
+
+            return segments;
+        }
+
+        // 🆕 简单均分模式 - 直接按网格均等分割
+        function simpleGridSplit(canvas, cols, rows) {
+            const W = canvas.width;
+            const H = canvas.height;
+            const cellW = Math.floor(W / cols);
+            const cellH = Math.floor(H / rows);
+
+            const segments = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const sx = c * cellW;
+                    const sy = r * cellH;
+
+                    const cellCanvas = document.createElement('canvas');
+                    const cellCtx = cellCanvas.getContext('2d');
+                    cellCanvas.width = cellW;
+                    cellCanvas.height = cellH;
+                    cellCtx.imageSmoothingEnabled = false;
+                    cellCtx.drawImage(canvas, sx, sy, cellW, cellH, 0, 0, cellW, cellH);
+                    segments.push(cellCanvas.toDataURL('image/png'));
+                }
+            }
+
+            console.log(`[sticker] 简单分割完成: ${cols}x${rows} = ${segments.length}张`);
+            return segments;
+        }
+
+        function downloadSegment(index) {
+            if (segmentedImages[index]) {
+                const a = document.createElement('a');
+                a.href = segmentedImages[index];
+                a.download = `sticker_${index + 1}_${Date.now()}.png`;
+                a.click();
+            }
+        }
+
+        function shareSegment(index) {
+            if (segmentedImages[index]) {
+                if (navigator.share) {
+                    // 将 base64 转为 blob 分享
+                    fetch(segmentedImages[index])
+                        .then(res => res.blob())
+                        .then(blob => {
+                            const file = new File([blob], `sticker_${index + 1}.png`, { type: 'image/png' });
+                            navigator.share({ files: [file], title: '表情包' });
+                        });
+                } else {
+                    navigator.clipboard.writeText(segmentedImages[index].substring(0, 100) + '...');
+                    showToast('已复制（完整数据过长）');
+                }
+            }
+        }
+
+        function downloadAllSegments() {
+            segmentedImages.forEach((dataUrl, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = `sticker_${i + 1}_${Date.now()}.png`;
+                    a.click();
+                }, i * 200);
+            });
+            showToast('开始批量下载...');
+        }
+
+        // ========== 分割模式 ==========
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                uploadedImageData = e.target.result;
+                document.getElementById('previewImg').src = uploadedImageData;
+                document.getElementById('previewArea').style.display = 'block';
+                document.getElementById('uploadArea').style.display = 'none';
+                document.getElementById('splitResults').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetUpload() {
+            uploadedImageData = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('previewArea').style.display = 'none';
+            document.getElementById('uploadArea').style.display = 'block';
+            document.getElementById('splitResults').style.display = 'none';
+        }
+
+        async function splitUploadedImage() {
+            if (!uploadedImageData) {
+                showToast('请先上传图片');
+                return;
+            }
+
+            const loading = document.getElementById('splitLoading');
+            loading.style.display = 'block';
+
+            try {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = uploadedImageData;
+                });
+
+                // 智能检测宫格布局
+                const ratio = img.width / img.height;
+                let cols, rows;
+
+                if (Math.abs(ratio - 1) < 0.1) {
+                    // 接近正方形，尝试3x3或2x2
+                    cols = 3;
+                    rows = 3;
+                } else if (ratio > 1.3) {
+                    // 横向，可能是1x3或1x4
+                    cols = Math.round(ratio * 3);
+                    rows = 1;
+                } else if (ratio < 0.7) {
+                    // 纵向，可能是3x1或4x1
+                    cols = 1;
+                    rows = Math.round(3 / ratio);
+                } else {
+                    cols = 3;
+                    rows = 3;
+                }
+
+                splitSegments = await splitImageToGrid(img, cols, rows);
+                splitSelectedIndices = [];  // 重置选中状态
+
+                const grid = document.getElementById('splitGrid');
+                grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                grid.innerHTML = splitSegments.map((dataUrl, i) => `
+                    <div class="segment-item" data-index="${i}" onclick="toggleSplitSelection(${i})" style="cursor:pointer;position:relative;">
+                        <img src="${dataUrl}" alt="分割${i + 1}">
+                        <div class="seg-check" style="position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;opacity:0;transition:opacity 0.2s;">✓</div>
+                        <div class="seg-actions">
+                            <button onclick="event.stopPropagation();downloadSplitSegment(${i})">⬇️</button>
+                            <button onclick="event.stopPropagation();shareSplitSegment(${i})">📤</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('splitResults').style.display = 'block';
+                updateSplitAnimatedHint();  // 更新提示
+                showToast(`成功分割出 ${splitSegments.length} 张表情包！`);
+            } catch (error) {
+                showToast('分割失败：' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function downloadSplitSegment(index) {
+            if (splitSegments[index]) {
+                const a = document.createElement('a');
+                a.href = splitSegments[index];
+                a.download = `sticker_split_${index + 1}_${Date.now()}.png`;
+                a.click();
+            }
+        }
+
+        function shareSplitSegment(index) {
+            if (splitSegments[index]) {
+                if (navigator.share) {
+                    fetch(splitSegments[index])
+                        .then(res => res.blob())
+                        .then(blob => {
+                            const file = new File([blob], `sticker_${index + 1}.png`, { type: 'image/png' });
+                            navigator.share({ files: [file], title: '表情包' });
+                        });
+                } else {
+                    showToast('当前浏览器不支持分享');
+                }
+            }
+        }
+
+        function downloadAllSplitSegments() {
+            splitSegments.forEach((dataUrl, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = `sticker_split_${i + 1}_${Date.now()}.png`;
+                    a.click();
+                }, i * 200);
+            });
+            showToast('开始批量下载...');
+        }
+
+        // ===================== 🎬 分割模式转动态表情 =====================
+        let splitSelectedIndices = [];  // 分割模式选中的图片索引
+        let splitAnimatedResults = [];  // 分割模式生成的动态结果
+
+        // 切换分割图选中状态（分割模式）
+        function toggleSplitSelection(index) {
+            const item = document.querySelector(`#splitGrid .segment-item[data-index="${index}"]`);
+            const checkMark = item?.querySelector('.seg-check');
+
+            if (splitSelectedIndices.includes(index)) {
+                splitSelectedIndices = splitSelectedIndices.filter(i => i !== index);
+                if (item) item.style.border = 'none';
+                if (checkMark) checkMark.style.opacity = '0';
+            } else {
+                splitSelectedIndices.push(index);
+                if (item) item.style.border = '2px solid var(--accent)';
+                if (checkMark) {
+                    checkMark.style.opacity = '1';
+                    checkMark.style.background = 'var(--accent)';
+                    checkMark.style.color = '#000';
+                }
+            }
+            updateSplitAnimatedHint();
+        }
+
+        // 获取分割模式的动态模型配置
+        function getSplitAnimatedModelConfig() {
+            const select = document.getElementById('splitAnimatedModelSelect');
+            const option = select?.options[select.selectedIndex];
+            return {
+                model: select?.value || 'grok-video-3',
+                cost: parseInt(option?.dataset?.cost) || 5,
+                duration: parseInt(option?.dataset?.duration) || 6
+            };
+        }
+
+        // 更新分割模式动态表情提示
+        function updateSplitAnimatedHint() {
+            const hint = document.getElementById('splitAnimatedHint');
+            if (!hint) return;
+            const count = splitSelectedIndices.length;
+            const config = getSplitAnimatedModelConfig();
+            const totalCost = count * config.cost;
+
+            if (count === 0) {
+                hint.innerHTML = `💡 选中表情后点击「转动态表情」`;
+            } else {
+                hint.innerHTML = `✅ 已选中 <span style="color:var(--accent);">${count}</span> 个表情，共需 <span style="color:var(--accent);">${totalCost}胶片</span> (${config.duration}秒/个)`;
+            }
+        }
+
+        // 分割模式转动态表情
+        async function convertSplitToAnimated() {
+            if (splitSelectedIndices.length === 0) {
+                showToast('请先点击选择要转换的表情');
+                return;
+            }
+
+            const config = getSplitAnimatedModelConfig();
+            const totalCost = splitSelectedIndices.length * config.cost;
+
+            // 检查登录和余额
+            if (!currentUser) {
+                showToast('请先登录');
+                return;
+            }
+            if (userQuota < totalCost) {
+                showToast(`余额不足，需要 ${totalCost} 胶片`);
+                return;
+            }
+
+            const modelName = config.model === 'grok-video-3' ? 'Grok Video 3' : 'Veo 3.1 4K';
+            if (!confirm(`将使用 ${modelName} 并发转换 ${splitSelectedIndices.length} 个表情\n每个 ${config.duration}秒，共需 ${totalCost} 胶片，确认继续？`)) {
+                return;
+            }
+
+            // 显示进度和结果区域
+            document.getElementById('splitAnimatedSection').style.display = 'block';
+            document.getElementById('splitAnimatedProgress').style.display = 'block';
+            document.getElementById('splitAnimatedGrid').innerHTML = '';
+            splitAnimatedResults = [];
+
+            const total = splitSelectedIndices.length;
+            let completed = 0;
+
+            // 更新进度
+            function updateProgress() {
+                document.getElementById('splitAnimatedProgressCount').textContent = `${completed}/${total}`;
+                document.getElementById('splitAnimatedProgressBar').style.width = `${(completed / total) * 100}%`;
+                if (completed === total) {
+                    document.getElementById('splitAnimatedProgressText').textContent = '✅ 生成完成！';
+                }
+            }
+            updateProgress();
+
+            // 并发生成（复用generateAnimatedSticker函数）
+            const tasks = splitSelectedIndices.map(async (segIdx) => {
+                const imageData = splitSegments[segIdx];
+                if (!imageData) {
+                    completed++;
+                    updateProgress();
+                    addSplitAnimatedToGrid(segIdx, null, '无图片数据');
+                    return null;
+                }
+
+                try {
+                    // 复用生成模式的generateAnimatedSticker函数
+                    const videoUrl = await generateAnimatedSticker(imageData, segIdx, config);
+                    completed++;
+                    updateProgress();
+
+                    if (videoUrl) {
+                        splitAnimatedResults.push({ index: segIdx, url: videoUrl });
+                        addSplitAnimatedToGrid(segIdx, videoUrl);
+                        return videoUrl;
+                    } else {
+                        throw new Error('未返回视频');
+                    }
+                } catch (e) {
+                    completed++;
+                    updateProgress();
+                    console.error(`分割表情 ${segIdx + 1} 生成失败:`, e);
+                    addSplitAnimatedToGrid(segIdx, null, e.message);
+                    return null;
+                }
+            });
+
+            await Promise.all(tasks);
+
+            const successCount = splitAnimatedResults.length;
+            if (successCount > 0) {
+                showToast(`✅ 已生成 ${successCount} 个动态表情`);
+            } else {
+                showToast('❌ 生成失败');
+            }
+        }
+
+        // 添加分割模式动态表情到网格
+        function addSplitAnimatedToGrid(index, videoUrl, errorMsg = null) {
+            const grid = document.getElementById('splitAnimatedGrid');
+            const item = document.createElement('div');
+            item.className = 'segment-item';
+            item.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#1a1a1a;';
+
+            if (videoUrl) {
+                item.innerHTML = `
+                    <video src="${videoUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+                    <div style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.7);padding:2px 6px;border-radius:4px;font-size:10px;">#${index + 1}</div>
+                    <button onclick="downloadSplitAnimated('${videoUrl}', ${index})" style="position:absolute;bottom:4px;left:4px;background:var(--accent);border:none;padding:4px 8px;border-radius:4px;font-size:10px;cursor:pointer;">💾</button>
+                `;
+            } else {
+                item.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;font-size:12px;text-align:center;padding:8px;">
+                        #${index + 1} 失败<br>${errorMsg || ''}
+                    </div>
+                `;
+            }
+            grid.appendChild(item);
+        }
+
+        // 下载单个分割模式动态表情
+        function downloadSplitAnimated(url, index) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `split_animated_${index + 1}_${Date.now()}.mp4`;
+            a.click();
+        }
+
+        // 下载全部分割模式动态表情
+        function downloadAllSplitAnimatedStickers() {
+            if (splitAnimatedResults.length === 0) {
+                showToast('没有可下载的动态表情');
+                return;
+            }
+            splitAnimatedResults.forEach((item, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = item.url;
+                    a.download = `split_animated_${item.index + 1}_${Date.now()}.mp4`;
+                    a.click();
+                }, i * 300);
+            });
+            showToast(`开始下载 ${splitAnimatedResults.length} 个动态表情...`);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ===================== MJ 图片选择器 =====================
+        let mjGridImageUrl = '';  // MJ生成的4宫格原图
+        let mjSelectedIndex = -1; // 用户选择的象限索引(0-3)
+        let mjQuadrantImages = []; // 4个象限的图片URL
+
+        // 显示MJ选择器
+        function showMjPicker(gridImageUrl) {
+            mjGridImageUrl = gridImageUrl;
+            mjSelectedIndex = -1;
+
+            // 切划4个象限
+            splitMjGridToQuadrants(gridImageUrl).then(quadrants => {
+                mjQuadrantImages = quadrants;
+
+                // 创建MJ选择器界面
+                const overlay = document.createElement('div');
+                overlay.id = 'mjPickerOverlay';
+                overlay.className = 'mj-picker-overlay';
+                overlay.innerHTML = `
+                    <div class="mj-picker-header">
+                        <h3>✨ Midjourney 生成完成，请选择一张</h3>
+                        <button class="mj-picker-close" onclick="closeMjPicker()">×</button>
+                    </div>
+                    <div class="mj-picker-grid">
+                        ${quadrants.map((img, i) => `
+                            <div class="mj-picker-item" data-index="${i}" onclick="selectMjQuadrant(${i})">
+                                <img src="${img}" alt="选项${i + 1}">
+                                <div class="item-number">${i + 1}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="mj-picker-actions">
+                        <button class="mj-picker-btn secondary" onclick="downloadMjFullGrid()">🖼️ 保存完整图</button>
+                        <button class="mj-picker-btn primary" onclick="useMjSelectedImage()">💖 使用选中图片</button>
+                    </div>
+                    <div class="mj-picker-tip">点击选择你最喜欢的一张，然后继续分割制作表情包</div>
+                `;
+
+                document.body.appendChild(overlay);
+            }).catch(err => {
+                console.error('[sticker] MJ图片分割失败:', err);
+                showToast('图片处理失败: ' + err.message);
+                // 失败时直接显示原图
+                document.getElementById('resultImage').src = gridImageUrl;
+                document.getElementById('resultSection').style.display = 'block';
+            });
+        }
+
+        // 将MJ 4宫格图切分成4个象限
+        async function splitMjGridToQuadrants(imageUrl) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const W = img.naturalWidth || img.width;
+                    const H = img.naturalHeight || img.height;
+                    const halfW = Math.floor(W / 2);
+                    const halfH = Math.floor(H / 2);
+
+                    const quadrants = [];
+                    // 顺序: 左上, 右上, 左下, 右下
+                    const positions = [
+                        [0, 0],
+                        [halfW, 0],
+                        [0, halfH],
+                        [halfW, halfH]
+                    ];
+
+                    for (const [x, y] of positions) {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = halfW;
+                        canvas.height = halfH;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, x, y, halfW, halfH, 0, 0, halfW, halfH);
+                        quadrants.push(canvas.toDataURL('image/png'));
+                    }
+
+                    resolve(quadrants);
+                };
+                img.onerror = (e) => reject(new Error('图片加载失败'));
+                img.src = imageUrl;
+            });
+        }
+
+        // 选择某个象限
+        function selectMjQuadrant(index) {
+            mjSelectedIndex = index;
+
+            // 更新UI选中状态
+            document.querySelectorAll('.mj-picker-item').forEach((item, i) => {
+                if (i === index) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        // 下载完整器4宫格图
+        function downloadMjFullGrid() {
+            if (!mjGridImageUrl) return;
+
+            const a = document.createElement('a');
+            a.href = mjGridImageUrl;
+            a.download = `mj_grid_${Date.now()}.png`;
+            a.click();
+            showToast('已开始下载完整图');
+        }
+
+        // 使用选中的图片
+        function useMjSelectedImage() {
+            if (mjSelectedIndex < 0 || mjSelectedIndex > 3) {
+                showToast('请先选择一张图片');
+                return;
+            }
+
+            // 关闭选择器
+            closeMjPicker();
+
+            // 显示选中的象限图片
+            currentImageUrl = mjQuadrantImages[mjSelectedIndex];
+            document.getElementById('resultImage').src = currentImageUrl;
+            document.getElementById('resultSection').style.display = 'block';
+
+            showToast(`已选择第 ${mjSelectedIndex + 1} 张图片，可继续分割`);
+        }
+
+        // 关闭MJ选择器
+        function closeMjPicker() {
+            const overlay = document.getElementById('mjPickerOverlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+
+        // ===================== 🎬 动态表情功能 =====================
+        let selectedSegmentIndices = [];  // 选中的分割图索引
+        let animatedStickerResults = [];  // 生成的动态表情结果
+
+        // 切换分割图选中状态
+        function toggleSegmentSelection(index) {
+            const item = document.querySelector(`.segment-item[data-index="${index}"]`);
+            const checkMark = item?.querySelector('.seg-check');
+
+            if (selectedSegmentIndices.includes(index)) {
+                // 取消选中
+                selectedSegmentIndices = selectedSegmentIndices.filter(i => i !== index);
+                if (item) item.style.border = 'none';
+                if (checkMark) checkMark.style.opacity = '0';
+            } else {
+                // 选中
+                selectedSegmentIndices.push(index);
+                if (item) item.style.border = '2px solid var(--accent)';
+                if (checkMark) {
+                    checkMark.style.opacity = '1';
+                    checkMark.style.background = 'var(--accent)';
+                    checkMark.style.color = '#000';
+                }
+            }
+
+            // 更新提示
+            updateAnimatedStickerHint();
+        }
+
+        // 获取当前选中的动态模型配置
+        function getAnimatedModelConfig() {
+            const select = document.getElementById('animatedModelSelect');
+            const option = select?.options[select.selectedIndex];
+            return {
+                model: select?.value || 'grok-video-3',
+                cost: parseInt(option?.dataset?.cost) || 5,
+                duration: parseInt(option?.dataset?.duration) || 6
+            };
+        }
+
+        // 更新动态表情费用提示
+        function updateAnimatedCostHint() {
+            updateAnimatedStickerHint();
+        }
+
+        // 更新动态表情提示
+        function updateAnimatedStickerHint() {
+            const hint = document.getElementById('animatedStickerHint');
+            const count = selectedSegmentIndices.length;
+            const config = getAnimatedModelConfig();
+            const totalCost = count * config.cost;
+
+            if (count === 0) {
+                hint.innerHTML = `💡 选中表情后点击「转动态表情」`;
+            } else {
+                hint.innerHTML = `✅ 已选中 <span style="color:var(--accent);">${count}</span> 个表情，共需 <span style="color:var(--accent);">${totalCost}胶片</span> (${config.duration}秒/个)`;
+            }
+        }
+
+        // 一键转动态表情（并发生成）
+        async function convertToAnimatedStickers() {
+            if (selectedSegmentIndices.length === 0) {
+                showToast('请先点击选择要转换的表情');
+                return;
+            }
+
+            const config = getAnimatedModelConfig();
+            const totalCost = selectedSegmentIndices.length * config.cost;
+
+            // 检查登录和余额
+            if (!currentUser) {
+                showToast('请先登录');
+                return;
+            }
+            if (userQuota < totalCost) {
+                showToast(`余额不足，需要 ${totalCost} 胶片`);
+                return;
+            }
+
+            // 确认转换
+            const modelName = config.model === 'grok-video-3' ? 'Grok Video 3' : 'Veo 3.1 4K';
+            if (!confirm(`将使用 ${modelName} 并发转换 ${selectedSegmentIndices.length} 个表情\n每个 ${config.duration}秒，共需 ${totalCost} 胶片，确认继续？`)) {
+                return;
+            }
+
+            // 显示进度区域
+            document.getElementById('animatedSection').style.display = 'block';
+            document.getElementById('animatedProgress').style.display = 'block';
+            document.getElementById('animatedGrid').innerHTML = '';
+            animatedStickerResults = [];
+
+            const total = selectedSegmentIndices.length;
+            let completed = 0;
+            let failed = 0;
+
+            updateAnimatedProgress(0, total, `🚀 并发启动 ${total} 个任务...`);
+
+            // 🚀 并发生成所有动态表情
+            const promises = selectedSegmentIndices.map(async (idx) => {
+                const imageData = segmentedImages[idx];
+                if (!imageData) return { idx, success: false, error: '无图片数据' };
+
+                try {
+                    const videoUrl = await generateAnimatedSticker(imageData, idx, config);
+                    if (videoUrl) {
+                        return { idx, success: true, videoUrl, imageData };
+                    }
+                    return { idx, success: false, error: '未返回视频' };
+                } catch (err) {
+                    console.error(`[动态表情] 第${idx + 1}个生成失败:`, err);
+                    return { idx, success: false, error: err.message };
+                }
+            });
+
+            // 等待所有任务完成，实时更新进度
+            const results = await Promise.all(promises.map(async (p, i) => {
+                const result = await p;
+                if (result.success) {
+                    completed++;
+                    animatedStickerResults.push({ index: result.idx, videoUrl: result.videoUrl, imageData: result.imageData });
+                    addAnimatedStickerToGrid(result.videoUrl, result.idx);
+                } else {
+                    failed++;
+                }
+                updateAnimatedProgress(completed + failed, total, `已完成 ${completed}/${total}` + (failed > 0 ? `，失败 ${failed}` : ''));
+                return result;
+            }));
+
+            // 完成
+            document.getElementById('animatedProgress').style.display = 'none';
+            if (completed > 0) {
+                showToast(`✅ 成功生成 ${completed} 个动态表情！`);
+            } else {
+                showToast('动态表情生成失败');
+            }
+
+            // 重置选择
+            selectedSegmentIndices = [];
+            document.querySelectorAll('.segment-item').forEach(item => {
+                item.style.border = 'none';
+                const check = item.querySelector('.seg-check');
+                if (check) check.style.opacity = '0';
+            });
+            updateAnimatedStickerHint();
+        }
+
+        // 更新进度显示
+        function updateAnimatedProgress(completed, total, text) {
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+            document.getElementById('animatedProgressText').textContent = text;
+            document.getElementById('animatedProgressCount').textContent = `${completed}/${total}`;
+            document.getElementById('animatedProgressBar').style.width = `${percent}%`;
+        }
+
+        // 生成单个动态表情
+        async function generateAnimatedSticker(imageData, index, config) {
+            config = config || getAnimatedModelConfig();
+            console.log(`[动态表情] 开始生成第 ${index + 1} 个，模型: ${config.model}`);
+
+            // 根据模型选择API
+            const isVeo = config.model === 'veo_3_1-4K' || config.model === 'veo3.1';
+            const apiEndpoint = isVeo ? '/api/yunwu' : '/api/sora2';
+
+            // 调用图生视频 API
+            const requestBody = isVeo ? {
+                action: 'veo3',
+                prompt: 'Make this sticker emoji come alive with subtle movements, expressions, and animations. Keep the character cute and expressive. Looping animation suitable for chat sticker.',
+                image_url: imageData,
+                aspect_ratio: '1:1',
+                userId: currentUser.id
+            } : {
+                action: 'image-to-video',
+                model: 'grok-video-3',
+                image_url: imageData,
+                prompt: 'Make this sticker emoji come alive with subtle movements, expressions, and animations. Keep the character cute and expressive. Looping animation suitable for chat sticker.',
+                duration: 6,
+                aspect_ratio: '1:1',
+                userId: currentUser.id
+            };
+
+            try {
+                const response = await fetch(apiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json();
+                if (!response.ok || data.error) {
+                    throw new Error(data.message || data.error || '视频生成失败');
+                }
+
+                // 获取任务ID并轮询
+                const taskId = data.task_id || data.taskId || data.id;
+                if (!taskId) {
+                    // 直接返回了视频URL
+                    const videoUrl = data.output_url || data.video_url || data.url;
+                    if (videoUrl) {
+                        userQuota = Math.max(0, userQuota - config.cost);
+                        return videoUrl;
+                    }
+                    throw new Error('未返回任务ID');
+                }
+
+                // 轮询等待完成
+                const videoUrl = await pollAnimatedStickerCompletion(taskId, data._source, data._endpoint, apiEndpoint);
+                userQuota = Math.max(0, userQuota - config.cost);
+                return videoUrl;
+
+            } catch (err) {
+                console.error(`[动态表情] 生成失败:`, err);
+                throw err;
+            }
+        }
+
+        // 轮询动态表情生成状态
+        async function pollAnimatedStickerCompletion(taskId, _source, _endpoint, apiEndpoint = '/api/sora2') {
+            const maxAttempts = 60;  // 最多5分钟
+            const pollInterval = 5000;
+
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+                try {
+                    const pollBody = apiEndpoint === '/api/yunwu'
+                        ? { action: 'poll', task_id: taskId, model: 'veo3' }
+                        : { action: 'poll', task_id: taskId, _source, _endpoint };
+
+                    const pollResponse = await fetch(apiEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(pollBody)
+                    });
+
+                    if (!pollResponse.ok) continue;
+
+                    const pollData = await pollResponse.json();
+                    console.log(`[动态表情] 轮询响应 (${i + 1}/${maxAttempts}):`, JSON.stringify(pollData).substring(0, 500));
+
+                    const status = (pollData.status || pollData.state || pollData.task_status || '').toUpperCase();
+
+                    if (status === 'COMPLETED' || status === 'SUCCEEDED' || status === 'SUCCESS' || status === 'DONE') {
+                        // 🔧 健壮的URL提取（兼容多种API返回格式）
+                        const videoUrl =
+                            pollData.video_url ||
+                            pollData.videoUrl ||
+                            pollData.output_url ||
+                            pollData.url ||
+                            pollData.data?.output ||
+                            pollData.data?.video_url ||
+                            pollData.data?.url ||
+                            (Array.isArray(pollData.data) && pollData.data[0]?.url) ||
+                            (Array.isArray(pollData.data) && pollData.data[0]?.video_url) ||
+                            pollData.result?.url ||
+                            pollData.result?.video_url ||
+                            pollData.results?.[0]?.url ||
+                            pollData.output?.video_url ||
+                            pollData.output?.url;
+
+                        if (videoUrl) {
+                            console.log(`[动态表情] ✅ 获取到视频URL: ${videoUrl}`);
+                            return videoUrl;
+                        }
+                        console.error('[动态表情] 任务完成但未找到视频URL:', pollData);
+                        throw new Error('未返回视频URL');
+                    }
+
+                    if (status === 'FAILED' || status === 'ERROR' || status === 'FAILURE' || status === 'FAIL') {
+                        const errorMsg = pollData.fail_reason || pollData.error || pollData.message || pollData.error_message || '生成失败';
+                        throw new Error(errorMsg);
+                    }
+
+                    // 🔧 检查data内部的失败状态
+                    if (pollData.data?.status && ['FAILURE', 'FAILED', 'ERROR', 'FAIL'].includes(String(pollData.data.status).toUpperCase())) {
+                        const errorMsg = pollData.data.fail_reason || pollData.data.error || pollData.data.message || '任务执行失败';
+                        throw new Error(errorMsg);
+                    }
+                } catch (err) {
+                    if (err.message.includes('失败') || err.message.includes('URL') || err.message.includes('执行')) {
+                        throw err;
+                    }
+                    // 网络错误继续重试
+                    console.warn(`[动态表情] 轮询异常 (${i + 1}/${maxAttempts}):`, err.message);
+                }
+            }
+
+            throw new Error('生成超时');
+        }
+
+        // 添加动态表情到结果网格
+        function addAnimatedStickerToGrid(videoUrl, index) {
+            const grid = document.getElementById('animatedGrid');
+            const item = document.createElement('div');
+            item.className = 'segment-item';
+            item.style.aspectRatio = '1';
+            item.innerHTML = `
+                <video src="${videoUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+                <div class="seg-actions">
+                    <button onclick="downloadAnimatedSticker(${animatedStickerResults.length - 1})">⬇️</button>
+                    <button onclick="shareAnimatedSticker(${animatedStickerResults.length - 1})">📤</button>
+                </div>
+            `;
+            grid.appendChild(item);
+        }
+
+        // 下载单个动态表情
+        async function downloadAnimatedSticker(resultIndex) {
+            const result = animatedStickerResults[resultIndex];
+            if (!result || !result.videoUrl) {
+                showToast('无法下载');
+                return;
+            }
+
+            try {
+                const response = await fetch(result.videoUrl);
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `animated_sticker_${result.index + 1}_${Date.now()}.mp4`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('开始下载');
+            } catch (err) {
+                // 跨域失败，新窗口打开
+                window.open(result.videoUrl, '_blank');
+            }
+        }
+
+        // 分享动态表情
+        async function shareAnimatedSticker(resultIndex) {
+            const result = animatedStickerResults[resultIndex];
+            if (!result || !result.videoUrl) {
+                showToast('无法分享');
+                return;
+            }
+
+            if (navigator.share) {
+                try {
+                    const response = await fetch(result.videoUrl);
+                    const blob = await response.blob();
+                    const file = new File([blob], `animated_sticker.mp4`, { type: 'video/mp4' });
+                    await navigator.share({ files: [file], title: '动态表情' });
+                } catch (err) {
+                    // 分享失败，复制链接
+                    await navigator.clipboard.writeText(result.videoUrl);
+                    showToast('已复制链接');
+                }
+            } else {
+                await navigator.clipboard.writeText(result.videoUrl);
+                showToast('已复制链接');
+            }
+        }
+
+        // 下载全部动态表情
+        function downloadAllAnimatedStickers() {
+            if (animatedStickerResults.length === 0) {
+                showToast('没有可下载的动态表情');
+                return;
+            }
+
+            animatedStickerResults.forEach((result, i) => {
+                setTimeout(() => {
+                    downloadAnimatedSticker(i);
+                }, i * 500);
+            });
+            showToast(`开始批量下载 ${animatedStickerResults.length} 个动态表情...`);
+        }
+
+        // ==================== 页面状态持久化 ====================
+        function saveStickerState() {
+            try {
+                const state = {
+                    // 生成模式输入
+                    promptInput: document.getElementById('promptInput')?.value || '',
+                    modelSelect: document.getElementById('modelSelect')?.value || '',
+                    styleSelect: document.getElementById('styleSelect')?.value || '',
+                    countSelect: document.getElementById('countSelect')?.value || '',
+                    mjVersion: document.getElementById('mjVersion')?.value || '',
+                    animatedModelSelect: document.getElementById('animatedModelSelect')?.value || '',
+                    splitAnimatedModelSelect: document.getElementById('splitAnimatedModelSelect')?.value || '',
+                    // 当前模式
+                    currentMode: document.querySelector('.mode-tab.active')?.dataset?.mode || 'generate',
+                    // 生成结果
+                    currentImageUrl: currentImageUrl || '',
+                    segmentedImages: segmentedImages || [],
+                    refImageDataArray: refImageDataArray || [],
+                    animatedStickerResults: animatedStickerResults || [],
+                    // 分割模式
+                    uploadedImageData: uploadedImageData || '',
+                    splitSegments: splitSegments || [],
+                    splitAnimatedResults: typeof splitAnimatedResults !== 'undefined' ? splitAnimatedResults : [],
+                    // UI状态
+                    resultSectionVisible: document.getElementById('resultSection')?.style.display !== 'none',
+                    segmentSectionVisible: document.getElementById('segmentSection')?.style.display !== 'none',
+                    animatedSectionVisible: document.getElementById('animatedSection')?.style.display !== 'none',
+                    splitResultsVisible: document.getElementById('splitResults')?.style.display !== 'none',
+                    splitAnimatedSectionVisible: document.getElementById('splitAnimatedSection')?.style.display !== 'none',
+                    // 选中状态
+                    selectedSegmentIndices: Array.from(document.querySelectorAll('#segmentGrid .segment-item.selected')).map(el => parseInt(el.dataset.index)),
+                    selectedSplitIndices: Array.from(document.querySelectorAll('#splitGrid .segment-item.selected')).map(el => parseInt(el.dataset.index)),
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_sticker_state', JSON.stringify(state));
+                console.log('[sticker] 状态已保存');
+            } catch (e) {
+                console.warn('[sticker] 保存状态失败:', e);
+            }
+        }
+
+        function restoreStickerState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_sticker_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                // 检查是否过期（30分钟）
+                if (Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_sticker_state');
+                    return;
+                }
+                console.log('[sticker] 恢复状态...');
+
+                // 恢复输入框
+                if (state.promptInput && document.getElementById('promptInput')) {
+                    document.getElementById('promptInput').value = state.promptInput;
+                }
+                if (state.modelSelect && document.getElementById('modelSelect')) {
+                    document.getElementById('modelSelect').value = state.modelSelect;
+                    updateModelCost();
+                }
+                if (state.styleSelect && document.getElementById('styleSelect')) {
+                    document.getElementById('styleSelect').value = state.styleSelect;
+                }
+                if (state.countSelect && document.getElementById('countSelect')) {
+                    document.getElementById('countSelect').value = state.countSelect;
+                }
+                if (state.mjVersion && document.getElementById('mjVersion')) {
+                    document.getElementById('mjVersion').value = state.mjVersion;
+                }
+                if (state.animatedModelSelect && document.getElementById('animatedModelSelect')) {
+                    document.getElementById('animatedModelSelect').value = state.animatedModelSelect;
+                }
+                if (state.splitAnimatedModelSelect && document.getElementById('splitAnimatedModelSelect')) {
+                    document.getElementById('splitAnimatedModelSelect').value = state.splitAnimatedModelSelect;
+                }
+
+                // 恢复模式
+                if (state.currentMode) {
+                    document.querySelectorAll('.mode-tab').forEach(tab => {
+                        tab.classList.toggle('active', tab.dataset.mode === state.currentMode);
+                    });
+                    document.querySelectorAll('.mode-content').forEach(content => {
+                        content.classList.toggle('active', content.id === state.currentMode + 'Mode');
+                    });
+                }
+
+                // 恢复参考图
+                if (state.refImageDataArray && state.refImageDataArray.length > 0) {
+                    refImageDataArray = state.refImageDataArray;
+                    updateRefImageDisplay();
+                }
+
+                // 恢复生成结果
+                if (state.currentImageUrl) {
+                    currentImageUrl = state.currentImageUrl;
+                    const resultImg = document.getElementById('resultImage');
+                    if (resultImg) {
+                        resultImg.src = currentImageUrl;
+                        document.getElementById('resultSection').style.display = 'block';
+                    }
+                }
+
+                // 恢复分割结果
+                if (state.segmentedImages && state.segmentedImages.length > 0) {
+                    segmentedImages = state.segmentedImages;
+                    const grid = document.getElementById('segmentGrid');
+                    if (grid) {
+                        grid.innerHTML = '';
+                        segmentedImages.forEach((imgData, i) => {
+                            const item = document.createElement('div');
+                            item.className = 'segment-item';
+                            item.dataset.index = i;
+                            item.innerHTML = `<img src="${imgData}" alt="分割${i + 1}">`;
+                            item.onclick = () => toggleSegmentSelection(item);
+                            grid.appendChild(item);
+                        });
+                        document.getElementById('segmentSection').style.display = 'block';
+                        // 恢复选中状态
+                        if (state.selectedSegmentIndices) {
+                            state.selectedSegmentIndices.forEach(idx => {
+                                const item = grid.querySelector(`[data-index="${idx}"]`);
+                                if (item) item.classList.add('selected');
+                            });
+                        }
+                    }
+                }
+
+                // 恢复动态表情结果
+                if (state.animatedStickerResults && state.animatedStickerResults.length > 0) {
+                    animatedStickerResults = state.animatedStickerResults;
+                    const animGrid = document.getElementById('animatedGrid');
+                    if (animGrid) {
+                        animGrid.innerHTML = '';
+                        animatedStickerResults.forEach((result, i) => {
+                            const item = document.createElement('div');
+                            item.className = 'segment-item';
+                            item.style.aspectRatio = '1';
+                            item.innerHTML = `
+                                <video src="${result.videoUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+                                <div class="seg-actions">
+                                    <button onclick="downloadAnimatedSticker(${i})">⬇️</button>
+                                    <button onclick="shareAnimatedSticker(${i})">📤</button>
+                                </div>
+                            `;
+                            animGrid.appendChild(item);
+                        });
+                        document.getElementById('animatedSection').style.display = 'block';
+                    }
+                }
+
+                // 恢复分割模式上传的图片
+                if (state.uploadedImageData) {
+                    uploadedImageData = state.uploadedImageData;
+                    const previewImg = document.getElementById('previewImg');
+                    if (previewImg) {
+                        previewImg.src = uploadedImageData;
+                        document.getElementById('uploadArea').style.display = 'none';
+                        document.getElementById('previewArea').style.display = 'block';
+                    }
+                }
+
+                // 恢复分割模式的分割结果
+                if (state.splitSegments && state.splitSegments.length > 0) {
+                    splitSegments = state.splitSegments;
+                    const splitGrid = document.getElementById('splitGrid');
+                    if (splitGrid) {
+                        splitGrid.innerHTML = '';
+                        splitSegments.forEach((imgData, i) => {
+                            const item = document.createElement('div');
+                            item.className = 'segment-item';
+                            item.dataset.index = i;
+                            item.innerHTML = `<img src="${imgData}" alt="分割${i + 1}">`;
+                            item.onclick = () => toggleSplitSegmentSelection(item);
+                            splitGrid.appendChild(item);
+                        });
+                        document.getElementById('splitResults').style.display = 'block';
+                        // 恢复选中状态
+                        if (state.selectedSplitIndices) {
+                            state.selectedSplitIndices.forEach(idx => {
+                                const item = splitGrid.querySelector(`[data-index="${idx}"]`);
+                                if (item) item.classList.add('selected');
+                            });
+                        }
+                    }
+                }
+
+                // 恢复分割模式的动态表情结果
+                if (state.splitAnimatedResults && state.splitAnimatedResults.length > 0) {
+                    if (typeof splitAnimatedResults !== 'undefined') {
+                        splitAnimatedResults = state.splitAnimatedResults;
+                    }
+                    const splitAnimGrid = document.getElementById('splitAnimatedGrid');
+                    if (splitAnimGrid) {
+                        splitAnimGrid.innerHTML = '';
+                        state.splitAnimatedResults.forEach((result, i) => {
+                            const item = document.createElement('div');
+                            item.className = 'segment-item';
+                            item.style.aspectRatio = '1';
+                            item.innerHTML = `
+                                <video src="${result.videoUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+                                <div class="seg-actions">
+                                    <button onclick="downloadSplitAnimatedSticker(${i})">⬇️</button>
+                                    <button onclick="shareSplitAnimatedSticker(${i})">📤</button>
+                                </div>
+                            `;
+                            splitAnimGrid.appendChild(item);
+                        });
+                        document.getElementById('splitAnimatedSection').style.display = 'block';
+                    }
+                }
+
+                console.log('[sticker] 状态恢复完成');
+            } catch (e) {
+                console.warn('[sticker] 恢复状态失败:', e);
+            }
+        }
+
+        // 绑定状态保存事件
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) saveStickerState();
+        });
+        window.addEventListener('beforeunload', saveStickerState);
+        window.addEventListener('pagehide', saveStickerState);
+        window.addEventListener('load', () => setTimeout(restoreStickerState, 200));
+
+        // ==================== 📚 批量表情包功能 ====================
+        let batchStickerTasks = [];  // { id, prompt, status, result, error }
+        let batchStickerMode = false;
+
+        /**
+         * 进入批量表情包模式
+         */
+        function enterStickerBatchMode(prompts) {
+            batchStickerMode = true;
+
+            // 初始化任务
+            batchStickerTasks = prompts.map((p, idx) => ({
+                id: `batch-sticker-${Date.now()}-${idx}`,
+                prompt: p,
+                status: 'pending',
+                result: null,
+                error: null
+            }));
+
+            // 隐藏正常模式
+            document.getElementById('generateMode').style.display = 'none';
+
+            // 显示批量模式
+            document.getElementById('batchModeSection').style.display = 'block';
+            document.getElementById('batchStickerCount').textContent = batchStickerTasks.length;
+
+            // 渲染任务列表
+            renderBatchStickerTaskList();
+
+            showToast(`已加载 ${batchStickerTasks.length} 个表情包任务`);
+        }
+
+        /**
+         * 退出批量模式
+         */
+        function exitStickerBatchMode() {
+            batchStickerMode = false;
+            batchStickerTasks = [];
+
+            // 显示正常模式
+            document.getElementById('generateMode').style.display = 'block';
+
+            // 隐藏批量模式
+            document.getElementById('batchModeSection').style.display = 'none';
+            document.getElementById('batchStickerProgressSection').style.display = 'none';
+            document.getElementById('batchStickerResultSection').style.display = 'none';
+        }
+
+        /**
+         * 渲染批量任务列表
+         */
+        function renderBatchStickerTaskList() {
+            const container = document.getElementById('batchStickerTaskList');
+            if (!container) return;
+
+            container.innerHTML = batchStickerTasks.map((task, idx) => {
+                const preview = task.prompt.length > 60 ? task.prompt.substring(0, 60) + '...' : task.prompt;
+                return `
+                    <div style="padding:10px 12px; background:var(--bg-card); border:1px solid #333; border-radius:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:12px; color:#fbbf24;">😀 表情包 ${idx + 1}</span>
+                            <button onclick="removeBatchStickerTask('${task.id}')" style="background:none; border:none; color:#666; font-size:14px; cursor:pointer;">&times;</button>
+                        </div>
+                        <div style="font-size:11px; color:#888; margin-top:4px; line-height:1.4;">${preview}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * 移除批量任务
+         */
+        function removeBatchStickerTask(taskId) {
+            batchStickerTasks = batchStickerTasks.filter(t => t.id !== taskId);
+            document.getElementById('batchStickerCount').textContent = batchStickerTasks.length;
+            renderBatchStickerTaskList();
+
+            if (batchStickerTasks.length === 0) {
+                exitStickerBatchMode();
+                showToast('已移除所有任务');
+            }
+        }
+
+        /**
+         * 开始并发生成批量表情包
+         */
+        async function startBatchStickerGenerate() {
+            if (batchStickerTasks.length === 0) {
+                showToast('没有任务可生成');
+                return;
+            }
+
+            // 检查登录
+            if (!currentUser) {
+                if (typeof NVAuth !== 'undefined') {
+                    try { currentUser = await NVAuth.getCurrentUser(); } catch (e) { }
+                }
+                if (!currentUser) {
+                    showToast('请先登录');
+                    return;
+                }
+            }
+
+            const selectedModel = document.getElementById('batchModelSelect').value;
+            const selectedStyle = document.getElementById('batchStyleSelect').value;
+            const modelOption = document.querySelector(`#batchModelSelect option[value="${selectedModel}"]`);
+            const costPerTask = parseInt(modelOption?.dataset.cost || '6');
+            const totalCost = costPerTask * batchStickerTasks.length;
+
+            // 检查余额
+            if (userQuota < totalCost) {
+                showToast(`余额不足，需要${totalCost}胶片`);
+                return;
+            }
+
+            // 禁用按钮
+            const btn = document.getElementById('batchStickerGenerateBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 正在并发生成...';
+
+            // 显示进度
+            document.getElementById('batchStickerProgressSection').style.display = 'block';
+            renderBatchStickerProgress();
+
+            console.log(`📚 [批量表情包] 开始并发生成 ${batchStickerTasks.length} 个任务`);
+
+            // 风格映射
+            const styleMap = {
+                cute: 'cute chibi kawaii style, big head small body',
+                anime: 'Japanese anime manga style, big eyes',
+                '3d': 'Pixar 3D cartoon style, smooth CGI render'
+            };
+
+            // 创建并发任务
+            const tasks = batchStickerTasks.map((task, idx) => {
+                return (async () => {
+                    try {
+                        task.status = 'running';
+                        renderBatchStickerProgress();
+
+                        console.log(`📚 [表情包${idx + 1}] 开始生成...`);
+
+                        // 构建提示词
+                        const gridPrompt = `Create a 3x3 GRID LAYOUT image with 9 EQUAL-SIZED SQUARE PANELS.
+
+CONTENT: ${task.prompt}
+STYLE: ${styleMap[selectedStyle]}
+
+REQUIREMENTS:
+1. GRID: 9 panels in 3x3 grid, white lines separating
+2. EXPRESSIONS: Different facial expression in each panel
+3. CHINESE TEXT: Short Chinese caption in each panel
+4. STICKER STYLE: Chat sticker aesthetic`;
+
+                        const response = await fetch('/api/banana2', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                prompt: gridPrompt,
+                                model: selectedModel,
+                                aspect_ratio: '1:1',
+                                userId: currentUser.id
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.error) throw new Error(data.message || data.error);
+
+                        const imageUrl = data.url || data.imageUrl || data.image_url;
+                        if (!imageUrl) throw new Error('未返回图片URL');
+
+                        task.status = 'completed';
+                        task.result = imageUrl;
+                        console.log(`📚 [表情包${idx + 1}] 生成完成!`);
+
+                        // 更新余额
+                        if (data.billed) {
+                            userQuota = Math.max(0, userQuota - data.billed);
+                        }
+
+                    } catch (error) {
+                        console.error(`📚 [表情包${idx + 1}] 失败:`, error);
+                        task.status = 'failed';
+                        task.error = error.message || '生成失败';
+                    }
+
+                    renderBatchStickerProgress();
+                    return task;
+                })();
+            });
+
+            // 并发执行
+            try {
+                await Promise.all(tasks);
+            } catch (e) {
+                console.error('📚 [批量表情包] Promise.all 异常:', e);
+            }
+
+            // 统计
+            const completed = batchStickerTasks.filter(t => t.status === 'completed').length;
+            const failed = batchStickerTasks.filter(t => t.status === 'failed').length;
+
+            console.log(`📚 [批量表情包] 完成! 成功:${completed}, 失败:${failed}`);
+
+            // 显示结果
+            renderBatchStickerResults();
+            document.getElementById('batchStickerResultSection').style.display = 'block';
+
+            // 恢复按钮
+            btn.disabled = false;
+            btn.textContent = '🚀 开始并发生成表情包';
+
+            if (failed === 0) {
+                showToast(`✅ 批量生成完成! 共${completed}个`);
+            } else {
+                showToast(`完成! 成功${completed}个, 失败${failed}个`);
+            }
+        }
+
+        /**
+         * 渲染批量进度
+         */
+        function renderBatchStickerProgress() {
+            const container = document.getElementById('batchStickerProgressList');
+            if (!container) return;
+
+            container.innerHTML = batchStickerTasks.map((task, idx) => {
+                let statusIcon, statusColor;
+                switch (task.status) {
+                    case 'pending': statusIcon = '⏳'; statusColor = '#888'; break;
+                    case 'running': statusIcon = '🔄'; statusColor = '#fbbf24'; break;
+                    case 'completed': statusIcon = '✅'; statusColor = '#4ade80'; break;
+                    case 'failed': statusIcon = '❌'; statusColor = '#f87171'; break;
+                    default: statusIcon = '❓'; statusColor = '#888';
+                }
+
+                return `
+                    <div style="display:flex; justify-content:space-between; padding:6px 10px; background:rgba(0,0,0,0.2); border-radius:6px;">
+                        <span style="font-size:12px; color:#fff;">😀 表情包 ${idx + 1}</span>
+                        <span style="font-size:12px; color:${statusColor};">${statusIcon}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * 渲染批量结果
+         */
+        function renderBatchStickerResults() {
+            const container = document.getElementById('batchStickerResultList');
+            if (!container) return;
+
+            container.innerHTML = batchStickerTasks.map((task, idx) => {
+                if (task.status !== 'completed' || !task.result) {
+                    return `
+                        <div style="padding:8px; background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.3); border-radius:8px; text-align:center;">
+                            <div style="font-size:12px; color:#f87171;">❌ 表情包 ${idx + 1}</div>
+                            <div style="font-size:10px; color:#888;">${task.error || '失败'}</div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div style="position:relative; border-radius:8px; overflow:hidden;">
+                        <img src="${task.result}" style="width:100%; display:block;">
+                        <div style="position:absolute; bottom:0; left:0; right:0; padding:6px; background:rgba(0,0,0,0.7); display:flex; gap:4px;">
+                            <button onclick="downloadBatchSticker(${idx})" style="flex:1; padding:4px; background:#333; border:none; border-radius:4px; color:#fff; font-size:10px; cursor:pointer;">⬇️</button>
+                            <button onclick="splitBatchSticker(${idx})" style="flex:1; padding:4px; background:var(--accent); border:none; border-radius:4px; color:#000; font-size:10px; cursor:pointer;">✂️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * 下载单个批量结果
+         */
+        function downloadBatchSticker(idx) {
+            const task = batchStickerTasks[idx];
+            if (!task || !task.result) return;
+
+            const link = document.createElement('a');
+            link.href = task.result;
+            link.download = `sticker_batch_${idx + 1}.png`;
+            link.click();
+        }
+
+        /**
+         * 分割单个批量结果
+         */
+        function splitBatchSticker(idx) {
+            const task = batchStickerTasks[idx];
+            if (!task || !task.result) return;
+
+            // 设置当前图片并切换到分割模式
+            currentImageUrl = task.result;
+            document.getElementById('resultImage').src = currentImageUrl;
+            document.getElementById('resultSection').style.display = 'block';
+
+            // 执行分割
+            splitImage();
+
+            showToast('已切换到分割模式');
+        }
+
+        /**
+         * 下载所有批量结果
+         */
+        async function downloadAllBatchStickers() {
+            const completed = batchStickerTasks.filter(t => t.status === 'completed' && t.result);
+            if (completed.length === 0) {
+                showToast('没有可下载的结果');
+                return;
+            }
+
+            showToast(`正在下载 ${completed.length} 个结果...`);
+
+            for (let i = 0; i < completed.length; i++) {
+                try {
+                    const link = document.createElement('a');
+                    link.href = completed[i].result;
+                    link.download = `sticker_batch_${i + 1}.png`;
+                    link.click();
+                    await new Promise(r => setTimeout(r, 300));
+                } catch (e) {
+                    console.error(`下载${i + 1}失败:`, e);
+                }
+            }
+
+            showToast('下载完成!');
+        }
+
+        // ==================== 🏞️ 视频转GIF功能 ====================
+
+        let gifVideoFile = null;
+        let gifBlobUrl = null;
+
+        /**
+         * 预览上传的视频
+         */
+        function previewGifVideo(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('video/')) {
+                showToast('请选择视频文件');
+                input.value = '';
+                return;
+            }
+
+            gifVideoFile = file;
+            const video = document.getElementById('gifVideoPreview');
+            const url = URL.createObjectURL(file);
+
+            video.src = url;
+            video.style.display = 'block';
+            video.load();
+
+            video.onloadedmetadata = function () {
+                const duration = video.duration;
+                document.getElementById('gifDuration').textContent = duration.toFixed(1);
+                document.getElementById('gifEndTime').value = Math.min(5, duration).toFixed(1);
+                document.getElementById('gifEndTime').max = duration;
+                document.getElementById('gifStartTime').max = duration - 0.5;
+                document.getElementById('gifTimeRange').style.display = 'block';
+                updateGifPreviewTime();
+                console.log('[GIF] 视频加载成功, 时长:', duration.toFixed(1), '秒');
+            };
+
+            video.onerror = function () {
+                showToast('视频加载失败');
+                video.style.display = 'none';
+                document.getElementById('gifTimeRange').style.display = 'none';
+            };
+
+            showToast('视频已加载，设置参数后点击转换');
+        }
+
+        /**
+         * 更新截取时间显示
+         */
+        function updateGifPreviewTime() {
+            const start = parseFloat(document.getElementById('gifStartTime').value) || 0;
+            const end = parseFloat(document.getElementById('gifEndTime').value) || 5;
+            const clip = Math.max(0.5, end - start);
+            document.getElementById('gifClipDuration').textContent = clip.toFixed(1);
+        }
+
+        /**
+         * 转换视频为GIF
+         */
+        async function convertToGif() {
+            if (!gifVideoFile) {
+                showToast('请先上传视频');
+                return;
+            }
+
+            const video = document.getElementById('gifVideoPreview');
+            const startTime = parseFloat(document.getElementById('gifStartTime').value) || 0;
+            const endTime = parseFloat(document.getElementById('gifEndTime').value) || 5;
+            const width = parseInt(document.getElementById('gifWidth').value) || 320;
+            const fps = parseInt(document.getElementById('gifFps').value) || 10;
+            const quality = document.getElementById('gifQuality').value || 'medium';
+
+            if (endTime <= startTime) {
+                showToast('结束时间必须大于开始时间');
+                return;
+            }
+
+            const duration = endTime - startTime;
+            if (duration > 10) {
+                showToast('GIF时长不能超过10秒');
+                return;
+            }
+
+            // 显示加载
+            document.getElementById('gifLoading').style.display = 'block';
+            document.getElementById('gifResult').style.display = 'none';
+            document.getElementById('gifLoadingText').textContent = '正在转换...';
+            document.getElementById('gifProgress').textContent = '准备中...';
+
+            try {
+                console.log('[GIF] 开始转换:', { startTime, endTime, duration, width, fps, quality });
+
+                // 使用 Canvas 提取帧
+                const frames = await extractVideoFrames(video, startTime, endTime, width, fps, (progress) => {
+                    document.getElementById('gifProgress').textContent = `提取帧: ${Math.round(progress * 100)}%`;
+                });
+
+                console.log('[GIF] 提取了', frames.length, '帧');
+                document.getElementById('gifProgress').textContent = `正在编码 ${frames.length} 帧...`;
+
+                // 使用 gif.js 编码
+                const gifBlob = await encodeGif(frames, width, fps, quality, (progress) => {
+                    document.getElementById('gifProgress').textContent = `编码: ${Math.round(progress * 100)}%`;
+                });
+
+                // 显示结果
+                if (gifBlobUrl) URL.revokeObjectURL(gifBlobUrl);
+                gifBlobUrl = URL.createObjectURL(gifBlob);
+
+                document.getElementById('gifOutput').src = gifBlobUrl;
+                document.getElementById('gifInfo').textContent = `大小: ${(gifBlob.size / 1024).toFixed(1)}KB | ${frames.length}帧 | ${width}px`;
+                document.getElementById('gifLoading').style.display = 'none';
+                document.getElementById('gifResult').style.display = 'block';
+
+                showToast('GIF转换成功！');
+                console.log('[GIF] 转换完成, 大小:', (gifBlob.size / 1024).toFixed(1), 'KB');
+
+            } catch (error) {
+                console.error('[GIF] 转换失败:', error);
+                document.getElementById('gifLoading').style.display = 'none';
+                showToast('转换失败: ' + error.message);
+            }
+        }
+
+        /**
+         * 从视频提取帧
+         */
+        async function extractVideoFrames(video, startTime, endTime, width, fps, onProgress) {
+            const frames = [];
+            const duration = endTime - startTime;
+            const frameCount = Math.ceil(duration * fps);
+            const frameInterval = 1 / fps;
+
+            // 计算高度保持比例
+            const aspectRatio = video.videoHeight / video.videoWidth;
+            const height = Math.round(width * aspectRatio);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            for (let i = 0; i < frameCount; i++) {
+                const time = startTime + i * frameInterval;
+
+                // 跳转到指定时间
+                video.currentTime = time;
+                await new Promise(resolve => {
+                    video.onseeked = resolve;
+                    setTimeout(resolve, 200); // 超时保护
+                });
+
+                // 绘制帧
+                ctx.drawImage(video, 0, 0, width, height);
+                const imageData = ctx.getImageData(0, 0, width, height);
+                frames.push(imageData);
+
+                if (onProgress) onProgress((i + 1) / frameCount);
+            }
+
+            return frames;
+        }
+
+        /**
+         * 编码GIF
+         */
+        async function encodeGif(frames, width, fps, quality, onProgress) {
+            // 动态加载 gif.js
+            if (typeof GIF === 'undefined') {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('gif.js 加载失败'));
+                    document.head.appendChild(script);
+                });
+            }
+
+            return new Promise((resolve, reject) => {
+                const qualityMap = { low: 20, medium: 10, high: 5 };
+                const gifQuality = qualityMap[quality] || 10;
+
+                const gif = new GIF({
+                    workers: 2,
+                    quality: gifQuality,
+                    width: width,
+                    height: frames[0].height,
+                    workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+                });
+
+                // 添加帧
+                const delay = Math.round(1000 / fps);
+                frames.forEach((frame, i) => {
+                    gif.addFrame(frame, { delay });
+                });
+
+                gif.on('progress', onProgress);
+                gif.on('finished', resolve);
+                gif.on('error', reject);
+
+                gif.render();
+            });
+        }
+
+        /**
+         * 下载GIF
+         */
+        function downloadGif() {
+            if (!gifBlobUrl) {
+                showToast('没有可下载的GIF');
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.href = gifBlobUrl;
+            link.download = 'sticker_' + Date.now() + '.gif';
+            link.click();
+            showToast('开始下载');
+        }
+
+        /**
+         * 重置GIF工具
+         */
+        function resetGifTool() {
+            gifVideoFile = null;
+            if (gifBlobUrl) {
+                URL.revokeObjectURL(gifBlobUrl);
+                gifBlobUrl = null;
+            }
+
+            document.getElementById('gifVideoInput').value = '';
+            document.getElementById('gifVideoPreview').src = '';
+            document.getElementById('gifVideoPreview').style.display = 'none';
+            document.getElementById('gifTimeRange').style.display = 'none';
+            document.getElementById('gifLoading').style.display = 'none';
+            document.getElementById('gifResult').style.display = 'none';
+            document.getElementById('gifStartTime').value = 0;
+            document.getElementById('gifEndTime').value = 5;
+
+            showToast('已重置');
+        }
+    </script>
+</body>
+
+</html>

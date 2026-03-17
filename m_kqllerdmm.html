@@ -1,0 +1,2377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RollRoll 移动版 V8.9.4</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <!-- 版本: 8.8.0 - 清理登录代码 -->
+    <!-- 💻 电脑端自动跳转 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <script>
+        (function () {
+            // 如果URL中有 force=mobile 参数，则不跳转（允许强制访问移动版）
+            var forceMobile = location.search.indexOf('force=mobile') > -1;
+            var forcePc = location.search.indexOf('force=pc') > -1;
+            if (!forceMobile) {
+                // 如果URL中有 force=pc 参数，则强制跳转到电脑版
+                if (forcePc) {
+                    location.replace('index.html');
+                } else {
+                    // 检测是否是电脑设备
+                    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    var isSmallScreen = window.innerWidth <= 768;
+                    // 电脑设备自动跳转到电脑版，避免电脑设备访问移动版
+                    if (!isMobile && !isSmallScreen) {
+                        location.replace('index.html');
+                    }
+                }
+            }
+        })();
+    </script>
+    <!-- Supabase SDK -->
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js?v=20260211a"></script>
+    <!-- 🔧 API 核心模块（技能执行所需） -->
+    <script src="/js/api-core.js?v=20260210c&t=20260210c"></script>
+    <script src="/js/user-memory.js?v=20260210c"></script>
+    <script src="/js/writing-vault.js?v=20260210c"></script>
+    <!-- 🧩 Skill 技能系统 -->
+    <script src="/js/skill-system.js?v=20260210c&t=20260210c"></script>
+    <script src="/js/skill-presets.js?v=20260210c&t=20260210c"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #141419;
+            --bg-input: #1a1a22;
+            --accent: #fbbf24;
+            --accent-glow: rgba(251, 191, 36, 0.3);
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --radius: 16px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.02); opacity: 0.95; }
+        }
+
+        /* 顶部导航 */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: linear-gradient(to bottom, var(--bg-dark) 60%, transparent);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .logo svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .user-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            text-decoration: none;
+        }
+
+        /* 主内容区 */
+        .main {
+            padding: 0 20px 100px;
+        }
+
+        /* 模式切换 */
+        .mode-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 16px;
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            border: 2px solid transparent;
+            color: var(--text-dim);
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .mode-tab.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .mode-tab svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        /* 输入区域 */
+        .input-section {
+            margin-bottom: 24px;
+        }
+
+        .input-label {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .input-box {
+            width: 100%;
+            min-height: 120px;
+            padding: 16px;
+            border-radius: var(--radius);
+            background: var(--bg-input);
+            border: 2px solid #2a2a35;
+            color: var(--text);
+            font-size: 16px;
+            line-height: 1.6;
+            resize: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .input-box::placeholder {
+            color: #555;
+        }
+
+        /* 下划线填空输入框（与rollroll工坊一致的样式） */
+        .blank-inputs { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+        .blank-input-row { display: flex; align-items: center; gap: 8px; }
+        .blank-input-row label { font-size: 12px; color: #888; min-width: 60px; }
+        .blank-input-row input { flex: 1; margin-bottom: 0; padding: 10px 12px; font-size: 14px; background: var(--bg-input); border: 1px solid #2a2a35; border-radius: 8px; color: var(--text); }
+
+        /* 快捷输入 */
+        .quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .quick-tag {
+            padding: 8px 14px;
+            border-radius: 20px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-tag:active {
+            background: var(--accent);
+            color: #000;
+        }
+
+        /* 选项区域 */
+        .options-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid #2a2a35;
+        }
+
+        .option-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .option-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .option-group {
+            flex: 1;
+        }
+
+        .option-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .option-group select,
+        .option-group input[type="number"],
+        .option-group input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: var(--bg-input);
+            border: 1px solid #2a2a35;
+            color: var(--text);
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .option-group select:focus,
+        .option-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .option-group select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+        }
+
+        .option-group input[type="number"]::-webkit-inner-spin-button,
+        .option-group input[type="number"]::-webkit-outer-spin-button {
+            opacity: 0.5;
+        }
+
+        /* 生成按钮 */
+        .generate-btn {
+            width: 100%;
+            padding: 18px;
+            border-radius: var(--radius);
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            color: #000;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .generate-btn:active {
+            transform: scale(0.98);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* 历史任务 */
+        .history-section {
+            margin-top: 32px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-card {
+            padding: 16px;
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            border: 1px solid #222;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .task-theme {
+            font-size: 15px;
+            font-weight: 600;
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .task-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+
+        .task-status.pending {
+            background: #333;
+            color: #888;
+        }
+
+        .task-status.processing {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .task-status.completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+
+        .task-status.failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .task-preview {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-top: 12px;
+        }
+
+        .task-preview img,
+        .task-preview video {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .task-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .task-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+            font-weight: 600;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        /* 底部导航 */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border-top: 1px solid #222;
+            display: flex;
+            padding: 8px 0;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 11px;
+            transition: color 0.2s;
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* 加载状态 */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* 提示切换到电脑版 */
+        .pc-hint {
+            text-align: center;
+            padding: 16px;
+            background: rgba(251, 191, 36, 0.1);
+            border-radius: var(--radius);
+            margin-top: 24px;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .pc-hint a {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Toast提示 */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: var(--bg-card);
+            border: 1px solid #333;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 20000; /* 提升到覆盖所有弹层之上 */
+            transition: transform 0.3s;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* 胶片余额显示 */
+        .quota-display {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .quota-display .film-icon {
+            font-size: 16px;
+        }
+
+        /* ==================== 手势操作样式 ==================== */
+
+        /* 下拉刷新 */
+        .pull-refresh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-dark);
+            transform: translateY(-100%);
+            transition: transform 0.3s;
+            z-index: 99;
+        }
+
+        .pull-refresh.pulling {
+            transform: translateY(0);
+        }
+
+        .pull-refresh .refresh-icon {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+        }
+
+        .pull-refresh.refreshing .refresh-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        /* 左滑删除 */
+        .task-card {
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+
+        .task-card-inner {
+            position: relative;
+            z-index: 2;
+            background: var(--bg-card);
+            transition: transform 0.3s;
+        }
+
+        .task-card.swiping .task-card-inner {
+            transition: none;
+        }
+
+        .swipe-actions {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            z-index: 1;
+        }
+
+        .swipe-btn {
+            width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .swipe-btn.delete {
+            background: #ef4444;
+        }
+
+        .swipe-btn.share {
+            background: #3b82f6;
+        }
+
+        /* 长按菜单 */
+        .context-menu {
+            position: fixed;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 8px 0;
+            min-width: 160px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: none;
+            animation: menuFadeIn 0.15s ease;
+        }
+
+        @keyframes menuFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .context-menu.show {
+            display: block;
+        }
+
+        .context-menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .context-menu-item:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .context-menu-item.danger {
+            color: #ef4444;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: #333;
+            margin: 8px 0;
+        }
+
+        /* 图片预览（双指缩放） */
+        .image-viewer {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-viewer.show {
+            display: flex;
+        }
+
+        .image-viewer img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            touch-action: pinch-zoom;
+        }
+
+        .image-viewer-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .image-viewer-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+
+        /* 🎨 Midjourney 图片选择器 - 精致可爱风格 */
+        .mj-image-picker {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(45, 35, 55, 0.98) 0%, rgba(25, 20, 35, 0.99) 100%);
+            z-index: 1100;
+            display: none;
+            flex-direction: column;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .mj-image-picker.show {
+            display: flex;
+        }
+        
+        .mj-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(255,182,193,0.15) 0%, rgba(255,218,233,0.1) 100%);
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .mj-picker-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffb6c1;
+            text-shadow: 0 0 20px rgba(255,182,193,0.5);
+        }
+        
+        .mj-picker-subtitle {
+            font-size: 11px;
+            color: rgba(255,182,193,0.6);
+            margin-top: 4px;
+        }
+        
+        .mj-picker-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #ffb6c1;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .mj-picker-close:hover {
+            background: rgba(255,182,193,0.3);
+            transform: rotate(90deg);
+        }
+        
+        .mj-picker-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            overflow-y: auto;
+            padding: 8px;
+            padding-bottom: 100px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 20px;
+        }
+        
+        .mj-picker-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 3px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        .mj-picker-item:hover {
+            border-color: rgba(255,182,193,0.6);
+            transform: scale(1.02);
+        }
+        
+        .mj-picker-item.selected {
+            border-color: #ff69b4;
+            box-shadow: 0 0 0 3px rgba(255,105,180,0.3), 0 8px 30px rgba(255,105,180,0.4);
+            transform: scale(1.02);
+        }
+        
+        .mj-picker-item.selected::after {
+            content: '✔';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8), 0 0 30px rgba(255,105,180,0.8);
+            animation: checkPop 0.3s ease-out;
+            z-index: 2;
+        }
+        
+        @keyframes checkPop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        
+        .mj-picker-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: all 0.3s;
+        }
+        
+        .mj-picker-item.selected img {
+            filter: brightness(0.7);
+        }
+        
+        .mj-picker-item-index {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255,182,193,0.9) 0%, rgba(255,105,180,0.9) 100%);
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(255,105,180,0.5);
+            z-index: 1;
+        }
+        
+        .mj-picker-item.selected .mj-picker-item-index {
+            background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+            box-shadow: 0 0 15px rgba(255,105,180,0.8);
+        }
+        
+        .mj-picker-confirm {
+            position: fixed;
+            bottom: 24px;
+            left: 16px;
+            right: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(255,105,180,0.5);
+            transition: all 0.2s;
+        }
+        
+        .mj-picker-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255,105,180,0.6);
+        }
+        
+        .mj-picker-confirm:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: rgba(255,255,255,0.1);
+            box-shadow: none;
+        }
+        
+        .mj-picker-tip {
+            text-align: center;
+            color: rgba(255,182,193,0.7);
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        
+        .mj-picker-tip::before {
+            content: '✨ ';
+        }
+        
+        .mj-picker-tip::after {
+            content: ' ✨';
+        }
+
+        /* 触摸反馈 */
+        .touch-feedback {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .touch-feedback::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at var(--touch-x, 50%) var(--touch-y, 50%), rgba(255, 255, 255, 0.3) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .touch-feedback:active::after {
+            opacity: 1;
+        }
+
+        /* 欢迎页样式（移动端适配） */
+        .welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            display: none; /* 默认隐藏，由JS控制显示 */
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            z-index: 9999;
+            background-image: url('images/welcome-bg.jpg');
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #0a0a12;
+        }
+
+        .welcome-screen.hide {
+            display: none !important;
+        }
+
+        .welcome-screen.show {
+            display: flex !important;
+        }
+
+        .welcome-screen::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg,
+                    oklch(0.15 0.05 250 / 0.95) 0%,
+                    oklch(0.20 0.08 260 / 0.9) 50%,
+                    oklch(0.25 0.12 270 / 0.95) 100%);
+            filter: brightness(0.7) blur(1px);
+        }
+
+        .welcome-screen.fade-out {
+            animation: welcomeFadeOut 0.5s ease-in-out forwards;
+        }
+
+        @keyframes welcomeFadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+
+        .welcome-bg-text {
+            position: fixed;
+            top: 45%;
+            right: 5%;
+            transform: translateY(-50%) rotate(-8deg);
+            z-index: 1;
+            opacity: 0.8;
+            width: fit-content;
+            pointer-events: none;
+        }
+
+        .welcome-bg-text img {
+            max-width: 200px;
+            height: auto;
+            transform: rotate(3deg) scale(1.2);
+            filter: drop-shadow(8px 10px 20px rgba(0, 0, 0, 0.8)) contrast(7.5) saturate(0) brightness(0.35) hue-rotate(-120deg) invert(0.35);
+            opacity: 0.6;
+            mix-blend-mode: screen;
+            border: none;
+            background: none;
+        }
+
+        .welcome-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 24px;
+            margin: 0 4%;
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .welcome-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(168, 85, 247, 0.15));
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            border-radius: 20px;
+            color: #fbbf24;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .welcome-promo {
+            margin: 0 auto 20px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(168, 85, 247, 0.12));
+            border: 1px solid rgba(251, 191, 36, 0.35);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            max-width: 100%;
+        }
+
+        .welcome-promo-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: #fbbf24;
+            margin-bottom: 8px;
+            line-height: 1.25;
+        }
+
+        .welcome-promo-desc {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.75);
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .welcome-promo-action {
+            display: inline-block;
+            padding: 6px 14px;
+            background: rgba(251, 191, 36, 0.15);
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            border-radius: 18px;
+            color: #fbbf24;
+            font-size: 12px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .welcome-promo-action:active {
+            background: rgba(251, 191, 36, 0.3);
+            transform: scale(0.95);
+        }
+
+        .welcome-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            line-height: 1.2;
+        }
+
+        .welcome-subtitle {
+            font-size: 16px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 16px;
+        }
+
+        .welcome-desc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .welcome-quote-box {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .quote-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 6px;
+            font-style: italic;
+        }
+
+        .quote-author {
+            font-size: 12px;
+            color: rgba(251, 191, 36, 0.8);
+        }
+
+        .btn-start-journey {
+            display: inline-block;
+            padding: 16px 36px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-radius: 30px;
+            color: #000;
+            font-size: 17px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 8px 30px rgba(251, 191, 36, 0.4);
+            transition: all 0.3s;
+        }
+
+        .btn-start-journey:active {
+            transform: scale(0.95);
+            box-shadow: 0 4px 20px rgba(251, 191, 36, 0.3);
+        }
+
+        /* 📱 移动端欢迎页适配 */
+        @media (max-width: 768px) {
+            .welcome-screen {
+                overflow-y: auto !important;
+                overflow-x: hidden;
+                align-items: flex-start;
+                padding-top: 60px;
+                padding-bottom: 40px;
+            }
+
+            .welcome-content {
+                max-width: 95vw;
+                padding: 20px;
+                margin-left: 0;
+                margin-bottom: 40px;
+            }
+
+            .welcome-title {
+                font-size: 24px !important;
+            }
+
+            .welcome-subtitle {
+                font-size: 14px !important;
+            }
+
+            .welcome-desc {
+                font-size: 13px !important;
+            }
+
+            .welcome-quote-box {
+                padding: 15px !important;
+                margin: 20px 0 !important;
+            }
+
+            .btn-start-journey {
+                padding: 16px 36px !important;
+                font-size: 16px !important;
+                margin-top: 20px;
+            }
+
+            .welcome-bg-text {
+                display: block;
+                /* 移动端显示背景文字，缩小并调整位置 */
+                position: fixed;
+                top: auto;
+                bottom: 8%;
+                right: 5%;
+                transform: rotate(-8deg);
+                opacity: 0.7;
+            }
+
+            .welcome-bg-text img {
+                max-width: 120px;
+                transform: rotate(3deg) scale(1);
+            }
+
+            .welcome-user-bar {
+                top: 10px;
+                right: 10px;
+            }
+
+            .welcome-promo {
+                margin: 10px auto 14px;
+                padding: 12px 12px;
+                max-width: 92vw;
+            }
+
+            .welcome-promo-title {
+                font-size: 16px;
+            }
+
+            .welcome-promo-desc {
+                font-size: 14px;
+            }
+
+            .welcome-promo-action {
+                width: 100%;
+                max-width: 360px;
+            }
+        }
+
+        /* ═══════════════════════════════════════════
+           🎬 影视开场动画
+           ═══════════════════════════════════════════ */
+        .cinema-intro {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .cinema-intro.active { display: flex !important; }
+        .cinema-intro.hidden { display: none !important; }
+        .cinema-intro.fade-out { animation: cinemaFadeOut 0.6s ease-out forwards; }
+        @keyframes cinemaFadeOut { to { opacity: 0; visibility: hidden; } }
+
+        /* 时代背景 */
+        .era-bg { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; }
+        .era-bg.active { opacity: 1; }
+        .era-silent { background: #1a1a1a; filter: sepia(80%) contrast(1.1); }
+        .era-color { background: linear-gradient(135deg, #1a0808 0%, #081a18 100%); }
+        .era-digital { background: linear-gradient(180deg, #080815 0%, #0f0f20 100%); }
+        .era-ai { background: radial-gradient(ellipse at center, #1a1025 0%, #080810 100%); }
+
+        /* 胶片边框 */
+        .film-border { position: absolute; top: 0; bottom: 0; width: 40px; background: repeating-linear-gradient(to bottom, #111 0px, #111 15px, #000 15px, #000 18px, #1a1a1a 18px, #1a1a1a 33px, #000 33px, #000 36px); z-index: 2; }
+        .film-border.left { left: 0; }
+        .film-border.right { right: 0; }
+
+        /* 宫格效果 - 时代卡片 */
+        .era-card { position: absolute; z-index: 25; text-align: center; opacity: 0; pointer-events: none; }
+        .era-card.show { animation: eraCardShow 1.5s ease-out forwards; }
+        @keyframes eraCardShow {
+            0% { opacity: 0; transform: scale(0.7) translateY(20px); }
+            15% { opacity: 1; transform: scale(1) translateY(0); }
+            85% { opacity: 1; }
+            100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+        }
+        .era-year { font-size: 60px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: -3px; margin-bottom: 8px; }
+        .era-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; letter-spacing: 3px; }
+        .era-desc { font-size: 12px; opacity: 0.7; letter-spacing: 2px; }
+        .era-silent-card .era-year { color: #a0a0a0; }
+        .era-silent-card .era-title { color: #d0d0d0; }
+        .era-color-card .era-year { color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5); }
+        .era-color-card .era-title { color: #ffd93d; }
+        .era-digital-card .era-year { color: #4ecdc4; text-shadow: 0 0 20px rgba(78,205,196,0.5); }
+        .era-digital-card .era-title { color: #45b7d1; }
+        .era-ai-card .era-year { background: linear-gradient(135deg, #fbbf24, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .era-ai-card .era-title { color: #fbbf24; }
+        .era-ai-card .era-desc { color: #a78bfa; }
+
+        /* 场记板 */
+        .intro-clapperboard { position: absolute; width: 220px; height: 160px; z-index: 10; opacity: 0; }
+        .intro-clapperboard.show { animation: clapperShow 0.5s ease-out forwards; }
+        @keyframes clapperShow {
+            0% { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+            60% { opacity: 1; transform: scale(1.05) rotate(3deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .clapper-top { width: 100%; height: 40px; background: linear-gradient(135deg, #1a1a1a, #333); border-radius: 6px 6px 0 0; position: relative; z-index: 2; }
+        .clapper-top::before { content: ''; position: absolute; inset: 4px; background: repeating-linear-gradient(-45deg, #fbbf24 0px, #fbbf24 12px, #000 12px, #000 24px); border-radius: 3px; }
+        .clapper-body { width: 100%; height: 120px; background: linear-gradient(180deg, #1a1a1a, #0a0a0a); border-radius: 0 0 6px 6px; padding: 12px; display: flex; flex-direction: column; justify-content: center; border: 2px solid #333; border-top: none; }
+        .clapper-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
+        .clapper-label { color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .clapper-value { color: #fbbf24; font-weight: 700; font-family: 'Courier New', monospace; }
+        .clapper-title { text-align: center; font-size: 20px; font-weight: 900; color: #fff; margin-top: 8px; text-shadow: 0 0 15px rgba(251,191,36,0.5); }
+
+        /* 倒计时 */
+        .intro-countdown { position: absolute; width: 140px; height: 140px; z-index: 20; opacity: 0; }
+        .intro-countdown.show { animation: countdownPulse 0.7s ease-out forwards; }
+        @keyframes countdownPulse {
+            0% { opacity: 0; transform: scale(1.5); }
+            20% { opacity: 1; transform: scale(1); }
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+        .countdown-circle { width: 100%; height: 100%; border: 6px solid transparent; border-top-color: #fbbf24; border-radius: 50%; animation: countdownSpin 0.7s linear; }
+        @keyframes countdownSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .countdown-number { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 60px; font-weight: 900; color: #fbbf24; font-family: 'Courier New', monospace; text-shadow: 0 0 25px rgba(251,191,36,0.8); }
+
+        /* LOGO展示 */
+        .intro-logo { position: absolute; z-index: 30; text-align: center; opacity: 0; }
+        .intro-logo.show { animation: logoReveal 1s ease-out forwards; }
+        @keyframes logoReveal {
+            0% { opacity: 0; transform: scale(0.3); filter: blur(15px); }
+            50% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .intro-logo-icon { width: 100px; height: 100px; margin: 0 auto 16px; background: linear-gradient(135deg, #fbbf24, #a855f7); border-radius: 25px; display: flex; align-items: center; justify-content: center; font-size: 50px; box-shadow: 0 15px 50px rgba(251,191,36,0.4); }
+        .intro-logo-text { font-size: 40px; font-weight: 900; color: #fff; letter-spacing: 6px; text-shadow: 0 0 30px rgba(251,191,36,0.5); margin-bottom: 8px; }
+        .intro-logo-tagline { font-size: 16px; color: rgba(255,255,255,0.8); letter-spacing: 4px; }
+
+        /* 粒子 */
+        .intro-particles { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+        .intro-particle { position: absolute; width: 3px; height: 3px; background: #fbbf24; border-radius: 50%; box-shadow: 0 0 8px #fbbf24; animation: particleFloat 2.5s ease-in-out infinite; }
+        @keyframes particleFloat {
+            0%, 100% { opacity: 0; transform: translateY(100vh) scale(0); }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-50px) scale(1); }
+        }
+
+        /* 光线扫过 */
+        .light-sweep { position: absolute; width: 200%; height: 100%; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.02) 55%, transparent 100%); transform: translateX(-100%) skewX(-20deg); z-index: 50; pointer-events: none; }
+        .light-sweep.animate { animation: sweepLight 1s ease-out forwards; }
+        @keyframes sweepLight { from { transform: translateX(-100%) skewX(-20deg); } to { transform: translateX(100%) skewX(-20deg); } }
+
+        /* 故障效果 */
+        .glitch-overlay { position: absolute; inset: 0; z-index: 60; pointer-events: none; opacity: 0; }
+        .glitch-overlay.active { animation: glitchFlash 0.15s ease-out; }
+        @keyframes glitchFlash {
+            0%, 100% { opacity: 0; }
+            20% { opacity: 1; background: rgba(255,0,0,0.1); transform: translateX(-3px); }
+            40% { opacity: 1; background: rgba(0,255,255,0.1); transform: translateX(3px); }
+            60% { opacity: 0; }
+        }
+
+        /* 跳过按钮 */
+        .intro-skip { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; color: #fff; font-size: 13px; cursor: pointer; z-index: 100000; }
+
+        /* 🧩 技能面板样式 */
+        .skill-sheet { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; display:none; }
+        .skill-sheet.show { display:flex; flex-direction:column; }
+        .skill-sheet-backdrop { position:absolute; inset:0; }
+        .skill-sheet-content { position:absolute; bottom:0; left:0; right:0; max-height:92vh; background:var(--bg-dark); border-radius:20px 20px 0 0; display:flex; flex-direction:column; transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.32,0.72,0,1); padding-bottom:env(safe-area-inset-bottom); }
+        .skill-sheet.show .skill-sheet-content { transform:translateY(0); }
+        .skill-sheet-handle { width:40px; height:4px; background:#444; border-radius:2px; margin:10px auto 6px; flex-shrink:0; }
+        .skill-sheet-header { display:flex; justify-content:space-between; align-items:center; padding:8px 20px 12px; flex-shrink:0; }
+        .skill-sheet-title { font-size:18px; font-weight:700; color:#fff; }
+        .skill-sheet-close { background:none; border:none; color:#888; font-size:28px; cursor:pointer; padding:4px 8px; }
+        .skill-cats { display:flex; gap:8px; padding:0 20px 12px; overflow-x:auto; flex-shrink:0; -webkit-overflow-scrolling:touch; }
+        .skill-cats::-webkit-scrollbar { display:none; }
+        .skill-cat-btn { padding:8px 16px; background:var(--bg-card); border:1px solid #333; border-radius:20px; color:var(--text-dim); font-size:13px; white-space:nowrap; cursor:pointer; flex-shrink:0; transition:all 0.2s; }
+        .skill-cat-btn.active { background:rgba(251,191,36,0.15); border-color:var(--accent); color:var(--accent); }
+        .skill-search-box { margin:0 20px 12px; padding:10px 14px; background:var(--bg-card); border:1px solid #333; border-radius:10px; color:#fff; font-size:14px; flex-shrink:0; }
+        .skill-grid { flex:1; overflow-y:auto; padding:0 20px 20px; display:grid; grid-template-columns:repeat(2,1fr); gap:12px; align-content:start; }
+        .skill-card-m { background:var(--bg-card); border-radius:14px; padding:16px; cursor:pointer; border:1px solid #222; transition:border-color 0.2s; }
+        .skill-card-m:active { border-color:var(--accent); }
+        .skill-card-m-icon { font-size:28px; margin-bottom:8px; }
+        .skill-card-m-name { font-size:14px; font-weight:600; color:#fff; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .skill-card-m-desc { font-size:11px; color:var(--text-dim); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .skill-card-m-tag { display:inline-block; margin-top:8px; padding:3px 8px; background:rgba(255,255,255,0.06); border-radius:8px; font-size:10px; color:#888; }
+        /* 技能参数页 */
+        .skill-config-page { position:absolute; inset:0; background:var(--bg-dark); display:none; flex-direction:column; z-index:2; }
+        .skill-config-page.show { display:flex; }
+        .skill-config-header { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #222; flex-shrink:0; }
+        .skill-config-back { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:4px; }
+        .skill-config-body { flex:1; overflow-y:auto; padding:20px; }
+        .skill-param-group-m { margin-bottom:16px; }
+        .skill-param-label-m { display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; }
+        .skill-param-input-m, .skill-param-textarea-m, .skill-param-select-m { width:100%; padding:12px; background:var(--bg-input); border:1px solid #2a2a35; border-radius:10px; color:#fff; font-size:14px; }
+        .skill-param-textarea-m { min-height:80px; resize:vertical; }
+        .skill-param-hint-m { font-size:11px; color:#666; margin-top:4px; }
+        .skill-config-footer { padding:16px 20px; border-top:1px solid #222; flex-shrink:0; }
+        .skill-exec-btn { width:100%; padding:16px; background:linear-gradient(135deg, var(--accent), #f59e0b); border:none; border-radius:14px; color:#000; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .skill-exec-btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .skill-cost-row { display:flex; justify-content:space-between; padding:8px 0; font-size:13px; color:var(--text-dim); }
+        .skill-cost-value { color:var(--accent); font-weight:600; }
+        /* 执行进度条（顶部通知） */
+        .skill-exec-bar { position:fixed; top:0; left:0; right:0; z-index:10001; background:var(--bg-card); border-bottom:1px solid #333; padding:10px 16px; transform:translateY(-100%); transition:transform 0.3s; display:flex; align-items:center; gap:12px; }
+        .skill-exec-bar.show { transform:translateY(0); }
+        .skill-exec-bar-icon { font-size:20px; }
+        .skill-exec-bar-info { flex:1; min-width:0; }
+        .skill-exec-bar-name { font-size:13px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .skill-exec-bar-msg { font-size:11px; color:var(--text-dim); margin-top:2px; }
+        .skill-exec-bar-progress { height:3px; background:#333; border-radius:2px; margin-top:4px; overflow:hidden; }
+        .skill-exec-bar-fill { height:100%; background:linear-gradient(90deg, var(--accent), #f59e0b); transition:width 0.3s; }
+        .skill-exec-bar-cancel { background:none; border:1px solid #555; border-radius:8px; color:#f87171; font-size:12px; padding:6px 12px; cursor:pointer; flex-shrink:0; }
+        /* 技能结果面板 */
+        .skill-result-page { position:absolute; inset:0; background:var(--bg-dark); display:none; flex-direction:column; z-index:3; }
+        .skill-result-page.show { display:flex; }
+        .skill-result-body { flex:1; overflow-y:auto; padding:20px; }
+        .skill-result-item { background:var(--bg-card); border-radius:12px; padding:14px; margin-bottom:12px; }
+        .skill-result-img { width:100%; border-radius:8px; margin-bottom:8px; }
+        .skill-result-video { width:100%; border-radius:8px; margin-bottom:8px; }
+        .skill-result-text { font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+        /* 📤 发布面板 */
+        .publish-sheet { position:fixed; inset:0; z-index:10002; display:none; }
+        .publish-sheet.show { display:flex; flex-direction:column; }
+        .publish-sheet-bg { position:absolute; inset:0; background:rgba(0,0,0,0.6); }
+        .publish-sheet-body { position:absolute; bottom:0; left:0; right:0; background:var(--bg-dark); border-radius:20px 20px 0 0; padding-bottom:env(safe-area-inset-bottom); transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.32,0.72,0,1); }
+        .publish-sheet.show .publish-sheet-body { transform:translateY(0); }
+        .publish-options { padding:0 20px 16px; display:flex; flex-direction:column; gap:10px; }
+        .publish-opt { display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--bg-card); border-radius:12px; cursor:pointer; border:1px solid #222; }
+        .publish-opt:active { border-color:var(--accent); }
+        .publish-opt-icon { font-size:24px; flex-shrink:0; }
+        .publish-opt-name { font-size:14px; font-weight:600; color:#fff; flex:1; }
+        .publish-opt-desc { font-size:11px; color:#888; }
+        .publish-platforms { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:0 20px 16px; }
+        .publish-plat { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 8px; background:var(--bg-card); border-radius:12px; cursor:pointer; border:1px solid #222; font-size:12px; color:#ccc; }
+        .publish-plat:active { border-color:var(--accent); background:rgba(251,191,36,0.08); }
+
+        /* 📤 自动发布提示条动画 */
+        @keyframes slideUpIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 📱 手机端开场动画适配 */
+        @media (max-width: 480px) {
+            .film-border { width: 25px; }
+            .era-year { font-size: 48px; }
+            .era-title { font-size: 18px; }
+            .era-desc { font-size: 11px; }
+            .intro-clapperboard { width: 180px; height: 130px; }
+            .clapper-top { height: 32px; }
+            .clapper-body { height: 98px; padding: 10px; }
+            .clapper-row { font-size: 10px; }
+            .clapper-title { font-size: 16px; }
+            .intro-countdown { width: 110px; height: 110px; }
+            .countdown-number { font-size: 48px; }
+            .intro-logo-icon { width: 80px; height: 80px; font-size: 40px; border-radius: 20px; }
+            .intro-logo-text { font-size: 32px; letter-spacing: 4px; }
+            .intro-logo-tagline { font-size: 14px; }
+            .intro-skip { bottom: 15px; right: 15px; padding: 8px 16px; font-size: 12px; }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 🎬 影视开场动画 -->
+    <div id="cinemaIntro" class="cinema-intro">
+        <!-- 时代背景层 -->
+        <div class="era-bg era-silent" id="eraBgSilent"></div>
+        <div class="era-bg era-color" id="eraBgColor"></div>
+        <div class="era-bg era-digital" id="eraBgDigital"></div>
+        <div class="era-bg era-ai" id="eraBgAi"></div>
+        <!-- 胶片边框 -->
+        <div class="film-border left"></div>
+        <div class="film-border right"></div>
+        <!-- 粒子 -->
+        <div class="intro-particles" id="introParticles"></div>
+        <!-- 场记板 -->
+        <div class="intro-clapperboard" id="introClapperboard">
+            <div class="clapper-top"></div>
+            <div class="clapper-body">
+                <div class="clapper-row"><span class="clapper-label">PROD</span><span class="clapper-value">ROLLROLL</span></div>
+                <div class="clapper-row"><span class="clapper-label">SCENE</span><span class="clapper-value">001</span></div>
+                <div class="clapper-row"><span class="clapper-label">TAKE</span><span class="clapper-value">1</span></div>
+                <div class="clapper-title">ACTION!</div>
+            </div>
+        </div>
+        <!-- 时代卡片 -->
+        <div class="era-card era-silent-card" id="eraCardSilent"><div class="era-year">1895</div><div class="era-title">SILENT FILM ERA</div><div class="era-desc">默片时代 · 光影诞生</div></div>
+        <div class="era-card era-color-card" id="eraCardColor"><div class="era-year">1935</div><div class="era-title">TECHNICOLOR ERA</div><div class="era-desc">彩色时代 · 色彩革命</div></div>
+        <div class="era-card era-digital-card" id="eraCardDigital"><div class="era-year">1999</div><div class="era-title">DIGITAL CINEMA</div><div class="era-desc">数字时代 · 技术飞跃</div></div>
+        <div class="era-card era-ai-card" id="eraCardAi"><div class="era-year">2026</div><div class="era-title">AI FILMMAKING</div><div class="era-desc">智能时代 · 无限可能</div></div>
+        <!-- 倒计时 -->
+        <div class="intro-countdown" id="introCountdown"><div class="countdown-circle"></div><div class="countdown-number" id="countdownNumber">3</div></div>
+        <!-- LOGO -->
+        <div class="intro-logo" id="introLogo">
+            <div class="intro-logo-icon">🎬</div>
+            <div class="intro-logo-text">ROLLROLL</div>
+            <div class="intro-logo-tagline">你就是导演</div>
+        </div>
+        <!-- 光线扫过 -->
+        <div class="light-sweep" id="lightSweep"></div>
+        <!-- 故障效果 -->
+        <div class="glitch-overlay" id="glitchOverlay"></div>
+        <!-- 跳过按钮 -->
+        <button class="intro-skip" onclick="skipIntro()">跳过 ›</button>
+    </div>
+
+    <script>
+    // 开场动画/欢迎页显示逻辑（登录后可以跳过，其他情况强制显示）
+    var _showIntro = false;
+    var _introStyleTag = null;
+    (function() {
+        // 🔒 只有登录后跳转（logged_in=1 或 skip_welcome=1）才跳过
+        // 其他情况强制显示开场动画和欢迎页
+        if(location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1){
+            history.replaceState({}, '', location.pathname);
+            _showIntro = false;
+            // 登录后直接显示主页面，不隐藏任何元素
+            return;
+        }
+        // 强制显示开场动画和欢迎页
+        _showIntro = true;
+        var style = document.createElement('style');
+        style.id = 'cinemaIntroInjectedStyle';
+        style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar{display:none!important;opacity:0;visibility:hidden}';
+        document.head.appendChild(style);
+        _introStyleTag = style;
+    })();
+    </script>
+    <!-- 欢迎页 -->
+    <div id="welcomeScreen" class="welcome-screen">
+        <div class="welcome-bg-text">
+            <img src="images/yanbudouyanle.png" alt="演都不演了" />
+        </div>
+        <div class="welcome-content">
+            <div class="welcome-badge">🚀 AI 驱动创作平台</div>
+            <div class="welcome-promo" style="padding: 18px 20px;">
+                <div class="welcome-promo-title" style="font-size: 18px; margin-bottom: 10px;">🎁 新用户注册就送 10 万胶片</div>
+                <div class="welcome-promo-desc" style="font-size: 14px; line-height: 1.6;">
+                    第八代全自动生成式AI内容创作平台爆肝登场，特别鸣谢未来股东们的大力支持。
+                </div>
+            </div>
+            <h1 class="welcome-title">你就是导演</h1>
+            <h2 class="welcome-subtitle">重新定义视频创作的无限可能</h2>
+            <p class="welcome-desc">
+                从灵感闪现到成片出炉，让AI成为你的专业创作伙伴。<br>
+                智能剧本生成、精美图片创作、专业视频制作——<br>
+                每个人都能成为自己故事的导演。
+            </p>
+            <div class="welcome-quote-box">
+                <div class="quote-text">梦想可以放下，但是不要放弃</div>
+                <div class="quote-author">—— 荆广伟</div>
+            </div>
+            <a id="welcomeEnterBtn" href="auth.html?force=mobile&no_redirect=true" class="btn-start-journey">🔒 登录 / 注册开始创作</a>
+        </div>
+    </div>
+
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            RollRoll
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="quota-display" id="quotaDisplay">
+                <span class="film-icon">🎞️</span>
+                <span id="quotaValue">--</span>
+            </div>
+            <a href="auth.html?force=mobile&no_redirect=true" class="user-btn" id="userBtn">👤</a>
+        </div>
+    </header>
+
+    <div id="mobileDebugBar"
+        style="padding:6px 12px;font-size:11px;color:#fff;background:#333;border-bottom:1px solid rgba(255,255,255,0.06);display:none;">
+        调试信息加载中...
+    </div>
+
+    <!-- 主内容 -->
+    <main class="main">
+        <!-- 🛠️ 工具入口 -->
+        <div class="tools-grid"
+            style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+            <a href="knolling.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">📝</span>
+                <span style="font-size:11px;color:var(--text-dim);">提示词</span>
+            </a>
+            <a href="banana.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🎨</span>
+                <span style="font-size:11px;color:var(--text-dim);">画图</span>
+            </a>
+            <a href="music.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🎵</span>
+                <span style="font-size:11px;color:var(--text-dim);">音乐</span>
+            </a>
+            <a href="video-tools.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🎬</span>
+                <span style="font-size:11px;color:var(--text-dim);">视频</span>
+            </a>
+            <a href="chat.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">💬</span>
+                <span style="font-size:11px;color:var(--text-dim);">对话</span>
+            </a>
+            <a href="writing.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">✍️</span>
+                <span style="font-size:11px;color:var(--text-dim);">写作</span>
+            </a>
+            <a href="sticker.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">😀</span>
+                <span style="font-size:11px;color:var(--text-dim);">表情包</span>
+            </a>
+            <a href="video-continuity.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🎞️</span>
+                <span style="font-size:11px;color:var(--text-dim);">分镜</span>
+            </a>
+            <a href="sketchpad.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">✏️</span>
+                <span style="font-size:11px;color:var(--text-dim);">涂鸦</span>
+            </a>
+            <a href="prompt-fill.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">🧩</span>
+                <span style="font-size:11px;color:var(--text-dim);">填空</span>
+            </a>
+            <a href="library.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">📚</span>
+                <span style="font-size:11px;color:var(--text-dim);">素材库</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openMobileCharacterLibrary()" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:var(--bg-card);border-radius:12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:24px;margin-bottom:4px;">👤</span>
+                <span style="font-size:11px;color:var(--text-dim);">角色库</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openMobileMVGenerator()" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(139,92,246,0.3);">
+                <span style="font-size:24px;margin-bottom:4px;">🎵</span>
+                <span style="font-size:11px;color:var(--text-dim);">音乐MV</span>
+            </a>
+            <a href="voice.html?force=mobile" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(34,197,94,0.2), rgba(16,185,129,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(34,197,94,0.3);">
+                <span style="font-size:24px;margin-bottom:4px;">🎤</span>
+                <span style="font-size:11px;color:var(--text-dim);">配音</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openMobileSora2CharacterPanel()" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(212,175,55,0.2), rgba(255,215,0,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(212,175,55,0.3);">
+                <span style="font-size:24px;margin-bottom:4px;">🎭</span>
+                <span style="font-size:11px;color:var(--text-dim);">Sora2角色</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openMobileSkillPanel()" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(251,191,36,0.2), rgba(245,158,11,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(251,191,36,0.3);">
+                <span style="font-size:24px;margin-bottom:4px;">🧩</span>
+                <span style="font-size:11px;color:var(--text-dim);">技能</span>
+            </a>
+        </div>
+
+        <!-- 模式切换 -->
+        <div class="mode-tabs">
+            <button class="mode-tab active" data-type="video" onclick="switchMode('video')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                AI视频
+            </button>
+            <button class="mode-tab" data-type="comic" onclick="switchMode('comic')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="9" y1="21" x2="9" y2="9" />
+                </svg>
+                AI漫画
+            </button>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-section">
+            <label class="input-label">✨ 输入你的创意主题</label>
+            <textarea class="input-box" id="themeInput" placeholder="例如：一只猫咪学习编程的故事..."></textarea>
+
+            <div class="quick-tags">
+                <span class="quick-tag" onclick="insertTag('科幻冒险')">🚀 科幻</span>
+                <span class="quick-tag" onclick="insertTag('甜蜜爱情')">💕 爱情</span>
+                <span class="quick-tag" onclick="insertTag('搞笑日常')">😂 搞笑</span>
+                <span class="quick-tag" onclick="insertTag('悬疑推理')">🔍 悬疑</span>
+                <span class="quick-tag" onclick="insertTag('治愈温馨')">🌸 治愈</span>
+            </div>
+
+            <div style="margin-top: 12px;">
+                <label class="input-label">🎯 快速模板</label>
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+                    <div class="quick-tag" onclick="useTemplate('portrait')" style="text-align:center;">👤 人物</div>
+                    <div class="quick-tag" onclick="useTemplate('landscape')" style="text-align:center;">🏞️ 风景</div>
+                    <div class="quick-tag" onclick="useTemplate('product')" style="text-align:center;">📦 产品</div>
+                    <div class="quick-tag" onclick="useTemplate('anime')" style="text-align:center;">🎌 动漫</div>
+                    <div class="quick-tag" onclick="useTemplate('food')" style="text-align:center;">🍔 美食</div>
+                    <div class="quick-tag" onclick="useTemplate('architecture')" style="text-align:center;">🏛️ 建筑</div>
+                </div>
+            </div>
+
+            <!-- 🧩 提示词填空模板 -->
+            <div style="margin-top: 16px;">
+                <label class="input-label">🧩 提示词填空模板 <span style="font-size:11px;color:#888;">(100+专业模板)</span></label>
+                <select id="fillTemplateSelect" style="width:100%; padding:12px; background:var(--bg-input); border:1px solid #2a2a35; border-radius:10px; color:var(--text); font-size:14px;">
+                    <option value="">-- 选择模板或直接输入主题 --</option>
+                </select>
+                <!-- 填空输入区域 -->
+                <div id="fillBlanksContainer" style="margin-top:10px;"></div>
+                <!-- 模板预览 -->
+                <div id="fillPreview" style="display:none; margin-top:10px; padding:12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; font-size:13px; color:#a78bfa; white-space:pre-wrap; word-break:break-word;"></div>
+                
+                <!-- 🎤 台词输入（可选） -->
+                <div id="dialogueBlock" style="display:none; margin-top:10px;">
+                    <label style="display:block; font-size:12px; color:#888; margin-bottom:6px;">🎤 台词/字幕（每行一条，可写“角色：台词”）</label>
+                    <textarea id="fillDialogText" rows="4" placeholder="主角：我们走！\n反派：别想逃！" 
+                        oninput="updateThemeFromBlanks()"
+                        style="width:100%; padding:10px; background:var(--bg-input); border:1px solid #2a2a35; border-radius:8px; color:var(--text); font-size:13px;"></textarea>
+                </div>
+                
+                <!-- 🎥 运镜组合（可多选） -->
+                <div id="cameraBlock" style="display:none; margin-top:10px;">
+                    <label style="display:block; font-size:12px; color:#888; margin-bottom:6px;">🎥 运镜组合（可多选）</label>
+                    <div id="cameraMovesContainer" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                    <div style="margin-top:8px; display:flex; gap:8px;">
+                        <button type="button" onclick="randomCameraMoves(2)" style="padding:6px 10px; font-size:12px; background:#333; color:#fff; border:1px solid #444; border-radius:6px;">随机2个</button>
+                        <button type="button" onclick="randomCameraMoves(3)" style="padding:6px 10px; font-size:12px; background:#333; color:#fff; border:1px solid #444; border-radius:6px;">随机3个</button>
+                        <button type="button" onclick="clearCameraMoves()" style="padding:6px 10px; font-size:12px; background:#222; color:#aaa; border:1px solid #444; border-radius:6px;">清空</button>
+                    </div>
+                </div>
+                
+                <!-- 🎬 使用模板生成视频按钮 -->
+                <div id="fillTemplateActions" style="display:none; margin-top:10px; display:flex; gap:8px;">
+                    <button onclick="useFilledTemplateForVideo()" 
+                        style="flex:1; padding:12px; background:linear-gradient(135deg, #667eea, #764ba2); border:none; border-radius:8px; color:#fff; font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        🎬 使用此模板生成视频
+                    </button>
+                    <a href="prompt-fill.html?force=mobile" 
+                        style="padding:12px 16px; background:var(--bg-card); border:1px solid #333; border-radius:8px; color:var(--text); font-size:13px; text-decoration:none; display:flex; align-items:center; justify-content:center;">
+                        更多模板 →
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 视频选项区域 -->
+        <div class="options-section" id="videoOptionsSection">
+            <div class="option-row">
+                <div class="option-group">
+                    <label for="quickGenMode">🎯 生成模式</label>
+                    <select id="quickGenMode" title="选择生成模式" onchange="onGenModeChange(this.value)">
+                        <option value="modelscope-video">🆓 魔塔视频（免费）</option>
+                        <option value="text-to-video">Sora-2 (文生视频)</option>
+                        <option value="image-to-video">Flux + Sora-2 (图生视频)</option>
+                        <option value="banana-image-to-video">Gemini-3 + Sora-2 (图生视频)</option>
+                        <option value="banana-grid-to-video">🎯 网格图省费版 (1图切N分镜)</option>
+                        <optgroup label="🎬 Veo 3.1 系列">
+                            <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+                            <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                            <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                            <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 5秒">
+                            <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                            <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+                            <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+                            <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                            <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                            <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5秒 720P (72胶片/顶级)</option>
+                            <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5秒 1080P (77胶片/顶级)</option>
+                        </optgroup>
+                        <optgroup label="🎬 Vidu 系列 - 10秒">
+                            <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
+                            <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+                            <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+                            <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+                            <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                            <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10秒 720P (144胶片/顶级)</option>
+                            <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10秒 1080P (154胶片/顶级)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo - 6秒">
+                            <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
+                            <option value="hailuo-02-1080p-6s">海螺 02 6秒 1080P (12胶片)</option>
+                            <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
+                            <option value="hailuo-fast-1080p-6s">海螺 Fast 6秒 1080P (8胶片)</option>
+                        </optgroup>
+                        <optgroup label="🐚 海螺 Hailuo - 10秒">
+                            <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
+                            <option value="hailuo-02-1080p-10s">海螺 02 10秒 1080P (20胶片)</option>
+                            <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
+                            <option value="hailuo-fast-1080p-10s">海螺 Fast 10秒 1080P (13胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling - 5秒">
+                            <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
+                            <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
+                            <option value="kling-2.0-720p-5s">可灵 2.0 5秒 720P (7胶片)</option>
+                            <option value="kling-2.0-1080p-5s">可灵 2.0 5秒 1080P (12胶片)</option>
+                            <option value="kling-o1-720p-5s">可灵 O1 5秒 720P (15胶片/顶级)</option>
+                            <option value="kling-o1-1080p-5s">可灵 O1 5秒 1080P (20胶片)</option>
+                        </optgroup>
+                        <optgroup label="✨ 可灵 Kling - 10秒">
+                            <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
+                            <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
+                            <option value="kling-2.0-720p-10s">可灵 2.0 10秒 720P (14胶片)</option>
+                            <option value="kling-2.0-1080p-10s">可灵 2.0 10秒 1080P (24胶片)</option>
+                            <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
+                            <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
+                        </optgroup>
+                        <option value="grok-video-3-text">Grok Video 3 6秒 (文生视频)</option>
+                        <option value="grok-video-3">Grok Video 3 6秒 (图生视频)</option>
+                        <option value="grok-video-3-10s-text">Grok Video 3 10秒 (文生视频)</option>
+                        <option value="grok-video-3-10s">Grok Video 3 10秒 (图生视频)</option>
+                        <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option>
+                        <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option>
+                        <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
+                    </select>
+                </div>
+            </div>
+            <!-- 🧩 API 格式（与电脑版一致，可强制首选格式） -->
+            <div class="option-row">
+                <div class="option-group">
+                    <label for="soraApiFormat">🧩 API格式</label>
+                    <select id="soraApiFormat" title="自动：失败自动切换；统一：/v1/video/create；OpenAI：/v1/videos">
+                        <option value="auto" selected>自动（推荐）</option>
+                        <option value="unified">统一格式</option>
+                        <option value="openai">OpenAI格式</option>
+                    </select>
+                    <div style="font-size:11px;color:#666;margin-top:4px;">遇到 400/422/500 会自动使用备用格式重试</div>
+                </div>
+            </div>
+            <!-- 🟢 普通模式：时长和分镜数 -->
+            <div class="option-row" id="normalModeOptions">
+                <div class="option-group">
+                    <label for="quickDuration">⏱️ 时长 (秒)</label>
+                    <input type="number" id="quickDuration" placeholder="自动分析" min="0" max="60" title="0或留空为自动分析">
+                </div>
+                <div class="option-group">
+                    <label for="quickScenes">🎥 分镜数</label>
+                    <input type="number" id="quickScenes" placeholder="自动分析" min="0" max="20" title="0或留空为自动分析">
+                </div>
+            </div>
+            <!-- 🎯 网格图省费版专用选项 -->
+            <div id="gridModeOptions" style="display:none;">
+                <div class="option-row">
+                    <div class="option-group">
+                        <label for="gridImageCount">🖼️ 网格图数量</label>
+                        <input type="number" id="gridImageCount" value="1" min="1" max="5" title="生成几张网格图（每张对应一个视频）">
+                    </div>
+                    <div class="option-group">
+                        <label for="gridPanelCount">🔲 每图分镜数</label>
+                        <input type="number" id="gridPanelCount" value="4" min="2" max="6" title="每张网格图内的分镜格子数">
+                    </div>
+                </div>
+                <div style="padding:8px 12px; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); border-radius:8px; margin-top:8px;">
+                    <div style="font-size:12px; color:#fbbf24;">💡 网格图省费版说明</div>
+                    <div style="font-size:11px; color:#888; margin-top:4px;">
+                        • 网格图数量 = 生成的视频数（每张图切出一个视频）<br>
+                        • 每图分镜数 = 单张网格图内的场景数<br>
+                        • 总分镜 = <span id="gridTotalPanels">4</span> 个，总时长约 <span id="gridTotalDuration">15</span> 秒
+                    </div>
+                </div>
+            </div>
+            <!-- 🎭 角色选择区 -->
+            <div class="option-row" style="margin-top:8px;">
+                <div class="option-group" style="flex:1;">
+                    <label>🎭 角色一致性</label>
+                    <div style="display:flex; gap:8px;">
+                        <button onclick="openMobileSora2CharacterPanel()" 
+                            style="flex:1; padding:10px; background:linear-gradient(135deg, rgba(212,175,55,0.2), rgba(255,215,0,0.1)); border:1px solid rgba(212,175,55,0.4); border-radius:8px; color:#d4af37; font-size:13px; cursor:pointer;">
+                            🎭 选择角色
+                        </button>
+                        <button onclick="openMobileCharacterLibrary()" 
+                            style="flex:1; padding:10px; background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(168,85,247,0.1)); border:1px solid rgba(139,92,246,0.4); border-radius:8px; color:#a78bfa; font-size:13px; cursor:pointer;">
+                            👤 角色库
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 漫画选项区域 -->
+        <div class="options-section" id="comicOptionsSection" style="display: none;">
+            <div class="option-row">
+                <div class="option-group">
+                    <label for="comicStyle">🎨 漫画风格</label>
+                    <select id="comicStyle">
+                        <option value="japanese">🇯🇵 日式漫画</option>
+                        <option value="japaneseColor">🎨 日式彩漫</option>
+                        <option value="american">🇺🇸 美式漫画</option>
+                        <option value="korean">🇰🇷 韩式条漫</option>
+                        <option value="shagou">🤪 沙雕漫画</option>
+                        <option value="children">👶 儿童绘本</option>
+                    </select>
+                </div>
+                <div class="option-group">
+                    <label for="comicModel">🖼️ 图片模型</label>
+                    <select id="comicModel">
+                        <option value="modelscope">🆓 智能绘图（推荐、免费）</option>
+                        <option value="nano-banana-2">💰 Banana 标准版 (0.7胶片)</option>
+                        <option value="nano-banana-2-2k">💰 Banana 2K 超清 (0.7胶片)</option>
+                        <option value="nano-banana-2-4k">💰 Banana 4K 顶级 (1.2胶片)</option>
+                        <option value="doubao-seedream-4-5-251128">✨ 星梦画师（文/图生图）</option>
+                        <!-- 即梦已停用 <option value="jimeng-4.5">🎨 即梦4.5（文/图生图 0.6胶片）</option> -->
+                        <option value="Qwen/Qwen-Image-2512">🖼️ 通义万相Max (8胶片)</option>
+                        <option value="midjourney-fast">🎨 Midjourney Fast (2胶片)</option>
+                        <option value="midjourney-turbo">⚡ Midjourney Turbo (2胶片)</option>
+                        <option value="midjourney-relax">🐢 Midjourney Relax (2胶片)</option>
+                    </select>
+                </div>
+                <div class="option-group" id="mjVersionGroup" style="display:none;">
+                    <label for="mjVersion">🎯 MJ版本</label>
+                    <select id="mjVersion">
+                        <option value="7">v7 最新</option>
+                        <option value="6.1" selected>v6.1 稳定</option>
+                        <option value="6">v6.0</option>
+                        <option value="5.2">v5.2</option>
+                        <option value="5.1">v5.1</option>
+                        <option value="5">v5.0</option>
+                        <option value="niji7">Niji 7 动漫（最新）</option>
+                        <option value="niji6">Niji 6 动漫</option>
+                    </select>
+                </div>
+            </div>
+            <div class="option-row">
+                <div class="option-group">
+                    <label for="comicPages">📄 页数</label>
+                    <input type="number" id="comicPages" value="4" min="1" max="16">
+                </div>
+                <div class="option-group">
+                    <label for="comicPanels">🖼️ 每页格数</label>
+                    <input type="number" id="comicPanels" value="4" min="2" max="8">
+                </div>
+            </div>
+        </div>
+
+        <!-- 📚 批量漫画区域（从写作页跳转过来时显示） -->
+        <div id="batchComicSection" style="display:none;">
+            <div style="margin-bottom:16px; padding:12px 16px; background:linear-gradient(135deg, rgba(236,72,153,0.15), rgba(168,85,247,0.1)); border:1px solid rgba(236,72,153,0.3); border-radius:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div style="font-size:16px; font-weight:600; color:#ec4899;">📚 批量漫画模式</div>
+                    <button onclick="exitBatchComicMode()" style="padding:4px 10px; background:#333; border:none; border-radius:6px; color:#888; font-size:12px; cursor:pointer;">退出批量</button>
+                </div>
+                <div style="font-size:12px; color:#a78bfa;">已加载 <span id="batchComicCount">0</span> 个漫画任务，将并发生成</div>
+            </div>
+            
+            <!-- 批量任务列表 -->
+            <div id="batchComicTaskList" style="display:grid; gap:12px; margin-bottom:16px;"></div>
+            
+            <!-- 批量生成按钮 -->
+            <button id="batchComicGenerateBtn" onclick="startBatchComicGenerate()" 
+                style="width:100%; padding:16px; background:linear-gradient(135deg, #ec4899, #a855f7); border:none; border-radius:12px; color:#fff; font-size:16px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                🚀 开始并发生成漫画
+            </button>
+            
+            <!-- 批量进度区域 -->
+            <div id="batchComicProgressSection" style="display:none; margin-top:16px;">
+                <div style="font-size:13px; color:#888; margin-bottom:8px;">生成进度</div>
+                <div id="batchComicProgressList" style="display:grid; gap:8px;"></div>
+            </div>
+            
+            <!-- 批量结果区域 -->
+            <div id="batchComicResultSection" style="display:none; margin-top:16px;">
+                <div style="font-size:14px; color:#4ade80; font-weight:600; margin-bottom:12px;">✅ 批量生成完成</div>
+                <div id="batchComicResultList" style="display:grid; gap:12px;"></div>
+            </div>
+        </div>
+
+        <!-- 图片上传区域（图生视频模式显示） -->
+        <div class="input-section" id="imageUploadSection" style="display: none;">
+            <!-- 🆕 文生图模型选择器 -->
+            <div style="margin-bottom:12px;">
+                <label class="input-label">🎨 文生图模型 <span style="font-size:11px;color:#888;">(未上传图片时使用)</span></label>
+                <select id="i2vImageModel" style="width:100%; padding:10px 12px; background:var(--bg-input); border:1px solid #2a2a35; border-radius:10px; color:var(--text); font-size:14px;">
+                    <option value="doubao-seedream-4-5-251128" selected>✨ 星梦画师 (推荐、7胶片)</option>
+                    <option value="nano-banana-2-4k">💎 Banana 4K (高清)</option>
+                    <option value="nano-banana-2-2k">🖼️ Banana 2K (标准)</option>
+                    <option value="Qwen/Qwen-Image-2512">🌟 通义万象Max (8胶片)</option>
+                    <option value="midjourney-fast">🎨 Midjourney Fast (2胶片)</option>
+                    <option value="modelscope">🆓 智能绘图 (免费)</option>
+                </select>
+            </div>
+            <label class="input-label">🖼️ 上传参考图片 <span style="font-size:12px;color:#888;">(可选，支持多图)</span></label>
+            <input type="file" id="i2vImageInput" accept="image/*" multiple style="display: none;"
+                onchange="previewI2VImages(this)">
+            <div class="upload-area" id="i2vUploadArea" onclick="document.getElementById('i2vImageInput').click()"
+                style="border: 2px dashed #2a2a35; border-radius: var(--radius); padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.3s;">
+                <div style="font-size: 32px; margin-bottom: 8px;">📷</div>
+                <div style="color: var(--text-dim); font-size: 14px;" id="i2vUploadText">点击上传图片（可多选）<br><span style="font-size:11px;color:#666;">未上传则自动文生图</span></div>
+                <!-- 🆕 多图预览容器 -->
+                <div id="i2vPreviewContainer" style="display:none; margin-top:12px; gap:8px; flex-wrap:wrap; justify-content:center;"></div>
+                <!-- 单图预览（兼容旧版） -->
+                <img id="i2vPreview" src="" alt="预览"
+                    style="display: none; max-width: 100%; max-height: 200px; margin-top: 12px; border-radius: 8px;">
+            </div>
+            <!-- 🆕 多图合并选项 -->
+            <div id="i2vMergeOptions" style="display:none; margin-top:12px; padding:12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:13px; color:#a78bfa;">🖼️ 已选择 <span id="i2vImageCount">0</span> 张图片</span>
+                    <button onclick="clearI2VImages()" style="background:none; border:none; color:#f87171; font-size:12px; cursor:pointer;">清空全部</button>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <label style="font-size:12px; color:#888;">合并方式:</label>
+                    <select id="i2vMergeMode" style="flex:1; padding:6px 10px; background:#1a1a24; border:1px solid #333; border-radius:6px; color:#fff; font-size:12px;">
+                        <option value="horizontal">↔️ 横向拼接</option>
+                        <option value="vertical">↕️ 竖向拼接</option>
+                        <option value="grid" selected>⬜ 网格排列</option>
+                    </select>
+                </div>
+                <div style="margin-top:8px; font-size:11px; color:#666;">Sora-2 会将多张图片合并为一张参考图生成视频</div>
+            </div>
+        </div>
+
+        <!-- 🎭 已选角色显示 -->
+        <div id="selectedCharacterDisplay" style="display:none; margin:12px 0; padding:12px 16px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:10px;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img id="selectedCharImg" src="" style="width:36px; height:36px; border-radius:6px; object-fit:cover; display:none;">
+                    <div>
+                        <div style="font-size:12px; color:#a78bfa;">🎭 已选角色</div>
+                        <div id="selectedCharName" style="font-size:14px; color:#fff; font-weight:500;">未选择</div>
+                    </div>
+                </div>
+                <button onclick="clearSelectedCharacter()" style="background:none; border:none; color:#888; font-size:18px; cursor:pointer; padding:4px 8px;">&times;</button>
+            </div>
+        </div>
+
+        <!-- 生成按钮 -->
+        <button class="generate-btn" id="generateBtn" onclick="startGenerate()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            开始生成
+        </button>
+
+        <!-- 切换到电脑版提示 -->
+        <div class="pc-hint">
+            💡 需要更多功能？<a href="index.html?force=pc">切换到电脑版</a>体验节点编辑、角色库等高级功能
+        </div>
+        
+        <!-- 📜 法律声明链接 -->
+        <div style="text-align:center; margin-top:24px; padding:16px; font-size:12px; color:#666;">
+            <a href="terms.html" style="color:#888; text-decoration:none; margin-right:16px;">服务条款</a>
+            <a href="disclaimer.html" style="color:#888; text-decoration:none;">免责声明</a>
+        </div>
+    </main>
+
+    <!-- 🆕 作品页面（独立页面） -->
+    <main class="main works-page" id="worksPage" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <button onclick="showTab('create')" style="padding:8px 12px; background:#333; border:none; border-radius:8px; color:#fff; font-size:14px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                    ← 返回
+                </button>
+                <h2 style="margin:0; font-size:20px; color:#fff;">📋 我的作品</h2>
+            </div>
+            <button onclick="manualSyncFromCloud()" style="padding:8px 14px; font-size:13px; background:linear-gradient(135deg,#333,#222); border:1px solid #444; border-radius:8px; color:#fff; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                <span>☁️</span> 同步
+            </button>
+        </div>
+        
+        <!-- 筛选标签 -->
+        <div style="display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; padding-bottom:4px;">
+            <button class="works-filter-btn active" data-filter="all" onclick="filterWorks('all')" style="padding:8px 16px; background:var(--accent); border:none; border-radius:20px; color:#000; font-size:13px; font-weight:600; white-space:nowrap;">全部</button>
+            <button class="works-filter-btn" data-filter="video" onclick="filterWorks('video')" style="padding:8px 16px; background:#333; border:none; border-radius:20px; color:#fff; font-size:13px; white-space:nowrap;">🎬 视频</button>
+            <button class="works-filter-btn" data-filter="comic" onclick="filterWorks('comic')" style="padding:8px 16px; background:#333; border:none; border-radius:20px; color:#fff; font-size:13px; white-space:nowrap;">📚 漫画</button>
+            <button class="works-filter-btn" data-filter="completed" onclick="filterWorks('completed')" style="padding:8px 16px; background:#333; border:none; border-radius:20px; color:#fff; font-size:13px; white-space:nowrap;">✅ 已完成</button>
+            <button class="works-filter-btn" data-filter="processing" onclick="filterWorks('processing')" style="padding:8px 16px; background:#333; border:none; border-radius:20px; color:#fff; font-size:13px; white-space:nowrap;">⏳ 生成中</button>
+            <button class="works-filter-btn" data-filter="skill" onclick="filterWorks('skill')" style="padding:8px 16px; background:#333; border:none; border-radius:20px; color:#fff; font-size:13px; white-space:nowrap;">🧩 技能</button>
+        </div>
+        
+        <!-- 作品列表 -->
+        <div class="task-list" id="worksTaskList">
+            <!-- 动态填充 -->
+        </div>
+        
+        <!-- 空状态 -->
+        <div id="worksEmptyState" style="display:none; text-align:center; padding:60px 20px; color:#666;">
+            <div style="font-size:64px; margin-bottom:16px;">🎨</div>
+            <div style="font-size:16px; margin-bottom:8px;">还没有作品</div>
+            <div style="font-size:13px; color:#555;">去创作页面生成你的第一个作品吧！</div>
+            <button onclick="showTab('create')" style="margin-top:20px; padding:12px 24px; background:var(--accent); border:none; border-radius:10px; color:#000; font-size:14px; font-weight:600; cursor:pointer;">去创作</button>
+        </div>
+    </main>
+
+    <!-- 底部导航 -->
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active" onclick="showTab('create')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14" />
+            </svg>
+            创作
+        </a>
+        <a href="#" class="nav-item" onclick="showTab('works')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            作品
+        </a>
+        <a href="user.html" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+            </svg>
+            我的
+        </a>
+    </nav>
+
+    <!-- 加载状态 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loadingText">正在生成中...</div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 🧩 技能面板 (Bottom Sheet) -->
+    <div class="skill-sheet" id="skillSheet">
+        <div class="skill-sheet-backdrop" onclick="closeMobileSkillPanel()"></div>
+        <div class="skill-sheet-content">
+            <div class="skill-sheet-handle"></div>
+            <div class="skill-sheet-header">
+                <span class="skill-sheet-title">🧩 技能库</span>
+                <button class="skill-sheet-close" onclick="closeMobileSkillPanel()">&times;</button>
+            </div>
+            <!-- 分类标签 -->
+            <div class="skill-cats" id="skillCats">
+                <button class="skill-cat-btn active" data-cat="all" onclick="mobileSkillSetCategory('all')">全部</button>
+                <button class="skill-cat-btn" data-cat="video" onclick="mobileSkillSetCategory('video')">🎬 视频</button>
+                <button class="skill-cat-btn" data-cat="image" onclick="mobileSkillSetCategory('image')">🖼️ 图像</button>
+                <button class="skill-cat-btn" data-cat="content" onclick="mobileSkillSetCategory('content')">✍️ 内容</button>
+                <button class="skill-cat-btn" data-cat="automation" onclick="mobileSkillSetCategory('automation')">⚙️ 自动化</button>
+                <button class="skill-cat-btn" data-cat="history" onclick="mobileSkillShowHistory()" style="margin-left:auto;">📂 历史</button>
+            </div>
+            <!-- 搜索 -->
+            <input type="text" class="skill-search-box" id="skillSearchBox" placeholder="🔍 搜索技能..." oninput="mobileSkillSearch(this.value)">
+            <!-- 技能卡片网格 -->
+            <div class="skill-grid" id="skillGrid"></div>
+            <!-- 技能历史列表 -->
+            <div class="skill-grid" id="skillHistoryList" style="display:none;"></div>
+
+            <!-- 参数配置页 -->
+            <div class="skill-config-page" id="skillConfigPage">
+                <div class="skill-config-header">
+                    <button type="button" class="skill-config-back" onclick="mobileSkillBack(event)">←</button>
+                    <span id="skillConfigTitle" style="font-size:16px;font-weight:600;color:#fff;"></span>
+                </div>
+                <div class="skill-config-body" id="skillConfigBody"></div>
+                <div class="skill-config-footer">
+                    <div id="skillCostArea"></div>
+                    <button type="button" class="skill-exec-btn" id="skillExecBtn" onclick="mobileSkillExecute(event)">⚡ 开始执行</button>
+                </div>
+            </div>
+
+            <!-- 结果页 -->
+            <div class="skill-result-page" id="skillResultPage">
+                <div class="skill-config-header">
+                    <button type="button" class="skill-config-back" onclick="mobileSkillCloseResult(event)">←</button>
+                    <span style="font-size:16px;font-weight:600;color:#fff;">✅ 执行结果</span>
+                </div>
+                <div class="skill-result-body" id="skillResultBody"></div>
+                <div class="skill-config-footer" style="display:flex;gap:10px;">
+                    <button type="button" class="skill-exec-btn" onclick="mobileSkillCloseResult(event)" style="background:#333;color:#fff;flex:1;">完成</button>
+                    <button type="button" class="skill-exec-btn" onclick="mobileSkillPublish()" style="flex:1;">📤 发布</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 📤 发布面板（独立于技能面板，支持从任务卡片直接调用） -->
+    <div class="publish-sheet" id="publishSheet">
+        <div class="publish-sheet-bg" onclick="closePublishSheet()"></div>
+        <div class="publish-sheet-body">
+            <div class="skill-sheet-handle"></div>
+            <div style="padding:16px 20px 12px;font-size:16px;font-weight:700;color:#fff;">📤 发布到自媒体</div>
+            <div class="publish-options">
+                <div class="publish-opt" onclick="publishAction('share')">
+                    <span class="publish-opt-icon">📱</span>
+                    <span class="publish-opt-name">分享到...</span>
+                    <span class="publish-opt-desc">调用系统分享（微信/QQ等）</span>
+                </div>
+                <div class="publish-opt" onclick="publishAction('copyText')">
+                    <span class="publish-opt-icon">📋</span>
+                    <span class="publish-opt-name">复制文案</span>
+                    <span class="publish-opt-desc">复制所有文本内容到剪贴板</span>
+                </div>
+                <div class="publish-opt" onclick="publishAction('downloadAll')">
+                    <span class="publish-opt-icon">💾</span>
+                    <span class="publish-opt-name">保存全部素材</span>
+                    <span class="publish-opt-desc">下载所有图片/视频到本地</span>
+                </div>
+            </div>
+            <div style="padding:0 20px 8px;font-size:13px;color:#888;font-weight:600;">🎯 平台专属格式</div>
+            <div class="publish-platforms">
+                <div class="publish-plat" onclick="publishForPlatform('xiaohongshu')">
+                    <span style="font-size:22px;">📕</span>
+                    <span>小红书</span>
+                </div>
+                <div class="publish-plat" onclick="publishForPlatform('douyin')">
+                    <span style="font-size:22px;">🎵</span>
+                    <span>抖音</span>
+                </div>
+                <div class="publish-plat" onclick="publishForPlatform('weibo')">
+                    <span style="font-size:22px;">🌐</span>
+                    <span>微博</span>
+                </div>
+                <div class="publish-plat" onclick="publishForPlatform('gongzhonghao')">
+                    <span style="font-size:22px;">💬</span>
+                    <span>公众号</span>
+                </div>
+                <div class="publish-plat" onclick="publishForPlatform('bilibili')">
+                    <span style="font-size:22px;">📺</span>
+                    <span>B站</span>
+                </div>
+                <div class="publish-plat" onclick="publishForPlatform('kuaishou')">
+                    <span style="font-size:22px;">⚡</span>
+                    <span>快手</span>
+                </div>
+            </div>
+            <div style="padding:12px 20px;">
+                <button onclick="closePublishSheet()" style="width:100%;padding:14px;background:#333;border:none;border-radius:12px;color:#fff;font-size:15px;cursor:pointer;">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧩 技能执行进度条 -->
+    <div class="skill-exec-bar" id="skillExecBar">
+        <span class="skill-exec-bar-icon" id="skillExecBarIcon">⚡</span>
+        <div class="skill-exec-bar-info">
+            <div class="skill-exec-bar-name" id="skillExecBarName"></div>
+            <div class="skill-exec-bar-msg" id="skillExecBarMsg">准备中...</div>
+            <div class="skill-exec-bar-progress"><div class="skill-exec-bar-fill" id="skillExecBarFill" style="width:0%"></div></div>
+        </div>
+        <button class="skill-exec-bar-cancel" onclick="mobileSkillCancel()">取消</button>
+    </div>
+
+    <!-- 🎨 Midjourney 图片选择器弹窗 -->
+    <div class="mj-image-picker" id="mjImagePicker">
+        <div class="mj-picker-header">
+            <div class="mj-picker-title">🎨 选择一张图片</div>
+            <button class="mj-picker-close" onclick="closeMjPicker()">&times;</button>
+        </div>
+        <div class="mj-picker-grid" id="mjPickerGrid"></div>
+        <button class="mj-picker-confirm" id="mjPickerConfirm" onclick="confirmMjSelection()" disabled>请先选择一张图片</button>
+    </div>
+
+    <!-- 下拉刷新指示器 -->
+    <div class="pull-refresh" id="pullRefresh">
+        <div class="refresh-icon"></div>
+        <span style="margin-left: 10px; color: var(--text-dim); font-size: 13px;" id="pullRefreshText">下拉刷新</span>
+    </div>
+
+    <!-- 长按上下文菜单 -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="contextMenuAction('view')">
+            <span>👁️</span> 查看详情
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('share')">
+            <span>📤</span> 分享
+        </div>
+        <div class="context-menu-item" onclick="contextMenuAction('retry')">
+            <span>🔄</span> 重新生成
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" onclick="contextMenuAction('delete')">
+            <span>🗑️</span> 删除
+        </div>
+    </div>
+
+    <!-- 图片预览（支持双指缩放） -->
+    <div class="image-viewer" id="imageViewer" onclick="closeImageViewer(event)">
+        <button class="image-viewer-close" onclick="closeImageViewer()">×</button>
+        <img id="viewerImage" src="" alt="预览">
+        <div class="image-viewer-hint">双指缩放 · 点击关闭</div>
+    </div>
+
+    <script>
+        // ==================== 全局变量 ====================
+        let currentMode = 'video';
+        let currentGenMode = 'text-to-video';
+        let ideas = [];
+        let userQuota = 0;
+        let isLoggedIn = false;
+        // 注意：不要声明 let supabase = null; 会覆盖全局SDK对象！
+        let __mobileSupabaseClient = null;
+        let __mobileAuthInitialized = false;
+        let i2vImageData = '';
+        let i2vImageDataList = []; // 🆕 多图片数据列表
+
+        // ==================== 填空模板库(与桌面版完全对齐) ====================
+        const fillTemplates = {
+            fill_1: { name: '✨ 梦幻光效人物', desc: '给人物加梦幻光效', template: '一个______（人物/动物），周围环绕着闪亮的魔法光粒子和蝴蝶，梦幻氛围，电影感打光，4K高清' },
+            fill_2: { name: '🎨 动漫风格转换', desc: '照片转日系动漫', template: '将照片中的______（人物/场景）转换为精美日本动漫风格，大眼睛，柔和色彩，动漫质感，高清细节' },
+            fill_3: { name: '🌸 樱花树下场景', desc: '浪漫樱花场景', template: '______（人物）站在盛开的樱花树下，花瓣飘落，温柔粉色氛围，电影级构图，柔和光影' },
+            fill_4: { name: '🔥 史诗战斗场景', desc: '热血战斗画面', template: '______（角色）正在激烈战斗，动作帅气，火焰/闪电特效环绕，史诗级构图，动态模糊，电影感' },
+            fill_5: { name: '🌙 月光夜景', desc: '唯美月夜氛围', template: '______（人物/场景）在月光下，星空璀璨，宁静唯美氛围，冷色调，电影级画质' },
+            fill_6: { name: '🎭 多重身份展示', desc: '一人多角色', template: '同一个______（人物）展示多种职业/风格：左边是______（职业1），中间是______（职业2），右边是______（职业3），创意拼贴风格' },
+            fill_7: { name: '🏠 房间场景设计', desc: '室内场景氛围', template: '温馨的______（卧室/客厅/书房），______（风格：北欧/日式/工业风），自然光透过窗户，植物装饰，室内设计杂志质感' },
+            fill_8: { name: '🎪 Q版可爱化', desc: '角色Q版萌化', template: '将______（人物/角色）变成超级可爱的Q版风格，大头小身体，圆润线条，糖果色系，适合做贴纸' },
+            fill_9: { name: '🌈 彩虹渐变效果', desc: '梦幻彩虹色彩', template: '______（主体）被彩虹色光芒包围，渐变色彩流动，梦幻氛围，Instagram风格，高饱和度' },
+            fill_10: { name: '📸 复古胶片风', desc: '老照片怀旧感', template: '______（场景/人物）呈现80年代胶片照片风格，颗粒质感，褪色效果，暖色调，怀旧氛围' },
+            fill_11: { name: '🎮 像素游戏风格', desc: '8-bit像素艺术', template: '将______（人物/场景）转换为8-bit像素游戏风格，复古红白机画面，清晰像素，怀旧游戏感' },
+            fill_12: { name: '🌊 水下奇幻世界', desc: '梦幻海底场景', template: '______（人物/生物）在神秘的水下世界，周围有发光的水母和珊瑚，蓝绿色调，梦幻光线' },
+            fill_13: { name: '⚡ 赛博朋克风格', desc: '未来科技霓虹', template: '______（人物/场景）处于赛博朋克未来城市，霓虹灯光，雨夜氛围，紫色和青色主色调，科幻感' },
+            fill_14: { name: '🍃 森林精灵氛围', desc: '奇幻森林场景', template: '______（人物）在茂密的魔法森林中，阳光透过树叶，小精灵飞舞，奇幻氛围，绿色主调' },
+            fill_15: { name: '🎨 油画艺术效果', desc: '古典油画质感', template: '将______（主体）转换为古典油画风格，厚重笔触，丰富色彩层次，伦勃朗式打光，博物馆级艺术品质感' },
+            fill_16: { name: '🦸 超级英雄变身', desc: '英雄装扮转换', template: '______（人物）变成超级英雄，帅气的______（颜色）战服，动作姿势帅气，电影海报风格，史诗感' },
+            fill_17: { name: '🎪 马戏团表演场景', desc: '复古马戏团氛围', template: '______（人物/动物）在复古马戏团舞台表演，红色帷幕，聚光灯，观众席，怀旧风格，欢乐氛围' },
+            fill_18: { name: '🏰 中世纪幻想', desc: '欧洲奇幻风格', template: '______（人物）身穿中世纪服装，站在古堡前，史诗奇幻氛围，电影级画质，戏剧性光影' },
+            fill_19: { name: '🌸 中国风工笔画', desc: '传统工笔画风', template: '______（主体）呈现中国传统工笔画风格，细腻线条，淡雅色彩，留白艺术，古典美学' },
+            fill_20: { name: '🎭 表情包生成器', desc: '聊天表情包', template: '为______（角色）设计一组表情包，包含______（数量）个不同表情：开心、生气、哭泣、疑惑、比心等，Q版风格，简洁背景' },
+            fill_21: { name: '🎨 印象派画风', desc: '莫奈风格转换', template: '将______（场景）转换为印象派画风，点彩笔触，柔和光影，莫奈风格，艺术感强烈' },
+            fill_22: { name: '🎭 京剧脸谱', desc: '中国京剧妆容', template: '______（人物）画上京剧脸谱，______（角色：花旦/武生/丑角），精致妆容，传统戏曲服装，中国风' },
+            fill_23: { name: '🦸‍♀️ 女超人装扮', desc: '女英雄战服', template: '______（人物）变成女超人，红色斗篷，紧身战衣，飞行姿态，城市天际线背景，英雄气概' },
+            fill_24: { name: '🌙 月亮公主', desc: '月光女神风格', template: '______（人物）扮演月亮公主，银色长发，月亮冠冕，星空长裙，梦幻优雅，童话氛围' },
+            fill_25: { name: '☀️ 太阳神', desc: '金色太阳神', template: '______（人物）变成太阳神，金色盔甲，太阳光环，火焰翅膀，威严气势，暖色调' },
+            fill_26: { name: '🎪 小丑女Harley Quinn', desc: '哈莉奎因风格', template: '______（人物）装扮成小丑女Harley Quinn，双马尾彩色头发，棒球棍，俏皮表情，朋克风' },
+            fill_27: { name: '🌟 星际战士', desc: '科幻战士装备', template: '______（人物）穿着未来星际战士装备，激光武器，科幻背景，金属质感，史诗科幻感' },
+            fill_28: { name: '🦇 蝙蝠侠风格', desc: '黑暗骑士装扮', template: '______（人物）变成蝙蝠侠风格角色，黑色斗篷，哥特风城市，夜晚氛围，黑暗英雄感' },
+            fill_29: { name: '🕷️ 蜘蛛侠变身', desc: '红蓝战衣', template: '______（人物）变成蜘蛛侠，红蓝战衣，吐丝动作，摩天大楼间穿梭，动作场景' },
+            fill_30: { name: '🐱 猫耳娘', desc: '可爱猫耳装扮', template: '______（人物）长出可爱猫耳和猫尾巴，俏皮表情，______（颜色）猫耳，萌系风格' },
+            fill_31: { name: '🦊 狐狸精', desc: '九尾狐狸精', template: '______（人物）变成______尾狐狸精，狐狸耳朵，多条尾巴，东方神话风格，妖艳美丽' },
+            fill_32: { name: '🐺 狼人变身', desc: '月圆之夜狼人', template: '______（人物）在月圆之夜变身狼人，利爪獠牙，野性眼神，恐怖氛围，暗色调' },
+            fill_33: { name: '🧛 吸血鬼伯爵', desc: '哥特吸血鬼', template: '______（人物）变成吸血鬼伯爵，尖牙，红色眼睛，黑色斗篷，哥特城堡背景，神秘感' },
+            fill_34: { name: '👻 幽灵少女', desc: '透明幽灵效果', template: '______（人物）变成半透明幽灵，白色长裙飘动，冷色调，神秘氛围，灵异感' },
+            fill_35: { name: '🤖 机器人改造', desc: '机械义体化', template: '______（人物）被改造成半机械生命体，机械手臂，电子眼，科幻风格，赛博朋克感' },
+            fill_36: { name: '🎀 Lolita洋装', desc: '甜美洋装风格', template: '______（人物）穿着______（颜色）Lolita洋装，蕾丝花边，蝴蝶结，公主卷发，少女甜美风' },
+            fill_37: { name: '🎸 摇滚音乐会', desc: '摇滚乐队表演', template: '______（人物）在摇滚音乐会舞台表演，电吉他，舞台灯光，观众热情，摇滚范儿十足' },
+            fill_38: { name: '📚 图书馆学霸', desc: '文艺书香气息', template: '______（人物）在古老的图书馆，书籍环绕，复古台灯，温暖光线，学院风，文艺氛围' },
+            fill_39: { name: '☕ 咖啡馆悠闲', desc: '慵懒咖啡时光', template: '______（人物）在温馨咖啡馆，手捧咖啡杯，窗外阳光，慵懒氛围，温暖色调，治愈系' },
+            fill_40: { name: '🌈 彩虹独角兽', desc: '梦幻独角兽', template: '______（主体）搭配彩虹独角兽，梦幻云朵，粉色天空，童话般的甜美氛围，少女心满满' },
+            fill_41: { name: '🎨 印象派画风', desc: '莫奈风格转换', template: '将______（场景）转换为印象派画风，点彩笔触，柔和光影，莫奈风格，艺术感强烈' },
+            fill_42: { name: '🎭 京剧脸谱', desc: '中国京剧妆容', template: '______（人物）画上京剧脸谱，______（角色：花旦/武生/丑角），精致妆容，传统戏曲服装，中国风' },
+            fill_43: { name: '🦸‍♀️ 女超人装扮', desc: '女英雄战服', template: '______（人物）变成女超人，红色斗篷，紧身战衣，飞行姿态，城市天际线背景，英雄气概' },
+            fill_44: { name: '🌙 月亮公主', desc: '月光女神风格', template: '______（人物）扮演月亮公主，银色长发，月亮冠冕，星空长裙，梦幻优雅，童话氛围' },
+            fill_45: { name: '☀️ 太阳神', desc: '金色太阳神', template: '______（人物）变成太阳神，金色盔甲，太阳光环，火焰翅膀，威严气势，暖色调' },
+            fill_46: { name: '🎪 小丑女Harley Quinn', desc: '哈莉奎因风格', template: '______（人物）装扮成小丑女Harley Quinn，双马尾彩色头发，棒球棍，俏皮表情，朋克风' },
+            fill_47: { name: '🌟 星际战士', desc: '科幻战士装备', template: '______（人物）穿着未来星际战士装备，激光武器，科幻背景，金属质感，史诗科幻感' },
+            fill_48: { name: '🦇 蝙蝠侠风格', desc: '黑暗骑士装扮', template: '______（人物）变成蝙蝠侠风格角色，黑色斗篷，哥特风城市，夜晚氛围，黑暗英雄感' },
+            fill_49: { name: '🕷️ 蜘蛛侠变身', desc: '红蓝战衣', template: '______（人物）变成蜘蛛侠，红蓝战衣，吐丝动作，摩天大楼间穿梭，动作场景' },
+            fill_50: { name: '🐱 猫耳娘', desc: '可爱猫耳装扮', template: '______（人物）长出可爱猫耳和猫尾巴，俏皮表情，______（颜色）猫耳，萌系风格' },
+            fill_51: { name: '🦊 狐狸精', desc: '九尾狐狸精', template: '______（人物）变成______尾狐狸精，狐狸耳朵，多条尾巴，东方神话风格，妖艳美丽' },
+            fill_52: { name: '🐺 狼人变身', desc: '月圆之夜狼人', template: '______（人物）在月圆之夜变身狼人，利爪獠牙，野性眼神，恐怖氛围，暗色调' },
+            fill_53: { name: '🧛 吸血鬼伯爵', desc: '哥特吸血鬼', template: '______（人物）变成吸血鬼伯爵，尖牙，红色眼睛，黑色斗篷，哥特城堡背景，神秘感' },
+            fill_54: { name: '👻 幽灵少女', desc: '透明幽灵效果', template: '______（人物）变成半透明幽灵，白色长裙飘动，冷色调，神秘氛围，灵异感' },
+            fill_55: { name: '🤖 机器人改造', desc: '机械义体化', template: '______（人物）被改造成半机械生命体，机械手臂，电子眼，科幻风格，赛博朋克感' },
+            fill_56: { name: '🎀 Lolita洋装', desc: '甜美洋装风格', template: '______（人物）穿着______（颜色）Lolita洋装，蕾丝花边，蝴蝶结，公主卷发，少女甜美风' },
+            fill_57: { name: '⚔️ 女武士', desc: '飒爽女剑客', template: '______（人物）变成古代女武士，手持______（武器：剑/刀/枪），英姿飒爽，武侠风' },
+            fill_58: { name: '🏹 精灵弓箭手', desc: '森林精灵射手', template: '______（人物）扮演精灵弓箭手，尖耳朵，绿色斗篷，森林背景，奇幻风格' },
+            fill_59: { name: '🪄 魔法少女', desc: '变身魔法少女', template: '______（人物）变身魔法少女，魔法杖，闪亮变身特效，______（颜色）服装，星星魔法光' },
+            fill_60: { name: '🎩 绅士礼帽', desc: '复古绅士装扮', template: '______（人物）戴着绅士礼帽，西装，手持拐杖，复古欧洲街道，优雅绅士范' },
+            fill_61: { name: '👑 皇室贵族', desc: '华丽宫廷装扮', template: '______（人物）穿着华丽宫廷服装，王冠/头饰，珠宝首饰，宫殿背景，贵族气质' },
+            fill_62: { name: '🎓 毕业纪念', desc: '毕业典礼场景', template: '______（人物）穿学士服，戴学士帽，抛帽子动作，校园背景，青春纪念氛围' },
+            fill_63: { name: '💼 职场精英', desc: '商务职业装', template: '______（人物）穿着专业职业装，办公室/会议室背景，自信姿态，职场精英范' },
+            fill_64: { name: '🍰 甜品师', desc: '烘焙厨师装扮', template: '______（人物）穿着甜品师服装，围裙，厨师帽，周围是蛋糕和甜点，温馨甜蜜氛围' },
+            fill_65: { name: '🌻 向日葵田', desc: '金色花田场景', template: '______（人物）站在向日葵花田，阳光明媚，金黄色调，温暖治愈氛围，夏日清新感' },
+            fill_66: { name: '🌾 麦田守望者', desc: '金色麦浪场景', template: '______（人物）在金色麦田中，麦浪随风摇曳，夕阳余晖，田园诗意，温暖氛围' },
+            fill_67: { name: '🌵 沙

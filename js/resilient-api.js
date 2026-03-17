@@ -11,7 +11,7 @@
  * - 智能降级：付费 → 免费自动切换
  */
 
-(function(global) {
+(function (global) {
     'use strict';
 
     // ==================== API 节点配置 ====================
@@ -58,7 +58,7 @@
                 weight: 70
             }
         },
-        
+
         // 📝 文本生成节点
         text: {
             gemini3: {
@@ -66,7 +66,7 @@
                 name: 'Gemini 3 Pro',
                 cost: 0.026,
                 quality: 'high',
-                models: ['gemini-3-pro-preview', 'gemini-3-pro-preview-thinking'],
+                models: ['gemini-3.1-pro-preview', 'gemini-3-pro-preview-thinking'],
                 timeout: 30000,
                 weight: 100
             },
@@ -88,7 +88,7 @@
                 weight: 50
             }
         },
-        
+
         // 🎬 视频生成节点
         video: {
             sora2: {
@@ -155,14 +155,14 @@
             this.successes++;
             this.failures = 0;
             this.lastSuccess = Date.now();
-            
+
             // 记录响应时间
             this.responseTimeHistory.push(responseTime);
             if (this.responseTimeHistory.length > 10) {
                 this.responseTimeHistory.shift();
             }
             this.avgResponseTime = this.responseTimeHistory.reduce((a, b) => a + b, 0) / this.responseTimeHistory.length;
-            
+
             // 熔断恢复
             if (this.circuitState === 'half-open') {
                 this.circuitState = 'closed';
@@ -173,7 +173,7 @@
         recordFailure() {
             this.failures++;
             this.lastFailure = Date.now();
-            
+
             // 检查是否触发熔断
             if (this.failures >= CIRCUIT_BREAKER_CONFIG.failureThreshold) {
                 this.circuitState = 'open';
@@ -184,7 +184,7 @@
 
         isAvailable() {
             if (this.circuitState === 'closed') return true;
-            
+
             if (this.circuitState === 'open') {
                 // 检查是否到了恢复时间
                 if (Date.now() - this.circuitOpenedAt > CIRCUIT_BREAKER_CONFIG.recoveryTimeout) {
@@ -194,7 +194,7 @@
                 }
                 return false;
             }
-            
+
             return true;  // half-open
         }
 
@@ -216,13 +216,13 @@
             this.requestQueue = [];
             this.activeRequests = 0;
             this.maxConcurrent = 5;
-            
+
             // 初始化节点状态
             this._initNodeStates();
-            
+
             // 定期健康检查
             this._startHealthCheck();
-            
+
             // 从localStorage恢复状态
             this._restoreState();
         }
@@ -242,8 +242,8 @@
          * @returns {Promise<string>} 图片URL
          */
         async callImageAPI(options) {
-            const { 
-                prompt, 
+            const {
+                prompt,
                 model = 'nano-banana-2',
                 aspectRatio = '16:9',
                 imageUrl,            // 图生图参考
@@ -252,10 +252,10 @@
             } = options;
 
             // 选择最优节点
-            const node = forceNode 
+            const node = forceNode
                 ? this._getNode('image', forceNode)
                 : this._selectBestNode('image', { preferFree, model });
-            
+
             if (!node) {
                 throw new Error('所有图像生成节点不可用');
             }
@@ -266,7 +266,7 @@
 
             try {
                 console.log(`🖼️ [API网关] 使用 ${node.config.name} 生成图像`);
-                
+
                 const result = await this._executeRequest(node.config.endpoint, {
                     action: imageUrl ? 'image2image' : 'image',
                     prompt,
@@ -279,18 +279,18 @@
 
                 const responseTime = Date.now() - startTime;
                 state.recordSuccess(responseTime);
-                
+
                 return this._extractImageUrl(result);
-                
+
             } catch (error) {
                 state.recordFailure();
-                
+
                 // 尝试降级
                 if (!preferFree && node.config.cost > 0) {
                     console.log(`🔄 [API网关] ${node.config.name} 失败，降级到免费节点`);
                     return this.callImageAPI({ ...options, preferFree: true });
                 }
-                
+
                 throw error;
             }
         }
@@ -314,7 +314,7 @@
             const node = forceNode
                 ? this._getNode('text', forceNode)
                 : this._selectBestNode('text', { preferFree, model });
-            
+
             if (!node) {
                 throw new Error('所有文本生成节点不可用');
             }
@@ -325,9 +325,9 @@
 
             try {
                 console.log(`📝 [API网关] 使用 ${node.config.name} 生成文本`);
-                
+
                 let result;
-                
+
                 // 根据节点类型调用不同接口
                 if (node.id === 'modelscope_text') {
                     result = await this._executeRequest(node.config.endpoint, {
@@ -354,18 +354,18 @@
 
                 const responseTime = Date.now() - startTime;
                 state.recordSuccess(responseTime);
-                
+
                 return this._extractTextContent(result);
-                
+
             } catch (error) {
                 state.recordFailure();
-                
+
                 // 尝试降级
                 if (!preferFree && node.config.cost > 0) {
                     console.log(`🔄 [API网关] ${node.config.name} 失败，降级到免费节点`);
                     return this.callTextAPI({ ...options, preferFree: true });
                 }
-                
+
                 throw error;
             }
         }
@@ -389,7 +389,7 @@
             const node = forceNode
                 ? this._getNode('video', forceNode)
                 : this._selectBestNode('video', { model });
-            
+
             if (!node) {
                 throw new Error('所有视频生成节点不可用');
             }
@@ -400,7 +400,7 @@
 
             try {
                 console.log(`🎬 [API网关] 使用 ${node.config.name} 生成视频`);
-                
+
                 const result = await this._executeRequest(node.config.endpoint, {
                     action: imageUrl ? 'image-to-video' : 'text-to-video',
                     prompt,
@@ -413,9 +413,9 @@
 
                 const responseTime = Date.now() - startTime;
                 state.recordSuccess(responseTime);
-                
+
                 return this._extractVideoUrl(result);
-                
+
             } catch (error) {
                 state.recordFailure();
                 throw error;
@@ -447,11 +447,11 @@
                     if (a.config.cost === 0 && b.config.cost > 0) return -1;
                     if (a.config.cost > 0 && b.config.cost === 0) return 1;
                 }
-                
+
                 // 按权重和响应时间综合排序
                 const scoreA = a.config.weight - (a.state.avgResponseTime / 100);
                 const scoreB = b.config.weight - (b.state.avgResponseTime / 100);
-                
+
                 return scoreB - scoreA;
             });
 
@@ -461,10 +461,10 @@
         _getNode(category, nodeId) {
             const config = API_NODES[category]?.[nodeId];
             if (!config) return null;
-            
+
             const state = this.nodeStates.get(`${category}.${nodeId}`);
             if (!state || !state.isAvailable()) return null;
-            
+
             return { id: nodeId, config, state };
         }
 
@@ -524,7 +524,7 @@
                     }
                 }
             }
-            
+
             this._saveState();
         }
 
@@ -542,7 +542,7 @@
             for (const [fullNodeId, state] of this.nodeStates) {
                 status.nodes[fullNodeId] = state.toJSON();
                 status.summary.totalNodes++;
-                
+
                 if (state.isAvailable()) {
                     status.summary.availableNodes++;
                 }
@@ -573,14 +573,14 @@
             try {
                 const saved = localStorage.getItem('resilient_api_state');
                 if (!saved) return;
-                
+
                 const data = JSON.parse(saved);
-                
+
                 // 只恢复10分钟内的状态
                 if (Date.now() - data.timestamp > 10 * 60 * 1000) {
                     return;
                 }
-                
+
                 for (const [id, savedState] of Object.entries(data.nodes)) {
                     const state = this.nodeStates.get(id);
                     if (state) {
@@ -588,7 +588,7 @@
                         state.circuitState = savedState.circuitState;
                     }
                 }
-                
+
                 console.log('📂 [API网关] 恢复节点状态');
             } catch (e) {
                 console.warn('[API网关] 恢复状态失败:', e);
@@ -621,7 +621,7 @@
          */
         estimateCost(usage) {
             const { images = 0, texts = 0, videos = 0, preferFree = false } = usage;
-            
+
             let totalCost = 0;
             const breakdown = [];
 
@@ -683,7 +683,7 @@
 
     // ==================== 导出 ====================
     const gateway = new ResilientAPIGateway();
-    
+
     global.ResilientAPIGateway = gateway;
     global.ResilientAPIGatewayClass = ResilientAPIGateway;
     global.API_NODES = API_NODES;

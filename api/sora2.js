@@ -73,12 +73,12 @@ const FILM_COST = {
  */
 async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, model, cost, metadata) {
     if (!userId) return { success: false, error: 'no userId' };
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -93,13 +93,13 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
                 metadata
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
             console.warn('[sora2] 保存记录失败:', data.error || data.message);
             return { success: false, error: data.error || data.message };
         }
-        
+
         console.log(`[sora2] 📝 生成记录已保存: ${data.recordId}`);
         return { success: true, recordId: data.recordId };
     } catch (e) {
@@ -113,20 +113,20 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
  */
 async function __billing(billingAction, userId, amount, description) {
     console.log(`[sora2] 💰 开始${billingAction === 'refund' ? '退款' : '扣费'}: userId=${userId}, amount=${amount}, desc=${description}`);
-    
+
     if (!userId || amount <= 0) {
         console.warn(`[sora2] ⚠️ 跳过扣费: userId=${userId}, amount=${amount}`);
         return { success: true, skipped: true };
     }
-    
+
     const intAmount = Math.ceil(amount);
     const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -137,9 +137,9 @@ async function __billing(billingAction, userId, amount, description) {
                 description: description || (billingAction === 'refund' ? '退款' : '消费')
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
-        
+
         if (!res.ok || !data.success) {
             if (billingAction === 'consume') {
                 throw new Error(data.message || data.error || '扣费失败');
@@ -147,7 +147,7 @@ async function __billing(billingAction, userId, amount, description) {
             console.error(`[sora2] 退款失败:`, data);
             return { success: false, error: data.message || data.error };
         }
-        
+
         console.log(`[sora2] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
         return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
     } catch (e) {
@@ -165,16 +165,16 @@ async function __billing(billingAction, userId, amount, description) {
  */
 async function __checkAndUseFreeVideo(userId) {
     console.log(`[sora2] 🎬 检查免费视频次数: userId=${userId}`);
-    
+
     if (!userId) {
         return { success: false, error: '缺少用户ID' };
     }
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -183,54 +183,54 @@ async function __checkAndUseFreeVideo(userId) {
                 userId
             })
         });
-        
+
         let data;
         try {
             data = await res.json();
         } catch {
             data = {};
         }
-        
+
         if (!res.ok || !data.success) {
             console.log(`[sora2] 🎬 无法使用免费次数:`, data.error || data.message);
-            return { 
-                success: false, 
+            return {
+                success: false,
                 error: data.error || data.message || '免费次数检查失败',
                 canUseFree: false,
                 needBilling: true
             };
         }
-        
+
         if (data.isVip) {
             console.log(`[sora2] 🎬 VIP用户，无需使用免费次数`);
-            return { 
-                success: true, 
-                usedFree: false, 
-                isVip: true, 
-                needBilling: false 
+            return {
+                success: true,
+                usedFree: false,
+                isVip: true,
+                needBilling: false
             };
         }
-        
+
         if (data.usedFree) {
             console.log(`[sora2] 🎬 已使用免费次数，剩余: ${data.remaining}`);
-            return { 
-                success: true, 
-                usedFree: true, 
-                remaining: data.remaining, 
-                needBilling: false 
+            return {
+                success: true,
+                usedFree: true,
+                remaining: data.remaining,
+                needBilling: false
             };
         }
-        
-        return { 
-            success: false, 
+
+        return {
+            success: false,
             error: data.message || '免费次数已用完',
             canUseFree: false,
             needBilling: true
         };
     } catch (e) {
         console.error(`[sora2] 🎬 免费次数检查异常:`, e.message);
-        return { 
-            success: false, 
+        return {
+            success: false,
             error: e.message || '免费次数检查异常',
             canUseFree: false,
             needBilling: true
@@ -245,12 +245,12 @@ async function __checkFreeVideoCount(userId) {
     if (!userId) {
         return { success: false, error: '缺少用户ID' };
     }
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -259,18 +259,18 @@ async function __checkFreeVideoCount(userId) {
                 userId
             })
         });
-        
+
         let data;
         try {
             data = await res.json();
         } catch {
             data = {};
         }
-        
+
         if (!res.ok || !data.success) {
             return { success: false, error: data.error || data.message };
         }
-        
+
         return data;
     } catch (e) {
         return { success: false, error: e.message };
@@ -282,29 +282,29 @@ async function __checkFreeVideoCount(userId) {
  */
 async function __checkModelRestriction(userId, model) {
     console.log(`[sora2] 🚫 检查模型限制: userId=${userId}, model=${model}`);
-    
+
     if (!userId) {
         return { success: false, error: '缺少用户ID' };
     }
-    
+
     const EXPENSIVE_MODELS = ['veo3', 'veo3.1'];
-    
+
     if (!EXPENSIVE_MODELS.includes(model)) {
         return { success: true, allowed: true };
     }
-    
+
     try {
         const checkResult = await __checkFreeVideoCount(userId);
-        
+
         if (checkResult.success && checkResult.isVip) {
             console.log(`[sora2] 🚫 VIP用户，允许使用${model}模型`);
             return { success: true, allowed: true };
         }
-        
+
         console.log(`[sora2] 🚫 非VIP用户，禁止使用${model}模型`);
-        return { 
-            success: false, 
-            allowed: false, 
+        return {
+            success: false,
+            allowed: false,
             error: 'MODEL_RESTRICTED',
             message: `该模型(${model})仅对VIP用户开放，请充值后使用`
         };
@@ -312,6 +312,108 @@ async function __checkModelRestriction(userId, model) {
         console.error(`[sora2] 🚫 模型限制检查异常:`, e.message);
         return { success: true, allowed: true };
     }
+}
+
+/**
+ * 🎬 Grok Video 专属提示词增强（服务端）
+ * 仅对 grok-video-3 系列模型生效，不影响其他模型
+ * - 中文 → 电影级英文自然语言
+ * - 清理 @标记 格式
+ * - 添加运镜、光影、氛围描述
+ */
+async function enhanceGrokVideoPrompt(prompt, model) {
+    if (!prompt || !model || !String(model).startsWith('grok-video')) return prompt;
+
+    // 1. 清理 @标记 格式（Sora2专用，Grok不认识）
+    let cleaned = String(prompt)
+        .replace(/@\w[\w-]*/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    if (!cleaned) return prompt;
+
+    // 2. 检测是否需要翻译/增强
+    const hasChinese = /[\u4e00-\u9fff]/.test(cleaned);
+    const isTooShort = cleaned.length < 40;
+    const lacksDetail = !hasChinese && !isTooShort && !/camera|shot|light|cinematic|tracking|dolly|pan|zoom/i.test(cleaned);
+
+    // 如果是高质量英文提示词（>80字+有运镜词），直接返回
+    if (!hasChinese && !isTooShort && !lacksDetail) {
+        console.log(`[sora2] 🎬 Grok prompt 已是高质量英文，跳过增强`);
+        return cleaned;
+    }
+
+    // 3. 调用快速LLM翻译+增强
+    const apiKeys = [];
+    if (process.env.YUNMENG_API_KEY) apiKeys.push(process.env.YUNMENG_API_KEY);
+    if (process.env.YUNMENG_API_KEY_2) apiKeys.push(process.env.YUNMENG_API_KEY_2);
+    const apiKey = apiKeys[0];
+    if (!apiKey) {
+        console.warn('[sora2] 🎬 Grok增强: 无API Key，使用规则增强');
+        return _ruleBasedGrokEnhance(cleaned, hasChinese);
+    }
+
+    const llmEndpoints = ['https://api3.wlai.vip', 'https://yunwu.ai'];
+
+    const sysPrompt = `/no_think
+You are an expert cinematic video prompt engineer for Grok Video 3 (by xAI).
+Convert the user's input into a single optimized English prompt for AI video generation.
+
+RULES:
+1. Output ONLY the final prompt text — no quotes, no prefix, no explanation
+2. Write as one flowing English paragraph, 60-120 words
+3. Must include: subject/action + camera movement + lighting + atmosphere
+4. Camera keywords: tracking shot, dolly in/out, slow pan, crane up, steadicam, orbit, close-up, wide establishing shot, low angle, over-the-shoulder
+5. Lighting keywords: golden hour, volumetric light, rim lighting, soft diffused, dramatic shadows, neon glow, natural sunlight
+6. Motion keywords: slow graceful movement, dynamic action, subtle sway, fluid transition
+7. End with quality suffix: cinematic, film grain, shallow depth of field, 4K, photorealistic
+8. Do NOT include any text/title/subtitle/watermark descriptions
+9. Do NOT describe UI elements or frames
+10. Preserve the core subject and action from the input, enhance visual storytelling
+11. CULTURAL PRESERVATION: Keep all cultural context intact — Chinese characters stay Chinese (Asian features, black hair, Chinese clothing/architecture), Chinese locations (Beijing, Shanghai, the Great Wall, temples) remain Chinese, traditional elements (hanfu, qipao, lanterns, calligraphy, tea ceremony) stay authentic. Never westernize people, places, or cultural elements`;
+
+    for (const ep of llmEndpoints) {
+        try {
+            const controller = new AbortController();
+            const tmr = setTimeout(() => controller.abort(), 12000);
+            const res = await fetch(`${ep}/v1/chat/completions`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'gemini-3.1-flash-preview',
+                    messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: cleaned }],
+                    max_tokens: 250,
+                    temperature: 0.7
+                }),
+                signal: controller.signal
+            });
+            clearTimeout(tmr);
+
+            if (res.ok) {
+                const data = await res.json();
+                let enhanced = (data.choices?.[0]?.message?.content || '').trim();
+                enhanced = enhanced.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                enhanced = enhanced.replace(/^["']|["']$/g, '').trim();
+                if (enhanced && enhanced.length > 30 && /[a-zA-Z]/.test(enhanced)) {
+                    console.log(`[sora2] 🎬 Grok prompt 增强成功: "${enhanced.substring(0, 80)}..." (${cleaned.length}→${enhanced.length}字)`);
+                    return enhanced;
+                }
+            }
+            console.warn(`[sora2] 🎬 Grok增强端点 ${ep} 失败: ${res.status}`);
+        } catch (e) {
+            console.warn(`[sora2] 🎬 Grok增强端点 ${ep} 异常: ${e.message}`);
+        }
+    }
+
+    console.warn('[sora2] 🎬 Grok LLM增强全部失败，使用规则增强');
+    return _ruleBasedGrokEnhance(cleaned, hasChinese);
+}
+
+/** 🔧 规则增强兜底（无LLM时使用） */
+function _ruleBasedGrokEnhance(prompt, hasChinese) {
+    if (hasChinese) {
+        return prompt + '. Cinematic quality, smooth camera tracking shot, volumetric lighting, shallow depth of field, film grain, 4K UHD, professional cinematography, dynamic motion';
+    }
+    return prompt + ', cinematic tracking shot, volumetric lighting, shallow depth of field, film grain, 4K UHD, professional cinematography';
 }
 
 // 🔧 贞贞API（备用）
@@ -502,9 +604,12 @@ async function fetchWithFallback(requestBody, action) {
             const wantHd = !!out.hd || m.includes('-hd');
             out.size = wantHd ? '1080P' : '720P';
 
-            // Grok 10秒版本设置 duration
+            // Grok 各版本设置 duration
+            const is15s = m.includes('15s');
             const is10s = m.includes('10s');
-            if (is10s) {
+            if (is15s) {
+                out.duration = 15;
+            } else if (is10s) {
                 out.duration = 10;
             } else {
                 // 6秒版本不使用 duration
@@ -550,7 +655,7 @@ async function fetchWithFallback(requestBody, action) {
         { path: '/v1/video/create', name: '统一格式' },
         { path: '/v1/videos', name: 'OpenAI格式' }
     ];
-    
+
     if (YUNMENG_API_KEYS.length > 0) {
         let saw429 = false;
         let saw5xxOrNetwork = false;
@@ -560,7 +665,13 @@ async function fetchWithFallback(requestBody, action) {
         // 🆕 允许前端指定格式优先级：api_format = 'openai' | 'unified' | 'auto'
         let formats = API_FORMATS.slice();
         const prefer = String(requestBody.api_format || '').toLowerCase();
-        if (prefer === 'openai') {
+        
+        // 🎬 4个Veo模型默认使用OpenAI格式
+        const veoModels = ['veo3.1-components-4k', 'veo_3_1-fast-4K', 'veo_3_1-fast-components-4K', 'veo_3_1-components-4K'];
+        const modelName = String(requestBody.model || '').toLowerCase();
+        const isVeoModel = veoModels.some(m => m.toLowerCase() === modelName);
+        
+        if (prefer === 'openai' || isVeoModel) {
             formats = [API_FORMATS[1], API_FORMATS[0]]; // 先 OpenAI 再 统一
         } else if (prefer === 'unified' || prefer === 'create') {
             formats = [API_FORMATS[0], API_FORMATS[1]]; // 先 统一 再 OpenAI
@@ -778,7 +889,7 @@ async function createCharacterWithFallback({ url, from_task, timestamps = '1,3' 
     let lastErr = null;
     let lastErrDetail = '';
     let rateLimitCount = 0;
-    
+
     // 🔑 对每个端点，尝试所有可用的 key
     for (const endpoint of YUNMENG_ENDPOINTS) {
         for (let keyIdx = 0; keyIdx < YUNMENG_API_KEYS.length; keyIdx++) {
@@ -819,7 +930,7 @@ async function createCharacterWithFallback({ url, from_task, timestamps = '1,3' 
                     lastErr = new Error(`上游返回${response.status}: ${lastErrDetail}`);
                     continue;
                 }
-                
+
                 // 5xx 服务器错误
                 lastErr = new Error(`服务器错误(${response.status}): ${lastErrDetail}`);
             } catch (e) {
@@ -829,7 +940,7 @@ async function createCharacterWithFallback({ url, from_task, timestamps = '1,3' 
             }
         }
     }
-    
+
     // 🔧 构建详细错误信息
     let errMsg = '创建角色失败';
     if (rateLimitCount > 0) {
@@ -895,11 +1006,11 @@ module.exports = async function handler(req, res) {
             const skipBilling = body.skip_billing === true;
             let useFreeResult = null;
             let needBilling = true;
-            
+
             if (!skipBilling && userId) {
                 useFreeResult = await __checkAndUseFreeVideo(userId);
                 needBilling = useFreeResult.needBilling;
-                
+
                 if (useFreeResult.success && !useFreeResult.needBilling) {
                     console.log(`[sora2] 🎬 使用免费次数生成视频:`, useFreeResult);
                 } else if (!useFreeResult.success && useFreeResult.needBilling === false) {
@@ -921,7 +1032,7 @@ module.exports = async function handler(req, res) {
             const filmCost = FILM_COST[model] || FILM_COST['sora-2-vip-all'] || 7;
             let billingSuccess = false;
             let billingSkipped = false;
-            
+
             if (needBilling && !skipBilling && filmCost > 0 && userId) {
                 try {
                     const billingResult = await __billing('consume', userId, filmCost, `视频生成:${model}`);
@@ -1007,7 +1118,7 @@ module.exports = async function handler(req, res) {
             if (body.character_username) charList.push(body.character_username);
 
             const charUsernames = [...new Set(charList.map(u => String(u || '').trim().replace(/^@/, '')).filter(Boolean))].slice(0, 6);
-            
+
             if (charUsernames.length > 0) {
                 // ✅ 前端已提供 usernames，直接注入
                 const prefix = charUsernames.map(u => `@${u}`).join(' ');
@@ -1051,7 +1162,20 @@ module.exports = async function handler(req, res) {
                 if (body.hd) requestBody.hd = true;
             }
 
-            console.log('[sora2] 文生视频:', { model, duration: requestBody.duration, promptLength: prompt.length });
+            // 🎬 Grok 专属提示词增强（中→英+电影感+运镜）
+            if (model && model.startsWith('grok-video')) {
+                try {
+                    const originalPrompt = requestBody.prompt;
+                    requestBody.prompt = await enhanceGrokVideoPrompt(requestBody.prompt, model);
+                    if (requestBody.prompt !== originalPrompt) {
+                        console.log(`[sora2] 🎬 Grok prompt 已增强: "${requestBody.prompt.substring(0, 100)}..."`);
+                    }
+                } catch (e) {
+                    console.warn('[sora2] 🎬 Grok prompt 增强异常，使用原始prompt:', e.message);
+                }
+            }
+
+            console.log('[sora2] 文生视频:', { model, duration: requestBody.duration, promptLength: (requestBody.prompt || '').length });
 
             // 🔄 使用带备用的请求函数
             const response = await fetchWithFallback(requestBody, 'text-to-video');
@@ -1059,7 +1183,7 @@ module.exports = async function handler(req, res) {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('[sora2] 文生视频错误:', response.status, errorText);
-            
+
                 // 🔍 解析错误详情
                 let errorDetail = '';
                 let parsed = null;
@@ -1069,7 +1193,7 @@ module.exports = async function handler(req, res) {
                 } catch (e) {
                     errorDetail = errorText.substring(0, 200);
                 }
-            
+
                 // 🔥 重要：检查响应中是否有 task_id（说明上游已消耗）
                 const hasTaskId = parsed?.task_id || parsed?.id;
                 if (hasTaskId) {
@@ -1084,7 +1208,7 @@ module.exports = async function handler(req, res) {
                         console.error('[sora2] 退款失败:', refundErr.message);
                     }
                 }
-            
+
                 // ✅ 不再 throw（避免 400 被 catch 变 500，前端只看到"服务器错误"）
                 if (response.status === 400 || response.status === 422) {
                     if (String(errorDetail || '').includes('sensitive') || String(errorDetail || '').includes('违规') || String(errorDetail || '').includes('nsfw') || String(errorDetail || '').includes('blocked') || String(errorDetail || '').includes('content')) {
@@ -1107,11 +1231,11 @@ module.exports = async function handler(req, res) {
             }
 
             const data = await response.json();
-            
+
             // 💰 已在调用前扣费，这里只记录和返回
             const taskId = data.task_id || data.id;
             console.log(`[sora2] 🎬 文生视频任务已提交: taskId=${taskId}, userId=${userId}, model=${model}`);
-            
+
             // 保存生成记录
             if (taskId && userId) {
                 try {
@@ -1120,10 +1244,10 @@ module.exports = async function handler(req, res) {
                     console.warn('[sora2] 保存生成记录失败:', e.message);
                 }
             }
-            
+
             // 设置扣费金额
             data.billed = billingSuccess ? filmCost : 0;
-            
+
             // 透传角色信息（若有）
             if (requestBody._character) {
                 data._character = requestBody._character;
@@ -1144,11 +1268,11 @@ module.exports = async function handler(req, res) {
             const i2vSkipBilling = body.skip_billing === true;
             let i2vUseFreeResult = null;
             let i2vNeedBilling = true;
-            
+
             if (!i2vSkipBilling && userId) {
                 i2vUseFreeResult = await __checkAndUseFreeVideo(userId);
                 i2vNeedBilling = i2vUseFreeResult.needBilling;
-                
+
                 if (i2vUseFreeResult.success && !i2vUseFreeResult.needBilling) {
                     console.log(`[sora2] 🎬 图生视频使用免费次数:`, i2vUseFreeResult);
                 } else if (!i2vUseFreeResult.success && i2vUseFreeResult.needBilling === false) {
@@ -1170,7 +1294,7 @@ module.exports = async function handler(req, res) {
             const i2vFilmCost = FILM_COST[model] || FILM_COST['sora-2-vip-all'] || 7;
             let i2vBillingSuccess = false;
             let i2vBillingSkipped = false;
-            
+
             if (i2vNeedBilling && !i2vSkipBilling && i2vFilmCost > 0 && userId) {
                 try {
                     const billingResult = await __billing('consume', userId, i2vFilmCost, `图生视频:${model}`);
@@ -1280,7 +1404,7 @@ module.exports = async function handler(req, res) {
 
             // 处理不同模型的参数
             const isGrokModel = model && (model.startsWith('grok-video') || model.includes('grok'));
-            
+
             if (isGrokModel) {
                 // 🎮 Grok 图生视频特殊参数处理
                 // Grok 使用不同的 aspect_ratio 格式
@@ -1288,34 +1412,48 @@ module.exports = async function handler(req, res) {
                 else if (body.aspect_ratio === '9:16') requestBody.aspect_ratio = '2:3';
                 else if (body.aspect_ratio === '1:1') requestBody.aspect_ratio = '1:1';
                 else requestBody.aspect_ratio = body.aspect_ratio || '3:2';
-                
+
                 // 🧲 Grok 图生视频一致性增强参数
                 requestBody.fidelity = body.fidelity || 'high';  // 高保真度，更好保持参考图外观
                 requestBody.image_weight = Math.max(0.95, Number(body.image_weight) || 0.98);  // 强制高权重
                 requestBody.preserve_subject = true;  // 保持主体不变
                 requestBody.motion_intensity = body.motion_intensity || 'medium';  // 中等运动强度，避免形变过大
-                
+
                 // Grok 使用 "720P" 或 "1080P" 格式
                 const wantHd = !!body.hd || (model && model.includes('-hd'));
                 requestBody.size = wantHd ? '1080P' : '720P';
-                
-                // Grok 10秒版本设置 duration
+
+                // Grok 各版本设置 duration
+                const is15s = model && model.includes('15s');
                 const is10s = model && model.includes('10s');
-                if (is10s) {
+                if (is15s) {
+                    requestBody.duration = 15;
+                } else if (is10s) {
                     requestBody.duration = 10;
                 } else {
                     delete requestBody.duration;  // 6秒版本不使用 duration
                 }
                 // 🔧 去掉 -text 后缀
                 requestBody.model = model.replace(/-text$/, '');
-                
+
+                // 🎬 Grok 图生视频也增强提示词
+                try {
+                    const origP = requestBody.prompt;
+                    requestBody.prompt = await enhanceGrokVideoPrompt(requestBody.prompt, model);
+                    if (requestBody.prompt !== origP) {
+                        console.log(`[sora2] 🎬 Grok图生视频 prompt 已增强`);
+                    }
+                } catch (e) {
+                    console.warn('[sora2] 🎬 Grok图生视频 prompt 增强异常:', e.message);
+                }
+
                 console.log(`[sora2] 🎮 Grok图生视频: model=${requestBody.model}, fidelity=${requestBody.fidelity}, image_weight=${requestBody.image_weight}`);
             } else if (model && model.startsWith('veo')) {
                 // 🆕 veo 模型必需参数（根据 API 文档）
                 requestBody.enhance_prompt = true;  // 中文自动转英文
                 requestBody.enable_upsample = body.enable_upsample !== false; // 超分，默认开启
                 requestBody.aspect_ratio = body.aspect_ratio || '16:9'; // veo3 支持 16:9 或 9:16
-                
+
                 // 🔧 veo 图生视频需要使用 -frames 后缀的模型
                 // veo2 图生视频 → veo2-fast-frames（支持首尾帧）
                 // veo3 图生视频 → veo3-fast-frames 或 veo3-pro-frames（支持首帧）
@@ -1394,11 +1532,11 @@ module.exports = async function handler(req, res) {
             }
 
             const data = await response.json();
-            
+
             // 💰 已在调用前扣费，这里只记录和返回
             const taskId = data.task_id || data.id;
             console.log(`[sora2] 🎬 图生视频任务已提交: taskId=${taskId}, userId=${userId}, model=${model}`);
-            
+
             // 保存生成记录
             if (taskId && userId) {
                 try {
@@ -1407,10 +1545,10 @@ module.exports = async function handler(req, res) {
                     console.warn('[sora2] 图生视频保存记录失败:', e.message);
                 }
             }
-            
+
             // 设置扣费金额
             data.billed = i2vBillingSuccess ? i2vFilmCost : 0;
-            
+
             if (requestBody._character) {
                 data._character = requestBody._character;
             }

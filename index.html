@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RollRoll - 让创意转动 V8.6.5</title>
+    <title>RollRoll - 让创意转动 V8.9.5</title>
     <!-- 📱 手机端自动跳转 -->
     <script>
         (function () {
@@ -28,7 +28,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="css/style.css?v=8.6.6">
+    <link rel="stylesheet" href="css/style.css?v=8.9.5">
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Supabase SDK （本地域名代理，避免被插件拦截） -->
@@ -136,115 +136,503 @@
             justify-content: center;
             overflow: hidden;
         }
-        .cinema-intro.active { display: flex !important; }
-        .cinema-intro.hidden { display: none !important; }
-        .cinema-intro.fade-out { animation: cinemaFadeOut 0.6s ease-out forwards; }
-        @keyframes cinemaFadeOut { to { opacity: 0; visibility: hidden; } }
+
+        .cinema-intro.active {
+            display: flex !important;
+        }
+
+        .cinema-intro.hidden {
+            display: none !important;
+        }
+
+        .cinema-intro.fade-out {
+            animation: cinemaFadeOut 0.6s ease-out forwards;
+        }
+
+        @keyframes cinemaFadeOut {
+            to {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
 
         /* 时代背景 */
-        .era-bg { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; }
-        .era-bg.active { opacity: 1; }
-        .era-silent { background: #1a1a1a; filter: sepia(80%) contrast(1.1); }
-        .era-color { background: linear-gradient(135deg, #1a0808 0%, #081a18 100%); }
-        .era-digital { background: linear-gradient(180deg, #080815 0%, #0f0f20 100%); }
-        .era-ai { background: radial-gradient(ellipse at center, #1a1025 0%, #080810 100%); }
+        .era-bg {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .era-bg.active {
+            opacity: 1;
+        }
+
+        .era-silent {
+            background: #1a1a1a;
+            filter: sepia(80%) contrast(1.1);
+        }
+
+        .era-color {
+            background: linear-gradient(135deg, #1a0808 0%, #081a18 100%);
+        }
+
+        .era-digital {
+            background: linear-gradient(180deg, #080815 0%, #0f0f20 100%);
+        }
+
+        .era-ai {
+            background: radial-gradient(ellipse at center, #1a1025 0%, #080810 100%);
+        }
 
         /* 胶片边框 */
-        .film-border { position: absolute; top: 0; bottom: 0; width: 50px; background: repeating-linear-gradient(to bottom, #111 0px, #111 15px, #000 15px, #000 18px, #1a1a1a 18px, #1a1a1a 33px, #000 33px, #000 36px); z-index: 2; }
-        .film-border.left { left: 0; }
-        .film-border.right { right: 0; }
+        .film-border {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 50px;
+            background: repeating-linear-gradient(to bottom, #111 0px, #111 15px, #000 15px, #000 18px, #1a1a1a 18px, #1a1a1a 33px, #000 33px, #000 36px);
+            z-index: 2;
+        }
+
+        .film-border.left {
+            left: 0;
+        }
+
+        .film-border.right {
+            right: 0;
+        }
 
         /* 宫格效果 - 时代卡片 */
-        .era-card { position: absolute; z-index: 25; text-align: center; opacity: 0; pointer-events: none; }
-        .era-card.show { animation: eraCardShow 1.8s ease-out forwards; }
-        @keyframes eraCardShow {
-            0% { opacity: 0; transform: scale(0.7) translateY(20px); }
-            15% { opacity: 1; transform: scale(1) translateY(0); }
-            75% { opacity: 1; }
-            100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+        .era-card {
+            position: absolute;
+            z-index: 25;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
         }
-        .era-year { font-size: 80px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: -3px; margin-bottom: 8px; }
-        .era-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; letter-spacing: 4px; }
-        .era-desc { font-size: 14px; opacity: 0.7; letter-spacing: 2px; }
-        .era-silent-card .era-year { color: #a0a0a0; }
-        .era-silent-card .era-title { color: #d0d0d0; }
-        .era-color-card .era-year { color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5); }
-        .era-color-card .era-title { color: #ffd93d; }
-        .era-digital-card .era-year { color: #4ecdc4; text-shadow: 0 0 20px rgba(78,205,196,0.5); }
-        .era-digital-card .era-title { color: #45b7d1; }
-        .era-ai-card .era-year { background: linear-gradient(135deg, #fbbf24, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .era-ai-card .era-title { color: #fbbf24; }
-        .era-ai-card .era-desc { color: #a78bfa; }
+
+        .era-card.show {
+            animation: eraCardShow 1.8s ease-out forwards;
+        }
+
+        @keyframes eraCardShow {
+            0% {
+                opacity: 0;
+                transform: scale(0.7) translateY(20px);
+            }
+
+            15% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+
+            75% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.95) translateY(-10px);
+            }
+        }
+
+        .era-year {
+            font-size: 80px;
+            font-weight: 900;
+            font-family: 'Courier New', monospace;
+            letter-spacing: -3px;
+            margin-bottom: 8px;
+        }
+
+        .era-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: 4px;
+        }
+
+        .era-desc {
+            font-size: 14px;
+            opacity: 0.7;
+            letter-spacing: 2px;
+        }
+
+        .era-silent-card .era-year {
+            color: #a0a0a0;
+        }
+
+        .era-silent-card .era-title {
+            color: #d0d0d0;
+        }
+
+        .era-color-card .era-year {
+            color: #ff6b6b;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+        }
+
+        .era-color-card .era-title {
+            color: #ffd93d;
+        }
+
+        .era-digital-card .era-year {
+            color: #4ecdc4;
+            text-shadow: 0 0 20px rgba(78, 205, 196, 0.5);
+        }
+
+        .era-digital-card .era-title {
+            color: #45b7d1;
+        }
+
+        .era-ai-card .era-year {
+            background: linear-gradient(135deg, #fbbf24, #a855f7, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .era-ai-card .era-title {
+            color: #fbbf24;
+        }
+
+        .era-ai-card .era-desc {
+            color: #a78bfa;
+        }
 
         /* 场记板 */
-        .intro-clapperboard { position: absolute; width: 280px; height: 200px; z-index: 10; opacity: 0; }
-        .intro-clapperboard.show { animation: clapperShow 0.5s ease-out forwards; }
-        @keyframes clapperShow {
-            0% { opacity: 0; transform: scale(0.5) rotate(-10deg); }
-            60% { opacity: 1; transform: scale(1.05) rotate(3deg); }
-            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        .intro-clapperboard {
+            position: absolute;
+            width: 280px;
+            height: 200px;
+            z-index: 10;
+            opacity: 0;
         }
-        .clapper-top { width: 100%; height: 50px; background: linear-gradient(135deg, #1a1a1a, #333); border-radius: 6px 6px 0 0; position: relative; z-index: 2; }
-        .clapper-top::before { content: ''; position: absolute; inset: 4px; background: repeating-linear-gradient(-45deg, #fbbf24 0px, #fbbf24 14px, #000 14px, #000 28px); border-radius: 3px; }
-        .clapper-body { width: 100%; height: 150px; background: linear-gradient(180deg, #1a1a1a, #0a0a0a); border-radius: 0 0 6px 6px; padding: 16px; display: flex; flex-direction: column; justify-content: center; border: 2px solid #333; border-top: none; }
-        .clapper-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
-        .clapper-label { color: #666; text-transform: uppercase; letter-spacing: 1px; }
-        .clapper-value { color: #fbbf24; font-weight: 700; font-family: 'Courier New', monospace; }
-        .clapper-title { text-align: center; font-size: 24px; font-weight: 900; color: #fff; margin-top: 10px; text-shadow: 0 0 15px rgba(251,191,36,0.5); }
+
+        .intro-clapperboard.show {
+            animation: clapperShow 0.5s ease-out forwards;
+        }
+
+        @keyframes clapperShow {
+            0% {
+                opacity: 0;
+                transform: scale(0.5) rotate(-10deg);
+            }
+
+            60% {
+                opacity: 1;
+                transform: scale(1.05) rotate(3deg);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .clapper-top {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(135deg, #1a1a1a, #333);
+            border-radius: 6px 6px 0 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .clapper-top::before {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            background: repeating-linear-gradient(-45deg, #fbbf24 0px, #fbbf24 14px, #000 14px, #000 28px);
+            border-radius: 3px;
+        }
+
+        .clapper-body {
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(180deg, #1a1a1a, #0a0a0a);
+            border-radius: 0 0 6px 6px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 2px solid #333;
+            border-top: none;
+        }
+
+        .clapper-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .clapper-label {
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .clapper-value {
+            color: #fbbf24;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .clapper-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 900;
+            color: #fff;
+            margin-top: 10px;
+            text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+        }
 
         /* 倒计时 */
-        .intro-countdown { position: absolute; width: 160px; height: 160px; z-index: 20; opacity: 0; }
-        .intro-countdown.show { animation: countdownPulse 0.7s ease-out forwards; }
-        @keyframes countdownPulse {
-            0% { opacity: 0; transform: scale(1.5); }
-            20% { opacity: 1; transform: scale(1); }
-            80% { opacity: 1; }
-            100% { opacity: 0; transform: scale(0.8); }
+        .intro-countdown {
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            z-index: 20;
+            opacity: 0;
         }
-        .countdown-circle { width: 100%; height: 100%; border: 6px solid transparent; border-top-color: #fbbf24; border-radius: 50%; animation: countdownSpin 0.7s linear; }
-        @keyframes countdownSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .countdown-number { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 72px; font-weight: 900; color: #fbbf24; font-family: 'Courier New', monospace; text-shadow: 0 0 25px rgba(251,191,36,0.8); }
+
+        .intro-countdown.show {
+            animation: countdownPulse 0.7s ease-out forwards;
+        }
+
+        @keyframes countdownPulse {
+            0% {
+                opacity: 0;
+                transform: scale(1.5);
+            }
+
+            20% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            80% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        .countdown-circle {
+            width: 100%;
+            height: 100%;
+            border: 6px solid transparent;
+            border-top-color: #fbbf24;
+            border-radius: 50%;
+            animation: countdownSpin 0.7s linear;
+        }
+
+        @keyframes countdownSpin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .countdown-number {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 72px;
+            font-weight: 900;
+            color: #fbbf24;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 25px rgba(251, 191, 36, 0.8);
+        }
 
         /* LOGO展示 */
-        .intro-logo { position: absolute; z-index: 30; text-align: center; opacity: 0; }
-        .intro-logo.show { animation: logoReveal 1s ease-out forwards; }
-        @keyframes logoReveal {
-            0% { opacity: 0; transform: scale(0.3); filter: blur(15px); }
-            50% { opacity: 1; transform: scale(1.05); filter: blur(0); }
-            100% { opacity: 1; transform: scale(1); }
+        .intro-logo {
+            position: absolute;
+            z-index: 30;
+            text-align: center;
+            opacity: 0;
         }
-        .intro-logo-icon { width: 120px; height: 120px; margin: 0 auto 20px; background: linear-gradient(135deg, #fbbf24, #a855f7); border-radius: 30px; display: flex; align-items: center; justify-content: center; font-size: 60px; box-shadow: 0 20px 60px rgba(251,191,36,0.4); }
-        .intro-logo-text { font-size: 52px; font-weight: 900; color: #fff; letter-spacing: 8px; text-shadow: 0 0 30px rgba(251,191,36,0.5); margin-bottom: 10px; }
-        .intro-logo-tagline { font-size: 20px; color: rgba(255,255,255,0.8); letter-spacing: 6px; }
+
+        .intro-logo.show {
+            animation: logoReveal 1s ease-out forwards;
+        }
+
+        @keyframes logoReveal {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+                filter: blur(15px);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+                filter: blur(0);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .intro-logo-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #fbbf24, #a855f7);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            box-shadow: 0 20px 60px rgba(251, 191, 36, 0.4);
+        }
+
+        .intro-logo-text {
+            font-size: 52px;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 8px;
+            text-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .intro-logo-tagline {
+            font-size: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 6px;
+        }
 
         /* 粒子 */
-        .intro-particles { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
-        .intro-particle { position: absolute; width: 4px; height: 4px; background: #fbbf24; border-radius: 50%; box-shadow: 0 0 10px #fbbf24; animation: particleFloat 2.5s ease-in-out infinite; }
+        .intro-particles {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .intro-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #fbbf24;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #fbbf24;
+            animation: particleFloat 2.5s ease-in-out infinite;
+        }
+
         @keyframes particleFloat {
-            0%, 100% { opacity: 0; transform: translateY(100vh) scale(0); }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { opacity: 0; transform: translateY(-50px) scale(1); }
+
+            0%,
+            100% {
+                opacity: 0;
+                transform: translateY(100vh) scale(0);
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1);
+            }
         }
 
         /* 光线扫过 */
-        .light-sweep { position: absolute; width: 200%; height: 100%; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.02) 55%, transparent 100%); transform: translateX(-100%) skewX(-20deg); z-index: 50; pointer-events: none; }
-        .light-sweep.animate { animation: sweepLight 1s ease-out forwards; }
-        @keyframes sweepLight { from { transform: translateX(-100%) skewX(-20deg); } to { transform: translateX(100%) skewX(-20deg); } }
+        .light-sweep {
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.02) 45%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.02) 55%, transparent 100%);
+            transform: translateX(-100%) skewX(-20deg);
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .light-sweep.animate {
+            animation: sweepLight 1s ease-out forwards;
+        }
+
+        @keyframes sweepLight {
+            from {
+                transform: translateX(-100%) skewX(-20deg);
+            }
+
+            to {
+                transform: translateX(100%) skewX(-20deg);
+            }
+        }
 
         /* 故障效果 */
-        .glitch-overlay { position: absolute; inset: 0; z-index: 60; pointer-events: none; opacity: 0; }
-        .glitch-overlay.active { animation: glitchFlash 0.15s ease-out; }
+        .glitch-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 60;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        .glitch-overlay.active {
+            animation: glitchFlash 0.15s ease-out;
+        }
+
         @keyframes glitchFlash {
-            0%, 100% { opacity: 0; }
-            20% { opacity: 1; background: rgba(255,0,0,0.1); transform: translateX(-3px); }
-            40% { opacity: 1; background: rgba(0,255,255,0.1); transform: translateX(3px); }
-            60% { opacity: 0; }
+
+            0%,
+            100% {
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 1;
+                background: rgba(255, 0, 0, 0.1);
+                transform: translateX(-3px);
+            }
+
+            40% {
+                opacity: 1;
+                background: rgba(0, 255, 255, 0.1);
+                transform: translateX(3px);
+            }
+
+            60% {
+                opacity: 0;
+            }
         }
 
         /* 跳过按钮 */
-        .intro-skip { position: fixed; bottom: 30px; right: 30px; padding: 12px 24px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 25px; color: #fff; font-size: 14px; cursor: pointer; z-index: 100000; transition: all 0.2s; }
-        .intro-skip:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); }
+        .intro-skip {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 100000;
+            transition: all 0.2s;
+        }
+
+        .intro-skip:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
     </style>
 </head>
 
@@ -304,7 +692,8 @@
                     <button class="product-tab" data-type="skills" onclick="switchProductType('skills')">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
-                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                            <path
+                                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                         </svg>
                         <span>🧩技能</span>
                     </button>
@@ -443,8 +832,6 @@
                                 <option value="grok-video-3">Grok Video 3 6秒 (图生视频)</option>
                                 <option value="grok-video-3-10s-text">Grok Video 3 10秒 (文生视频)</option>
                                 <option value="grok-video-3-10s">Grok Video 3 10秒 (图生视频)</option>
-                                <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option>
-                                <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option>
                                 <optgroup label="🎬 Wan2.6 - 5秒">
                                     <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
                                     <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
@@ -463,23 +850,34 @@
                                     <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
                                     <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
                                 </optgroup>
+                                <optgroup label="🎬 LTX-Video (Lightricks)">
+                                    <option value="ltx-video-5s">LTX-Video 5秒 (4胶片/快速)</option>
+                                    <option value="ltx-video-10s">LTX-Video 10秒 (7胶片)</option>
+                                    <option value="ltx-video-15s">LTX-Video 15秒 (10胶片)</option>
+                                    <option value="ltx-video-custom">LTX-Video 自定义时长</option>
+                                </optgroup>
                                 <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
                             </select>
                         </div>
                         <!-- 💰 价格提示区域 -->
-                        <div id="priceHintArea" class="option-group" style="margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); display: none;">        
-                            <label style="color: #60a5fa; font-weight: 700; font-size: 12px; margin-bottom: 8px; display: block;">💰 本次生成预计消耗</label>
+                        <div id="priceHintArea" class="option-group"
+                            style="margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); display: none;">
+                            <label
+                                style="color: #60a5fa; font-weight: 700; font-size: 12px; margin-bottom: 8px; display: block;">💰
+                                本次生成预计消耗</label>
                             <div id="priceHintContent" style="font-size: 14px; line-height: 1.6;"></div>
                         </div>
                         <!-- 🖼️ 角色图上传区域（图生视频模式显示） -->
                         <div id="quickRefImageSection" class="option-group" style="display:none; margin-top:10px;">
                             <label>📷 上传角色参考图 <span style="color:#888;font-size:10px;">(可选)</span></label>
-                            <input type="file" id="quickRefImageInput" accept="image/*" style="display:none;" onchange="handleQuickRefImageUpload(this)">
-                            <div id="quickRefImageArea" onclick="document.getElementById('quickRefImageInput').click()" 
+                            <input type="file" id="quickRefImageInput" accept="image/*" style="display:none;"
+                                onchange="handleQuickRefImageUpload(this)">
+                            <div id="quickRefImageArea" onclick="document.getElementById('quickRefImageInput').click()"
                                 style="border:2px dashed #444; border-radius:8px; padding:12px; text-align:center; cursor:pointer; transition:border-color 0.3s; background:rgba(0,0,0,0.2);">
                                 <div style="font-size:20px; margin-bottom:4px;">📷</div>
                                 <div id="quickRefImageText" style="color:#888; font-size:12px;">点击上传角色图</div>
-                                <img id="quickRefImagePreview" src="" alt="预览" style="display:none; max-width:100%; max-height:80px; margin-top:8px; border-radius:6px;">
+                                <img id="quickRefImagePreview" src="" alt="预览"
+                                    style="display:none; max-width:100%; max-height:80px; margin-top:8px; border-radius:6px;">
                             </div>
                         </div>
                         <div class="option-row">
@@ -502,7 +900,7 @@
                         <button class="btn-add-task" onclick="quickAddIdea()" style="flex: 1; min-width: 140px;">
                             添加任务到队列
                         </button>
-                        <button class="btn-add-task" onclick="quickCreateCharactersFromStory()" 
+                        <button class="btn-add-task" onclick="quickCreateCharactersFromStory()"
                             style="flex: 1; min-width: 140px; background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(236,72,153,0.2)); border: 1px solid rgba(139,92,246,0.5);">
                             🤖 创建角色
                         </button>
@@ -536,15 +934,40 @@
                                     style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
                                 <div style="display:flex; gap:8px;">
                                     <div style="flex:1;">
-                                        <label style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">章节数</label>
+                                        <label
+                                            style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">章节数</label>
                                         <input id="sidebarWritingChapters" type="number" min="1" max="200" value="10"
                                             style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
                                     </div>
                                     <div style="flex:1;">
-                                        <label style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">每章字数</label>
+                                        <label
+                                            style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">每章字数</label>
                                         <input id="sidebarWritingWords" type="number" min="200" max="20000" value="2000"
                                             style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
                                     </div>
+                                </div>
+                                <div style="margin-top:8px;">
+                                    <label
+                                        style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">写作模型</label>
+                                    <select id="sidebarWritingModel"
+                                        style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                        <option value="yunwu:grok-4-fast" selected>🌟 Grok-4 Fast（首选）</option>
+                                        <option value="yunwu:grok-4.1">🌟 Grok-4.1</option>
+                                        <option value="qwen3.5-plus">🧠 Qwen3.5-Plus</option>
+                                        <option value="mimo">⚡ MIMO</option>
+                                        <option value="yunwu:qwen-plus">☁️ 云雾 qwen-plus</option>
+                                        <option value="roll">🆓 魔塔 roll（需配置）</option>
+                                        <optgroup label="🆓 OpenRouter 免费模型">
+                                            <option value="openrouter:openrouter/hunter-alpha">🆓 Hunter Alpha</option>
+                                            <option value="openrouter:openrouter/healer-alpha">🆓 Healer Alpha</option>
+                                            <option value="openrouter:nvidia/nemotron-3-super-120b-a12b:free">🆓 Nemotron 120B</option>
+                                            <option value="openrouter:bytedance-seed/seedream-4.5">🆓 Seedream 4.5</option>
+                                        </optgroup>
+                                        <optgroup label="⭐ OpenRouter 付费模型">
+                                            <option value="openrouter:bytedance-seed/seed-2.0-lite">⭐ Seed 2.0 Lite</option>
+                                            <option value="openrouter:bytedance-seed/seed-2.0-mini">⭐ Seed 2.0 Mini</option>
+                                        </optgroup>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -552,7 +975,8 @@
                         <!-- ✍️ 快速写作输入 -->
                         <div
                             style="padding:12px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:12px; margin-bottom:12px;">
-                            <div style="font-weight:700; color:#60a5fa; margin-bottom:10px; font-size:13px;">✍️ 快速创作</div>
+                            <div style="font-weight:700; color:#60a5fa; margin-bottom:10px; font-size:13px;">✍️ 快速创作
+                            </div>
                             <textarea id="sidebarWritingContent"
                                 placeholder="在这里输入您的写作内容或大纲...&#10;&#10;支持功能：&#10;• 续写 - AI根据已有内容继续创作&#10;• 润色 - 优化文字表达&#10;• 扩写 - 增加细节描写"
                                 style="width:100%; height:120px; padding:10px; background:#1a1a2e; border:1px solid rgba(59,130,246,0.4); border-radius:10px; color:#fff; font-size:13px; resize:vertical; line-height:1.6;"></textarea>
@@ -603,36 +1027,48 @@
                     <!-- 🧩 技能选择面板 -->
                     <div id="skillsPanel" style="display:none;">
                         <!-- 分类筛选 -->
-                        <div class="skill-category-tabs" style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
-                            <button class="skill-category-tab active" data-category="all" onclick="SkillUI.setCategory('all')"
+                        <div class="skill-category-tabs"
+                            style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+                            <button class="skill-category-tab active" data-category="all"
+                                onclick="SkillUI.setCategory('all')"
                                 style="padding:6px 12px; background:rgba(251,191,36,0.2); border:1px solid rgba(251,191,36,0.5); border-radius:16px; color:var(--accent-gold); font-size:12px; cursor:pointer;">全部</button>
-                            <button class="skill-category-tab" data-category="video" onclick="SkillUI.setCategory('video')"
-                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎬 视频</button>
-                            <button class="skill-category-tab" data-category="image" onclick="SkillUI.setCategory('image')"
-                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎨 图像</button>
-                            <button class="skill-category-tab" data-category="content" onclick="SkillUI.setCategory('content')"
-                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">📝 内容</button>
-                            <button class="skill-category-tab" data-category="automation" onclick="SkillUI.setCategory('automation')"
-                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🤖 自动化</button>
+                            <button class="skill-category-tab" data-category="video"
+                                onclick="SkillUI.setCategory('video')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎬
+                                视频</button>
+                            <button class="skill-category-tab" data-category="image"
+                                onclick="SkillUI.setCategory('image')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎨
+                                图像</button>
+                            <button class="skill-category-tab" data-category="content"
+                                onclick="SkillUI.setCategory('content')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">📝
+                                内容</button>
+                            <button class="skill-category-tab" data-category="automation"
+                                onclick="SkillUI.setCategory('automation')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🤖
+                                自动化</button>
                         </div>
 
                         <!-- 搜索框 -->
                         <div style="margin-bottom:12px;">
-                            <input type="text" id="skillSearchInput" placeholder="🔍 搜索技能..." 
+                            <input type="text" id="skillSearchInput" placeholder="🔍 搜索技能..."
                                 oninput="SkillUI.search(this.value)"
                                 style="width:100%; padding:10px 14px; background:#1a1a2e; border:1px solid rgba(255,255,255,0.15); border-radius:10px; color:#fff; font-size:13px;">
                         </div>
 
                         <!-- 技能卡片网格 -->
-                        <div id="skillsGrid" class="skills-grid" style="display:grid; grid-template-columns:1fr; gap:10px; max-height:calc(100vh - 480px); overflow-y:auto; padding-right:4px;">
+                        <div id="skillsGrid" class="skills-grid"
+                            style="display:grid; grid-template-columns:1fr; gap:10px; max-height:calc(100vh - 480px); overflow-y:auto; padding-right:4px;">
                             <!-- 由 JS 动态渲染 -->
                         </div>
 
                         <!-- 执行历史 -->
                         <div style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <span style="color:#888; font-size:12px;">📊 最近执行</span>
-                                <button onclick="SkillManager.clearHistory(); renderSkillHistory();" 
+                                <button onclick="SkillManager.clearHistory(); renderSkillHistory();"
                                     style="background:none; border:none; color:#666; font-size:11px; cursor:pointer;">清空</button>
                             </div>
                             <div id="skillHistoryList" style="max-height:120px; overflow-y:auto;">
@@ -667,8 +1103,9 @@
                     <button class="btn-link" onclick="openSettingsModal()">⚙️ 设置</button>
                     <button class="btn-link" onclick="openMemberModal()">👑 会员</button>
                     <button class="btn-link" onclick="openHelpModal()">❓ 帮助</button>
+                    <button class="btn-link" onclick="openHunyuan3DModal()" style="color:#67e8f9;">🧊 混元生3D</button>
                 </div>
-                
+
                 <!-- 📜 法律声明链接 -->
                 <div class="footer-legal" style="margin-top:8px; font-size:11px;">
                     <a href="terms.html" class="btn-link" style="color:#666;">服务条款</a>
@@ -813,7 +1250,8 @@
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1张日系治愈风格的插画')">🌸 日系</button>
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('画1张游戏角色立绘')">🎮 角色</button>
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1个短视频', 'sora-2-all')">🎬 视频</button>
-                        <button class="quick-cmd-btn" onclick="openMVGenerator()" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">🎵 音乐MV</button>
+                        <button class="quick-cmd-btn" onclick="openMVGenerator()"
+                            style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">🎵 音乐MV</button>
                     </div>
                     <!-- 📎 参考图/视频预览区 -->
                     <div class="command-ref-preview" id="commandRefPreview" style="display:none;">
@@ -823,19 +1261,24 @@
                             <button class="ref-remove-btn" onclick="removeCommandRef()" title="移除">×</button>
                         </div>
                         <!-- 🆕 多图预览容器 -->
-                        <div id="multiRefPreviewContainer" style="display:none; gap:6px; flex-wrap:wrap; align-items:center;"></div>
+                        <div id="multiRefPreviewContainer"
+                            style="display:none; gap:6px; flex-wrap:wrap; align-items:center;"></div>
                     </div>
                     <!-- 🆕 多图合并选项 -->
-                    <div id="refMergeOptions" style="display:none; padding:8px 12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; margin-bottom:8px;">
+                    <div id="refMergeOptions"
+                        style="display:none; padding:8px 12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; margin-bottom:8px;">
                         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-                            <span style="font-size:12px; color:#a78bfa;">🖼️ 已选择 <span id="refImageCount">0</span> 张参考图</span>
+                            <span style="font-size:12px; color:#a78bfa;">🖼️ 已选择 <span id="refImageCount">0</span>
+                                张参考图</span>
                             <div style="display:flex; gap:8px; align-items:center;">
-                                <select id="refMergeMode" style="padding:4px 8px; background:#1a1a24; border:1px solid #333; border-radius:4px; color:#fff; font-size:11px;">
+                                <select id="refMergeMode"
+                                    style="padding:4px 8px; background:#1a1a24; border:1px solid #333; border-radius:4px; color:#fff; font-size:11px;">
                                     <option value="horizontal">↔️ 横向</option>
                                     <option value="vertical">↕️ 竖向</option>
                                     <option value="grid" selected>⬜ 网格</option>
                                 </select>
-                                <button onclick="clearAllRefImages()" style="background:none; border:none; color:#f87171; font-size:11px; cursor:pointer;">清空</button>
+                                <button onclick="clearAllRefImages()"
+                                    style="background:none; border:none; color:#f87171; font-size:11px; cursor:pointer;">清空</button>
                             </div>
                         </div>
                     </div>
@@ -856,9 +1299,18 @@
                                 <option value="banana">🍌 Banana 标准</option>
                                 <option value="banana-2k">🌟 Banana 2K</option>
                                 <option value="banana-4k">💎 Banana 4K</option>
+                                <option value="nano-banana-2">🍌 Nano Banana2</option>
+                                <option value="nano-banana-2-2k">🌟 Nano Banana2 2K</option>
+                                <option value="nano-banana-2-4k">💎 Nano Banana2 4K</option>
                                 <option value="Qwen/Qwen-Image-2512">🎭 通义万相Max</option>
                                 <option value="seedream">✨ 星梦画师</option>
+                                <option value="doubao-seedream-5-0-260128">🌟 星梦画师5.0</option>
+                                <option value="doubao-seedream-4-5-251128">✨ 星梦画师4.5</option>
+                                <option value="gemini-3.1-flash-image-preview">⚡ Gemini Flash</option>
+                                <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K</option>
+                                <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K</option>
                                 <!-- 即梦已停用 <option value="jimeng">🎨 即梦4.5</option> -->
+                                <option value="jimeng-4.5">🎨 即梦4.5</option>
                                 <option value="midjourney-fast">🌟 Midjourney Fast</option>
                                 <option value="midjourney-turbo">🚀 Midjourney Turbo</option>
                                 <option value="midjourney-relax">🌙 Midjourney Relax</option>
@@ -943,19 +1395,41 @@
         <div class="intro-clapperboard" id="introClapperboard">
             <div class="clapper-top"></div>
             <div class="clapper-body">
-                <div class="clapper-row"><span class="clapper-label">PROD</span><span class="clapper-value">ROLLROLL</span></div>
-                <div class="clapper-row"><span class="clapper-label">SCENE</span><span class="clapper-value">001</span></div>
-                <div class="clapper-row"><span class="clapper-label">TAKE</span><span class="clapper-value">1</span></div>
+                <div class="clapper-row"><span class="clapper-label">PROD</span><span
+                        class="clapper-value">ROLLROLL</span></div>
+                <div class="clapper-row"><span class="clapper-label">SCENE</span><span class="clapper-value">001</span>
+                </div>
+                <div class="clapper-row"><span class="clapper-label">TAKE</span><span class="clapper-value">1</span>
+                </div>
                 <div class="clapper-title">ACTION!</div>
             </div>
         </div>
         <!-- 时代卡片 -->
-        <div class="era-card era-silent-card" id="eraCardSilent"><div class="era-year">1895</div><div class="era-title">SILENT FILM ERA</div><div class="era-desc">默片时代 · 光影诞生</div></div>
-        <div class="era-card era-color-card" id="eraCardColor"><div class="era-year">1935</div><div class="era-title">TECHNICOLOR ERA</div><div class="era-desc">彩色时代 · 色彩革命</div></div>
-        <div class="era-card era-digital-card" id="eraCardDigital"><div class="era-year">1999</div><div class="era-title">DIGITAL CINEMA</div><div class="era-desc">数字时代 · 技术飞跃</div></div>
-        <div class="era-card era-ai-card" id="eraCardAi"><div class="era-year">2026</div><div class="era-title">AI FILMMAKING</div><div class="era-desc">智能时代 · 无限可能</div></div>
+        <div class="era-card era-silent-card" id="eraCardSilent">
+            <div class="era-year">1895</div>
+            <div class="era-title">SILENT FILM ERA</div>
+            <div class="era-desc">默片时代 · 光影诞生</div>
+        </div>
+        <div class="era-card era-color-card" id="eraCardColor">
+            <div class="era-year">1935</div>
+            <div class="era-title">TECHNICOLOR ERA</div>
+            <div class="era-desc">彩色时代 · 色彩革命</div>
+        </div>
+        <div class="era-card era-digital-card" id="eraCardDigital">
+            <div class="era-year">1999</div>
+            <div class="era-title">DIGITAL CINEMA</div>
+            <div class="era-desc">数字时代 · 技术飞跃</div>
+        </div>
+        <div class="era-card era-ai-card" id="eraCardAi">
+            <div class="era-year">2026</div>
+            <div class="era-title">AI FILMMAKING</div>
+            <div class="era-desc">智能时代 · 无限可能</div>
+        </div>
         <!-- 倒计时 -->
-        <div class="intro-countdown" id="introCountdown"><div class="countdown-circle"></div><div class="countdown-number" id="countdownNumber">3</div></div>
+        <div class="intro-countdown" id="introCountdown">
+            <div class="countdown-circle"></div>
+            <div class="countdown-number" id="countdownNumber">3</div>
+        </div>
         <!-- LOGO -->
         <div class="intro-logo" id="introLogo">
             <div class="intro-logo-icon">🎬</div>
@@ -971,25 +1445,25 @@
     </div>
 
     <script>
-    // 开场动画/欢迎页显示逻辑（登录后可以跳过，其他情况强制显示）
-    var _showIntro = false;
-    var _introStyleTag = null;
-    (function() {
-        // 🔒 只有登录后跳转（logged_in=1 或 skip_welcome=1）才跳过
-        // 其他情况强制显示开场动画和欢迎页
-        if(location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1){
-            history.replaceState({}, '', location.pathname);
-            _showIntro = false;
-            return;
-        }
-        // 强制显示开场动画和欢迎页
-        _showIntro = true;
-        var style = document.createElement('style');
-        style.id = 'cinemaIntroInjectedStyle';
-        style.textContent = '#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
-        document.head.appendChild(style);
-        _introStyleTag = style;
-    })();
+        // 开场动画/欢迎页显示逻辑（登录后可以跳过，其他情况强制显示）
+        var _showIntro = false;
+        var _introStyleTag = null;
+        (function () {
+            // 🔒 只有登录后跳转（logged_in=1 或 skip_welcome=1）才跳过
+            // 其他情况强制显示开场动画和欢迎页
+            if (location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1) {
+                history.replaceState({}, '', location.pathname);
+                _showIntro = false;
+                return;
+            }
+            // 强制显示开场动画和欢迎页
+            _showIntro = true;
+            var style = document.createElement('style');
+            style.id = 'cinemaIntroInjectedStyle';
+            style.textContent = '#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
+            document.head.appendChild(style);
+            _introStyleTag = style;
+        })();
     </script>
     <!-- 欢迎页（默认隐藏，由上方脚本控制显示）-->
     <div id="welcomeScreen" class="welcome-screen" style="display:none;">
@@ -1006,7 +1480,8 @@
         <div class="welcome-content">
             <div class="welcome-badge">🚀 AI 驱动创作平台</div>
             <div class="welcome-promo" style="padding: 24px 28px; font-size: 1.1em;">
-                <div class="welcome-promo-title" style="font-size: 1.5em; margin-bottom: 12px;">🎁 新用户注册即赠送10万锁定积分，可解锁100积分体验</div>
+                <div class="welcome-promo-title" style="font-size: 1.5em; margin-bottom: 12px;">🎁
+                    新用户注册即赠送10万锁定积分，可解锁100积分体验</div>
                 <div class="welcome-promo-desc" style="font-size: 1.1em; line-height: 1.6;">
                     第八代全自动生成式AI内容创作平台爆肝登场，特别鸣谢未来股东们的大力支持。
                 </div>
@@ -1047,24 +1522,6 @@
                 <button class="btn-close" onclick="closeSettingsModal()" title="关闭">×</button>
             </div>
             <div class="modal-body">
-                <!-- 🔐 API Key 已内置到环境变量，用户无需配置 -->
-                <div id="proModeSettings" style="display: none;">
-                    <!-- 隐藏的输入框，保持兼容性 -->
-                    <input type="hidden" id="settingZhenzhenKey" value="">
-                    <input type="hidden" id="settingRhKey" value="">
-                    <input type="hidden" id="settingMotaverseKey" value="">
-                </div>
-
-                <div class="form-group">
-                    <label style="color: var(--accent-gold);">✅ 无需配置 API Key</label>
-                    <div class="hint-text"
-                        style="background: rgba(74,222,128,0.08); padding: 10px; border-radius: 6px; margin-top: 5px;">
-                        当前站点所有模型调用均由后端代理与环境变量完成，用户侧无需填写 Key。<br>
-                        若遇到“登录/会员状态异常”，请关闭脚本拦截/翻译/广告插件或使用无痕模式。
-                    </div>
-                </div>
-
-                <!-- 📊 配额信息展示 -->
                 <div class="form-group" id="quotaInfoDisplay">
                     <label style="color: var(--accent-gold);">📊 您的使用额度</label>
                     <div class="hint-text"
@@ -1652,15 +2109,17 @@
                 <button class="btn-close" onclick="SkillUI.closeSkillConfig()">×</button>
             </div>
             <div class="modal-body">
-                <div id="skillConfigDesc" style="color: #aaa; font-size: 13px; margin-bottom: 16px; line-height: 1.5;"></div>
-                
+                <div id="skillConfigDesc" style="color: #aaa; font-size: 13px; margin-bottom: 16px; line-height: 1.5;">
+                </div>
+
                 <!-- 动态参数表单 -->
                 <div id="skillConfigForm" class="skill-config-form">
                     <!-- 由 JS 动态生成 -->
                 </div>
 
                 <!-- 成本预估 -->
-                <div id="skillCostEstimate" style="margin-top: 16px; padding: 12px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; font-size: 13px;">
+                <div id="skillCostEstimate"
+                    style="margin-top: 16px; padding: 12px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; font-size: 13px;">
                     <div class="skill-estimate-note" style="color: #888;">成本取决于实际生成内容</div>
                 </div>
             </div>
@@ -1678,7 +2137,8 @@
             <div style="text-align: center; margin-bottom: 20px;">
                 <div class="cine-loader" style="margin: 0 auto 15px;">
                     <svg class="film-reel" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="40" stroke="var(--accent-gold)" stroke-width="4" fill="none" stroke-dasharray="10 5" />
+                        <circle cx="50" cy="50" r="40" stroke="var(--accent-gold)" stroke-width="4" fill="none"
+                            stroke-dasharray="10 5" />
                         <circle cx="50" cy="50" r="30" stroke="#fff" stroke-width="2" fill="none" />
                         <path d="M50 20 L50 80 M20 50 L80 50" stroke="#333" stroke-width="4" />
                     </svg>
@@ -1687,22 +2147,26 @@
             </div>
 
             <!-- 进度条 -->
-            <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; margin-bottom: 20px; overflow: hidden;">
-                <div id="skillProgressBar" style="height: 100%; background: linear-gradient(90deg, var(--accent-gold), #f97316); border-radius: 10px; width: 0%; transition: width 0.3s ease;"></div>
+            <div
+                style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; margin-bottom: 20px; overflow: hidden;">
+                <div id="skillProgressBar"
+                    style="height: 100%; background: linear-gradient(90deg, var(--accent-gold), #f97316); border-radius: 10px; width: 0%; transition: width 0.3s ease;">
+                </div>
             </div>
 
             <!-- 步骤列表 -->
-            <div id="skillProgressSteps" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 15px; max-height: 200px; overflow-y: auto;">
+            <div id="skillProgressSteps"
+                style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 15px; max-height: 200px; overflow-y: auto;">
                 <!-- 由 JS 动态添加 -->
             </div>
 
             <!-- 控制按钮 -->
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button onclick="SkillUI.cancelExecution()" 
+                <button onclick="SkillUI.cancelExecution()"
                     style="flex: 1; padding: 10px 20px; background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.4); color: #ff8a80; border-radius: 20px; cursor: pointer;">
                     ⏹️ 取消
                 </button>
-                <button onclick="document.getElementById('skillProgressPanel').style.display='none'" 
+                <button onclick="document.getElementById('skillProgressPanel').style.display='none'"
                     style="flex: 1; padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #aaa; border-radius: 20px; cursor: pointer;">
                     ↙️ 后台运行
                 </button>
@@ -1720,7 +2184,7 @@
     <!-- 🧩 Skill 技能系统 - 用户可选择不同技能完成任务 -->
     <script src="js/skill-system.js?v=1.0.0"></script>
     <script src="js/skill-presets.js?v=1.0.0"></script>
-    <script src="js/batch.js?v=8.6.5&t=202601140058"></script>
+    <script src="js/batch.js?v=8.9.5&t=202603172022"></script>
     <script src="js/help_modal.js"></script>
 
     <!-- 视频编辑器模态框 -->
@@ -1987,152 +2451,379 @@
 
     <!-- 🎬 影视开场动画脚本 -->
     <script>
-    (function() {
-        // 如果不需要显示开场动画则跳过
-        if (typeof _showIntro === 'undefined' || !_showIntro) return;
+        (function () {
+            // 如果不需要显示开场动画则跳过
+            if (typeof _showIntro === 'undefined' || !_showIntro) return;
 
-        var intro = document.getElementById('cinemaIntro');
-        if (!intro) return;
+            var intro = document.getElementById('cinemaIntro');
+            if (!intro) return;
 
-        var particles = document.getElementById('introParticles');
-        var clapper = document.getElementById('introClapperboard');
-        var countdown = document.getElementById('introCountdown');
-        var countdownNum = document.getElementById('countdownNumber');
-        var logo = document.getElementById('introLogo');
-        var lightSweep = document.getElementById('lightSweep');
-        var glitch = document.getElementById('glitchOverlay');
-        var eraBgs = [document.getElementById('eraBgSilent'), document.getElementById('eraBgColor'), document.getElementById('eraBgDigital'), document.getElementById('eraBgAi')];
-        var eraCards = [document.getElementById('eraCardSilent'), document.getElementById('eraCardColor'), document.getElementById('eraCardDigital'), document.getElementById('eraCardAi')];
+            var particles = document.getElementById('introParticles');
+            var clapper = document.getElementById('introClapperboard');
+            var countdown = document.getElementById('introCountdown');
+            var countdownNum = document.getElementById('countdownNumber');
+            var logo = document.getElementById('introLogo');
+            var lightSweep = document.getElementById('lightSweep');
+            var glitch = document.getElementById('glitchOverlay');
+            var eraBgs = [document.getElementById('eraBgSilent'), document.getElementById('eraBgColor'), document.getElementById('eraBgDigital'), document.getElementById('eraBgAi')];
+            var eraCards = [document.getElementById('eraCardSilent'), document.getElementById('eraCardColor'), document.getElementById('eraCardDigital'), document.getElementById('eraCardAi')];
 
-        var animationRunning = true;
+            var animationRunning = true;
 
-        // 创建粒子
-        function createParticles() {
-            for (var i = 0; i < 30; i++) {
-                var p = document.createElement('div');
-                p.className = 'intro-particle';
-                p.style.left = Math.random() * 100 + '%';
-                p.style.animationDelay = Math.random() * 2.5 + 's';
-                p.style.animationDuration = (2 + Math.random() * 2) + 's';
-                particles.appendChild(p);
+            // 创建粒子
+            function createParticles() {
+                for (var i = 0; i < 30; i++) {
+                    var p = document.createElement('div');
+                    p.className = 'intro-particle';
+                    p.style.left = Math.random() * 100 + '%';
+                    p.style.animationDelay = Math.random() * 2.5 + 's';
+                    p.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    particles.appendChild(p);
+                }
             }
-        }
 
-        // 重置所有元素
-        function resetAll() {
-            clapper.classList.remove('show');
-            countdown.classList.remove('show');
-            logo.classList.remove('show');
-            lightSweep.classList.remove('animate');
-            eraBgs.forEach(function(bg) { bg.classList.remove('active'); });
-            eraCards.forEach(function(card) { card.classList.remove('show'); });
-        }
+            // 重置所有元素
+            function resetAll() {
+                clapper.classList.remove('show');
+                countdown.classList.remove('show');
+                logo.classList.remove('show');
+                lightSweep.classList.remove('animate');
+                eraBgs.forEach(function (bg) { bg.classList.remove('active'); });
+                eraCards.forEach(function (card) { card.classList.remove('show'); });
+            }
 
-        // 显示单个时代
-        function showEra(i) {
-            // 先隐藏所有背景
-            eraBgs.forEach(function(bg, j) { bg.classList.toggle('active', j === i); });
-            // 先隐藏所有卡片
-            eraCards.forEach(function(card, j) { card.classList.remove('show'); });
-            // 强制重绘确保动画重置
-            void eraCards[i].offsetWidth;
-            // 显示当前卡片
-            eraCards[i].classList.add('show');
-            lightSweep.classList.remove('animate');
-            void lightSweep.offsetWidth;
-            lightSweep.classList.add('animate');
-        }
+            // 显示单个时代
+            function showEra(i) {
+                // 先隐藏所有背景
+                eraBgs.forEach(function (bg, j) { bg.classList.toggle('active', j === i); });
+                // 先隐藏所有卡片
+                eraCards.forEach(function (card, j) { card.classList.remove('show'); });
+                // 强制重绘确保动画重置
+                void eraCards[i].offsetWidth;
+                // 显示当前卡片
+                eraCards[i].classList.add('show');
+                lightSweep.classList.remove('animate');
+                void lightSweep.offsetWidth;
+                lightSweep.classList.add('animate');
+            }
 
-        // 播放动画
-        function playIntro() {
-            // 添加 active 类显示开场动画
-            intro.classList.add('active');
-            createParticles();
-            resetAll();
-            var t = 0;
+            // 播放动画
+            function playIntro() {
+                // 添加 active 类显示开场动画
+                intro.classList.add('active');
+                createParticles();
+                resetAll();
+                var t = 0;
 
-            // 场记板
-            setTimeout(function() { if (!animationRunning) return; clapper.classList.add('show'); }, t);
-            t += 1200;
-            setTimeout(function() { if (!animationRunning) return; clapper.classList.remove('show'); }, t);
-            t += 300;
+                // 场记板
+                setTimeout(function () { if (!animationRunning) return; clapper.classList.add('show'); }, t);
+                t += 1200;
+                setTimeout(function () { if (!animationRunning) return; clapper.classList.remove('show'); }, t);
+                t += 300;
 
-            // 时代演变
-            var eras = [0, 1, 2, 3];
-            eras.forEach(function(i) {
-                setTimeout(function() {
+                // 时代演变
+                var eras = [0, 1, 2, 3];
+                eras.forEach(function (i) {
+                    setTimeout(function () {
+                        if (!animationRunning) return;
+                        showEra(i);
+                    }, t);
+                    t += 1800;
+                    setTimeout(function () {
+                        if (!animationRunning) return;
+                        glitch.classList.add('active');
+                        setTimeout(function () { glitch.classList.remove('active'); }, 150);
+                    }, t - 200);
+                });
+
+                // 倒计时
+                [3, 2, 1].forEach(function (n) {
+                    setTimeout(function () {
+                        if (!animationRunning) return;
+                        countdownNum.textContent = n;
+                        countdown.classList.remove('show');
+                        void countdown.offsetWidth;
+                        countdown.classList.add('show');
+                    }, t);
+                    t += 650;
+                });
+                t += 200;
+
+                // LOGO
+                setTimeout(function () {
                     if (!animationRunning) return;
-                    showEra(i);
+                    eraBgs[3].classList.add('active');
+                    logo.classList.add('show');
                 }, t);
                 t += 1800;
-                setTimeout(function() {
-                    if (!animationRunning) return;
-                    glitch.classList.add('active');
-                    setTimeout(function() { glitch.classList.remove('active'); }, 150);
-                }, t - 200);
-            });
 
-            // 倒计时
-            [3, 2, 1].forEach(function(n) {
-                setTimeout(function() {
-                    if (!animationRunning) return;
-                    countdownNum.textContent = n;
-                    countdown.classList.remove('show');
-                    void countdown.offsetWidth;
-                    countdown.classList.add('show');
-                }, t);
-                t += 650;
-            });
-            t += 200;
-
-            // LOGO
-            setTimeout(function() {
-                if (!animationRunning) return;
-                eraBgs[3].classList.add('active');
-                logo.classList.add('show');
-            }, t);
-            t += 1800;
-
-            // 结束
-            setTimeout(function() { finishIntro(); }, t);
-        }
-
-        // 结束动画
-        function finishIntro() {
-            if (!animationRunning) return;
-            animationRunning = false;
-            // 🔧 不移除注入的CSS，避免登录后页面闪现
-            // 直接通过CSS控制显示欢迎页和隐藏开场动画
-            var welcome = document.getElementById('welcomeScreen');
-            if (welcome) {
-                welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
+                // 结束
+                setTimeout(function () { finishIntro(); }, t);
             }
-            // 短暂延迟确保样式生效
-            setTimeout(function() {
-                // 开始淡出intro同时淡入欢迎页
-                intro.classList.add('fade-out');
+
+            // 结束动画
+            function finishIntro() {
+                if (!animationRunning) return;
+                animationRunning = false;
+                // 🔧 不移除注入的CSS，避免登录后页面闪现
+                // 直接通过CSS控制显示欢迎页和隐藏开场动画
+                var welcome = document.getElementById('welcomeScreen');
                 if (welcome) {
-                    welcome.style.opacity = '1';
+                    welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
                 }
-                // 淡出完成后隐藏intro
-                setTimeout(function() {
-                    intro.classList.add('hidden');
-                }, 600);
-            }, 20);
-        }
+                // 短暂延迟确保样式生效
+                setTimeout(function () {
+                    // 开始淡出intro同时淡入欢迎页
+                    intro.classList.add('fade-out');
+                    if (welcome) {
+                        welcome.style.opacity = '1';
+                    }
+                    // 淡出完成后隐藏intro
+                    setTimeout(function () {
+                        intro.classList.add('hidden');
+                    }, 600);
+                }, 20);
+            }
 
-        // 跳过动画
-        window.skipIntro = function() {
-            finishIntro();
-        };
+            // 跳过动画
+            window.skipIntro = function () {
+                finishIntro();
+            };
 
-        // 启动
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', playIntro);
-        } else {
-            playIntro();
+            // 启动
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', playIntro);
+            } else {
+                playIntro();
+            }
+        })();
+    </script>
+    <!-- ========== 🧊 混元生3D Modal ========== -->
+    <div id="hunyuan3dModal"
+        style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); align-items:center; justify-content:center;">
+        <div
+            style="background:#111827; border:1px solid rgba(103,232,249,0.3); border-radius:16px; width:560px; max-width:95vw; max-height:90vh; overflow-y:auto; padding:24px; position:relative;">
+            <button onclick="closeHunyuan3DModal()"
+                style="position:absolute; top:14px; right:16px; background:none; border:none; color:#888; font-size:22px; cursor:pointer; line-height:1;">×</button>
+            <h3 style="color:#67e8f9; margin:0 0 6px; font-size:18px;">🧊 混元生3D 专业版</h3>
+            <p style="color:#666; font-size:12px; margin:0 0 18px;">腾讯混元 · 文字/图片 → 高精度3D模型（GLB）· 约1-3分钟</p>
+
+            <!-- Tab 切换 -->
+            <div style="display:flex; gap:8px; margin-bottom:16px;">
+                <button id="h3d-tab-text" onclick="h3dSwitchTab('text')"
+                    style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(103,232,249,0.5); background:rgba(103,232,249,0.15); color:#67e8f9; cursor:pointer; font-size:13px; font-weight:600;">✍️
+                    文生3D</button>
+                <button id="h3d-tab-image" onclick="h3dSwitchTab('image')"
+                    style="flex:1; padding:8px; border-radius:8px; border:1px solid #333; background:transparent; color:#888; cursor:pointer; font-size:13px;">🖼️
+                    图生3D</button>
+            </div>
+
+            <!-- 文生3D -->
+            <div id="h3d-panel-text">
+                <label style="color:#aaa; font-size:12px; display:block; margin-bottom:6px;">描述想生成的3D模型</label>
+                <textarea id="h3dPrompt" placeholder="例如：一只可爱的熊猫、一辆赛车、一把中世纪宝剑..."
+                    style="width:100%; height:90px; background:#0d1117; border:1px solid #333; border-radius:8px; color:#fff; padding:10px; font-size:13px; resize:vertical; box-sizing:border-box;"></textarea>
+            </div>
+
+            <!-- 图生3D -->
+            <div id="h3d-panel-image" style="display:none;">
+                <label style="color:#aaa; font-size:12px; display:block; margin-bottom:6px;">上传参考图（正面清晰图效果最佳）</label>
+                <div id="h3dImageDrop" onclick="document.getElementById('h3dImageInput').click()"
+                    style="border:2px dashed #333; border-radius:8px; padding:24px; text-align:center; cursor:pointer; color:#666; font-size:13px; transition:border-color 0.2s;"
+                    ondragover="event.preventDefault(); this.style.borderColor='#67e8f9';"
+                    ondragleave="this.style.borderColor='#333';" ondrop="h3dHandleDrop(event)">
+                    <div style="font-size:28px; margin-bottom:8px;">📁</div>
+                    点击或拖拽图片到此处
+                </div>
+                <input type="file" id="h3dImageInput" accept="image/*" style="display:none;"
+                    onchange="h3dHandleImageSelect(this)">
+                <img id="h3dImagePreview"
+                    style="display:none; max-width:100%; max-height:160px; object-fit:contain; border-radius:8px; margin-top:10px; border:1px solid #333;">
+                <label
+                    style="color:#aaa; font-size:12px; display:block; margin-top:10px; margin-bottom:4px;">附加描述（可选）</label>
+                <input id="h3dImagePrompt" placeholder="对模型的补充描述..."
+                    style="width:100%; background:#0d1117; border:1px solid #333; border-radius:8px; color:#fff; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+            </div>
+
+            <!-- 提交按钮 -->
+            <button id="h3dSubmitBtn" onclick="h3dSubmit()"
+                style="width:100%; margin-top:16px; padding:12px; background:linear-gradient(135deg,#0891b2,#6366f1); border:none; border-radius:10px; color:#fff; font-size:14px; font-weight:700; cursor:pointer;">
+                🚀 开始生成3D模型（30胶片）
+            </button>
+
+            <!-- 进度 -->
+            <div id="h3dProgress"
+                style="display:none; margin-top:14px; background:#0d1117; border:1px solid #1f2937; border-radius:10px; padding:12px;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                    <div
+                        style="width:18px; height:18px; border:2px solid #67e8f9; border-top-color:transparent; border-radius:50%; animation:h3dspin 0.8s linear infinite;">
+                    </div>
+                    <span id="h3dProgressText" style="color:#67e8f9; font-size:13px;">正在提交任务...</span>
+                </div>
+                <div style="background:#1f2937; border-radius:4px; height:4px; overflow:hidden;">
+                    <div id="h3dProgressBar"
+                        style="height:100%; background:linear-gradient(90deg,#0891b2,#6366f1); width:5%; transition:width 0.5s;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果 -->
+            <div id="h3dResult" style="display:none; margin-top:14px;"></div>
+        </div>
+    </div>
+    <style>
+        @keyframes h3dspin {
+            to {
+                transform: rotate(360deg);
+            }
         }
-    })();
+    </style>
+    <script>
+        (function () {
+            var h3dTab = 'text';
+            var h3dImageData = null;
+            var h3dImageUrl = null;
+            var h3dPolling = null;
+
+            window.openHunyuan3DModal = function () {
+                document.getElementById('hunyuan3dModal').style.display = 'flex';
+                document.getElementById('h3dResult').style.display = 'none';
+                document.getElementById('h3dProgress').style.display = 'none';
+                document.getElementById('h3dSubmitBtn').disabled = false;
+            };
+            window.closeHunyuan3DModal = function () {
+                document.getElementById('hunyuan3dModal').style.display = 'none';
+                if (h3dPolling) { clearInterval(h3dPolling); h3dPolling = null; }
+            };
+            window.h3dSwitchTab = function (tab) {
+                h3dTab = tab;
+                document.getElementById('h3d-panel-text').style.display = tab === 'text' ? '' : 'none';
+                document.getElementById('h3d-panel-image').style.display = tab === 'image' ? '' : 'none';
+                document.getElementById('h3d-tab-text').style.cssText = tab === 'text'
+                    ? 'flex:1;padding:8px;border-radius:8px;border:1px solid rgba(103,232,249,0.5);background:rgba(103,232,249,0.15);color:#67e8f9;cursor:pointer;font-size:13px;font-weight:600;'
+                    : 'flex:1;padding:8px;border-radius:8px;border:1px solid #333;background:transparent;color:#888;cursor:pointer;font-size:13px;';
+                document.getElementById('h3d-tab-image').style.cssText = tab === 'image'
+                    ? 'flex:1;padding:8px;border-radius:8px;border:1px solid rgba(103,232,249,0.5);background:rgba(103,232,249,0.15);color:#67e8f9;cursor:pointer;font-size:13px;font-weight:600;'
+                    : 'flex:1;padding:8px;border-radius:8px;border:1px solid #333;background:transparent;color:#888;cursor:pointer;font-size:13px;';
+            };
+            window.h3dHandleImageSelect = function (input) {
+                if (!input.files || !input.files[0]) return;
+                h3dLoadImageFile(input.files[0]);
+            };
+            window.h3dHandleDrop = function (e) {
+                e.preventDefault();
+                document.getElementById('h3dImageDrop').style.borderColor = '#333';
+                var f = e.dataTransfer.files[0];
+                if (f && f.type.startsWith('image/')) h3dLoadImageFile(f);
+            };
+            function h3dLoadImageFile(file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    h3dImageData = e.target.result.split(',')[1];
+                    h3dImageUrl = null;
+                    var preview = document.getElementById('h3dImagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('h3dImageDrop').innerHTML = '<div style="color:#4ade80;font-size:13px;">✅ 图片已加载，点击更换</div>';
+                };
+                reader.readAsDataURL(file);
+            }
+            function h3dSetProgress(text, pct) {
+                document.getElementById('h3dProgressText').textContent = text;
+                document.getElementById('h3dProgressBar').style.width = pct + '%';
+            }
+            window.h3dSubmit = async function () {
+                var prompt = h3dTab === 'text'
+                    ? document.getElementById('h3dPrompt').value.trim()
+                    : document.getElementById('h3dImagePrompt').value.trim();
+                if (h3dTab === 'text' && !prompt) { alert('请输入文字描述'); return; }
+                if (h3dTab === 'image' && !h3dImageData && !h3dImageUrl) { alert('请上传参考图'); return; }
+
+                document.getElementById('h3dSubmitBtn').disabled = true;
+                document.getElementById('h3dProgress').style.display = 'block';
+                document.getElementById('h3dResult').style.display = 'none';
+                h3dSetProgress('正在提交任务...', 5);
+
+                try {
+                    var userId = typeof getCurrentUserId === 'function' ? await getCurrentUserId() : null;
+                    var body = { action: 'hunyuan3d-submit', userId };
+                    if (prompt) body.prompt = prompt;
+                    if (h3dTab === 'image') {
+                        if (h3dImageData) body.imageBase64 = h3dImageData;
+                        if (h3dImageUrl) body.imageUrl = h3dImageUrl;
+                    }
+                    var r = await fetch('/api/yunwu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                    var d = await r.json();
+                    if (!d.success) throw new Error(d.message || d.error || '提交失败');
+
+                    var jobId = d.jobId;
+                    h3dSetProgress('任务已提交，等待生成中（约1-3分钟）...', 15);
+
+                    // 轮询
+                    var attempts = 0;
+                    var maxAttempts = 60;
+                    h3dPolling = setInterval(async function () {
+                        attempts++;
+                        var pct = Math.min(15 + attempts * 1.3, 90);
+                        h3dSetProgress('生成中... (' + attempts + '/' + maxAttempts + ')', pct);
+
+                        try {
+                            var qr = await fetch('/api/yunwu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'hunyuan3d-query', userId, jobId }) });
+                            var qd = await qr.json();
+                            if (qd.done) {
+                                clearInterval(h3dPolling); h3dPolling = null;
+                                h3dSetProgress('生成完成！', 100);
+                                h3dShowResult(qd.files || []);
+                            } else if (qd.failed) {
+                                clearInterval(h3dPolling); h3dPolling = null;
+                                h3dShowError(qd.errorMessage || '生成失败');
+                            } else if (attempts >= maxAttempts) {
+                                clearInterval(h3dPolling); h3dPolling = null;
+                                h3dShowError('生成超时（5分钟）');
+                            }
+                        } catch (e) { console.warn('轮询异常:', e); }
+                    }, 5000);
+                } catch (e) {
+                    document.getElementById('h3dProgress').style.display = 'none';
+                    document.getElementById('h3dSubmitBtn').disabled = false;
+                    alert('错误: ' + e.message);
+                }
+            };
+            function h3dShowResult(files) {
+                document.getElementById('h3dProgress').style.display = 'none';
+                document.getElementById('h3dSubmitBtn').disabled = false;
+                var el = document.getElementById('h3dResult');
+                if (!files || files.length === 0) {
+                    el.innerHTML = '<div style="color:#f87171;text-align:center;padding:16px;">未获取到3D文件</div>';
+                    el.style.display = 'block'; return;
+                }
+                var html = '<div style="background:#0d1117;border:1px solid #1f2937;border-radius:10px;padding:14px;">';
+                html += '<div style="color:#4ade80;font-weight:700;margin-bottom:12px;font-size:14px;">✅ 3D模型生成完成</div>';
+                files.forEach(function (f, i) {
+                    if (f.previewUrl) {
+                        html += '<img src="' + f.previewUrl + '" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid #333;margin-bottom:10px;" onerror="this.style.display=\'none\'">';
+                    }
+                    html += '<div style="display:flex;gap:8px;margin-bottom:8px;">';
+                    html += '<a href="' + f.url + '" download target="_blank" style="flex:1;padding:10px;background:linear-gradient(135deg,#0891b2,#6366f1);border-radius:8px;color:#fff;text-align:center;text-decoration:none;font-size:13px;font-weight:600;">⬇️ 下载 ' + (f.type || 'GLB') + '</a>';
+                    html += '<button onclick="h3dCopyLink(\'' + f.url + '\')" style="padding:10px 14px;background:#1f2937;border:1px solid #333;border-radius:8px;color:#aaa;cursor:pointer;font-size:12px;">🔗 复制链接</button>';
+                    html += '</div>';
+                });
+                html += '<p style="color:#666;font-size:11px;margin:8px 0 0;">GLB文件可导入 Blender / Unity / Three.js 等3D软件</p>';
+                html += '</div>';
+                el.innerHTML = html;
+                el.style.display = 'block';
+            }
+            function h3dShowError(msg) {
+                document.getElementById('h3dProgress').style.display = 'none';
+                document.getElementById('h3dSubmitBtn').disabled = false;
+                var el = document.getElementById('h3dResult');
+                el.innerHTML = '<div style="background:#1f0a0a;border:1px solid #7f1d1d;border-radius:10px;padding:12px;color:#f87171;font-size:13px;">❌ ' + msg + '</div>';
+                el.style.display = 'block';
+            }
+            window.h3dCopyLink = function (url) {
+                navigator.clipboard.writeText(url).then(function () { alert('链接已复制'); }).catch(function (e) { console.error('复制链接:', url, e); });
+            };
+        })();
     </script>
 </body>
 

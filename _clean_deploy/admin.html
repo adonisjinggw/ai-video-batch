@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NanoVideo 超级管理员后台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --accent-gold: #d4af37;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .admin-container {
+            background: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid #333;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .admin-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .admin-header h1 {
+            color: var(--accent-gold);
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+
+        .admin-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #d4af37, #f2d06b);
+            border: none;
+            border-radius: 6px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+        }
+
+        .result-area {
+            margin-top: 30px;
+            padding: 20px;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid #333;
+            display: none;
+        }
+
+        .result-area h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .code-list {
+            font-family: monospace;
+            color: var(--accent-gold);
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .copy-btn {
+            margin-top: 10px;
+            background: transparent;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-btn:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>NanoVideo 超级管理员</h1>
+            <p>VIP 激活码生成系统</p>
+        </div>
+
+        <div class="form-group">
+            <label>管理员密钥 (VIP_SECRET)</label>
+            <input type="password" id="adminSecret" class="form-control" placeholder="输入在Vercel配置的VIP_SECRET">
+        </div>
+
+        <div class="form-group">
+            <label>会员类型</label>
+            <select id="vipType" class="form-control">
+                <option value="VIP_MONTH">月卡 (30天)</option>
+                <option value="VIP_YEAR">年卡 (365天)</option>
+                <option value="VIP_PERM">永久会员 (99年)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>赠送胶片数量</label>
+            <select id="filmAmount" class="form-control">
+                <option value="0">不赠送胶片</option>
+                <option value="100">100 胶片</option>
+                <option value="500">500 胶片</option>
+                <option value="1000" selected>1000 胶片</option>
+                <option value="2000">2000 胶片</option>
+                <option value="5000">5000 胶片</option>
+                <option value="10000">10000 胶片</option>
+                <option value="50000">50000 胶片</option>
+                <option value="100000">100000 胶片</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>生成数量</label>
+            <input type="number" id="generateCount" class="form-control" value="1" min="1" max="50">
+        </div>
+
+        <button onclick="generateCodes()" class="btn-primary">生成激活码</button>
+
+        <div id="resultArea" class="result-area">
+            <h3>生成结果:</h3>
+            <div id="codeList" class="code-list"></div>
+            <button onclick="copyCodes()" class="copy-btn">复制全部</button>
+        </div>
+    </div>
+
+    <script>
+        function generateCodes() {
+            const secret = document.getElementById('adminSecret').value.trim();
+            const type = document.getElementById('vipType').value;
+            const filmAmount = parseInt(document.getElementById('filmAmount').value);
+            const count = parseInt(document.getElementById('generateCount').value);
+
+            if (!secret) {
+                alert('请输入管理员密钥！');
+                return;
+            }
+
+            const codes = [];
+
+            for (let i = 0; i < count; i++) {
+                // 生成随机部分
+                const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+                // 会员类型前缀
+                let typePrefix = '';
+                if (type === 'VIP_MONTH') typePrefix = 'M';
+                else if (type === 'VIP_YEAR') typePrefix = 'Y';
+                else if (type === 'VIP_PERM') typePrefix = 'P';
+
+                // 胶片数量编码 (使用简短编码)
+                // 0=0, A=100, B=500, C=1000, D=2000, E=5000, F=10000, G=50000, H=100000
+                let filmCode = '0';
+                if (filmAmount === 100) filmCode = 'A';
+                else if (filmAmount === 500) filmCode = 'B';
+                else if (filmAmount === 1000) filmCode = 'C';
+                else if (filmAmount === 2000) filmCode = 'D';
+                else if (filmAmount === 5000) filmCode = 'E';
+                else if (filmAmount === 10000) filmCode = 'F';
+                else if (filmAmount === 50000) filmCode = 'G';
+                else if (filmAmount === 100000) filmCode = 'H';
+
+                // 新格式: TYPE_FILM_RANDOM_SIGNATURE
+                // 例如: M_C_AB12CD34_98765432 (M=月卡, C=1000胶片)
+                const payload = `${typePrefix}_${filmCode}_${randomPart}`;
+                const sig = CryptoJS.HmacSHA256(payload, secret).toString(CryptoJS.enc.Hex).substring(0, 8).toUpperCase();
+                const code = `${payload}_${sig}`;
+
+                codes.push(code);
+            }
+
+            const resultArea = document.getElementById('resultArea');
+            const codeList = document.getElementById('codeList');
+
+            resultArea.style.display = 'block';
+            codeList.textContent = codes.join('\n');
+
+            // 显示说明
+            const typeNames = { 'VIP_MONTH': '月卡(30天)', 'VIP_YEAR': '年卡(365天)', 'VIP_PERM': '永久会员' };
+            const info = `已生成 ${count} 个激活码\n类型: ${typeNames[type]}\n赠送胶片: ${filmAmount}`;
+            console.log(info);
+        }
+
+        function copyCodes() {
+            const codes = document.getElementById('codeList').textContent;
+            navigator.clipboard.writeText(codes).then(() => {
+                alert('复制成功！');
+            });
+        }
+    </script>
+</body>
+
+</html>

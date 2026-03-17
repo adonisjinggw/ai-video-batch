@@ -1,0 +1,3656 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>馃帹 AI鐢诲浘 - RollRoll</title>
+    <!-- Supabase SDK 鍏堝姞杞?-->
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .quota-badge {
+            background: var(--bg-card);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 14px;
+            color: var(--text);
+            font-size: 15px;
+            resize: none;
+            min-height: 100px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .model-info {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .result-image {
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .history-section {
+            margin-top: 30px;
+        }
+
+        .history-title {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-dim);
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .history-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .history-item img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .login-tip {
+            background: #2d1f1f;
+            border: 1px solid #f87171;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .login-tip a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        /* 馃啎 鎵归噺妯″紡鏍峰紡 */
+        .batch-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .batch-toggle-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .batch-toggle-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .batch-item {
+            position: relative;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            min-height: 140px;
+        }
+        .batch-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .batch-item textarea {
+            flex: 1;
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 11px;
+            padding: 8px;
+            resize: none;
+        }
+        .batch-item textarea:focus {
+            outline: none;
+        }
+        .batch-item-config {
+            display: flex;
+            gap: 2px;
+            padding: 4px;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid #333;
+        }
+        .batch-item-config select {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 9px;
+            padding: 3px 2px;
+            min-width: 0;
+        }
+        .batch-item-ref {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #444;
+            cursor: pointer;
+            background: var(--bg-input);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        .batch-item-ref img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .batch-item-ref:hover {
+            border-color: var(--accent);
+        }
+        .batch-item.generating {
+            border-color: var(--accent);
+        }
+        .batch-item.generating::after {
+            content: '鈿欙笍';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            animation: spin 1s linear infinite;
+        }
+        .batch-item.has-result {
+            border-color: #22c55e;
+        }
+        .batch-item.error {
+            border-color: #ef4444;
+        }
+        .batch-item.error::after {
+            content: '鉂?鐢熸垚澶辫触';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            color: #ef4444;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 12px;
+            border-radius: 6px;
+            z-index: 5;
+        }
+        .batch-item-edit-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 4px;
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.7);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-size: 10px;
+            cursor: pointer;
+            z-index: 4;
+            transition: all 0.2s;
+        }
+        .batch-item-edit-btn:hover {
+            background: var(--accent);
+            color: #000;
+        }
+        .batch-result-section {
+            display: none;
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+        .batch-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .batch-result-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: var(--accent);
+        }
+        .batch-result-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .batch-action-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .batch-action-btn:hover {
+            border-color: var(--accent);
+        }
+        .batch-action-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+        .batch-result-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .batch-result-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            cursor: pointer;
+            background: var(--bg-card);
+            min-height: 80px;
+        }
+        .batch-result-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .batch-result-item.selected {
+            border-color: #22c55e;
+        }
+        .batch-result-item.error {
+            background: rgba(239, 68, 68, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ef4444;
+            font-size: 12px;
+            text-align: center;
+            padding: 8px;
+        }
+        .batch-result-item .batch-item-index {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .batch-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .batch-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* 鍙傝€冨浘鍖哄煙 */
+        .ref-section {
+            margin-bottom: 20px;
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px dashed #444;
+        }
+
+        .ref-preview {
+            margin: 8px 0;
+            text-align: center;
+        }
+
+        .ref-preview img {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .ref-clear-btn {
+            background: transparent;
+            border: 1px solid #666;
+            color: var(--text-dim);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .ref-clear-btn:hover {
+            border-color: #f87171;
+            color: #f87171;
+        }
+
+        /* 涓婁紶鎸夐挳 */
+        .upload-section {
+            margin-bottom: 16px;
+        }
+
+        .upload-btn {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px dashed #444;
+            border-radius: 12px;
+            padding: 14px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* 澶氬浘鍙傝€冨尯鍩?*/
+        .multi-ref-section {
+            margin-bottom: 16px;
+            display: none;
+        }
+        .multi-ref-section.show {
+            display: block;
+        }
+        .multi-ref-btn {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px dashed #7c3aed;
+            border-radius: 12px;
+            padding: 14px;
+            color: #a78bfa;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .multi-ref-btn:hover {
+            border-color: #a78bfa;
+            color: #c4b5fd;
+        }
+        .multi-ref-preview {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid #333;
+            display: none;
+        }
+        .multi-ref-preview.show {
+            display: block;
+        }
+        .multi-ref-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .multi-ref-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #333;
+        }
+        .multi-ref-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .multi-ref-item-remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 20px;
+            height: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .multi-ref-info {
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .multi-ref-clear {
+            background: transparent;
+            border: 1px solid #666;
+            color: var(--text-dim);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .multi-ref-clear:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        /* 馃帹 Midjourney 鍥剧墖閫夋嫨鍣?- 绮捐嚧鍙埍椋庢牸 */
+        .mj-image-picker {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(45, 35, 55, 0.98) 0%, rgba(25, 20, 35, 0.99) 100%);
+            z-index: 1100;
+            display: none;
+            flex-direction: column;
+            padding: 16px;
+            padding-top: env(safe-area-inset-top, 16px);
+            padding-bottom: env(safe-area-inset-bottom, 16px);
+            backdrop-filter: blur(10px);
+        }
+        .mj-image-picker.show {
+            display: flex;
+        }
+        .mj-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(255,182,193,0.15) 0%, rgba(255,218,233,0.1) 100%);
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+        .mj-picker-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffb6c1;
+            text-shadow: 0 0 20px rgba(255,182,193,0.5);
+        }
+        .mj-picker-subtitle {
+            font-size: 11px;
+            color: rgba(255,182,193,0.6);
+            margin-top: 4px;
+        }
+        .mj-picker-close {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #ffb6c1;
+            font-size: 20px;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .mj-picker-close:hover {
+            background: rgba(255,182,193,0.3);
+            transform: rotate(90deg);
+        }
+        .mj-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 20px;
+        }
+        .mj-picker-item {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 3px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            aspect-ratio: 1;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .mj-picker-item:hover {
+            border-color: rgba(255,182,193,0.6);
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(255,182,193,0.25);
+        }
+        .mj-picker-item.selected {
+            border-color: #ff69b4;
+            box-shadow: 0 0 0 3px rgba(255,105,180,0.3), 0 8px 30px rgba(255,105,180,0.4);
+            transform: scale(1.02);
+        }
+        .mj-picker-item.selected::after {
+            content: '鉁?;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8), 0 0 30px rgba(255,105,180,0.8);
+            animation: checkPop 0.3s ease-out;
+            z-index: 2;
+        }
+        @keyframes checkPop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        .mj-picker-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: all 0.3s;
+        }
+        .mj-picker-item.selected img {
+            filter: brightness(0.7);
+        }
+        .mj-picker-item-index {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: linear-gradient(135deg, rgba(255,182,193,0.9) 0%, rgba(255,105,180,0.9) 100%);
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(255,105,180,0.5);
+            z-index: 1;
+        }
+        .mj-picker-item.selected .mj-picker-item-index {
+            background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+            box-shadow: 0 0 15px rgba(255,105,180,0.8);
+        }
+        /* 馃啎 涓嬭浇鎸夐挳 */
+        .mj-picker-item-download {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(255,182,193,0.8);
+            border: none;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: all 0.2s;
+            z-index: 1;
+        }
+        .mj-picker-item-download:hover {
+            opacity: 1;
+            background: #ff69b4;
+            transform: scale(1.1);
+        }
+        .mj-picker-actions {
+            display: flex;
+            gap: 10px;
+            padding: 16px 8px 8px;
+        }
+        .mj-picker-confirm {
+            flex: 2;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255,105,180,0.4);
+            transition: all 0.2s;
+        }
+        .mj-picker-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255,105,180,0.5);
+        }
+        .mj-picker-download-all {
+            flex: 1;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,182,193,0.3);
+            border-radius: 14px;
+            color: #ffb6c1;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mj-picker-download-all:hover {
+            background: rgba(255,182,193,0.15);
+            border-color: rgba(255,182,193,0.5);
+        }
+        .mj-picker-confirm:disabled {
+            opacity: 0.5;
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,182,193,0.5);
+            box-shadow: none;
+        }
+        /* 馃帹 鍙傝€冨浘缂栬緫鍣ㄦ牱寮?*/
+        .ref-editor-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+        }
+        .ref-editor-overlay.show {
+            display: flex;
+        }
+        .ref-editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+        .ref-editor-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .ref-editor-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0 8px;
+        }
+        .ref-editor-canvas-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 10px;
+            touch-action: none;
+        }
+        .ref-editor-canvas {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+            background: #222;
+            touch-action: none;
+        }
+        .ref-editor-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            align-items: center;
+            justify-content: center;
+        }
+        .ref-editor-tool {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            border: 2px solid #444;
+            background: #222;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .ref-editor-tool.active {
+            border-color: var(--accent);
+            background: rgba(251,191,36,0.2);
+        }
+        .ref-editor-tool:hover {
+            border-color: #666;
+        }
+        .ref-editor-color {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 3px solid #444;
+            cursor: pointer;
+            padding: 0;
+        }
+        .ref-editor-color.active {
+            border-color: #fff;
+            box-shadow: 0 0 8px rgba(255,255,255,0.5);
+        }
+        .ref-editor-size {
+            width: 80px;
+            height: 36px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            padding: 0 8px;
+            font-size: 13px;
+        }
+        .ref-editor-actions {
+            display: flex;
+            gap: 10px;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+        }
+        .ref-editor-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .ref-editor-btn.cancel {
+            background: #333;
+            color: #999;
+        }
+        .ref-editor-btn.confirm {
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            color: #000;
+        }
+        /* 澶氬浘鍙傝€冪紪杈戞寜閽?*/
+        .multi-ref-item-edit {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            background: rgba(251,191,36,0.9);
+            border: none;
+            color: #000;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .multi-ref-item-edit:hover {
+            background: var(--accent);
+            transform: scale(1.1);
+        }
+
+        /* 馃帹 鎵归噺鏍煎瓙浜岀骇閫夋嫨鍣紙MJ 4鍥鹃€夋嫨锛?*/
+        .batch-cell-picker {
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 15, 30, 0.98);
+            z-index: 1200;
+            display: none;
+            flex-direction: column;
+            padding: 16px;
+            padding-top: env(safe-area-inset-top, 16px);
+            padding-bottom: env(safe-area-inset-bottom, 16px);
+        }
+        .batch-cell-picker.show {
+            display: flex;
+        }
+        .batch-cell-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(147,112,219,0.2) 0%, rgba(138,43,226,0.15) 100%);
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+        .batch-cell-picker-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #b19cd9;
+        }
+        .batch-cell-picker-subtitle {
+            font-size: 11px;
+            color: rgba(177,156,217,0.6);
+            margin-top: 4px;
+        }
+        .batch-cell-picker-close {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #b19cd9;
+            font-size: 20px;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .batch-cell-picker-close:hover {
+            background: rgba(177,156,217,0.3);
+        }
+        .batch-cell-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+        }
+        .batch-cell-picker-item {
+            position: relative;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 3px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: all 0.25s;
+            aspect-ratio: 1;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .batch-cell-picker-item:hover {
+            border-color: rgba(177,156,217,0.5);
+            transform: scale(1.02);
+        }
+        .batch-cell-picker-item.selected {
+            border-color: #9370db;
+            box-shadow: 0 0 0 3px rgba(147,112,219,0.4), 0 8px 25px rgba(147,112,219,0.3);
+        }
+        .batch-cell-picker-item.selected::after {
+            content: '鉁?;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            z-index: 2;
+        }
+        .batch-cell-picker-item.selected img {
+            filter: brightness(0.6);
+        }
+        .batch-cell-picker-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .batch-cell-picker-item-idx {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: linear-gradient(135deg, rgba(147,112,219,0.9) 0%, rgba(138,43,226,0.9) 100%);
+            color: #fff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 1;
+        }
+        .batch-cell-picker-actions {
+            display: flex;
+            gap: 10px;
+            padding: 14px 8px 8px;
+        }
+        .batch-cell-picker-confirm {
+            flex: 1;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, #9370db 0%, #8a2be2 100%);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(147,112,219,0.4);
+            transition: all 0.2s;
+        }
+        .batch-cell-picker-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(147,112,219,0.5);
+        }
+        .batch-cell-picker-confirm:disabled {
+            opacity: 0.5;
+            background: rgba(255,255,255,0.1);
+            box-shadow: none;
+        }
+        /* 鎵归噺缁撴灉椤逛笂鐨凪J澶氬浘鏍囪 */
+        .batch-result-item .mj-multi-badge {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            background: linear-gradient(135deg, rgba(147,112,219,0.9) 0%, rgba(138,43,226,0.9) 100%);
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            z-index: 5;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header" style="margin-top:0;">
+        <button class="back-btn" onclick="goBack()">鈫?杩斿洖</button>
+        <h1>馃帹 AI鐢诲浘</h1>
+        <div class="quota-badge" id="quotaBadge">馃帪锔?--</div>
+    </header>
+    <main class="main">
+        <div class="login-tip" id="loginTip" style="display:none;">
+            <p>鈿狅笍 璇峰厛 <a href="auth.html">鐧诲綍</a> 鍚庝娇鐢ㄧ敾鍥惧姛鑳?/p>
+        </div>
+
+        <!-- 馃啎 鎵归噺/鍗曚釜妯″紡鍒囨崲 -->
+        <div class="batch-toggle">
+            <button class="batch-toggle-btn active" onclick="setBatchMode(false)" id="singleModeBtn">馃摑 鍗曞浘妯″紡</button>
+            <button class="batch-toggle-btn" onclick="setBatchMode(true)" id="batchModeBtn">馃柤锔?鎵归噺妯″紡 (8瀹牸)</button>
+        </div>
+
+        <!-- 鍗曞浘妯″紡杈撳叆鍖?-->
+        <div class="input-section" id="singleInputSection">
+            <label class="input-label">鉁?鎻忚堪浣犳兂鐢荤殑鍐呭</label>
+            <textarea class="input-box" id="promptInput" placeholder="渚嬪锛氫竴鍙彲鐖辩殑姗樼尗鍦ㄩ槼鍏変笅鎵撶浌..."></textarea>
+        </div>
+
+        <!-- 馃啎 鎵归噺妯″紡杈撳叆鍖?(9瀹牸) - 姣忔牸鐙珛閰嶇疆 -->
+        <div class="input-section" id="batchInputSection" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <label class="input-label" style="margin:0;">鉁?鎵归噺鐢熷浘 (姣忔牸鐙珛閰嶇疆锛岀偣鍑火煐硷笍鍙缃弬鑰冨浘)</label>
+                <button onclick="applyGlobalConfigToBatch()" style="padding:4px 8px;background:var(--bg-card);border:1px solid #444;border-radius:4px;color:var(--text-dim);font-size:10px;cursor:pointer;">馃搵 搴旂敤鍏ㄥ眬閰嶇疆</button>
+            </div>
+            <div class="batch-grid" id="batchGrid"></div>
+            <!-- 馃啎 鎵归噺缁撴灉鍖哄煙锛堝湪鎵归噺杈撳叆鍖哄唴閮級 -->
+            <div class="batch-result-section" id="batchResultSection">
+                <div class="batch-result-header">
+                    <h3>馃帹 鎵归噺鐢熸垚缁撴灉</h3>
+                    <div class="batch-result-actions">
+                        <button class="batch-action-btn" onclick="selectAllBatchImages()">鉁?鍏ㄩ€?/button>
+                        <button class="batch-action-btn" onclick="downloadSelectedImages()">馃捑 涓嬭浇閫変腑</button>
+                        <button class="batch-action-btn primary" onclick="useSelectedImages()">馃幀 鍘荤敓瑙嗛</button>
+                    </div>
+                </div>
+                <div class="batch-result-grid" id="batchResultGrid"></div>
+            </div>
+        </div>
+        
+        <!-- 鍥剧敓鍥句笂浼犲尯 -->
+        <div class="upload-section">
+            <input type="file" id="refImageInput" accept="image/*" style="display:none;" onchange="handleRefImageUpload(event)">
+            <button class="upload-btn" onclick="document.getElementById('refImageInput').click()">
+                馃柤锔?涓婁紶鍙傝€冨浘锛堝浘鐢熷浘锛?            </button>
+        </div>
+        
+        <!-- 鍙傝€冨浘棰勮鍖?-->
+        <div class="ref-section" id="refSection" style="display:none;">
+            <label class="input-label">馃柤锔?鍙傝€冨浘锛堝浘鐢熷浘锛?/label>
+            <div class="ref-preview" id="refPreview"></div>
+            <button class="ref-clear-btn" onclick="clearRefImage()">鉁?绉婚櫎鍙傝€冨浘</button>
+        </div>
+
+        <!-- 澶氬浘鍙傝€冧笂浼犲尯锛堟槦姊︾敾甯?+ 閫氫箟涓囪薄MAX锛?-->
+        <div class="multi-ref-section" id="multiRefSection">
+            <input type="file" id="multiRefInput" accept="image/*" multiple style="display:none;" onchange="handleMultiRefUpload(event)">
+            <button class="multi-ref-btn" onclick="document.getElementById('multiRefInput').click()">
+                馃帹 涓婁紶澶氬紶鍙傝€冨浘锛圔anana/鏄熸ⅵ/涓囪薄锛?            </button>
+            <!-- 澶氬浘棰勮鍖?-->
+            <div class="multi-ref-preview" id="multiRefPreview">
+                <div class="multi-ref-grid" id="multiRefGrid"></div>
+                <div class="multi-ref-info">
+                    <span id="multiRefCount">宸查€?0/10 寮?/span>
+                    <button class="multi-ref-clear" onclick="clearMultiRef()">娓呯┖鍏ㄩ儴</button>
+                </div>
+            </div>
+        </div>
+        <div class="settings-row">
+            <div class="setting-item">
+                <label class="input-label">馃帹 妯″瀷</label>
+                <select id="modelSelect" onchange="updateModelInfo()">
+                    <option value="modelscope">馃 鏅鸿兘缁樺浘寮曟搸锛堝厤璐癸級</option>
+                    <option value="nano-banana-2" selected>馃崒 Banana 鏍囧噯鐗?(6鑳剁墖)</option>
+                    <option value="nano-banana-2-2k">馃専 Banana 2K楂樻竻 (6鑳剁墖)</option>
+                    <option value="nano-banana-2-4k">馃拵 Banana 4K瓒呮竻 (10鑳剁墖)</option>
+                    <option value="Qwen/Qwen-Image-2512">馃幁 閫氫箟涓囪薄Max (8鑳剁墖)</option>
+                    <option value="doubao-seedream-4-5-251128">鉁?鏄熸ⅵ鐢诲笀 (7鑳剁墖)</option>
+                    <!-- 鍗虫ⅵ宸插仠鐢?<option value="jimeng-4.5">馃帹 鍗虫ⅵ4.5 (7鑳剁墖)</option> -->
+                    <option value="midjourney-fast">馃専 Midjourney Fast (2鑳剁墖)</option>
+                    <option value="midjourney-turbo">馃殌 Midjourney Turbo (2鑳剁墖)</option>
+                    <option value="midjourney-relax">馃寵 Midjourney Relax (2鑳剁墖)</option>
+                </select>
+                <div class="model-info" id="modelInfo">娑堣€?0.7 鑳剁墖</div>
+                <!-- 馃幆 MJ鐗堟湰閫夋嫨鍣?-->
+                <div id="mjVersionGroup" style="display:none; margin-top:8px;">
+                    <label class="input-label">馃幆 MJ鐗堟湰</label>
+                    <select id="mjVersion" style="width:100%; padding:10px; background:var(--bg-card); border:1px solid #333; border-radius:8px; color:#fff;">
+                        <option value="7">v7 鏈€鏂?/option>
+                        <option value="6.1" selected>v6.1 绋冲畾</option>
+                        <option value="6">v6.0</option>
+                        <option value="5.2">v5.2</option>
+                        <option value="5.1">v5.1</option>
+                        <option value="5">v5.0</option>
+                        <option value="niji7">Niji 7 鍔ㄦ极锛堟渶鏂帮級</option>
+                        <option value="niji6">Niji 6 鍔ㄦ极</option>
+                    </select>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label class="input-label">馃搻 姣斾緥</label>
+                <select id="ratioSelect">
+                    <option value="1:1">1:1 鏂瑰舰</option>
+                    <option value="16:9">16:9 妯睆</option>
+                    <option value="9:16">9:16 绔栧睆</option>
+                    <option value="4:3">4:3 鏍囧噯</option>
+                    <option value="3:4">3:4 绔栫増</option>
+                </select>
+            </div>
+        </div>
+        <!-- 馃摲 鎽勫奖瑙掑害閫夋嫨鍣?-->
+        <div class="settings-row">
+            <div class="setting-item" style="flex:1;">
+                <label class="input-label">馃摲 鎽勫奖瑙掑害锛堝彲閫夛級</label>
+                <select id="cameraAngleSelect">
+                    <option value="">涓嶆寚瀹?/option>
+                    <optgroup label="鏍囧噯瑙嗚">
+                        <option value="eye level shot">骞宠瑙掑害 Eye Level</option>
+                        <option value="front view">姝ｉ潰瑙嗚 Front View</option>
+                        <option value="profile view, side angle">渚ч潰瑙嗚 Profile View</option>
+                        <option value="three-quarter view, 45 degree angle">鏂滀晶闈?3/4瑙嗚</option>
+                        <option value="rear view, from behind">鑳岄潰瑙嗚 Rear View</option>
+                        <option value="over-the-shoulder shot">杩囪偐闀滃ご OTS</option>
+                    </optgroup>
+                    <optgroup label="浠版媿瑙掑害">
+                        <option value="low angle shot, looking up">浣庤搴︿话鎷?Low Angle</option>
+                        <option value="extreme low angle, dramatic upward view">鏋佷綆瑙掑害 Extreme Low</option>
+                        <option value="worm's eye view, ground level looking up">铏瑙?Worm's Eye</option>
+                        <option value="knee level shot">鑶濈洊楂樺害 Knee Level</option>
+                        <option value="ground level shot">鍦伴潰闀滃ご Ground Level</option>
+                    </optgroup>
+                    <optgroup label="淇媿瑙掑害">
+                        <option value="high angle shot, looking down">楂樿搴︿刊鎷?High Angle</option>
+                        <option value="bird's eye view, top-down">楦熺灠瑙嗚 Bird's Eye</option>
+                        <option value="aerial view, drone shot">鑸媿瑙嗚 Aerial View</option>
+                        <option value="overhead shot, directly above">姝ｄ笂鏂逛刊鎷?Overhead</option>
+                        <option value="god's eye view, extreme overhead">涓婂笣瑙嗚 God's Eye</option>
+                    </optgroup>
+                    <optgroup label="鐗规畩瑙嗚">
+                        <option value="dutch angle, tilted frame">鑽峰叞瑙?鍊炬枩 Dutch Angle</option>
+                        <option value="POV shot, first person view">绗竴浜虹О POV</option>
+                        <option value="macro shot, extreme close-up">寰窛鐗瑰啓 Macro</option>
+                        <option value="wide angle lens, distorted perspective">骞胯鐣稿彉 Wide Angle</option>
+                        <option value="fisheye lens, 180 degree view">楸肩溂闀滃ご Fisheye</option>
+                        <option value="telephoto compression, flattened perspective">闀跨劍鍘嬬缉 Telephoto</option>
+                    </optgroup>
+                    <optgroup label="鍒涙剰浣嶇疆">
+                        <option value="through window, looking through glass">閫忚繃绐楁埛 Through Window</option>
+                        <option value="mirror reflection shot">闀滈潰鍙嶅皠 Mirror Shot</option>
+                        <option value="water reflection">姘撮潰鍊掑奖 Water Reflection</option>
+                        <option value="silhouette shot, backlit">鍓奖閫嗗厜 Silhouette</option>
+                        <option value="underwater view, submerged camera">姘翠笅瑙嗚 Underwater</option>
+                        <option value="through fog, misty atmosphere">闆句腑鎷嶆憚 Through Fog</option>
+                    </optgroup>
+                </select>
+            </div>
+        </div>
+        <button class="generate-btn" id="generateBtn" onclick="generateImage()">鈿?寮€濮嬬敓鎴?/button>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div id="loadingText">姝ｅ湪鐢熸垚...</div>
+        </div>
+        <div class="result-section" id="resultSection">
+            <img class="result-image" id="resultImage" src="" alt="鐢熸垚缁撴灉">
+            <div class="result-actions">
+                <button class="result-btn" onclick="downloadImage()">馃捑 涓嬭浇</button>
+                <button class="result-btn" onclick="shareImage()">馃摛 鍒嗕韩</button>
+                <button class="result-btn" onclick="pushToVideoTool()">馃幀 鍘荤敓瑙嗛</button>
+                <button class="result-btn primary" onclick="regenerate()">馃攧 閲嶆柊鐢熸垚</button>
+            </div>
+        </div>
+        
+        <div class="history-section">
+            <div class="history-title">馃搵 鐢熸垚鍘嗗彶</div>
+            <div class="history-grid" id="historyGrid"></div>
+        </div>
+    </main>
+
+    <!-- 馃帹 Midjourney 鍥剧墖閫夋嫨鍣ㄥ脊绐?-->
+    <div class="mj-image-picker" id="mjImagePicker">
+        <div class="mj-picker-header">
+            <div>
+                <div class="mj-picker-title">馃帹 閫夋嫨鍥剧墖</div>
+                <div class="mj-picker-subtitle">鐐瑰嚮閫夋嫨涓诲浘锛屼篃鍙笅杞藉崟寮犳垨鍏ㄩ儴</div>
+            </div>
+            <button class="mj-picker-close" onclick="closeMjPicker()">脳</button>
+        </div>
+        <div class="mj-picker-grid" id="mjPickerGrid"></div>
+        <div class="mj-picker-actions">
+            <button class="mj-picker-confirm" id="mjPickerConfirm" onclick="confirmMjSelection()" disabled>璇峰厛閫夋嫨涓€寮犲浘鐗?/button>
+            <button class="mj-picker-download-all" onclick="downloadAllMjImages()">馃摜 鍏ㄩ儴涓嬭浇</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 馃帹 鎵归噺鏍煎瓙浜岀骇閫夋嫨鍣紙MJ 4鍥鹃€夋嫨锛?-->
+    <div class="batch-cell-picker" id="batchCellPicker">
+        <div class="batch-cell-picker-header">
+            <div>
+                <div class="batch-cell-picker-title">馃帹 閫夋嫨鍥剧墖</div>
+                <div class="batch-cell-picker-subtitle" id="batchCellPickerSubtitle">鐐瑰嚮閫夋嫨鎮ㄥ枩娆㈢殑涓€寮?/div>
+            </div>
+            <button class="batch-cell-picker-close" onclick="closeBatchCellPicker()">脳</button>
+        </div>
+        <div class="batch-cell-picker-grid" id="batchCellPickerGrid"></div>
+        <div class="batch-cell-picker-actions">
+            <button class="batch-cell-picker-confirm" id="batchCellPickerConfirm" onclick="confirmBatchCellSelection()" disabled>璇峰厛閫夋嫨涓€寮犲浘鐗?/button>
+        </div>
+    </div>
+
+    <!-- 馃帹 鍙傝€冨浘缂栬緫鍣?-->
+    <div class="ref-editor-overlay" id="refEditorOverlay">
+        <div class="ref-editor-header">
+            <span class="ref-editor-title">鉁忥笍 缂栬緫鍙傝€冨浘</span>
+            <button class="ref-editor-close" onclick="closeRefEditor()">脳</button>
+        </div>
+        <div class="ref-editor-canvas-wrap">
+            <canvas class="ref-editor-canvas" id="refEditorCanvas"></canvas>
+        </div>
+        <div class="ref-editor-toolbar">
+            <button class="ref-editor-tool active" data-tool="brush" onclick="setEditorTool('brush')" title="鐢荤瑪">馃枌锔?/button>
+            <button class="ref-editor-tool" data-tool="text" onclick="setEditorTool('text')" title="鏂囧瓧">馃摑</button>
+            <button class="ref-editor-tool" data-tool="eraser" onclick="setEditorTool('eraser')" title="姗＄毊鎿?>馃Ы</button>
+            <button class="ref-editor-tool" data-tool="undo" onclick="editorUndo()" title="鎾ら攢">鈫╋笍</button>
+            <input type="color" class="ref-editor-color active" id="editorColor" value="#ff0000" title="棰滆壊">
+            <select class="ref-editor-size" id="editorSize" title="绮楃粏">
+                <option value="2">缁?2px</option>
+                <option value="5" selected>涓?5px</option>
+                <option value="10">绮?10px</option>
+                <option value="20">鐗圭矖 20px</option>
+            </select>
+        </div>
+        <div class="ref-editor-actions">
+            <button class="ref-editor-btn cancel" onclick="closeRefEditor()">鍙栨秷</button>
+            <button class="ref-editor-btn confirm" onclick="confirmRefEditor()">鉁?纭浣跨敤</button>
+        </div>
+    </div>
+
+    <script>
+        // 馃帹 鍙傝€冨浘缂栬緫鍣ㄧ姸鎬?        let __editorCanvas = null;
+        let __editorCtx = null;
+        let __editorTool = 'brush';  // brush, text, eraser
+        let __editorDrawing = false;
+        let __editorHistory = [];    // 鎾ら攢鍘嗗彶
+        let __editorOriginalImage = null;  // 鍘熷鍥剧墖
+        let __editorCallback = null;  // 缂栬緫瀹屾垚鍥炶皟
+        let __editorMultiIndex = -1;  // 澶氬浘缂栬緫绱㈠紩锛?1琛ㄧず鍗曞浘
+
+        // 馃帹 鎵撳紑缂栬緫鍣?        function openRefEditor(imageBase64, callback, multiIndex = -1) {
+            __editorCallback = callback;
+            __editorMultiIndex = multiIndex;
+            __editorHistory = [];
+            __editorTool = 'brush';
+            
+            const overlay = document.getElementById('refEditorOverlay');
+            const canvas = document.getElementById('refEditorCanvas');
+            __editorCanvas = canvas;
+            __editorCtx = canvas.getContext('2d');
+            
+            // 鍔犺浇鍥剧墖鍒癈anvas
+            const img = new Image();
+            img.onload = () => {
+                // 闄愬埗鏈€澶у昂瀵镐互閫傚簲灞忓箷
+                const maxW = window.innerWidth - 40;
+                const maxH = window.innerHeight - 280;
+                let w = img.width, h = img.height;
+                if (w > maxW) { h = h * maxW / w; w = maxW; }
+                if (h > maxH) { w = w * maxH / h; h = maxH; }
+                
+                canvas.width = w;
+                canvas.height = h;
+                __editorCtx.drawImage(img, 0, 0, w, h);
+                __editorOriginalImage = img;
+                
+                // 淇濆瓨鍒濆鐘舵€佸埌鍘嗗彶
+                saveEditorState();
+                
+                overlay.classList.add('show');
+            };
+            img.src = imageBase64;
+            
+            // 缁戝畾浜嬩欢
+            canvas.onmousedown = startEditorDraw;
+            canvas.onmousemove = doEditorDraw;
+            canvas.onmouseup = endEditorDraw;
+            canvas.onmouseleave = endEditorDraw;
+            canvas.ontouchstart = startEditorDraw;
+            canvas.ontouchmove = doEditorDraw;
+            canvas.ontouchend = endEditorDraw;
+            
+            // 閲嶇疆宸ュ叿鎸夐挳鐘舵€?            document.querySelectorAll('.ref-editor-tool').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tool === 'brush');
+            });
+        }
+        
+        // 鍒囨崲宸ュ叿
+        function setEditorTool(tool) {
+            __editorTool = tool;
+            document.querySelectorAll('.ref-editor-tool').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tool === tool);
+            });
+            
+            // 鏂囧瓧宸ュ叿鎻愮ず
+            if (tool === 'text') {
+                showToast('鐐瑰嚮鐢诲竷娣诲姞鏂囧瓧');
+            }
+        }
+        
+        // 淇濆瓨鐘舵€佸埌鍘嗗彶
+        function saveEditorState() {
+            if (!__editorCanvas) return;
+            __editorHistory.push(__editorCanvas.toDataURL());
+            // 鏈€澶氫繚瀛?0姝?            if (__editorHistory.length > 20) __editorHistory.shift();
+        }
+        
+        // 鎾ら攢
+        function editorUndo() {
+            if (__editorHistory.length <= 1) {
+                showToast('鏃犳硶鎾ら攢');
+                return;
+            }
+            __editorHistory.pop();  // 绉婚櫎褰撳墠鐘舵€?            const prevState = __editorHistory[__editorHistory.length - 1];
+            const img = new Image();
+            img.onload = () => {
+                __editorCtx.clearRect(0, 0, __editorCanvas.width, __editorCanvas.height);
+                __editorCtx.drawImage(img, 0, 0);
+            };
+            img.src = prevState;
+        }
+        
+        // 鑾峰彇瑙︽懜/榧犳爣鍧愭爣
+        function getEditorPos(e) {
+            const rect = __editorCanvas.getBoundingClientRect();
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top
+                };
+            }
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+        
+        // 寮€濮嬬粯鍒?        function startEditorDraw(e) {
+            e.preventDefault();
+            const pos = getEditorPos(e);
+            
+            if (__editorTool === 'text') {
+                // 鏂囧瓧宸ュ叿锛氬脊鍑鸿緭鍏ユ
+                const text = prompt('杈撳叆瑕佹坊鍔犵殑鏂囧瓧:');
+                if (text) {
+                    const color = document.getElementById('editorColor').value;
+                    const size = parseInt(document.getElementById('editorSize').value) * 3;
+                    __editorCtx.font = `bold ${size}px sans-serif`;
+                    __editorCtx.fillStyle = color;
+                    __editorCtx.fillText(text, pos.x, pos.y);
+                    saveEditorState();
+                }
+                return;
+            }
+            
+            __editorDrawing = true;
+            __editorCtx.beginPath();
+            __editorCtx.moveTo(pos.x, pos.y);
+            
+            const color = document.getElementById('editorColor').value;
+            const size = parseInt(document.getElementById('editorSize').value);
+            
+            if (__editorTool === 'eraser') {
+                __editorCtx.globalCompositeOperation = 'destination-out';
+                __editorCtx.lineWidth = size * 3;
+            } else {
+                __editorCtx.globalCompositeOperation = 'source-over';
+                __editorCtx.strokeStyle = color;
+                __editorCtx.lineWidth = size;
+            }
+            __editorCtx.lineCap = 'round';
+            __editorCtx.lineJoin = 'round';
+        }
+        
+        // 缁樺埗涓?        function doEditorDraw(e) {
+            if (!__editorDrawing) return;
+            e.preventDefault();
+            const pos = getEditorPos(e);
+            __editorCtx.lineTo(pos.x, pos.y);
+            __editorCtx.stroke();
+        }
+        
+        // 缁撴潫缁樺埗
+        function endEditorDraw(e) {
+            if (!__editorDrawing) return;
+            __editorDrawing = false;
+            __editorCtx.globalCompositeOperation = 'source-over';
+            saveEditorState();
+        }
+        
+        // 鍏抽棴缂栬緫鍣?        function closeRefEditor() {
+            document.getElementById('refEditorOverlay').classList.remove('show');
+            __editorCallback = null;
+        }
+        
+        // 纭缂栬緫骞朵繚瀛?        function confirmRefEditor() {
+            if (!__editorCanvas) return;
+            const editedBase64 = __editorCanvas.toDataURL('image/jpeg', 0.9);
+            
+            if (__editorMultiIndex >= 0) {
+                // 澶氬浘缂栬緫妯″紡
+                window.multiRefImages[__editorMultiIndex] = editedBase64;
+                renderMultiRefGrid();
+                showToast('鍙傝€冨浘宸叉洿鏂?);
+            } else if (__editorCallback) {
+                // 鍗曞浘缂栬緫妯″紡
+                __editorCallback(editedBase64);
+            }
+            
+            closeRefEditor();
+        }
+
+        // 馃帹 MJ 鍥剧墖閫夋嫨鍣ㄥ叏灞€鐘舵€?        let __mjPickerImages = [];
+        let __mjPickerSelectedIndex = -1;
+        let __mjPickerCallback = null;
+        let __mjTaskId = null;  // 馃啎 淇濆瓨 taskId 鐢ㄤ簬 upscale
+
+        // 馃帹 澶氬浘鍙傝€冨叏灞€鐘舵€?        window.multiRefImages = [];
+
+        // 馃啎 鎵归噺妯″紡鐘舵€?        let batchMode = false;
+        let batchGenerating = false;
+        let batchResults = [];  // { index, prompt, imageUrl, error, selected }
+
+        // 馃敧 鍓嶇鍒囧浘锛氬皢 MJ 2x2 缃戞牸鍥惧垏鎴?寮犵嫭绔嬪浘鐗?        async function splitMjGridImage(gridBase64) {
+            console.log('馃敧 [MJ] 寮€濮嬪墠绔垏鍥?..');
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    const w = img.width / 2;
+                    const h = img.height / 2;
+                    const results = [];
+                    const positions = [[0, 0], [w, 0], [0, h], [w, h]];  // 宸︿笂銆佸彸涓娿€佸乏涓嬨€佸彸涓?                    for (const [x, y] of positions) {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+                        results.push(canvas.toDataURL('image/jpeg', 0.9));
+                    }
+                    console.log(`馃敧 [MJ] 鍒囧浘瀹屾垚: ${w}x${h} 脳 4`);
+                    resolve(results);
+                };
+                img.onerror = (err) => {
+                    console.error('鉂?[MJ] 鍒囧浘鍔犺浇澶辫触:', err);
+                    reject(new Error('缃戞牸鍥惧姞杞藉け璐?));
+                };
+                img.src = gridBase64;
+            });
+        }
+
+        // 鏄剧ず MJ 鍥剧墖閫夋嫨鍣?        function showMjImagePicker(images, callback, taskId = null) {
+            if (!images || images.length === 0) {
+                if (callback) callback(null);
+                return;
+            }
+            __mjPickerImages = images;
+            __mjPickerSelectedIndex = -1;
+            __mjPickerCallback = callback;
+            __mjTaskId = taskId;  // 馃啎 淇濆瓨 taskId
+
+            const grid = document.getElementById('mjPickerGrid');
+            grid.innerHTML = '';
+            images.forEach((imgUrl, index) => {
+                const item = document.createElement('div');
+                item.className = 'mj-picker-item';
+                item.onclick = (e) => {
+                    // 闃绘涓嬭浇鎸夐挳鐨勭偣鍑讳簨浠跺啋娉?                    if (e.target.classList.contains('mj-picker-item-download')) return;
+                    selectMjImage(index);
+                };
+                item.innerHTML = `
+                    <img src="${imgUrl}" alt="鍥剧墖 ${index + 1}" loading="lazy">
+                    <div class="mj-picker-item-index">${index + 1}</div>
+                    <button class="mj-picker-item-download" onclick="downloadMjSingleImage(${index}, event)" title="涓嬭浇杩欏紶">猬囷笍</button>
+                `;
+                grid.appendChild(item);
+            });
+
+            const confirmBtn = document.getElementById('mjPickerConfirm');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '璇峰厛閫夋嫨涓€寮犲浘鐗?;
+
+            document.getElementById('mjImagePicker').classList.add('show');
+        }
+        
+        // 馃啎 涓嬭浇鍗曞紶 MJ 鍥剧墖锛堟敮鎸?base64 鍜屾櫘閫?URL锛?        function downloadMjSingleImage(index, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            if (!__mjPickerImages || !__mjPickerImages[index]) return;
+            
+            const imgUrl = __mjPickerImages[index];
+            const filename = `mj_image_${index + 1}_${Date.now()}.png`;
+            
+            // 馃敡 淇锛歜ase64 鍥剧墖闇€瑕佽浆鎹负 Blob 鎵嶈兘姝ｇ‘涓嬭浇
+            if (imgUrl.startsWith('data:')) {
+                try {
+                    // 瑙ｆ瀽 base64
+                    const parts = imgUrl.split(',');
+                    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+                    const bstr = atob(parts[1]);
+                    const n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+                    const blob = new Blob([u8arr], { type: mime });
+                    const blobUrl = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);  // 閲婃斁鍐呭瓨
+                } catch (e) {
+                    console.error('涓嬭浇澶辫触:', e);
+                    showToast('涓嬭浇澶辫触锛岃閲嶈瘯');
+                    return;
+                }
+            } else {
+                // 鏅€?URL 鐩存帴涓嬭浇
+                const a = document.createElement('a');
+                a.href = imgUrl;
+                a.download = filename;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+            showToast(`宸蹭笅杞界 ${index + 1} 寮犲浘鐗嘸);
+        }
+        
+        // 馃啎 涓嬭浇鍏ㄩ儴 MJ 鍥剧墖锛堟敮鎸?base64锛?        async function downloadAllMjImages() {
+            if (!__mjPickerImages || __mjPickerImages.length === 0) {
+                showToast('娌℃湁鍙笅杞界殑鍥剧墖');
+                return;
+            }
+            
+            const count = __mjPickerImages.length;
+            showToast(`姝ｅ湪涓嬭浇 ${count} 寮犲浘鐗?..`);
+            
+            const timestamp = Date.now();
+            let successCount = 0;
+            
+            for (let i = 0; i < count; i++) {
+                const imgUrl = __mjPickerImages[i];
+                const filename = `mj_image_${i + 1}_${timestamp}.png`;
+                
+                try {
+                    // 馃敡 淇锛歜ase64 鍥剧墖闇€瑕佽浆鎹负 Blob 鎵嶈兘姝ｇ‘涓嬭浇
+                    if (imgUrl.startsWith('data:')) {
+                        const parts = imgUrl.split(',');
+                        const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+                        const bstr = atob(parts[1]);
+                        const n = bstr.length;
+                        const u8arr = new Uint8Array(n);
+                        for (let j = 0; j < n; j++) u8arr[j] = bstr.charCodeAt(j);
+                        const blob = new Blob([u8arr], { type: mime });
+                        const blobUrl = URL.createObjectURL(blob);
+                        
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(blobUrl);
+                    } else {
+                        const a = document.createElement('a');
+                        a.href = imgUrl;
+                        a.download = filename;
+                        a.target = '_blank';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
+                    successCount++;
+                } catch (e) {
+                    console.error(`涓嬭浇绗?${i + 1} 寮犲け璐?`, e);
+                }
+                
+                // 寤惰繜涓€涓嬮伩鍏嶆祻瑙堝櫒鎷︽埅
+                await new Promise(r => setTimeout(r, 500));
+            }
+            
+            if (successCount === count) {
+                showToast(`鉁?鍏ㄩ儴 ${count} 寮犲浘鐗囧凡涓嬭浇锛乣);
+            } else {
+                showToast(`涓嬭浇瀹屾垚锛?{successCount}/${count} 寮犳垚鍔焋);
+            }
+        }
+
+        // 閫夋嫨鍥剧墖
+        function selectMjImage(index) {
+            __mjPickerSelectedIndex = index;
+            const items = document.querySelectorAll('.mj-picker-item');
+            items.forEach((item, i) => {
+                item.classList.toggle('selected', i === index);
+            });
+            const confirmBtn = document.getElementById('mjPickerConfirm');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = `鉁?浣跨敤绗?${index + 1} 寮燻;
+        }
+
+        // 纭閫夋嫨
+        async function confirmMjSelection() {
+            if (__mjPickerSelectedIndex < 0) return;
+            
+            const selectedIndex = __mjPickerSelectedIndex + 1;  // 1-4
+            const previewImage = __mjPickerImages[__mjPickerSelectedIndex];
+            // 馃敡 淇锛氬湪鍏抽棴閫夋嫨鍣ㄥ墠淇濆瓨callback寮曠敤锛岄槻姝㈣娓呯┖
+            const callback = __mjPickerCallback;
+            const taskId = __mjTaskId;
+            
+            // 馃幆 浼樺寲锛氬厛鑾峰彇 userId锛屽鏋滄病鏈夊垯鐩存帴鐢ㄩ瑙堝浘锛堥伩鍏?401 鎶ラ敊锛?            let userId = currentUser?.id;
+            if (!userId && typeof NVAuth !== 'undefined') {
+                try {
+                    const user = await NVAuth.getCurrentUser();
+                    userId = user?.id;
+                } catch (e) { console.warn('[MJ] 鑾峰彇鐢ㄦ埛澶辫触'); }
+            }
+            
+            // 馃幆 浼樺寲锛氭病鏈?userId 鎴栨病鏈?taskId锛岀洿鎺ョ敤棰勮鍥撅紙宸茬粡鏄珮娓呭垏鍥撅紝澶熺敤浜嗭級
+            if (!taskId || !userId) {
+                console.log(`馃帹 [MJ] 鐩存帴浣跨敤棰勮鍥?(taskId=${!!taskId}, userId=${!!userId})`);
+                closeMjPicker();
+                if (callback) {
+                    callback(previewImage);
+                }
+                return;
+            }
+            
+            console.log(`馃攳 [MJ] 寮€濮?upscale 绗?${selectedIndex} 寮犲浘鐗? taskId=${taskId}`);
+            
+            // 鍏堝叧闂€夋嫨鍣紝鏄剧ず loading
+            closeMjPicker();
+            showToast('姝ｅ湪鏀惧ぇ閫変腑鐨勫浘鐗?..');
+            
+            try {
+                const upscaleRes = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'mj-upscale',
+                        taskId: taskId,
+                        index: selectedIndex,
+                        userId: userId
+                    })
+                });
+                
+                const upscaleData = await upscaleRes.json();
+                
+                if (upscaleData.success && upscaleData.imageUrl) {
+                    console.log('鉁?[MJ] Upscale 鎴愬姛:', upscaleData.imageUrl);
+                    if (callback) {
+                        callback(upscaleData.imageUrl);
+                    }
+                } else {
+                    console.warn('鈿狅笍 [MJ] Upscale 澶辫触锛屼娇鐢ㄥ垏鍥?', upscaleData.message);
+                    // 馃幆 淇锛歶pscale 澶辫触鏃朵娇鐢ㄥ凡鍒囧ソ鐨勯瑙堝浘锛岀‘淇濆浘鐗囦笉涓㈠け
+                    if (callback) {
+                        callback(previewImage);
+                    }
+                }
+            } catch (err) {
+                console.error('鉂?[MJ] Upscale 璇锋眰澶辫触:', err);
+                // 馃幆 淇锛氱綉缁滃紓甯告椂浣跨敤宸插垏濂界殑棰勮鍥撅紝纭繚鍥剧墖涓嶄涪澶?                if (callback) {
+                    callback(previewImage);
+                }
+            }
+        }
+
+        // 鍏抽棴閫夋嫨鍣?        function closeMjPicker() {
+            document.getElementById('mjImagePicker').classList.remove('show');
+            __mjPickerImages = [];
+            __mjPickerSelectedIndex = -1;
+            __mjPickerCallback = null;
+        }
+
+        // 杩斿洖鍑芥暟 - 浼樺厛浣跨敤鍘嗗彶璁板綍锛屽惁鍒欒烦杞埌涓婚〉
+        function goBack() {
+            console.log('[banana] goBack 琚皟鐢?);
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        // SUPABASE_URL 鍜?SUPABASE_ANON_KEY 宸插湪 supabase-config.js 涓畾涔?        var _sbClient = null, currentUser = null, userQuota = 0, currentImageUrl = '', imageHistory = [];
+        let authInitialized = false;
+
+        // 鎵ｈ垂鏍囧噯锛堟垚鏈?纭繚50%鍒╂鼎锛?鑳剁墖=楼0.1锛?        const FILM_COST = { 
+            'modelscope': 0,
+            'nano-banana-2': 6,
+            'nano-banana-2-2k': 6,
+            'nano-banana-2-4k': 10,
+            'Qwen/Qwen-Image-2512': 8,
+            'doubao-seedream-4-5-251128': 7,
+            'jimeng-4.5': 7,
+            'midjourney-fast': 2,
+            'midjourney-turbo': 2,
+            'midjourney-relax': 2
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[banana] 椤甸潰鍔犺浇瀹屾垚锛屽紑濮嬪垵濮嬪寲...');
+            
+            // 馃敡 淇锛氱粦瀹氱敓鎴愭寜閽簨浠讹紙绉婚櫎 touchend 閬垮厤閲嶅瑙﹀彂锛?            const generateBtn = document.getElementById('generateBtn');
+            if (generateBtn) {
+                // 鍙娇鐢?click 浜嬩欢锛岀Щ鍔ㄧ浼氳嚜鍔ㄨ浆鎹?                generateBtn.onclick = function(e) {
+                    console.log('[banana] 鐢熸垚鎸夐挳琚偣鍑?);
+                    if (this.disabled) {
+                        console.log('[banana] 鎸夐挳宸茬鐢紝蹇界暐');
+                        return;
+                    }
+                    generateImage();
+                };
+            }
+            
+            // 馃敡 淇锛氳繑鍥炴寜閽敮鎸佽Е鎽镐簨浠?            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) {
+                backBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    goBack();
+                });
+            }
+            
+            // 馃敡 淇锛氱粨鏋滃尯鍩熸寜閽敮鎸佽Е鎽镐簨浠讹紙绉诲姩绔偣鍑绘棤鍝嶅簲闂锛?            document.querySelectorAll('.result-btn').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[banana] 缁撴灉鎸夐挳琚Е鎽?', this.textContent.trim());
+                    this.click();
+                });
+            });
+            
+            // 馃敡 淇锛氭壒閲忕粨鏋滄寜閽敮鎸佽Е鎽镐簨浠?            document.querySelectorAll('.batch-action-btn').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[banana] 鎵归噺鎿嶄綔鎸夐挳琚Е鎽?', this.textContent.trim());
+                    this.click();
+                });
+            });
+            
+            // 馃敡 淇锛氫笌 music.html 淇濇寔涓€鑷寸殑璁よ瘉閫昏緫
+            if (typeof NVAuth !== 'undefined') {
+                await checkUser();
+            } else {
+                console.error('[banana] NVAuth 妯″潡鏈姞杞?);
+                document.getElementById('loginTip').style.display = 'block';
+                document.getElementById('quotaBadge').textContent = '馃帪锔?鏈櫥褰?;
+            }
+            authInitialized = true;
+            
+            // 澶勭悊浠庡叾浠栭〉闈紶鏉ョ殑鏁版嵁
+            const knollingPrompt = localStorage.getItem('knolling_prompt');
+            if (knollingPrompt) {
+                document.getElementById('promptInput').value = knollingPrompt;
+                localStorage.removeItem('knolling_prompt');
+            }
+            
+            const sketchImage = localStorage.getItem('sketch_image');
+            const sketchPrompt = localStorage.getItem('sketch_prompt');
+            if (sketchImage) {
+                window.referenceImageUrl = sketchImage;
+                const refSection = document.getElementById('refSection');
+                const refPreview = document.getElementById('refPreview');
+                if (refSection && refPreview) {
+                    refPreview.innerHTML = `<img src="${sketchImage}" alt="鍙傝€冨浘">`;
+                    refSection.style.display = 'block';
+                }
+                localStorage.removeItem('sketch_image');
+            }
+            if (sketchPrompt) {
+                document.getElementById('promptInput').value = sketchPrompt;
+                localStorage.removeItem('sketch_prompt');
+            }
+            
+            loadHistory();
+            updateModelInfo();
+            
+            // 馃幀 浠?localStorage 璇诲彇鎵归噺鎻愮ず璇嶏紙浠?prompt-fill.html 鎴?writing.html 璺宠浆杩囨潵锛?            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('batch') === '1') {
+                const savedPrompts = localStorage.getItem('knolling_batch_prompts');
+                if (savedPrompts) {
+                    try {
+                        const prompts = JSON.parse(savedPrompts);
+                        if (prompts && prompts.length > 0) {
+                            // 鍒囨崲鍒版壒閲忔ā寮?                            setBatchMode(true);
+                            
+                            // 濉厖鍒颁節瀹牸杈撳叆妗?                            prompts.slice(0, 9).forEach((prompt, i) => {
+                                const input = document.getElementById(`batchInput${i}`);
+                                if (input) input.value = prompt;
+                            });
+                            
+                            localStorage.removeItem('knolling_batch_prompts');
+                            
+                            // 馃啎 濡傛灉鏄粠writing椤甸潰鏉ョ殑锛屾樉绀虹壒娈婃彁绀?                            if (urlParams.get('from_writing') === '1') {
+                                showToast(`宸插姞杞?${Math.min(prompts.length, 9)} 涓狝I鍐欎綔鍐呭锛岀偣鍑绘壒閲忕敓鎴恅);
+                            } else {
+                                showToast(`宸插姞杞?${Math.min(prompts.length, 9)} 涓彁绀鸿瘝`);
+                            }
+                            console.log('[banana] 浠?localStorage 鍔犺浇浜?, prompts.length, '涓壒閲忔彁绀鸿瘝');
+                        }
+                    } catch (e) {
+                        console.error('[banana] 瑙ｆ瀽鎵归噺鎻愮ず璇嶅け璐?', e);
+                    }
+                }
+            }
+            
+            // 馃啎 浠?writing.html 鍗曠瘒妯″紡璺宠浆杩囨潵
+            if (urlParams.get('from_writing') === '1' && urlParams.get('batch') !== '1') {
+                const writingData = localStorage.getItem('writing_to_image');
+                if (writingData) {
+                    try {
+                        const data = JSON.parse(writingData);
+                        // 馃敡 淇锛氫紭鍏堜娇鐢ㄥ畬鏁寸殑 content锛岃€屼笉鏄彧鍙栫涓€涓満鏅?                        if (data.content) {
+                            document.getElementById('promptInput').value = data.content;
+                            showToast('宸插姞杞紸I鍐欎綔瀹屾暣鍐呭');
+                        } else if (data.scenes && data.scenes.length > 0) {
+                            // 鍏戝簳锛氬鏋滄病鏈?content锛屼娇鐢?scenes 鎷兼帴
+                            document.getElementById('promptInput').value = data.scenes.join('\n\n');
+                            showToast('宸插姞杞紸I鍐欎綔鍐呭');
+                        }
+                        localStorage.removeItem('writing_to_image');
+                    } catch (e) {
+                        console.error('[banana] 瑙ｆ瀽writing鏁版嵁澶辫触:', e);
+                    }
+                }
+            }
+            
+            console.log('[banana] 鍒濆鍖栧畬鎴? 鐢ㄦ埛:', currentUser?.email, '鑳剁墖:', userQuota);
+        });
+
+        async function checkUser() {
+            console.log('[banana] 寮€濮嬫娴嬬櫥褰曠姸鎬?..');
+            try {
+                // 绛夊緟璁よ瘉鐘舵€佸氨缁紙涓?music.html 淇濇寔涓€鑷达級
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+                
+                // 浣跨敤 NVAuth 鑾峰彇鐢ㄦ埛锛堜笌 music.html 瀹屽叏涓€鑷达級
+                if (typeof NVAuth !== 'undefined') {
+                    currentUser = await NVAuth.getCurrentUser();
+                }
+                
+                // 鏇存柊 UI
+                if (currentUser) {
+                    document.getElementById('loginTip').style.display = 'none';
+                    await loadUserQuota();
+                    console.log('[banana] 鐧诲綍鎴愬姛:', currentUser.email);
+                } else {
+                    document.getElementById('loginTip').style.display = 'block';
+                    document.getElementById('quotaBadge').textContent = '馃帪锔?鏈櫥褰?;
+                    console.log('[banana] 鐢ㄦ埛鏈櫥褰?);
+                }
+            } catch (e) {
+                console.error('[banana] 妫€鏌ョ敤鎴峰け璐?', e);
+                document.getElementById('loginTip').style.display = 'block';
+                document.getElementById('quotaBadge').textContent = '馃帪锔?鏈櫥褰?;
+            }
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                localStorage.setItem('film_balance', userQuota);
+                document.getElementById('quotaBadge').textContent = `馃帪锔?${userQuota}`;
+                console.log('[banana] 鐢ㄦ埛鑳剁墖:', userQuota);
+            } catch (e) { console.error('鍔犺浇閰嶉澶辫触:', e); }
+        }
+
+        function updateModelInfo() {
+            const model = document.getElementById('modelSelect').value;
+            const cost = FILM_COST[model];
+            const info = document.getElementById('modelInfo');
+            if (cost === 0) {
+                info.textContent = '鉁?鍏嶈垂妯″瀷';
+                info.style.color = '#22c55e';
+            } else {
+                info.textContent = `娑堣€?${cost} 鑳剁墖`;
+                info.style.color = '#888';
+            }
+            // 馃幆 鏄剧ず/闅愯棌 MJ 鐗堟湰閫夋嫨鍣?            const isMidjourney = model && model.startsWith('midjourney-');
+            const mjVersionGroup = document.getElementById('mjVersionGroup');
+            if (mjVersionGroup) {
+                mjVersionGroup.style.display = isMidjourney ? 'block' : 'none';
+            }
+            // 馃帹 澶氬浘鍙傝€冩敮鎸侊細鏄熸ⅵ鐢诲笀 + 閫氫箟涓囪薄MAX + Banana绯诲垪
+            const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream'));
+            const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
+            const isBanana = model && model.startsWith('nano-banana-');
+            const multiRefSection = document.getElementById('multiRefSection');
+            if (multiRefSection) {
+                if (isSeedream || isQwenImage || isBanana) {
+                    multiRefSection.classList.add('show');
+                } else {
+                    multiRefSection.classList.remove('show');
+                    // 鍒囨崲妯″瀷鏃舵竻绌哄鍥撅紙閬垮厤璇敤锛?                    if (window.multiRefImages && window.multiRefImages.length > 0) {
+                        clearMultiRef();
+                    }
+                }
+            }
+        }
+
+        async function generateSingleImage() {
+            console.log('[banana] generateSingleImage 琚皟鐢?);
+            
+            let prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) { showToast('璇疯緭鍏ユ弿杩板唴瀹?); return; }
+            
+            // 馃摲 娣诲姞鎽勫奖瑙掑害鍒?prompt
+            const cameraAngle = document.getElementById('cameraAngleSelect')?.value;
+            if (cameraAngle) {
+                prompt = `${prompt}, ${cameraAngle}`;
+                console.log('[banana] 娣诲姞鎽勫奖瑙掑害:', cameraAngle);
+            }
+
+            // 馃攼 绠€鍖栬璇佹鏌ワ細浼樺厛浣跨敤缂撳瓨鐨勭敤鎴蜂俊鎭?            try {
+                // 濡傛灉娌℃湁缂撳瓨鐨勭敤鎴凤紝灏濊瘯鑾峰彇
+                if (!currentUser && typeof NVAuth !== 'undefined') {
+                    currentUser = await NVAuth.getCurrentUser();
+                }
+                // 鍒锋柊鑳剁墖浣欓
+                if (currentUser && typeof NVAuth !== 'undefined' && typeof NVAuth.checkAuthStatus === 'function') {
+                    const authResult = await NVAuth.checkAuthStatus(true);
+                    if (authResult.quota !== undefined) {
+                        userQuota = authResult.quota;
+                        document.getElementById('quotaBadge').textContent = `馃彏锔?${userQuota}`;
+                    }
+                }
+            } catch (e) {
+                console.error('[banana] 璁よ瘉妫€鏌ュ紓甯?', e);
+            }
+            
+            // 蹇呴』鐧诲綍
+            if (!currentUser) { 
+                showToast('璇峰厛鐧诲綍鍚庝娇鐢?); 
+                setTimeout(() => { window.location.href = 'auth.html'; }, 1000);
+                return; 
+            }
+            
+            // 馃摫 绉诲姩绔畨鍏ㄦ鏌ワ細纭繚 currentUser.id 瀛樺湪
+            if (!currentUser.id) {
+                console.error('[banana] currentUser.id 涓虹┖:', currentUser);
+                showToast('鐢ㄦ埛淇℃伅寮傚父锛岃閲嶆柊鐧诲綍');
+                setTimeout(() => { window.location.href = 'auth.html'; }, 1000);
+                return;
+            }
+            
+            const userId = currentUser.id;  // 馃敀 缂撳瓨鐢ㄦ埛ID锛岄伩鍏嶅悗缁彲鑳界殑绌哄紩鐢?            console.log('[banana] 鐢ㄦ埛ID:', userId);
+
+            const model = document.getElementById('modelSelect').value;
+            const ratio = document.getElementById('ratioSelect').value;
+            const filmCost = FILM_COST[model] || 0;
+
+            // 閰嶉妫€鏌ワ紙浣跨敤鍒锋柊鍚庣殑浣欓锛?            if (filmCost > 0 && userQuota < filmCost) { 
+                showToast(`鑳剁墖涓嶈冻锛岄渶瑕?{filmCost}鑳剁墖`); 
+                return; 
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const resultSection = document.getElementById('resultSection');
+            btn.disabled = true;
+            loading.style.display = 'block';
+            resultSection.style.display = 'none';
+
+            // 馃摫 绉诲姩绔弸濂斤細鏄剧ず棰勮绛夊緟鏃堕棿
+            const loadingText = document.getElementById('loadingText');
+            const isMidjourney = model && model.startsWith('midjourney-');
+            const isQwenModel = model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image');
+            
+            if (isMidjourney) {
+                loadingText.textContent = 'MJ鐢熸垚涓紝棰勮1-3鍒嗛挓锛岃鍕跨寮€椤甸潰...';
+            } else if (isQwenModel) {
+                loadingText.textContent = '涓囪薄Max鐢熸垚涓紝棰勮30-60绉?..';
+            } else {
+                loadingText.textContent = '姝ｅ湪鐢熸垚...';
+            }
+            
+            try {
+                // 馃攼 璁¤垂宸茬Щ鑷冲悗绔?API锛屽墠绔彧闇€浼犻€?userId
+                let response;
+                
+                // 馃摫 绉诲姩绔慨澶嶏細涓嶄娇鐢?AbortController锛岄伩鍏嶈涓柇
+                // 绉诲姩绔祻瑙堝櫒鍙兘浼氳嚜宸变腑鏂姹傦紝涓嶉渶瑕佹垜浠墜鍔ㄨ缃秴鏃?                const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                console.log(`[banana] 绉诲姩绔?${isMobileDevice}, 涓嶈缃墠绔秴鏃禶);
+                
+                const fetchOptions = {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                    // 馃敡 绉婚櫎 signal锛岃璇锋眰鑷劧瀹屾垚
+                };
+                
+                if (isQwenModel) {
+                    // 馃帹 閫氫箟涓囪薄Max绯诲垪锛屼娇鐢?banana2 API锛堟敮鎸佸紓姝ヨ疆璇紝閬垮厤 Vercel 瓒呮椂锛?                    const hasMultiRef = window.multiRefImages && window.multiRefImages.length >= 2;
+                    const hasReferenceImage = !!window.referenceImageUrl;
+                    
+                    // 鏋勫缓璇锋眰浣?                    const requestBody = {
+                        prompt,
+                        aspect_ratio: ratio,
+                        model: 'qwen-image-max',  // 馃敡 浣跨敤 banana2 鏀寔鐨勬ā鍨嬪悕
+                        userId: userId  // 馃敀 浣跨敤缂撳瓨鐨剈serId
+                    };
+                    
+                    // 馃帹 澶氬浘鍙傝€冩ā寮?                    if (hasMultiRef) {
+                        const limitedImages = window.multiRefImages.slice(0, 3);
+                        requestBody.image_urls = limitedImages;
+                        console.log(`馃帹 [涓囩浉Max] 澶氬浘鍙傝€冩ā寮? ${limitedImages.length}寮犲弬鑰冨浘`);
+                    }
+                    // 鍗曞浘鍙傝€冩ā寮?                    else if (hasReferenceImage) {
+                        requestBody.image_url = window.referenceImageUrl;
+                        console.log(`馃帹 [涓囩浉Max] 鍗曞浘鍙傝€冩ā寮廯);
+                    }
+                    
+                    // 馃敡 浣跨敤 banana2 API锛堝唴缃紓姝ヨ疆璇紝涓嶄細瓒呮椂锛?                    fetchOptions.body = JSON.stringify(requestBody);
+                    response = await fetch('/api/banana2', fetchOptions);
+                } else if (model === 'modelscope') {
+                    // 浼犵粺榄斿妯″瀷锛岃皟鐢╩odelscope API浣嗕笉浼犻€抦odel鍙傛暟锛堜娇鐢ㄩ粯璁ゆā鍨嬶級
+                    fetchOptions.body = JSON.stringify({ action: 'image', prompt, aspect_ratio: ratio, userId: userId });  // 馃敀 浣跨敤缂撳瓨鐨剈serId
+                    response = await fetch('/api/modelscope', fetchOptions);
+                } else {
+                    const isMidjourney = model && model.startsWith('midjourney-');
+                    const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream'));
+                    // 馃帹 鏄熸ⅵ鐢诲笀璺敱鍒?yunwu API
+                    const apiEndpoint = isMidjourney ? '/api/yunwu' : (isSeedream ? '/api/yunwu' : '/api/banana2');
+                    const requestBody = { prompt, model, aspect_ratio: ratio, userId: userId };  // 馃敀 浣跨敤缂撳瓨鐨剈serId
+                    
+                    // 馃帹 鏄熸ⅵ鐢诲笀鐗规畩澶勭悊
+                    if (isSeedream) {
+                        requestBody.action = 'seedream';
+                        
+                        // 澶氬浘鍙傝€冩ā寮?(2-10寮?
+                        if (window.multiRefImages && window.multiRefImages.length >= 2) {
+                            // 妫€鏌ュ鍥炬€诲ぇ灏忥紝閬垮厤璇锋眰浣撹繃澶?                            const totalSize = window.multiRefImages.reduce((sum, img) => sum + img.length, 0);
+                            if (totalSize > 20 * 1024 * 1024) {  // 20MB闄愬埗
+                                showToast('澶氬紶鍙傝€冨浘鎬诲ぇ灏忚秴杩?0MB锛岃鍑忓皯鍥剧墖鎴栦娇鐢ㄨ緝灏忕殑鍥剧墖');
+                                btn.disabled = false;
+                                loading.style.display = 'none';
+                                return;
+                            }
+                            requestBody.image_urls = window.multiRefImages;
+                            requestBody.mode = 'multi-image';
+                            console.log(`馃帹 [鏄熸ⅵ鐢诲笀] 澶氬浘妯″紡: ${window.multiRefImages.length}寮犲弬鑰冨浘`);
+                        }
+                        // 鍗曞浘鍙傝€冩ā寮?                        else if (window.referenceImageUrl) {
+                            if (window.referenceImageUrl.length > 5 * 1024 * 1024) {
+                                showToast('鍙傝€冨浘杩囧ぇ锛岃閫夋嫨杈冨皬鐨勫浘鐗?);
+                                btn.disabled = false;
+                                loading.style.display = 'none';
+                                return;
+                            }
+                            requestBody.image_url = window.referenceImageUrl;
+                            requestBody.mode = 'image2image';
+                            console.log('馃帹 [鏄熸ⅵ鐢诲笀] 鍗曞浘妯″紡');
+                        }
+                    } else {
+                        // 馃崒 Banana 妯″瀷澶氬浘鍙傝€冨鐞?                        const isBanana = model && model.startsWith('nano-banana-');
+                        if (isBanana && window.multiRefImages && window.multiRefImages.length >= 2) {
+                            // Banana 澶氬浘铻嶅悎妯″紡
+                            const totalSize = window.multiRefImages.reduce((sum, img) => sum + img.length, 0);
+                            if (totalSize > 20 * 1024 * 1024) {
+                                showToast('澶氬紶鍙傝€冨浘鎬诲ぇ灏忚秴杩?0MB锛岃鍑忓皯鍥剧墖鎴栦娇鐢ㄨ緝灏忕殑鍥剧墖');
+                                btn.disabled = false;
+                                loading.style.display = 'none';
+                                return;
+                            }
+                            requestBody.image_urls = window.multiRefImages;
+                            console.log(`馃崒 [Banana] 澶氬浘铻嶅悎妯″紡: ${window.multiRefImages.length}寮犲弬鑰冨浘`);
+                        }
+                        // 鍏朵粬妯″瀷鐨勫崟鍥惧弬鑰冨鐞?                        else if (window.referenceImageUrl) {
+                            // 妫€鏌ュ弬鑰冨浘澶у皬锛岄伩鍏嶈姹備綋杩囧ぇ瀵艰嚧413閿欒
+                            if (window.referenceImageUrl.length > 5 * 1024 * 1024) {  // 5MB闄愬埗
+                                showToast('鍙傝€冨浘杩囧ぇ锛岃閫夋嫨杈冨皬鐨勫浘鐗?);
+                                btn.disabled = false;
+                                loading.style.display = 'none';
+                                return;
+                            }
+                            requestBody.image_url = window.referenceImageUrl;
+                        }
+                    }
+                    
+                    // Midjourney 鐗规湁鍙傛暟
+                    if (isMidjourney) {
+                        requestBody.action = 'midjourney';
+                        // 馃幆 浣跨敤鐢ㄦ埛閫夋嫨鐨勭増鏈?                        const mjVersionSelect = document.getElementById('mjVersion');
+                        requestBody.version = mjVersionSelect ? mjVersionSelect.value : '6.1';
+                    }
+                    fetchOptions.body = JSON.stringify(requestBody);
+                    response = await fetch(apiEndpoint, fetchOptions);
+                }
+                
+                // 馃敡 淇锛氬厛妫€鏌ュ搷搴旂姸鎬侊紝鍐嶈В鏋怞SON
+                if (!response.ok) {
+                    let errMsg = `HTTP ${response.status}`;
+                    let debugInfo = '';
+                    try {
+                        const errData = await response.json();
+                        errMsg = errData.message || errData.error || errMsg;
+                        debugInfo = errData.debug || JSON.stringify(errData).slice(0, 400);
+                        console.error('[banana] API閿欒璇︽儏(JSON):', errData);
+                    } catch (e) {
+                        try {
+                            const errText = await response.text();
+                            if (errText) {
+                                debugInfo = errText.slice(0, 400);
+                                // 灏濊瘯浠庣函鏂囨湰涓彁鍙?message
+                                const m = errText.match(/message\"?\s*:\s*\"([^\"]+)/i);
+                                if (m && m[1]) errMsg = m[1];
+                            }
+                            console.error('[banana] API閿欒璇︽儏(TEXT):', debugInfo);
+                        } catch (e2) {}
+                    }
+                    // 濡傛灉鏈塪ebug淇℃伅锛岃緭鍑哄埌鎺у埗鍙?                    if (debugInfo) {
+                        console.error('[banana] 鍚庣杩斿洖璋冭瘯淇℃伅:', debugInfo);
+                    }
+                    throw new Error(errMsg);
+                }
+                
+                const data = await response.json();
+                if (data.error) throw new Error(data.message || data.error);
+
+                // 馃帹 妫€鏌ユ槸鍚︽槸 Midjourney 杩斿洖锛堟柊鐗堟湰杩斿洖 gridBase64 + taskId锛?                const hasMjGrid = isMidjourney && data.gridBase64 && data.taskId;
+                const hasMjImages = isMidjourney && data.images && data.images.length > 1;  // 鍏煎鏃х増
+
+                // 馃挵 鏇存柊浣欓鏄剧ず锛堝悗绔凡鎵ｈ垂锛?                if (data.billed && data.billed > 0) {
+                    userQuota = Math.max(0, userQuota - data.billed);
+                    localStorage.setItem('film_balance', String(userQuota));
+                    document.getElementById('quotaBadge').textContent = `馃帪锔?${userQuota}`;
+                    console.log(`馃帪锔?鎵ｈ垂: -${data.billed}鑳剁墖, 浣欓=${userQuota}`);
+                }
+
+                // 馃啎 MJ 缃戞牸鍥?+ taskId锛氬墠绔垏鍥?+ 鐢ㄦ埛閫夋嫨 + upscale
+                if (hasMjGrid) {
+                    console.log('馃帹 [MJ] 鏀跺埌缃戞牸鍥撅紝寮€濮嬪墠绔垏鍥鹃€夋嫨娴佺▼');
+                    btn.disabled = false;
+                    loading.style.display = 'none';
+                    
+                    try {
+                        // 鍓嶇鍒囧浘
+                        const splitImages = await splitMjGridImage(data.gridBase64);
+                        console.log(`馃敧 [MJ] 鍒囧浘瀹屾垚锛屽緱鍒?${splitImages.length} 寮犲浘鐗嘸);
+                        
+                        showToast('鐢熸垚鎴愬姛锛佽閫夋嫨涓€寮犲浘鐗囪繘琛屾斁澶?);
+                        
+                        // 寮瑰嚭閫夋嫨鍣紝浼犲叆 taskId
+                        showMjImagePicker(splitImages, (selectedUrl) => {
+                            if (selectedUrl) {
+                                currentImageUrl = selectedUrl;
+                                document.getElementById('resultImage').src = currentImageUrl;
+                                resultSection.style.display = 'block';
+                                showToast('鍥剧墖宸叉斁澶э紒');
+                                try {
+                                    saveToHistory(prompt, currentImageUrl);
+                                } catch (historyErr) {
+                                    console.warn('淇濆瓨鍘嗗彶璁板綍澶辫触:', historyErr);
+                                }
+                            }
+                        }, data.taskId);
+                    } catch (splitErr) {
+                        console.error('鉂?[MJ] 鍒囧浘澶辫触:', splitErr);
+                        // 鍒囧浘澶辫触锛屾樉绀哄師濮嬬綉鏍煎浘
+                        currentImageUrl = data.imageUrl || data.url;
+                        document.getElementById('resultImage').src = currentImageUrl;
+                        resultSection.style.display = 'block';
+                        showToast('鍒囧浘澶辫触锛屾樉绀虹綉鏍煎浘');
+                    }
+                    return; // 鎻愬墠杩斿洖
+                }
+
+                // 馃帹 鍏煎鏃х増锛歁J 杩斿洖澶氬紶鍥剧墖
+                if (hasMjImages) {
+                    // 馃帹 MJ 杩斿洖澶氬紶鍥剧墖锛屽脊鍑洪€夋嫨鍣ㄨ鐢ㄦ埛閫夋嫨
+                    btn.disabled = false;
+                    loading.style.display = 'none';
+                    showToast('鐢熸垚鎴愬姛锛佽閫夋嫨涓€寮犲浘鐗?);
+                    
+                    showMjImagePicker(data.images, (selectedUrl) => {
+                        if (selectedUrl) {
+                            currentImageUrl = selectedUrl;
+                            document.getElementById('resultImage').src = currentImageUrl;
+                            resultSection.style.display = 'block';
+                            showToast('宸查€夋嫨鍥剧墖锛?);
+                            try {
+                                saveToHistory(prompt, currentImageUrl);
+                            } catch (historyErr) {
+                                console.warn('淇濆瓨鍘嗗彶璁板綍澶辫触:', historyErr);
+                            }
+                        }
+                    });
+                    return; // 鎻愬墠杩斿洖锛屼笉鎵ц finally
+                }
+
+                // 鍏朵粬妯″瀷鎴?MJ 鍗曞浘鎯呭喌
+                // 馃敡 璋冭瘯锛氳緭鍑哄悗绔繑鍥炵殑鍏ㄩ儴鏁版嵁
+                console.log('[banana] 鍚庣杩斿洖鏁版嵁:', JSON.stringify(data).substring(0, 500));
+                console.log('[banana] data.url:', data.url?.substring(0, 100));
+                console.log('[banana] data.urls:', data.urls);
+                
+                // 馃敡 浼樺厛浠庡涓瓧娈垫彁鍙朥RL
+                let imageUrl = data.url || data.image_url || '';
+                // 澶囩敤锛歶rls鏁扮粍鐨勭涓€椤?                if (!imageUrl && data.urls && data.urls.length > 0) {
+                    imageUrl = data.urls[0];
+                    console.log('[banana] 浠?urls 鏁扮粍鎻愬彇鍥剧墖');
+                }
+                // 澶囩敤锛歞ata.data宓屽
+                if (!imageUrl) {
+                    imageUrl = data.data?.url || data.data?.image_url || '';
+                }
+                const finalUrl = imageUrl || (data.images && data.images.length > 0 ? (data.images[0].url || data.images[0]) : '');
+                
+                console.log('[banana] 鏈€缁圲RL:', finalUrl?.substring(0, 100));
+                if (!finalUrl) throw new Error('鏈幏鍙栧埌鍥剧墖鍦板潃锛屽悗绔繑鍥? ' + JSON.stringify(data).substring(0, 200));
+
+                // 鉁?鍙湁鎴愬姛鑾峰彇鍒板浘鐗嘦RL鎵嶆洿鏂扮姸鎬?                currentImageUrl = finalUrl;
+
+                document.getElementById('resultImage').src = currentImageUrl;
+                resultSection.style.display = 'block';
+                showToast('鐢熸垚鎴愬姛锛?);
+
+                // 馃敡 鍘嗗彶璁板綍淇濆瓨鐙珛澶勭悊锛屼笉褰卞搷涓绘祦绋?                try {
+                    saveToHistory(prompt, currentImageUrl);
+                } catch (historyErr) {
+                    console.warn('淇濆瓨鍘嗗彶璁板綍澶辫触:', historyErr);
+                }
+            } catch (error) {
+                console.error('[banana] 鐢熸垚澶辫触:', error);
+                console.error('[banana] 閿欒鍫嗘爤:', error.stack);
+                // 馃敡 淇锛氬け璐ユ椂闅愯棌缁撴灉鍖哄煙锛岄伩鍏嶆樉绀烘棫鍥剧墖
+                resultSection.style.display = 'none';
+                
+                // 馃摫 绉诲姩绔慨澶嶏細浼樺寲瓒呮椂閿欒鎻愮ず
+                let errMsg = error.message || '鏈煡閿欒';
+                let fullError = errMsg;  // 淇濆瓨瀹屾暣閿欒鐢ㄤ簬璋冭瘯
+                
+                if (error.name === 'AbortError' || errMsg.includes('abort')) {
+                    if (isMidjourney) {
+                        errMsg = 'MJ鐢熸垚瓒呮椂锛堢綉缁滀笉绋冲畾锛夛紝璇烽噸璇曟垨浣跨敤Wi-Fi';
+                    } else if (isQwenModel) {
+                        errMsg = '涓囪薄Max鐢熸垚瓒呮椂锛岃閲嶈瘯';
+                    } else {
+                        errMsg = '璇锋眰瓒呮椂锛岃妫€鏌ョ綉缁滃悗閲嶈瘯';
+                    }
+                } else if (errMsg.includes('network') || errMsg.includes('Failed to fetch')) {
+                    errMsg = '缃戠粶杩炴帴澶辫触锛岃妫€鏌ョ綉缁?;
+                } else if (errMsg.includes('TypeError') || errMsg.includes('undefined')) {
+                    errMsg = '鏁版嵁瑙ｆ瀽閿欒: ' + errMsg.substring(0, 50);
+                }
+                
+                // 馃摫 绉诲姩绔細鏄剧ず璇︾粏閿欒寮圭獥锛堟柟渚跨敤鎴锋埅鍥惧弽棣堬級
+                const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobileDevice && fullError.length > 20) {
+                    // 绉诲姩绔樉绀烘洿璇︾粏鐨勯敊璇俊鎭?                    const errorDetail = `閿欒: ${errMsg}\n\n璇︽儏: ${fullError.substring(0, 200)}\n\n璇锋埅鍥惧弽棣堢粰寮€鍙戣€卄;
+                    alert(errorDetail);
+                } else {
+                    showToast('鐢熸垚澶辫触: ' + errMsg);
+                }
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function regenerate() { generateImage(); }
+        function downloadImage() { if (!currentImageUrl) { showToast('娌℃湁鍙笅杞界殑鍥剧墖'); return; } const a = document.createElement('a'); a.href = currentImageUrl; a.download = 'rollroll_' + Date.now() + '.png'; a.click(); showToast('寮€濮嬩笅杞?); }
+        function shareImage() { if (!currentImageUrl) { showToast('娌℃湁鍙垎浜殑鍥剧墖'); return; } if (navigator.share) { navigator.share({ title: 'RollRoll AI鐢诲浘', text: '鐪嬬湅鎴戠敤AI鐢荤殑鍥撅紒', url: currentImageUrl }); } else { navigator.clipboard.writeText(currentImageUrl); showToast('閾炬帴宸插鍒?); } }
+        
+        // 馃敡 IndexedDB 瀛樺偍宸ュ叿锛堣В鍐?localStorage 5MB 闄愬埗闂锛?        const imageTransferDB = {
+            dbName: 'RollRollImageTransfer',
+            storeName: 'images',
+            db: null,
+            
+            async init() {
+                if (this.db) return this.db;
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 1);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        resolve(this.db);
+                    };
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName, { keyPath: 'key' });
+                        }
+                    };
+                });
+            },
+            
+            async set(key, data) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readwrite');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.put({ key, data, timestamp: Date.now() });
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            },
+            
+            async get(key) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readonly');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result?.data || null);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+            
+            async remove(key) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readwrite');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.delete(key);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+        };
+        
+        // 馃幀 鍗曚釜妯″紡锛氭帹閫佸埌瑙嗛宸ュ叿
+        async function pushToVideoTool() {
+            console.log('[banana] pushToVideoTool 琚皟鐢? currentImageUrl:', currentImageUrl ? currentImageUrl.substring(0, 50) + '...' : 'null');
+            
+            if (!currentImageUrl) {
+                showToast('娌℃湁鍙帹閫佺殑鍥剧墖');
+                console.warn('[banana] currentImageUrl 涓虹┖锛屾棤娉曡烦杞?);
+                return;
+            }
+            
+            try {
+                // 馃敡 浣跨敤 IndexedDB 瀛樺偍澶ф暟鎹紙瑙ｅ喅 localStorage 5MB 闄愬埗锛?                const transferData = {
+                    imageUrl: currentImageUrl,
+                    prompt: document.getElementById('promptInput').value.trim(),
+                    mode: 'image-to-video',
+                    timestamp: Date.now()
+                };
+                await imageTransferDB.set('banana_to_video', transferData);
+                
+                // 鍚屾椂璁剧疆涓€涓爣璁板埌 localStorage锛堢敤浜庢娴嬫槸鍚︽湁鏁版嵁锛?                localStorage.setItem('banana_to_video_flag', '1');
+                
+                console.log('[banana] 宸蹭繚瀛樻暟鎹埌 IndexedDB, 鍑嗗璺宠浆');
+                
+                showToast('姝ｅ湪璺宠浆鍒拌棰戝伐鍏?..');
+                setTimeout(() => {
+                    const targetUrl = 'video-tools.html?from_banana=1&force=mobile';
+                    console.log('[banana] 璺宠浆鍒?', targetUrl);
+                    location.href = targetUrl;
+                }, 300);
+            } catch (err) {
+                console.error('[banana] 淇濆瓨鏁版嵁澶辫触:', err);
+                showToast('淇濆瓨鍥剧墖澶辫触锛岃閲嶈瘯');
+            }
+        }
+        
+        // 馃幀 鎵归噺妯″紡锛氭帹閫侀€変腑鐨勫浘鐗囧埌瑙嗛宸ュ叿
+        async function useSelectedImages() {
+            console.log('[banana] useSelectedImages 琚皟鐢? batchResults:', batchResults.length);
+            const selected = batchResults.filter(r => r.selected && r.imageUrl && !r.error);
+            console.log('[banana] 閫変腑鐨勫浘鐗囨暟閲?', selected.length);
+            
+            if (selected.length === 0) {
+                showToast('璇峰厛閫夋嫨瑕佺敓瑙嗛鐨勫浘鐗?);
+                return;
+            }
+            
+            try {
+                // 馃敡 浣跨敤 IndexedDB 瀛樺偍澶ф暟鎹?                const transferData = {
+                    images: selected.map(r => ({
+                        imageUrl: r.imageUrl,
+                        prompt: r.prompt
+                    })),
+                    mode: 'batch-image-to-video',
+                    timestamp: Date.now()
+                };
+                await imageTransferDB.set('banana_batch_to_video', transferData);
+                localStorage.setItem('banana_batch_to_video_flag', '1');
+                
+                console.log('[banana] 宸蹭繚瀛樻壒閲忔暟鎹埌 IndexedDB, 鍥剧墖鏁?', selected.length);
+                
+                showToast(`姝ｅ湪鎺ㄩ€?${selected.length} 寮犲浘鐗囧埌瑙嗛宸ュ叿...`);
+                setTimeout(() => {
+                    const targetUrl = 'video-tools.html?from_banana=1&batch=1&force=mobile';
+                    console.log('[banana] 璺宠浆鍒?', targetUrl);
+                    location.href = targetUrl;
+                }, 300);
+            } catch (err) {
+                console.error('[banana] 淇濆瓨鎵归噺鏁版嵁澶辫触:', err);
+                showToast('淇濆瓨鍥剧墖澶辫触锛岃閲嶈瘯');
+            }
+        }
+        // 馃敡 寮傛鍘嬬缉鍥剧墖鐢ㄤ簬鍘嗗彶璁板綍锛堥珮璐ㄩ噺缂╃暐鍥撅級
+        async function compressImageForHistory(base64Url, maxWidth = 150, quality = 0.7) {
+            return new Promise((resolve) => {
+                try {
+                    const img = new Image();
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+                        // 绛夋瘮渚嬬缉鏀?                        if (width > height && width > maxWidth) {
+                            height = Math.round(height * maxWidth / width);
+                            width = maxWidth;
+                        } else if (height > maxWidth) {
+                            width = Math.round(width * maxWidth / height);
+                            height = maxWidth;
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // 馃敡 閫掕繘鍘嬬缉锛氬鏋滆繕鏄お澶э紝闄嶄綆璐ㄩ噺鍐嶈瘯
+                        let compressed = canvas.toDataURL('image/jpeg', quality);
+                        if (compressed.length > 80000 && quality > 0.3) {
+                            compressed = canvas.toDataURL('image/jpeg', 0.5);
+                        }
+                        if (compressed.length > 80000 && width > 100) {
+                            // 杩涗竴姝ョ缉灏忓昂瀵?                            const smallCanvas = document.createElement('canvas');
+                            smallCanvas.width = Math.round(width * 0.7);
+                            smallCanvas.height = Math.round(height * 0.7);
+                            smallCanvas.getContext('2d').drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
+                            compressed = smallCanvas.toDataURL('image/jpeg', 0.5);
+                        }
+                        
+                        console.log(`馃柤锔?鍘嗗彶缂╃暐鍥? ${Math.round(base64Url.length/1024)}KB -> ${Math.round(compressed.length/1024)}KB`);
+                        resolve(compressed);
+                    };
+                    img.onerror = () => {
+                        console.warn('[banana] 鍘嬬缉澶辫触锛岃烦杩?);
+                        resolve(null);
+                    };
+                    img.src = base64Url;
+                } catch (e) {
+                    console.warn('[banana] 鍘嬬缉寮傚父:', e);
+                    resolve(null);
+                }
+            });
+        }
+        
+        async function saveToHistory(prompt, url) { 
+            // 馃敡 浼樺寲锛氬鐞嗗ぇ浣撶Нbase64鍥剧墖锛屽帇缂╀负缂╃暐鍥捐€岄潪榛戠櫧鍗犱綅鍥?            let saveUrl = url;
+            let isOversized = false;
+            let originalUrl = url;  // 馃啎 淇濆瓨鍘熷澶у浘URL
+            
+            // 濡傛灉鏄痓ase64涓旇秴杩?00KB锛屽帇缂╀负楂樿川閲忕缉鐣ュ浘
+            if (url && url.startsWith('data:') && url.length > 100000) {
+                console.log('[banana] 鍥剧墖鏁版嵁杩囧ぇ锛? + Math.round(url.length/1024) + 'KB锛夛紝鍘嬬缉涓洪珮璐ㄩ噺缂╃暐鍥?);
+                isOversized = true;
+                
+                // 馃敡 鍘嬬缉涓洪珮璐ㄩ噺缂╃暐鍥撅紙濮嬬粓鏄剧ず瀹為檯鍐呭锛屼笉鐢ㄥ崰浣嶅浘锛?                const thumbnail = await compressImageForHistory(url, 150, 0.7);
+                if (thumbnail) {
+                    saveUrl = thumbnail;
+                    console.log('[banana] 楂樿川閲忕缉鐣ュ浘鍘嬬缉鎴愬姛:', Math.round(thumbnail.length/1024) + 'KB');
+                } else {
+                    // 鍘嬬缉澶辫触锛屼娇鐢ㄥ師鍥綰RL锛堝彲鑳芥槸缃戠粶URL锛?                    console.warn('[banana] 缂╃暐鍥惧帇缂╁け璐ワ紝淇濈暀鍘熷浘');
+                    // 濡傛灉鍘熷浘澶ぇ瀵艰嚧鏃犳硶瀛樺偍锛屽悗缁殑try-catch浼氬鐞?                }
+            }
+            
+            imageHistory.unshift({ 
+                prompt, 
+                url: saveUrl, 
+                originalUrl: isOversized ? originalUrl : null,  // 馃啎 淇濆瓨鍘熷URL浠ヤ究鏌ョ湅
+                time: Date.now(), 
+                oversized: isOversized 
+            }); 
+            if (imageHistory.length > 20) imageHistory.pop(); 
+            try {
+                // 馃敡 瀛樺偍鏃剁Щ闄riginalUrl閬垮厤瓒呴檺
+                const storageData = imageHistory.map(item => ({
+                    ...item,
+                    originalUrl: undefined  // 涓嶅瓨鍌ㄥ師濮嬪ぇ鍥?                }));
+                localStorage.setItem('banana_history', JSON.stringify(storageData)); 
+                if (isOversized) {
+                    showToast('澶у浘宸茬敓鎴愶紝璇风珛鍗充笅杞斤紒\n锛堝巻鍙蹭腑鏄剧ず缂╃暐鍥撅級');
+                }
+            } catch (storageErr) {
+                console.warn('[banana] 瀛樺偍澶辫触锛屽皾璇曟竻鐞嗘棫鏁版嵁:', storageErr);
+                // 瀛樺偍澶辫触锛岀Щ闄ゆ棫鐨刡ase64鍥剧墖鍚庨噸璇?                imageHistory = imageHistory.filter(item => !item.url?.startsWith('data:image/png') && !item.url?.startsWith('data:image/jpeg') || item.url.length < 50000).slice(0, 10);
+                try {
+                    localStorage.setItem('banana_history', JSON.stringify(imageHistory));
+                } catch (e2) {
+                    console.error('[banana] 鍘嬬缉鍚庝粛鐒跺け璐?', e2);
+                }
+            }
+            renderHistory(); 
+        }
+        function loadHistory() { 
+            try { 
+                imageHistory = JSON.parse(localStorage.getItem('banana_history') || '[]'); 
+                // 馃敡 杩囨护鏃犳晥鐨勫巻鍙茶褰?                imageHistory = imageHistory.filter(item => {
+                    if (!item || !item.url) return false;
+                    // URL蹇呴』鏄湁鏁堢殑鍥剧墖URL
+                    return item.url.startsWith('http') || item.url.startsWith('data:image/');
+                });
+                renderHistory(); 
+            } catch (e) { 
+                imageHistory = []; 
+            } 
+        }
+        function renderHistory() { 
+            const grid = document.getElementById('historyGrid'); 
+            // 馃敡 鍙覆鏌撴湁鏁圲RL鐨勫巻鍙茶褰?            const validHistory = imageHistory.filter(item => 
+                item && item.url && (item.url.startsWith('http') || item.url.startsWith('data:image/'))
+            );
+            grid.innerHTML = validHistory.map(item => 
+                `<div class="history-item" onclick="useHistory('${item.url.replace(/'/g, "\\'")}')"><img src="${item.url}" alt="鍘嗗彶鍥剧墖" onerror="this.style.display='none'"></div>`
+            ).join(''); 
+        }
+        function useHistory(url) { currentImageUrl = url; document.getElementById('resultImage').src = url; document.getElementById('resultSection').style.display = 'block'; }
+        function clearRefImage() {
+            window.referenceImageUrl = null;
+            document.getElementById('refSection').style.display = 'none';
+            document.getElementById('refPreview').innerHTML = '';
+            showToast('宸茬Щ闄ゅ弬鑰冨浘');
+        }
+        // 馃帹 澶氬浘鍙傝€冧笂浼犲鐞嗭紙甯﹀帇缂╋級
+        async function handleMultiRefUpload(event) {
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
+            
+            const currentCount = window.multiRefImages.length;
+            const maxImages = 10;
+            const remainingSlots = maxImages - currentCount;
+            
+            if (remainingSlots <= 0) {
+                showToast('鏈€澶氬彧鑳戒笂浼?0寮犲弬鑰冨浘');
+                event.target.value = '';
+                return;
+            }
+            
+            const filesToProcess = files.slice(0, remainingSlots);
+            showToast(`姝ｅ湪鍘嬬缉 ${filesToProcess.length} 寮犲浘鐗?..`);
+            
+            for (const file of filesToProcess) {
+                if (!file.type.startsWith('image/')) continue;
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast('鍥剧墖瓒呰繃10MB锛屽凡璺宠繃');
+                    continue;
+                }
+                
+                try {
+                    // 鍘嬬缉鍥剧墖鍒扮害300KB
+                    const compressed = await compressImage(file, 800, 0.7);
+                    window.multiRefImages.push(compressed);
+                } catch (err) {
+                    console.error('鍥剧墖鍘嬬缉澶辫触:', err);
+                }
+            }
+            
+            renderMultiRefGrid();
+            showToast(`宸叉坊鍔?${window.multiRefImages.length} 寮犲弬鑰冨浘`);
+            event.target.value = '';
+        }
+        
+        // 馃柤锔?鍥剧墖鍘嬬缉鍑芥暟锛堥伩鍏嶈姹備綋瓒呰繃Vercel 4.5MB闄愬埗锛?        function compressImage(file, maxSize = 800, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // 璁＄畻缂╂斁姣斾緥
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > height && width > maxSize) {
+                            height = Math.round(height * maxSize / width);
+                            width = maxSize;
+                        } else if (height > maxSize) {
+                            width = Math.round(width * maxSize / height);
+                            height = maxSize;
+                        }
+                        
+                        // 鍒涘缓canvas鍘嬬缉
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // 杈撳嚭鍘嬬缉鍚庣殑base64
+                        const compressed = canvas.toDataURL('image/jpeg', quality);
+                        console.log(`馃柤锔?鍘嬬缉: ${Math.round(e.target.result.length/1024)}KB -> ${Math.round(compressed.length/1024)}KB`);
+                        resolve(compressed);
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        // 娓叉煋澶氬浘棰勮缃戞牸锛堝甫缂栬緫鎸夐挳锛?        function renderMultiRefGrid() {
+            const grid = document.getElementById('multiRefGrid');
+            const preview = document.getElementById('multiRefPreview');
+            const countEl = document.getElementById('multiRefCount');
+            
+            if (window.multiRefImages.length === 0) {
+                preview.classList.remove('show');
+                grid.innerHTML = '';
+                countEl.textContent = '宸查€?0/10 寮?;
+                return;
+            }
+            
+            preview.classList.add('show');
+            countEl.textContent = `宸查€?${window.multiRefImages.length}/10 寮燻;
+            
+            grid.innerHTML = window.multiRefImages.map((img, idx) => `
+                <div class="multi-ref-item">
+                    <img src="${img}" alt="鍙傝€冨浘 ${idx + 1}">
+                    <button class="multi-ref-item-edit" onclick="openRefEditor(window.multiRefImages[${idx}], null, ${idx})" title="缂栬緫">鉁忥笍</button>
+                    <button class="multi-ref-item-remove" onclick="removeMultiRef(${idx})">脳</button>
+                </div>
+            `).join('');
+        }
+        // 鍒犻櫎鍗曞紶澶氬浘鍙傝€?        function removeMultiRef(index) {
+            window.multiRefImages.splice(index, 1);
+            renderMultiRefGrid();
+            showToast('宸茬Щ闄や竴寮犲弬鑰冨浘');
+        }
+        // 娓呯┖鎵€鏈夊鍥惧弬鑰?        function clearMultiRef() {
+            window.multiRefImages = [];
+            renderMultiRefGrid();
+            showToast('宸叉竻绌烘墍鏈夊弬鑰冨浘');
+        }
+        function handleRefImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('璇烽€夋嫨鍥剧墖鏂囦欢');
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('鍥剧墖涓嶈兘瓒呰繃10MB');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result;
+                // 馃帹 鎵撳紑缂栬緫鍣ㄨ鐢ㄦ埛缂栬緫
+                openRefEditor(base64, (editedBase64) => {
+                    window.referenceImageUrl = editedBase64;
+                    const refSection = document.getElementById('refSection');
+                    const refPreview = document.getElementById('refPreview');
+                    refPreview.innerHTML = `<img src="${editedBase64}" alt="鍙傝€冨浘" onclick="openRefEditor(window.referenceImageUrl, (edited) => { window.referenceImageUrl = edited; document.getElementById('refPreview').innerHTML = '<img src=\"' + edited + '\" alt=\"鍙傝€冨浘\">' }, -1)">`;
+                    refSection.style.display = 'block';
+                    showToast('鍙傝€冨浘宸插姞杞斤紝鐐瑰嚮鍙啀娆＄紪杈?);
+                }, -1);
+            };
+            reader.onerror = function() {
+                showToast('鍥剧墖璇诲彇澶辫触');
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+        function showToast(msg) { const toast = document.getElementById('toast'); toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500); }
+
+        // ==================== 椤甸潰鐘舵€佹寔涔呭寲 ====================
+        function saveBananaState() {
+            try {
+                const state = {
+                    promptInput: document.getElementById('promptInput')?.value || '',
+                    modelSelect: document.getElementById('modelSelect')?.value || '',
+                    ratioSelect: document.getElementById('ratioSelect')?.value || '',
+                    mjVersion: document.getElementById('mjVersion')?.value || '',
+                    referenceImageUrl: window.referenceImageUrl || '',
+                    multiRefImages: window.multiRefImages || [],
+                    currentImageUrl: currentImageUrl || '',
+                    resultVisible: document.getElementById('resultSection')?.style.display === 'block',
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_banana_state', JSON.stringify(state));
+                console.log('[banana] 鐘舵€佸凡淇濆瓨');
+            } catch (e) {
+                console.warn('[banana] 淇濆瓨鐘舵€佸け璐?', e);
+            }
+        }
+
+        function restoreBananaState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_banana_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_banana_state');
+                    return;
+                }
+                console.log('[banana] 鎭㈠鐘舵€?..');
+
+                if (state.promptInput) document.getElementById('promptInput').value = state.promptInput;
+                if (state.modelSelect) {
+                    document.getElementById('modelSelect').value = state.modelSelect;
+                    updateModelInfo();
+                }
+                if (state.ratioSelect) document.getElementById('ratioSelect').value = state.ratioSelect;
+                if (state.mjVersion) document.getElementById('mjVersion').value = state.mjVersion;
+
+                // 鎭㈠鍗曞紶鍙傝€冨浘
+                if (state.referenceImageUrl) {
+                    window.referenceImageUrl = state.referenceImageUrl;
+                    document.getElementById('refPreview').innerHTML = `<img src="${state.referenceImageUrl}" alt="鍙傝€冨浘">`;
+                    document.getElementById('refSection').style.display = 'block';
+                }
+
+                // 鎭㈠澶氬浘鍙傝€?                if (state.multiRefImages && state.multiRefImages.length > 0) {
+                    window.multiRefImages = state.multiRefImages;
+                    renderMultiRefGrid();
+                }
+
+                // 鎭㈠缁撴灉鍥?                if (state.currentImageUrl) {
+                    currentImageUrl = state.currentImageUrl;
+                    document.getElementById('resultImage').src = state.currentImageUrl;
+                    document.getElementById('resultSection').style.display = 'block';
+                }
+
+                console.log('[banana] 鐘舵€佹仮澶嶅畬鎴?);
+            } catch (e) {
+                console.warn('[banana] 鎭㈠鐘舵€佸け璐?', e);
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden) saveBananaState(); });
+        window.addEventListener('beforeunload', saveBananaState);
+        window.addEventListener('pagehide', saveBananaState);
+        window.addEventListener('load', () => setTimeout(restoreBananaState, 200));
+
+        // ==================== 鎵归噺妯″紡鍔熻兘 ====================
+        
+        // 馃啎 鎵归噺鏍煎瓙閰嶇疆鏁版嵁
+        const batchCellConfigs = [];
+        for (let i = 0; i < 8; i++) {
+            batchCellConfigs.push({
+                model: 'nano-banana-2',
+                ratio: '1:1',
+                mjVersion: '6.1',  // MJ 鐗堟湰
+                refImage: null  // 姣忎釜鏍煎瓙鐙珛鐨勫弬鑰冨浘
+            });
+        }
+        
+        // 馃啎 鍒濆鍖栨壒閲忔牸瀛?        function initBatchGrid() {
+            const grid = document.getElementById('batchGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            const modelOptions = `
+                <option value="nano-banana-2">馃崒 Banana</option>
+                <option value="nano-banana-2-2k">馃専 2K</option>
+                <option value="nano-banana-2-4k">馃拵 4K</option>
+                <option value="doubao-seedream-4-5-251128">鉁?鏄熸ⅵ</option>
+                <option value="Qwen/Qwen-Image-2512">馃幁 涓囪薄</option>
+                <option value="midjourney-fast">馃専 MJ Fast</option>
+                <option value="midjourney-turbo">馃殌 MJ Turbo</option>
+                <option value="midjourney-relax">馃寵 MJ Relax</option>
+                <option value="modelscope">馃 鍏嶈垂</option>
+            `;
+            const ratioOptions = `
+                <option value="1:1">1:1</option>
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+                <option value="4:3">4:3</option>
+                <option value="3:4">3:4</option>
+            `;
+            const mjVersionOptions = `
+                <option value="7">v7</option>
+                <option value="6.1" selected>v6.1</option>
+                <option value="6">v6</option>
+                <option value="5.2">v5.2</option>
+                <option value="niji7">Niji7</option>
+                <option value="niji6">Niji6</option>
+            `;
+            
+            for (let i = 0; i < 8; i++) {
+                const div = document.createElement('div');
+                div.className = 'batch-item';
+                div.innerHTML = `
+                    <textarea id="batchInput${i}" placeholder="${i+1}锔忊儯"></textarea>
+                    <div class="batch-item-ref" onclick="setBatchCellRef(${i})" id="batchRef${i}" title="鐐瑰嚮璁剧疆鍙傝€冨浘">馃柤锔?/div>
+                    <div class="batch-item-config">
+                        <select id="batchModel${i}" onchange="updateBatchCellConfig(${i})">${modelOptions}</select>
+                        <select id="batchRatio${i}" onchange="updateBatchCellConfig(${i})">${ratioOptions}</select>
+                        <select id="batchMjVersion${i}" onchange="updateBatchCellConfig(${i})" style="display:none;">${mjVersionOptions}</select>
+                    </div>
+                `;
+                grid.appendChild(div);
+            }
+            // 鍒濆鍖栧悗妫€鏌ユ瘡涓牸瀛愮殑 MJ 鐗堟湰閫夋嫨鍣ㄦ樉绀虹姸鎬?            for (let i = 0; i < 8; i++) {
+                updateBatchMjVersionVisibility(i);
+            }
+        }
+        
+        // 馃啎 鏇存柊鏍煎瓙閰嶇疆
+        function updateBatchCellConfig(idx) {
+            const model = document.getElementById(`batchModel${idx}`)?.value || 'nano-banana-2';
+            const ratio = document.getElementById(`batchRatio${idx}`)?.value || '1:1';
+            const mjVersion = document.getElementById(`batchMjVersion${idx}`)?.value || '6.1';
+            batchCellConfigs[idx].model = model;
+            batchCellConfigs[idx].ratio = ratio;
+            batchCellConfigs[idx].mjVersion = mjVersion;
+            // 鏇存柊 MJ 鐗堟湰閫夋嫨鍣ㄦ樉绀虹姸鎬?            updateBatchMjVersionVisibility(idx);
+        }
+        
+        // 馃啎 鏇存柊 MJ 鐗堟湰閫夋嫨鍣ㄦ樉绀?闅愯棌
+        function updateBatchMjVersionVisibility(idx) {
+            const model = document.getElementById(`batchModel${idx}`)?.value || '';
+            const mjVersionSel = document.getElementById(`batchMjVersion${idx}`);
+            if (mjVersionSel) {
+                mjVersionSel.style.display = model.startsWith('midjourney-') ? 'block' : 'none';
+            }
+        }
+        
+        // 馃啎 璁剧疆鏍煎瓙鍙傝€冨浘锛堟敮鎸佸悓涓€鍥剧墖澶氭浣跨敤锛?        function setBatchCellRef(idx) {
+            // 鍒涘缓閫夋嫨寮圭獥
+            const picker = document.createElement('div');
+            picker.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:2000;display:flex;flex-direction:column;padding:20px;';
+            picker.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3 style="color:#fff;margin:0;">馃柤锔?閫夋嫨鏍煎瓙 ${idx+1} 鐨勫弬鑰冨浘</h3>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;">脳</button>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:16px;">
+                    <button onclick="uploadBatchCellRef(${idx}, this.parentElement.parentElement)" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:8px;color:#000;font-weight:600;cursor:pointer;">馃摲 涓婁紶鏂板浘鐗?/button>
+                    <button onclick="clearBatchCellRef(${idx});this.parentElement.parentElement.remove();" style="flex:1;padding:12px;background:#333;border:1px solid #555;border-radius:8px;color:#fff;cursor:pointer;">鉂?娓呴櫎鍙傝€冨浘</button>
+                </div>
+                <div style="color:#888;font-size:12px;margin-bottom:8px;">馃挕 鐐瑰嚮涓嬫柟宸蹭笂浼犵殑鍥剧墖鍙鐢ㄥ埌杩欎釜鏍煎瓙</div>
+                <div id="batchRefPickerGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;overflow-y:auto;flex:1;"></div>
+            `;
+            document.body.appendChild(picker);
+            
+            // 濉厖宸叉湁鐨勫弬鑰冨浘
+            const pickerGrid = picker.querySelector('#batchRefPickerGrid');
+            const allRefs = getAllBatchRefImages();
+            allRefs.forEach((img, i) => {
+                const item = document.createElement('div');
+                item.style.cssText = 'aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid #333;cursor:pointer;';
+                item.innerHTML = `<img src="${img}" style="width:100%;height:100%;object-fit:cover;">`;
+                item.onclick = () => {
+                    batchCellConfigs[idx].refImage = img;
+                    renderBatchCellRef(idx);
+                    picker.remove();
+                    showToast(`鏍煎瓙 ${idx+1} 宸茶缃弬鑰冨浘`);
+                };
+                pickerGrid.appendChild(item);
+            });
+            
+            if (allRefs.length === 0) {
+                pickerGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">杩樻病鏈変笂浼犲弬鑰冨浘锛岃鍏堜笂浼?/div>';
+            }
+        }
+        
+        // 馃啎 涓婁紶鏍煎瓙鍙傝€冨浘
+        function uploadBatchCellRef(idx, picker) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    batchCellConfigs[idx].refImage = ev.target.result;
+                    renderBatchCellRef(idx);
+                    if (picker) picker.remove();
+                    showToast(`鏍煎瓙 ${idx+1} 鍙傝€冨浘宸茶缃甡);
+                };
+                reader.readAsDataURL(file);
+            };
+            input.click();
+        }
+        
+        // 馃啎 娓呴櫎鏍煎瓙鍙傝€冨浘
+        function clearBatchCellRef(idx) {
+            batchCellConfigs[idx].refImage = null;
+            renderBatchCellRef(idx);
+            showToast(`鏍煎瓙 ${idx+1} 鍙傝€冨浘宸叉竻闄);
+        }
+        
+        // 馃啎 娓叉煋鏍煎瓙鍙傝€冨浘鏄剧ず
+        function renderBatchCellRef(idx) {
+            const refDiv = document.getElementById(`batchRef${idx}`);
+            if (!refDiv) return;
+            if (batchCellConfigs[idx].refImage) {
+                refDiv.innerHTML = `<img src="${batchCellConfigs[idx].refImage}" alt="鍙傝€冨浘">`;
+                refDiv.title = '鐐瑰嚮鏇存崲鍙傝€冨浘';
+            } else {
+                refDiv.innerHTML = '馃柤锔?;
+                refDiv.title = '鐐瑰嚮璁剧疆鍙傝€冨浘';
+            }
+        }
+        
+        // 馃啎 鑾峰彇鎵€鏈夊凡璁剧疆鐨勫弬鑰冨浘锛堝幓閲嶏級
+        function getAllBatchRefImages() {
+            const refs = new Set();
+            batchCellConfigs.forEach(c => {
+                if (c.refImage) refs.add(c.refImage);
+            });
+            // 涔熷姞鍏ュ叏灞€鍙傝€冨浘
+            if (window.referenceImageUrl) refs.add(window.referenceImageUrl);
+            if (window.multiRefImages) window.multiRefImages.forEach(r => refs.add(r));
+            return Array.from(refs);
+        }
+        
+        // 馃啎 搴旂敤鍏ㄥ眬閰嶇疆鍒版墍鏈夋牸瀛?        function applyGlobalConfigToBatch() {
+            const globalModel = document.getElementById('modelSelect').value;
+            const globalRatio = document.getElementById('ratioSelect').value;
+            const globalMjVersion = document.getElementById('mjVersion')?.value || '6.1';
+            for (let i = 0; i < 8; i++) {
+                batchCellConfigs[i].model = globalModel;
+                batchCellConfigs[i].ratio = globalRatio;
+                batchCellConfigs[i].mjVersion = globalMjVersion;
+                const modelSel = document.getElementById(`batchModel${i}`);
+                const ratioSel = document.getElementById(`batchRatio${i}`);
+                const mjVersionSel = document.getElementById(`batchMjVersion${i}`);
+                if (modelSel) modelSel.value = globalModel;
+                if (ratioSel) ratioSel.value = globalRatio;
+                if (mjVersionSel) mjVersionSel.value = globalMjVersion;
+                // 鏇存柊 MJ 鐗堟湰閫夋嫨鍣ㄦ樉绀虹姸鎬?                updateBatchMjVersionVisibility(i);
+            }
+            showToast('宸插簲鐢ㄥ叏灞€閰嶇疆鍒版墍鏈夋牸瀛?);
+        }
+        
+        // 鍒囨崲鎵归噺/鍗曚釜妯″紡
+        function setBatchMode(isBatch) {
+            batchMode = isBatch;
+            const singleInput = document.getElementById('singleInputSection');
+            const batchInput = document.getElementById('batchInputSection');
+            const singleBtn = document.getElementById('singleModeBtn');
+            const batchBtn = document.getElementById('batchModeBtn');
+            
+            if (isBatch) {
+                singleInput.style.display = 'none';
+                batchInput.style.display = 'block';
+                singleBtn.classList.remove('active');
+                batchBtn.classList.add('active');
+                document.getElementById('generateBtn').textContent = '鈿?鎵归噺鐢熸垚';
+                // 馃啎 鍒濆鍖栨壒閲忔牸瀛?                initBatchGrid();
+            } else {
+                singleInput.style.display = 'block';
+                batchInput.style.display = 'none';
+                singleBtn.classList.add('active');
+                batchBtn.classList.remove('active');
+                document.getElementById('generateBtn').textContent = '鈿?寮€濮嬬敓鎴?;
+            }
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('batchResultSection').style.display = 'none';
+        }
+        
+        // 鐢熸垚鍥剧墖鍏ュ彛锛堟牴鎹ā寮忓垎鍙戯級
+        async function generateImage() {
+            console.log('[banana] generateImage 琚皟鐢? batchMode=', batchMode);
+            if (batchMode) {
+                await generateBatchImages();
+            } else {
+                await generateSingleImage();
+            }
+        }
+        
+        // 馃啎 鎵归噺鐢熸垚鍥剧墖
+        async function generateBatchImages() {
+            // 馃攼 浣跨敤 NVAuth.checkAuthStatus 杩涜鍙潬鐨勭櫥褰曠姸鎬佹鏌ワ紙甯﹁嚜鍔ㄥ埛鏂拌兌鐗囦綑棰濓級
+            let authResult = { valid: false, user: null, quota: 0 };
+            try {
+                if (typeof NVAuth !== 'undefined' && typeof NVAuth.checkAuthStatus === 'function') {
+                    authResult = await NVAuth.checkAuthStatus(true);  // true = 鍒锋柊鑳剁墖浣欓
+                } else if (currentUser) {
+                    authResult = { valid: true, user: currentUser, quota: userQuota };
+                }
+            } catch (e) {
+                console.error('[banana] 鎵归噺妯″紡璁よ瘉妫€鏌ュ紓甯?', e);
+            }
+            
+            // 馃攧 鍚屾鏇存柊鐧诲綍鐘舵€佸拰鑳剁墖浣欓
+            if (authResult.valid && authResult.user) {
+                currentUser = authResult.user;
+                if (authResult.quota !== undefined) {
+                    userQuota = authResult.quota;
+                    document.getElementById('quotaBadge').textContent = `馃帪锔?${userQuota}`;
+                }
+            }
+            
+            // 蹇呴』鐧诲綍
+            if (!authResult.valid || !currentUser) {
+                showToast('璇峰厛鐧诲綍鍚庝娇鐢?);
+                setTimeout(() => { window.location.href = 'auth.html'; }, 1000);
+                return;
+            }
+            
+            // 馃啎 鏀堕泦闈炵┖杈撳叆锛屽苟璇诲彇姣忎釜鏍煎瓙鐨勭嫭绔嬮厤缃?            const inputs = [];
+            let totalCost = 0;
+            // 馃摲 鑾峰彇鍏ㄥ眬鎽勫奖瑙掑害
+            const globalCameraAngle = document.getElementById('cameraAngleSelect')?.value || '';
+            for (let i = 0; i < 9; i++) {
+                let val = document.getElementById(`batchInput${i}`)?.value.trim();
+                if (val) {
+                    // 馃摲 娣诲姞鎽勫奖瑙掑害鍒?prompt
+                    if (globalCameraAngle) {
+                        val = `${val}, ${globalCameraAngle}`;
+                    }
+                    const cellModel = batchCellConfigs[i].model || 'nano-banana-2';
+                    const cellRatio = batchCellConfigs[i].ratio || '1:1';
+                    const cellRef = batchCellConfigs[i].refImage || null;
+                    const cellCost = FILM_COST[cellModel] || 0;
+                    inputs.push({ 
+                        index: i, 
+                        prompt: val,
+                        model: cellModel,
+                        ratio: cellRatio,
+                        refImage: cellRef
+                    });
+                    totalCost += cellCost;
+                }
+            }
+            
+            if (inputs.length === 0) {
+                showToast('璇疯嚦灏戣緭鍏ヤ竴涓弿杩?);
+                return;
+            }
+            
+            // 閰嶉妫€鏌?            if (totalCost > 0 && userQuota < totalCost) {
+                showToast(`鑳剁墖涓嶈冻锛岄渶瑕?{totalCost}鑳剁墖`);
+                return;
+            }
+            
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            
+            btn.disabled = true;
+            batchGenerating = true;
+            loading.style.display = 'block';
+            loadingText.textContent = `姝ｅ湪鎵归噺鐢熸垚 0/${inputs.length}...`;
+            
+            // 闅愯棌鍗曞浘缁撴灉锛屾樉绀烘壒閲忕粨鏋滃尯鍩?            document.getElementById('resultSection').style.display = 'none';
+            
+            batchResults = [];
+            let completed = 0;
+            
+            // 骞跺彂鐢熸垚锛堟瘡涓牸瀛愪娇鐢ㄧ嫭绔嬮厤缃級
+            try {
+                const promises = inputs.map(async (item) => {
+                    const gridItem = document.querySelector(`#batchGrid .batch-item:nth-child(${item.index + 1})`);
+                    if (gridItem) gridItem.classList.add('generating');
+                    
+                    // 馃啎 浣跨敤姣忎釜鏍煎瓙鐨勭嫭绔嬮厤缃?                    const cellModel = item.model;
+                    const cellRatio = item.ratio;
+                    const cellRef = item.refImage;  // 鏍煎瓙鐙珛鍙傝€冨浘
+                    
+                    // 鍏ㄥ眬鍙傝€冨浘浣滀负澶囩敤
+                    const globalMultiRef = window.multiRefImages && window.multiRefImages.length > 0 ? window.multiRefImages : null;
+                    const globalSingleRef = window.referenceImageUrl || null;
+                    
+                    // 浼樺厛浣跨敤鏍煎瓙鐙珛鍙傝€冨浘锛屽惁鍒欎娇鐢ㄥ叏灞€鍙傝€冨浘
+                    const finalRef = cellRef || globalSingleRef;
+                    
+                    try {
+                        const result = await generateSingleImageAPI(item.prompt, cellModel, cellRatio, globalMultiRef, finalRef);
+                        if (gridItem) {
+                            gridItem.classList.remove('generating');
+                            gridItem.classList.add('has-result');
+                            
+                            // 馃帹 鐩存帴鍦ㄥ鏍煎唴鏄剧ず缁撴灉鍥剧墖
+                            const textarea = gridItem.querySelector('textarea');
+                            if (textarea) textarea.style.display = 'none';
+                            
+                            // 鍒犻櫎鏃х殑缁撴灉鍥剧墖锛堝鏋滄湁锛?                            const oldImg = gridItem.querySelector('.batch-result-img');
+                            if (oldImg) oldImg.remove();
+                            const oldEditBtn = gridItem.querySelector('.batch-item-edit-btn');
+                            if (oldEditBtn) oldEditBtn.remove();
+                            
+                            // 鍒涘缓缁撴灉鍥剧墖
+                            const imgUrl = (result && typeof result === 'object' && result.urls) ? result.urls[0] : result;
+                            if (imgUrl) {
+                                const img = document.createElement('img');
+                                img.className = 'batch-result-img';
+                                img.src = imgUrl;
+                                img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:1;cursor:pointer;';
+                                img.onclick = () => {
+                                    // 鐐瑰嚮鍥剧墖棰勮
+                                    window.open(imgUrl, '_blank');
+                                };
+                                gridItem.style.position = 'relative';
+                                gridItem.insertBefore(img, gridItem.firstChild);
+                                
+                                // 娣诲姞閲嶆柊缂栬緫鎸夐挳
+                                const editBtn = document.createElement('button');
+                                editBtn.className = 'batch-item-edit-btn';
+                                editBtn.textContent = '鉁忥笍 閲嶆柊缂栬緫';
+                                editBtn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    // 绉婚櫎缁撴灉鍥剧墖鍜屾寜閽紝鏄剧ず缂栬緫鍖哄煙
+                                    img.remove();
+                                    editBtn.remove();
+                                    if (textarea) textarea.style.display = 'block';
+                                    gridItem.classList.remove('has-result');
+                                    gridItem.classList.remove('error');
+                                };
+                                gridItem.appendChild(editBtn);
+                                
+                                // 璋冩暣閰嶇疆鍖哄煙鐨?z-index锛岀‘淇濆湪鍥剧墖涔嬩笂
+                                const configDiv = gridItem.querySelector('.batch-item-config');
+                                if (configDiv) configDiv.style.zIndex = '2';
+                                const refDiv = gridItem.querySelector('.batch-item-ref');
+                                if (refDiv) refDiv.style.zIndex = '3';
+                            }
+                        }
+                        
+                        // 馃帹 澶勭悊 MJ 缃戞牸鍥惧垏鍥剧粨鏋滐紙杩斿洖澶氬紶鍥撅級
+                        if (result && typeof result === 'object' && result.isMjGrid && result.urls) {
+                            // MJ 杩斿洖 4 寮犲垏鍥撅紝姣忓紶鐙珛鏄剧ず锛岀敤鎴峰彲鎸夐渶閫夋嫨
+                            result.urls.forEach((url, subIdx) => {
+                                batchResults.push({
+                                    index: item.index,
+                                    subIndex: subIdx,
+                                    prompt: item.prompt,
+                                    imageUrl: url,
+                                    taskId: result.taskId,  // 淇濆瓨 taskId 渚?upscale 鐢?                                    error: null,
+                                    selected: subIdx === 0,  // 榛樿鍙€変腑绗竴寮?                                    isMjSplit: true
+                                });
+                            });
+                        } else {
+                            // 鏅€氬崟鍥剧粨鏋?                            batchResults.push({
+                                index: item.index,
+                                prompt: item.prompt,
+                                imageUrl: result,
+                                error: null,
+                                selected: true
+                            });
+                        }
+                    } catch (error) {
+                        console.error(`鉂?鏍煎瓙 ${item.index + 1} 鐢熸垚澶辫触:`, error);
+                        if (gridItem) {
+                            gridItem.classList.remove('generating');
+                            gridItem.classList.add('error');
+                            
+                            // 娣诲姞閲嶆柊缂栬緫鎸夐挳锛堥敊璇儏鍐碉級
+                            const oldEditBtn = gridItem.querySelector('.batch-item-edit-btn');
+                            if (oldEditBtn) oldEditBtn.remove();
+                            
+                            const editBtn = document.createElement('button');
+                            editBtn.className = 'batch-item-edit-btn';
+                            editBtn.textContent = '鉁忥笍 閲嶈瘯';
+                            editBtn.style.bottom = '50px'; // 璋冩暣浣嶇疆閬垮紑閿欒鎻愮ず
+                            editBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                // 娓呴櫎閿欒鐘舵€侊紝鏄剧ず缂栬緫鍖哄煙
+                                gridItem.classList.remove('error');
+                                editBtn.remove();
+                                const textarea = gridItem.querySelector('textarea');
+                                if (textarea) {
+                                    textarea.style.display = 'block';
+                                    textarea.focus();
+                                }
+                            };
+                            gridItem.appendChild(editBtn);
+                        }
+                        batchResults.push({
+                            index: item.index,
+                            prompt: item.prompt,
+                            imageUrl: '',
+                            error: error.message,
+                            selected: false
+                        });
+                    }
+                    
+                    completed++;
+                    loadingText.textContent = `姝ｅ湪鎵归噺鐢熸垚 ${completed}/${inputs.length}...`;
+                });
+                
+                await Promise.all(promises);
+                
+                // 鎸夋牸瀛愮储寮曟帓搴忥紝MJ鐨勫寮犲垏鍥炬寜 subIndex 鎺掑簭
+                batchResults.sort((a, b) => {
+                    if (a.index !== b.index) return a.index - b.index;
+                    return (a.subIndex || 0) - (b.subIndex || 0);
+                });
+                
+                // 鏄剧ず缁撴灉
+                renderBatchResults();
+                
+                const successCount = batchResults.filter(r => !r.error).length;
+                showToast(`鎵归噺鐢熸垚瀹屾垚锛佹垚鍔?${successCount} 寮燻);
+                
+                // 鏇存柊浣欓鏄剧ず
+                await loadUserQuota();
+            } finally {
+                // 馃敡 纭繚鏃犺鎴愬姛澶辫触閮介噸缃姸鎬?                btn.disabled = false;
+                batchGenerating = false;
+                loading.style.display = 'none';
+            }
+        }
+        
+        // 馃敡 甯﹁秴鏃剁殑 fetch 鍑芥暟
+        async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { ...options, signal: controller.signal });
+                clearTimeout(timeoutId);
+                return response;
+            } catch (err) {
+                clearTimeout(timeoutId);
+                if (err.name === 'AbortError') {
+                    throw new Error(`璇锋眰瓒呮椂锛?{Math.round(timeoutMs/1000)}绉掞級`);
+                }
+                throw err;
+            }
+        }
+        
+        // 鍗曞浘鐢熸垚 API 璋冪敤锛堜緵鎵归噺妯″紡澶嶇敤锛?        // 馃帹 鏂板鍙傝€冨浘鍙傛暟鏀寔
+        // 杩斿洖: string (url) 鎴?object { urls: string[], isMjGrid: true }
+        async function generateSingleImageAPI(prompt, model, ratio, multiRefImages = null, singleRefImage = null) {
+            let response;
+            const isMidjourney = model && model.startsWith('midjourney-');
+            const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream'));
+            const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
+            const isBanana = model && model.startsWith('nano-banana-');
+            
+            // 馃敡 鏍规嵁妯″瀷绫诲瀷璁剧疆涓嶅悓鐨勮秴鏃舵椂闂?            // 涓囪薄Max 闇€瑕佽緝闀挎椂闂达紙寮傛浠诲姟杞锛?            const timeoutMs = isQwenImage ? 180000 : (isMidjourney ? 180000 : (isSeedream ? 120000 : 90000));
+            
+            if (isQwenImage) {
+                // 閫氫箟涓囪薄Max - 馃敡 浣跨敤180绉掕秴鏃?                response = await fetchWithTimeout('/api/banana2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        aspect_ratio: ratio,
+                        model: 'qwen-image-max',
+                        userId: currentUser.id
+                    })
+                }, timeoutMs);
+            } else if (model === 'modelscope') {
+                response = await fetch('/api/modelscope', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'image', prompt, aspect_ratio: ratio, userId: currentUser.id })
+                });
+            } else {
+                const apiEndpoint = isMidjourney ? '/api/yunwu' : (isSeedream ? '/api/yunwu' : '/api/banana2');
+                const requestBody = { prompt, model, aspect_ratio: ratio, userId: currentUser.id };
+                
+                // 馃帹 鏄熸ⅵ鐢诲笀鍙傝€冨浘澶勭悊
+                if (isSeedream) {
+                    requestBody.action = 'seedream';
+                    // 澶氬浘鍙傝€冩ā寮?                    if (multiRefImages && multiRefImages.length >= 2) {
+                        requestBody.image_urls = multiRefImages;
+                        requestBody.mode = 'multi-image';
+                        console.log(`馃帹 [鎵归噺-鏄熸ⅵ鐢诲笀] 澶氬浘妯″紡: ${multiRefImages.length}寮犲弬鑰冨浘`);
+                    }
+                    // 鍗曞浘鍙傝€冩ā寮?                    else if (singleRefImage) {
+                        requestBody.image_url = singleRefImage;
+                        requestBody.mode = 'image2image';
+                        console.log('馃帹 [鎵归噺-鏄熸ⅵ鐢诲笀] 鍗曞浘妯″紡');
+                    }
+                }
+                // 馃崒 Banana妯″瀷鍙傝€冨浘澶勭悊
+                else if (isBanana) {
+                    if (multiRefImages && multiRefImages.length >= 2) {
+                        requestBody.image_urls = multiRefImages;
+                        console.log(`馃崒 [鎵归噺-Banana] 澶氬浘铻嶅悎妯″紡: ${multiRefImages.length}寮犲弬鑰冨浘`);
+                    } else if (singleRefImage) {
+                        requestBody.image_url = singleRefImage;
+                        console.log('馃崒 [鎵归噺-Banana] 鍗曞浘鍙傝€冩ā寮?);
+                    }
+                }
+                // 鍏朵粬妯″瀷鍗曞浘鍙傝€?                else if (singleRefImage && !isMidjourney) {
+                    requestBody.image_url = singleRefImage;
+                    console.log('馃柤锔?[鎵归噺] 鍗曞浘鍙傝€冩ā寮?);
+                }
+                
+                if (isMidjourney) {
+                    requestBody.action = 'midjourney';
+                    const mjVersionSelect = document.getElementById('mjVersion');
+                    requestBody.version = mjVersionSelect ? mjVersionSelect.value : '6.1';
+                    // 馃帹 MJ 鍙傝€冨浘鏀寔锛堝浘鐢熷浘锛?                    if (singleRefImage) {
+                        requestBody.image_url = singleRefImage;
+                        console.log('馃帹 [鎵归噺-MJ] 鍥剧敓鍥炬ā寮?);
+                    }
+                }
+                
+                // 馃敡 浣跨敤甯﹁秴鏃剁殑 fetch
+                response = await fetchWithTimeout(apiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                }, timeoutMs);
+            }
+            
+            if (!response.ok) {
+                let errMsg = `HTTP ${response.status}`;
+                try {
+                    const errData = await response.json();
+                    errMsg = errData.message || errData.error || errMsg;
+                } catch (e) {}
+                throw new Error(errMsg);
+            }
+            
+            const data = await response.json();
+            if (data.error) throw new Error(data.message || data.error);
+            
+            // 鎻愬彇鍥剧墖URL
+            let imageUrl = data.url || data.image_url || '';
+            if (!imageUrl && data.urls && data.urls.length > 0) {
+                imageUrl = data.urls[0];
+            }
+            if (!imageUrl) {
+                imageUrl = data.data?.url || data.data?.image_url || '';
+            }
+            // 馃帹 MJ 缃戞牸鍥炬儏鍐碉細鎵归噺妯″紡涓嬪垏鍥捐繑鍥?寮犲崟鐙殑鍥剧墖
+            if (data.gridBase64 && data.taskId) {
+                // 鍒囧浘骞惰繑鍥炵壒娈婂璞?                try {
+                    const splitImages = await splitMjGridImage(data.gridBase64);
+                    console.log(`馃敧 [MJ鎵归噺] 鍒囧浘瀹屾垚锛屽緱鍒?${splitImages.length} 寮犲浘鐗嘸);
+                    return { urls: splitImages, isMjGrid: true, taskId: data.taskId };
+                } catch (splitErr) {
+                    console.warn('[MJ鎵归噺] 鍒囧浘澶辫触锛屼娇鐢ㄧ綉鏍煎浘:', splitErr);
+                    imageUrl = data.gridBase64;
+                }
+            }
+            // MJ 杩斿洖 imageUrl 瀛楁
+            if (!imageUrl && data.imageUrl) {
+                imageUrl = data.imageUrl;
+            }
+            if (!imageUrl && data.gridBase64) {
+                imageUrl = data.gridBase64;
+            }
+            if (!imageUrl && data.images && data.images.length > 0) {
+                imageUrl = data.images[0].url || data.images[0];
+            }
+            
+            if (!imageUrl) throw new Error('鏈幏鍙栧埌鍥剧墖鍦板潃');
+            
+            return imageUrl;
+        }
+        
+        // 娓叉煋鎵归噺缁撴灉
+        function renderBatchResults() {
+            const grid = document.getElementById('batchResultGrid');
+            grid.innerHTML = '';
+            
+            batchResults.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'batch-result-item' + (item.error ? ' error' : '') + (item.selected ? ' selected' : '');
+                
+                if (item.error) {
+                    div.innerHTML = `<div class="batch-result-error">鉂?${item.error}</div>`;
+                } else {
+                    // 馃帹 MJ 鍒囧浘鏄剧ず搴忓彿鏍囪
+                    let html = `<img src="${item.imageUrl}" alt="鐢熸垚缁撴灉 ${idx + 1}">`;
+                    if (item.isMjSplit && item.subIndex !== undefined) {
+                        html += `<div class="mj-multi-badge">鏍?{item.index + 1}-鍥?{item.subIndex + 1}</div>`;
+                    }
+                    div.innerHTML = html;
+                }
+                
+                div.onclick = () => toggleBatchImageSelect(idx);
+                grid.appendChild(div);
+            });
+            
+            document.getElementById('batchResultSection').style.display = 'block';
+        }
+        
+        // 鍒囨崲閫変腑鐘舵€?        function toggleBatchImageSelect(idx) {
+            // 馃敡 闃插尽鎬ф鏌ワ細纭繚鏁扮粍鍜岀储寮曟湁鏁?            if (!batchResults || !batchResults[idx]) return;
+            if (batchResults[idx].error) return;
+            batchResults[idx].selected = !batchResults[idx].selected;
+            renderBatchResults();
+        }
+        
+        // 鍏ㄩ€夊浘鐗?        function selectAllBatchImages() {
+            batchResults.forEach(r => {
+                if (!r.error) r.selected = true;
+            });
+            renderBatchResults();
+            showToast('宸插叏閫?);
+        }
+        
+        // 涓嬭浇閫変腑鍥剧墖
+        async function downloadSelectedImages() {
+            const selected = batchResults.filter(r => r.selected && !r.error);
+            if (selected.length === 0) {
+                showToast('璇峰厛閫夋嫨瑕佷笅杞界殑鍥剧墖');
+                return;
+            }
+            
+            showToast(`寮€濮嬩笅杞?${selected.length} 寮犲浘鐗?..`);
+            
+            for (let i = 0; i < selected.length; i++) {
+                const item = selected[i];
+                const a = document.createElement('a');
+                a.href = item.imageUrl;
+                a.download = `rollroll_batch_${Date.now()}_${i + 1}.png`;
+                a.click();
+                await new Promise(r => setTimeout(r, 300));  // 闂撮殧涓嬭浇
+            }
+        }
+        
+        // 鎵归噺鍘荤敓瑙嗛
+        function useSelectedImages() {
+            const selected = batchResults.filter(r => r.selected && !r.error);
+            if (selected.length === 0) {
+                showToast('璇峰厛閫夋嫨瑕佺敓瑙嗛鐨勫浘鐗?);
+                return;
+            }
+            // 瀛樺偍鍒?localStorage 渚?video-tools.html 璇诲彇
+            localStorage.setItem('banana_batch_images', JSON.stringify(selected.map(r => r.imageUrl)));
+            location.href = 'video-tools.html?batch=1';
+        }
+        
+        // ==================== 鎵归噺鏍煎瓙浜岀骇閫夋嫨鍣紙MJ 4鍥鹃€夋嫨锛?====================
+        let __batchCellPickerIdx = -1;  // 褰撳墠鎵撳紑鐨勬牸瀛愮储寮?        let __batchCellPickerSelected = -1;  // 褰撳墠閫変腑鐨勫浘鐗囩储寮?        
+        // 鎵撳紑浜岀骇閫夋嫨鍣?        function openBatchCellPicker(batchIdx) {
+            const item = batchResults[batchIdx];
+            if (!item || !item.isMjMulti || !item.allImages) {
+                showToast('姝ら」涓嶆敮鎸佸鍥鹃€夋嫨');
+                return;
+            }
+            
+            __batchCellPickerIdx = batchIdx;
+            __batchCellPickerSelected = item.selectedImageIndex || 0;
+            
+            const grid = document.getElementById('batchCellPickerGrid');
+            grid.innerHTML = item.allImages.map((url, i) => `
+                <div class="batch-cell-picker-item ${i === __batchCellPickerSelected ? 'selected' : ''}" onclick="selectBatchCellImage(${i})">
+                    <div class="batch-cell-picker-item-idx">${i + 1}</div>
+                    <img src="${url}" alt="鍥剧墖 ${i + 1}">
+                </div>
+            `).join('');
+            
+            // 鏇存柊鍓爣棰?            document.getElementById('batchCellPickerSubtitle').textContent = `绗?${item.index + 1} 鏍?- 鐐瑰嚮閫夋嫨鎮ㄥ枩娆㈢殑涓€寮燻;
+            
+            // 鏇存柊纭鎸夐挳鐘舵€?            updateBatchCellPickerConfirmBtn();
+            
+            document.getElementById('batchCellPicker').classList.add('show');
+        }
+        
+        // 閫夋嫨鍥剧墖
+        function selectBatchCellImage(imgIdx) {
+            __batchCellPickerSelected = imgIdx;
+            
+            // 鏇存柊閫変腑鐘舵€?            const items = document.querySelectorAll('.batch-cell-picker-item');
+            items.forEach((el, i) => {
+                el.classList.toggle('selected', i === imgIdx);
+            });
+            
+            updateBatchCellPickerConfirmBtn();
+        }
+        
+        // 鏇存柊纭鎸夐挳
+        function updateBatchCellPickerConfirmBtn() {
+            const btn = document.getElementById('batchCellPickerConfirm');
+            if (__batchCellPickerSelected >= 0) {
+                btn.disabled = false;
+                btn.textContent = `鉁?浣跨敤绗?${__batchCellPickerSelected + 1} 寮燻;
+            } else {
+                btn.disabled = true;
+                btn.textContent = '璇峰厛閫夋嫨涓€寮犲浘鐗?;
+            }
+        }
+        
+        // 纭閫夋嫨
+        function confirmBatchCellSelection() {
+            if (__batchCellPickerIdx < 0 || __batchCellPickerSelected < 0) return;
+            
+            const item = batchResults[__batchCellPickerIdx];
+            if (!item || !item.allImages) return;
+            
+            // 鏇存柊璇ユ牸瀛愮殑閫変腑鍥剧墖
+            item.selectedImageIndex = __batchCellPickerSelected;
+            item.imageUrl = item.allImages[__batchCellPickerSelected];
+            
+            closeBatchCellPicker();
+            renderBatchResults();
+            showToast(`宸查€夋嫨绗?${__batchCellPickerSelected + 1} 寮犲浘鐗嘸);
+        }
+        
+        // 鍏抽棴閫夋嫨鍣?        function closeBatchCellPicker() {
+            document.getElementById('batchCellPicker').classList.remove('show');
+            __batchCellPickerIdx = -1;
+            __batchCellPickerSelected = -1;
+        }
+    </script>
+</body>
+
+</html>

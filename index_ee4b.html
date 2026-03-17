@@ -1,0 +1,2917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RollRoll - 让创意转动 V8.6.6</title>
+    <!-- 📱 手机端自动跳转 -->
+    <script>
+        (function () {
+            // 如果URL中有 force=pc 参数，则不跳转
+            if (location.search.includes('force=pc')) return;
+            // 检测是否是移动设备
+            var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            // 检测屏幕宽度
+            var isSmallScreen = window.innerWidth <= 768;
+            // 移动设备或小屏幕自动跳转到手机版
+            if (isMobile || isSmallScreen) {
+                // 🔧 保留登录相关参数，确保手机版能正确跳过欢迎页
+                var params = new URLSearchParams(location.search);
+                var hasLoginParam = params.has('logged_in') || params.has('skip_welcome');
+                // 🔧 修复：检测 referrer，如果来自子页面则跳过欢迎页
+                var referrer = document.referrer || '';
+                var fromSubPage = referrer && (referrer.includes('.html') && !referrer.includes('mobile.html') && !referrer.includes('index.html'));
+                var shouldSkipWelcome = hasLoginParam || fromSubPage;
+                var targetUrl = shouldSkipWelcome ? 'mobile.html?skip_welcome=1' : 'mobile.html';
+                location.replace(targetUrl);
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="css/style.css?v=8.6.6">
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Supabase SDK （本地域名代理，避免被插件拦截） -->
+    <script src="/api/supabase-sdk?version=2.45.1&v=7.18.0"></script>
+    <style>
+        .plugin-warning-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 10000;
+        }
+
+        .plugin-warning-card {
+            width: min(520px, 95vw);
+            background: #0d0d1a;
+            border: 1px solid var(--accent-gold, #fbbf24);
+            border-radius: 18px;
+            padding: 26px 28px;
+            color: #f8fafc;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            line-height: 1.6;
+        }
+
+        .plugin-warning-card h3 {
+            margin: 0 0 8px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .plugin-warning-list {
+            margin: 15px 0;
+            padding-left: 18px;
+            color: #fca5a5;
+        }
+
+        .plugin-warning-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #e5e5e5;
+        }
+
+        .plugin-warning-check input {
+            width: 18px;
+            height: 18px;
+        }
+
+        .plugin-warning-actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .plugin-warning-actions button {
+            flex: 1;
+            min-width: 160px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-weight: 600;
+            border: 1px solid var(--accent-gold, #fbbf24);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: transparent;
+            color: var(--accent-gold, #fbbf24);
+        }
+
+        .plugin-warning-actions button.btn-solid {
+            background: linear-gradient(135deg, var(--accent-gold, #fbbf24), #fbbf24);
+            color: #000;
+        }
+
+        .plugin-warning-actions button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .plugin-warning-hint {
+            display: block;
+            margin-top: 12px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        /* ═══════════════════════════════════════════
+           🎬 影视开场动画
+           ═══════════════════════════════════════════ */
+        .cinema-intro {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .cinema-intro.active {
+            display: flex !important;
+        }
+
+        .cinema-intro.hidden {
+            display: none !important;
+        }
+
+        .cinema-intro.fade-out {
+            animation: cinemaFadeOut 0.6s ease-out forwards;
+        }
+
+        @keyframes cinemaFadeOut {
+            to {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+
+        /* 时代背景 */
+        .era-bg {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .era-bg.active {
+            opacity: 1;
+        }
+
+        .era-silent {
+            background: #1a1a1a;
+            filter: sepia(80%) contrast(1.1);
+        }
+
+        .era-color {
+            background: linear-gradient(135deg, #1a0808 0%, #081a18 100%);
+        }
+
+        .era-digital {
+            background: linear-gradient(180deg, #080815 0%, #0f0f20 100%);
+        }
+
+        .era-ai {
+            background: radial-gradient(ellipse at center, #1a1025 0%, #080810 100%);
+        }
+
+        /* 胶片边框 */
+        .film-border {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 50px;
+            background: repeating-linear-gradient(to bottom, #111 0px, #111 15px, #000 15px, #000 18px, #1a1a1a 18px, #1a1a1a 33px, #000 33px, #000 36px);
+            z-index: 2;
+        }
+
+        .film-border.left {
+            left: 0;
+        }
+
+        .film-border.right {
+            right: 0;
+        }
+
+        /* 宫格效果 - 时代卡片 */
+        .era-card {
+            position: absolute;
+            z-index: 25;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .era-card.show {
+            animation: eraCardShow 1.8s ease-out forwards;
+        }
+
+        @keyframes eraCardShow {
+            0% {
+                opacity: 0;
+                transform: scale(0.7) translateY(20px);
+            }
+
+            15% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+
+            75% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.95) translateY(-10px);
+            }
+        }
+
+        .era-year {
+            font-size: 80px;
+            font-weight: 900;
+            font-family: 'Courier New', monospace;
+            letter-spacing: -3px;
+            margin-bottom: 8px;
+        }
+
+        .era-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: 4px;
+        }
+
+        .era-desc {
+            font-size: 14px;
+            opacity: 0.7;
+            letter-spacing: 2px;
+        }
+
+        .era-silent-card .era-year {
+            color: #a0a0a0;
+        }
+
+        .era-silent-card .era-title {
+            color: #d0d0d0;
+        }
+
+        .era-color-card .era-year {
+            color: #ff6b6b;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+        }
+
+        .era-color-card .era-title {
+            color: #ffd93d;
+        }
+
+        .era-digital-card .era-year {
+            color: #4ecdc4;
+            text-shadow: 0 0 20px rgba(78, 205, 196, 0.5);
+        }
+
+        .era-digital-card .era-title {
+            color: #45b7d1;
+        }
+
+        .era-ai-card .era-year {
+            background: linear-gradient(135deg, #fbbf24, #a855f7, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .era-ai-card .era-title {
+            color: #fbbf24;
+        }
+
+        .era-ai-card .era-desc {
+            color: #a78bfa;
+        }
+
+        /* 场记板 */
+        .intro-clapperboard {
+            position: absolute;
+            width: 280px;
+            height: 200px;
+            z-index: 10;
+            opacity: 0;
+        }
+
+        .intro-clapperboard.show {
+            animation: clapperShow 0.5s ease-out forwards;
+        }
+
+        @keyframes clapperShow {
+            0% {
+                opacity: 0;
+                transform: scale(0.5) rotate(-10deg);
+            }
+
+            60% {
+                opacity: 1;
+                transform: scale(1.05) rotate(3deg);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .clapper-top {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(135deg, #1a1a1a, #333);
+            border-radius: 6px 6px 0 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .clapper-top::before {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            background: repeating-linear-gradient(-45deg, #fbbf24 0px, #fbbf24 14px, #000 14px, #000 28px);
+            border-radius: 3px;
+        }
+
+        .clapper-body {
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(180deg, #1a1a1a, #0a0a0a);
+            border-radius: 0 0 6px 6px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 2px solid #333;
+            border-top: none;
+        }
+
+        .clapper-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .clapper-label {
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .clapper-value {
+            color: #fbbf24;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .clapper-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 900;
+            color: #fff;
+            margin-top: 10px;
+            text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+        }
+
+        /* 倒计时 */
+        .intro-countdown {
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            z-index: 20;
+            opacity: 0;
+        }
+
+        .intro-countdown.show {
+            animation: countdownPulse 0.7s ease-out forwards;
+        }
+
+        @keyframes countdownPulse {
+            0% {
+                opacity: 0;
+                transform: scale(1.5);
+            }
+
+            20% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            80% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        .countdown-circle {
+            width: 100%;
+            height: 100%;
+            border: 6px solid transparent;
+            border-top-color: #fbbf24;
+            border-radius: 50%;
+            animation: countdownSpin 0.7s linear;
+        }
+
+        @keyframes countdownSpin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .countdown-number {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 72px;
+            font-weight: 900;
+            color: #fbbf24;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 25px rgba(251, 191, 36, 0.8);
+        }
+
+        /* LOGO展示 */
+        .intro-logo {
+            position: absolute;
+            z-index: 30;
+            text-align: center;
+            opacity: 0;
+        }
+
+        .intro-logo.show {
+            animation: logoReveal 1s ease-out forwards;
+        }
+
+        @keyframes logoReveal {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+                filter: blur(15px);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+                filter: blur(0);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .intro-logo-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #fbbf24, #a855f7);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            box-shadow: 0 20px 60px rgba(251, 191, 36, 0.4);
+        }
+
+        .intro-logo-text {
+            font-size: 52px;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 8px;
+            text-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .intro-logo-tagline {
+            font-size: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 6px;
+        }
+
+        /* 粒子 */
+        .intro-particles {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .intro-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #fbbf24;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #fbbf24;
+            animation: particleFloat 2.5s ease-in-out infinite;
+        }
+
+        @keyframes particleFloat {
+
+            0%,
+            100% {
+                opacity: 0;
+                transform: translateY(100vh) scale(0);
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1);
+            }
+        }
+
+        /* 光线扫过 */
+        .light-sweep {
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.02) 45%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.02) 55%, transparent 100%);
+            transform: translateX(-100%) skewX(-20deg);
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .light-sweep.animate {
+            animation: sweepLight 1s ease-out forwards;
+        }
+
+        @keyframes sweepLight {
+            from {
+                transform: translateX(-100%) skewX(-20deg);
+            }
+
+            to {
+                transform: translateX(100%) skewX(-20deg);
+            }
+        }
+
+        /* 故障效果 */
+        .glitch-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 60;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        .glitch-overlay.active {
+            animation: glitchFlash 0.15s ease-out;
+        }
+
+        @keyframes glitchFlash {
+
+            0%,
+            100% {
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 1;
+                background: rgba(255, 0, 0, 0.1);
+                transform: translateX(-3px);
+            }
+
+            40% {
+                opacity: 1;
+                background: rgba(0, 255, 255, 0.1);
+                transform: translateX(3px);
+            }
+
+            60% {
+                opacity: 0;
+            }
+        }
+
+        /* 跳过按钮 */
+        .intro-skip {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 100000;
+            transition: all 0.2s;
+        }
+
+        .intro-skip:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 📱 移动端侧边栏遮罩 -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="打开菜单">☰</button>
+
+    <div class="app-container">
+        <!-- 左侧控制栏 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path
+                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span>RollRoll</span>
+                </div>
+                <!-- 用户状态 -->
+                <div id="userStatusBar" class="user-status-bar">
+                    <a href="auth.html" class="user-login-btn" title="登录/注册">
+                        <span>👤</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- 🎬 产品类型切换Tab -->
+                <div class="product-type-tabs">
+                    <button class="product-tab active" data-type="video" onclick="switchProductType('video')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span>AI视频</span>
+                    </button>
+                    <button class="product-tab" data-type="comic" onclick="switchProductType('comic')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="9" y1="21" x2="9" y2="9" />
+                        </svg>
+                        <span>AI漫画</span>
+                    </button>
+                    <button class="product-tab" data-type="writing" onclick="switchProductType('writing')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                        <span>AI写作</span>
+                    </button>
+                    <button class="product-tab" data-type="skills" onclick="switchProductType('skills')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                        </svg>
+                        <span>🧩技能</span>
+                    </button>
+                </div>
+
+                <!-- 模式选择 -->
+                <div class="mode-toggle">
+                    <label class="mode-label"
+                        data-tooltip="🚀 全自动模式&#10;━━━━━━━━━━━━━━━━━━━━&#10;✅ 一键启动，全程无需干预&#10;✅ AI自动完成：剧本→角色→分镜→提示词→视频&#10;✅ 适合批量生产、睡前挂机&#10;⚠️ 无法中途修改，需等待完成">
+                        <input type="radio" name="autoMode" value="full-auto" checked
+                            onchange="onModeChange(this.value)">
+                        全自动
+                    </label>
+                    <label class="mode-label"
+                        data-tooltip="⚡ 半自动模式&#10;━━━━━━━━━━━━━━━━━━━━&#10;✅ 关键步骤暂停等待确认&#10;✅ 可在剧本、角色、分镜生成后审核修改&#10;✅ 确认后自动继续下一步&#10;✅ 适合需要质量把控的创作">
+                        <input type="radio" name="autoMode" value="semi-auto" onchange="onModeChange(this.value)">
+                        半自动
+                    </label>
+                    <label class="mode-label"
+                        data-tooltip="🎛️ 手动模式&#10;━━━━━━━━━━━━━━━━━━━━&#10;✅ 每个步骤都需手动触发&#10;✅ 完全掌控每个环节&#10;✅ 可随时编辑、重试任意步骤&#10;✅ 适合精细调整、学习流程">
+                        <input type="radio" name="autoMode" value="manual" onchange="onModeChange(this.value)">
+                        手动
+                    </label>
+                </div>
+
+                <!-- 并发控制 -->
+                <div class="task-limit-control">
+                    <span>并发任务数</span>
+                    <div class="limit-input">
+                        <button onclick="adjustTaskCount(-1)" title="减少任务数">-</button>
+                        <span id="taskCountDisplay">3</span>
+                        <button onclick="adjustTaskCount(1)" title="增加任务数">+</button>
+                    </div>
+                </div>
+
+                <!-- 快速输入区域 -->
+                <div class="quick-input-section">
+                    <div class="section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        快速输入
+                    </div>
+
+                    <div class="file-upload-bar" style="margin-bottom: 10px; display: flex; justify-content: flex-end;">
+                        <input type="file" id="quickScriptUpload" accept=".txt,.md,.doc,.docx" style="display: none;"
+                            onchange="handleQuickScriptUpload(this)">
+                        <button onclick="document.getElementById('quickScriptUpload').click()" class="btn-text"
+                            style="font-size: 12px; color: var(--accent-gold); display: flex; align-items: center; gap: 4px; cursor: pointer; border: 1px dashed #444; padding: 4px 8px; border-radius: 4px;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                            上传剧本/文档
+                        </button>
+                    </div>
+
+                    <textarea id="quickIdeaInput" class="quick-textarea" placeholder="输入您的创意主题..."></textarea>
+                    <!-- 快捷示例标签 -->
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+                        <button onclick="document.getElementById('quickIdeaInput').value='一个武侠侠客行走江湖的故事，日系动漫风格，6个分镜'"
+                            style="padding:4px 10px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:14px;color:#fbbf24;font-size:11px;cursor:pointer;">🎭
+                            武侠短剧</button>
+                        <button onclick="document.getElementById('quickIdeaInput').value='都市爱情故事，男女主角初次相遇，写实电影风格，6个分镜'"
+                            style="padding:4px 10px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:14px;color:#fbbf24;font-size:11px;cursor:pointer;">💕
+                            都市爱情</button>
+                        <button onclick="document.getElementById('quickIdeaInput').value='科幻星际探险，宇宙飞船穿越星云，赛博朋克风格，6个分镜'"
+                            style="padding:4px 10px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:14px;color:#fbbf24;font-size:11px;cursor:pointer;">🚀
+                            星际探险</button>
+                        <button onclick="document.getElementById('quickIdeaInput').value='古风仙侠，修仙者飞剑斩妖，国风水墨风格，8个分镜'"
+                            style="padding:4px 10px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:14px;color:#fbbf24;font-size:11px;cursor:pointer;">⚔️
+                            古风仙侠</button>
+                    </div>
+
+                    <div id="continuityModeHint"
+                        style="display:none; margin-top:8px; padding:10px; background:rgba(102,126,234,0.15); border-left:3px solid #667eea; border-radius:4px; font-size:12px; color:#aaa; line-height:1.5;">
+                        💡 <b>连续性视频模式</b><br>
+                        • AI将自动分镜（3-5个）<br>
+                        • 前一个分镜的最后一帧→下一个分镜的第一帧<br>
+                        • 确保视频连贯性<br>
+                        • 每分镜15秒，3胶片/分镜
+                    </div>
+
+                    <!-- 语音功能暂时移除 (中国地区不可用) -->
+
+                    <div class="quick-options">
+                        <div class="option-group">
+                            <label for="quickGenMode">模式</label>
+                            <select id="quickGenMode" title="选择生成模式" onchange="onGenModeChange(this.value)">
+                                <option value="auto" selected>🧠 智能自动 (根据内容选模型)</option>
+                                <option value="text-to-video">🌟 Grok-3 文生视频</option>
+                                <option value="image-to-video">Flux + Grok-3 (图生视频)</option>
+                                <option value="banana-image-to-video">Gemini-3 + Grok-3 (图生视频)</option>
+                                <option value="banana-grid-to-video">🎯 网格图省费版 (1图切N分镜)</option>
+                                <optgroup label="🎬 Veo 3.1 系列">
+                                    <option value="veo_3_1-4K">Veo 3.1 4K (有声/高质量)</option>
+                                    <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                                    <option value="veo_3_1-fast-components-4k">Veo 3.1 Fast Components</option>
+                                    <option value="veo_3_1-components-4k">Veo 3.1 Components 4K</option>
+                                    <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                                </optgroup>
+                                <optgroup label="🎬 Vidu 系列 - 5秒">
+                                    <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                                    <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                                    <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+                                    <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+                                    <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                                    <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                                    <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5秒 720P (72胶片/顶级)</option>
+                                    <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5秒 1080P (77胶片/顶级)</option>
+                                </optgroup>
+                                <optgroup label="🎬 Vidu 系列 - 10秒">
+                                    <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
+                                    <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                                    <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+                                    <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+                                    <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+                                    <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                                    <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10秒 720P (144胶片/顶级)</option>
+                                    <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10秒 1080P (154胶片/顶级)</option>
+                                </optgroup>
+                                <optgroup label="🐚 海螺 Hailuo - 6秒">
+                                    <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
+                                    <option value="hailuo-02-1080p-6s">海螺 02 6秒 1080P (12胶片)</option>
+                                    <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
+                                    <option value="hailuo-fast-1080p-6s">海螺 Fast 6秒 1080P (8胶片)</option>
+                                </optgroup>
+                                <optgroup label="🐚 海螺 Hailuo - 10秒">
+                                    <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
+                                    <option value="hailuo-02-1080p-10s">海螺 02 10秒 1080P (20胶片)</option>
+                                    <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
+                                    <option value="hailuo-fast-1080p-10s">海螺 Fast 10秒 1080P (13胶片)</option>
+                                </optgroup>
+                                <optgroup label="✨ 可灵 Kling - 5秒">
+                                    <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
+                                    <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
+                                    <option value="kling-2.0-720p-5s">可灵 2.0 5秒 720P (7胶片)</option>
+                                    <option value="kling-2.0-1080p-5s">可灵 2.0 5秒 1080P (12胶片)</option>
+                                    <option value="kling-o1-720p-5s">可灵 O1 5秒 720P (15胶片/顶级)</option>
+                                    <option value="kling-o1-1080p-5s">可灵 O1 5秒 1080P (20胶片)</option>
+                                </optgroup>
+                                <optgroup label="✨ 可灵 Kling - 10秒">
+                                    <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
+                                    <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
+                                    <option value="kling-2.0-720p-10s">可灵 2.0 10秒 720P (14胶片)</option>
+                                    <option value="kling-2.0-1080p-10s">可灵 2.0 10秒 1080P (24胶片)</option>
+                                    <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
+                                    <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
+                                </optgroup>
+                                <option value="grok-video-3-text">Grok Video 3 6秒 (文生视频)</option>
+                                <option value="grok-video-3">Grok Video 3 6秒 (图生视频)</option>
+                                <option value="grok-video-3-10s-text">Grok Video 3 10秒 (文生视频)</option>
+                                <option value="grok-video-3-10s">Grok Video 3 10秒 (图生视频)</option>
+                                <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option>
+                                <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option>
+                                <optgroup label="🎬 Wan2.6 - 5秒">
+                                    <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
+                                    <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
+                                    <option value="wan26-720p-5s-audio">Wan2.6 720p 5秒 有声 (4胶片)</option>
+                                    <option value="wan26-1080p-5s-audio">Wan2.6 1080p 5秒 有声 (7胶片)</option>
+                                </optgroup>
+                                <optgroup label="🎬 Wan2.6 - 10秒">
+                                    <option value="wan26-720p-10s">Wan2.6 720p 10秒 (5胶片)</option>
+                                    <option value="wan26-1080p-10s">Wan2.6 1080p 10秒 (9胶片)</option>
+                                    <option value="wan26-720p-10s-audio">Wan2.6 720p 10秒 有声 (7胶片)</option>
+                                    <option value="wan26-1080p-10s-audio">Wan2.6 1080p 10秒 有声 (14胶片)</option>
+                                </optgroup>
+                                <optgroup label="🎬 Wan2.6 - 15秒">
+                                    <option value="wan26-720p-15s">Wan2.6 720p 15秒 (7胶片)</option>
+                                    <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
+                                    <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
+                                    <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+                                </optgroup>
+                                <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
+                            </select>
+                        </div>
+                        <!-- 💰 价格提示区域 -->
+                        <div id="priceHintArea" class="option-group"
+                            style="margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); display: none;">
+                            <label
+                                style="color: #60a5fa; font-weight: 700; font-size: 12px; margin-bottom: 8px; display: block;">💰
+                                本次生成预计消耗</label>
+                            <div id="priceHintContent" style="font-size: 14px; line-height: 1.6;"></div>
+                        </div>
+                        <!-- 🖼️ 角色图上传区域（图生视频模式显示） -->
+                        <div id="quickRefImageSection" class="option-group" style="display:none; margin-top:10px;">
+                            <label>📷 上传角色参考图 <span style="color:#888;font-size:10px;">(可选)</span></label>
+                            <input type="file" id="quickRefImageInput" accept="image/*" style="display:none;"
+                                onchange="handleQuickRefImageUpload(this)">
+                            <div id="quickRefImageArea" onclick="document.getElementById('quickRefImageInput').click()"
+                                style="border:2px dashed #444; border-radius:8px; padding:12px; text-align:center; cursor:pointer; transition:border-color 0.3s; background:rgba(0,0,0,0.2);">
+                                <div style="font-size:20px; margin-bottom:4px;">📷</div>
+                                <div id="quickRefImageText" style="color:#888; font-size:12px;">点击上传角色图</div>
+                                <img id="quickRefImagePreview" src="" alt="预览"
+                                    style="display:none; max-width:100%; max-height:80px; margin-top:8px; border-radius:6px;">
+                            </div>
+                        </div>
+                        <div class="option-row">
+                            <div class="option-group">
+                                <label for="quickDuration">时长 (秒)</label>
+                                <input type="number" id="quickDuration" placeholder="自动分析" min="0" max="60"
+                                    title="0或留空为自动分析">
+                                <div class="hint-text" style="font-size: 10px; color: #666; margin-top: 2px;">0为自动分析
+                                </div>
+                            </div>
+                            <div class="option-group">
+                                <label for="quickScenes">分镜数</label>
+                                <input type="number" id="quickScenes" placeholder="自动分析" min="0" max="20"
+                                    title="0或留空为自动分析">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn-add-task" onclick="quickAddIdea()" style="flex: 1; min-width: 140px;">
+                            添加任务到队列
+                        </button>
+                        <button class="btn-add-task" onclick="quickCreateCharactersFromStory()"
+                            style="flex: 1; min-width: 140px; background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(236,72,153,0.2)); border: 1px solid rgba(139,92,246,0.5);">
+                            🤖 创建角色
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 任务队列 -->
+                <div class="tasks-section">
+                    <div class="section-title">
+                        <span>任务队列</span>
+                        <button class="btn-icon" onclick="clearHistory()" title="清空历史">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path
+                                    d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="ideasList" class="ideas-list">
+                        <!-- 任务列表由JS动态渲染 -->
+                    </div>
+                    <div id="writingProjectsPanel" style="display:none;">
+                        <!-- 📌 小说参数配置 -->
+                        <div
+                            style="padding:12px; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; margin-bottom:12px;">
+                            <div style="font-weight:700; color:#a78bfa; margin-bottom:10px; font-size:13px;">📌 小说参数配置
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <input id="sidebarWritingTopic" placeholder="题材/主题（如：修仙、都市、悬疑）"
+                                    style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                <input id="sidebarWritingGenre" placeholder="类型/风格（如：爽文、轻松、黑暗）"
+                                    style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                <div style="display:flex; gap:8px;">
+                                    <div style="flex:1;">
+                                        <label
+                                            style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">章节数</label>
+                                        <input id="sidebarWritingChapters" type="number" min="1" max="200" value="10"
+                                            style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                    </div>
+                                    <div style="flex:1;">
+                                        <label
+                                            style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">每章字数</label>
+                                        <input id="sidebarWritingWords" type="number" min="200" max="20000" value="2000"
+                                            style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ✍️ 快速写作输入 -->
+                        <div
+                            style="padding:12px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:12px; margin-bottom:12px;">
+                            <div style="font-weight:700; color:#60a5fa; margin-bottom:10px; font-size:13px;">✍️ 快速创作
+                            </div>
+                            <textarea id="sidebarWritingContent"
+                                placeholder="在这里输入您的写作内容或大纲...&#10;&#10;支持功能：&#10;• 续写 - AI根据已有内容继续创作&#10;• 润色 - 优化文字表达&#10;• 扩写 - 增加细节描写"
+                                style="width:100%; height:120px; padding:10px; background:#1a1a2e; border:1px solid rgba(59,130,246,0.4); border-radius:10px; color:#fff; font-size:13px; resize:vertical; line-height:1.6;"></textarea>
+                            <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                                <button onclick="sidebarWritingAction('continue')"
+                                    style="flex:1; min-width:60px; background:linear-gradient(135deg, rgba(59,130,246,0.3) 0%, rgba(59,130,246,0.15) 100%); border:1px solid rgba(59,130,246,0.5); color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600;">✏️
+                                    续写</button>
+                                <button onclick="sidebarWritingAction('polish')"
+                                    style="flex:1; min-width:60px; background:linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(168,85,247,0.15) 100%); border:1px solid rgba(168,85,247,0.5); color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600;">✨
+                                    润色</button>
+                                <button onclick="sidebarWritingAction('expand')"
+                                    style="flex:1; min-width:60px; background:linear-gradient(135deg, rgba(251,191,36,0.3) 0%, rgba(251,191,36,0.15) 100%); border:1px solid rgba(251,191,36,0.5); color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600;">📝
+                                    扩写</button>
+                            </div>
+                        </div>
+
+                        <!-- 📚 项目管理 -->
+                        <div style="display:flex; flex-direction:column; gap:8px; padding: 10px 0;">
+                            <button class="btn-text" onclick="sidebarWritingCreateNode()"
+                                style="width:100%; background: linear-gradient(135deg, rgba(34,197,94,0.25) 0%, rgba(34,197,94,0.1) 100%); border: 1px solid rgba(34,197,94,0.5); border-radius: 10px; padding: 12px 10px; cursor: pointer; font-size:13px; font-weight:700; color:#4ade80;">
+                                ➕ 添加到任务队列
+                            </button>
+                            <!-- 🎬 转视频/漫画按钮 -->
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn-text" onclick="sidebarWritingToVideo()"
+                                    style="flex:1; background: linear-gradient(135deg, rgba(139,92,246,0.25) 0%, rgba(139,92,246,0.1) 100%); border: 1px solid rgba(139,92,246,0.5); border-radius: 10px; padding: 10px; cursor: pointer; font-size:12px; font-weight:600; color:#a78bfa;">
+                                    🎬 转AI视频
+                                </button>
+                                <button class="btn-text" onclick="sidebarWritingToComic()"
+                                    style="flex:1; background: linear-gradient(135deg, rgba(236,72,153,0.25) 0%, rgba(236,72,153,0.1) 100%); border: 1px solid rgba(236,72,153,0.5); border-radius: 10px; padding: 10px; cursor: pointer; font-size:12px; font-weight:600; color:#f472b6;">
+                                    📚 转AI漫画
+                                </button>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn-text" onclick="createWritingProject()"
+                                    style="flex:1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 10px; cursor: pointer; font-size:12px; color:#ccc;">
+                                    ✍️ 新建云端项目
+                                </button>
+                                <button class="btn-text" onclick="refreshWritingProjects()"
+                                    style="flex:1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 10px; cursor: pointer; font-size:12px; color:#ccc;">
+                                    🔄 刷新项目列表
+                                </button>
+                            </div>
+                        </div>
+                        <div id="writingProjectsList" class="ideas-list"></div>
+                    </div>
+
+                    <!-- 🧩 技能选择面板 -->
+                    <div id="skillsPanel" style="display:none;">
+                        <!-- 分类筛选 -->
+                        <div class="skill-category-tabs"
+                            style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+                            <button class="skill-category-tab active" data-category="all"
+                                onclick="SkillUI.setCategory('all')"
+                                style="padding:6px 12px; background:rgba(251,191,36,0.2); border:1px solid rgba(251,191,36,0.5); border-radius:16px; color:var(--accent-gold); font-size:12px; cursor:pointer;">全部</button>
+                            <button class="skill-category-tab" data-category="video"
+                                onclick="SkillUI.setCategory('video')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎬
+                                视频</button>
+                            <button class="skill-category-tab" data-category="image"
+                                onclick="SkillUI.setCategory('image')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎨
+                                图像</button>
+                            <button class="skill-category-tab" data-category="content"
+                                onclick="SkillUI.setCategory('content')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">📝
+                                内容</button>
+                            <button class="skill-category-tab" data-category="audio"
+                                onclick="SkillUI.setCategory('audio')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎵
+                                音频</button>
+                            <button class="skill-category-tab" data-category="design"
+                                onclick="SkillUI.setCategory('design')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🎯
+                                设计</button>
+                            <button class="skill-category-tab" data-category="automation"
+                                onclick="SkillUI.setCategory('automation')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🤖
+                                自动化</button>
+                            <button class="skill-category-tab" data-category="tool"
+                                onclick="SkillUI.setCategory('tool')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">🔧
+                                工具</button>
+                        </div>
+
+                        <!-- 搜索框 -->
+                        <div style="margin-bottom:12px;">
+                            <input type="text" id="skillSearchInput" placeholder="🔍 搜索技能..."
+                                oninput="SkillUI.search(this.value)"
+                                style="width:100%; padding:10px 14px; background:#1a1a2e; border:1px solid rgba(255,255,255,0.15); border-radius:10px; color:#fff; font-size:13px;">
+                        </div>
+
+                        <!-- 技能卡片网格 -->
+                        <div id="skillsGrid" class="skills-grid"
+                            style="display:grid; grid-template-columns:1fr; gap:10px; max-height:calc(100vh - 480px); overflow-y:auto; padding-right:4px;">
+                            <!-- 由 JS 动态渲染 -->
+                        </div>
+
+                        <!-- 执行历史 -->
+                        <div style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <span style="color:#888; font-size:12px;">📊 最近执行</span>
+                                <button onclick="SkillManager.clearHistory(); renderSkillHistory();"
+                                    style="background:none; border:none; color:#666; font-size:11px; cursor:pointer;">清空</button>
+                            </div>
+                            <div id="skillHistoryList" style="max-height:120px; overflow-y:auto;">
+                                <!-- 由 JS 动态渲染 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部按钮 -->
+            <div class="sidebar-footer">
+                <div id="quotaDisplay" class="quota-info"></div>
+                <button id="startBatchBtn" class="btn-primary-large" onclick="startBatchGeneration()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>开始批量创作</span>
+                </button>
+                <button class="btn-secondary-large" onclick="clearAllIdeas()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path
+                            d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <span>清空历史记录</span>
+                </button>
+
+                <div class="footer-links">
+                    <button class="btn-link" onclick="openCharacterPanel()">🎭 角色管理</button>
+                    <button class="btn-link" onclick="openSettingsModal()">⚙️ 设置</button>
+                    <button class="btn-link" onclick="openMemberModal()">👑 会员</button>
+                    <button class="btn-link" onclick="openHelpModal()">❓ 帮助</button>
+                    <button class="btn-link" onclick="openHunyuan3DModal()" style="color:#67e8f9;">🧊 混元生3D</button>
+                </div>
+
+                <!-- 📜 法律声明链接 -->
+                <div class="footer-legal" style="margin-top:8px; font-size:11px;">
+                    <a href="terms.html" class="btn-link" style="color:#666;">服务条款</a>
+                    <span style="color:#444; margin:0 6px;">|</span>
+                    <a href="disclaimer.html" class="btn-link" style="color:#666;">免责声明</a>
+                </div>
+
+                <div class="copyright">
+                    © 2025 RollRoll 版权所有<br>
+                    官方微信: jingguangwei
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右侧主内容区 (单页面布局) -->
+        <main class="content-area">
+            <!-- 顶部栏 -->
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="btn-back" onclick="openLibrary()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                        </svg>
+                        角色库和资产库
+                    </button>
+                </div>
+                <div class="top-bar-right">
+                    <div class="status-tag">
+                        <span class="status-dot"></span>
+                        API 就绪
+                    </div>
+                    <div class="stats-tag">
+                        已生产: <strong id="totalGenerated">0</strong>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 进度统计栏 -->
+            <div class="progress-dashboard">
+                <div class="progress-header">
+                    <h2 class="dashboard-title">
+                        <button class="btn-back-icon" onclick="window.history.back()" title="返回">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        生成状态
+                    </h2>
+                    <div class="dashboard-actions"
+                        style="display:flex; gap:8px; align-items:center; margin-left:auto; margin-right:10px;">
+                        <button id="oneClickRepairBtn"
+                            onclick="window.oneClickRepairCurrentTask && window.oneClickRepairCurrentTask()"
+                            title="自动修复并继续生成（不会清空已成功的结果）"
+                            style="background:linear-gradient(135deg,#34d399,#10b981); color:#0b1220; border:none; padding:8px 12px; border-radius:10px; font-weight:900; cursor:pointer; box-shadow:0 6px 18px rgba(16,185,129,0.18);">
+                            🛠️ 一键修复本任务
+                        </button>
+                    </div>
+                    <div class="filter-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> 全选
+                        </label>
+                    </div>
+                    <div class="status-filters">
+                        <button class="status-filter success">已完成 <span id="successCount">0</span></button>
+                        <button class="status-filter processing">进行中 <span id="processingCount">0</span></button>
+                        <button class="status-filter failed">失败 <span id="failedCount">0</span></button>
+                    </div>
+                </div>
+
+                <div class="progress-track">
+                    <div class="progress-info">
+                        <span>进度: <span id="progressText">0/0</span></span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div id="progressBar" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果展示区 (无限画布容器) -->
+            <div class="canvas-container" id="taskCanvasContainer">
+                <!-- 缩放控制 -->
+                <div class="canvas-controls">
+                    <span class="zoom-level">90%</span>
+                    <button id="panModeBtn" class="pan-mode-btn" onclick="togglePanMode()"
+                        title="手掌模式：一指拖动画布 / 关闭后更易点按窗口内容">🖐️</button>
+                    <button onclick="zoomIn()" title="放大">+</button>
+                    <button onclick="zoomOut()" title="缩小">-</button>
+                    <button onclick="resetZoom()" title="重置缩放">↺</button>
+                    <button onclick="homeToTasks()" title="找回任务窗 (H)">🎯</button>
+                    <button onclick="toggleMinimap()" title="切换小地图 (M)">🗺️</button>
+                    <button onclick="refreshCanvas()" title="刷新画布" style="margin-left:8px;">🔄</button>
+                    <!-- 🗑️ 默认仅清节点/连线（安全，不会误删任务） -->
+                    <button onclick="clearCanvas()" title="清空节点/连线（不删除任务）" style="color:#ff6b6b;">🗑️</button>
+                    <!-- 🧨 清空全部：任务+节点+连线（强确认） -->
+                    <button onclick="clearHistory()" title="清空全部（任务+节点+连线）" style="color:#ff3b3b;">🧨</button>
+                </div>
+
+                <!-- 🆕 节点工具栏 -->
+                <div class="node-toolbar" id="nodeToolbar">
+                    <button class="node-tool-btn" onclick="addBananaNodeAtCenter()" title="新建 Banana 画板">
+                        🎨
+                    </button>
+                    <button class="node-tool-btn" onclick="addKnollingNodeAtCenter()" title="提示词工坊">
+                        📝
+                    </button>
+                    <button class="node-tool-btn" onclick="addStickerNodeAtCenter()" title="表情包生成器">
+                        😀
+                    </button>
+                    <button class="node-tool-btn" onclick="addSketchpadNodeAtCenter()" title="手绘画板">
+                        ✏️
+                    </button>
+                    <button class="node-tool-btn" onclick="addMusicNodeAtCenter()" title="🎵 Suno音乐生成"
+                        style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+                        🎵
+                    </button>
+                    <button class="node-tool-btn" onclick="window.location.href='voice.html'" title="🎙️ AI配音"
+                        style="background: linear-gradient(135deg, #fbbf24, #f97316);">
+                        🎙️
+                    </button>
+                    <button class="node-tool-btn" onclick="addChatNodeAtCenter()" title="🤖 AI对话"
+                        style="background: linear-gradient(135deg, #10b981, #059669);">
+                        🤖
+                    </button>
+                    <button class="node-tool-btn" onclick="autoArrangeCanvas()" title="一键整理画布"
+                        style="background:#3b82f6;">
+                        🧹
+                    </button>
+                </div>
+
+                <!-- 🎯 画布命令输入框 (Agent模式) -->
+                <div class="canvas-command-bar" id="canvasCommandBar">
+                    <!-- 🤖 快捷指令区域 -->
+                    <div class="agent-quick-commands" id="agentQuickCommands">
+                        <span class="quick-label">🤖 试试:</span>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1张可爱的猫咪图片')">🐱 猫咪</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('画1张动漫风格的头像')">🎭 头像</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1张水墨风格的山水画')">🏔️ 山水</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('做1张9:16竖屏的风景壁纸')">📱 壁纸</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('画1张赛博朋克风格的城市夜景')">🌆 赛博</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1张日系治愈风格的插画')">🌸 日系</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('画1张游戏角色立绘')">🎮 角色</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1个短视频', 'sora-2-all')">🎬 视频</button>
+                        <button class="quick-cmd-btn" onclick="openMVGenerator()"
+                            style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">🎵 音乐MV</button>
+                    </div>
+                    <!-- 📎 参考图/视频预览区 -->
+                    <div class="command-ref-preview" id="commandRefPreview" style="display:none;">
+                        <div class="ref-preview-item" id="refPreviewItem">
+                            <img id="refPreviewImg" src="" alt="参考图" style="display:none;">
+                            <video id="refPreviewVideo" src="" style="display:none;" muted></video>
+                            <button class="ref-remove-btn" onclick="removeCommandRef()" title="移除">×</button>
+                        </div>
+                        <!-- 🆕 多图预览容器 -->
+                        <div id="multiRefPreviewContainer"
+                            style="display:none; gap:6px; flex-wrap:wrap; align-items:center;"></div>
+                    </div>
+                    <!-- 🆕 多图合并选项 -->
+                    <div id="refMergeOptions"
+                        style="display:none; padding:8px 12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; margin-bottom:8px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                            <span style="font-size:12px; color:#a78bfa;">🖼️ 已选择 <span id="refImageCount">0</span>
+                                张参考图</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="refMergeMode"
+                                    style="padding:4px 8px; background:#1a1a24; border:1px solid #333; border-radius:4px; color:#fff; font-size:11px;">
+                                    <option value="horizontal">↔️ 横向</option>
+                                    <option value="vertical">↕️ 竖向</option>
+                                    <option value="grid" selected>⬜ 网格</option>
+                                </select>
+                                <button onclick="clearAllRefImages()"
+                                    style="background:none; border:none; color:#f87171; font-size:11px; cursor:pointer;">清空</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="command-input-wrapper">
+                        <span class="command-icon">🤖</span>
+                        <!-- 📎 上传参考图/视频按钮（支持多选）-->
+                        <input type="file" id="commandRefUpload" accept="image/*,video/*" multiple style="display:none;"
+                            onchange="handleCommandRefUpload(this)">
+                        <button class="command-upload-btn" onclick="document.getElementById('commandRefUpload').click()"
+                            title="上传参考图/视频（可多选）">
+                            📎
+                        </button>
+                        <!-- 🎨 模型选择器 -->
+                        <select id="commandModelSelect" class="command-select" title="选择模型">
+                            <optgroup label="📷 图片模型">
+                                <option value="auto">🤖 自动</option>
+                                <option value="modelscope">🆓 智能绘图（免费）</option>
+                                <option value="nano-banana-2">🍌 Banana 标准</option>
+                                <option value="nano-banana-2-2k">🌟 Banana 2K</option>
+                                <option value="nano-banana-2-4k">💎 Banana 4K</option>
+                                <option value="doubao-seedream-5-0-260128">🌟 星梦画师5.0</option>
+                                <option value="doubao-seedream-4-5-251128">✨ 星梦画师4.5</option>
+                                <option value="gemini-3.1-flash-image-preview">⚡ Gemini Flash</option>
+                                <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K</option>
+                                <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K</option>
+                                <option value="Qwen/Qwen-Image-2512">🎭 通义万相Max</option>
+                                <option value="midjourney-fast">🌟 Midjourney Fast</option>
+                                <option value="midjourney-turbo">🚀 Midjourney Turbo</option>
+                                <option value="midjourney-relax">🌙 Midjourney Relax</option>
+                            </optgroup>
+                            <!-- 🎯 Midjourney 版本选择器 -->
+                            <optgroup label="🎯 MJ 版本">
+                                <option value="7">v7 最新</option>
+                                <option value="6.1" selected>v6.1 稳定</option>
+                                <option value="6">v6.0</option>
+                                <option value="5.2">v5.2</option>
+                                <option value="5.1">v5.1</option>
+                                <option value="5">v5.0</option>
+                                <option value="niji7">Niji 7 动漫（最新）</option>
+                                <option value="niji6">Niji 6 动漫</option>
+                            </optgroup>
+                            <optgroup label="🎬 视频模型">
+                            <optgroup label="🎬 Veo 3.1 系列">
+                                <option value="veo_3_1-4K">Veo 3.1 4K (有声/高质量)</option>
+                                <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+                                <option value="veo_3_1-fast-components-4k">Veo 3.1 Fast Components</option>
+                                <option value="veo_3_1-components-4k">Veo 3.1 Components 4K</option>
+                            </optgroup>
+                            <optgroup label="🎬 Vidu 系列 - 5秒">
+                                <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
+                                <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片)</option>
+                                <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+                                <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+                                <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+                                <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+                                <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5秒 720P (72胶片/顶级)</option>
+                                <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5秒 1080P (77胶片/顶级)</option>
+                            </optgroup>
+                            <optgroup label="🎬 Vidu 系列 - 10秒">
+                                <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片)</option>
+                                <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片)</option>
+                                <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+                                <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+                                <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+                                <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+                                <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10秒 720P (144胶片/顶级)</option>
+                                <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10秒 1080P (154胶片/顶级)</option>
+                            </optgroup>
+                            <optgroup label="🐚 海螺 Hailuo - 6秒">
+                                <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
+                                <option value="hailuo-02-1080p-6s">海螺 02 6秒 1080P (12胶片)</option>
+                                <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
+                                <option value="hailuo-fast-1080p-6s">海螺 Fast 6秒 1080P (8胶片)</option>
+                            </optgroup>
+                            <optgroup label="🐚 海螺 Hailuo - 10秒">
+                                <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
+                                <option value="hailuo-02-1080p-10s">海螺 02 10秒 1080P (20胶片)</option>
+                                <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
+                                <option value="hailuo-fast-1080p-10s">海螺 Fast 10秒 1080P (13胶片)</option>
+                            </optgroup>
+                            <optgroup label="✨ 可灵 Kling - 5秒">
+                                <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
+                                <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
+                                <option value="kling-2.0-720p-5s">可灵 2.0 5秒 720P (7胶片)</option>
+                                <option value="kling-2.0-1080p-5s">可灵 2.0 5秒 1080P (12胶片)</option>
+                                <option value="kling-o1-720p-5s">可灵 O1 5秒 720P (15胶片/顶级)</option>
+                                <option value="kling-o1-1080p-5s">可灵 O1 5秒 1080P (20胶片)</option>
+                            </optgroup>
+                            <optgroup label="✨ 可灵 Kling - 10秒">
+                                <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
+                                <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
+                                <option value="kling-2.0-720p-10s">可灵 2.0 10秒 720P (14胶片)</option>
+                                <option value="kling-2.0-1080p-10s">可灵 2.0 10秒 1080P (24胶片)</option>
+                                <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
+                                <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
+                            </optgroup>
+                            <option value="grok-video-3-text">Grok Video 3 6秒 (文生视频)</option>
+                            <option value="grok-video-3">Grok Video 3 6秒 (图生视频)</option>
+                            <option value="grok-video-3-10s-text">Grok Video 3 10秒 (文生视频)</option>
+                            <option value="grok-video-3-10s">Grok Video 3 10秒 (图生视频)</option>
+                            <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option>
+                            <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option>
+                            <optgroup label="🎬 Wan2.6 - 5秒">
+                                <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
+                                <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
+                                <option value="wan26-720p-5s-audio">Wan2.6 720p 5秒 有声 (4胶片)</option>
+                                <option value="wan26-1080p-5s-audio">Wan2.6 1080p 5秒 有声 (7胶片)</option>
+                            </optgroup>
+                            <optgroup label="🎬 Wan2.6 - 10秒">
+                                <option value="wan26-720p-10s">Wan2.6 720p 10秒 (5胶片)</option>
+                                <option value="wan26-1080p-10s">Wan2.6 1080p 10秒 (9胶片)</option>
+                                <option value="wan26-720p-10s-audio">Wan2.6 720p 10秒 有声 (7胶片)</option>
+                                <option value="wan26-1080p-10s-audio">Wan2.6 1080p 10秒 有声 (14胶片)</option>
+                            </optgroup>
+                            <optgroup label="🎬 Wan2.6 - 15秒">
+                                <option value="wan26-720p-15s">Wan2.6 720p 15秒 (7胶片)</option>
+                                <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
+                                <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
+                                <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+                            </optgroup>
+                            <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
+                            </optgroup>
+                        </select>
+                        <!-- 📐 尺寸选择器 -->
+                        <select id="commandSizeSelect" class="command-select" title="选择尺寸">
+                            <option value="auto">📐 自动</option>
+                            <option value="1:1">1:1 方形</option>
+                            <option value="16:9">16:9 横屏</option>
+                            <option value="9:16">9:16 竖屏</option>
+                            <option value="4:3">4:3 标准</option>
+                            <option value="3:4">3:4 竖版</option>
+                        </select>
+                        <input type="text" id="canvasCommandInput" placeholder="输入命令，如：生成5张猫咪图片、做3个短视频..."
+                            onkeydown="if(event.key==='Enter')executeCanvasCommand()" autocomplete="off">
+                        <button class="command-run-btn" onclick="executeCanvasCommand()" title="执行命令">
+                            ▶️
+                        </button>
+                        <button class="command-help-btn" onclick="showCommandHelp()" title="命令帮助">
+                            ?
+                        </button>
+                    </div>
+                    <div class="command-status" id="commandStatus"></div>
+                </div>
+
+                <!-- 无限画布内容 -->
+                <div class="infinite-canvas" id="taskCanvas">
+                    <!-- 连线层 -->
+                    <svg id="connections"></svg>
+
+                    <!-- 任务卡片容器 -->
+                    <div id="taskCards" class="cards-grid">
+                        <!-- 任务卡片由 JS 动态生成 -->
+                    </div>
+
+                    <!-- 结果卡片容器 (合并显示) -->
+                    <div id="resultCards" class="cards-grid" style="display: none;">
+                        <!-- 结果卡片由 JS 动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 🎬 影视开场动画 -->
+    <div id="cinemaIntro" class="cinema-intro">
+        <!-- 时代背景层 -->
+        <div class="era-bg era-silent" id="eraBgSilent"></div>
+        <div class="era-bg era-color" id="eraBgColor"></div>
+        <div class="era-bg era-digital" id="eraBgDigital"></div>
+        <div class="era-bg era-ai" id="eraBgAi"></div>
+        <!-- 胶片边框 -->
+        <div class="film-border left"></div>
+        <div class="film-border right"></div>
+        <!-- 粒子 -->
+        <div class="intro-particles" id="introParticles"></div>
+        <!-- 场记板 -->
+        <div class="intro-clapperboard" id="introClapperboard">
+            <div class="clapper-top"></div>
+            <div class="clapper-body">
+                <div class="clapper-row"><span class="clapper-label">PROD</span><span
+                        class="clapper-value">ROLLROLL</span></div>
+                <div class="clapper-row"><span class="clapper-label">SCENE</span><span class="clapper-value">001</span>
+                </div>
+                <div class="clapper-row"><span class="clapper-label">TAKE</span><span class="clapper-value">1</span>
+                </div>
+                <div class="clapper-title">ACTION!</div>
+            </div>
+        </div>
+        <!-- 时代卡片 -->
+        <div class="era-card era-silent-card" id="eraCardSilent">
+            <div class="era-year">1895</div>
+            <div class="era-title">SILENT FILM ERA</div>
+            <div class="era-desc">默片时代 · 光影诞生</div>
+        </div>
+        <div class="era-card era-color-card" id="eraCardColor">
+            <div class="era-year">1935</div>
+            <div class="era-title">TECHNICOLOR ERA</div>
+            <div class="era-desc">彩色时代 · 色彩革命</div>
+        </div>
+        <div class="era-card era-digital-card" id="eraCardDigital">
+            <div class="era-year">1999</div>
+            <div class="era-title">DIGITAL CINEMA</div>
+            <div class="era-desc">数字时代 · 技术飞跃</div>
+        </div>
+        <div class="era-card era-ai-card" id="eraCardAi">
+            <div class="era-year">2026</div>
+            <div class="era-title">AI FILMMAKING</div>
+            <div class="era-desc">智能时代 · 无限可能</div>
+        </div>
+        <!-- 倒计时 -->
+        <div class="intro-countdown" id="introCountdown">
+            <div class="countdown-circle"></div>
+            <div class="countdown-number" id="countdownNumber">3</div>
+        </div>
+        <!-- LOGO -->
+        <div class="intro-logo" id="introLogo">
+            <div class="intro-logo-icon">🎬</div>
+            <div class="intro-logo-text">ROLLROLL</div>
+            <div class="intro-logo-tagline">你就是导演</div>
+        </div>
+        <!-- 光线扫过 -->
+        <div class="light-sweep" id="lightSweep"></div>
+        <!-- 故障效果 -->
+        <div class="glitch-overlay" id="glitchOverlay"></div>
+        <!-- 跳过按钮 -->
+        <button class="intro-skip" onclick="skipIntro()">跳过 ›</button>
+    </div>
+
+    <script>
+        // 开场动画/欢迎页显示逻辑（登录后可以跳过，其他情况强制显示）
+        var _showIntro = false;
+        var _introStyleTag = null;
+        (function () {
+            // 🔒 只有登录后跳转（logged_in=1 或 skip_welcome=1）才跳过
+            // 其他情况强制显示开场动画和欢迎页
+            if (location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1) {
+                history.replaceState({}, '', location.pathname);
+                _showIntro = false;
+                return;
+            }
+            // 强制显示开场动画和欢迎页
+            _showIntro = true;
+            var style = document.createElement('style');
+            style.id = 'cinemaIntroInjectedStyle';
+            style.textContent = '#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
+            document.heapendChild(style);
+            _introStyleTag = style;
+        })();
+    </script>
+    <!-- 欢迎页（默认隐藏，由上方脚本控制显示）-->
+    <div id="welcomeScreen" class="welcome-screen" style="display:none;">
+        <div class="welcome-bg-text">
+            <img src="images/yanbudouyanle.png" alt="演都不演了" />
+        </div>
+        <!-- 用户状态入口 -->
+        <div id="welcomeUserBar" class="welcome-user-bar">
+            <a href="auth.html" class="welcome-login-btn">
+                <span>👤</span>
+                <span>登录 / 注册</span>
+            </a>
+        </div>
+        <div class="welcome-content">
+            <div class="welcome-badge">🚀 AI 驱动创作平台</div>
+            <div class="welcome-promo" style="padding: 24px 28px; font-size: 1.1em;">
+                <div class="welcome-promo-title" style="font-size: 1.5em; margin-bottom: 12px;">🎁
+                    新用户注册即赠送10万锁定积分，可解锁100积分体验</div>
+                <div class="welcome-promo-desc" style="font-size: 1.1em; line-height: 1.6;">
+                    第八代全自动生成式AI内容创作平台爆肝登场，特别鸣谢未来股东们的大力支持。
+                </div>
+            </div>
+            <h1 class="welcome-title">你就是导演</h1>
+            <h2 class="welcome-subtitle">重新定义视频创作的无限可能</h2>
+            <p class="welcome-desc">
+                从灵感闪现到成片出炉，让AI成为你的专业创作伙伴。<br>
+                智能剧本生成、精美图片创作、专业视频制作——<br>
+                每个人都能成为自己故事的导演。
+            </p>
+            <div class="welcome-quote-box">
+                <div class="quote-text">梦想可以放下，但是不要放弃</div>
+                <div class="quote-author">—— 荆广伟</div>
+            </div>
+            <!-- 🔐 强制登录：去掉体验入口，防止白嫖 -->
+            <a id="welcomeEnterBtn" href="auth.html" class="btn-start-journey" style="text-decoration: none;">🔒 登录 /
+                注册开始创作</a>
+        </div>
+    </div>
+    <div id="progressScreen" style="display: none;"></div>
+    <div id="resultScreen" style="display: none;"></div>
+
+    <!-- 光影时刻遮罩 -->
+    <div id="creativeOverlay" class="creative-overlay" style="display: none;">
+        <div class="creative-content">
+            <div class="creative-text" id="creativeText">AI正在创作...</div>
+            <button onclick="stopCreativeScreen()">后台运行</button>
+        </div>
+    </div>
+
+    <!-- 模态框: 设置 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-backdrop" onclick="closeSettingsModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ 系统设置</h3>
+                <button class="btn-close" onclick="closeSettingsModal()" title="关闭">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 🔐 API Key 已内置到环境变量，用户无需配置 -->
+                <div id="proModeSettings" style="display: none;">
+                    <!-- 隐藏的输入框，保持兼容性 -->
+                    <input type="hidden" id="settingZhenzhenKey" value="">
+                    <input type="hidden" id="settingRhKey" value="">
+                    <input type="hidden" id="settingMotaverseKey" value="">
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--accent-gold);">✅ 无需配置 API Key</label>
+                    <div class="hint-text"
+                        style="background: rgba(74,222,128,0.08); padding: 10px; border-radius: 6px; margin-top: 5px;">
+                        当前站点所有模型调用均由后端代理与环境变量完成，用户侧无需填写 Key。<br>
+                        若遇到“登录/会员状态异常”，请关闭脚本拦截/翻译/广告插件或使用无痕模式。
+                    </div>
+                </div>
+
+                <!-- 📊 配额信息展示 -->
+                <div class="form-group" id="quotaInfoDisplay">
+                    <label style="color: var(--accent-gold);">📊 您的使用额度</label>
+                    <div class="hint-text"
+                        style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 6px; margin-top: 5px;">
+                        <div id="quotaDetails">加载中...</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="settingCharacterSheets">
+                        <span>启用角色设定图（自动生成）</span>
+                    </label>
+                    <div class="hint-text">生成剧本后自动抽取主角，固定人物形象，让分镜不跑偏</div>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <!-- 🤖 全自动托管模式 -->
+                <div class="form-group">
+                    <label class="toggle-label" style="color: var(--accent-gold);">
+                        <input type="checkbox" id="settingAutoHosting" onchange="toggleAutoHostingMode(this.checked)">
+                        <span>🤖 全自动托管模式</span>
+                    </label>
+                    <div class="hint-text"
+                        style="background: rgba(255,215,0,0.1); padding: 8px; border-radius: 6px; margin-top: 5px;">
+                        <strong>开启后：</strong>新建任务将自动加入队列，系统依次完成所有流程<br>
+                        <span style="color: #aaa;">适合批量生产，无需手动点击每一步</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="saveSettings()">保存配置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 会员 -->
+    <div id="memberModal" class="modal">
+        <div class="modal-backdrop" onclick="closeMemberModal()"></div>
+        <div class="modal-content member-modal-content">
+            <div class="modal-header">
+                <h3>👑 会员中心</h3>
+                <button class="btn-close" onclick="closeMemberModal()" title="关闭">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="member-status-card">
+                    <div class="status-info">
+                        <div class="status-label">当前身份</div>
+                        <div id="memberStatus" class="status-value">普通用户</div>
+                        <div id="memberExpiry" class="status-expiry">未开通会员服务</div>
+                    </div>
+                </div>
+
+                <div
+                    style="margin-top: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px; font-size: 12px; color: #bbb; line-height: 1.6;">
+                    <strong style="color: var(--accent-gold);">提示：</strong> 登录状态、会员状态、胶片余额以云端为准。<br>
+                    AI写作在左侧 <strong>AI写作</strong> 标签进入，编辑器内已提供 <strong>AI续写/润色/扩写</strong> 按钮。
+                </div>
+
+                <div class="activation-section">
+                    <h4>🔑 激活码兑换</h4>
+                    <div class="activation-input-group">
+                        <input type="text" id="activationCode" placeholder="请输入激活码...">
+                        <button class="btn-secondary" onclick="redeemCode()">立即激活</button>
+                    </div>
+                    <div class="buy-link">
+                        <a href="#" onclick="showRecharge(); return false;">没有激活码？点击购买</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="activation-section" id="giftUnlockSection" style="display:none;">
+        <!-- 🚫 已禁用：赠送胶片在注册时自动发放，不允许用户手动领取 -->
+        <h4>🎁 赠送胶片解锁（总额10万）</h4>
+        <div
+            style="margin-top: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px;">
+            <div id="giftUnlockSummary" style="color: #ddd; font-size: 13px; line-height: 1.5;">加载中...</div>
+            <div id="giftUnlockDetails"
+                style="margin-top: 8px; color: #888; font-size: 12px; line-height: 1.5; white-space: pre-line;"></div>
+            <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap;">
+                <button class="btn-secondary" onclick="refreshGiftUnlockStatus()">刷新状态</button>
+                <button class="btn-secondary" id="giftUnlockClaimBtn" onclick="claimGiftUnlock()">领取可解锁额度</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 胶片充值 -->
+    <div id="paymentModal" class="modal" style="z-index: 10002;">
+        <div class="modal-backdrop" onclick="closePaymentModal()"></div>
+        <div class="modal-content payment-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>🎞️ 胶片充值</h3>
+                <button class="btn-close" onclick="closePaymentModal()" title="关闭">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 🔥 内测提示 -->
+                <div
+                    style="background: linear-gradient(135deg, rgba(255,69,0,0.2), rgba(255,140,0,0.15)); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(255,140,0,0.4);">
+                    <div style="color: #ff8c00; font-weight: bold; font-size: 14px; text-align: center;">
+                        🎁 <strong>内测专享价</strong> · 感谢您参与产品内测，当前为限时体验价格，正式版将根据实际成本调整定价
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-bottom: 14px;">
+                    <button id="paymentTabRecharge" class="btn-secondary" onclick="setPaymentTab('recharge')"
+                        style="flex:1; border-radius: 999px;">🎞️ 充值胶片</button>
+                    <button id="paymentTabMember" class="btn-secondary" onclick="setPaymentTab('member')"
+                        style="flex:1; border-radius: 999px;">👑 会员（解锁赠送胶片）</button>
+                </div>
+
+                <div id="paymentMemberPanel" style="display:none;">
+                    <div
+                        style="background: rgba(138,43,226,0.1); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
+                        <div style="color: #a78bfa; font-weight: bold; margin-bottom: 8px;">🎁 会员等级 → 解锁赠送胶片（总额10万）
+                        </div>
+                        <div id="memberLevelGrid"
+                            style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; color: #ccc; text-align: center;">
+                        </div>
+                        <div id="memberLevelNote"
+                            style="margin-top: 8px; font-size: 11px; color: #888; text-align: center;"></div>
+                    </div>
+                    <div
+                        style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px; font-size: 12px; color: #bbb; line-height: 1.6;">
+                        会员不直接送胶片余额，而是按等级<strong>解锁</strong>赠送胶片额度。<br>
+                        请到「会员中心」点击“领取可解锁额度”写入余额。
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap;">
+                        <button class="btn-secondary" onclick="closePaymentModal(); openMemberModal();"
+                            style="flex:1; min-width: 160px;">打开会员中心</button>
+                        <button class="btn-secondary" onclick="closePaymentModal(); openMemberModal();"
+                            style="flex:1; min-width: 160px;">去输入激活码</button>
+                    </div>
+                </div>
+
+                <div id="paymentRechargePanel">
+
+                    <!-- 费用说明 -->
+                    <div
+                        style="background: rgba(255,215,0,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13px;">
+                        <div style="color: var(--accent-gold); font-weight: bold; margin-bottom: 8px;">💡
+                            胶片消耗参考（¥0.3/胶片）</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: #ccc;">
+                            <span>📝 文本生成：0.1胶片 = ¥0.03</span>
+                            <span>🖼️ 图片生成：0.5胶片 = ¥0.15</span>
+                            <span>🎬 <strong>15秒视频：3胶片 = ¥0.9</strong></span>
+                            <span>🎭 角色动效：3胶片 = ¥0.9</span>
+                            <span>📖 漫画页：0.5胶片 = ¥0.15</span>
+                            <span>🎭 角色图：0.5胶片 = ¥0.15</span>
+                            <span>🎬 <strong>1分钟视频：约14胶片 = ¥4.2</strong></span>
+                            <span>📖 <strong>4页漫画：约3胶片 = ¥0.9</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="plans-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="plan-card" onclick="selectPlan('starter', this)">
+                            <div class="plan-name">🎬 体验包</div>
+                            <div class="plan-price">¥9</div>
+                            <div class="plan-desc">
+                                <strong style="color: var(--accent-gold);">30 胶片</strong><br>
+                                ≈ 60张图片<br>
+                                或 2个1分钟视频
+                            </div>
+                        </div>
+                        <div class="plan-card selected" onclick="selectPlan('basic', this)"
+                            style="border: 1px solid var(--accent-gold); background: rgba(212, 175, 55, 0.1); position: relative;">
+                            <div class="recommend-badge"
+                                style="position: absolute; top: -10px; right: -10px; background: #cd7f32; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">
+                                推荐</div>
+                            <div class="plan-name">🥉 基础包</div>
+                            <div class="plan-price">¥30</div>
+                            <div class="plan-desc">
+                                <strong style="color: var(--accent-gold);">100 胶片</strong><br>
+                                ≈ 7个1分钟视频<br>
+                                <span style="color:#cd7f32;">性价比之选</span>
+                            </div>
+                        </div>
+                        <div class="plan-card" onclick="selectPlan('standard', this)" style="position: relative;">
+                            <div class="recommend-badge"
+                                style="position: absolute; top: -10px; right: -10px; background: #c0c0c0; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">
+                                热门</div>
+                            <div class="plan-name">🥈 进阶包</div>
+                            <div class="plan-price">¥99</div>
+                            <div class="plan-desc">
+                                <strong style="color: var(--accent-gold);">333 胶片</strong><br>
+                                ≈ 24个1分钟视频<br>
+                                <span style="color:#c0c0c0;">创作者首选</span>
+                            </div>
+                        </div>
+                        <div class="plan-card" onclick="selectPlan('premium', this)" style="position: relative;">
+                            <div class="recommend-badge"
+                                style="position: absolute; top: -10px; right: -10px; background: #ffd700; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">
+                                超值</div>
+                            <div class="plan-name">🥇 专业包</div>
+                            <div class="plan-price">¥299</div>
+                            <div class="plan-desc">
+                                <strong style="color: var(--accent-gold);">1000 胶片</strong><br>
+                                ≈ 71个1分钟视频<br>
+                                <span style="color:#ffd700;">专业创作者</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 免费用户福利说明 -->
+                    <div
+                        style="background: rgba(74,222,128,0.1); padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 12px;">
+                        <div style="color: #4ade80; font-weight: bold; margin-bottom: 5px;">🎁 赠送胶片福利（总额10万）</div>
+                        <div style="color: #aaa;">
+                            免费体验<span style="color:#4ade80;">500</span>胶片 → 升级会员解锁更多<br>
+                            🖼️ 约312张图 🎬 约166个视频 📝 约2000次文案
+                        </div>
+                    </div>
+
+                    <div class="manual-pay-link" style="margin-top: 15px;">
+                        <a href="#" onclick="toggleManualPay(); return false;">无法支付？点击手动转账</a>
+                    </div>
+
+                    <div id="manualPayArea"
+                        style="display: none; margin-top: 15px; text-align: center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                        <p style="font-size: 14px; color: var(--accent-gold); margin-bottom: 10px; font-weight: bold;">
+                            🛒 闲鱼购买（推荐）</p>
+                        <a href="https://m.tb.cn/h.Sxthj3M?tk=MzLhfM3Id3fCZ005" target="_blank"
+                            rel="noopener noreferrer"
+                            style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #ff6a00, #ee0979); color: #fff; border-radius: 8px; text-decoration: none; font-weight: bold; margin-bottom: 10px;">点击跳转闲鱼购买</a>
+                        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">购买后自动获得激活码，无需等待</p>
+                        <p
+                            style="font-size: 12px; color: #888; margin-top: 8px; border-top: 1px solid #333; padding-top: 10px;">
+                            💬 微信客服：<span style="color: var(--accent-gold); cursor: pointer;"
+                                onclick="copyWeChatId()">jingguangwei</span> (点击复制)
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" style="width: 100%;" onclick="buyCurrentPlan()">立即充值</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 编辑任务 (JS调用) -->
+    <div id="ideaModal" class="modal" style="display: none;">
+        <!-- 内容由JS生成 -->
+    </div>
+
+    <!-- 模态框: 图片编辑 (JS调用) -->
+    <div id="imageEditModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeImageEditModal()"></div>
+        <div class="modal-content" style="width: 800px; max-width: 95vw;">
+            <div class="modal-header">
+                <h3>🪄 AI图片修饰 (Gemini Vision)</h3>
+                <button class="btn-close" onclick="closeImageEditModal()" title="关闭">×</button>
+            </div>
+            <div class="modal-body" style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <div style="margin-bottom: 8px; color: #888;">原图预览</div>
+                    <img id="editImagePreview" src="" style="width: 100%; border-radius: 8px; border: 1px solid #333;">
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="form-group">
+                        <label>修改指令 (例如: "把衣服改成红色", "增加一些科幻元素")</label>
+                        <textarea id="editPromptInput"
+                            style="width: 100%; height: 100px; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 4px;"
+                            placeholder="请描述您想如何修改这张图片..."></textarea>
+                    </div>
+                    <button class="btn-primary" onclick="executeImageEdit()" style="margin-top: 10px;">✨ 开始AI修图</button>
+
+                    <div id="editResultArea"
+                        style="margin-top: 20px; display: none; border-top: 1px solid #333; padding-top: 20px;">
+                        <!-- 结果显示区 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑工作室嵌入 -->
+    <div id="editingStudioFrame"
+        style="display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #111; z-index: 2000;">
+        <button onclick="closeEditingStudio()"
+            style="position: absolute; top: 10px; left: 10px; z-index: 2001; padding: 8px 16px; background: var(--accent-gold); color: #000; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">←
+            返回创作中心</button>
+        <iframe src="/app/storyboard-master.html" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
+
+    <div id="writingOverlay" class="library-overlay" style="display: none;">
+        <div class="library-header">
+            <div class="lib-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+                </svg>
+                AI写作编辑器
+            </div>
+            <button class="btn-close-lib" onclick="closeWritingOverlay()">×</button>
+        </div>
+        <div class="library-content" style="display:flex; gap:14px;">
+            <div style="width:320px; min-width:260px; max-width:360px;">
+                <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <button class="btn-text" onclick="createWritingChapter()"
+                        style="flex:1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">
+                        ➕ 新章节
+                    </button>
+                    <button class="btn-text" onclick="createWritingInviteLink()"
+                        style="flex:1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">
+                        🔗 邀请
+                </div>
+                <div id="writingChaptersList" class="lib-grid" style="grid-template-columns: 1fr;"></div>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column; min-width: 380px;">
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                    <button class="btn-text" onclick="createWritingChapter()"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">新建章节</button>
+                    <button class="btn-text" onclick="createWritingInviteLink()"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">邀请协作</button>
+                    <button class="btn-text" onclick="exportWriting('md')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">导出MD</button>
+                    <button class="btn-text" onclick="exportWriting('txt')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">导出TXT</button>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                    <button class="btn-text" onclick="runWritingAI('continue')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">AI续写</button>
+                    <button class="btn-text" onclick="runWritingAI('polish')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">AI润色</button>
+                    <button class="btn-text" onclick="runWritingAI('expand')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">AI扩写</button>
+                </div>
+                <input id="writingChapterTitleInput" placeholder="章节标题"
+                    style="width:100%; background:#111; color:#fff; border: 1px solid #333; padding: 10px; border-radius: 10px; margin-bottom:10px;" />
+                <textarea id="writingChapterContentInput" placeholder="在这里写作..."
+                    style="flex:1; width:100%; background:#0b0b0b; color:#fff; border: 1px solid #333; padding: 12px; border-radius: 10px; resize: none;"></textarea>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+                    <button class="btn-text" onclick="reloadWritingCurrentChapter()"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">刷新</button>
+                    <button class="btn-text" onclick="saveWritingCurrentChapter()"
+                        style="background: var(--accent-gold); color:#000; font-weight:900; border: none; border-radius: 10px; padding: 8px 14px; cursor: pointer;">保存</button>
+                </div>
+                <div id="writingStatusBar" style="margin-top:8px; font-size:12px; color:#888;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 角色库和资产库蒙层 -->
+    <div id="libraryOverlay" class="library-overlay" style="display: none;">
+        <div class="library-header">
+            <div class="lib-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
+                角色库与资产管理
+            </div>
+            <button class="btn-close-lib" onclick="closeLibrary()">×</button>
+        </div>
+        <div class="library-content">
+            <div class="lib-tabs">
+                <button class="lib-tab active" onclick="switchLibTab('tasks')">我的任务 (资产)</button>
+                <button class="lib-tab" onclick="switchLibTab('chars')">角色库</button>
+            </div>
+            <div id="libTasksPanel" class="lib-panel active">
+                <div id="libTasksGrid" class="lib-grid"></div>
+            </div>
+            <div id="libCharsPanel" class="lib-panel">
+                <div id="libCharsGrid" class="lib-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 电影感生成动画蒙层 -->
+    <div id="cinematicOverlay" class="cinematic-overlay" style="display: none;">
+        <div class="cinematic-bg"></div>
+        <div class="cinematic-content">
+            <div class="cine-loader">
+                <svg class="film-reel" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke="var(--accent-gold)" stroke-width="4" fill="none"
+                        stroke-dasharray="10 5" />
+                    <circle cx="50" cy="50" r="30" stroke="#fff" stroke-width="2" fill="none" />
+                    <path d="M50 20 L50 80 M20 50 L80 50" stroke="#333" stroke-width="4" />
+                </svg>
+            </div>
+            <div class="quote-container glass-effect">
+                <div class="quote-text" id="cineQuote">“电影是每秒24格的真理。”</div>
+                <div class="quote-author" id="cineAuthor">— 让-吕克·戈达尔</div>
+            </div>
+            <div class="cine-status" id="cineStatus">正在为您的创意注入灵魂...</div>
+
+            <!-- 🆕 增加控制按钮 -->
+            <div class="cine-controls" style="margin-top: 30px; display: flex; gap: 15px; z-index: 10;">
+                <button id="cinePauseBtn" onclick="pauseCurrentExecution()"
+                    style="padding: 8px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    ⏸️ 暂停
+                </button>
+                <button id="cineCancelBtn" onclick="cancelCurrentExecution()"
+                    style="padding: 8px 20px; background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.4); color: #ff8a80; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    ⏹️ 取消
+                </button>
+                <button id="cineResumeBtn" onclick="resumeCurrentExecution()"
+                    style="display: none; padding: 8px 20px; background: rgba(76,175,80,0.2); border: 1px solid rgba(76,175,80,0.4); color: #a5d6a7; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    ▶️ 继续
+                </button>
+                <button onclick="hideCinematicOverlay()"
+                    style="padding: 8px 20px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #aaa; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    ↙️ 后台运行
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 帮助与API -->
+    <div id="helpModal" class="modal">
+        <div class="modal-backdrop" onclick="closeHelpModal()"></div>
+        <div class="modal-content" style="width: 700px;">
+            <div class="modal-header">
+                <h3>❓ 使用帮助 & 功能介绍</h3>
+                <button class="btn-close" onclick="closeHelpModal()">×</button>
+            </div>
+            <div class="modal-body help-content" style="max-height: 600px; overflow-y: auto;">
+                <h4>🎁 赠送胶片福利（总额10万）</h4>
+                <div
+                    style="background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,165,0,0.1)); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="margin: 0 0 8px 0;"><strong>按会员等级解锁赠送胶片：</strong>
+                    </p>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>免费体验 <strong>500</strong> → LV10 解锁全部 <strong>10万</strong></li>
+                        <li>🖼️ <strong>1.6胶片/张</strong> 高清AI图片</li>
+                        <li>🎬 <strong>3胶片/个</strong> Sora2视频（15秒）</li>
+                        <li>📝 <strong>0.25胶片/次</strong> AI文案/剧本</li>
+                    </ul>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #aaa;">
+                        💡 胶片可灵活分配，图片/视频/文案随心用
+                    </p>
+                </div>
+
+                <h4>🚀 核心功能介绍</h4>
+                <p><strong>1. 智能批量生成：</strong> 输入一个创意，AI 自动完成"写剧本 -> 绘分镜 -> 生成视频 -> 剪辑"全流程。</p>
+                <p><strong>2. 角色一致性 (Banana2)：</strong> 开启"角色设定图"功能，AI 会先设计角色三视图，确保分镜中人物长相统一。</p>
+                <p><strong>3. 交互式画板 (Sketch)：</strong> 在画布上右键创建"绘图节点"，手绘草图或上传参考图，连线到任务卡片，精准控制画面构图。</p>
+                <p><strong>4. 自动发布 (会员)：</strong> 支持一键将生成的视频发布到抖音、B站、小红书等平台。</p>
+
+                <h4>🖱️ 画布操作指南</h4>
+                <ul>
+                    <li><strong>平移：</strong> 空格+左键拖拽，或鼠标中键拖拽。</li>
+                    <li><strong>缩放：</strong> 鼠标滚轮 (Ctrl+滚轮)。</li>
+                    <li><strong>连线：</strong> 拖拽节点右侧的"输出点"到任务卡片，即可传递参考图。</li>
+                </ul>
+
+                <h4>💎 付费用户权益</h4>
+                <ul>
+                    <li>✅ 无限使用 Banana2/Sora2/Gemini3</li>
+                    <li>✅ 全自动模式（一键出片）</li>
+                    <li>✅ 4K 高清画质</li>
+                    <li>✅ 优先队列，更快生成</li>
+                </ul>
+
+                <div class="help-btn-row">
+                    <button class="btn-primary" onclick="closeHelpModal(); openVipModal();">查看充值套餐</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 发布视频 (Playwright) -->
+    <div id="publishModal" class="modal">
+        <div class="modal-backdrop" onclick="closePublishModal()"></div>
+        <div class="modal-content" style="width: 600px;">
+            <div class="modal-header">
+                <h3>🚀 一键发布 (自动分发)</h3>
+                <button class="btn-close" onclick="closePublishModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="publish-form">
+                    <div class="form-group">
+                        <label>选择发布平台</label>
+                        <div class="platform-grid">
+                            <label class="platform-item">
+                                <input type="checkbox" value="douyin" checked>
+                                <span class="platform-icon">🎵</span> 抖音
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="bilibili" checked>
+                                <span class="platform-icon">📺</span> B站
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="xiaohongshu" checked>
+                                <span class="platform-icon">📕</span> 小红书
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="kuaishou">
+                                <span class="platform-icon">⚡</span> 快手
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="weixin">
+                                <span class="platform-icon">💬</span> 视频号
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="weibo">
+                                <span class="platform-icon">🧣</span> 微博
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>标题</label>
+                        <input type="text" id="pubTitle" class="form-input" placeholder="请输入标题" title="标题"
+                            aria-label="标题">
+                    </div>
+
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="pubDesc" class="form-input" rows="4" placeholder="请输入描述" title="描述"
+                            aria-label="描述"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>标签 (空格分隔)</label>
+                        <input type="text" id="pubTags" class="form-input" placeholder="例如：动漫 电影 分镜" title="标签（空格分隔）"
+                            aria-label="标签（空格分隔）">
+                    </div>
+
+                    <div id="publishLog" class="publish-log" style="display:none;">
+                        <div class="log-title">执行日志:</div>
+                        <div id="publishLogContent" class="log-content"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closePublishModal()">取消</button>
+                <button class="btn-primary" onclick="startPublishing()">开始自动发布</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 分享获取额度 -->
+    <div id="shareModal" class="share-modal">
+        <div class="share-content">
+            <div class="share-header">
+                <h3>🎁 分享获取额度</h3>
+                <div class="share-desc">
+                    将 AI 视频工坊分享给好友或群聊<br>
+                    <span style="color: var(--accent-gold);">免费领取今日 +3 次生成额度！</span>
+                </div>
+                <button class="btn-close" onclick="closeShareModal()"
+                    style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: #666; font-size: 24px; cursor: pointer;">×</button>
+            </div>
+
+            <div class="share-input-group">
+                <label class="share-input-label">分享链接</label>
+                <div class="share-input-box">
+                    <input type="text" id="shareLinkDisplay" readonly title="分享链接" aria-label="分享链接"
+                        placeholder="（系统生成）">
+                    <button id="copyShareLinkBtn" class="btn-copy-share">复制链接</button>
+                </div>
+
+                <label class="share-input-label" style="margin-top: 10px;">分享文案</label>
+                <div class="share-input-box">
+                    <input type="text" id="shareTextDisplay" readonly title="分享文案" aria-label="分享文案"
+                        placeholder="（系统生成）">
+                    <button id="copyShareTextBtn" class="btn-copy-share">复制文案</button>
+                </div>
+            </div>
+
+            <div class="share-actions">
+                <div style="color: #666; font-size: 12px; margin-bottom: 5px;">
+                    ⚠️ 请务必真实分享，系统将进行智能检测
+                </div>
+                <button id="verifyShareBtn" class="btn-verify-share" disabled>
+                    ⏳ 请先复制分享内容...
+                </button>
+                <button id="claimShareBonusBtn" class="btn-claim-share">
+                    🎁 我已完成分享，领取奖励
+                </button>
+                <div id="shareCountdown" style="color: #888; font-size: 12px; height: 14px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧩 Skill 配置弹窗 -->
+    <div id="skillConfigModal" class="modal" style="display:none;">
+        <div class="modal-backdrop" onclick="SkillUI.closeSkillConfig()"></div>
+        <div class="modal-content" style="width: 500px; max-width: 95vw;">
+            <div class="modal-header">
+                <h3 id="skillConfigTitle">🧩 技能配置</h3>
+                <button class="btn-close" onclick="SkillUI.closeSkillConfig()">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="skillConfigDesc" style="color: #aaa; font-size: 13px; margin-bottom: 16px; line-height: 1.5;">
+                </div>
+
+                <!-- 动态参数表单 -->
+                <div id="skillConfigForm" class="skill-config-form">
+                    <!-- 由 JS 动态生成 -->
+                </div>
+
+                <!-- 成本预估 -->
+                <div id="skillCostEstimate"
+                    style="margin-top: 16px; padding: 12px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; font-size: 13px;">
+                    <div class="skill-estimate-note" style="color: #888;">成本取决于实际生成内容</div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px;">
+                <button class="btn-secondary" onclick="SkillUI.closeSkillConfig()" style="flex: 1;">取消</button>
+                <button class="btn-primary" onclick="SkillUI.executeCurrentSkill()" style="flex: 2;">🚀 开始执行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧩 Skill 执行进度面板 -->
+    <div id="skillProgressPanel" class="cinematic-overlay" style="display:none;">
+        <div class="cinematic-bg"></div>
+        <div class="cinematic-content" style="max-width: 500px; width: 90%;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div class="cine-loader" style="margin: 0 auto 15px;">
+                    <svg class="film-reel" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" stroke="var(--accent-gold)" stroke-width="4" fill="none"
+                            stroke-dasharray="10 5" />
+                        <circle cx="50" cy="50" r="30" stroke="#fff" stroke-width="2" fill="none" />
+                        <path d="M50 20 L50 80 M20 50 L80 50" stroke="#333" stroke-width="4" />
+                    </svg>
+                </div>
+                <div id="skillProgressText" style="color: #fff; font-size: 16px; font-weight: 600;">准备中...</div>
+            </div>
+
+            <!-- 进度条 -->
+            <div
+                style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; margin-bottom: 20px; overflow: hidden;">
+                <div id="skillProgressBar"
+                    style="height: 100%; background: linear-gradient(90deg, var(--accent-gold), #f97316); border-radius: 10px; width: 0%; transition: width 0.3s ease;">
+                </div>
+            </div>
+
+            <!-- 步骤列表 -->
+            <div id="skillProgressSteps"
+                style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 15px; max-height: 200px; overflow-y: auto;">
+                <!-- 由 JS 动态添加 -->
+            </div>
+
+            <!-- 控制按钮 -->
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button onclick="SkillUI.cancelExecution()"
+                    style="flex: 1; padding: 10px 20px; background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.4); color: #ff8a80; border-radius: 20px; cursor: pointer;">
+                    ⏹️ 取消
+                </button>
+                <button onclick="document.getElementById('skillProgressPanel').style.display='none'"
+                    style="flex: 1; padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #aaa; border-radius: 20px; cursor: pointer;">
+                    ↙️ 后台运行
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase-config.js?v=1.0.3"></script>
+    <script src="js/free-api.js?v=1.0.0"></script>
+    <script src="js/knolling-node.js"></script>
+    <!-- 🎬 智能任务调度器 - 优先级队列、自动重试、断点续传 -->
+    <script src="js/task-orchestrator.js?v=1.0.0"></script>
+    <!-- 🛡️ 弹性 API 网关 - 负载均衡、熔断降级、成本优化 -->
+    <script src="js/resilient-api.js?v=1.0.0"></script>
+    <!-- 🧩 Skill 技能系统 - 用户可选择不同技能完成任务 -->
+    <script src="js/skill-system.js?v=1.0.0"></script>
+    <script src="js/skill-presets.js?v=20260225c&t=20260225c"></script>
+    <script src="js/batch.js?v=8.6.7&t=20260225e"></script>
+    <script src="js/help_modal.js"></script>
+
+    <!-- 视频编辑器模态框 -->
+    <div id="videoEditorModal" class="modal" style="display:none;">
+        <div class="modal-backdrop" onclick="closeVideoEditor()"></div>
+        <div class="modal-content"
+            style="width: 95%; max-width: 1200px; height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
+                <h3>🎬 视频编辑器</h3>
+                <button class="btn-close" onclick="closeVideoEditor()">×</button>
+            </div>
+            <div class="modal-body"
+                style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
+                <!-- 预览区域 -->
+                <div id="editorPreview"
+                    style="flex: 1; background: #000; display: flex; align-items: center; justify-content: center; min-height: 300px;">
+                    <video id="editorVideo" style="max-width: 100%; max-height: 100%;" controls></video>
+                </div>
+
+                <!-- 时间线区域 -->
+                <div id="editorTimeline"
+                    style="height: 180px; background: #1a1a2e; border-top: 1px solid #333; padding: 10px; overflow-x: auto;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span style="color: #888; font-size: 12px;">📎 拖拽排序 | ✂️ 双击裁剪 | 🔗 点击合并导出</span>
+                        <div style="margin-left: auto; display: flex; gap: 8px;">
+                            <button onclick="previewAllClips()"
+                                style="padding: 6px 12px; background: #333; border: 1px solid #555; border-radius: 4px; color: #fff; cursor: pointer;">▶️
+                                预览全部</button>
+                            <button onclick="mergeAndExport()"
+                                style="padding: 6px 12px; background: linear-gradient(135deg, var(--accent-gold), #f97316); border: none; border-radius: 4px; color: #000; font-weight: bold; cursor: pointer;">🔗
+                                合并导出</button>
+                        </div>
+                    </div>
+
+                    <!-- 时间线轨道 -->
+                    <div id="timelineTrack"
+                        style="display: flex; gap: 8px; padding: 10px; background: #0d0d1a; border-radius: 8px; min-height: 100px; align-items: center; overflow-x: auto;">
+                        <!-- 视频片段将在这里动态生成 -->
+                        <div style="color: #666; font-size: 14px;">暂无视频片段，请先生成视频</div>
+                    </div>
+                </div>
+
+                <!-- 裁剪面板（隐藏，双击片段时显示） -->
+                <div id="trimPanel"
+                    style="display: none; height: 80px; background: #222; border-top: 1px solid #444; padding: 10px 20px;">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <span style="color: #fff; font-size: 14px;">✂️ 裁剪片段 <span id="trimClipName"
+                                style="color: var(--accent-gold);"></span></span>
+                        <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+                            <span style="color: #888; font-size: 12px;">开始:</span>
+                            <input type="range" id="trimStart" min="0" max="100" value="0" style="flex: 1;">
+                            <span id="trimStartTime" style="color: #fff; font-size: 12px; width: 50px;">0.0s</span>
+                        </div>
+                        <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+                            <span style="color: #888; font-size: 12px;">结束:</span>
+                            <input type="range" id="trimEnd" min="0" max="100" value="100" style="flex: 1;">
+                            <span id="trimEndTime" style="color: #fff; font-size: 12px; width: 50px;">5.0s</span>
+                        </div>
+                        <button onclick="applyTrim()"
+                            style="padding: 6px 16px; background: var(--accent-gold); border: none; border-radius: 4px; color: #000; font-weight: bold; cursor: pointer;">应用</button>
+                        <button onclick="closeTrimPanel()"
+                            style="padding: 6px 12px; background: #444; border: none; border-radius: 4px; color: #fff; cursor: pointer;">取消</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 状态栏 -->
+            <div id="editorStatus"
+                style="padding: 8px 15px; background: #111; border-top: 1px solid #333; font-size: 12px; color: #888;">
+                就绪 | 总时长: <span id="totalDuration">0.0</span>s | 片段数: <span id="clipCount">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🛡️ 插件阻断提示 -->
+    <div id="pluginWarning" class="plugin-warning-overlay">
+        <div class="plugin-warning-card">
+            <h3>🛡️ 检测到浏览器可能拦截脚本</h3>
+            <p style="margin: 0 0 6px;">
+                页面检测到关键 SDK 或脚本未能加载。请暂时关闭翻译、脚本注入、广告/安全类插件或为本页面添加白名单，然后点击重新检测。
+            </p>
+            <ul id="pluginWarningList" class="plugin-warning-list">
+                <li>正在重新检测缺失的脚本...</li>
+            </ul>
+            <label class="plugin-warning-check">
+                <input type="checkbox" id="pluginConfirmCheckbox" checked>
+                我已关闭相关插件/代理，并允许本页加载外部脚本
+            </label>
+            <div class="plugin-warning-actions">
+                <button type="button" onclick="retryPluginDetection()">重新检测</button>
+                <button type="button" class="btn-solid" onclick="confirmPluginBypass()">我已确认，继续使用</button>
+            </div>
+            <small class="plugin-warning-hint">
+                常见影响插件：Edge Copilot、BrowserTools MCP、Immersive Translate、广告拦截/脚本注入工具等。
+            </small>
+        </div>
+    </div>
+
+    <!-- 🔧 API日志窗口 -->
+    <div id="apiLogPanel" style="
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 200px;
+        background: linear-gradient(180deg, #0a0a15 0%, #0d0d1a 100%);
+        border-top: 2px solid var(--accent-gold);
+        z-index: 9999;
+        display: none;
+        flex-direction: column;
+        font-family: 'Consolas', 'Monaco', monospace;
+    ">
+        <div
+            style="display: flex; align-items: center; justify-content: space-between; padding: 8px 15px; background: #111; border-bottom: 1px solid #333;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: var(--accent-gold); font-weight: bold;">📡 API 日志</span>
+                <span id="apiLogCount" style="color: #888; font-size: 12px;">(0 条)</span>
+                <span id="apiLogStatus"
+                    style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #1a1a2e; color: #10b981;">●
+                    就绪</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="clearApiLogs()"
+                    style="padding: 4px 10px; background: #333; border: 1px solid #555; border-radius: 4px; color: #fff; cursor: pointer; font-size: 11px;">🗑️
+                    清空</button>
+                <button onclick="copyApiLogs()"
+                    style="padding: 4px 10px; background: #333; border: 1px solid #555; border-radius: 4px; color: #fff; cursor: pointer; font-size: 11px;">📋
+                    复制</button>
+                <button onclick="toggleApiLogPanel()"
+                    style="padding: 4px 10px; background: #333; border: 1px solid #555; border-radius: 4px; color: #fff; cursor: pointer; font-size: 11px;">✕
+                    关闭</button>
+            </div>
+        </div>
+        <div id="apiLogContent"
+            style="flex: 1; overflow-y: auto; padding: 10px 15px; font-size: 12px; line-height: 1.6;">
+            <div style="color: #666;">等待 API 请求...</div>
+        </div>
+    </div>
+
+    <!-- 日志窗口切换按钮 -->
+    <button id="apiLogToggle" onclick="toggleApiLogPanel()" style="
+        position: fixed;
+        bottom: 15px;
+        right: 15px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 2px solid var(--accent-gold);
+        color: var(--accent-gold);
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 9998;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    " title="打开/关闭 API 日志">
+        📡
+    </button>
+
+    <script>
+        // 页面加载完成后初始化画布
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof setupInfiniteCanvas === 'function') {
+                setupInfiniteCanvas('taskCanvasContainer', 'taskCanvas');
+            }
+        });
+
+        // API日志相关函数
+        window.apiLogs = [];
+
+        window.toggleApiLogPanel = function () {
+            const panel = document.getElementById('apiLogPanel');
+            const toggle = document.getElementById('apiLogToggle');
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'flex';
+                toggle.style.bottom = '215px';
+                toggle.innerHTML = '✕';
+            } else {
+                panel.style.display = 'none';
+                toggle.style.bottom = '15px';
+                toggle.innerHTML = '📡';
+            }
+        };
+
+        window.clearApiLogs = function () {
+            window.apiLogs = [];
+            document.getElementById('apiLogContent').innerHTML = '<div style="color: #666;">日志已清空</div>';
+            document.getElementById('apiLogCount').textContent = '(0 条)';
+        };
+
+        window.copyApiLogs = function () {
+            const text = window.apiLogs.map(l => `[${l.time}] ${l.type}: ${l.message}`).join('\n');
+            navigator.clipboard.writeText(text).then(() => {
+                alert('日志已复制到剪贴板');
+            });
+        };
+
+        window.addApiLog = function (type, message, details) {
+            const time = new Date().toLocaleTimeString();
+            const log = { time, type, message, details };
+            window.apiLogs.push(log);
+
+            // 更新计数
+            document.getElementById('apiLogCount').textContent = `(${window.apiLogs.length} 条)`;
+
+            // 更新状态
+            const statusEl = document.getElementById('apiLogStatus');
+            if (type === 'REQUEST') {
+                statusEl.innerHTML = '● 请求中...';
+                statusEl.style.color = '#fbbf24';
+            } else if (type === 'SUCCESS') {
+                statusEl.innerHTML = '● 成功';
+                statusEl.style.color = '#10b981';
+            } else if (type === 'ERROR') {
+                statusEl.innerHTML = '● 错误';
+                statusEl.style.color = '#ef4444';
+            }
+
+            // 添加日志条目
+            const content = document.getElementById('apiLogContent');
+            const colors = {
+                'REQUEST': '#60a5fa',
+                'SUCCESS': '#10b981',
+                'ERROR': '#ef4444',
+                'INFO': '#a78bfa',
+                'WARN': '#fbbf24'
+            };
+
+            const entry = document.createElement('div');
+            entry.style.cssText = 'margin-bottom: 6px; padding: 4px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 3px solid ' + (colors[type] || '#888');
+
+            let html = `<span style="color: #666;">[${time}]</span> <span style="color: ${colors[type] || '#888'}; font-weight: bold;">${type}</span> `;
+            html += `<span style="color: #ddd;">${message}</span>`;
+
+            if (details) {
+                const detailStr = typeof details === 'string' ? details : JSON.stringify(details, null, 2);
+                if (detailStr.length > 200) {
+                    html += `<details style="margin-top: 4px;"><summary style="color: #888; cursor: pointer; font-size: 11px;">查看详情 (${detailStr.length} 字符)</summary><pre style="color: #888; font-size: 10px; margin: 4px 0; padding: 8px; background: #111; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-break: break-all;">${detailStr.substring(0, 2000)}${detailStr.length > 2000 ? '...(截断)' : ''}</pre></details>`;
+                } else {
+                    html += `<pre style="color: #888; font-size: 10px; margin: 4px 0 0; padding: 4px 8px; background: #111; border-radius: 4px; overflow-x: auto;">${detailStr}</pre>`;
+                }
+            }
+
+            entry.innerHTML = html;
+
+            // 移除初始提示
+            if (content.querySelector('div[style*="color: #666"]')?.textContent.includes('等待')) {
+                content.innerHTML = '';
+            }
+
+            content.appendChild(entry);
+            content.scrollTop = content.scrollHeight;
+
+            // 限制日志数量
+            if (window.apiLogs.length > 500) {
+                window.apiLogs.shi; ceChild(content.firstChil            }
+        };
+    </script>
+
+    <!-- 🎬 影视开场动画脚本 -->
+    <script>
+        (function () {
+            // 如果不需要显示开场动画则跳过
+            if (typeof _showIntro === 'undefined' || !_showIntro) return;
+
+            var intro = document.getElementById('cinemaIntro');
+            if (!intro) return;
+
+            var particles = document.getElementById('introParticles');
+            var clapper = document.getElementById('introClapperboard');
+            var countdown = document.getElementById('introCountdown');
+            var countdownNum = document.getElementById('countdownNumber');
+            var logo = document.getElementById('introLogo');
+            var lightSweep = document.getElementById('lightSweep');
+            var glitch = document.getElementById('glitchOverlay');
+            var eraBgs = [document.getElementById('eraBgSilent'), document.getElementById('eraBgColor'), document.getElementById('eraBgDigital'), document.getElementById('eraBgAi')];
+            var eraCards = [document.getElementById('eraCardSilent'), document.getElementById('eraCardColor'), document.getElementById('eraCardDigital'), document.getElementById('eraCardAi')];
+
+            var animationRunning = true;
+
+            // 创建粒子
+            function createParticles() {
+                for (var i = 0; i < 30; i++) {
+                    var p = document.createElement('div');
+                    p.className = 'intro-particle';
+                    p.style.left = Math.random() * 100 + '%';
+                    p.style.animationDelay = Math.random() * 2.5 + 's';
+                    p.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    particles.appendChild(p);
+                }
+            }
+
+            // 重置所有元素
+            function resetAll() {
+                clapper.classList.remove('show');
+                countdown.classList.remove('show');
+                logo.classList.remove('show');
+                lightSweep.classList.remove('animate');
+                eraBgs.forEach(function (bg) { bg.classList.remove('active'); });
+                eraCards.forEach(function (card) { card.classList.remove('show'); });
+            }
+
+            // 显示单个时代
+            function showEra(i) {
+                // 先隐藏所有背景
+                eraBgs.forEach(function (bg, j) { bg.classList.toggle('active', j === i); });
+                // 先隐藏所有卡片
+                eraCards.forEach(function (card, j) { card.classList.remove('show'); });
+                // 强制重绘确保动画重置
+                void eraCards[i].offsetWidth;
+                // 显示当前卡片
+                eraCards[i].classList.add('show');
+                lightSweep.classList.remove('animate');
+                void lightSweep.offsetWidth;
+                lightSweep.classList.add('animate');
+            }
+
+            // 播放动画
+            function playIntro() {
+                // 添加 active 类显示开场动画
+                intro.classList.add('active');
+                createParticles();
+                resetAll();
+                var t = 0;
+
+                // 场记板
+                setTimeout(function () { if (!animationRunning) return; clapper.classList.add('show'); }, t);
+                t += 1200;
+                setTimeout(function () { if (!animationRunning) return; clapper.classList.remove('show'); }, t);
+                t += 300;
+
+                // 时代演变
+                var eras = [0, 1, 2, 3];
+                eras.forEach(function (i) {
+                    setTimeout(function () {
+                        if (!animationRunning) return;
+                        showEra(i);
+                    }, t);
+                    t += 1800;
+                    setTimeout(function () {
+                        if (!animationRunning) return;
+                        glitch.classList.add('active');
+                        setTimeout(function () { glitch.classList.remove('active'); }, 150);
+                    }, t - 200);
+                });
+
+                // 倒计时
+                [3, 2, 1].forEach(function (n) {
+                    setTimeout(function () {
+                        if (!animationRunning) return;
+                        countdownNum.textContent = n;
+                        countdown.classList.remove('show');
+                        void countdown.offsetWidth;
+                        countdown.classList.add('show');
+                    }, t);
+                    t += 650;
+                });
+                t += 200;
+
+                // LOGO
+                setTimeout(function () {
+                    if (!animationRunning) return;
+                    eraBgs[3].classList.add('active');
+                    logo.classList.add('show');
+                }, t);
+                t += 1800;
+
+                // 结束
+                setTimeout(function () { finishIntro(); }, t);
+            }
+
+            // 结束动画
+            function finishIntro() {
+                if (!animationRunning) return;
+                animationRunning = false;
+                // 🔧 不移除注入的CSS，避免登录后页面闪现
+                // 直接通过CSS控制显示欢迎页和隐藏开场动画
+                var welcome = document.getElementById('welcomeScreen');
+                if (welcome) {
+                    welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
+                }
+                // 短暂延迟确保样式生效
+                setTimeout(function () {
+                    // 开始淡出intro同时淡入欢迎页
+                    intro.classList.add('fade-out');
+                    if (welcome) {
+                        welcome.style.opacity = '1';
+                    }
+                    // 淡出完成后隐藏intro
+                    setTimeout(function () {
+                        intro.classList.add('hidden');
+                    }, 600);
+                }, 20);
+            }
+
+            // 跳过动画
+            window.skipIntro = function () {
+                finishIntro();
+            };
+
+            // 启动
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', playIntro);
+            } else {
+                playIntro();
+            }
+        })();
+    </script>
+    <!-- ========== 🧊 混元生3D Modal ========== -->
+    <div id="hunyuan3dModal"
+        style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); align-items:center; justify-content:center;">
+        <div
+            style="background:#111827; border:1px solid rgba(103,232,249,0.3); border-radius:16px; width:560px; max-width:95vw; max-height:90vh; overflow-y:auto; padding:24px; position:relative;">
+            <button onclick="closeHunyuan3DModal()"
+                style="position:absolute; top:14px; right:16px; background:none; border:none; color:#888; font-size:22px; cursor:pointer; line-height:1;">×</button>
+            <h3 style="color:#67e8f9; margin:0 0 6px; font-size:18px;">🧊 混元生3D 专业版</h3>
+            <p style="color:#666; font-size:12px; margin:0 0 18px;">腾讯混元 · 文字/图片 → 高精度3D模型（GLB）· 约1-3分钟</p>
+
+            <!-- Tab 切换 -->
+            <div style="display:flex; gap:8px; margin-bottom:16px;">
+                <button id="h3d-tab-text" onclick="h3dSwitchTab('text')"
+                    style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(103,232,249,0.5); background:rgba(103,232,249,0.15); color:#67e8f9; cursor:pointer; font-size:13px; font-weight:600;">✍️
+                    文生3D</button>
+                <button id="h3d-tab-image" onclick="h3dSwitchTab('image')"
+                    style="flex:1; padding:8px; border-radius:8px; border:1px solid #333; background:transparent; color:#888; cursor:pointer; font-size:13px;">🖼️
+                    图生3D</button>
+            </div>
+
+            <!-- 文生3D -->
+            <div id="h3d-panel-text">
+                <label style="color:#aaa; font-size:12px; display:block; margin-bottom:6px;">描述想生成的3D模型</label>
+                <textarea id="h3dPrompt" placeholder="例如：一只可爱的熊猫、一辆赛车、一把中世纪宝剑..."
+                    style="width:100%; height:90px; background:#0d1117; border:1px solid #333; border-radius:8px; color:#fff; padding:10px; font-size:13px; resize:vertical; box-sizing:border-box;"></textarea>
+            </div>
+
+            <!-- 图生3D -->
+            <div id="h3d-panel-image" style="display:none;">
+                <label style="color:#aaa; font-size:12px; display:block; margin-bottom:6px;">上传参考图（正面清晰图效果最佳）</label>
+                <div id="h3dImageDrop" onclick="document.getElementById('h3dImageInput').click()"
+                    style="border:2px dashed #333; border-radius:8px; padding:24px; text-align:center; cursor:pointer; color:#666; font-size:13px; transition:border-color 0.2s;"
+                    ondragover="event.preventDefault(); this.style.borderColor='#67e8f9';"
+                    ondragleave="this.style.borderColor='#333';" ondrop="h3dHandleDrop(event)">
+                    <div style="font-size:28px; margin-bottom:8px;">📁</div>
+                    点击或拖拽图片到此处
+                </div>
+                <input type="file" id="h3dImageInput" accept="image/*" style="display:none;"
+                    onchange="h3dHandleImageSelect(this)">
+                <img id="h3dImagePreview"
+                    style="display:none; max-width:100%; max-height:160px; object-fit:contain; border-radius:8px; margin-top:10px; border:1px solid #333;">
+                <label
+                    style="color:#aaa; font-size:12px; display:block; margin-top:10px; margin-bottom:4px;">附加描述（可选）</label>
+                <input id="h3dImagePrompt" placeholder="对模型的补充描述..."
+                    style="width:100%; background:#0d1117; border:1px solid #333; border-radius:8px; color:#fff; padding:8px 10px; font-size:13px; box-sizing:border-box;">
+            </div>
+
+            <!-- 提交按钮 -->
+            <button id="h3dSubmitBtn" onclick="h3dSubmit()"
+                style="width:100%; margin-top:16px; padding:12px; background:linear-gradient(135deg,#0891b2,#6366f1); border:none; border-radius:10px; color:#fff; font-size:14px; font-weight:700; cursor:pointer;">
+                🚀 开始生成3D模型（30胶片）
+            </button>
+
+            <!-- 进度 -->
+            <div id="h3dProgress"
+                style="display:none; margin-top:14px; background:#0d1117; border:1px solid #1f2937; border-radius:10px; padding:12px;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                    <div
+                        style="width:18px; height:18px; border:2px solid #67e8f9; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;">
+                    </div>
+                    <span id="h3dProgressText" style="color:#67e8f9; font-size:13px;">正在提交任务...</span>
+                </div>
+                <div style="background:#1f2937; border-radius:4px; height:4px; overflow:hidden;">
+                    <div id="h3dProgressBar"
+                        style="height:100%; background:linear-gradient(90deg,#0891b2,#6366f1); width:5%; transition:width 0.5s;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果 -->
+            <div id="h3dResult" style="display:none; margin-top:14px;"></div>
+        </div>
+    </div>
+    <style>
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+    <script>
+        (function () {
+            var h3dTab = 'text';
+            var h3dImageData = null;
+            var h3dImageUrl = null;
+            var h3dPolling = null;
+
+            window.openHunyuan3DModal = function () {
+                document.getElementById('hunyuan3dModal').style.display = 'flex';
+                document.getElementById('h3dResult').style.display = 'none';
+                document.getElementById('h3dProgress').style.display = 'none';
+                document.getElementById('h3dSubmitBtn').disabled = false;
+            };
+            window.closeHunyuan3DModal = function () {
+                document.getElementById('hunyuan3dModal').style.display = 'none';
+                if (h3dPolling) { clearInterval(h3dPolling); h3dPolling = null; }
+            };
+            window.h3dSwitchTab = function (tab) {
+                h3dTab = tab;
+                document.getElementById('h3d-panel-text').style.display = tab === 'text' ? '' : 'none';
+                document.getElementById('h3d-panel-image').style.display = tab === 'image' ? '' : 'none';
+                document.getElementById('h3d-tab-text').style.cssText = tab === 'text'
+                    ? 'flex:1;padding:8px;border-radius:8px;border:1px solid rgba(103,232,249,0.5);background:rgba(103,232,249,0.15);color:#67e8f9;cursor:pointer;font-size:13px;font-weight:600;'
+                    : 'flex:1;padding:8px;border-radius:8px;border:1px solid #333;background:transparent;color:#888;cursor:pointer;font-size:13px;';
+                document.getElementById('h3d-tab-image').style.cssText = tab === 'image'
+                    ? 'flex:1;padding:8px;border-radius:8px;border:1px solid rgba(103,232,249,0.5);background:rgba(103,232,249,0.15);color:#67e8f9;cursor:pointer;font-size:13px;font-weight:600;'
+                    : 'flex:1;padding:8px;border-radius:8px;border:1px solid #333;background:transparent;color:#888;cursor:pointer;font-size:13px;';
+            };
+            window.h3dHandleImageSelect = function (input) {
+                if (!input.files || !input.files[0]) return;
+                h3dLoadImageFile(input.files[0]);
+            };
+            window.h3dHandleDrop = function (e) {
+                e.preventDefault();
+                document.getElementById('h3dImageDrop').style.borderColor = '#333';
+                var f = e.dataTransfer.files[0];
+                if (f && f.type.startsWith('image/')) h3dLoadImageFile(f);
+            };
+            function h3dLoadImageFile(file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    h3dImageData = e.target.result.split(',')[1];
+                    h3dImageUrl = null;
+                    var preview = document.getElementById('h3dImagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('h3dImageDrop').innerHTML = '<div style="color:#4ade80;font-size:13px;">✅ 图片已加载，点击更换</div>';
+                };
+                reader.readAsDataURL(file);
+            }
+            function h3dSetProgress(text, pct) {
+                document.getElementById('h3dProgressText').textContent = text;
+                document.getElementById('h3dProgressBar').style.width = pct + '%';
+            }
+            window.h3dSubmit = async function () {
+                var prompt = h3dTab === 'text'
+                    ? document.getElementById('h3dPrompt').value.trim()
+                    : document.getElementById('h3dImagePrompt').value.trim();
+                if (h3dTab === 'text' && !prompt) { alert('请输入文字描述'); return; }
+                if (h3dTab === 'image' && !h3dImageData && !h3dImageUrl) { alert('请上传参考图'); return; }
+
+                document.getElementById('h3dSubmitBtn').disabled = true;
+                document.getElementById('h3dProgress').style.display = 'block';
+                document.getElementById('h3dResult').style.display = 'none';
+                h3dSetProgress('正在提交任务...', 5);
+
+                try {
+                    var userId = typeof getCurrentUserId === 'function' ? await getCurrentUserId() : null;
+                    var body = { action: 'hunyuan3d-submit', userId };
+                    if (prompt) body.prompt = prompt;
+                    if (h3dTab === 'image') {
+                        if (h3dImageData) body.imageBase64 = h3dImageData;
+                        if (h3dImageUrl) body.imageUrl = h3dImageUrl;
+                    }
+                    var r = await fetch('/api/yunwu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                    var d = await r.json();
+                    if (!d.success) throw new Error(d.message || d.error || '提交失败');
+
+                    var jobId = d.jobId;
+                    h3dSetProgress('任务已提交，等待生成中（约1-3分钟）...', 15);
+
+                    // 轮询
+                    var attempts = 0;
+                    var maxAttempts = 60;
+                    h3dPolling = setInterval(async function () {
+                        attempts++;
+                        var pct = Math.min(15 + attempts * 1.3, 90);
+                        h3dSetProgress('生成中... (' + attempts + '/' + maxAttempts + ')', pct);
+
+                        try {
+                            var qr = await fetch('/api/yunwu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'hunyuan3d-query', userId, jobId }) });
+                            var qd = await qr.json();
+                            if (qd.done) {
+                                clearInterval(h3dPolling); h3dPolling = null;
+                                h3dSetProgress('生成完成！', 100);
+                                h3dShowResult(qd.files || []);
+                            } else if (qd.failed) {
+                                clearInterval(h3dPolling); h3dPolling = null;
+                                h3dShowError(qd.errorMessage || '生成失败');
+                            } else if (attempts >= maxAttempts) {
+                                clearInterval(h3dPolling); h3dPolling = null;
+                                h3dShowError('生成超时（5分钟）');
+                            }
+                        } catch (e) { console.warn('轮询异常:', e); }
+                    }, 5000);
+                } catch (e) {
+                    document.getElementById('h3dProgress').style.display = 'none';
+                    document.getElementById('h3dSubmitBtn').disabled = false;
+                    alert('错误: ' + e.message);
+                }
+            };
+            function h3dShowResult(files) {
+                document.getElementById('h3dProgress').style.display = 'none';
+                document.getElementById('h3dSubmitBtn').disabled = false;
+                var el = document.getElementById('h3dResult');
+                if (!files || files.length === 0) {
+                    el.innerHTML = '<div style="color:#f87171;text-align:center;padding:16px;">未获取到3D文件</div>';
+                    el.style.display = 'block'; return;
+                }
+                var html = '<div style="background:#0d1117;border:1px solid #1f2937;border-radius:10px;padding:14px;">';
+                html += '<div style="color:#4ade80;font-weight:700;margin-bottom:12px;font-size:14px;">✅ 3D模型生成完成</div>';
+                files.forEach(function (f, i) {
+                    if (f.previewUrl) {
+                        html += '<img src="' + f.previewUrl + '" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid #333;margin-bottom:10px;" onerror="this.style.display=\'none\'">';
+                    }
+                    html += '<div style="display:flex;gap:8px;margin-bottom:8px;">';
+                    html += '<a href="' + f.url + '" download target="_blank" style="flex:1;padding:10px;background:linear-gradient(135deg,#0891b2,#6366f1);border-radius:8px;color:#fff;text-align:center;text-decoration:none;font-size:13px;font-weight:600;">⬇️ 下载 ' + (f.type || 'GLB') + '</a>';
+                    html += '<button onclick="h3dCopyLink(\'' + f.url + '\')" style="padding:10px 14px;background:#1f2937;border:1px solid #333;border-radius:8px;color:#aaa;cursor:pointer;font-size:12px;">🔗 复制链接</button>';
+                    html += '</div>';
+                });
+                html += '<p style="color:#666;font-size:11px;margin:8px 0 0;">GLB文件可导入 Blender / Unity / Three.js 等3D软件</p>';
+                html += '</div>';
+                el.innerHTML = html;
+                el.style.display = 'block';
+            }
+            function h3dShowError(msg) {
+                document.getElementById('h3dProgress').style.display = 'none';
+                document.getElementById('h3dSubmitBtn').disabled = false;
+                var el = document.getElementById('h3dResult');
+                el.innerHTML = '<div style="background:#1f0a0a;border:1px solid #7f1d1d;border-radius:10px;padding:12px;color:#f87171;font-size:13px;">❌ ' + msg + '</div>';
+                el.style.display = 'block';
+            }
+            window.h3dCopyLink = function (url) {
+                navigator.clipboard.writeText(url).then(function () { alert('链接已复制'); }).catch(function (e) { console.error('复制链接:', url, e); });
+            };
+        })();
+    </script>
+
+    <script defer
+        src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
+        integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ=="
+        data-cf-beacon='{"version":"2024.11.0","token":"145dcb7ce94448da9feb40a29fccff28","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}'
+        crossorigin="anonymous"></script>
+</body>
+
+</html>

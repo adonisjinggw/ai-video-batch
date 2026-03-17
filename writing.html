@@ -7,6 +7,113 @@
     <title>✍️ AI写作 - RollRoll</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
+    <script src="/js/user-memory.js?v=20260213a"></script>
+    <script src="/js/skill-presets.js?v=20260213a"></script>
+    <script>
+        // 📖 全局 novelState 定义（必须在 novel-engine.js 之前）
+        window.novelState = window.novelState || {
+            mode: 'auto',
+            outline: null,
+            chapters: [],
+            currentIdx: -1,
+            paused: false,
+            writing: false,
+            totalWords: 0,
+            totalCost: 0
+        };
+
+        // 📖 加载 novel-engine.js（在 novelState 定义之后）
+    </script>
+    <script src="/js/novel-engine.js"></script>
+    <script>
+        // 🔄 全局类型切换函数（必须在 HTML onclick 之前定义）
+        window.currentType = 'story';
+        window.batchMode = false;
+
+        const _typeConfig = {
+            story: { label: '✨ 输入故事主题或大纲', placeholder: '例如：一个程序员穿越到古代，用现代知识改变历史...' },
+            article: { label: '✨ 输入文章主题', placeholder: '例如：人工智能如何改变我们的生活...' },
+            script: { label: '✨ 输入剧本场景或大纲', placeholder: '例如：一对情侣在咖啡厅重逢，气氛微妙...' },
+            poem: { label: '✨ 输入诗词主题或意境', placeholder: '例如：春天的江南，烟雨朦胧...' },
+            copy: { label: '✨ 输入产品或活动信息', placeholder: '例如：新品咖啡上市，主打健康低糖...' },
+            continue: { label: '✨ 粘贴需要续写的内容', placeholder: '粘贴你的文章开头，AI将帮你续写...' },
+            paper: { label: '📄 输入论文题目或研究方向', placeholder: '例如：基于深度学习的自然语言处理技术在医疗领域的应用研究...' },
+            novel: { label: '✨ 输入小说主题或大纲', placeholder: '例如：一个普通程序员意外获得了穿越时空的能力，在不同朝代利用现代知识改变历史走向...' }
+        };
+
+        window.switchType = function(type) {
+            window.currentType = type;
+            document.querySelectorAll('.type-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.type === type);
+            });
+
+            const isNovel = (type === 'novel');
+            const novelPanel = document.getElementById('novelPanel');
+            const batchToggle = document.getElementById('batchToggle');
+            const singleInput = document.getElementById('singleInputSection');
+            const batchInput = document.getElementById('batchInputSection');
+            const settingsRow = document.querySelector('.settings-row');
+            const generateBtn = document.getElementById('generateBtn');
+            const resultSection = document.getElementById('resultSection');
+            const batchResultSection = document.getElementById('batchResultSection');
+            const loading = document.getElementById('loading');
+
+            if (isNovel) {
+                if (novelPanel) novelPanel.classList.add('active');
+                if (batchToggle) batchToggle.style.display = 'none';
+                if (singleInput) singleInput.style.display = 'none';
+                if (batchInput) batchInput.style.display = 'none';
+                if (settingsRow) settingsRow.style.display = 'none';
+                if (generateBtn) generateBtn.style.display = 'none';
+                if (resultSection) resultSection.style.display = 'none';
+                if (batchResultSection) batchResultSection.style.display = 'none';
+                if (loading) loading.style.display = 'none';
+            } else {
+                if (novelPanel) novelPanel.classList.remove('active');
+                if (batchToggle) batchToggle.style.display = '';
+                if (settingsRow) settingsRow.style.display = '';
+                if (generateBtn) generateBtn.style.display = '';
+                if (typeof setBatchMode === 'function') setBatchMode(window.batchMode);
+
+                const config = _typeConfig[type];
+                if (config) {
+                    const inputLabel = document.getElementById('inputLabel');
+                    const contentInput = document.getElementById('contentInput');
+                    if (inputLabel) inputLabel.textContent = config.label;
+                    if (contentInput) contentInput.placeholder = config.placeholder;
+                    for (let i = 0; i < 8; i++) {
+                        const input = document.getElementById(`batchInput${i}`);
+                        if (input) {
+                            input.placeholder = `${['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣'][i]} ${config.placeholder.substring(0, 20)}...`;
+                        }
+                    }
+                }
+            }
+        };
+
+        window.setBatchMode = function(enabled) {
+            window.batchMode = enabled;
+            const singleSection = document.getElementById('singleInputSection');
+            const batchSection = document.getElementById('batchInputSection');
+            const singleBtn = document.getElementById('singleModeBtn');
+            const batchBtn = document.getElementById('batchModeBtn');
+            const resultSection = document.getElementById('resultSection');
+            const batchResultSection = document.getElementById('batchResultSection');
+            const generateBtn = document.getElementById('generateBtn');
+
+            if (singleSection) singleSection.style.display = enabled ? 'none' : 'block';
+            if (batchSection) {
+                batchSection.style.display = enabled ? 'block' : 'none';
+                if (enabled && typeof initBatchGrid === 'function') initBatchGrid();
+            }
+            if (singleBtn) singleBtn.classList.toggle('active', !enabled);
+            if (batchBtn) batchBtn.classList.toggle('active', enabled);
+            if (resultSection) resultSection.style.display = enabled ? 'none' : 'block';
+            if (batchResultSection) batchResultSection.style.display = enabled ? 'block' : 'none';
+            if (generateBtn) generateBtn.textContent = enabled ? '⚡ 批量创作' : '⚡ 开始创作';
+        };
+    </script>
+    <script src="/js/novel-features.js"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -255,7 +362,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 2000;
             display: flex;
             align-items: center;
@@ -268,7 +375,7 @@
             padding: 24px;
             max-width: 360px;
             width: 90%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
         .convert-modal-title {
@@ -310,7 +417,7 @@
 
         .convert-option-btn.active {
             border-color: var(--accent);
-            background: rgba(250,204,21,0.15);
+            background: rgba(250, 204, 21, 0.15);
             color: var(--accent);
         }
 
@@ -384,6 +491,7 @@
             gap: 8px;
             margin-bottom: 16px;
         }
+
         .batch-toggle-btn {
             flex: 1;
             padding: 10px 16px;
@@ -396,17 +504,20 @@
             text-align: center;
             transition: all 0.2s;
         }
+
         .batch-toggle-btn.active {
             background: var(--accent);
             border-color: var(--accent);
             color: #000;
         }
+
         .batch-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin-bottom: 16px;
         }
+
         .batch-item {
             position: relative;
             background: var(--bg-input);
@@ -417,6 +528,7 @@
             display: flex;
             flex-direction: column;
         }
+
         .batch-item textarea {
             width: 100%;
             flex: 1;
@@ -429,17 +541,20 @@
             resize: none;
             line-height: 1.5;
         }
+
         .batch-item textarea:focus {
             outline: none;
         }
+
         .batch-item-params {
             display: flex;
             flex-wrap: wrap;
             gap: 3px;
             padding: 4px 5px;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0, 0, 0, 0.3);
             border-top: 1px solid #222;
         }
+
         .batch-item-params select {
             flex: 1;
             min-width: 45%;
@@ -451,9 +566,11 @@
             color: var(--text);
             cursor: pointer;
         }
+
         .batch-item.generating {
             border-color: var(--accent);
         }
+
         .batch-item.generating::before {
             content: '✍️';
             position: absolute;
@@ -462,16 +579,27 @@
             font-size: 16px;
             animation: pulse 1s ease-in-out infinite;
         }
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
+
         .batch-item.done {
             border-color: #22c55e;
         }
+
         .batch-item.error {
             border-color: #ef4444;
         }
+
         .batch-result-section {
             margin-top: 16px;
             padding: 16px;
@@ -479,6 +607,7 @@
             border-radius: 12px;
             border: 1px solid #333;
         }
+
         .batch-result-header {
             display: flex;
             justify-content: space-between;
@@ -487,16 +616,19 @@
             flex-wrap: wrap;
             gap: 8px;
         }
+
         .batch-result-header h3 {
             margin: 0;
             font-size: 16px;
             color: var(--accent);
         }
+
         .batch-result-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
         }
+
         .batch-action-btn {
             padding: 8px 12px;
             border-radius: 8px;
@@ -507,38 +639,46 @@
             cursor: pointer;
             transition: all 0.2s;
         }
+
         .batch-action-btn:hover {
             border-color: var(--accent);
         }
+
         .batch-action-btn.primary {
             background: var(--accent);
             border-color: var(--accent);
             color: #000;
         }
+
         .batch-result-list {
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
+
         .batch-result-item {
             background: var(--bg-dark);
             border-radius: 8px;
             padding: 12px;
             border: 1px solid #333;
         }
+
         .batch-result-item.selected {
             border-color: #22c55e;
         }
+
         .batch-result-item.error {
             border-color: #ef4444;
             background: rgba(239, 68, 68, 0.1);
         }
+
         .batch-result-item-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 8px;
         }
+
         .batch-result-item-index {
             background: var(--accent);
             color: #000;
@@ -547,10 +687,12 @@
             padding: 2px 8px;
             border-radius: 4px;
         }
+
         .batch-result-item-actions {
             display: flex;
             gap: 6px;
         }
+
         .batch-result-item-actions button {
             padding: 4px 8px;
             font-size: 11px;
@@ -560,6 +702,7 @@
             color: var(--text-dim);
             cursor: pointer;
         }
+
         .batch-result-item-text {
             font-size: 13px;
             line-height: 1.6;
@@ -568,7 +711,249 @@
             max-height: 150px;
             overflow-y: auto;
         }
+
+        /* ==================== 📖 长篇小说模块 ==================== */
+        .novel-panel {
+            display: none;
+        }
+
+        .novel-panel.active {
+            display: block;
+        }
+
+        .novel-settings {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .novel-settings .setting-item {
+            flex: 1;
+            min-width: 45%;
+        }
+
+        .novel-outline-box {
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            color: var(--text-dim);
+        }
+
+        .novel-outline-box[contenteditable="true"] {
+            color: var(--text);
+            cursor: text;
+        }
+
+        .novel-outline-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .novel-progress {
+            margin-bottom: 16px;
+        }
+
+        .novel-progress-bar {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .novel-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #f59e0b);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .novel-progress-text {
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .novel-chapter-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .novel-chapter-item {
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .novel-chapter-item:hover {
+            border-color: #555;
+        }
+
+        .novel-chapter-item.active {
+            border-color: var(--accent);
+            background: rgba(251, 191, 36, 0.08);
+        }
+
+        .novel-chapter-item.done {
+            border-left: 3px solid #22c55e;
+        }
+
+        .novel-chapter-item.generating {
+            border-left: 3px solid var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+
+        .novel-chapter-item.error {
+            border-left: 3px solid #ef4444;
+        }
+
+        .novel-chapter-item .ch-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .novel-chapter-item .ch-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .ch-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .ch-actions button {
+            padding: 8px 12px;
+            font-size: 12px;
+            background: var(--bg-input, #1a1a24);
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: var(--text, #eee);
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(251, 191, 36, 0.3);
+            touch-action: manipulation;
+        }
+
+        .ch-actions button:active {
+            background: rgba(251, 191, 36, 0.2);
+            border-color: var(--accent);
+        }
+
+        .novel-chapter-content {
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 14px;
+            line-height: 1.9;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+
+        .novel-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .novel-actions button {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .novel-actions button:hover {
+            border-color: var(--accent);
+        }
+
+        .novel-actions button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .novel-actions button.primary {
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            color: #000;
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .novel-mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .novel-mode-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .novel-mode-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+            font-weight: 600;
+        }
+
+        .novel-stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+            flex-wrap: wrap;
+        }
+
+        .novel-stats span {
+            background: var(--bg-card);
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        .novel-stats .accent {
+            color: var(--accent);
+            font-weight: 600;
+        }
     </style>
+    <link rel="stylesheet" href="/css/novel-enhanced.css">
 </head>
 
 <body>
@@ -586,10 +971,12 @@
             <button class="type-tab" data-type="poem" onclick="switchType('poem')">🌸 诗词</button>
             <button class="type-tab" data-type="copy" onclick="switchType('copy')">📢 文案</button>
             <button class="type-tab" data-type="continue" onclick="switchType('continue')">✨ 续写</button>
+            <button class="type-tab" data-type="paper" onclick="switchType('paper')">📄 论文</button>
+            <button class="type-tab" data-type="novel" onclick="switchType('novel')">📖 长篇小说</button>
         </div>
 
-        <!-- 🆕 单篇/批量模式切换 -->
-        <div class="batch-toggle">
+        <!-- 单篇/批量模式切换（非小说模式时显示） -->
+        <div class="batch-toggle" id="batchToggle">
             <button class="batch-toggle-btn active" onclick="setBatchMode(false)" id="singleModeBtn">📝 单篇模式</button>
             <button class="batch-toggle-btn" onclick="setBatchMode(true)" id="batchModeBtn">📚 批量模式 (8格)</button>
         </div>
@@ -619,19 +1006,36 @@
             </div>
             <div class="setting-item">
                 <label>内容长度</label>
-                <select id="lengthSelect">
+                <select id="lengthSelect" onchange="toggleCustomLength()">
                     <option value="short">短篇 (~300字)</option>
                     <option value="medium" selected>中篇 (~800字)</option>
                     <option value="long">长篇 (~1500字)</option>
+                    <option value="extralong">超长篇 (~3000字)</option>
+                    <option value="nolimit">不限字数</option>
+                    <option value="custom">自定义字数</option>
                 </select>
+                <input type="number" id="customLengthInput" placeholder="输入字数，如2000" min="100" max="50000"
+                    style="display:none;margin-top:4px;width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-size:12px;">
             </div>
             <div class="setting-item">
                 <label>写作模型</label>
                 <select id="writerModelSelect">
                     <option value="yunwu:grok-4-fast" selected>🌟 Grok-4 Fast（首选）</option>
+                    <option value="yunwu:grok-4.1">🌟 Grok-4.1</option>
+                    <option value="qwen3.5-plus">🧠 Qwen3.5-Plus</option>
                     <option value="mimo">⚡ MIMO</option>
                     <option value="yunwu:qwen-plus">☁️ 云雾 qwen-plus</option>
                     <option value="roll">🆓 魔塔 roll（需配置）</option>
+                    <optgroup label="🆓 OpenRouter 免费模型">
+                        <option value="openrouter:openrouter/hunter-alpha">🆓 Hunter Alpha</option>
+                        <option value="openrouter:openrouter/healer-alpha">🆓 Healer Alpha</option>
+                        <option value="openrouter:nvidia/nemotron-3-super-120b-a12b:free">🆓 Nemotron 120B</option>
+                        <option value="openrouter:bytedance-seed/seedream-4.5">🆓 Seedream 4.5</option>
+                    </optgroup>
+                    <optgroup label="⭐ OpenRouter 付费模型">
+                        <option value="openrouter:bytedance-seed/seed-2.0-lite">⭐ Seed 2.0 Lite</option>
+                        <option value="openrouter:bytedance-seed/seed-2.0-mini">⭐ Seed 2.0 Mini</option>
+                    </optgroup>
                 </select>
             </div>
         </div>
@@ -661,16 +1065,20 @@
             <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #333;">
                 <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px;">📤 导出到</div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="result-btn" onclick="pushToImageGen()" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); border-color: rgba(34,197,94,0.5);">
+                    <button class="result-btn" onclick="pushToImageGen()"
+                        style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); border-color: rgba(34,197,94,0.5);">
                         🖼️ 生成AI图片
                     </button>
-                    <button class="result-btn" onclick="showConvertModal('video')" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.5);">
+                    <button class="result-btn" onclick="showConvertModal('video')"
+                        style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.5);">
                         🎬 生成AI视频
                     </button>
-                    <button class="result-btn" onclick="showConvertModal('comic')" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5);">
+                    <button class="result-btn" onclick="showConvertModal('comic')"
+                        style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5);">
                         📚 生成AI漫画
                     </button>
-                    <button class="result-btn" onclick="pushToVoice()" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1)); border-color: rgba(251,191,36,0.5);">
+                    <button class="result-btn" onclick="pushToVoice()"
+                        style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1)); border-color: rgba(251,191,36,0.5);">
                         🎤 去生成配音
                     </button>
                 </div>
@@ -691,40 +1099,258 @@
             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #333;">
                 <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">📤 批量推送选中内容到</div>
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                    <button class="batch-action-btn" onclick="pushBatchToImageGen()" style="background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); border-color: rgba(34,197,94,0.5); padding: 12px;">
+                    <button class="batch-action-btn" onclick="pushBatchToImageGen()"
+                        style="background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); border-color: rgba(34,197,94,0.5); padding: 12px;">
                         🖼️ 批量生图
                     </button>
-                    <button class="batch-action-btn" onclick="pushBatchToVideo()" style="background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.5); padding: 12px;">
+                    <button class="batch-action-btn" onclick="pushBatchToVideo()"
+                        style="background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.5); padding: 12px;">
                         🎬 批量视频
                     </button>
-                    <button class="batch-action-btn" onclick="pushBatchToComic()" style="background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5); padding: 12px;">
+                    <button class="batch-action-btn" onclick="pushBatchToComic()"
+                        style="background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5); padding: 12px;">
                         📚 批量漫画
                     </button>
-                    <button class="batch-action-btn" onclick="pushBatchToVoice()" style="background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1)); border-color: rgba(251,191,36,0.5); padding: 12px;">
+                    <button class="batch-action-btn" onclick="pushBatchToVoice()"
+                        style="background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1)); border-color: rgba(251,191,36,0.5); padding: 12px;">
                         🎤 批量配音
                     </button>
                 </div>
             </div>
         </div>
 
+        <!-- 📖 长篇小说面板 -->
+        <div class="novel-panel" id="novelPanel">
+            <div class="novel-header">
+                <h2>📖 长篇小说工作台</h2>
+                <p>AI自动生成大纲 → 逐章写作 → 断点续写 · 云端保存 · 一键导出</p>
+            </div>
+            <div class="novel-restore-banner" id="novelRestoreBanner" style="display:none;">
+                <div class="restore-info"></div>
+                <button class="restore-btn" onclick="novelRestoreState()">📂 恢复</button>
+                <button class="dismiss-btn" onclick="novelDismissRestore()">✕</button>
+            </div>
+            <div class="novel-project-bar">
+                <select id="novelProjectSelect" onchange="novelOnProjectSelect()">
+                    <option value="">-- 选择项目 --</option>
+                </select>
+                <button onclick="novelNewProject()">➕ 新建</button>
+                <button onclick="novelSaveCurrentProject(); showToast('已保存')">💾</button>
+                <button onclick="novelSaveToFile()" title="下载到手机本地">📱 存手机</button>
+                <button onclick="document.getElementById('novelFileInput').click()" title="从手机加载">📂 加载</button>
+                <button onclick="novelCloudSave()" title="分享到百度网盘/夸克/微信等云盘">☁️ 存云盘</button>
+                <button onclick="novelCloudLoad()" title="从云端恢复">⬇️</button>
+                <button onclick="if(novelState.currentProjectId) novelDeleteProject(novelState.currentProjectId)"
+                    title="删除项目">🗑️</button>
+            </div>
+            <input type="file" id="novelFileInput" accept=".json" style="display:none"
+                onchange="novelLoadFromFile(this)" />
+            <div class="input-section">
+                <label class="input-label">📖 小说主题/构想</label>
+                <textarea class="input-box" id="novelThemeInput"
+                    placeholder="例如：一个普通程序员意外获得了穿越时空的能力，在不同朝代利用现代知识改变历史走向..."></textarea>
+            </div>
+            <div class="novel-settings">
+                <div class="setting-item">
+                    <label>题材类型</label>
+                    <select id="novelGenreSelect">
+                        <option value="玄幻">🔮 玄幻</option>
+                        <option value="都市">🏙️ 都市</option>
+                        <option value="科幻">🚀 科幻</option>
+                        <option value="言情">💕 言情</option>
+                        <option value="悬疑">🔍 悬疑</option>
+                        <option value="历史">📜 历史</option>
+                        <option value="武侠">⚔️ 武侠</option>
+                        <option value="奇幻">🧙 奇幻</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>目标章节数</label>
+                    <select id="novelChapterCount">
+                        <option value="10">10章 (~5万字)</option>
+                        <option value="30">30章 (~15万字)</option>
+                        <option value="50" selected>50章 (~25万字)</option>
+                        <option value="100">100章 (~50万字)</option>
+                        <option value="200">200章 (~100万字)</option>
+                        <option value="500">500章 (~250万字)</option>
+                        <option value="1000">1000章 (~500万字)</option>
+                        <option value="2000">2000章 (~1000万字)</option>
+                        <option value="5000">5000章 (~2500万字)</option>
+                        <option value="custom">自定义...</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>每章字数</label>
+                    <select id="novelChapterLength">
+                        <option value="3000">~3000字</option>
+                        <option value="5000" selected>~5000字</option>
+                        <option value="8000">~8000字</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>写作模型</label>
+                    <select id="novelModelSelect">
+                        <option value="qwen3.5-plus" selected>🧠 Qwen3.5-Plus（推荐）</option>
+                        <option value="yunwu:qwen-plus">☁️ Qwen-Plus</option>
+                        <option value="yunwu:grok-4-fast">⚡ Grok-4 Fast</option>
+                        <option value="yunwu:grok-4.1">🌟 Grok-4.1</option>
+                        <optgroup label="🆓 OpenRouter 免费模型">
+                            <option value="openrouter:openrouter/hunter-alpha">🆓 Hunter Alpha</option>
+                            <option value="openrouter:openrouter/healer-alpha">🆓 Healer Alpha</option>
+                            <option value="openrouter:nvidia/nemotron-3-super-120b-a12b:free">🆓 Nemotron 120B</option>
+                            <option value="openrouter:bytedance-seed/seedream-4.5">🆓 Seedream 4.5</option>
+                        </optgroup>
+                        <optgroup label="⭐ OpenRouter 付费模型">
+                            <option value="openrouter:bytedance-seed/seed-2.0-lite">⭐ Seed 2.0 Lite</option>
+                            <option value="openrouter:bytedance-seed/seed-2.0-mini">⭐ Seed 2.0 Mini</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+            <div class="novel-actions" id="novelStep1">
+                <button class="primary" onclick="novelGenerateOutline()">📋 生成大纲</button>
+            </div>
+            <div id="novelOutlineSection" style="display:none;">
+                <label class="input-label">📋 小说大纲（可编辑）</label>
+                <div class="novel-outline-box" id="novelOutlineBox" contenteditable="true"></div>
+                <div class="novel-mode-toggle">
+                    <button class="novel-mode-btn active" id="novelAutoBtn" onclick="setNovelMode('auto')">🚀
+                        AI自动生成全部</button>
+                    <button class="novel-mode-btn" id="novelManualBtn" onclick="setNovelMode('manual')">✍️
+                        逐章控制节奏</button>
+                </div>
+                <div class="novel-actions" id="novelStep2">
+                    <button class="primary" id="novelStartBtn" onclick="novelStartWriting()">🚀 开始写作</button>
+                    <button id="novelPauseBtn" onclick="novelTogglePause()" style="display:none;">⏸️ 暂停</button>
+                    <button id="novelNextBtn" onclick="novelWriteNextChapter()" style="display:none;">✍️ 生成下一章</button>
+                </div>
+            </div>
+            <div class="novel-progress" id="novelProgress" style="display:none;">
+                <div class="novel-progress-text">
+                    <span id="novelProgressLabel">准备中...</span>
+                    <span id="novelProgressPercent">0%</span>
+                </div>
+                <div class="novel-progress-bar">
+                    <div class="novel-progress-fill" id="novelProgressFill" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="novel-stats" id="novelStats" style="display:none;">
+                <span>📊 总字数: <b class="accent" id="novelTotalWords">0</b></span>
+                <span>📖 已完成: <b class="accent" id="novelDoneCount">0</b>/<b id="novelTotalCount">0</b>章</span>
+                <span>💰 已消耗: <b class="accent" id="novelCostCount">0</b>胶片</span>
+            </div>
+            <div class="novel-cost-preview" id="novelCostPreview"></div>
+            <div class="novel-stats-dashboard" id="novelStatsDashboard"></div>
+            <div class="novel-character-section" id="novelCharSection" style="display:none;">
+                <div class="section-title"
+                    style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+                    <span>🎭 角色卡片</span>
+                    <div style="display:flex;gap:6px;">
+                        <button onclick="novelReExtractCharacters()"
+                            style="padding:6px 10px;background:#444;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;">🔄
+                            重新识别</button>
+                        <button onclick="novelGenerateAllCharImages()"
+                            style="padding:6px 10px;background:linear-gradient(135deg,#6c5ce7,#a855f7);color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:bold;">🎨
+                            一键生成全部角色图</button>
+                    </div>
+                </div>
+                <div class="novel-char-cards" id="novelCharCards"></div>
+            </div>
+            <div class="novel-consistency-report" id="novelConsistencyReport"></div>
+            <div class="novel-chapter-list" id="novelChapterList"></div>
+            <div class="novel-chapter-content" id="novelChapterContent" style="display:none;"></div>
+            <div class="novel-actions" id="novelExportActions" style="display:none;">
+                <button onclick="novelCopyAll()"> 复制全部</button>
+                <button onclick="novelDownloadTxt()"> 下载TXT</button>
+                <button onclick="novelCopyChapter()"> 当前章</button>
+                <button onclick="novelDownloadEpubSimple()"> 电子书</button>
+                <button onclick="novelDownloadMarkdown()"> MD</button>
+                <button onclick="novelCheckConsistency()"> 一致性</button>
+                <button onclick="novelOpenReader(novelState.currentIdx >= 0 ? novelState.currentIdx : 0)"> 阅读</button>
+                <button onclick="novelDeAIAll()"
+                    style="background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;font-weight:600;">🧹
+                    去AI化</button>
+                <button onclick="novelShowPublishPanel()"
+                    style="background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:700;"> 发布</button>
+            </div>
+        </div>
+
         <div class="history-section" id="historySection">
-            <div class="result-title">📚 历史记录</div>
+            <div class="result-title"> 历史记录</div>
             <div id="historyList"></div>
         </div>
     </main>
 
     <div class="toast" id="toast"></div>
 
+    <!-- 📖 连续滚动阅读模式浮层 -->
+    <div class="novel-reading-overlay" id="novelReadingOverlay">
+        <div class="novel-reading-header">
+            <span id="novelReaderTitle">📖 小说阅读</span>
+            <span id="novelReaderPageInfo" style="font-size:12px;color:#888;"></span>
+            <div style="display:flex;gap:8px;">
+                <button onclick="novelToggleSettings()" title="阅读设置">⚙️</button>
+                <button onclick="novelCloseReader()">✕ 关闭</button>
+            </div>
+        </div>
+        <!-- 章节导航浮层 -->
+        <div class="reader-chapter-float" id="readerChapterFloat">
+            <button onclick="novelGoToPrevChapter()" title="上一章">◀ 上一章</button>
+            <span id="novelReaderChapterInfo"></span>
+            <button onclick="novelGoToNextChapter()" title="下一章">下一章 ▶</button>
+        </div>
+        <!-- 连续滚动内容区 -->
+        <div class="novel-reader-scroll" id="novelReaderScroll">
+            <div class="novel-reader-content" id="novelReaderContent"></div>
+        </div>
+        <!-- 阅读设置面板 -->
+        <div class="reader-settings-panel" id="readerSettingsPanel">
+            <div class="setting-item">
+                <label>字体大小</label>
+                <div class="font-size-controls">
+                    <button onclick="novelChangeFontSize(-2)">A-</button>
+                    <span id="fontSizeDisplay">18px</span>
+                    <button onclick="novelChangeFontSize(2)">A+</button>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label>阅读主题</label>
+                <div class="theme-options">
+                    <div class="theme-option paper active" onclick="novelChangeTheme('paper')" title="羊皮纸"></div>
+                    <div class="theme-option dark" onclick="novelChangeTheme('dark')" title="夜间模式"></div>
+                    <div class="theme-option light" onclick="novelChangeTheme('light')" title="简洁白"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 阅读进度条 -->
+        <div class="reader-progress-bar" id="readerProgressBar">
+            <div class="progress-fill" id="readerProgressFill" style="width:0%"></div>
+        </div>
+    </div>
+
+    <!-- ✏️ 微调弹窗 -->
+    <div class="novel-tweak-modal" id="novelTweakModal" style="display:none;">
+        <div class="novel-tweak-box">
+            <div class="tweak-title" style="font-weight:600;margin-bottom:4px;"></div>
+            <textarea placeholder="输入修改指令..."></textarea>
+            <div class="tweak-actions">
+                <button class="tweak-cancel" onclick="novelCloseTweakModal()">取消</button>
+                <button class="tweak-confirm" onclick="novelConfirmTweak()">确认微调</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 🎬 转视频/漫画弹窗 -->
     <div class="convert-modal-overlay" id="convertModal" style="display:none;" onclick="hideConvertModal(event)">
         <div class="convert-modal" onclick="event.stopPropagation()">
             <div class="convert-modal-title" id="convertModalTitle">🎬 生成AI视频</div>
-            
+
             <!-- 目标产品选择 -->
             <div class="convert-option-group">
                 <span class="convert-option-label">选择目标产品</span>
                 <div class="convert-option-row">
-                    <button class="convert-option-btn active" data-target="video" onclick="selectConvertTarget('video')">
+                    <button class="convert-option-btn active" data-target="video"
+                        onclick="selectConvertTarget('video')">
                         🎬 AI视频
                     </button>
                     <button class="convert-option-btn" data-target="comic" onclick="selectConvertTarget('comic')">
@@ -732,12 +1358,13 @@
                     </button>
                 </div>
             </div>
-            
+
             <!-- 操作模式选择 -->
             <div class="convert-option-group">
                 <span class="convert-option-label">选择操作模式</span>
                 <div class="convert-option-row">
-                    <button class="convert-option-btn active" data-mode="full-auto" onclick="selectConvertMode('full-auto')">
+                    <button class="convert-option-btn active" data-mode="full-auto"
+                        onclick="selectConvertMode('full-auto')">
                         🚀 全自动
                     </button>
                     <button class="convert-option-btn" data-mode="semi-auto" onclick="selectConvertMode('semi-auto')">
@@ -748,12 +1375,13 @@
                     </button>
                 </div>
             </div>
-            
+
             <!-- 模式说明 -->
-            <div id="convertModeDesc" style="font-size: 11px; color: var(--text-dim); padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 8px; line-height: 1.5;">
+            <div id="convertModeDesc"
+                style="font-size: 11px; color: var(--text-dim); padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 8px; line-height: 1.5;">
                 🚀 <b>全自动</b>：一键启动，AI自动完成全部流程
             </div>
-            
+
             <!-- 操作按钮 -->
             <div class="convert-modal-actions">
                 <button class="convert-modal-btn cancel" onclick="hideConvertModal()">取消</button>
@@ -771,7 +1399,7 @@
         function goBack() {
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
-            
+
             if (fromMobile) {
                 // 从mobile.html跳转来的，直接返回mobile.html
                 location.href = 'mobile.html?skip_welcome=1';
@@ -781,12 +1409,11 @@
             }
         }
 
-        let currentType = 'story';
+        // 使用全局变量 window.currentType 和 window.batchMode
         let currentResult = '';
         let history = [];
-        
+
         // 🆕 批量模式状态
-        let batchMode = false;
         let batchResults = [];  // { index, input, result, error, selected }
 
         const typeConfig = {
@@ -795,30 +1422,15 @@
             script: { label: '✨ 输入剧本场景或大纲', placeholder: '例如：一对情侣在咖啡厅重逢，气氛微妙...' },
             poem: { label: '✨ 输入诗词主题或意境', placeholder: '例如：春天的江南，烟雨朦胧...' },
             copy: { label: '✨ 输入产品或活动信息', placeholder: '例如：新品咖啡上市，主打健康低糖...' },
-            continue: { label: '✨ 粘贴需要续写的内容', placeholder: '粘贴你的文章开头，AI将帮你续写...' }
+            continue: { label: '✨ 粘贴需要续写的内容', placeholder: '粘贴你的文章开头，AI将帮你续写...' },
+            paper: { label: '📄 输入论文题目或研究方向', placeholder: '例如：基于深度学习的自然语言处理技术在医疗领域的应用研究...' },
+            novel: { label: '✨ 输入小说主题或大纲', placeholder: '例如：一个普通程序员意外获得了穿越时空的能力，在不同朝代利用现代知识改变历史走向...' }
         };
-
-        function switchType(type) {
-            currentType = type;
-            document.querySelectorAll('.type-tab').forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.type === type);
-            });
-            const config = typeConfig[type];
-            document.getElementById('inputLabel').textContent = config.label;
-            document.getElementById('contentInput').placeholder = config.placeholder;
-            // 🆕 更新批量模式的占位符
-            for (let i = 0; i < 8; i++) {
-                const input = document.getElementById(`batchInput${i}`);
-                if (input) {
-                    input.placeholder = `${['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'][i]} ${config.placeholder.substring(0, 20)}...`;
-                }
-            }
-        }
 
         // 🆕 初始化批量输入框（带独立参数：类型、风格、长度、模型）
         function initBatchGrid() {
             const grid = document.getElementById('batchGrid');
-            const emojis = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
+            const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣'];
             grid.innerHTML = '';
             for (let i = 0; i < 8; i++) {
                 grid.innerHTML += `
@@ -827,70 +1439,62 @@
                         <div class="batch-item-params">
                             <select id="batchType${i}">
                                 <option value="">--类型--</option>
-                                <option value="story">📖故事</option>
-                                <option value="article">📝文章</option>
-                                <option value="script">🎬剧本</option>
-                                <option value="poem">🌸诗词</option>
-                                <option value="copy">📢文案</option>
-                                <option value="continue">✨续写</option>
+                                <option value="story">故事</option>
+                                <option value="article">文章</option>
+                                <option value="script">剧本</option>
+                                <option value="poem">诗词</option>
+                                <option value="copy">文案</option>
+                                <option value="continue">续写</option>
+                                <option value="paper">论文</option>
                             </select>
                             <select id="batchStyle${i}">
                                 <option value="">--风格--</option>
-                                <option value="normal">📝正常</option>
-                                <option value="humorous">😂幽默</option>
-                                <option value="literary">📚文艺</option>
-                                <option value="professional">💼专业</option>
-                                <option value="simple">🎯简洁</option>
+                                <option value="normal">正常</option>
+                                <option value="humorous">幽默</option>
+                                <option value="literary">文艺</option>
+                                <option value="professional">专业</option>
+                                <option value="simple">简洁</option>
                             </select>
                             <select id="batchLength${i}">
                                 <option value="">--长度--</option>
                                 <option value="short">短~300</option>
                                 <option value="medium">中~800</option>
                                 <option value="long">长~1500</option>
+                                <option value="extralong">超长~3000</option>
+                                <option value="nolimit">不限</option>
                             </select>
                             <select id="batchModel${i}">
                                 <option value="">--模型--</option>
+                                <option value="qwen3.5-plus">🧠3.5Plus</option>
                                 <option value="mimo">⚡MIMO</option>
+                                <option value="yunwu:grok-4-fast">⚡Grok-4 Fast</option>
+                                <option value="yunwu:grok-4.1">🌟Grok-4.1</option>
                                 <option value="yunwu:qwen-plus">☁️云雾</option>
                                 <option value="roll">🆓魔塔</option>
+                                <optgroup label="🆓 OpenRouter 免费">
+                                    <option value="openrouter:openrouter/hunter-alpha">🆓Hunter Alpha</option>
+                                    <option value="openrouter:openrouter/healer-alpha">🆓Healer Alpha</option>
+                                    <option value="openrouter:nvidia/nemotron-3-super-120b-a12b:free">🆓Nemotron 120B</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>
                 `;
             }
         }
-        
-        // 🆕 切换单篇/批量模式
-        function setBatchMode(isBatch) {
-            batchMode = isBatch;
-            const singleInput = document.getElementById('singleInputSection');
-            const batchInput = document.getElementById('batchInputSection');
-            const singleBtn = document.getElementById('singleModeBtn');
-            const batchBtn = document.getElementById('batchModeBtn');
-            const resultSection = document.getElementById('resultSection');
-            const batchResultSection = document.getElementById('batchResultSection');
-            
-            if (isBatch) {
-                singleInput.style.display = 'none';
-                batchInput.style.display = 'block';
-                singleBtn.classList.remove('active');
-                batchBtn.classList.add('active');
-                resultSection.style.display = 'none';
-                document.getElementById('generateBtn').textContent = '⚡ 批量创作';
-                initBatchGrid();  // 初始化批量输入框
-            } else {
-                singleInput.style.display = 'block';
-                batchInput.style.display = 'none';
-                singleBtn.classList.add('active');
-                batchBtn.classList.remove('active');
-                batchResultSection.style.display = 'none';
-                document.getElementById('generateBtn').textContent = '⚡ 开始创作';
+
+        // 🆕 自定义字数输入框显隐控制
+        function toggleCustomLength() {
+            const sel = document.getElementById('lengthSelect');
+            const input = document.getElementById('customLengthInput');
+            if (sel && input) {
+                input.style.display = sel.value === 'custom' ? 'block' : 'none';
             }
         }
 
         // 🆕 生成入口（根据模式分发）
         function handleGenerate() {
-            if (batchMode) {
+            if (window.batchMode) {
                 generateBatchContent();
             } else {
                 generateContent();
@@ -924,7 +1528,7 @@
 
         function viewHistory(index) {
             const item = history[index];
-            currentType = item.type;
+            window.currentType = item.type;
             switchType(item.type);
             document.getElementById('contentInput').value = item.input;
             currentResult = item.result;
@@ -974,7 +1578,10 @@
             const lengthMap = {
                 short: '约300字',
                 medium: '约800字',
-                long: '约1500字'
+                long: '约1500字',
+                extralong: '约3000字',
+                nolimit: '不限制字数，尽可能详尽完整地写',
+                custom: '约' + (document.getElementById('customLengthInput').value || '1000') + '字'
             };
 
             // 🔧 优化后的提示词：要求简洁、无冗余、符合人类阅读习惯
@@ -984,17 +1591,32 @@
                 script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出剧本，包含角色对话和简洁的场景描述\n3. 不要写创意分析或多个版本`,
                 poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，可以是现代诗或古诗词\n2. 直接输出诗词正文\n3. 不要写解析或多个版本`,
                 copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，吸引人，有创意\n2. 直接输出一个精炼的文案，不要多个版本或选项\n3. 简洁有力，避免冗长`,
-                continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明`
+                continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明`,
+                paper: `请根据以下题目撰写一篇学术论文：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 包含摘要、关键词、引言、正文（分章节）、结论、参考文献\n3. 语言严谨规范，逻辑清晰，论据充分\n4. 直接输出论文正文，不要元评论`
             };
 
             try {
                 const selectedModel = document.getElementById('writerModelSelect').value;
+                const selectedStyle = document.getElementById('styleSelect').value;
+                
+                // 🧠 注入用户记忆到 prompt
+                let finalPrompt = typePromptMap[window.currentType];
+                try {
+                    const memoryPrompt = window.getUserMemoryPrompt();
+                    if (memoryPrompt) {
+                        finalPrompt = memoryPrompt + '\n\n' + finalPrompt;
+                        console.log('🧠 [AI写作] 已注入用户记忆');
+                    }
+                } catch (e) {
+                    console.warn('🧠 [AI写作] 记忆注入失败:', e);
+                }
+
                 const response = await fetch('/api/writer-llm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         model: selectedModel,
-                        prompt: typePromptMap[currentType],
+                        prompt: finalPrompt,
                         userId: currentUser.id
                     })
                 });
@@ -1006,11 +1628,23 @@
                 currentResult = data.content || data.response || data.text || '';
 
                 if (currentResult) {
+                    // 🧠 记录用户偏好
+                    try {
+                        if (window.UserMemory) {
+                            window.UserMemory.recordModel('text', selectedModel);
+                            window.UserMemory.recordTopic(input);
+                            window.UserMemory.recordSkillUse('ai_writing', { style: selectedStyle });
+                            console.log('🧠 [AI写作] 已记录用户偏好');
+                        }
+                    } catch (e) {
+                        console.warn('🧠 [AI写作] 偏好记录失败:', e);
+                    }
+
                     document.getElementById('resultText').textContent = currentResult;
                     document.getElementById('wordCount').textContent = `${currentResult.length}字`;
                     result.style.display = 'block';
 
-                    history.unshift({ type: currentType, input, result: currentResult, time: Date.now() });
+                    history.unshift({ type: window.currentType, input, result: currentResult, time: Date.now() });
                     saveHistory();
                     renderHistory();
 
@@ -1041,11 +1675,11 @@
 
             // 收集非空输入（包括独立参数：类型、风格、长度、模型）
             const inputs = [];
-            const globalType = currentType;
+            const globalType = window.currentType;
             const globalStyle = document.getElementById('styleSelect').value;
             const globalLength = document.getElementById('lengthSelect').value;
             const globalModel = document.getElementById('writerModelSelect').value;
-            
+
             for (let i = 0; i < 8; i++) {
                 const val = document.getElementById(`batchInput${i}`)?.value.trim();
                 if (val) {
@@ -1057,7 +1691,7 @@
                     inputs.push({ index: i, input: val, type: itemType, style: itemStyle, length: itemLength, model: itemModel });
                 }
             }
-            
+
             if (inputs.length === 0) {
                 showToast('请至少输入一个主题');
                 return;
@@ -1071,15 +1705,15 @@
 
             const btn = document.getElementById('generateBtn');
             const loading = document.getElementById('loading');
-            
+
             btn.disabled = true;
             loading.style.display = 'block';
             document.getElementById('resultSection').style.display = 'none';
-            
+
             // 重置状态
             batchResults = [];
             let completed = 0;
-            
+
             // 更新加载提示
             const updateLoading = () => {
                 document.querySelector('#loading div:last-child').textContent = `AI正在批量创作 ${completed}/${inputs.length}...`;
@@ -1091,7 +1725,7 @@
                 const item = document.getElementById(`batchItem${i}`);
                 if (item) item.classList.remove('generating', 'done', 'error');
             }
-            
+
             // 标记正在生成的格子
             inputs.forEach(item => {
                 document.getElementById(`batchItem${item.index}`).classList.add('generating');
@@ -1108,7 +1742,10 @@
             const lengthMap = {
                 short: '约300字',
                 medium: '约800字',
-                long: '约1500字'
+                long: '约1500字',
+                extralong: '约3000字',
+                nolimit: '不限制字数，尽可能详尽完整地写',
+                custom: '约' + (document.getElementById('customLengthInput').value || '1000') + '字'
             };
 
             // 🔧 优化后的提示词生成函数（支持独立参数：类型、风格、长度）
@@ -1119,7 +1756,8 @@
                     script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出剧本，包含角色对话和简洁的场景描述\n3. 不要写创意分析或多个版本`,
                     poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，可以是现代诗或古诗词\n2. 直接输出诗词正文\n3. 不要写解析或多个版本`,
                     copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，吸引人，有创意\n2. 直接输出一个精炼的文案，不要多个版本或选项\n3. 简洁有力，避免冗长`,
-                    continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明`
+                    continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明`,
+                    paper: `请根据以下题目撰写一篇学术论文：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 包含摘要、关键词、引言、正文（分章节）、结论、参考文献\n3. 语言严谨规范，逻辑清晰，论据充分\n4. 直接输出论文正文，不要元评论`
                 };
                 return basePrompts[type] || basePrompts.story;
             };
@@ -1127,28 +1765,47 @@
             // 🚀 并发生成（每个格子可用独立模型）
             const promises = inputs.map(async (item) => {
                 const gridItem = document.getElementById(`batchItem${item.index}`);
-                
+
                 try {
+                    // 🧠 注入用户记忆到 prompt
+                    let prompt = buildPrompt(item.input, item.type, item.style, item.length);
+                    try {
+                        const memoryPrompt = window.getUserMemoryPrompt();
+                        if (memoryPrompt) {
+                            prompt = memoryPrompt + '\n\n' + prompt;
+                        }
+                    } catch (e) {
+                        console.warn('🧠 [AI写作批量] 记忆注入失败:', e);
+                    }
+
                     const response = await fetch('/api/writer-llm', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             model: item.model,
-                            prompt: buildPrompt(item.input, item.type, item.style, item.length),
+                            prompt: prompt,
                             userId: currentUser.id
                         })
                     });
 
                     const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data?.message || data?.error || '服务调用失败');
-                    }
-                    
+                    if (!response.ok) throw new Error(data?.message || data?.error || '服务调用失败');
                     const result = data.content || data.response || data.text || '';
-                    
+
+                    // 🧠 记录用户偏好
+                    try {
+                        if (window.UserMemory && result) {
+                            window.UserMemory.recordModel('text', item.model);
+                            window.UserMemory.recordTopic(item.input);
+                            window.UserMemory.recordSkillUse('ai_writing', { style: item.style });
+                        }
+                    } catch (e) {
+                        console.warn('🧠 [AI写作批量] 偏好记录失败:', e);
+                    }
+
                     gridItem.classList.remove('generating');
                     gridItem.classList.add('done');
-                    
+
                     batchResults.push({
                         index: item.index,
                         input: item.input,
@@ -1159,7 +1816,7 @@
                 } catch (error) {
                     gridItem.classList.remove('generating');
                     gridItem.classList.add('error');
-                    
+
                     batchResults.push({
                         index: item.index,
                         input: item.input,
@@ -1168,28 +1825,28 @@
                         selected: false
                     });
                 }
-                
+
                 completed++;
                 updateLoading();
             });
 
             await Promise.all(promises);
-            
+
             // 按index排序
             batchResults.sort((a, b) => a.index - b.index);
-            
+
             // 显示结果
             renderBatchResults();
-            
+
             btn.disabled = false;
             loading.style.display = 'none';
-            
+
             const successCount = batchResults.filter(r => !r.error).length;
             showToast(`批量创作完成！成功 ${successCount}/${inputs.length}`);
-            
+
             // 保存到历史
             batchResults.filter(r => !r.error).forEach(r => {
-                history.unshift({ type: currentType, input: r.input, result: r.result, time: Date.now() });
+                history.unshift({ type: window.currentType, input: r.input, result: r.result, time: Date.now() });
             });
             saveHistory();
             renderHistory();
@@ -1212,7 +1869,7 @@
                     <div class="batch-result-item-text">${item.error ? '❌ ' + item.error : item.result}</div>
                 </div>
             `).join('');
-            
+
             document.getElementById('batchResultSection').style.display = 'block';
         }
 
@@ -1262,12 +1919,12 @@
             }
             return selected;
         }
-        
+
         // 🖼️ 批量推送到生图
         function pushBatchToImageGen() {
             const selected = getSelectedBatchResults();
             if (!selected) return;
-            
+
             const transferData = {
                 prompts: selected.map(r => r.result),  // 完整内容
                 scenes: selected.map(r => r.result),   // 完整内容
@@ -1276,18 +1933,18 @@
             };
             localStorage.setItem('writing_batch_to_image', JSON.stringify(transferData));
             localStorage.setItem('knolling_batch_prompts', JSON.stringify(selected.map(r => r.result)));  // 完整内容
-            
+
             showToast('正在跳转到批量生图...');
             setTimeout(() => {
                 location.href = `banana.html?batch=1&from_writing=1&skip_welcome=1`;
             }, 300);
         }
-        
+
         // 🎬 批量推送到视频
         function pushBatchToVideo() {
             const selected = getSelectedBatchResults();
             if (!selected) return;
-            
+
             const transferData = {
                 scripts: selected.map(r => ({ content: r.result, input: r.input })),
                 mode: 'batch-video',
@@ -1296,29 +1953,29 @@
             localStorage.setItem('writing_batch_to_video', JSON.stringify(transferData));
             // 同时存储为 video_batch_prompts 格式供 video-tools.html 使用
             localStorage.setItem('video_batch_prompts', JSON.stringify(selected.map(r => r.result)));
-            
+
             showToast('正在跳转到批量视频...');
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
             setTimeout(() => {
-                location.href = fromMobile 
+                location.href = fromMobile
                     ? `video-tools.html?force=mobile&batch=1&from_writing=1&skip_welcome=1`
                     : `video-tools.html?batch=1&from_writing=1&skip_welcome=1`;
             }, 300);
         }
-        
+
         // 📚 批量推送到漫画
         function pushBatchToComic() {
             const selected = getSelectedBatchResults();
             if (!selected) return;
-            
+
             const transferData = {
                 scripts: selected.map(r => ({ content: r.result, input: r.input })),
                 mode: 'batch-comic',
                 timestamp: Date.now()
             };
             localStorage.setItem('writing_batch_to_comic', JSON.stringify(transferData));
-            
+
             showToast('正在跳转到批量漫画...');
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
@@ -1327,14 +1984,14 @@
                 location.href = `mobile.html?batch_comic=1&from_writing=1&skip_welcome=1`;
             }, 300);
         }
-        
+
         // 🎤 推送到配音功能
         function pushToVoice() {
             if (!currentResult) {
                 showToast('请先生成写作内容');
                 return;
             }
-            
+
             // 保存数据到 localStorage
             const transferData = {
                 content: currentResult,
@@ -1342,24 +1999,24 @@
                 timestamp: Date.now()
             };
             localStorage.setItem('writing_to_voice', JSON.stringify(transferData));
-            
+
             // 检查是否从手机版来的
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
-            
+
             showToast('正在跳转到AI配音页面...');
             setTimeout(() => {
-                location.href = fromMobile 
+                location.href = fromMobile
                     ? `voice.html?force=mobile&from_writing=1&skip_welcome=1`
                     : `voice.html?from_writing=1&skip_welcome=1`;
             }, 500);
         }
-        
+
         // 🎤 批量推送到配音
         function pushBatchToVoice() {
             const selected = getSelectedBatchResults();
             if (!selected) return;
-            
+
             const transferData = {
                 scripts: selected.map(r => ({ content: r.result, input: r.input })),
                 mode: 'batch-voice',
@@ -1368,22 +2025,22 @@
             localStorage.setItem('writing_batch_to_voice', JSON.stringify(transferData));
             // 同时存储为 voice_batch_scripts 格式供 voice.html 使用
             localStorage.setItem('voice_batch_scripts', JSON.stringify(selected.map(r => r.result)));
-            
+
             showToast('正在跳转到批量配音...');
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
             setTimeout(() => {
-                location.href = fromMobile 
+                location.href = fromMobile
                     ? `voice.html?force=mobile&batch=1&from_writing=1&skip_welcome=1`
                     : `voice.html?batch=1&from_writing=1&skip_welcome=1`;
             }, 300);
         }
-        
+
         // 🌟 批量推送到表情包
         function pushBatchToSticker() {
             const selected = getSelectedBatchResults();
             if (!selected) return;
-            
+
             const transferData = {
                 prompts: selected.map(r => r.result),  // 完整内容
                 mode: 'batch-sticker',
@@ -1391,7 +2048,7 @@
             };
             localStorage.setItem('writing_batch_to_sticker', JSON.stringify(transferData));
             localStorage.setItem('sticker_batch_prompts', JSON.stringify(selected.map(r => r.result)));  // 完整内容
-            
+
             showToast('正在跳转到批量表情包...');
             setTimeout(() => {
                 location.href = `sticker.html?batch=1&from_writing=1&skip_welcome=1`;
@@ -1406,13 +2063,70 @@
 
         function shareResult() {
             if (!currentResult) return;
+            // 弹出分享面板
+            var old = document.getElementById('shareOverlay');
+            if (old) old.remove();
+            var html = '<div id="shareOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:flex-end;justify-content:center;" onclick="this.remove()">';
+            html += '<div style="background:#1a1a2e;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:16px 20px 24px;" onclick="event.stopPropagation()">';
+            html += '<div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:14px;">📤 分享到</div>';
+            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">';
+            var platforms = [
+                { id: 'xiaohongshu', icon: '📕', name: '小红书', scheme: 'xhsdiscover://', web: 'https://www.xiaohongshu.com/explore' },
+                { id: 'douyin', icon: '🎵', name: '抖音', scheme: 'snssdk1128://', web: 'https://www.douyin.com' },
+                { id: 'weixin', icon: '💬', name: '微信', scheme: 'weixin://', web: '' },
+                { id: 'weibo', icon: '🌐', name: '微博', scheme: 'sinaweibo://', web: 'https://m.weibo.cn/compose/' },
+                { id: 'bilibili', icon: '📺', name: 'B站', scheme: 'bilibili://', web: 'https://member.bilibili.com/platform/upload/text/edit' },
+                { id: 'kuaishou', icon: '⚡', name: '快手', scheme: 'kwai://', web: 'https://cp.kuaishou.com' }
+            ];
+            platforms.forEach(function (p) {
+                html += '<div onclick="shareToApp(\'' + p.id + '\')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:rgba(255,255,255,0.05);border-radius:10px;cursor:pointer;">';
+                html += '<span style="font-size:28px;">' + p.icon + '</span>';
+                html += '<span style="font-size:12px;color:#ccc;">' + p.name + '</span></div>';
+            });
+            html += '</div>';
+            html += '<div style="display:flex;gap:8px;margin-top:14px;">';
+            html += '<button onclick="copyResult();document.getElementById(\'shareOverlay\')?.remove()" style="flex:1;padding:12px;background:#333;border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;">📋 复制文案</button>';
             if (navigator.share) {
-                navigator.share({
-                    title: 'AI写作',
-                    text: currentResult
-                });
-            } else {
-                copyResult();
+                html += '<button onclick="navigator.share({title:\'AI写作\',text:currentResult});document.getElementById(\'shareOverlay\')?.remove()" style="flex:1;padding:12px;background:var(--accent,#22c55e);border:none;border-radius:10px;color:#000;font-size:14px;font-weight:600;cursor:pointer;">📱 系统分享</button>';
+            }
+            html += '</div>';
+            html += '<button onclick="document.getElementById(\'shareOverlay\')?.remove()" style="width:100%;margin-top:8px;padding:12px;background:transparent;border:1px solid #333;border-radius:10px;color:#888;font-size:14px;cursor:pointer;">取消</button>';
+            html += '</div></div>';
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        // 📱 跳转自媒体 APP
+        var _shareAppMap = {
+            xiaohongshu: { scheme: 'xhsdiscover://', web: 'https://www.xiaohongshu.com/explore' },
+            douyin: { scheme: 'snssdk1128://', web: 'https://www.douyin.com' },
+            weixin: { scheme: 'weixin://', web: '' },
+            weibo: { scheme: 'sinaweibo://', web: 'https://m.weibo.cn/compose/' },
+            bilibili: { scheme: 'bilibili://', web: 'https://member.bilibili.com/platform/upload/text/edit' },
+            kuaishou: { scheme: 'kwai://', web: 'https://cp.kuaishou.com' }
+        };
+        function shareToApp(platformId) {
+            copyResult();
+            var app = _shareAppMap[platformId];
+            if (!app) return;
+            var overlay = document.getElementById('shareOverlay');
+            if (overlay) overlay.remove();
+            showToast('已复制文案，正在跳转...');
+            var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (isMobile && app.scheme) {
+                var hidden = false;
+                var onVis = function () { if (document.hidden || document.webkitHidden) hidden = true; };
+                document.addEventListener('visibilitychange', onVis);
+                var ifr = document.createElement('iframe');
+                ifr.style.display = 'none';
+                ifr.src = app.scheme;
+                document.body.appendChild(ifr);
+                setTimeout(function () {
+                    document.removeEventListener('visibilitychange', onVis);
+                    if (ifr.parentNode) ifr.parentNode.removeChild(ifr);
+                    if (!hidden && app.web) window.open(app.web, '_blank');
+                }, 2000);
+            } else if (app.web) {
+                window.open(app.web, '_blank');
             }
         }
 
@@ -1476,10 +2190,10 @@
                 showToast('请先生成写作内容');
                 return;
             }
-            
+
             // 从文本中提取场景描述（按段落分割）
             const paragraphs = currentResult.split(/\n+/).filter(p => p.trim().length > 10);
-            
+
             // 保存数据到 localStorage
             const transferData = {
                 content: currentResult,
@@ -1488,11 +2202,11 @@
                 timestamp: Date.now()
             };
             localStorage.setItem('writing_to_image', JSON.stringify(transferData));
-            
+
             // 检查是否从手机版来的
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
-            
+
             showToast('正在跳转到AI生图页面...');
             setTimeout(() => {
                 if (fromMobile) {
@@ -1519,11 +2233,11 @@
             localStorage.setItem('writing_to_generation', JSON.stringify(transferData));
 
             hideConvertModal();
-            
+
             // 检查是否从手机版来的
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
-            
+
             showToast(`正在跳转到AI${convertTarget === 'video' ? '视频' : '漫画'}工作台...`);
             setTimeout(() => {
                 if (fromMobile) {
@@ -1540,7 +2254,7 @@
         async function preDeduct(cost, description) {
             // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
             cost = Math.ceil(cost);
-            
+
             // 等待认证初始化完成
             if (!authInitialized) {
                 const waitStart = Date.now();
@@ -1548,7 +2262,7 @@
                     await new Promise(r => setTimeout(r, 100));
                 }
             }
-            
+
             if (!currentUser) { showToast('请先登录'); return false; }
             if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
             try {
@@ -1558,7 +2272,7 @@
                     body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
                 });
                 const data = await res.json().catch(() => ({}));
-                
+
                 // 🔧 修复：先检查 HTTP 状态码
                 if (!res.ok) {
                     if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
@@ -1566,7 +2280,7 @@
                     }
                     throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
                 }
-                
+
                 if (data.success || data.newBalance !== undefined) {
                     userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
                     localStorage.setItem('film_balance', String(userQuota));
@@ -1580,24 +2294,24 @@
 
         // 初始化（使用 NVAuth 模块）
         let authInitialized = false;
-        
+
         async function initAuth() {
             console.log('[writing] 开始初始化认证...');
-            
+
             // 等待 NVAuth 模块加载
             const authTimeout = 5000;
             const startTime = Date.now();
             while (typeof NVAuth === 'undefined' && (Date.now() - startTime) < authTimeout) {
                 await new Promise(r => setTimeout(r, 200));
             }
-            
+
             if (typeof NVAuth === 'undefined') {
                 console.error('[writing] NVAuth 模块加载超时');
                 return;
             }
-            
+
             console.log('[writing] NVAuth 模块已加载');
-            
+
             // 等待认证状态就绪
             try {
                 await Promise.race([
@@ -1605,10 +2319,10 @@
                     new Promise(resolve => setTimeout(resolve, 3000))
                 ]);
                 console.log('[writing] 认证状态已就绪');
-            } catch (e) { 
+            } catch (e) {
                 console.warn('[writing] 等待认证状态超时');
             }
-            
+
             // 获取当前用户
             try {
                 currentUser = await NVAuth.getCurrentUser();
@@ -1624,17 +2338,1147 @@
             } catch (e) {
                 console.error('[writing] 获取用户信息失败:', e);
             }
-            
+
             authInitialized = true;
             console.log('[writing] 认证初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+        }
+
+        // ==================== 📖 长篇小说核心逻辑 ====================
+        const NOVEL_CHAPTER_COST = 2; // 每章2胶片
+        const NOVEL_OUTLINE_COST = 2; // 大纲2胶片
+        window.novelState = window.novelState || {
+            mode: 'auto',        // 'auto' | 'manual'
+            outline: null,       // 大纲文本
+            chapters: [],        // [{title, outline, content, status, wordCount}]
+            currentIdx: -1,      // 当前查看的章节索引
+            paused: false,       // 自动模式是否暂停
+            writing: false,      // 是否正在写作中
+            totalWords: 0,
+            totalCost: 0
+        };
+
+        function setNovelMode(mode) {
+            novelState.mode = mode;
+            document.getElementById('novelAutoBtn').classList.toggle('active', mode === 'auto');
+            document.getElementById('novelManualBtn').classList.toggle('active', mode === 'manual');
+        }
+
+        // 调用 writer-llm API 的统一封装（支持流式+超时+自动重试）
+        async function _novelLLM(messages, opts = {}) {
+            const model = document.getElementById('novelModelSelect').value;
+            const maxRetries = opts.retries !== undefined ? opts.retries : 1;
+            const timeout = opts.timeout || 90000;
+            const useStream = opts.stream === true;
+
+            // 🚀 OpenRouter 模型特殊处理
+            if (model.startsWith('openrouter:')) {
+                const openrouterModel = model.replace('openrouter:', '');
+                console.log('[novel] 使用 OpenRouter 模型:', openrouterModel);
+                
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeout);
+                
+                try {
+                    const res = await fetch('/api/modelscope', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'openrouter',
+                            model: openrouterModel,
+                            messages: messages,
+                            userId: currentUser?.id,
+                            skip_billing: true
+                        })
+                    });
+                    clearTimeout(timer);
+                    
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData?.message || errData?.error || `HTTP ${res.status}`);
+                    }
+                    
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.message || data.error);
+                    
+                    return data.content || '';
+                } catch (err) {
+                    clearTimeout(timer);
+                    throw err;
+                }
+            }
+
+            
+            const isYunwu = model.startsWith('yunwu:');
+
+            // 🧠 注入用户记忆到 messages
+            let finalMessages = messages;
+            try {
+                const memoryPrompt = window.getUserMemoryPrompt();
+                if (memoryPrompt && Array.isArray(finalMessages) && finalMessages.length > 0) {
+                    // 在第一条消息前添加记忆
+                    const firstMsg = finalMessages[0];
+                    if (firstMsg.role === 'system') {
+                        firstMsg.content = memoryPrompt + '\n\n' + firstMsg.content;
+                    } else {
+                        finalMessages = [
+                            { role: 'system', content: memoryPrompt },
+                            ...finalMessages
+                        ];
+                    }
+                    console.log('🧠 [小说创作] 已注入用户记忆');
+                }
+            } catch (e) {
+                console.warn('🧠 [小说创作] 记忆注入失败:', e);
+            }
+
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeout);
+                try {
+                    const res = await fetch('/api/writer-llm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model,
+                            messages: finalMessages,
+                            userId: currentUser.id,
+                            max_completion_tokens: opts.maxTokens || 16384,
+                            temperature: opts.temperature || 0.85,
+                            stream: useStream
+                        }),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timer);
+
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData?.message || errData?.error || `HTTP ${res.status}`);
+                    }
+
+                    // 流式处理：SSE text/event-stream
+                    const ct = res.headers.get('content-type') || '';
+                    if (useStream && (ct.includes('text/event-stream') || ct.includes('text/plain'))) {
+                        const reader = res.body.getReader();
+                        const decoder = new TextDecoder();
+                        let content = '';
+                        let buffer = '';
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop() || '';
+                            for (const line of lines) {
+                                if (!line.startsWith('data: ')) continue;
+                                const chunk = line.slice(6).trim();
+                                if (chunk === '[DONE]') continue;
+                                try {
+                                    const parsed = JSON.parse(chunk);
+                                    if (parsed.error) throw new Error(parsed.message || '流式生成失败');
+                                    const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content;
+                                    if (delta) {
+                                        content += delta;
+                                        if (opts.onProgress) opts.onProgress(content);
+                                    }
+                                } catch (pe) {
+                                    if (pe.message && pe.message.includes('失败')) throw pe;
+                                }
+                            }
+                        }
+                        if (!content) throw new Error('流式响应为空');
+                        return content;
+                    }
+
+                    // 非流式处理
+                    const data = await res.json();
+                    const content = data.content || '';
+                    if (opts.onProgress && content) opts.onProgress(content);
+                    return content;
+                } catch (e) {
+                    clearTimeout(timer);
+                    const isTimeout = e.name === 'AbortError';
+                    console.warn(`[novel] LLM请求${isTimeout ? '超时' : '失败'}(${attempt + 1}/${maxRetries + 1}):`, e.message);
+                    if (attempt >= maxRetries) throw new Error(isTimeout ? 'API请求超时，请稍后重试' : e.message);
+                    await new Promise(r => setTimeout(r, 500 * (attempt + 1))); // 快速重试
+                }
+            }
+        }
+
+        function _novelUpdateProgress() {
+            const done = novelState.chapters.filter(c => c.status === 'done').length;
+            const total = novelState.chapters.length;
+            const pct = total > 0 ? Math.round(done / total * 100) : 0;
+            document.getElementById('novelProgressLabel').textContent = novelState.writing ? `正在生成第 ${done + 1} 章...` : (done >= total ? '全部完成！' : `已完成 ${done}/${total} 章`);
+            document.getElementById('novelProgressPercent').textContent = pct + '%';
+            document.getElementById('novelProgressFill').style.width = pct + '%';
+            document.getElementById('novelTotalWords').textContent = novelState.totalWords.toLocaleString();
+            document.getElementById('novelDoneCount').textContent = done;
+            document.getElementById('novelTotalCount').textContent = total;
+            document.getElementById('novelCostCount').textContent = novelState.totalCost;
+        }
+
+        function _novelRenderChapterList() {
+            const list = document.getElementById('novelChapterList');
+            list.innerHTML = novelState.chapters.map((ch, i) => {
+                const cls = ch.status === 'done' ? 'done' : ch.status === 'generating' ? 'generating' : ch.status === 'error' ? 'error' : '';
+                const activeCls = i === novelState.currentIdx ? ' active' : '';
+                const meta = ch.status === 'done' ? `${ch.wordCount}字` : ch.status === 'generating' ? '生成中...' : ch.status === 'error' ? '失败' : '待生成';
+                return `<div class="novel-chapter-item ${cls}${activeCls}" onclick="novelViewChapter(${i})"><div class="ch-title">第${i + 1}章 ${ch.title}</div><div class="ch-meta">${meta}</div></div>`;
+            }).join('');
+        }
+
+        function novelViewChapter(idx) {
+            novelState.currentIdx = idx;
+            const ch = novelState.chapters[idx];
+            const contentEl = document.getElementById('novelChapterContent');
+            if (ch && ch.content) {
+                contentEl.textContent = `第${idx + 1}章 ${ch.title}\n\n${ch.content}`;
+                contentEl.style.display = 'block';
+            } else {
+                contentEl.textContent = '暂无内容';
+                contentEl.style.display = 'block';
+            }
+            document.getElementById('novelExportActions').style.display = '';
+            _novelRenderChapterList();
+        }
+
+        // 生成大纲（两阶段：先骨架后分批详细大纲，兼顾一致性与速度）
+        async function novelGenerateOutline() {
+            if (!currentUser) { showToast('请先登录'); return; }
+            const theme = document.getElementById('novelThemeInput').value.trim();
+            if (!theme) { showToast('请输入小说主题'); return; }
+            if (userQuota < NOVEL_OUTLINE_COST) { showToast('胶片不足'); return; }
+
+            const genre = document.getElementById('novelGenreSelect').value;
+            const _ccSel = document.getElementById('novelChapterCount');
+            let chapterCount = parseInt(_ccSel.value);
+            if (_ccSel.value === 'custom' || isNaN(chapterCount)) {
+                const v = prompt('请输入目标章节数（1-9999）：', '500');
+                chapterCount = parseInt(v);
+                if (isNaN(chapterCount) || chapterCount < 1 || chapterCount > 9999) { showToast('章节数无效'); return; }
+                const opt = document.createElement('option');
+                opt.value = chapterCount; opt.textContent = chapterCount + '章 (~' + Math.round(chapterCount * 0.5) + '万字)';
+                opt.selected = true;
+                _ccSel.insertBefore(opt, _ccSel.querySelector('[value="custom"]'));
+            }
+            const chapterLen = document.getElementById('novelChapterLength').value;
+
+            const btn = document.querySelector('#novelStep1 button');
+            btn.disabled = true;
+            btn.textContent = '正在生成大纲...';
+
+            // 显示loading动画+计时器
+            let loadingEl = document.getElementById('novelOutlineLoading');
+            if (!loadingEl) {
+                loadingEl = document.createElement('div');
+                loadingEl.id = 'novelOutlineLoading';
+                loadingEl.className = 'novel-outline-loading';
+                btn.parentElement.after(loadingEl);
+            }
+            let _sec = 0;
+            const BATCH_SIZE = 100; // 每批100章，平衡速度与token限制
+            const totalBatches = Math.ceil(chapterCount / BATCH_SIZE);
+            const phaseLabel = totalBatches > 1 ? '（共' + (totalBatches + 1) + '步）' : '';
+            loadingEl.innerHTML = '<div class="outline-spinner"></div><div> 🧠 第1步：构思故事骨架' + phaseLabel + '...</div><div class="outline-timer">已用时 0秒</div>';
+            loadingEl.style.display = '';
+            const _loadTimer = setInterval(() => {
+                _sec++;
+                const te = loadingEl.querySelector('.outline-timer');
+                if (te) te.textContent = '已用时 ' + _sec + '秒';
+            }, 1000);
+
+            novelState.outline = '';
+            novelState.chapters = [];
+            novelState.totalCost += NOVEL_OUTLINE_COST;
+            const _updateMsg = function (msg) { const el = loadingEl.querySelector('div:nth-child(2)'); if (el) el.textContent = msg; };
+
+            try {
+                // 阶段1：生成全局骨架（世界观 + 角色 + 故事弧线）
+                const arcCount = Math.max(3, Math.min(Math.ceil(chapterCount / 50), 20)); // 每50章一个弧线节点
+                const skeletonPrompt = `/no_think\n你是专业的${genre}小说架构师。请为以下主题设计一部${chapterCount}章长篇小说的全局骨架。\n\n主题：${theme}\n\n请输出：\n【世界观】（100字以内的世界观设定）\n【角色】\n- 角色名：一句话描述（列出5-8个主要角色）\n【故事弧线】（将全书分为${arcCount}个大阶段，每个阶段标注起止章节范围和核心剧情走向，格式如下）\n第1-50章 阶段名：核心剧情走向\n第51-100章 阶段名：核心剧情走向\n...\n\n要求：阶段之间情节递进，有起承转合，角色成长清晰。题材：${genre}。`;
+
+                const skeleton = await _novelLLM([
+                    { role: 'system', content: `你是${genre}长篇小说架构师，擅长设计宏大叙事结构和角色成长线。全文使用中文，严禁混入英文单词。` },
+                    { role: 'user', content: skeletonPrompt }
+                ], { maxTokens: 4096, temperature: 0.9, timeout: 120000, retries: 1 });
+
+                novelState.outline = skeleton;
+                console.log('[novel] 阶段1完成：故事骨架已生成');
+
+                // 若总章节≤100，骨架中可能已包含章节大纲，尝试直接解析
+                if (chapterCount <= BATCH_SIZE) {
+                    _updateMsg(' 🧠 正在生成' + chapterCount + '章详细大纲...');
+                    // 单批直接生成全部章节大纲
+                    const detailPrompt = `/no_think\n以下是小说的全局骨架：\n${skeleton}\n\n请根据以上骨架，列出全部${chapterCount}章的章节标题和一句话大纲。\n格式：\n第1章 标题：一句话大纲\n第2章 标题：一句话大纲\n...\n\n每章目标${chapterLen}字，题材：${genre}。每章大纲一句话即可，要体现情节递进。`;
+
+                    const detailResult = await _novelLLM([
+                        { role: 'system', content: `你是${genre}小说大纲策划师。全文使用中文，严禁混入英文单词。` },
+                        { role: 'user', content: detailPrompt }
+                    ], { maxTokens: 8192, temperature: 0.85, timeout: 150000, retries: 1 });
+
+                    novelState.outline += '\n\n【章节大纲】\n' + detailResult;
+                    _novelParseChapters(detailResult, 0, chapterCount);
+                } else {
+                    // 阶段2：分批生成详细章节大纲（每批带骨架上下文）
+                    for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
+                        const from = batchIdx * BATCH_SIZE;
+                        const batchSize = Math.min(BATCH_SIZE, chapterCount - from);
+                        const stepNum = batchIdx + 2; // 第1步是骨架
+                        _updateMsg(' 🧠 第' + stepNum + '/' + (totalBatches + 1) + '步：生成第' + (from + 1) + '~' + (from + batchSize) + '章大纲...');
+
+                        // 拼接上下文：骨架 + 上一批最后5章（衔接）
+                        let prevContext = '';
+                        if (batchIdx > 0) {
+                            const lastFew = novelState.chapters.slice(-5).map(function (c, i) {
+                                const idx = novelState.chapters.length - 5 + i;
+                                return '第' + (idx + 1) + '章 ' + c.title + '：' + c.outline;
+                            }).join('\n');
+                            prevContext = '\n\n【前文衔接】最近章节：\n' + lastFew;
+                        }
+
+                        const batchPrompt = `/no_think\n以下是小说的全局骨架：\n${skeleton}${prevContext}\n\n请根据以上骨架和故事弧线，列出第${from + 1}章到第${from + batchSize}章的章节标题和一句话大纲。\n格式：\n第${from + 1}章 标题：一句话大纲\n第${from + 2}章 标题：一句话大纲\n...\n\n要求：严格遵循故事弧线的剧情走向，承接前文，情节递进，每章目标${chapterLen}字，题材：${genre}。每章大纲一句话即可。`;
+
+                        const batchResult = await _novelLLM([
+                            { role: 'system', content: `你是${genre}小说大纲策划师，严格按照给定的故事弧线展开章节。全文使用中文，严禁混入英文单词。` },
+                            { role: 'user', content: batchPrompt }
+                        ], { maxTokens: 8192, temperature: 0.85, timeout: 150000, retries: 1 });
+
+                        novelState.outline += '\n\n' + batchResult;
+                        _novelParseChapters(batchResult, from, batchSize);
+
+                        // 实时更新UI
+                        document.getElementById('novelOutlineBox').textContent = novelState.outline;
+                        document.getElementById('novelOutlineSection').style.display = '';
+                        document.getElementById('novelProgress').style.display = '';
+                        document.getElementById('novelStats').style.display = '';
+                        _novelRenderChapterList();
+                        _novelUpdateProgress();
+                        console.log('[novel] 第' + stepNum + '步完成，已有' + novelState.chapters.length + '章');
+                    }
+                }
+
+                // 最终更新UI
+                document.getElementById('novelOutlineBox').textContent = novelState.outline;
+                document.getElementById('novelOutlineSection').style.display = '';
+                document.getElementById('novelProgress').style.display = '';
+                document.getElementById('novelStats').style.display = '';
+                _novelRenderChapterList();
+                _novelUpdateProgress();
+                if (typeof novelExtractCharacters === 'function') novelExtractCharacters();
+                console.log('[novel] 大纲全部完成，共', novelState.chapters.length, '章');
+                showToast('大纲已生成！共 ' + novelState.chapters.length + ' 章');
+            } catch (e) {
+                if (novelState.chapters.length > 0) {
+                    document.getElementById('novelOutlineBox').textContent = novelState.outline;
+                    document.getElementById('novelOutlineSection').style.display = '';
+                    document.getElementById('novelProgress').style.display = '';
+                    document.getElementById('novelStats').style.display = '';
+                    _novelRenderChapterList();
+                    _novelUpdateProgress();
+                    if (typeof novelExtractCharacters === 'function') novelExtractCharacters();
+                    showToast('大纲部分完成（' + novelState.chapters.length + '/' + chapterCount + '章），可先开始写作：' + e.message);
+                } else {
+                    showToast('大纲生成失败：' + e.message);
+                }
+            } finally {
+                clearInterval(_loadTimer);
+                if (loadingEl) loadingEl.style.display = 'none';
+                btn.disabled = false;
+                btn.textContent = ' 📋 生成大纲';
+            }
+        }
+
+        // 解析LLM返回的章节大纲文本，追加到 novelState.chapters
+        function _novelParseChapters(text, fromIdx, expectedCount) {
+            const lines = text.match(/第\d+章\s+[^\n]+/g) || [];
+            for (let j = 0; j < expectedCount; j++) {
+                const line = lines[j] || '';
+                const titleMatch = line.match(/第\d+章\s+(.+)/);
+                const rawTitle = titleMatch ? titleMatch[1] : '第' + (fromIdx + j + 1) + '章';
+                const parts = rawTitle.split(/[：:]/);
+                novelState.chapters.push({
+                    title: parts[0].trim(),
+                    outline: parts.slice(1).join('：').trim() || '',
+                    content: '',
+                    status: 'pending',
+                    wordCount: 0
+                });
+            }
+        }
+
+        // 生成单章内容
+        async function _novelGenerateChapter(idx) {
+            const ch = novelState.chapters[idx];
+            if (!ch || ch.status === 'done') return;
+
+            ch.status = 'generating';
+            _novelRenderChapterList();
+            _novelUpdateProgress();
+
+            const chapterLen = document.getElementById('novelChapterLength').value;
+            const genre = document.getElementById('novelGenreSelect').value;
+
+            // 优先使用增强版上下文构建（novel-engine.js），否则本地构建
+            let context = '';
+            if (typeof novelBuildContext === 'function') {
+                context = novelBuildContext(idx);
+            } else {
+                const outlineText = novelState.outline || '';
+                const worldEnd = outlineText.indexOf('【章节大纲】');
+                const worldPart = outlineText.substring(0, worldEnd > 0 ? worldEnd : Math.min(500, outlineText.length));
+                context += '[世界观与角色]\n' + worldPart + '\n';
+                if (idx > 0) {
+                    const prev = novelState.chapters[idx - 1];
+                    if (prev && prev.content) {
+                        const tail = prev.content.length > 2500 ? '...' + prev.content.slice(-2500) : prev.content;
+                        context += `\n[第${idx}章「${prev.title}」末尾（请紧密承接）]\n${tail}\n`;
+                    }
+                }
+                // 前后章节大纲走向
+                const outlines = [];
+                for (let i = Math.max(0, idx - 1); i <= Math.min(novelState.chapters.length - 1, idx + 2); i++) {
+                    const c = novelState.chapters[i];
+                    if (c) {
+                        const marker = i === idx ? '→ 当前' : (i < idx ? '已写' : '待写');
+                        outlines.push(`[${marker}] 第${i + 1}章「${c.title}」：${c.outline || '无大纲'}`);
+                    }
+                }
+                if (outlines.length > 0) context += '\n[章节大纲走向]\n' + outlines.join('\n') + '\n';
+            }
+
+            // 动态 maxTokens
+            const targetLen = parseInt(chapterLen) || 3000;
+            const dynamicMaxTokens = Math.min(16384, Math.max(4096, Math.ceil(targetLen * 1.8)));
+
+            const prevChTitle = idx > 0 ? novelState.chapters[idx - 1]?.title : '';
+            const sysPrompt = `你是一位顶级${genre}网络小说作家。你正在创作一部长篇连载${genre}小说，现在写第${idx + 1}章。
+核心要求：
+- 直接输出正文，禁止输出章节标题、写作说明、元评论
+- 每章必须有独特的核心事件/冲突，严禁与前文重复相似的情节和对话
+- 紧密承接前一章末尾的场景和情绪，开头自然过渡不要重新铺垫
+- 人物语言要符合各自性格，不同角色说话风格有明显区别
+- 章节末尾制造悬念或转折点`;
+
+            const userPrompt = `/no_think\n${context}\n\n=== 写作任务 ===\n第${idx + 1}章「${ch.title}」\n大纲：${ch.outline}\n目标字数：约${chapterLen}字\n\n特别注意：\n- 开头必须紧接前章${prevChTitle ? '「' + prevChTitle + '」' : ''}的最后一个场景，不要跳跃\n- 本章核心事件必须围绕大纲展开，不要偏离\n- 严禁出现与前文雷同的对话、场景描写或情节走向\n- 章节结尾要为下一章埋下伏笔`;
+
+            try {
+                const content = await _novelLLM([
+                    { role: 'system', content: sysPrompt },
+                    { role: 'user', content: userPrompt }
+                ], { maxTokens: dynamicMaxTokens, temperature: 0.9 });
+
+                ch.content = content;
+                ch.wordCount = content.length;
+                ch.status = 'done';
+                novelState.totalWords += ch.wordCount;
+                novelState.totalCost += NOVEL_CHAPTER_COST;
+
+                // 🧠 记录用户偏好
+                try {
+                    if (window.UserMemory) {
+                        const model = document.getElementById('novelModelSelect').value;
+                        const genre = document.getElementById('novelGenreSelect').value;
+                        window.UserMemory.recordModel('text', model);
+                        window.UserMemory.recordTopic(theme);
+                        window.UserMemory.recordSkillUse('novel_writing', { style: genre });
+                        console.log('🧠 [小说创作] 已记录用户偏好');
+                    }
+                } catch (e) {
+                    console.warn('🧠 [小说创作] 偏好记录失败:', e);
+                }
+
+                // 保存到 localStorage（断点续传）
+                try { localStorage.setItem('novel_state', JSON.stringify(novelState)); } catch (e) { }
+            } catch (e) {
+                ch.status = 'error';
+                console.error(`[novel] 第${idx + 1}章生成失败:`, e.message);
+            }
+
+            _novelRenderChapterList();
+            _novelUpdateProgress();
+        }
+
+        // 🚀 开始写作
+        async function novelStartWriting() {
+            if (!currentUser) { showToast('请先登录'); return; }
+            if (novelState.chapters.length === 0) { showToast('请先生成大纲'); return; }
+
+            novelState.writing = true;
+            novelState.paused = false;
+
+            const startBtn = document.getElementById('novelStartBtn');
+            const pauseBtn = document.getElementById('novelPauseBtn');
+            const nextBtn = document.getElementById('novelNextBtn');
+
+            if (novelState.mode === 'auto') {
+                startBtn.style.display = 'none';
+                pauseBtn.style.display = '';
+                pauseBtn.textContent = '⏸️ 暂停';
+                nextBtn.style.display = 'none';
+
+                // 顺序生成所有未完成章节
+                for (let i = 0; i < novelState.chapters.length; i++) {
+                    if (novelState.paused) {
+                        showToast('已暂停，可继续或切换到手动模式');
+                        break;
+                    }
+                    if (novelState.chapters[i].status === 'done') continue;
+                    await _novelGenerateChapter(i);
+                    // 自动滚动到当前章节
+                    novelViewChapter(i);
+                }
+
+                novelState.writing = false;
+                startBtn.style.display = '';
+                startBtn.textContent = '🚀 继续写作';
+                pauseBtn.style.display = 'none';
+
+                const done = novelState.chapters.filter(c => c.status === 'done').length;
+                if (done >= novelState.chapters.length) {
+                    startBtn.textContent = '✅ 全部完成';
+                    startBtn.disabled = true;
+                    showToast(`🎉 小说写作完成！共 ${novelState.totalWords.toLocaleString()} 字`);
+                }
+            } else {
+                // 手动模式：显示"生成下一章"按钮
+                startBtn.style.display = 'none';
+                nextBtn.style.display = '';
+                pauseBtn.style.display = 'none';
+                novelWriteNextChapter();
+            }
+
+            _novelUpdateProgress();
+        }
+
+        // ✍️ 生成下一章（手动模式）
+        async function novelWriteNextChapter() {
+            const nextIdx = novelState.chapters.findIndex(c => c.status === 'pending' || c.status === 'error');
+            if (nextIdx < 0) {
+                showToast('所有章节已完成');
+                document.getElementById('novelNextBtn').style.display = 'none';
+                document.getElementById('novelStartBtn').style.display = '';
+                document.getElementById('novelStartBtn').textContent = '✅ 全部完成';
+                document.getElementById('novelStartBtn').disabled = true;
+                return;
+            }
+
+            const nextBtn = document.getElementById('novelNextBtn');
+            nextBtn.disabled = true;
+            nextBtn.textContent = `⏳ 正在写第${nextIdx + 1}章...`;
+
+            await _novelGenerateChapter(nextIdx);
+            novelViewChapter(nextIdx);
+
+            nextBtn.disabled = false;
+            const remaining = novelState.chapters.filter(c => c.status !== 'done').length;
+            nextBtn.textContent = remaining > 0 ? `✍️ 生成下一章 (剩${remaining}章)` : '✅ 全部完成';
+            if (remaining === 0) nextBtn.disabled = true;
+        }
+
+        // ⏸️ 暂停/恢复
+        function novelTogglePause() {
+            novelState.paused = !novelState.paused;
+            const btn = document.getElementById('novelPauseBtn');
+            btn.textContent = novelState.paused ? '▶️ 继续' : '⏸️ 暂停';
+            if (!novelState.paused && novelState.mode === 'auto') {
+                novelStartWriting();
+            }
+        }
+
+        // 📋 复制全部
+        function novelCopyAll() {
+            const text = novelState.chapters.filter(c => c.status === 'done').map((c, i) => `第${i + 1}章 ${c.title}\n\n${c.content}`).join('\n\n' + '='.repeat(40) + '\n\n');
+            navigator.clipboard.writeText(text).then(() => showToast('已复制全部章节'));
+        }
+
+        // 💾 下载TXT
+        function novelDownloadTxt() {
+            const text = novelState.chapters.filter(c => c.status === 'done').map((c, i) => `第${i + 1}章 ${c.title}\n\n${c.content}`).join('\n\n' + '='.repeat(40) + '\n\n');
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `小说_${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast('已开始下载');
+        }
+
+        // 📄 复制当前章
+        function novelCopyChapter() {
+            const ch = novelState.chapters[novelState.currentIdx];
+            if (ch && ch.content) {
+                navigator.clipboard.writeText(`第${novelState.currentIdx + 1}章 ${ch.title}\n\n${ch.content}`).then(() => showToast('已复制当前章'));
+            }
         }
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', async () => {
             loadHistory();
             await initAuth();
+            // 尝试恢复小说断点
+            try {
+                const saved = localStorage.getItem('novel_state');
+                if (saved) {
+                    const s = JSON.parse(saved);
+                    if (s.chapters && s.chapters.length > 0) {
+                        console.log('[novel] 发现断点数据，可恢复');
+                    }
+                }
+            } catch (e) { }
+
+            // 📖 从对话页跳转过来的长篇小说参数
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('tab') === 'novel') {
+                    // 切换到小说模式
+                    switchType('novel');
+                    // 填充主题
+                    const theme = urlParams.get('theme');
+                    if (theme) document.getElementById('novelThemeInput').value = decodeURIComponent(theme);
+                    // 填充题材
+                    const genre = urlParams.get('genre');
+                    if (genre) {
+                        const genreSel = document.getElementById('novelGenreSelect');
+                        const opt = Array.from(genreSel.options).find(o => o.value === genre);
+                        if (opt) genreSel.value = genre;
+                    }
+                    // 填充章节数
+                    const chapters = urlParams.get('chapters');
+                    if (chapters) {
+                        const chapterSel = document.getElementById('novelChapterCount');
+                        const opt = Array.from(chapterSel.options).find(o => o.value === chapters);
+                        if (opt) chapterSel.value = chapters;
+                    }
+                    console.log('[novel] 从对话页跳转，主题:', theme, '题材:', genre, '章节:', chapters);
+                    // 自动开始：先生成大纲
+                    if (urlParams.get('autostart') === '1' && theme) {
+                        // 等待认证完成后自动开始
+                        setTimeout(() => {
+                            if (currentUser) {
+                                console.log('[novel] 自动开始生成大纲');
+                                novelGenerateOutline();
+                            } else {
+                                showToast('请先登录后再开始写作');
+                            }
+                        }, 500);
+                    }
+                    // 清理URL参数（避免刷新重复触发）
+                    history.replaceState(null, '', window.location.pathname);
+                }
+            } catch (e) { console.warn('[novel] URL参数处理失败:', e); }
         });
+
+        // ==================== 📖 优化版小说阅读器 ====================
+        // 阅读器配置
+        const READER_CONFIG = {
+            fontSize: 18,
+            lineHeight: 1.8,
+            theme: 'paper', // paper, dark, light
+            maxCharsPerPage: 800, // 减少每页字符数，提高阅读舒适度
+            paragraphSpacing: 1.5,
+            letterSpacing: 0.05
+        };
+
+        // 阅读器状态
+        let novelReaderState = {
+            currentPage: 0,
+            totalPages: 0,
+            pages: [],
+            isReading: false,
+            chapterStartPages: [],
+            currentChapterIdx: 0,
+            readingProgress: {}, // 记录每本书的阅读进度
+            animationEnabled: true
+        };
+
+        // 主题配置
+        const READER_THEMES = {
+            paper: {
+                bg: 'linear-gradient(135deg, #f8f3eb 0%, #f0e8d8 50%, #e8dcc8 100%)',
+                text: '#2c2416',
+                shadow: 'inset -8px 0 16px rgba(0, 0, 0, 0.08)',
+                bookBg: '#1a1510'
+            },
+            dark: {
+                bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+                text: '#e8e8e8',
+                shadow: 'inset -8px 0 16px rgba(0, 0, 0, 0.3)',
+                bookBg: '#0a0a0a'
+            },
+            light: {
+                bg: '#ffffff',
+                text: '#333333',
+                shadow: 'inset -8px 0 16px rgba(0, 0, 0, 0.05)',
+                bookBg: '#f5f5f5'
+            }
+        };
+
+        // 保存阅读进度
+        function novelSaveReadingProgress() {
+            if (!novelState.projectName) return;
+            const key = `novel_reading_progress_${novelState.projectName}`;
+            const progress = {
+                chapterIdx: novelReaderState.currentChapterIdx,
+                page: novelReaderState.currentPage,
+                timestamp: Date.now()
+            };
+            localStorage.setItem(key, JSON.stringify(progress));
+        }
+
+        // 加载阅读进度
+        function novelLoadReadingProgress() {
+            if (!novelState.projectName) return null;
+            const key = `novel_reading_progress_${novelState.projectName}`;
+            const saved = localStorage.getItem(key);
+            return saved ? JSON.parse(saved) : null;
+        }
+
+        // 打开阅读器
+        function novelOpenReader(startChapterIndex = 0) {
+            if (!novelState || !novelState.chapters || novelState.chapters.length === 0) {
+                showToast('没有可阅读的章节');
+                return;
+            }
+
+            // 准备阅读内容 - 包含所有有内容的章节
+            const chapters = novelState.chapters.filter(c => c.content);
+            if (chapters.length === 0) {
+                showToast('没有可阅读的内容');
+                return;
+            }
+
+            // 加载保存的阅读进度
+            const savedProgress = novelLoadReadingProgress();
+            let targetChapterIdx = startChapterIndex;
+            
+            if (savedProgress && savedProgress.chapterIdx < chapters.length) {
+                // 询问用户是否恢复到上次阅读位置
+                const timeAgo = Math.round((Date.now() - savedProgress.timestamp) / 60000);
+                const timeText = timeAgo < 60 ? `${timeAgo}分钟前` : `${Math.round(timeAgo / 60)}小时前`;
+                
+                if (startChapterIndex === 0 && confirm(`📖 检测到上次阅读位置（${timeText}）\n\n是否恢复到第${savedProgress.chapterIdx + 1}章？`)) {
+                    targetChapterIdx = savedProgress.chapterIdx;
+                }
+            }
+
+            // 初始化阅读器
+            novelReaderState.pages = [];
+            novelReaderState.chapterStartPages = [];
+            novelReaderState.currentChapterIdx = targetChapterIdx;
+            
+            // 处理所有章节
+            chapters.forEach((chapter, idx) => {
+                novelReaderState.chapterStartPages.push(novelReaderState.pages.length);
+                
+                // 添加章节标题页
+                const titlePage = novelCreateTitlePage(chapter, idx);
+                novelReaderState.pages.push(titlePage);
+                
+                // 分页处理章节内容
+                const contentPages = novelSplitPagesSmart(chapter.content, idx, chapters);
+                novelReaderState.pages.push(...contentPages);
+                
+                // 添加章节结束页（除了最后一章）
+                if (idx < chapters.length - 1) {
+                    const endPage = novelCreateChapterEndPage(chapter, chapters[idx + 1], idx);
+                    novelReaderState.pages.push(endPage);
+                }
+            });
+
+            novelReaderState.totalPages = novelReaderState.pages.length;
+            novelReaderState.currentPage = novelReaderState.chapterStartPages[targetChapterIdx] || 0;
+            novelReaderState.isReading = true;
+
+            // 应用主题
+            novelApplyTheme(READER_CONFIG.theme);
+
+            // 显示阅读器
+            const overlay = document.getElementById('novelReadingOverlay');
+            overlay.style.display = 'flex';
+            overlay.classList.add('active');
+            
+            novelReaderUpdatePage();
+
+            // 防止背景滚动
+            document.body.style.overflow = 'hidden';
+
+            showToast('📖 开始阅读 - 点击左右翻页，ESC退出');
+        }
+
+        // 创建章节标题页
+        function novelCreateTitlePage(chapter, idx) {
+            const title = chapter.title || `第${idx + 1}章`;
+            return {
+                type: 'title',
+                chapterIdx: idx,
+                content: `\n\n\n\n${title}\n\n`,
+                isTitlePage: true
+            };
+        }
+
+        // 创建章节结束页
+        function novelCreateChapterEndPage(currentChapter, nextChapter, idx) {
+            const nextTitle = nextChapter.title || `第${idx + 2}章`;
+            const nextPreview = nextChapter.content ? nextChapter.content.substring(0, 100).replace(/\n/g, ' ') + '...' : '';
+            
+            return {
+                type: 'chapterEnd',
+                chapterIdx: idx,
+                content: `\n\n（本章完）\n\n━━━━━━━━━━━━━━\n\n下一章：${nextTitle}\n\n${nextPreview}\n\n👉 点击继续阅读`,
+                isEndPage: true,
+                nextChapterTitle: nextTitle
+            };
+        }
+
+        // 智能分页 - 不截断段落
+        function novelSplitPagesSmart(content, chapterIdx, allChapters) {
+            const pages = [];
+            const paragraphs = content.split('\n').filter(p => p.trim());
+            
+            let currentPage = '';
+            let currentChars = 0;
+            
+            paragraphs.forEach((para, paraIdx) => {
+                const trimmedPara = para.trim();
+                const paraLength = trimmedPara.length;
+                
+                // 如果当前页为空，直接添加
+                if (!currentPage) {
+                    currentPage = trimmedPara;
+                    currentChars = paraLength;
+                    return;
+                }
+                
+                // 检查添加这段后是否超过限制
+                const projectedLength = currentChars + paraLength + 2; // +2 for \n\n
+                
+                if (projectedLength > READER_CONFIG.maxCharsPerPage) {
+                    // 当前页已满，保存并开始新页
+                    pages.push({
+                        type: 'content',
+                        chapterIdx: chapterIdx,
+                        content: currentPage,
+                        isContent: true
+                    });
+                    currentPage = trimmedPara;
+                    currentChars = paraLength;
+                } else {
+                    // 添加到当前页
+                    currentPage += '\n\n' + trimmedPara;
+                    currentChars = projectedLength;
+                }
+            });
+            
+            // 保存最后一页
+            if (currentPage) {
+                pages.push({
+                    type: 'content',
+                    chapterIdx: chapterIdx,
+                    content: currentPage,
+                    isContent: true
+                });
+            }
+            
+            return pages;
+        }
+
+        // 应用主题
+        function novelApplyTheme(themeName) {
+            const theme = READER_THEMES[themeName] || READER_THEMES.paper;
+            const book = document.getElementById('novelReaderBook');
+            const pages = document.querySelectorAll('.novel-reader-page');
+            
+            if (book) book.style.background = theme.bookBg;
+            pages.forEach(page => {
+                page.style.background = theme.bg;
+                page.style.color = theme.text;
+                page.style.boxShadow = theme.shadow;
+            });
+        }
+
+        // 关闭阅读器
+        function novelCloseReader() {
+            // 保存阅读进度
+            novelSaveReadingProgress();
+            
+            const overlay = document.getElementById('novelReadingOverlay');
+            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+            document.body.style.overflow = '';
+            novelReaderState.isReading = false;
+        }
+
+        // 更新页面显示
+        function novelReaderUpdatePage() {
+            if (!novelReaderState.isReading) return;
+
+            const pageA = document.getElementById('novelReaderPageA');
+            const pageB = document.getElementById('novelReaderPageB');
+            const pageInfo = document.getElementById('novelReaderPageNum');
+            const titleInfo = document.getElementById('novelReaderTitle');
+            const progressInfo = document.getElementById('novelReaderPageInfo');
+
+            const currentPageData = novelReaderState.pages[novelReaderState.currentPage];
+            const nextPageData = novelReaderState.pages[novelReaderState.currentPage + 1];
+
+            // 更新当前章节索引
+            if (currentPageData) {
+                novelReaderState.currentChapterIdx = currentPageData.chapterIdx || 0;
+            }
+
+            // 格式化内容显示
+            pageA.innerHTML = novelFormatPageContent(currentPageData);
+            pageB.innerHTML = nextPageData ? novelFormatPageContent(nextPageData) : '';
+            pageB.style.display = nextPageData ? 'block' : 'none';
+
+            // 更新页面信息
+            pageInfo.textContent = `${novelReaderState.currentPage + 1} / ${novelReaderState.totalPages}`;
+
+            // 更新标题
+            const currentChapter = novelState.chapters[novelReaderState.currentChapterIdx];
+            titleInfo.textContent = currentChapter ? `📖 第${novelReaderState.currentChapterIdx + 1}章 ${currentChapter.title}` : '📖 小说阅读';
+
+            // 更新进度
+            const progress = Math.round((novelReaderState.currentPage + 1) / novelReaderState.totalPages * 100);
+            progressInfo.textContent = `阅读进度 ${progress}% · 第${novelReaderState.currentChapterIdx + 1}章`;
+
+            // 更新按钮状态
+            document.getElementById('novelReaderPrevBtn').disabled = novelReaderState.currentPage === 0;
+            document.getElementById('novelReaderNextBtn').disabled = novelReaderState.currentPage >= novelReaderState.totalPages - 1;
+            
+            // 自动保存进度
+            novelSaveReadingProgress();
+        }
+
+        // 格式化页面内容
+        function novelFormatPageContent(pageData) {
+            if (!pageData) return '';
+            
+            let content = pageData.content || '';
+            
+            // 标题页特殊样式
+            if (pageData.isTitlePage) {
+                return `<div class="reader-title-page">${content.replace(/\n/g, '<br>')}</div>`;
+            }
+            
+            // 章节结束页特殊样式
+            if (pageData.isEndPage) {
+                return `<div class="reader-end-page">${content.replace(/\n/g, '<br>')}</div>`;
+            }
+            
+            // 普通内容页
+            return content.replace(/\n/g, '<br>');
+        }
+
+        // 上一页（带动画）
+        function novelReaderPrev() {
+            if (novelReaderState.currentPage > 0) {
+                if (novelReaderState.animationEnabled) {
+                    novelAnimatePageTurn('prev');
+                } else {
+                    novelReaderState.currentPage--;
+                    novelReaderUpdatePage();
+                }
+            }
+        }
+
+        // 下一页（带动画）
+        function novelReaderNext() {
+            if (novelReaderState.currentPage < novelReaderState.totalPages - 1) {
+                if (novelReaderState.animationEnabled) {
+                    novelAnimatePageTurn('next');
+                } else {
+                    novelReaderState.currentPage++;
+                    novelReaderUpdatePage();
+                }
+            }
+        }
+
+        // 翻页动画
+        function novelAnimatePageTurn(direction) {
+            const pageA = document.getElementById('novelReaderPageA');
+            const pageB = document.getElementById('novelReaderPageB');
+            
+            if (!pageA || !pageB) return;
+            
+            // 添加动画类
+            pageA.classList.add('turning');
+            pageB.style.display = 'block';
+            pageB.classList.add('entering');
+            
+            // 强制重绘
+            void pageB.offsetWidth;
+            
+            pageB.classList.add('show');
+            
+            setTimeout(() => {
+                // 更新页码
+                if (direction === 'next') {
+                    novelReaderState.currentPage++;
+                } else {
+                    novelReaderState.currentPage--;
+                }
+                
+                // 更新内容
+                novelReaderUpdatePage();
+                
+                // 移除动画类
+                pageA.classList.remove('turning');
+                pageB.classList.remove('entering', 'show');
+            }, 500);
+        }
+
+        // 键盘快捷键支持
+        document.addEventListener('keydown', function (e) {
+            if (!novelReaderState.isReading) return;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                case 'PageUp':
+                    e.preventDefault();
+                    novelReaderPrev();
+                    break;
+                case 'ArrowRight':
+                case 'ArrowDown':
+                case 'PageDown':
+                case ' ':
+                    e.preventDefault();
+                    novelReaderNext();
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    novelCloseReader();
+                    break;
+            }
+        });
+
+        // 触摸滑动支持
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        document.getElementById('novelReaderBook').addEventListener('touchstart', function (e) {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.getElementById('novelReaderBook').addEventListener('touchend', function (e) {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartX - touchEndX;
+
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    novelReaderNext(); // 向左滑动，下一页
+                } else {
+                    novelReaderPrev(); // 向右滑动，上一页
+                }
+            }
+        }
+
+        // ==================== 📖 阅读器增强功能 ====================
+
+        // 切换设置面板
+        function novelToggleSettings() {
+            const panel = document.getElementById('readerSettingsPanel');
+            panel.classList.toggle('active');
+        }
+
+        // 调整字体大小
+        function novelChangeFontSize(delta) {
+            const newSize = READER_CONFIG.fontSize + delta;
+            if (newSize >= 14 && newSize <= 24) {
+                READER_CONFIG.fontSize = newSize;
+                document.getElementById('fontSizeDisplay').textContent = newSize + 'px';
+                
+                // 应用到页面
+                const pages = document.querySelectorAll('.novel-reader-page');
+                pages.forEach(page => {
+                    page.style.fontSize = newSize + 'px';
+                });
+                
+                // 保存设置
+                localStorage.setItem('novel_reader_fontSize', newSize);
+            }
+        }
+
+        // 切换主题
+        function novelChangeTheme(themeName) {
+            READER_CONFIG.theme = themeName;
+            novelApplyTheme(themeName);
+            
+            // 更新UI选中状态
+            document.querySelectorAll('.theme-option').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelector(`.theme-option.${themeName}`).classList.add('active');
+            
+            // 保存设置
+            localStorage.setItem('novel_reader_theme', themeName);
+        }
+
+        // 跳转到上一章
+        function novelGoToPrevChapter() {
+            if (novelReaderState.currentChapterIdx > 0) {
+                const targetChapterIdx = novelReaderState.currentChapterIdx - 1;
+                novelReaderState.currentPage = novelReaderState.chapterStartPages[targetChapterIdx] || 0;
+                novelReaderUpdatePage();
+                showToast(`📖 已切换到第${targetChapterIdx + 1}章`);
+            } else {
+                showToast('已经是第一章了');
+            }
+        }
+
+        // 跳转到下一章
+        function novelGoToNextChapter() {
+            const chapters = novelState.chapters.filter(c => c.content);
+            if (novelReaderState.currentChapterIdx < chapters.length - 1) {
+                const targetChapterIdx = novelReaderState.currentChapterIdx + 1;
+                novelReaderState.currentPage = novelReaderState.chapterStartPages[targetChapterIdx] || 0;
+                novelReaderUpdatePage();
+                showToast(`📖 已切换到第${targetChapterIdx + 1}章`);
+            } else {
+                showToast('已经是最后一章了');
+            }
+        }
+
+        // 加载阅读器设置
+        function novelLoadReaderSettings() {
+            const savedFontSize = localStorage.getItem('novel_reader_fontSize');
+            const savedTheme = localStorage.getItem('novel_reader_theme');
+            
+            if (savedFontSize) {
+                READER_CONFIG.fontSize = parseInt(savedFontSize);
+            }
+            if (savedTheme && READER_THEMES[savedTheme]) {
+                READER_CONFIG.theme = savedTheme;
+            }
+        }
+
+        // 更新阅读进度条
+        function novelUpdateProgressBar() {
+            const progressFill = document.getElementById('readerProgressFill');
+            if (progressFill && novelReaderState.totalPages > 0) {
+                const progress = ((novelReaderState.currentPage + 1) / novelReaderState.totalPages) * 100;
+                progressFill.style.width = progress + '%';
+            }
+        }
+
+        // 覆盖原有的更新页面函数，添加进度条更新
+        const originalUpdatePage = novelReaderUpdatePage;
+        novelReaderUpdatePage = function() {
+            originalUpdatePage();
+            novelUpdateProgressBar();
+        };
+
+        // 初始化阅读器设置
+        novelLoadReaderSettings();
     </script>
-</body>
+    <script src="/js/api-core.js"></script>
+    <script src="/js/wake-lock.js"></script>
 
 </html>

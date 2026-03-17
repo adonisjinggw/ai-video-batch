@@ -1,0 +1,3417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎵 AI音乐生成 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #8b5cf6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .header h1 { font-size: 18px; }
+        .back-btn { background: none; border: none; color: #fff; font-size: 16px; cursor: pointer; }
+
+        .main { padding: 20px; max-width: 600px; margin: 0 auto; }
+
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 12px 10px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mode-tab:active {
+            transform: scale(0.96);
+            opacity: 0.8;
+        }
+
+        .mode-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .section { margin-bottom: 20px; }
+        .section-title { font-size: 14px; color: var(--text-dim); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 14px;
+            color: var(--text);
+            font-size: 15px;
+            resize: none;
+            min-height: 100px;
+        }
+
+        .input-box:focus { outline: none; border-color: var(--accent); }
+
+        .input-small {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .input-small:focus { outline: none; border-color: var(--accent); }
+
+        .tag-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag-btn {
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            min-height: 36px;
+        }
+
+        .tag-btn:active { 
+            background: rgba(139, 92, 246, 0.3); 
+            transform: scale(0.96);
+        }
+        .tag-btn.style { border-color: #8b5cf6; }
+        .tag-btn.structure { border-color: #10b981; color: #10b981; }
+        .tag-btn.vocal { border-color: #f59e0b; color: #f59e0b; }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item { flex: 1; }
+        .setting-item label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-row label { flex: 1; font-size: 13px; color: var(--text-dim); }
+
+        .btn-row { display: flex; gap: 12px; margin-top: 20px; }
+
+        .generate-btn {
+            flex: 1;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .generate-btn:disabled { opacity: 0.5; }
+        .generate-btn.lyrics { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .generate-btn.green { background: linear-gradient(135deg, #10b981, #059669); }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .result-title { font-size: 15px; margin-bottom: 12px; }
+        .audio-player { width: 100%; margin-bottom: 12px; }
+
+        .result-actions { display: flex; gap: 10px; }
+        .result-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .result-btn.primary { background: var(--accent); border-color: var(--accent); }
+
+        .lyrics-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .lyrics-content {
+            background: var(--bg-input);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .history-section { margin-top: 32px; border-top: 1px solid #222; padding-top: 20px; }
+        .history-item {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .history-item-title {
+            font-size: 13px;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .history-item audio { width: 100%; }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+        .toast.show { display: block; }
+
+        .hint-box {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .collapsible { cursor: pointer; }
+        .collapsible-content { display: none; margin-top: 10px; }
+        .collapsible-content.show { display: block; }
+
+        /* 🆕 批量模式样式 */
+        .mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            background: var(--bg-card);
+            padding: 6px;
+            border-radius: 10px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mode-btn.active {
+            background: var(--accent);
+            color: #fff;
+        }
+        .batch-input-section {
+            display: none;
+        }
+        .batch-input-section.show {
+            display: block;
+        }
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .batch-item {
+            position: relative;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+        }
+        .batch-item-index {
+            position: absolute;
+            top: 6px;
+            left: 8px;
+            font-size: 12px;
+            color: #8b5cf6;
+            font-weight: 600;
+            background: rgba(139, 92, 246, 0.15);
+            padding: 3px 8px;
+            border-radius: 6px;
+            z-index: 1;
+        }
+        .batch-item textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 80px;
+            background: transparent;
+            border: none;
+            padding: 30px 10px 8px 10px;
+            color: var(--text);
+            font-size: 13px;
+            resize: none;
+            line-height: 1.5;
+        }
+        .batch-item textarea::placeholder {
+            color: #555;
+            font-size: 12px;
+        }
+        .batch-item textarea:focus {
+            outline: none;
+            background: rgba(139, 92, 246, 0.05);
+        }
+        .batch-item-params {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 8px;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid #222;
+        }
+        .batch-item-params select {
+            flex: 1;
+            min-width: 45%;
+            padding: 6px 4px;
+            font-size: 11px;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .batch-item-params label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: #888;
+        }
+        .batch-item-params input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+        }
+        .batch-item-params-row {
+            display: flex;
+            gap: 4px;
+            width: 100%;
+        }
+        .batch-item.generating {
+            border-color: #fbbf24;
+            animation: pulse 1s infinite;
+        }
+        .batch-item.has-result {
+            border-color: #22c55e;
+        }
+        .batch-item.error {
+            border-color: #ef4444;
+        }
+        .batch-item-status {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            font-size: 14px;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* 批量结果区域 */
+        .batch-result-section {
+            display: none;
+            margin-top: 20px;
+        }
+        .batch-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .batch-result-header h3 {
+            font-size: 15px;
+            color: #fff;
+            margin: 0;
+        }
+        .batch-result-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .batch-action-btn {
+            padding: 6px 12px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .batch-action-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .batch-result-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .batch-result-item {
+            background: var(--bg-card);
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 110px;
+        }
+        .batch-result-item.selected {
+            border-color: var(--accent);
+            background: rgba(139, 92, 246, 0.1);
+        }
+        .batch-result-item.error {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .batch-result-item audio {
+            width: 100%;
+            height: 36px;
+            margin-top: 8px;
+        }
+        .batch-result-title {
+            font-size: 13px;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .batch-result-tags {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>🎵 AI音乐生成</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <!-- 模式切换 -->
+        <div class="mode-tabs">
+            <div class="mode-tab active" id="tab-custom" data-mode="custom" onclick="switchMode('custom')">📝 自定义</div>
+            <div class="mode-tab" id="tab-inspiration" data-mode="inspiration" onclick="switchMode('inspiration')">💡 灵感</div>
+            <div class="mode-tab" id="tab-smart" data-mode="smart" onclick="switchMode('smart')">🤖 智能</div>
+        </div>
+        
+        <!-- 🆕 全局批量/单个切换 -->
+        <div class="mode-toggle" id="globalBatchToggle">
+            <button class="mode-btn active" onclick="setBatchMode(false)" id="singleMusicBtn">🎵 单个生成</button>
+            <button class="mode-btn" onclick="setBatchMode(true)" id="batchMusicBtn">📝 批量生成</button>
+        </div>
+
+        <!-- 自定义模式 -->
+        <div id="customMode">
+            <div class="section">
+                <div class="section-title">🎵 歌曲标题</div>
+                <input type="text" class="input-small" id="titleInput" placeholder="给你的歌曲起个名字...">
+            </div>
+
+            <div class="section">
+                <div class="section-title">🏷️ 风格标签</div>
+                <input type="text" class="input-small" id="tagsInput" placeholder="例如: pop, romantic, energetic">
+                <div class="section-title collapsible" onclick="toggleSection('styleTemplates')" style="margin-top:10px;">
+                    🎸 风格模板 ▼
+                </div>
+                <div id="styleTemplates" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('instrumentTags')" style="margin-top:10px;">
+                    🎹 乐器标签 ▼
+                </div>
+                <div id="instrumentTags" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('ambienceTags')" style="margin-top:10px;">
+                    🔊 音效/氛围 ▼
+                </div>
+                <div id="ambienceTags" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('tempoTags')" style="margin-top:10px;">
+                    🎼 速度/力度 ▼
+                </div>
+                <div id="tempoTags" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('masteringTags')" style="margin-top:10px;">
+                    🎛️ 音质/母带 ▼
+                </div>
+                <div id="masteringTags" class="collapsible-content tag-grid"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">📜 歌词内容</div>
+                <textarea class="input-box" id="lyricsInput" placeholder="输入歌词，可使用 [Verse], [Chorus] 等标记..."></textarea>
+                <div class="checkbox-row" style="margin-top:10px;">
+                    <label>🧠 智能匹配歌词结构（未配置时自动添加）</label>
+                    <input type="checkbox" id="autoStructureCheck" checked>
+                </div>
+                <div class="section-title collapsible" onclick="toggleSection('structureTags')" style="margin-top:10px;">
+                    📋 歌词结构标记 ▼
+                </div>
+                <div id="structureTags" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('vocalTags')" style="margin-top:10px;">
+                    🎤 人声效果 ▼
+                </div>
+                <div id="vocalTags" class="collapsible-content tag-grid"></div>
+            </div>
+        </div>
+
+        <!-- 灵感模式 -->
+        <div id="inspirationMode" style="display:none;">
+            <div class="section">
+                <div class="section-title">💡 描述你想要的音乐</div>
+                <textarea class="input-box" id="inspirationInput" placeholder="例如：一首关于夏日海边的浪漫情歌，轻快的节奏..."></textarea>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🏷️ 风格标签（可选）</div>
+                <input type="text" class="input-small" id="inspirationTagsInput" placeholder="例如: pop, romantic, energetic">
+                <div class="section-title collapsible" onclick="toggleSection('inspirationStyleTemplates')" style="margin-top:10px;">
+                    🎸 风格模板 ▼
+                </div>
+                <div id="inspirationStyleTemplates" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('inspirationInstrumentTags')" style="margin-top:10px;">
+                    🎹 乐器标签 ▼
+                </div>
+                <div id="inspirationInstrumentTags" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('inspirationAmbienceTags')" style="margin-top:10px;">
+                    🔊 音效/氛围 ▼
+                </div>
+                <div id="inspirationAmbienceTags" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('inspirationTempoTags')" style="margin-top:10px;">
+                    🎼 速度/力度 ▼
+                </div>
+                <div id="inspirationTempoTags" class="collapsible-content tag-grid"></div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title collapsible" onclick="toggleSection('inspirationVocalTags')" style="margin-top:10px;">
+                    🎤 人声效果 ▼
+                </div>
+                <div id="inspirationVocalTags" class="collapsible-content tag-grid"></div>
+            </div>
+        </div>
+
+        <!-- 智能模式 -->
+        <div id="smartMode" style="display:none;">
+            <div class="section">
+                <div class="section-title">🤖 智能创作</div>
+                <textarea class="input-box" id="smartInput" placeholder="简单描述主题，AI会自动生成完整歌词和音乐..."></textarea>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🏷️ 风格偏好（可选，AI会参考）</div>
+                <input type="text" class="input-small" id="smartTagsInput" placeholder="例如: pop, romantic, energetic">
+                <div class="section-title collapsible" onclick="toggleSection('smartStyleTemplates')" style="margin-top:10px;">
+                    🎸 风格模板 ▼
+                </div>
+                <div id="smartStyleTemplates" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('smartInstrumentTags')" style="margin-top:10px;">
+                    🎹 乐器标签 ▼
+                </div>
+                <div id="smartInstrumentTags" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('smartAmbienceTags')" style="margin-top:10px;">
+                    🔊 音效/氛围 ▼
+                </div>
+                <div id="smartAmbienceTags" class="collapsible-content tag-grid"></div>
+                <div class="section-title collapsible" onclick="toggleSection('smartTempoTags')" style="margin-top:10px;">
+                    🎼 速度/力度 ▼
+                </div>
+                <div id="smartTempoTags" class="collapsible-content tag-grid"></div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title collapsible" onclick="toggleSection('smartVocalTags')" style="margin-top:10px;">
+                    🎤 人声效果 ▼
+                </div>
+                <div id="smartVocalTags" class="collapsible-content tag-grid"></div>
+            </div>
+        </div>
+        
+        <!-- 🆕 全局批量输入区（所有模式共用）- 宫格形式 -->
+        <div class="section" id="batchMusicInputSection" style="display:none;">
+            <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>🎵 批量音乐描述（<span id="batchFilledCount">0</span>/8）</span>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="batchSmartAnalyze()" style="padding:6px 12px; background:linear-gradient(135deg,#10b981,#059669); border:none; border-radius:8px; color:#fff; font-size:12px; cursor:pointer;">🧠 批量智能分析</button>
+                    <button onclick="clearBatchMusicGrid()" style="padding:6px 12px; background:var(--bg-card); border:1px solid #444; border-radius:8px; color:#888; font-size:12px; cursor:pointer;">🗑️ 清空</button>
+                </div>
+            </div>
+            <div class="batch-grid" id="batchMusicGrid">
+                <!-- 12个宫格由JS动态生成 -->
+            </div>
+            <div style="font-size:12px; color:#8b5cf6; margin-top:10px;">💡 每个格子填写主题/歌词，点击“批量智能分析”自动生成标签+歌词（每个消耗1胶片）</div>
+            <!-- 隐藏的textarea用于兼容原有逻辑 -->
+            <textarea id="batchMusicInput" style="display:none;"></textarea>
+        </div>
+
+        <!-- 通用设置 -->
+        <div class="settings-row" id="settingsRow">
+            <div class="setting-item">
+                <label>模型</label>
+                <select id="modelSelect">
+                    <option value="chirp-v3-0">v3.0</option>
+                    <option value="chirp-v3-5">v3.5</option>
+                    <option value="chirp-v3-5-tau">v3.5-tau (歌手风格)</option>
+                    <option value="chirp-v4" selected>v4.0 (推荐)</option>
+                    <option value="chirp-v4-tau">v4-tau (歌手风格)</option>
+                    <option value="chirp-auk">v4.5</option>
+                    <option value="chirp-v5">v5.0</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>人声性别</label>
+                <select id="genderSelect">
+                    <option value="">自动</option>
+                    <option value="male">男声</option>
+                    <option value="female">女声</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="checkbox-row">
+            <label>🎹 纯音乐（无人声）</label>
+            <input type="checkbox" id="instrumentalCheck">
+        </div>
+
+        <div class="checkbox-row">
+            <label>🚫 排除风格</label>
+            <input type="text" class="input-small" id="negativeTagsInput" placeholder="不想要的风格..." style="flex:2;">
+        </div>
+
+        <!-- 按钮 -->
+        <div class="btn-row">
+            <button class="generate-btn" id="generateBtn" onclick="generateMusic()">🎵 生成音乐</button>
+            <button class="generate-btn lyrics" id="lyricsBtn" onclick="generateLyrics()">✍️ 生成歌词</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px;">
+            <button class="generate-btn green" id="smartAnalyzeBtn" onclick="smartAnalyze()">🧠 智能分析/生成</button>
+        </div>
+        <div class="hint-box" id="smartHint" style="display:none; margin-top:8px; background:rgba(16,185,129,0.15); border-color:#10b981;">
+            <span id="smartHintText"></span>
+        </div>
+
+        <div class="hint-box" id="lyricsHint" style="display:none;">
+            ✨ 已有歌词，点击"生成音乐"将使用歌词创作
+        </div>
+
+        <!-- 加载中 -->
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <div id="loadingText">正在创作音乐...</div>
+        </div>
+
+        <!-- 歌词结果 -->
+        <div class="lyrics-section" id="lyricsSection" style="display:none;">
+            <div class="section-title">📝 生成的歌词</div>
+            <div class="lyrics-content" id="lyricsContent"></div>
+            <div class="result-actions">
+                <button class="result-btn" onclick="copyLyrics()">📋 复制</button>
+                <button class="result-btn" onclick="useLyricsInEditor()">📝 编辑</button>
+                <button class="result-btn" onclick="clearLyrics()">🗑️ 清除</button>
+                <button class="result-btn primary" onclick="generateMusicWithLyrics()">🎵 用歌词生成</button>
+            </div>
+        </div>
+
+        <!-- 音乐结果 -->
+        <div class="result-section" id="resultSection" style="display:none;">
+            <div class="result-title">🎶 生成完成</div>
+            <audio class="audio-player" id="audioPlayer" controls></audio>
+            <div class="result-actions">
+                <button class="result-btn" onclick="downloadMusic()">⬇️ 下载</button>
+                <button class="result-btn" onclick="shareMusic()">📤 分享</button>
+                <button class="result-btn primary" onclick="generateMusic()">🔄 重新生成</button>
+            </div>
+        </div>
+        
+        <!-- 🆕 批量结果区域 -->
+        <div class="batch-result-section" id="batchResultSection">
+            <div class="batch-result-header">
+                <h3>🎵 批量生成结果</h3>
+                <div class="batch-result-actions">
+                    <button class="batch-action-btn" onclick="selectAllBatchMusic()">✅ 全选</button>
+                    <button class="batch-action-btn" onclick="downloadSelectedMusic()">💾 下载选中</button>
+                </div>
+            </div>
+            <div class="batch-result-grid" id="batchResultGrid"></div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="history-section">
+            <div class="section-title">📚 历史记录</div>
+            <div id="historyList"></div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 返回函数 - 直接返回 mobile.html 工作区
+        function goBack() {
+            console.log('[music] goBack 被调用');
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        // 使用 NVAuth 模块
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        let authInitialized = false;
+        const MUSIC_COST = 10; // 音乐生成费用（成本￥0.50 → 售价￥1.00 → 10胶片）
+        const SMART_ANALYZE_COST = 1; // 智能分析费用（每次调用AI收取1胶片）
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[music] 页面加载完成，开始初始化...');
+            
+            // 🔧 修复：绑定生成按钮事件（支持移动端触摸）
+            const generateBtn = document.getElementById('generateBtn');
+            if (generateBtn) {
+                generateBtn.onclick = null;
+                generateBtn.addEventListener('click', function(e) {
+                    console.log('[music] 生成音乐按钮被点击 (click)');
+                    generateMusic();
+                });
+                generateBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[music] 生成音乐按钮被点击 (touchend)');
+                    generateMusic();
+                });
+            }
+            
+            const lyricsBtn = document.getElementById('lyricsBtn');
+            if (lyricsBtn) {
+                lyricsBtn.onclick = null;
+                lyricsBtn.addEventListener('click', function(e) {
+                    console.log('[music] 生成歌词按钮被点击 (click)');
+                    generateLyrics();
+                });
+                lyricsBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[music] 生成歌词按钮被点击 (touchend)');
+                    generateLyrics();
+                });
+            }
+            
+            // 🔧 修复：返回按钮支持触摸事件
+            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) {
+                backBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    goBack();
+                });
+            }
+            
+            // 🔧 修复：模式切换标签支持触摸事件
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    const mode = this.getAttribute('data-mode');
+                    if (mode) switchMode(mode);
+                });
+            });
+            
+            if (typeof NVAuth !== 'undefined') {
+                await checkUser();
+            }
+            authInitialized = true;
+            initUI();
+            console.log('[music] 初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+        });
+
+        async function checkUser() {
+            try {
+                // 等待认证状态就绪
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+                
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[music] 用户已登录:', currentUser.email);
+                    await loadUserQuota();
+                } else {
+                    console.log('[music] 用户未登录');
+                }
+            } catch (e) { console.error('检查用户失败:', e); }
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                console.log('[music] 用户胶片:', userQuota);
+            } catch (e) { console.error('加载配额失败:', e); }
+        }
+
+        // 预扣费函数
+        async function preDeduct(cost, description) {
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
+            cost = Math.ceil(cost);
+            
+            // 等待认证初始化完成
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) { showToast('请先登录'); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+                
+                // 🔧 修复：先检查 HTTP 状态码
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('余额不足，请先充值');
+                    }
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
+                }
+                
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    console.log(`🎞️ 预扣费成功: -${cost}胶片, 余额=${userQuota}`);
+                    return true;
+                }
+                throw new Error(data.message || data.error || '扣费失败');
+            } catch (e) { showToast('扣费失败: ' + e.message); return false; }
+        }
+
+        // ✅ 已移除退款函数 - 后端成功扣费后不再退款，避免成本损耗
+
+        // 💰 智能分析扣费函数
+        async function chargeForSmartAnalyze() {
+            if (!currentUser) return false;
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        action: 'consume', 
+                        userId: currentUser.id, 
+                        amount: SMART_ANALYZE_COST, 
+                        description: '音乐智能分析' 
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - SMART_ANALYZE_COST;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    console.log(`🧠 智能分析扣费: -${SMART_ANALYZE_COST}胶片, 余额=${userQuota}`);
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                console.error('智能分析扣费失败:', e);
+                return false;
+            }
+        }
+
+        // 🎵 风格模板（完整版 Suno 参数）
+        const STYLE_TEMPLATES = {
+            // === 流行/舞曲 ===
+            'pop': { name: '🎤 流行 Pop', tags: 'Pop, Dance Pop, Synthpop, Catchy, Radio-Friendly' },
+            'kpop': { name: '🇰🇷 韩流 K-Pop', tags: 'Kpop, Dance Pop, Energetic, Idol, Polished' },
+            'jpop': { name: '🇯🇵 日流 J-Pop', tags: 'Jpop, Anime, Melodic, Kawaii, Upbeat' },
+            'cpop': { name: '🇨🇳 华语流行', tags: 'Mandopop, Chinese Pop, Emotional, Melodic' },
+            'dance': { name: '💃 舞曲 Dance', tags: 'Dance Pop, Electronic, Groovy, Club' },
+            'disco': { name: '🕺 迪斯科 Disco', tags: 'Disco, Funky, Groovy, 70s, Retro' },
+            'dancepop': { name: '🎵 流行舞曲', tags: 'Dance Pop, Syncopated, Groovy, Tipsy' },
+            'highnrg': { name: '⚡ 高能量', tags: 'High-NRG, Energetic, Dance, Fast' },
+            // === 摇滚 ===
+            'rock': { name: '🎸 摇滚 Rock', tags: 'Rock, Electric Guitar, Drums, Powerful, Energetic' },
+            'indie': { name: '🎹 独立 Indie', tags: 'Indie, Alternative, Dreamy, Lo-fi' },
+            'punk': { name: '⚡ 朋克 Punk', tags: 'Punk, Fast, Rebellious, Raw, Aggressive' },
+            'metal': { name: '🤘 金属 Metal', tags: 'Heavy Metal, Power Metal, Epic, Distorted, Aggressive' },
+            'grunge': { name: '🪨 Grunge', tags: 'Grunge, 90s, Alternative, Raw, Emotional' },
+            'hardrock': { name: '🔥 硬摇滚', tags: 'Hard Rock, Heavy, Powerful, Guitar Riff' },
+            'classicrock': { name: '🎸 经典摇滚', tags: 'Classic Rock, Blues Rock, 70s, Guitar' },
+            'glamrock': { name: '✨ 华丽摇滚', tags: 'Glam Rock, Glitter, 70s, Theatrical' },
+            'emo': { name: '😢 情绪摇滚', tags: 'Emo, Emotional, Alternative, Melodic' },
+            'skaterock': { name: '🛹 滑板摇滚', tags: 'Skate Rock, Skatecore, Punk, Fast' },
+            'industrialrock': { name: '⚙️ 工业摇滚', tags: 'Industrial Rock, Electronic, Dark, Heavy' },
+            // === 金属细分 ===
+            'blackmetal': { name: '🖤 黑金属', tags: 'Black Metal, Dark, Extreme, Blast Beats' },
+            'deathmetal': { name: '💀 死亡金属', tags: 'Death Metal, Deathcore, Aggressive, Growl' },
+            'numetal': { name: '🔊 新金属', tags: 'Nu Metal, Alternative, Hip-Hop Influenced, Heavy' },
+            'powermetal': { name: '⚔️ 力量金属', tags: 'Power Metal, Epic, Fast, Melodic, Fantasy' },
+            'metalcore': { name: '🔥 金属核', tags: 'Metalcore, Hardcore, Breakdowns, Aggressive' },
+            // === 电子 ===
+            'electronic': { name: '🎧 电子 Electronic', tags: 'Electronic, Synthwave, Ambient, Futuristic' },
+            'edm': { name: '🔊 EDM', tags: 'EDM, House, Drop, Festival, Build-up' },
+            'lofi': { name: '📻 Lo-Fi', tags: 'Lofi, Chill, Relaxing, Hip-Hop Beats, Study' },
+            'techno': { name: '🔈 Techno', tags: 'Techno, Industrial, Dark, Repetitive, Hypnotic' },
+            'house': { name: '🏠 House', tags: 'House, Deep House, Four-on-the-floor, Groovy' },
+            'trance': { name: '🌀 Trance', tags: 'Trance, Uplifting, Euphoric, Progressive' },
+            'dubstep': { name: '💥 Dubstep', tags: 'Dubstep, Wobble Bass, Heavy, Drop' },
+            'synthwave': { name: '🌃 Synthwave', tags: 'Synthwave, 80s, Retro, Neon, Nostalgic' },
+            'chillwave': { name: '🌊 Chillwave', tags: 'Chillwave, Dreamy, Atmospheric, Relaxing' },
+            'acidhouse': { name: '🧪 酸浩室', tags: 'Acid House, 303, Squelchy, Rave' },
+            'acidtechno': { name: '⚗️ 酸性Techno', tags: 'Acid Techno, Psybient, Dark, Hypnotic' },
+            'drumandbass': { name: '🥁 Drum & Bass', tags: 'Drum and Bass, Jungle, Fast, Breakbeats' },
+            'idm': { name: '🧠 智能舞曲', tags: 'IDM, Experimental, Glitch, Complex' },
+            'synthpop': { name: '🎹 合成流行', tags: 'Synthpop, 80s, Catchy, Electronic' },
+            'electro': { name: '🔌 电子音乐', tags: 'Electro, Robotic, Dance, 808' },
+            'afrohouse': { name: '🌍 非洲浩室', tags: 'Afro House, African, Deep, Rhythmic' },
+            // === 嘻哈/说唱细分 ===
+            'hiphop': { name: '🎤 嘻哈 Hip-Hop', tags: 'Hip-Hop, Boom Bap, Urban, Beat, Flow' },
+            'trap': { name: '🔥 陷阱 Trap', tags: 'Trap, 808, Hi-Hats, Dark, Heavy Bass' },
+            'rap': { name: '🎙️ 说唱 Rap', tags: 'Rap, Lyrical, Flow, Rhythmic, Vocal' },
+            'drillrap': { name: '🔫 Drill', tags: 'UK Drill, Dark, Sliding 808, Aggressive' },
+            'boombap': { name: '💥 Boom Bap', tags: 'Boom Bap, Old School, Classic, Drums Heavy' },
+            'gfunk': { name: '🚗 G-Funk', tags: 'G-Funk, West Coast, Synth, Laid Back, Gangsta' },
+            'gangstarap': { name: '🔫 匪帮说唱', tags: 'Gangsta Rap, Aggressive, Street, Hardcore' },
+            'jazzhiphop': { name: '🎷 爵士嘻哈', tags: 'Jazz Hip-Hop, Smooth, Sample, Chill' },
+            'latinrap': { name: '🌴 拉丁说唱', tags: 'Latin Rap, Spanish, Reggaeton Influenced' },
+            'hardcorerap': { name: '💢 硬核说唱', tags: 'Hardcore Rap, Aggressive, Angry, Intense' },
+            'comedyrap': { name: '😂 搞笑说唱', tags: 'Comedy Rap, Fun, Catchy, Humorous' },
+            'melodicrap': { name: '🎶 旋律说唱', tags: 'Melodic Rap, Singing, Emotional, Auto-Tune' },
+            'mumblerap': { name: '🗣️ Mumble Rap', tags: 'Mumble Rap, Atmospheric, Vibe, Flow' },
+            'lofihiphop': { name: '📼 LoFi嘻哈', tags: 'Lofi Hip-Hop, Chill, Study, Nostalgic' },
+            'crunk': { name: '🎉 Crunk', tags: 'Crunk, Southern, Party, Energetic' },
+            'grime': { name: '🇬🇧 英式Grime', tags: 'Grime, UK, Garage, Jungle, Fast' },
+            'phonk': { name: '🚘 Phonk', tags: 'Phonk, Memphis, Dark, Cowbell, Drift' },
+            'consciousrap': { name: '🧠 意识说唱', tags: 'Conscious Rap, Political, Lyrical, Deep' },
+            'battlerap': { name: '⚔️ Battle Rap', tags: 'Battle Rap, Aggressive, Lyrical, Competitive' },
+            'westcoast': { name: '🌴 西海岸', tags: 'West Coast Rap, G-Funk, Laid Back' },
+            'eastcoast': { name: '🗽 东海岸', tags: 'East Coast Rap, Boom Bap, Lyrical, NYC' },
+            'emorap': { name: '😭 情绪说唱', tags: 'Emo Rap, Sad, Melodic, Personal' },
+            'alternativerap': { name: '🎨 另类说唱', tags: 'Alternative Rap, Experimental, Unique' },
+            // === 抒情/情感 ===
+            'ballad': { name: '💔 抒情 Ballad', tags: 'Ballad, Emotional, Piano, Strings, Heartfelt' },
+            'rnb': { name: '🎵 R&B', tags: 'RnB, Soul, Smooth, Romantic, Groovy' },
+            'soul': { name: '💜 灵魂 Soul', tags: 'Soul, Gospel, Powerful Vocals, Emotional' },
+            'slowjam': { name: '💕 慢歌', tags: 'Slow Jam, Romantic, Sensual, R&B' },
+            // === 古典/民谣 ===
+            'classical': { name: '🎻 古典 Classical', tags: 'Classical, Orchestral, Cinematic, Strings' },
+            'folk': { name: '🪕 民谣 Folk', tags: 'Folk, Acoustic, Storytelling, Guitar' },
+            'country': { name: '🤠 乡村 Country', tags: 'Country, Acoustic Guitar, Americana, Nashville' },
+            'acoustic': { name: '🎸 原声', tags: 'Acoustic, Unplugged, Intimate, Guitar' },
+            'bluegrass': { name: '🪕 蓝草', tags: 'Bluegrass, Banjo, Fiddle, Fast, Country' },
+            // === 爵士/蓝调 ===
+            'jazz': { name: '🎷 爵士 Jazz', tags: 'Jazz, Smooth, Saxophone, Piano, Improvisation' },
+            'blues': { name: '🎸 蓝调 Blues', tags: 'Blues, Soulful, Guitar, Melancholic, 12-bar' },
+            'swing': { name: '🎺 Swing', tags: 'Swing, Big Band, Vintage, Jazz, Dancing' },
+            'bossanova': { name: '☕ Bossa Nova', tags: 'Bossa Nova, Brazilian, Smooth, Relaxing' },
+            'bebop': { name: '🎵 Bebop', tags: 'Bebop, Fast, Complex, Improvisation, Jazz' },
+            'latinjazz': { name: '💃 拉丁爵士', tags: 'Latin Jazz, Afro-Cuban, Percussion, Groovy' },
+            'gospel': { name: '⛪ 福音', tags: 'Gospel, Soul, Choir, Spiritual, Powerful' },
+            // === 世界音乐 ===
+            'chinese': { name: '🏮 中国风', tags: 'Chinese Traditional, Erhu, Guzheng, Pentatonic, Oriental' },
+            'guofeng': { name: '🌸 国潮', tags: 'Chinese Style, Modern, Traditional Instruments, Epic' },
+            'latin': { name: '💃 拉丁 Latin', tags: 'Latin, Salsa, Reggaeton, Tropical, Percussion' },
+            'reggae': { name: '🌴 雷鬼 Reggae', tags: 'Reggae, Dub, Chill, Caribbean, Offbeat' },
+            'afrobeat': { name: '🌍 Afrobeat', tags: 'Afrobeat, African, Rhythmic, Groovy' },
+            'indian': { name: '🇮🇳 印度风', tags: 'Indian, Bollywood, Sitar, Tabla, Melodic' },
+            'arabic': { name: '🏜️ 阿拉伯风', tags: 'Arabic, Middle Eastern, Oud, Exotic' },
+            'celtic': { name: '☘️ 凯尔特', tags: 'Celtic, Irish, Folk, Fiddle, Traditional' },
+            'reggaeton': { name: '🔥 雷盖顿', tags: 'Reggaeton, Latin, Urban, Dembow, Party' },
+            'salsa': { name: '💃 萨尔萨', tags: 'Salsa, Latin, Dance, Brass, Percussion' },
+            'tango': { name: '🕺 探戈', tags: 'Tango, Argentine, Bandoneon, Dramatic' },
+            'forro': { name: '🎉 弗罗', tags: 'Forró, Brazilian, Accordion, Dance' },
+            'dancehall': { name: '🇯🇲 舞厅', tags: 'Dancehall, Jamaican, Reggae, Party' },
+            'afrocuban': { name: '🇨🇺 古巴风', tags: 'Afro-Cuban, Jazz, Percussion, Latin' },
+            'polka': { name: '🎺 波尔卡', tags: 'Polka, Folk, Dance, Accordion, Fun' },
+            'klezmer': { name: '🎻 克莱兹默', tags: 'Klezmer, Jewish, Clarinet, Traditional' },
+            'tribal': { name: '🥁 部落', tags: 'Tribal, Ethnic, Drums, Ritual, Ancient' },
+            'calypso': { name: '🏝️ 卡利普索', tags: 'Calypso, Caribbean, Steel Drum, Tropical' },
+            // === 氛围/纯音乐 ===
+            'ambient': { name: '🌌 氛围 Ambient', tags: 'Ambient, Atmospheric, Cinematic, Ethereal, Spacey' },
+            'cinematic': { name: '🎬 电影 Cinematic', tags: 'Cinematic, Epic, Orchestral, Dramatic, Trailer' },
+            'meditation': { name: '🧘 冥想 Meditation', tags: 'Meditation, Calm, Peaceful, Healing, Zen' },
+            'newage': { name: '✨ New Age', tags: 'New Age, Spiritual, Relaxing, Nature Sounds' },
+            'downtempo': { name: '🌙 缓拍', tags: 'Downtempo, Ambient, Chill, Electronic, Slow' },
+            // === 游戏/影视 ===
+            'game': { name: '🎮 游戏 BGM', tags: '8-bit, Chiptune, Game Music, Retro, Adventure' },
+            'anime': { name: '🎬 动漫风', tags: 'Anime, Japanese, Epic, Emotional, Opening Theme' },
+            'epic': { name: '⚔️ 史诗', tags: 'Epic, Orchestral, Cinematic, Heroic, Battle' },
+            'horror': { name: '👻 恐怖', tags: 'Horror, Dark, Suspenseful, Eerie, Tension' },
+            // === 复古/年代 ===
+            'retro60s': { name: '🎸 60年代', tags: '1960s, Retro, Rock and Roll, Classic' },
+            'retro70s': { name: '🕺 70年代', tags: '1970s, Disco, Funk, Soul, Retro' },
+            'retro80s': { name: '📼 80年代', tags: '1980s, Synthpop, New Wave, Nostalgic' },
+            'retro90s': { name: '💿 90年代', tags: '1990s, Grunge, Eurodance, Hip-Hop' },
+            'doowop': { name: '🎤 Doo Wop', tags: 'Doo Wop, 50s, Vocal Harmony, Romantic' },
+            'bigband': { name: '🎺 大乐队', tags: 'Big Band, Swing, Jazz, Brass, 1940s' },
+            'barbershop': { name: '💈 理发店四重唱', tags: 'Barbershop, A Capella, Harmony, Vintage' },
+            // === 节日/场景 ===
+            'christmas': { name: '🎄 圣诞', tags: 'Christmas, Holiday, Festive, Jingle, Cheerful' },
+            'wedding': { name: '💍 婚礼', tags: 'Wedding, Romantic, Piano, Strings, Beautiful' },
+            'children': { name: '👶 儿童', tags: 'Children, Fun, Playful, Cute, Simple' },
+            'workout': { name: '💪 健身', tags: 'Workout, High Energy, Motivational, Upbeat, Pump' },
+            'party': { name: '🎉 派对', tags: 'Party, Dance, Fun, Upbeat, Celebration' },
+            'lullaby': { name: '🌙 摇篮曲', tags: 'Lullaby, Soft, Calm, Sleep, Children' },
+            'elevator': { name: '🛗 电梯音乐', tags: 'Elevator, Muzak, Background, Easy Listening' },
+            'lounge': { name: '🍸 酒吧', tags: 'Lounge, Smooth, Jazz, Relaxing, Sophisticated' },
+            'carnival': { name: '🎪 嘉年华', tags: 'Carnival, Circus, Fun, Weird, Festive' },
+            // === 特殊风格 ===
+            'dark': { name: '🌑 黑暗', tags: 'Dark, Doom, Sinister, Dramatic, Mysterious' },
+            'magical': { name: '✨ 魔幻', tags: 'Magical, Ethereal, Majestic, Fantasy, Mysterious' },
+            'cabaret': { name: '🎭 歌舞表演', tags: 'Cabaret, Theatrical, Broadway, Dramatic, Lounge' },
+            'operatic': { name: '🎭 歌剧', tags: 'Operatic, Classical, Dramatic, Powerful Vocals' },
+            'troubadour': { name: '🎸 吟游诗人', tags: 'Troubadour, Storytelling, Acoustic, Folk' },
+            'gregorian': { name: '⛪ 格里高利', tags: 'Gregorian Chant, Sacred, Choir, Ancient' },
+            'musicbox': { name: '🎁 音乐盒', tags: 'Music Box, Delicate, Nostalgic, Lullaby, Hollow' }
+        };
+
+        // 🎵 歌词结构标记（完整版 Suno 参数）
+        const LYRICS_STRUCTURES = [
+            // === 基本结构 ===
+            { tag: '[Verse]', name: '主歌', desc: '节奏性强，旋律相对克制' },
+            { tag: '[Verse 1]', name: '主歌1', desc: '第一段主歌' },
+            { tag: '[Verse 2]', name: '主歌2', desc: '第二段主歌' },
+            { tag: '[Chorus]', name: '副歌', desc: '歌曲高潮，重复加强情感' },
+            { tag: '[Pre-Chorus]', name: '前副歌', desc: '过渡段，制造悬念' },
+            { tag: '[Post-Chorus]', name: '后副歌', desc: '副歌后的延伸' },
+            { tag: '[Bridge]', name: '桥段', desc: '连接不同段落的过渡' },
+            // === 开头结尾 ===
+            { tag: '[Intro]', name: '前奏', desc: '歌曲开头，器乐引入' },
+            { tag: '[Outro]', name: '尾奏', desc: '歌曲结尾，可循环淡出' },
+            { tag: '[End]', name: '结束', desc: '明确的结束标记' },
+            { tag: '[Fade Out]', name: '淡出', desc: '渐渐消失结束' },
+            { tag: '[Fade to End]', name: '渐入结束', desc: '渐渐消失结束' },
+            { tag: '[Big Finish]', name: '大结局', desc: '可能会变宏伟或节奏以达到高潮' },
+            // === 特殊段落 ===
+            { tag: '[Hook]', name: '钩子', desc: '重复的吸引人短语' },
+            { tag: '[Interlude]', name: '间奏', desc: '器乐段落' },
+            { tag: '[Instrumental Interlude]', name: '器乐插曲', desc: '纯器乐段' },
+            { tag: '[Break]', name: '休止', desc: '主乐器沉默几小节' },
+            { tag: '[Build]', name: '铺垫', desc: '能量逐渐累积' },
+            { tag: '[Drop]', name: '落拍', desc: '高潮爆发点(EDM)' },
+            { tag: '[Bass Drop]', name: '低音下坠', desc: '低音爆发' },
+            { tag: '[Solo]', name: '独奏', desc: '器乐独奏段' },
+            { tag: '[Guitar Riff]', name: '吉他即兴', desc: '吉他重复段' },
+            { tag: '[Fingerstyle Guitar Solo]', name: '指法吉他独奏', desc: '指法吉他独奏' },
+            { tag: '[Refrain]', name: '副歌重复', desc: '副歌旋律重复' },
+            { tag: '[Melodic Bass]', name: '旋律低音', desc: '旋律低音线' },
+            { tag: '[Syncopated Bass]', name: '切分低音', desc: '切分音低音' },
+            { tag: '[Percussion Break]', name: '打击乐断奏', desc: '打击乐单独段' },
+            // === 说唱/Rap结构 ===
+            { tag: '[Rap]', name: 'Rap段', desc: '说唱段落' },
+            { tag: '[Rap Verse]', name: 'Rap主歌', desc: 'Rap主歌部分' },
+            { tag: '[Spoken Word]', name: '念白', desc: '说话式段落' },
+            // === 合唱/和声 ===
+            { tag: '[Choir]', name: '合唱', desc: '合唱段' },
+            { tag: '[Harmony]', name: '和声', desc: '和声部分' },
+            { tag: '[Call and Response]', name: '呼应', desc: '一呼一应' }
+        ];
+
+        // 🎵 人声效果标记（完整版 Suno 参数）
+        const VOCAL_EFFECTS = [
+            // === 情感类 ===
+            { tag: '[Vocal Emotion: Energetic]', name: '🔥 充满活力' },
+            { tag: '[Vocal Emotion: Sad]', name: '😢 悲伤' },
+            { tag: '[Vocal Emotion: Happy]', name: '😄 快乐' },
+            { tag: '[Vocal Emotion: Angry]', name: '😡 愤怒' },
+            { tag: '[Vocal Emotion: Calm]', name: '😌 平静' },
+            { tag: '[Vocal Emotion: Mournful]', name: '😿 哀悼' },
+            { tag: '[Vocal Emotion: Romantic]', name: '💕 浪漫' },
+            { tag: '[Vocal Emotion: Aggressive]', name: '💢 侵略性' },
+            { tag: '[Vocal Emotion: Playful]', name: '🎭 俏皮' },
+            { tag: '[Vocal Emotion: Melancholic]', name: '😔 忧郁' },
+            { tag: '[Vocal Emotion: Passionate]', name: '💫 激情' },
+            { tag: '[Vocal Emotion: Hopeful]', name: '🌟 希望' },
+            { tag: '[Vocal Emotion: Nostalgic]', name: '📷 怀旧' },
+            // === 风格类 ===
+            { tag: '[Vocal Style: Soulful]', name: '🎵 深情' },
+            { tag: '[Vocal Style: Husky]', name: '🌫️ 沙哑' },
+            { tag: '[Vocal Style: Deep]', name: '🔈 低沉' },
+            { tag: '[Vocal Style: Bright]', name: '☀️ 明亮' },
+            { tag: '[Vocal Style: Dark]', name: '🌑 黑暗' },
+            { tag: '[Vocal Style: Ethereal]', name: '✨ 空灵' },
+            { tag: '[Vocal Style: Gritty]', name: '🪨 粗犷' },
+            { tag: '[Vocal Style: Smooth]', name: '🌀 柔滑' },
+            { tag: '[Vocal Style: Guttural]', name: '🔊 喉音' },
+            { tag: '[Vocal Style: Breathless]', name: '💨 喘息' },
+            { tag: '[Vocal Style: Clear]', name: '💎 清澈' },
+            { tag: '[Vocal Style: Warm]', name: '🧡 温暖' },
+            { tag: '[Vocal Style: Cold]', name: '❄️ 冷冽' },
+            { tag: '[Vocal Style: Whispery]', name: '🤫 耳语' },
+            { tag: '[Vocal Style: Crisp]', name: '✴️ 清脆' },
+            { tag: '[Vocal Style: Grainy]', name: '📻 颗粒感' },
+            { tag: '[Vocal Style: Angelic]', name: '👼 天使般' },
+            { tag: '[Vocal Style: Demonic]', name: '👹 恶魔般' },
+            { tag: '[Vocal Style: Cinematic]', name: '🎬 电影感' },
+            { tag: '[Vocal Style: Intimate]', name: '💖 亲密' },
+            { tag: '[Vocal Style: Epic]', name: '⚔️ 史诗' },
+            { tag: '[Vocal Style: Fragile]', name: '🥀 脆弱' },
+            { tag: '[Vocal Style: Powerful]', name: '💪 有力' },
+            { tag: '[Vocal Style: Breathy]', name: '🌬️ 气息声' },
+            { tag: '[Vocal Style: Raspy]', name: '🔉 粗粝' },
+            { tag: '[Vocal Style: Operatic]', name: '🎭 歌剧' },
+            { tag: '[Vocal Style: Falsetto]', name: '🎶 假声' },
+            // === 性别类 ===
+            { tag: '[Male vocal]', name: '👨 男声' },
+            { tag: '[Female vocal]', name: '👩 女声' },
+            { tag: '[Duet]', name: '👫 对唱' },
+            { tag: '[Group vocals]', name: '👥 合唱' },
+            { tag: '[Child vocal]', name: '👶 童声' },
+            // === 人声效果 ===
+            { tag: '[Vocal Effect: Reverb-Heavy]', name: '🔊 重混响' },
+            { tag: '[Vocal Effect: Delay Echo]', name: '📢 延迟回声' },
+            { tag: '[Vocal Effect: Distortion]', name: '⚡ 失真' },
+            { tag: '[Vocal Effect: Flanger]', name: '🌀 镶边' },
+            { tag: '[Vocal Effect: Phaser]', name: '🔄 移相' },
+            { tag: '[Vocal Effect: Chorus]', name: '🎤 合唱效果' },
+            { tag: '[Vocal Effect: Compression]', name: '📦 压缩' },
+            { tag: '[Vocal Effect: Telephone Bandpass]', name: '📞 电话音' },
+            { tag: '[Vocal Effect: Underwater Muffled]', name: '🌊 水下闷音' },
+            { tag: '[Vocal Effect: Megaphone]', name: '📣 扩音器' },
+            { tag: '[Vocal Effect: Vinyl Crackle]', name: '📀 黑胶噪音' },
+            { tag: '[Vocal Effect: Radio Static]', name: '📻 收音机杂音' },
+            // === 特殊效果 ===
+            { tag: '[Autotune]', name: '🎤 自动调音' },
+            { tag: '[Vocoder]', name: '🤖 声码器' },
+            { tag: '[Layered vocals]', name: '🎂 层叠人声' },
+            { tag: '[Ad-libs]', name: '🗣️ 即兴加入' },
+            { tag: '[Belting]', name: '📢 高音唱法' },
+            { tag: '[Scatting]', name: '🎷 拟声唱法' },
+            { tag: '[growl]', name: '🐻 咆哮' },
+            { tag: '[scream]', name: '😱 尖叫' },
+            { tag: '[whisper]', name: '🤫 低语' },
+            { tag: '[head voice]', name: '🎵 头声' },
+            { tag: '[chest voice]', name: '🎵 胸声' },
+            { tag: '[vocal fry]', name: '🔥 低喉音' }
+        ];
+
+        // 🎹 乐器标签
+        const INSTRUMENT_TAGS = [
+            // === 键盘 ===
+            { tag: '[piano]', name: '🎹 钢琴' },
+            { tag: '[keyboard]', name: '⌨️ 键盘' },
+            { tag: '[synthesizer]', name: '🎛️ 合成器' },
+            { tag: '[organ]', name: '🎹 管风琴' },
+            { tag: '[accordion]', name: '🪗 手风琴' },
+            { tag: '[harpsichord]', name: '🎹 羽管键琴' },
+            { tag: '[melodica]', name: '🎹 口风琴' },
+            // === 弦乐 ===
+            { tag: '[guitar]', name: '🎸 吉他' },
+            { tag: '[electric guitar]', name: '🎸 电吉他' },
+            { tag: '[acoustic guitar]', name: '🎸 原声吉他' },
+            { tag: '[bass]', name: '🎸 贝斯' },
+            { tag: '[violin]', name: '🎻 小提琴' },
+            { tag: '[viola]', name: '🎻 中提琴' },
+            { tag: '[cello]', name: '🎻 大提琴' },
+            { tag: '[double bass]', name: '🎻 低音提琴' },
+            { tag: '[harp]', name: '🎵 竖琴' },
+            { tag: '[ukulele]', name: '🎸 尤克里里' },
+            { tag: '[banjo]', name: '🪕 班卓琴' },
+            { tag: '[mandolin]', name: '🎸 曼陀林' },
+            // === 管乐 ===
+            { tag: '[flute]', name: '🎵 长笛' },
+            { tag: '[clarinet]', name: '🎵 单簧管' },
+            { tag: '[saxophone]', name: '🎷 萨克斯' },
+            { tag: '[trumpet]', name: '🎺 小号' },
+            { tag: '[trombone]', name: '🎺 长号' },
+            { tag: '[french horn]', name: '🎺 圆号' },
+            { tag: '[tuba]', name: '🎺 大号' },
+            { tag: '[oboe]', name: '🎵 双簧管' },
+            { tag: '[bassoon]', name: '🎵 巴松管' },
+            { tag: '[harmonica]', name: '🎵 口琴' },
+            { tag: '[pan flute]', name: '🎵 排箫' },
+            { tag: '[bagpipes]', name: '🎵 风笛' },
+            // === 打击乐 ===
+            { tag: '[drums]', name: '🥁 鼓' },
+            { tag: '[percussion]', name: '🥁 打击乐' },
+            { tag: '[timpani]', name: '🥁 定音鼓' },
+            { tag: '[xylophone]', name: '🎵 木琴' },
+            { tag: '[marimba]', name: '🎵 马林巴' },
+            { tag: '[vibraphone]', name: '🎵 颤音琴' },
+            { tag: '[glockenspiel]', name: '🔔 钟琴' },
+            { tag: '[tambourine]', name: '🎵 铃鼓' },
+            { tag: '[congas]', name: '🥁 康加鼓' },
+            { tag: '[bongos]', name: '🥁 邦戈鼓' },
+            { tag: '[djembe]', name: '🥁 非洲鼓' },
+            { tag: '[cajón]', name: '📦 木箱鼓' },
+            { tag: '[tabla]', name: '🥁 塔布拉' },
+            { tag: '[taiko]', name: '🥁 太鼓' },
+            { tag: '[steel drum]', name: '🥁 钢鼓' },
+            // === 民族乐器 ===
+            { tag: '[erhu]', name: '🎻 二胡' },
+            { tag: '[guzheng]', name: '🎵 古筝' },
+            { tag: '[pipa]', name: '🎵 琵琶' },
+            { tag: '[guqin]', name: '🎵 古琴' },
+            { tag: '[bamboo flute]', name: '🎵 竹笛' },
+            { tag: '[sitar]', name: '🎸 西塔琴' },
+            { tag: '[oud]', name: '🎸 乌德琴' },
+            { tag: '[shamisen]', name: '🎸 三味线' },
+            { tag: '[koto]', name: '🎵 日本筝' },
+            { tag: '[didgeridoo]', name: '🎵 迪吉里杜' },
+            { tag: '[bouzouki]', name: '🎸 布祖基琴' },
+            // === 电子/合成 ===
+            { tag: '[808]', name: '🔊 808' },
+            { tag: '[303]', name: '🎛️ 303' },
+            { tag: '[synth pad]', name: '🎹 合成铺底' },
+            { tag: '[synth lead]', name: '🎹 合成主音' },
+            { tag: '[synth bass]', name: '🔊 合成贝斯' },
+            { tag: '[drum machine]', name: '🥁 鼓机' },
+            { tag: '[sequencer]', name: '🎛️ 音序器' },
+            { tag: '[theremin]', name: '🎛️ 特雷门琴' }
+        ];
+
+        // 🔊 音效/氛围标签
+        const AMBIENCE_TAGS = [
+            // === 自然音效 ===
+            { tag: '[Rain Ambience]', name: '🌧️ 雨声' },
+            { tag: '[Thunder]', name: '⛈️ 雷声' },
+            { tag: '[Wind]', name: '💨 风声' },
+            { tag: '[Ocean Waves]', name: '🌊 海浪' },
+            { tag: '[Birds Chirping]', name: '🐦 鸟鸣' },
+            { tag: '[Fire Crackle]', name: '🔥 火焰噼啪' },
+            { tag: '[Forest Ambience]', name: '🌲 森林氛围' },
+            // === 城市音效 ===
+            { tag: '[Traffic Ambience]', name: '🚗 交通环境' },
+            { tag: '[City Street]', name: '🏙️ 城市街道' },
+            { tag: '[Subway Ambience]', name: '🚇 地铁氛围' },
+            { tag: '[Crowd Noise]', name: '👥 人群噪音' },
+            { tag: '[Factory Ambience]', name: '🏭 工厂环境' },
+            // === 室内音效 ===
+            { tag: '[Clock Ticking]', name: '🕐 时钟滴答' },
+            { tag: '[Heartbeat]', name: '💓 心跳' },
+            { tag: '[Phone Ringing]', name: '📞 电话铃声' },
+            { tag: '[Door Creak]', name: '🚪 门嘎吱' },
+            { tag: '[Footsteps]', name: '👣 脚步声' },
+            // === 特殊音效 ===
+            { tag: '[Applause]', name: '👏 掌声' },
+            { tag: '[Cheering]', name: '🎉 欢呼声' },
+            { tag: '[Silence]', name: '🤫 静音' },
+            { tag: '[Echo Chamber]', name: '🔊 回声室' },
+            { tag: '[Concert Hall]', name: '🎵 音乐厅' },
+            { tag: '[Cathedral Reverb]', name: '⛪ 大教堂混响' },
+            { tag: '[Space Ambience]', name: '🌌 太空氛围' },
+            { tag: '[Music Box]', name: '🎁 音乐盒' },
+            { tag: '[Wind Chimes]', name: '🎐 风铃' },
+            { tag: '[Church Bells]', name: '🔔 教堂钟声' },
+            // === 机械/科幻 ===
+            { tag: '[Mechanical Whirr]', name: '⚙️ 机械嗡鸣' },
+            { tag: '[Laser Blast]', name: '🔫 激光' },
+            { tag: '[Explosion]', name: '💥 爆炸' },
+            { tag: '[Helicopter]', name: '🚁 直升机' },
+            { tag: '[Jet Flyby]', name: '✈️ 喷气飞过' }
+        ];
+
+        // 🎼 速度/力度标签
+        const TEMPO_TAGS = [
+            { tag: '[largo]', name: '🐢 广板' },
+            { tag: '[adagio]', name: '🚶 柔板' },
+            { tag: '[andante]', name: '🚶 行板' },
+            { tag: '[moderato]', name: '🏃 中板' },
+            { tag: '[allegro]', name: '🏃 快板' },
+            { tag: '[vivace]', name: '🏃 活泼的' },
+            { tag: '[presto]', name: '🚀 急板' },
+            { tag: '[accelerando]', name: '⏩ 渐快' },
+            { tag: '[ritardando]', name: '⏪ 渐慢' },
+            { tag: '[rubato]', name: '🌊 自由速度' },
+            { tag: '[up-tempo]', name: '⬆️ 快速' },
+            { tag: '[slow]', name: '⬇️ 慢速' },
+            { tag: '[crescendo]', name: '📈 渐强' },
+            { tag: '[diminuendo]', name: '📉 渐弱' },
+            { tag: '[forte]', name: '🔊 强' },
+            { tag: '[piano]', name: '🔉 弱' },
+            { tag: '[staccato]', name: '⚡ 断奏' },
+            { tag: '[legato]', name: '🌊 连奏' }
+        ];
+
+        // 🎛️ 音质/母带标签
+        const MASTERING_TAGS = [
+            { tag: '[ENHANCED STEREO]', name: '🔊 增强立体声' },
+            { tag: '[PROFESSIONAL PRISTINE MASTERING]', name: '💎 专业母带' },
+            { tag: '[FINAL STUDIO MIXDOWN]', name: '🎚️ 最终混音' },
+            { tag: '[complex morphing dynamic EQ]', name: '🎛️ 动态均衡' },
+            { tag: '[complex dynamic multi-layering]', name: '🎚️ 多层叠加' },
+            { tag: '[Sophisticated sound design]', name: '🎨 精良声音设计' },
+            { tag: '[Rich chord details]', name: '🎹 丰富和弦细节' },
+            { tag: '[catchy chord details]', name: '🎵 抓耳和弦' },
+            { tag: '[masterpiece]', name: '👑 杰作' },
+            { tag: '[Brilliant song structure]', name: '✨ 出色结构' },
+            { tag: '[Condenser Mic]', name: '🎤 电容麦克风' },
+            { tag: '[clear vocal]', name: '🎵 清晰人声' },
+            { tag: '[440hz]', name: '🎵 标准音高' },
+            { tag: '[Vocal Compression]', name: '🎚️ 人声压缩' },
+            { tag: '[complex sequencer]', name: '🎛️ 复杂音序' },
+            { tag: '[wyy陈易狄 style]', name: '🎤 陈易狄风格' },
+            { tag: '[Cyan 青幻 studio style]', name: '🎵 青幻工作室风格' }
+        ];
+
+        let currentMode = 'custom';
+        let currentLyrics = '';
+        let currentMusicUrl = '';
+        let musicHistory = [];
+
+        // 初始化UI
+        function initUI() {
+            renderStyleTemplates();
+            renderStructureTags();
+            renderVocalTags();
+            renderInstrumentTags();
+            renderAmbienceTags();
+            renderTempoTags();
+            renderMasteringTags();
+            // 🆕 灵感模式标签
+            renderInspirationTags();
+            // 🆕 智能模式标签
+            renderSmartTags();
+            loadHistory();
+        }
+
+        function renderStyleTemplates() {
+            const container = document.getElementById('styleTemplates');
+            container.innerHTML = Object.entries(STYLE_TEMPLATES).map(([k, v]) =>
+                `<button class="tag-btn style" onclick="applyStyle('${k}')">${v.name}</button>`
+            ).join('');
+        }
+
+        function renderStructureTags() {
+            const container = document.getElementById('structureTags');
+            container.innerHTML = LYRICS_STRUCTURES.map(s =>
+                `<button class="tag-btn structure" onclick="insertTag('${s.tag}')">${s.tag} ${s.name}</button>`
+            ).join('');
+        }
+
+        function renderVocalTags() {
+            const container = document.getElementById('vocalTags');
+            container.innerHTML = VOCAL_EFFECTS.map(v =>
+                `<button class="tag-btn vocal" onclick="insertTag('${v.tag}')">${v.name}</button>`
+            ).join('');
+        }
+
+        function renderInstrumentTags() {
+            const container = document.getElementById('instrumentTags');
+            if (!container) return;
+            container.innerHTML = INSTRUMENT_TAGS.map(t =>
+                `<button class="tag-btn" style="border-color:#06b6d4;color:#06b6d4;" onclick="appendToStyle('${t.tag}')">${t.name}</button>`
+            ).join('');
+        }
+
+        function renderAmbienceTags() {
+            const container = document.getElementById('ambienceTags');
+            if (!container) return;
+            container.innerHTML = AMBIENCE_TAGS.map(t =>
+                `<button class="tag-btn" style="border-color:#ec4899;color:#ec4899;" onclick="appendToStyle('${t.tag}')">${t.name}</button>`
+            ).join('');
+        }
+
+        function renderTempoTags() {
+            const container = document.getElementById('tempoTags');
+            if (!container) return;
+            container.innerHTML = TEMPO_TAGS.map(t =>
+                `<button class="tag-btn" style="border-color:#14b8a6;color:#14b8a6;" onclick="appendToStyle('${t.tag}')">${t.name}</button>`
+            ).join('');
+        }
+
+        function renderMasteringTags() {
+            const container = document.getElementById('masteringTags');
+            if (!container) return;
+            container.innerHTML = MASTERING_TAGS.map(t =>
+                `<button class="tag-btn" style="border-color:#f59e0b;color:#f59e0b;" onclick="appendToStyle('${t.tag}')">${t.name}</button>`
+            ).join('');
+        }
+        
+        // 🆕 渲染灵感模式标签
+        function renderInspirationTags() {
+            // 风格模板
+            const styleContainer = document.getElementById('inspirationStyleTemplates');
+            if (styleContainer) {
+                styleContainer.innerHTML = Object.entries(STYLE_TEMPLATES).map(([k, v]) =>
+                    `<button class="tag-btn style" onclick="applyStyleToMode('${k}', 'inspiration')">${v.name}</button>`
+                ).join('');
+            }
+            // 乐器标签
+            const instrumentContainer = document.getElementById('inspirationInstrumentTags');
+            if (instrumentContainer) {
+                instrumentContainer.innerHTML = INSTRUMENT_TAGS.map(t =>
+                    `<button class="tag-btn" style="border-color:#06b6d4;color:#06b6d4;" onclick="appendToModeStyle('${t.tag}', 'inspiration')">${t.name}</button>`
+                ).join('');
+            }
+            // 氛围标签
+            const ambienceContainer = document.getElementById('inspirationAmbienceTags');
+            if (ambienceContainer) {
+                ambienceContainer.innerHTML = AMBIENCE_TAGS.map(t =>
+                    `<button class="tag-btn" style="border-color:#ec4899;color:#ec4899;" onclick="appendToModeStyle('${t.tag}', 'inspiration')">${t.name}</button>`
+                ).join('');
+            }
+            // 速度标签
+            const tempoContainer = document.getElementById('inspirationTempoTags');
+            if (tempoContainer) {
+                tempoContainer.innerHTML = TEMPO_TAGS.map(t =>
+                    `<button class="tag-btn" style="border-color:#14b8a6;color:#14b8a6;" onclick="appendToModeStyle('${t.tag}', 'inspiration')">${t.name}</button>`
+                ).join('');
+            }
+            // 人声标签
+            const vocalContainer = document.getElementById('inspirationVocalTags');
+            if (vocalContainer) {
+                vocalContainer.innerHTML = VOCAL_EFFECTS.map(v =>
+                    `<button class="tag-btn vocal" onclick="appendToModeStyle('${v.tag}', 'inspiration')">${v.name}</button>`
+                ).join('');
+            }
+        }
+        
+        // 🆕 渲染智能模式标签
+        function renderSmartTags() {
+            // 风格模板
+            const styleContainer = document.getElementById('smartStyleTemplates');
+            if (styleContainer) {
+                styleContainer.innerHTML = Object.entries(STYLE_TEMPLATES).map(([k, v]) =>
+                    `<button class="tag-btn style" onclick="applyStyleToMode('${k}', 'smart')">${v.name}</button>`
+                ).join('');
+            }
+            // 乐器标签
+            const instrumentContainer = document.getElementById('smartInstrumentTags');
+            if (instrumentContainer) {
+                instrumentContainer.innerHTML = INSTRUMENT_TAGS.map(t =>
+                    `<button class="tag-btn" style="border-color:#06b6d4;color:#06b6d4;" onclick="appendToModeStyle('${t.tag}', 'smart')">${t.name}</button>`
+                ).join('');
+            }
+            // 氛围标签
+            const ambienceContainer = document.getElementById('smartAmbienceTags');
+            if (ambienceContainer) {
+                ambienceContainer.innerHTML = AMBIENCE_TAGS.map(t =>
+                    `<button class="tag-btn" style="border-color:#ec4899;color:#ec4899;" onclick="appendToModeStyle('${t.tag}', 'smart')">${t.name}</button>`
+                ).join('');
+            }
+            // 速度标签
+            const tempoContainer = document.getElementById('smartTempoTags');
+            if (tempoContainer) {
+                tempoContainer.innerHTML = TEMPO_TAGS.map(t =>
+                    `<button class="tag-btn" style="border-color:#14b8a6;color:#14b8a6;" onclick="appendToModeStyle('${t.tag}', 'smart')">${t.name}</button>`
+                ).join('');
+            }
+            // 人声标签
+            const vocalContainer = document.getElementById('smartVocalTags');
+            if (vocalContainer) {
+                vocalContainer.innerHTML = VOCAL_EFFECTS.map(v =>
+                    `<button class="tag-btn vocal" onclick="appendToModeStyle('${v.tag}', 'smart')">${v.name}</button>`
+                ).join('');
+            }
+        }
+        
+        // 🆕 应用风格模板到指定模式
+        function applyStyleToMode(key, mode) {
+            const template = STYLE_TEMPLATES[key];
+            if (!template) return;
+            
+            let inputId = 'tagsInput';
+            if (mode === 'inspiration') inputId = 'inspirationTagsInput';
+            else if (mode === 'smart') inputId = 'smartTagsInput';
+            
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.value = template.tags;
+                showToast(`已应用 ${template.name} 风格`);
+            }
+        }
+        
+        // 🆕 追加标签到指定模式的风格输入框
+        function appendToModeStyle(tag, mode) {
+            let inputId = 'tagsInput';
+            if (mode === 'inspiration') inputId = 'inspirationTagsInput';
+            else if (mode === 'smart') inputId = 'smartTagsInput';
+            
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            
+            const current = input.value.trim();
+            const cleanTag = tag.replace(/^\[|\]$/g, '');
+            if (current) {
+                input.value = current + ', ' + cleanTag;
+            } else {
+                input.value = cleanTag;
+            }
+            showToast(`已添加: ${cleanTag}`);
+        }
+
+        // 追加标签到风格输入框
+        function appendToStyle(tag) {
+            const input = document.getElementById('tagsInput');
+            const current = input.value.trim();
+            // 去掉方括号，转为逗号分隔的风格
+            const cleanTag = tag.replace(/^\[|\]$/g, '');
+            if (current) {
+                input.value = current + ', ' + cleanTag;
+            } else {
+                input.value = cleanTag;
+            }
+            showToast(`已添加: ${cleanTag}`);
+        }
+
+        // 🧠 智能匹配歌词结构 - 根据风格自动添加结构标记
+        const STYLE_STRUCTURE_MAP = {
+            // EDM/电子舞曲
+            'edm': '[Intro]\n\n[Build]\n\n[Drop]\n\n[Verse]\n\n[Build]\n\n[Drop]\n\n[Bridge]\n\n[Drop]\n\n[Outro]',
+            'dubstep': '[Intro]\n\n[Build]\n\n[Drop]\n\n[Build]\n\n[Drop]\n\n[Bass Drop]\n\n[Outro]',
+            'house': '[Intro]\n\n[Verse]\n\n[Chorus]\n\n[Build]\n\n[Drop]\n\n[Verse 2]\n\n[Chorus]\n\n[Outro]',
+            'trance': '[Intro]\n\n[Build]\n\n[Verse]\n\n[Build]\n\n[Drop]\n\n[Interlude]\n\n[Build]\n\n[Drop]\n\n[Outro]',
+            'techno': '[Intro]\n\n[Build]\n\n[Drop]\n\n[Interlude]\n\n[Build]\n\n[Drop]\n\n[Outro]',
+            // 说唱/嘻哈
+            'hiphop': '[Intro]\n\n[Verse 1]\n\n[Hook]\n\n[Verse 2]\n\n[Hook]\n\n[Bridge]\n\n[Verse 3]\n\n[Hook]\n\n[Outro]',
+            'rap': '[Intro]\n\n[Verse 1]\n\n[Hook]\n\n[Verse 2]\n\n[Hook]\n\n[Bridge]\n\n[Verse 3]\n\n[Hook]\n\n[Outro]',
+            'trap': '[Intro]\n\n[Verse 1]\n\n[Hook]\n\n[Verse 2]\n\n[Hook]\n\n[Drop]\n\n[Verse 3]\n\n[Hook]\n\n[Outro]',
+            // 流行/抒情
+            'pop': '[Intro]\n\n[Verse 1]\n\n[Pre-Chorus]\n\n[Chorus]\n\n[Verse 2]\n\n[Pre-Chorus]\n\n[Chorus]\n\n[Bridge]\n\n[Chorus]\n\n[Outro]',
+            'ballad': '[Intro]\n\n[Verse 1]\n\n[Chorus]\n\n[Verse 2]\n\n[Chorus]\n\n[Bridge]\n\n[Chorus]\n\n[Outro]',
+            'rnb': '[Intro]\n\n[Verse 1]\n\n[Pre-Chorus]\n\n[Chorus]\n\n[Verse 2]\n\n[Chorus]\n\n[Bridge]\n\n[Chorus]\n\n[Outro]',
+            // 摇滚/金属
+            'rock': '[Intro]\n\n[Verse 1]\n\n[Chorus]\n\n[Verse 2]\n\n[Chorus]\n\n[Guitar Solo]\n\n[Bridge]\n\n[Chorus]\n\n[Outro]',
+            'metal': '[Intro]\n\n[Verse 1]\n\n[Pre-Chorus]\n\n[Chorus]\n\n[Verse 2]\n\n[Chorus]\n\n[Solo]\n\n[Bridge]\n\n[Breakdown]\n\n[Chorus]\n\n[Outro]',
+            'punk': '[Intro]\n\n[Verse 1]\n\n[Chorus]\n\n[Verse 2]\n\n[Chorus]\n\n[Bridge]\n\n[Chorus]\n\n[Outro]',
+            // 爵士/蓝调
+            'jazz': '[Intro]\n\n[Head]\n\n[Solo]\n\n[Interlude]\n\n[Solo]\n\n[Head]\n\n[Outro]',
+            'blues': '[Intro]\n\n[Verse 1]\n\n[Verse 2]\n\n[Verse 3]\n\n[Solo]\n\n[Verse 4]\n\n[Outro]',
+            // 民谣/乡村
+            'folk': '[Intro]\n\n[Verse 1]\n\n[Chorus]\n\n[Verse 2]\n\n[Chorus]\n\n[Verse 3]\n\n[Chorus]\n\n[Outro]',
+            'country': '[Intro]\n\n[Verse 1]\n\n[Chorus]\n\n[Verse 2]\n\n[Chorus]\n\n[Bridge]\n\n[Solo]\n\n[Chorus]\n\n[Outro]',
+            // 纯音乐/氛围
+            'ambient': '[Intro]\n\n[Section A]\n\n[Build]\n\n[Section B]\n\n[Interlude]\n\n[Section A]\n\n[Fade Out]',
+            'cinematic': '[Intro]\n\n[Theme]\n\n[Build]\n\n[Climax]\n\n[Resolution]\n\n[Theme Reprise]\n\n[Outro]',
+            'epic': '[Intro]\n\n[Theme]\n\n[Build]\n\n[Climax]\n\n[Interlude]\n\n[Build]\n\n[Final Climax]\n\n[Outro]',
+            // 默认通用结构
+            'default': '[Intro]\n\n[Verse 1]\n\n[Chorus]\n\n[Verse 2]\n\n[Chorus]\n\n[Bridge]\n\n[Chorus]\n\n[Outro]'
+        };
+
+        // 检查歌词是否已包含结构标记
+        function hasStructureTags(lyrics) {
+            const structureRegex = /\[(Verse|Chorus|Bridge|Intro|Outro|Hook|Pre-Chorus|Post-Chorus|Drop|Build|Solo|Interlude|Break|Rap|Refrain)/i;
+            return structureRegex.test(lyrics);
+        }
+
+        // 根据风格获取匹配的结构
+        function getMatchedStructure(tags) {
+            const tagsLower = tags.toLowerCase();
+            // 优先匹配特定风格
+            for (const [style, structure] of Object.entries(STYLE_STRUCTURE_MAP)) {
+                if (style !== 'default' && tagsLower.includes(style)) {
+                    return structure;
+                }
+            }
+            // EDM类别关键词
+            if (/edm|electronic|dance|house|techno|trance|dubstep|drop|festival/i.test(tagsLower)) {
+                return STYLE_STRUCTURE_MAP['edm'];
+            }
+            // 说唱类别
+            if (/hip.?hop|rap|trap|drill|boom.?bap|flow|808/i.test(tagsLower)) {
+                return STYLE_STRUCTURE_MAP['hiphop'];
+            }
+            // 摇滚类别
+            if (/rock|metal|punk|grunge|guitar/i.test(tagsLower)) {
+                return STYLE_STRUCTURE_MAP['rock'];
+            }
+            // 抒情类别
+            if (/ballad|emotional|sad|romantic|slow/i.test(tagsLower)) {
+                return STYLE_STRUCTURE_MAP['ballad'];
+            }
+            // 爵士类别
+            if (/jazz|swing|bebop/i.test(tagsLower)) {
+                return STYLE_STRUCTURE_MAP['jazz'];
+            }
+            // 纯音乐类别
+            if (/ambient|cinematic|instrumental|meditation|soundtrack/i.test(tagsLower)) {
+                return STYLE_STRUCTURE_MAP['ambient'];
+            }
+            // 史诗类别
+            if (/epic|orchestral|trailer|heroic/i.test(tagsLower)) {
+                return STYLE_STRUCTURE_MAP['epic'];
+            }
+            return STYLE_STRUCTURE_MAP['default'];
+        }
+
+        // 智能添加结构到歌词
+        function applySmartStructure(lyrics, tags) {
+            const autoStructure = document.getElementById('autoStructureCheck')?.checked;
+            if (!autoStructure) return lyrics;
+            if (hasStructureTags(lyrics)) return lyrics; // 已有结构，不添加
+            
+            const structure = getMatchedStructure(tags);
+            // 将歌词嵌入到结构中
+            if (lyrics.trim()) {
+                // 将歌词按段落分割，尝试填入结构
+                const paragraphs = lyrics.split(/\n\n+/).filter(p => p.trim());
+                const structureParts = structure.split(/\n\n+/);
+                let result = '';
+                let pIdx = 0;
+                for (const part of structureParts) {
+                    result += part + '\n';
+                    if (pIdx < paragraphs.length && !part.includes('[Intro]') && !part.includes('[Outro]') && !part.includes('[Solo]') && !part.includes('[Interlude]')) {
+                        result += paragraphs[pIdx] + '\n\n';
+                        pIdx++;
+                    } else {
+                        result += '\n';
+                    }
+                }
+                // 如果还有剩余歌词，追加到末尾
+                while (pIdx < paragraphs.length) {
+                    result += paragraphs[pIdx] + '\n\n';
+                    pIdx++;
+                }
+                return result.trim();
+            }
+            return structure;
+        }
+
+        // 🧠 智能分析/生成功能
+        async function smartAnalyze() {
+            const lyrics = document.getElementById('lyricsInput')?.value.trim() || '';
+            const tags = document.getElementById('tagsInput')?.value.trim() || '';
+            const inspiration = document.getElementById('inspirationInput')?.value.trim() || '';
+            const smart = document.getElementById('smartInput')?.value.trim() || '';
+            
+            // 获取用户输入
+            let userInput = lyrics || inspiration || smart;
+            
+            if (!userInput) {
+                showToast('请先输入歌词或主题');
+                return;
+            }
+            
+            // 💰 检查余额并收费
+            if (userQuota < SMART_ANALYZE_COST) {
+                showToast('胶片不足，智能分析需要' + SMART_ANALYZE_COST + '胶片');
+                return;
+            }
+            
+            const btn = document.getElementById('smartAnalyzeBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            const smartHint = document.getElementById('smartHint');
+            const smartHintText = document.getElementById('smartHintText');
+            
+            btn.disabled = true;
+            loading.style.display = 'block';
+            smartHint.style.display = 'none';
+            
+            try {
+                // 判断是歌词还是主题
+                const isLyrics = userInput.length > 50 && (userInput.includes('\n') || /[。，！？]/.test(userInput));
+                
+                if (isLyrics) {
+                    // 用户输入的是歌词，分析生成风格标签
+                    loadingText.textContent = '🧠 正在分析歌词风格...';
+                    
+                    const response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'chat',
+                            model: 'qwen-plus',
+                            messages: [{
+                                role: 'user',
+                                content: `分析以下歌词，生成适合的SUNO音乐风格标签。
+
+要求：
+1. 返回英文风格标签，用逗号分隔
+2. 包含：流派(如Pop/Rock/Hip-Hop)、情绪(如Emotional/Energetic)、乐器(如Piano/Guitar)、速度(如Slow/Fast)
+3. 只返回标签，不要其他内容
+4. 标签数量5-10个
+
+歌词：
+${userInput.substring(0, 1000)}`
+                            }],
+                            userId: currentUser?.id
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    const generatedTags = data.reply || data.content || '';
+                    
+                    if (generatedTags) {
+                        // 💰 扣费
+                        await chargeForSmartAnalyze();
+                        
+                        // 清理标签，去掉多余内容
+                        const cleanTags = generatedTags.replace(/[\n\r]/g, ', ').replace(/,\s*,/g, ',').trim();
+                        // 🆕 根据当前模式填入对应的标签输入框
+                        if (currentMode === 'inspiration') {
+                            document.getElementById('inspirationTagsInput').value = cleanTags;
+                        } else if (currentMode === 'smart') {
+                            document.getElementById('smartTagsInput').value = cleanTags;
+                        } else {
+                            document.getElementById('tagsInput').value = cleanTags;
+                        }
+                        
+                        smartHintText.textContent = `✅ 已分析歌词并生成风格标签 (-${SMART_ANALYZE_COST}胶片): ${cleanTags.substring(0, 50)}...`;
+                        smartHint.style.display = 'block';
+                        showToast('歌词分析完成，已生成风格标签');
+                    }
+                } else {
+                    // 用户输入的是主题，生成歌词+标签
+                    loadingText.textContent = '🧠 正在根据主题生成歌词...';
+                    
+                    const response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'chat',
+                            model: 'qwen-plus',
+                            messages: [{
+                                role: 'user',
+                                content: `根据主题创作一首歌词，并生成适合的SUNO音乐风格标签。
+
+主题：${userInput}
+
+要求：
+1. 歌词要包含 [Verse] [Chorus] [Bridge] 等结构标记
+2. 歌词语言：中文
+3. 歌词风格：流行、朗朗上口、情感充沛
+4. 最后一行单独输出英文风格标签，格式：TAGS: Pop, Emotional, Piano...
+
+请直接输出歌词和标签，不要其他解释。`
+                            }],
+                            userId: currentUser?.id
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    const result = data.reply || data.content || '';
+                    
+                    if (result) {
+                        // 💰 扣费
+                        await chargeForSmartAnalyze();
+                        
+                        // 提取标签和歌词
+                        const tagsMatch = result.match(/TAGS?:\s*(.+?)(?:\n|$)/i);
+                        let generatedLyrics = result;
+                        let generatedTags = '';
+                        
+                        if (tagsMatch) {
+                            generatedTags = tagsMatch[1].trim();
+                            generatedLyrics = result.replace(/TAGS?:\s*.+?(?:\n|$)/i, '').trim();
+                        }
+                        
+                        // 填入歌词
+                        document.getElementById('lyricsInput').value = generatedLyrics;
+                        currentLyrics = generatedLyrics;
+                        
+                        // 填入标签
+                        if (generatedTags) {
+                            document.getElementById('tagsInput').value = generatedTags;
+                        }
+                        
+                        // 切换到自定义模式
+                        switchMode('custom');
+                        
+                        smartHintText.textContent = `✅ 已根据主题「${userInput}」生成歌词和风格标签 (-${SMART_ANALYZE_COST}胶片)`;
+                        smartHint.style.display = 'block';
+                        document.getElementById('lyricsHint').style.display = 'block';
+                        showToast('歌词和标签生成完成！');
+                    }
+                }
+            } catch (error) {
+                console.error('智能分析失败:', error);
+                showToast('智能分析失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function toggleSection(id) {
+            const el = document.getElementById(id);
+            el.classList.toggle('show');
+        }
+
+        function applyStyle(key) {
+            const template = STYLE_TEMPLATES[key];
+            if (template) {
+                document.getElementById('tagsInput').value = template.tags;
+                showToast(`已应用 ${template.name} 风格`);
+            }
+        }
+
+        function insertTag(tag) {
+            const textarea = document.getElementById('lyricsInput');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            textarea.value = text.substring(0, start) + tag + '\n' + text.substring(end);
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + tag.length + 1;
+        }
+
+        function switchMode(mode) {
+            console.log('[music] switchMode 被调用:', mode);
+            currentMode = mode;
+            // 更新标签页样式 - 使用 data-mode 属性匹配
+            document.querySelectorAll('.mode-tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.getAttribute('data-mode') === mode) {
+                    t.classList.add('active');
+                }
+            });
+
+            document.getElementById('customMode').style.display = mode === 'custom' ? 'block' : 'none';
+            document.getElementById('inspirationMode').style.display = mode === 'inspiration' ? 'block' : 'none';
+            document.getElementById('smartMode').style.display = mode === 'smart' ? 'block' : 'none';
+            console.log('[music] 模式已切换到:', mode);
+        }
+
+        async function generateMusic() {
+            const model = document.getElementById('modelSelect').value;
+            const gender = document.getElementById('genderSelect').value;
+            const instrumental = document.getElementById('instrumentalCheck').checked;
+            const negativeTags = document.getElementById('negativeTagsInput').value.trim();
+
+            let prompt = '', tags = '', title = '';
+
+            if (currentMode === 'custom') {
+                title = document.getElementById('titleInput').value.trim();
+                tags = document.getElementById('tagsInput').value.trim();
+                prompt = document.getElementById('lyricsInput').value.trim();
+                // 优先使用生成的歌词
+                if (currentLyrics) prompt = currentLyrics;
+                // 🧠 智能匹配歌词结构
+                if (prompt && tags) {
+                    prompt = applySmartStructure(prompt, tags);
+                }
+            } else if (currentMode === 'inspiration') {
+                prompt = document.getElementById('inspirationInput').value.trim();
+                // 🆕 获取灵感模式的风格标签
+                tags = document.getElementById('inspirationTagsInput')?.value.trim() || '';
+            } else {
+                prompt = document.getElementById('smartInput').value.trim();
+                // 🆕 获取智能模式的风格标签
+                tags = document.getElementById('smartTagsInput')?.value.trim() || '';
+            }
+
+            if (!prompt && !tags) {
+                showToast('请输入内容');
+                return;
+            }
+
+            // ✅ 检查余额是否足够（不预扣费，后端成功后扣费）
+            if (userQuota < MUSIC_COST) {
+                showToast('余额不足，请先充值');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            const result = document.getElementById('resultSection');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            try {
+                loadingText.textContent = '正在提交任务...';
+
+                const requestBody = {
+                    action: 'generate',
+                    mv: model,
+                    make_instrumental: instrumental,
+                    userId: currentUser.id  // ✅ 传递userId，后端成功后扣费
+                };
+
+                if (currentMode === 'custom' && (prompt || currentLyrics)) {
+                    // 自定义模式：使用 prompt + tags
+                    requestBody.prompt = prompt || currentLyrics;
+                    if (tags) requestBody.tags = tags;
+                    if (title) requestBody.title = title;
+                } else if (tags) {
+                    // 🆕 灵感/智能模式带标签：将标签融合到描述中
+                    requestBody.gpt_description_prompt = `${prompt}
+
+Style: ${tags}`;
+                } else {
+                    // 灵感/智能模式无标签：直接使用描述
+                    requestBody.gpt_description_prompt = prompt;
+                }
+
+                if (gender) requestBody.vocal_gender = gender;
+                if (negativeTags) requestBody.negative_tags = negativeTags;
+
+                const response = await fetch('/api/suno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json();
+
+                if (data.data?.audio_url || data.audio_url || data.url) {
+                    handleMusicResult(data.data?.audio_url || data.audio_url || data.url, prompt || title);
+                    return;
+                }
+
+                const taskId = data.task_id || data.data;
+                if (!taskId) throw new Error(data.message || data.error || '未获取到任务ID');
+
+                loadingText.textContent = '任务已提交，正在生成音乐...';
+
+                for (let i = 0; i < 60; i++) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    loadingText.textContent = `正在创作音乐... (${i * 2}秒)`;
+
+                    const statusRes = await fetch('/api/suno', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'fetch', task_id: taskId })
+                    });
+
+                    const statusData = await statusRes.json();
+
+                    if (statusData.is_failed) throw new Error(statusData.fail_reason || '生成失败');
+
+                    if (statusData.is_complete && statusData.music && statusData.music.length > 0) {
+                        const audioUrl = statusData.music[0].audio_url;
+                        if (audioUrl) {
+                            handleMusicResult(audioUrl, prompt || title);
+                            return;
+                        }
+                    }
+                }
+
+                throw new Error('生成超时，请稍后重试');
+
+            } catch (error) {
+                // ✅ 后端成功才扣费，失败不扣费，无需退款
+                showToast('生成失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function handleMusicResult(audioUrl, prompt) {
+            currentMusicUrl = audioUrl;
+            document.getElementById('audioPlayer').src = currentMusicUrl;
+            document.getElementById('resultSection').style.display = 'block';
+
+            musicHistory.unshift({ url: currentMusicUrl, prompt: prompt || '音乐作品', time: Date.now() });
+            saveHistory();
+            renderHistory();
+
+            showToast('音乐生成成功！');
+        }
+
+        async function generateLyrics() {
+            let prompt = '';
+            if (currentMode === 'custom') {
+                prompt = document.getElementById('tagsInput').value.trim() || document.getElementById('lyricsInput').value.trim();
+            } else if (currentMode === 'inspiration') {
+                prompt = document.getElementById('inspirationInput').value.trim();
+            } else {
+                prompt = document.getElementById('smartInput').value.trim();
+            }
+
+            if (!prompt) {
+                showToast('请输入描述');
+                return;
+            }
+
+            const btn = document.getElementById('lyricsBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            const lyricsSection = document.getElementById('lyricsSection');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            lyricsSection.style.display = 'none';
+
+            try {
+                loadingText.textContent = '正在生成歌词...';
+
+                const response = await fetch('/api/suno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'lyrics',
+                        prompt: `写一首歌词，主题是：${prompt}`,
+                        userId: currentUser.id  // 🔐 传递userId
+                    })
+                });
+
+                const data = await response.json();
+                const taskId = data.task_id || data.data;
+
+                if (!taskId) throw new Error(data.message || data.error || '未获取到任务ID');
+
+                for (let i = 0; i < 30; i++) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    loadingText.textContent = `正在创作歌词... (${i * 2}秒)`;
+
+                    const statusRes = await fetch('/api/suno', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'fetch', task_id: taskId })
+                    });
+
+                    const statusData = await statusRes.json();
+
+                    if (statusData.is_failed) throw new Error(statusData.fail_reason || '生成失败');
+
+                    const lyrics = statusData.raw?.data?.text || statusData.raw?.text || statusData.lyrics || statusData.data?.lyrics;
+                    if (lyrics && statusData.is_complete) {
+                        currentLyrics = lyrics;
+                        document.getElementById('lyricsContent').textContent = lyrics;
+                        lyricsSection.style.display = 'block';
+                        document.getElementById('lyricsHint').style.display = 'block';
+                        showToast('歌词生成成功！');
+                        return;
+                    }
+                }
+
+                throw new Error('生成超时');
+
+            } catch (error) {
+                showToast('歌词生成失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function copyLyrics() {
+            if (currentLyrics) {
+                navigator.clipboard.writeText(currentLyrics);
+                showToast('歌词已复制');
+            }
+        }
+
+        function useLyricsInEditor() {
+            if (currentLyrics) {
+                document.getElementById('lyricsInput').value = currentLyrics;
+                switchMode('custom');
+                document.querySelectorAll('.mode-tab')[0].classList.add('active');
+                document.querySelectorAll('.mode-tab')[1].classList.remove('active');
+                document.querySelectorAll('.mode-tab')[2].classList.remove('active');
+                showToast('已填入歌词编辑器');
+            }
+        }
+
+        function clearLyrics() {
+            currentLyrics = '';
+            document.getElementById('lyricsSection').style.display = 'none';
+            document.getElementById('lyricsHint').style.display = 'none';
+            showToast('已清除歌词');
+        }
+
+        function generateMusicWithLyrics() {
+            if (currentLyrics) {
+                generateMusic();
+            }
+        }
+
+        function downloadMusic() {
+            if (!currentMusicUrl) return;
+            const a = document.createElement('a');
+            a.href = currentMusicUrl;
+            a.download = 'music_' + Date.now() + '.mp3';
+            a.target = '_blank';
+            a.click();
+            showToast('开始下载');
+        }
+
+        function shareMusic() {
+            if (!currentMusicUrl) return;
+            if (navigator.share) {
+                navigator.share({ title: 'AI音乐作品', url: currentMusicUrl });
+            } else {
+                navigator.clipboard.writeText(currentMusicUrl);
+                showToast('链接已复制');
+            }
+        }
+
+        function loadHistory() {
+            try {
+                musicHistory = JSON.parse(localStorage.getItem('music_history') || '[]');
+                renderHistory();
+            } catch (e) { }
+        }
+
+        function saveHistory() {
+            localStorage.setItem('music_history', JSON.stringify(musicHistory.slice(0, 10)));
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (musicHistory.length === 0) {
+                list.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;">暂无历史记录</div>';
+                return;
+            }
+            list.innerHTML = musicHistory.map((item, i) => `
+                <div class="history-item">
+                    <div class="history-item-title">${item.prompt}</div>
+                    <audio controls style="width:100%"><source src="${item.url}"></audio>
+                </div>
+            `).join('');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ==================== 页面状态持久化 ====================
+        function saveMusicState() {
+            try {
+                const state = {
+                    currentMode,
+                    tagsInput: document.getElementById('tagsInput')?.value || '',
+                    lyricsInput: document.getElementById('lyricsInput')?.value || '',
+                    inspirationInput: document.getElementById('inspirationInput')?.value || '',
+                    smartInput: document.getElementById('smartInput')?.value || '',
+                    titleInput: document.getElementById('titleInput')?.value || '',
+                    negativeTagsInput: document.getElementById('negativeTagsInput')?.value || '',
+                    modelSelect: document.getElementById('modelSelect')?.value || '',
+                    genderSelect: document.getElementById('genderSelect')?.value || '',
+                    instrumentalCheck: document.getElementById('instrumentalCheck')?.checked || false,
+                    // 🆕 保存灵感/智能模式的标签
+                    inspirationTagsInput: document.getElementById('inspirationTagsInput')?.value || '',
+                    smartTagsInput: document.getElementById('smartTagsInput')?.value || '',
+                    currentLyrics,
+                    currentMusicUrl,
+                    lyricsSectionVisible: document.getElementById('lyricsSection')?.style.display === 'block',
+                    resultSectionVisible: document.getElementById('resultSection')?.style.display === 'block',
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_music_state', JSON.stringify(state));
+                console.log('[music] 状态已保存');
+            } catch (e) { console.warn('[music] 保存状态失败:', e); }
+        }
+
+        function restoreMusicState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_music_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_music_state');
+                    return;
+                }
+                console.log('[music] 恢复状态...');
+
+                // 恢复输入框
+                if (state.tagsInput) document.getElementById('tagsInput').value = state.tagsInput;
+                if (state.lyricsInput) document.getElementById('lyricsInput').value = state.lyricsInput;
+                if (state.inspirationInput) document.getElementById('inspirationInput').value = state.inspirationInput;
+                if (state.smartInput) document.getElementById('smartInput').value = state.smartInput;
+                if (state.titleInput) document.getElementById('titleInput').value = state.titleInput;
+                if (state.negativeTagsInput) document.getElementById('negativeTagsInput').value = state.negativeTagsInput;
+                if (state.modelSelect) document.getElementById('modelSelect').value = state.modelSelect;
+                if (state.genderSelect) document.getElementById('genderSelect').value = state.genderSelect;
+                if (state.instrumentalCheck !== undefined) document.getElementById('instrumentalCheck').checked = state.instrumentalCheck;
+                // 🆕 恢复灵感/智能模式的标签
+                if (state.inspirationTagsInput) document.getElementById('inspirationTagsInput').value = state.inspirationTagsInput;
+                if (state.smartTagsInput) document.getElementById('smartTagsInput').value = state.smartTagsInput;
+
+                // 恢复模式
+                if (state.currentMode) switchMode(state.currentMode);
+
+                // 恢复歌词
+                if (state.currentLyrics) {
+                    currentLyrics = state.currentLyrics;
+                    document.getElementById('lyricsContent').textContent = state.currentLyrics;
+                    document.getElementById('lyricsSection').style.display = 'block';
+                    document.getElementById('lyricsHint').style.display = 'block';
+                }
+
+                // 恢复音乐结果
+                if (state.currentMusicUrl) {
+                    currentMusicUrl = state.currentMusicUrl;
+                    document.getElementById('audioPlayer').src = state.currentMusicUrl;
+                    document.getElementById('resultSection').style.display = 'block';
+                }
+
+                console.log('[music] 状态恢复完成');
+            } catch (e) { console.warn('[music] 恢复状态失败:', e); }
+        }
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden) saveMusicState(); });
+        window.addEventListener('beforeunload', saveMusicState);
+        window.addEventListener('pagehide', saveMusicState);
+        window.addEventListener('load', () => setTimeout(restoreMusicState, 300));
+
+        // ==================== 🆕 批量模式功能 ====================
+        
+        let batchMode = false;
+        let batchGenerating = false;
+        let batchResults = [];  // { index, prompt, audioUrl, title, error, selected }
+        const BATCH_GRID_SIZE = 8;  // 宫格数量（2列4行）
+        
+        // 🎵 初始化批量音乐宫格（每个格子可独立配置参数）
+        function initBatchMusicGrid() {
+            const grid = document.getElementById('batchMusicGrid');
+            if (!grid) return;
+            
+            grid.innerHTML = '';
+            const placeholders = [
+                '夏日海边浪漫情歌',
+                '励志摇滚充满力量',
+                '深夜冷静电子乐',
+                '古风中国风民谣',
+                '欢快儿童歌曲',
+                '感伤情歌想念',
+                '节奏强的舞曲',
+                '古典钢琴纯音乐'
+            ];
+            
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const item = document.createElement('div');
+                item.className = 'batch-item';
+                item.id = `batchMusicItem_${i}`;
+                item.innerHTML = `
+                    <span class="batch-item-index">#${i + 1}</span>
+                    <textarea id="batchMusicPrompt_${i}" 
+                        placeholder="${placeholders[i] || '音乐描述...'}" 
+                        oninput="updateBatchMusicCount()"></textarea>
+                    <div class="batch-item-params">
+                        <div class="batch-item-params-row">
+                            <select id="batchStyle_${i}" onchange="applyBatchStyle(${i})">
+                                <option value="">--风格--</option>
+                                <optgroup label="流行/舞曲">
+                                    <option value="pop">🎤流行Pop</option>
+                                    <option value="kpop">🇰🇷韩流K-Pop</option>
+                                    <option value="jpop">🇯🇵日流J-Pop</option>
+                                    <option value="cpop">🇨🇳华语流行</option>
+                                    <option value="dance">💃舞曲</option>
+                                    <option value="disco">🕺迪斯科</option>
+                                </optgroup>
+                                <optgroup label="摇滚/金属">
+                                    <option value="rock">🎸摇滚Rock</option>
+                                    <option value="indie">🎹独立Indie</option>
+                                    <option value="punk">⚡朋克Punk</option>
+                                    <option value="metal">🤘金属Metal</option>
+                                    <option value="hardrock">🔥硬摇滚</option>
+                                    <option value="emo">😢情绪摇滚</option>
+                                </optgroup>
+                                <optgroup label="电子/舞曲">
+                                    <option value="electronic">🎧电子</option>
+                                    <option value="edm">🔊EDM</option>
+                                    <option value="lofi">📻Lo-Fi</option>
+                                    <option value="techno">🔈Techno</option>
+                                    <option value="house">🏠House</option>
+                                    <option value="trance">🌀Trance</option>
+                                    <option value="dubstep">💥Dubstep</option>
+                                    <option value="synthwave">🌃Synthwave</option>
+                                    <option value="drumandbass">🥁D&B</option>
+                                </optgroup>
+                                <optgroup label="嘻哈/说唱">
+                                    <option value="hiphop">🎤嘻哈Hip-Hop</option>
+                                    <option value="trap">🔥陷阱Trap</option>
+                                    <option value="rap">🎙️说唱Rap</option>
+                                    <option value="drillrap">🔫Drill</option>
+                                    <option value="boombap">💥Boom Bap</option>
+                                    <option value="phonk">🚘Phonk</option>
+                                    <option value="emorap">😭情绪说唱</option>
+                                </optgroup>
+                                <optgroup label="抒情/情感">
+                                    <option value="ballad">💔抒情Ballad</option>
+                                    <option value="rnb">🎵R&B</option>
+                                    <option value="soul">💜灵魂Soul</option>
+                                    <option value="slowjam">💕慢歌</option>
+                                </optgroup>
+                                <optgroup label="古典/民谣">
+                                    <option value="classical">🎻古典</option>
+                                    <option value="folk">🪕民谣Folk</option>
+                                    <option value="country">🤠乡村</option>
+                                    <option value="acoustic">🎸原声</option>
+                                </optgroup>
+                                <optgroup label="爵士/蓝调">
+                                    <option value="jazz">🎷爵士Jazz</option>
+                                    <option value="blues">🎸蓝调Blues</option>
+                                    <option value="swing">🎺Swing</option>
+                                    <option value="bossanova">☕Bossa Nova</option>
+                                </optgroup>
+                                <optgroup label="世界/民族">
+                                    <option value="chinese">🏮中国风</option>
+                                    <option value="guofeng">🌸国潮</option>
+                                    <option value="latin">💃拉丁Latin</option>
+                                    <option value="reggae">🌴雷鬼Reggae</option>
+                                    <option value="afrobeat">🌍Afrobeat</option>
+                                    <option value="indian">🇮🇳印度风</option>
+                                    <option value="arabic">🏜️阿拉伯</option>
+                                    <option value="celtic">☘️凯尔特</option>
+                                </optgroup>
+                                <optgroup label="氛围/特殊">
+                                    <option value="ambient">🌌氛围</option>
+                                    <option value="cinematic">🎬电影配乐</option>
+                                    <option value="epic">⚔️史诗Epic</option>
+                                    <option value="anime">🎌动漫风</option>
+                                    <option value="videogame">🎮游戏风</option>
+                                    <option value="meditation">🧘冥想</option>
+                                    <option value="christmas">🎄圣诞</option>
+                                    <option value="children">👶儿童</option>
+                                </optgroup>
+                            </select>
+                            <select id="batchModel_${i}">
+                                <option value="">--模型--</option>
+                                <option value="chirp-v3-5">v3.5</option>
+                                <option value="chirp-v4">v4推荐</option>
+                                <option value="chirp-v4-tau">v4歌手</option>
+                                <option value="chirp-auk">v4.5</option>
+                                <option value="chirp-v5">v5新</option>
+                            </select>
+                        </div>
+                        <div class="batch-item-params-row">
+                            <select id="batchInstrument_${i}" onchange="applyBatchTag(${i}, 'instrument')">
+                                <option value="">--乐器--</option>
+                                <optgroup label="键盘">
+                                    <option value="Piano">🎹钢琴</option>
+                                    <option value="Synth">🎛️合成器</option>
+                                    <option value="Organ">🎹风琴</option>
+                                    <option value="Rhodes">🎹电钢琴</option>
+                                </optgroup>
+                                <optgroup label="弦乐">
+                                    <option value="Electric Guitar">🎸电吉他</option>
+                                    <option value="Acoustic Guitar">🎸木吉他</option>
+                                    <option value="Bass">🎸贝斯</option>
+                                    <option value="Violin">🎻小提琴</option>
+                                    <option value="Strings">🎻弦乐组</option>
+                                    <option value="Erhu">🪕二胡</option>
+                                    <option value="Guzheng">🪕古筝</option>
+                                    <option value="Pipa">🪕琵琶</option>
+                                </optgroup>
+                                <optgroup label="管乐">
+                                    <option value="Saxophone">🎷萨克斯</option>
+                                    <option value="Trumpet">🎺小号</option>
+                                    <option value="Flute">🪈长笛</option>
+                                    <option value="Dizi">🪈笛子</option>
+                                </optgroup>
+                                <optgroup label="打击乐">
+                                    <option value="Drums">🥁架子鼓</option>
+                                    <option value="808">🔊808鼓机</option>
+                                    <option value="Percussion">🥁打击乐</option>
+                                </optgroup>
+                            </select>
+                            <select id="batchTempo_${i}" onchange="applyBatchTag(${i}, 'tempo')">
+                                <option value="">--速度--</option>
+                                <option value="Very Slow, 60 BPM">🐢极慢60</option>
+                                <option value="Slow, 80 BPM">🚶慢速80</option>
+                                <option value="Medium, 100 BPM">🚗中速100</option>
+                                <option value="Upbeat, 120 BPM">🏃欢快120</option>
+                                <option value="Fast, 140 BPM">🚀快速140</option>
+                                <option value="Very Fast, 160 BPM">⚡极快160</option>
+                            </select>
+                        </div>
+                        <div class="batch-item-params-row">
+                            <select id="batchStructure_${i}" onchange="applyBatchTag(${i}, 'structure')">
+                                <option value="">--结构--</option>
+                                <option value="[Intro]">🎬前奏Intro</option>
+                                <option value="[Verse]">📝主歌Verse</option>
+                                <option value="[Pre-Chorus]">🔺导歌</option>
+                                <option value="[Chorus]">🎵副歌Chorus</option>
+                                <option value="[Bridge]">🌉桥段Bridge</option>
+                                <option value="[Drop]">💥落拍Drop</option>
+                                <option value="[Build]">📈渐强Build</option>
+                                <option value="[Breakdown]">📉分解</option>
+                                <option value="[Solo]">🎸独奏Solo</option>
+                                <option value="[Rap]">🎤说唱Rap</option>
+                                <option value="[Hook]">🪝Hook</option>
+                                <option value="[Outro]">🔚尾奏Outro</option>
+                            </select>
+                            <select id="batchVocal_${i}" onchange="applyBatchTag(${i}, 'vocal')">
+                                <option value="">--人声--</option>
+                                <optgroup label="情感">
+                                    <option value="[Vocal Emotion: Energetic]">🔥活力</option>
+                                    <option value="[Vocal Emotion: Sad]">😢悲伤</option>
+                                    <option value="[Vocal Emotion: Romantic]">💕浪漫</option>
+                                    <option value="[Vocal Emotion: Angry]">😠愤怒</option>
+                                    <option value="[Vocal Emotion: Hopeful]">🌈希望</option>
+                                    <option value="[Vocal Emotion: Dreamy]">💭梦幻</option>
+                                </optgroup>
+                                <optgroup label="风格">
+                                    <option value="[Vocal Style: Soulful]">🎵深情</option>
+                                    <option value="[Vocal Style: Husky]">🌫️沙哑</option>
+                                    <option value="[Vocal Style: Ethereal]">✨空灵</option>
+                                    <option value="[Vocal Style: Powerful]">💪有力</option>
+                                    <option value="[Vocal Style: Breathy]">💨气声</option>
+                                    <option value="[Vocal Style: Raspy]">🗣️粗犷</option>
+                                </optgroup>
+                                <optgroup label="技巧">
+                                    <option value="[Falsetto]">🎶假声</option>
+                                    <option value="[Belting]">📢高音</option>
+                                    <option value="[Whisper]">🤫耳语</option>
+                                    <option value="[Scream]">😱嘶吼</option>
+                                    <option value="[Harmonies]">🎼和声</option>
+                                    <option value="[Ad-libs]">🎤即兴</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="batch-item-params-row">
+                            <select id="batchAmbience_${i}" onchange="applyBatchTag(${i}, 'ambience')">
+                                <option value="">--氛围--</option>
+                                <option value="Reverb, Spacious">🏛️混响空间</option>
+                                <option value="Echo, Delay">🔊回声延迟</option>
+                                <option value="Lo-fi, Vinyl Crackle">📻复古噪音</option>
+                                <option value="Distorted">🔌失真效果</option>
+                                <option value="Clean, Crisp">✨干净清晰</option>
+                                <option value="Warm, Analog">🌡️温暖模拟</option>
+                                <option value="Dark, Moody">🌑黑暗情绪</option>
+                                <option value="Bright, Airy">☀️明亮通透</option>
+                            </select>
+                            <select id="batchGender_${i}">
+                                <option value="">--性别--</option>
+                                <option value="male">👨男声</option>
+                                <option value="female">👩女声</option>
+                            </select>
+                        </div>
+                        <div class="batch-item-params-row">
+                            <label style="flex:1;"><input type="checkbox" id="batchInst_${i}"> 🎹纯音乐</label>
+                            <label style="flex:1;"><input type="checkbox" id="batchAutoStructure_${i}" checked> 🧠智能结构</label>
+                        </div>
+                    </div>
+                    <span class="batch-item-status" id="batchMusicStatus_${i}"></span>
+                `;
+                grid.appendChild(item);
+            }
+            updateBatchMusicCount();
+        }
+        
+        // 🎵 更新已填写数量
+        function updateBatchMusicCount() {
+            let count = 0;
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const input = document.getElementById(`batchMusicPrompt_${i}`);
+                if (input && input.value.trim()) count++;
+            }
+            const countEl = document.getElementById('batchFilledCount');
+            if (countEl) countEl.textContent = count;
+            
+            // 同步到隐藏的textarea（兼容原有逻辑）
+            syncBatchMusicInput();
+        }
+        
+        // 🎵 同步宫格内容到隐藏的textarea
+        function syncBatchMusicInput() {
+            const lines = [];
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const input = document.getElementById(`batchMusicPrompt_${i}`);
+                if (input && input.value.trim()) {
+                    lines.push(input.value.trim());
+                }
+            }
+            const hiddenInput = document.getElementById('batchMusicInput');
+            if (hiddenInput) hiddenInput.value = lines.join('\n');
+        }
+        
+        // 🎵 清空批量宫格
+        function clearBatchMusicGrid() {
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const input = document.getElementById(`batchMusicPrompt_${i}`);
+                if (input) input.value = '';
+                const item = document.getElementById(`batchMusicItem_${i}`);
+                if (item) item.className = 'batch-item';
+                const status = document.getElementById(`batchMusicStatus_${i}`);
+                if (status) status.textContent = '';
+            }
+            updateBatchMusicCount();
+            showToast('已清空');
+        }
+        
+        // 🎵 应用风格模板到指定宫格
+        function applyBatchStyle(index) {
+            const styleKey = document.getElementById(`batchStyle_${index}`)?.value;
+            if (styleKey && STYLE_TEMPLATES[styleKey]) {
+                const template = STYLE_TEMPLATES[styleKey];
+                const promptInput = document.getElementById(`batchMusicPrompt_${index}`);
+                if (promptInput) {
+                    const currentText = promptInput.value.trim();
+                    if (currentText) {
+                        promptInput.value = `${currentText}, ${template.tags}`;
+                    } else {
+                        promptInput.value = template.tags;
+                    }
+                    promptInput.focus();
+                }
+                showToast(`#${index + 1} ${template.name}`);
+            }
+        }
+        
+        // 🎵 应用标签到指定宫格（支持structure/vocal/instrument/tempo/ambience）
+        function applyBatchTag(index, type) {
+            let tag = '';
+            let isStyleTag = false;  // 标记是否是风格标签（追加到末尾）
+            
+            if (type === 'structure') {
+                tag = document.getElementById(`batchStructure_${index}`)?.value;
+            } else if (type === 'vocal') {
+                tag = document.getElementById(`batchVocal_${index}`)?.value;
+            } else if (type === 'instrument') {
+                tag = document.getElementById(`batchInstrument_${index}`)?.value;
+                isStyleTag = true;
+            } else if (type === 'tempo') {
+                tag = document.getElementById(`batchTempo_${index}`)?.value;
+                isStyleTag = true;
+            } else if (type === 'ambience') {
+                tag = document.getElementById(`batchAmbience_${index}`)?.value;
+                isStyleTag = true;
+            }
+            
+            if (tag) {
+                const promptInput = document.getElementById(`batchMusicPrompt_${index}`);
+                if (promptInput) {
+                    const currentText = promptInput.value.trim();
+                    if (isStyleTag) {
+                        // 风格标签追加到末尾（逗号分隔）
+                        promptInput.value = currentText ? `${currentText}, ${tag}` : tag;
+                    } else {
+                        // 结构/人声标签插入到开头
+                        promptInput.value = currentText ? `${tag}\n${currentText}` : tag;
+                    }
+                    promptInput.focus();
+                }
+            }
+        }
+        
+        // 🎵 更新单个宫格状态
+        function updateBatchMusicItemStatus(index, status, emoji = '') {
+            const item = document.getElementById(`batchMusicItem_${index}`);
+            const statusEl = document.getElementById(`batchMusicStatus_${index}`);
+            if (item) {
+                item.className = 'batch-item ' + status;
+            }
+            if (statusEl) {
+                statusEl.textContent = emoji;
+            }
+        }
+        
+        // 切换批量/单个模式
+        function setBatchMode(isBatch) {
+            batchMode = isBatch;
+            document.getElementById('singleMusicBtn').classList.toggle('active', !isBatch);
+            document.getElementById('batchMusicBtn').classList.toggle('active', isBatch);
+            
+            // 🆕 显示/隐藏全局批量输入区
+            const batchInputSection = document.getElementById('batchMusicInputSection');
+            if (batchInputSection) {
+                batchInputSection.style.display = isBatch ? 'block' : 'none';
+                // 初始化宫格（如果还没有）
+                if (isBatch && !document.getElementById('batchMusicPrompt_0')) {
+                    initBatchMusicGrid();
+                }
+            }
+            
+            // 🆕 批量模式下隐藏单任务配置区
+            const modeTabs = document.querySelector('.mode-tabs');
+            const customMode = document.getElementById('customMode');
+            const inspirationMode = document.getElementById('inspirationMode');
+            const smartMode = document.getElementById('smartMode');
+            const settingsRow = document.getElementById('settingsRow');
+            const checkboxRows = document.querySelectorAll('.checkbox-row');
+            const lyricsBtn = document.getElementById('lyricsBtn');
+            const smartAnalyzeBtn = document.getElementById('smartAnalyzeBtn');
+            const smartHint = document.getElementById('smartHint');
+            const lyricsHint = document.getElementById('lyricsHint');
+            const lyricsSection = document.getElementById('lyricsSection');
+            
+            if (isBatch) {
+                // 批量模式：隐藏模式切换标签和灵感输入框、通用设置
+                if (modeTabs) modeTabs.style.display = 'none';
+                if (customMode) customMode.style.display = 'none';
+                if (inspirationMode) inspirationMode.style.display = 'none';
+                if (smartMode) smartMode.style.display = 'none';
+                if (settingsRow) settingsRow.style.display = 'none';
+                checkboxRows.forEach(row => row.style.display = 'none');
+                if (lyricsBtn) lyricsBtn.style.display = 'none';
+                if (smartAnalyzeBtn) smartAnalyzeBtn.parentElement.style.display = 'none';
+                if (smartHint) smartHint.style.display = 'none';
+                if (lyricsHint) lyricsHint.style.display = 'none';
+                if (lyricsSection) lyricsSection.style.display = 'none';
+            } else {
+                // 单任务模式：恢复配置
+                if (modeTabs) modeTabs.style.display = 'flex';
+                if (settingsRow) settingsRow.style.display = 'flex';
+                checkboxRows.forEach(row => row.style.display = 'flex');
+                if (lyricsBtn) lyricsBtn.style.display = 'block';
+                if (smartAnalyzeBtn) smartAnalyzeBtn.parentElement.style.display = 'flex';
+                // 根据当前模式显示对应区域
+                switchMode(currentMode);
+            }
+            
+            document.getElementById('generateBtn').textContent = isBatch ? '🎵 批量生成音乐' : '🎵 生成音乐';
+            // 隐藏结果区
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('batchResultSection').style.display = 'none';
+        }
+        
+        // 重写 generateMusic 支持批量模式
+        const _originalGenerateMusic = generateMusic;
+        generateMusic = async function() {
+            // 🆕 所有模式下都支持批量生成
+            if (batchMode) {
+                await generateBatchMusic();
+            } else {
+                await _originalGenerateMusic();
+            }
+        };
+        
+        // 🆕 批量生成音乐：多个描述各生成一首音乐
+        async function generateBatchMusic() {
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) {
+                showToast('请先登录后使用');
+                return;
+            }
+            
+            const input = document.getElementById('batchMusicInput').value.trim();
+            if (!input) {
+                showToast('请输入音乐描述');
+                return;
+            }
+            
+            // 按行分割，过滤空行
+            const prompts = input.split('\n').map(t => t.trim()).filter(t => t.length > 0);
+            if (prompts.length === 0) {
+                showToast('请输入至少一个描述');
+                return;
+            }
+            
+            // 全局默认参数（当格子没有选择时使用）
+            const globalModel = document.getElementById('modelSelect').value;
+            const globalGender = document.getElementById('genderSelect').value;
+            const globalInstrumental = document.getElementById('instrumentalCheck').checked;
+            const negativeTags = document.getElementById('negativeTagsInput').value.trim();
+            const totalCost = prompts.length * MUSIC_COST;
+            
+            if (userQuota < totalCost) {
+                showToast(`胶片不足，需要${totalCost}胶片`);
+                return;
+            }
+            
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            
+            btn.disabled = true;
+            batchGenerating = true;
+            loading.style.display = 'block';
+            loadingText.textContent = `正在生成 0/${prompts.length}...`;
+            
+            document.getElementById('resultSection').style.display = 'none';
+            
+            batchResults = [];
+            let completed = 0;
+            
+            // 🎵 收集实际填写的宫格索引映射 + 每个格子的独立参数
+            const batchItems = [];  // { gridIndex, prompt, tags, model, gender, instrumental }
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const promptInput = document.getElementById(`batchMusicPrompt_${i}`);
+                if (promptInput && promptInput.value.trim()) {
+                    // 读取每个格子的独立参数，空则用全局默认值
+                    const cellModel = document.getElementById(`batchModel_${i}`)?.value || globalModel;
+                    const cellGender = document.getElementById(`batchGender_${i}`)?.value || globalGender;
+                    const cellInst = document.getElementById(`batchInst_${i}`)?.checked ?? globalInstrumental;
+                    const cellAutoStructure = document.getElementById(`batchAutoStructure_${i}`)?.checked ?? true;
+                    
+                    // 🎵 收集风格标签
+                    let cellTags = [];
+                    // 风格模板
+                    const cellStyleKey = document.getElementById(`batchStyle_${i}`)?.value;
+                    if (cellStyleKey && STYLE_TEMPLATES[cellStyleKey]) {
+                        cellTags.push(STYLE_TEMPLATES[cellStyleKey].tags);
+                    }
+                    // 乐器
+                    const cellInstrument = document.getElementById(`batchInstrument_${i}`)?.value;
+                    if (cellInstrument) cellTags.push(cellInstrument);
+                    // 速度
+                    const cellTempo = document.getElementById(`batchTempo_${i}`)?.value;
+                    if (cellTempo) cellTags.push(cellTempo);
+                    // 氛围
+                    const cellAmbience = document.getElementById(`batchAmbience_${i}`)?.value;
+                    if (cellAmbience) cellTags.push(cellAmbience);
+                    
+                    // 🎵 处理歌词/描述
+                    let cellPrompt = promptInput.value.trim();
+                    
+                    // 如果启用智能结构且歌词没有结构标记，应用智能结构
+                    if (cellAutoStructure && cellTags.length > 0) {
+                        cellPrompt = applySmartStructure(cellPrompt, cellTags.join(', '));
+                    }
+                    
+                    batchItems.push({
+                        gridIndex: i,
+                        prompt: cellPrompt,
+                        tags: cellTags.join(', '),
+                        model: cellModel,
+                        gender: cellGender,
+                        instrumental: cellInst
+                    });
+                    updateBatchMusicItemStatus(i, 'generating', '⏳');
+                }
+            }
+            
+            // 并发生成所有描述
+            const promises = batchItems.map(async (item, index) => {
+                const gridIdx = item.gridIndex;
+                try {
+                    const result = await generateSingleMusicAPI(item.prompt, item.tags, item.model, item.gender, item.instrumental, negativeTags);
+                    
+                    batchResults.push({
+                        index: index,
+                        gridIndex: gridIdx,
+                        prompt: item.prompt,
+                        audioUrl: result.audioUrl,
+                        title: result.title || item.prompt.substring(0, 20),
+                        error: null,
+                        selected: true
+                    });
+                    
+                    // 🎵 更新宫格状态为成功
+                    if (gridIdx !== undefined) {
+                        updateBatchMusicItemStatus(gridIdx, 'has-result', '✅');
+                    }
+                } catch (error) {
+                    batchResults.push({
+                        index: index,
+                        gridIndex: gridIdx,
+                        prompt: item.prompt,
+                        audioUrl: '',
+                        title: '',
+                        error: error.message,
+                        selected: false
+                    });
+                    
+                    // 🎵 更新宫格状态为失败
+                    if (gridIdx !== undefined) {
+                        updateBatchMusicItemStatus(gridIdx, 'error', '❌');
+                    }
+                }
+                
+                completed++;
+                loadingText.textContent = `正在生成 ${completed}/${batchItems.length}...`;
+            });
+            
+            await Promise.all(promises);
+            
+            batchResults.sort((a, b) => a.index - b.index);
+            renderBatchMusicResults();
+            
+            btn.disabled = false;
+            batchGenerating = false;
+            loading.style.display = 'none';
+            
+            const successCount = batchResults.filter(r => !r.error).length;
+            showToast(`生成完成！成功 ${successCount}/${batchItems.length}`);
+            
+            await loadUserQuota();
+        }
+        
+        // 单个音乐API调用
+        async function generateSingleMusicAPI(prompt, tags, model, gender, instrumental, negativeTags) {
+            const requestBody = {
+                action: 'generate',
+                mv: model,
+                make_instrumental: instrumental,
+                userId: currentUser.id
+            };
+            
+            // 如果有风格标签，使用 prompt + tags 模式（自定义模式）
+            if (tags) {
+                requestBody.prompt = prompt;
+                requestBody.tags = tags;
+            } else {
+                // 没有标签，使用灵感模式
+                requestBody.gpt_description_prompt = prompt;
+            }
+            
+            if (gender) requestBody.vocal_gender = gender;
+            if (negativeTags) requestBody.negative_tags = negativeTags;
+            
+            const response = await fetch('/api/suno', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const data = await response.json();
+            
+            if (data.data?.audio_url || data.audio_url || data.url) {
+                return { audioUrl: data.data?.audio_url || data.audio_url || data.url };
+            }
+            
+            const taskId = data.task_id || data.data;
+            if (!taskId) throw new Error(data.message || data.error || '未获取到任务ID');
+            
+            // 轮询任务状态
+            for (let i = 0; i < 60; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                const statusRes = await fetch('/api/suno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'fetch', task_id: taskId })
+                });
+                
+                const statusData = await statusRes.json();
+                
+                if (statusData.is_failed) throw new Error(statusData.fail_reason || '生成失败');
+                
+                if (statusData.is_complete && statusData.music && statusData.music.length > 0) {
+                    const audioUrl = statusData.music[0].audio_url;
+                    if (audioUrl) {
+                        return { 
+                            audioUrl,
+                            title: statusData.music[0].title || ''
+                        };
+                    }
+                }
+            }
+            
+            throw new Error('生成超时');
+        }
+        
+        // 渲染批量结果（九宫格显示）
+        function renderBatchMusicResults() {
+            const grid = document.getElementById('batchResultGrid');
+            grid.innerHTML = '';
+            
+            batchResults.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'batch-result-item' + (item.error ? ' error' : '') + (item.selected ? ' selected' : '');
+                const shortPrompt = item.prompt.substring(0, 15) + (item.prompt.length > 15 ? '...' : '');
+                
+                if (item.error) {
+                    div.innerHTML = `
+                        <div class="batch-result-title">🎯 ${shortPrompt} - ❌ 失败</div>
+                        <div class="batch-result-tags">${item.error}</div>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <div class="batch-result-title">🎯 ${shortPrompt}</div>
+                        <div class="batch-result-tags" style="font-size:11px; color:#888; margin-bottom:6px;">${item.title}</div>
+                        <audio controls preload="metadata" style="width:100%;">
+                            <source src="${item.audioUrl}" type="audio/mpeg">
+                        </audio>
+                    `;
+                }
+                
+                div.onclick = (e) => {
+                    if (e.target.tagName !== 'AUDIO') {
+                        toggleBatchMusicSelect(idx);
+                    }
+                };
+                grid.appendChild(div);
+            });
+            
+            document.getElementById('batchResultSection').style.display = 'block';
+        }
+        
+        // 切换选中状态
+        function toggleBatchMusicSelect(idx) {
+            if (batchResults[idx].error) return;
+            batchResults[idx].selected = !batchResults[idx].selected;
+            renderBatchMusicResults();
+        }
+        
+        // 全选
+        function selectAllBatchMusic() {
+            batchResults.forEach(r => {
+                if (!r.error) r.selected = true;
+            });
+            renderBatchMusicResults();
+            showToast('已全选');
+        }
+        
+        // 🧠 批量智能分析：对每个填写的格子进行智能分析/生成
+        async function batchSmartAnalyze() {
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) {
+                showToast('请先登录后使用');
+                return;
+            }
+            
+            // 收集所有填写的格子
+            const filledItems = [];
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const input = document.getElementById(`batchMusicPrompt_${i}`);
+                if (input && input.value.trim()) {
+                    filledItems.push({ index: i, content: input.value.trim() });
+                }
+            }
+            
+            if (filledItems.length === 0) {
+                showToast('请先在格子中输入主题或歌词');
+                return;
+            }
+            
+            // 检查总费用
+            const totalCost = filledItems.length * SMART_ANALYZE_COST;
+            if (userQuota < totalCost) {
+                showToast(`胶片不足，需要${totalCost}胶片（${filledItems.length}个×${SMART_ANALYZE_COST}胶片）`);
+                return;
+            }
+            
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            loading.style.display = 'block';
+            loadingText.textContent = `🧠 批量智能分析 0/${filledItems.length}...`;
+            
+            let completed = 0;
+            let successCount = 0;
+            
+            // 串行处理每个格子（避免并发过高）
+            for (const item of filledItems) {
+                try {
+                    const userInput = item.content;
+                    const isLyrics = userInput.length > 50 && (userInput.includes('\n') || /[。，！？]/.test(userInput));
+                    
+                    updateBatchMusicItemStatus(item.index, 'generating', '🧠');
+                    loadingText.textContent = `🧠 分析 #${item.index + 1}... (${completed}/${filledItems.length})`;
+                    
+                    if (isLyrics) {
+                        // 分析歌词生成标签
+                        const response = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'chat',
+                                model: 'qwen-plus',
+                                messages: [{
+                                    role: 'user',
+                                    content: `分析以下歌词，生成适合的SUNO音乐风格标签。
+
+要求：
+1. 返回英文风格标签，用逗号分隔
+2. 包含：流派、情绪、乐器、速度
+3. 只返回标签，不要其他内容
+4. 标签数量5-10个
+
+歌词：
+${userInput.substring(0, 800)}`
+                                }],
+                                userId: currentUser?.id
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        const generatedTags = data.reply || data.content || '';
+                        
+                        if (generatedTags) {
+                            await chargeForSmartAnalyze();
+                            const cleanTags = generatedTags.replace(/[\n\r]/g, ', ').replace(/,\s*,/g, ',').trim();
+                            // 追加标签到内容
+                            document.getElementById(`batchMusicPrompt_${item.index}`).value = `${userInput}\n\n[Style: ${cleanTags}]`;
+                            updateBatchMusicItemStatus(item.index, 'has-result', '✅');
+                            successCount++;
+                        }
+                    } else {
+                        // 根据主题生成歌词+标签
+                        const response = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'chat',
+                                model: 'qwen-plus',
+                                messages: [{
+                                    role: 'user',
+                                    content: `根据主题创作一首简短歌词，并生成SUNO风格标签。
+
+主题：${userInput}
+
+要求：
+1. 歌词包含 [Verse] [Chorus] 结构标记
+2. 歌词语言：中文
+3. 歌词简洁，2-3个段落
+4. 最后一行输出标签，格式：TAGS: Pop, Emotional...
+
+直接输出，不要解释。`
+                                }],
+                                userId: currentUser?.id
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        const result = data.reply || data.content || '';
+                        
+                        if (result) {
+                            await chargeForSmartAnalyze();
+                            document.getElementById(`batchMusicPrompt_${item.index}`).value = result;
+                            updateBatchMusicItemStatus(item.index, 'has-result', '✅');
+                            successCount++;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`格子#${item.index + 1}智能分析失败:`, error);
+                    updateBatchMusicItemStatus(item.index, 'error', '❌');
+                }
+                
+                completed++;
+            }
+            
+            loading.style.display = 'none';
+            updateBatchMusicCount();
+            showToast(`批量智能分析完成！成功 ${successCount}/${filledItems.length}，消耗 ${successCount * SMART_ANALYZE_COST} 胶片`);
+            
+            // 刷新余额
+            await loadUserQuota();
+        }
+
+        // 下载选中的音乐
+        async function downloadSelectedMusic() {
+            const selected = batchResults.filter(r => r.selected && !r.error);
+            if (selected.length === 0) {
+                showToast('请先选择要下载的音乐');
+                return;
+            }
+            
+            showToast(`开始下载 ${selected.length} 首音乐...`);
+            
+            for (let i = 0; i < selected.length; i++) {
+                const item = selected[i];
+                const a = document.createElement('a');
+                a.href = item.audioUrl;
+                a.download = `rollroll_music_${Date.now()}_${i + 1}.mp3`;
+                a.target = '_blank';
+                a.click();
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+        
+        // ==================== 🎵 批量歌词生成 ====================
+        let batchLyricsResults = [];  // { index, theme, lyrics, error, selected }
+        let batchLyricsMode = false;
+        
+        // 批量生成歌词
+        async function generateBatchLyrics() {
+            if (!currentUser) {
+                showToast('请先登录后使用');
+                return;
+            }
+            
+            const input = document.getElementById('batchMusicInput').value.trim();
+            if (!input) {
+                showToast('请输入歌曲主题（每行一个）');
+                return;
+            }
+            
+            const themes = input.split('\n').map(t => t.trim()).filter(t => t.length > 0);
+            if (themes.length === 0) {
+                showToast('请输入至少一个主题');
+                return;
+            }
+            
+            const btn = document.getElementById('lyricsBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            
+            btn.disabled = true;
+            loading.style.display = 'block';
+            loadingText.textContent = `正在生成歌词 0/${themes.length}...`;
+            
+            batchLyricsResults = [];
+            batchLyricsMode = true;
+            let completed = 0;
+            
+            // 并发生成歌词
+            const promises = themes.map(async (theme, index) => {
+                try {
+                    const lyrics = await generateSingleLyricsAPI(theme);
+                    batchLyricsResults.push({
+                        index,
+                        theme,
+                        lyrics,
+                        error: null,
+                        selected: true
+                    });
+                } catch (error) {
+                    batchLyricsResults.push({
+                        index,
+                        theme,
+                        lyrics: '',
+                        error: error.message,
+                        selected: false
+                    });
+                }
+                completed++;
+                loadingText.textContent = `正在生成歌词 ${completed}/${themes.length}...`;
+            });
+            
+            await Promise.all(promises);
+            
+            batchLyricsResults.sort((a, b) => a.index - b.index);
+            renderBatchLyricsResults();
+            
+            btn.disabled = false;
+            loading.style.display = 'none';
+            
+            const successCount = batchLyricsResults.filter(r => !r.error).length;
+            showToast(`歌词生成完成！成功 ${successCount}/${themes.length}`);
+        }
+        
+        // 单个歌词API调用
+        async function generateSingleLyricsAPI(theme) {
+            const response = await fetch('/api/suno', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'lyrics',
+                    prompt: `写一首歌词，主题是：${theme}`,
+                    userId: currentUser.id
+                })
+            });
+            
+            const data = await response.json();
+            const taskId = data.task_id || data.data;
+            if (!taskId) throw new Error(data.message || data.error || '未获取到任务ID');
+            
+            // 轮询任务状态
+            for (let i = 0; i < 30; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                const statusRes = await fetch('/api/suno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'fetch', task_id: taskId })
+                });
+                
+                const statusData = await statusRes.json();
+                if (statusData.is_failed) throw new Error(statusData.fail_reason || '生成失败');
+                
+                const lyrics = statusData.raw?.data?.text || statusData.raw?.text || statusData.lyrics || statusData.data?.lyrics;
+                if (lyrics && statusData.is_complete) {
+                    return lyrics;
+                }
+            }
+            
+            throw new Error('生成超时');
+        }
+        
+        // 渲染批量歌词结果
+        function renderBatchLyricsResults() {
+            const grid = document.getElementById('batchResultGrid');
+            grid.innerHTML = '';
+            
+            batchLyricsResults.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'batch-result-item lyrics-item' + (item.error ? ' error' : '') + (item.selected ? ' selected' : '');
+                const shortTheme = item.theme.substring(0, 12) + (item.theme.length > 12 ? '...' : '');
+                
+                if (item.error) {
+                    div.innerHTML = `
+                        <div class="batch-result-title">🎵 ${shortTheme} - ❌ 失败</div>
+                        <div style="font-size:11px;color:#f87171;">${item.error}</div>
+                    `;
+                } else {
+                    const shortLyrics = item.lyrics.substring(0, 80) + (item.lyrics.length > 80 ? '...' : '');
+                    div.innerHTML = `
+                        <div class="batch-result-title">🎵 ${shortTheme}</div>
+                        <div style="font-size:10px;color:#888;line-height:1.4;max-height:60px;overflow:hidden;">${shortLyrics.replace(/\n/g, '<br>')}</div>
+                    `;
+                }
+                
+                div.onclick = () => toggleBatchLyricsSelect(idx);
+                grid.appendChild(div);
+            });
+            
+            // 更新按钮区域 - 添加"用歌词生成音乐"按钮
+            const resultSection = document.getElementById('batchResultSection');
+            const actionsDiv = resultSection.querySelector('.batch-result-actions');
+            if (actionsDiv) {
+                actionsDiv.innerHTML = `
+                    <button class="batch-action-btn" onclick="selectAllBatchLyrics()">✅ 全选</button>
+                    <button class="batch-action-btn" onclick="copySelectedLyrics()">📋 复制选中</button>
+                    <button class="batch-action-btn primary" onclick="useBatchLyricsForMusic()">🎵 用歌词生成音乐</button>
+                `;
+            }
+            
+            resultSection.style.display = 'block';
+        }
+        
+        // 切换歌词选中状态
+        function toggleBatchLyricsSelect(idx) {
+            if (batchLyricsResults[idx].error) return;
+            batchLyricsResults[idx].selected = !batchLyricsResults[idx].selected;
+            renderBatchLyricsResults();
+        }
+        
+        // 全选歌词
+        function selectAllBatchLyrics() {
+            batchLyricsResults.forEach(r => {
+                if (!r.error) r.selected = true;
+            });
+            renderBatchLyricsResults();
+            showToast('已全选');
+        }
+        
+        // 复制选中的歌词
+        function copySelectedLyrics() {
+            const selected = batchLyricsResults.filter(r => r.selected && !r.error);
+            if (selected.length === 0) {
+                showToast('请先选择要复制的歌词');
+                return;
+            }
+            const text = selected.map(r => `[主题: ${r.theme}]\n${r.lyrics}`).join('\n\n---\n\n');
+            navigator.clipboard.writeText(text);
+            showToast(`已复制 ${selected.length} 首歌词`);
+        }
+        
+        // 批量用歌词生成音乐
+        async function useBatchLyricsForMusic() {
+            const selected = batchLyricsResults.filter(r => r.selected && !r.error);
+            if (selected.length === 0) {
+                showToast('请先选择要生成音乐的歌词');
+                return;
+            }
+            
+            const totalCost = selected.length * MUSIC_COST;
+            if (userQuota < totalCost) {
+                showToast(`胶片不足，需要${totalCost}胶片`);
+                return;
+            }
+            
+            const model = document.getElementById('modelSelect').value;
+            const gender = document.getElementById('genderSelect').value;
+            const instrumental = document.getElementById('instrumentalCheck').checked;
+            const negativeTags = document.getElementById('negativeTagsInput').value.trim();
+            
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            
+            btn.disabled = true;
+            loading.style.display = 'block';
+            loadingText.textContent = `正在用歌词生成音乐 0/${selected.length}...`;
+            
+            batchResults = [];
+            batchLyricsMode = false;
+            let completed = 0;
+            
+            // 并发用歌词生成音乐
+            const promises = selected.map(async (item, index) => {
+                try {
+                    const result = await generateMusicWithLyricsAPI(item.lyrics, item.theme, model, gender, instrumental, negativeTags);
+                    batchResults.push({
+                        index,
+                        prompt: item.theme,
+                        audioUrl: result.audioUrl,
+                        title: result.title || item.theme.substring(0, 20),
+                        error: null,
+                        selected: true
+                    });
+                } catch (error) {
+                    batchResults.push({
+                        index,
+                        prompt: item.theme,
+                        audioUrl: '',
+                        title: '',
+                        error: error.message,
+                        selected: false
+                    });
+                }
+                completed++;
+                loadingText.textContent = `正在用歌词生成音乐 ${completed}/${selected.length}...`;
+            });
+            
+            await Promise.all(promises);
+            
+            batchResults.sort((a, b) => a.index - b.index);
+            renderBatchMusicResults();
+            
+            btn.disabled = false;
+            loading.style.display = 'none';
+            
+            const successCount = batchResults.filter(r => !r.error).length;
+            showToast(`音乐生成完成！成功 ${successCount}/${selected.length}`);
+            
+            await loadUserQuota();
+        }
+        
+        // 用歌词API生成音乐
+        async function generateMusicWithLyricsAPI(lyrics, title, model, gender, instrumental, negativeTags) {
+            const requestBody = {
+                action: 'generate',
+                mv: model,
+                prompt: lyrics,  // 使用歌词作为 prompt
+                title: title,
+                make_instrumental: instrumental,
+                userId: currentUser.id
+            };
+            if (gender) requestBody.vocal_gender = gender;
+            if (negativeTags) requestBody.negative_tags = negativeTags;
+            
+            const response = await fetch('/api/suno', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const data = await response.json();
+            
+            if (data.data?.audio_url || data.audio_url || data.url) {
+                return { audioUrl: data.data?.audio_url || data.audio_url || data.url, title: data.title };
+            }
+            
+            const taskId = data.task_id || data.data;
+            if (!taskId) throw new Error(data.message || data.error || '未获取到任务ID');
+            
+            // 轮询任务状态
+            for (let i = 0; i < 60; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                const statusRes = await fetch('/api/suno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'fetch', task_id: taskId })
+                });
+                
+                const statusData = await statusRes.json();
+                if (statusData.is_failed) throw new Error(statusData.fail_reason || '生成失败');
+                
+                if (statusData.is_complete && statusData.music && statusData.music.length > 0) {
+                    const audioUrl = statusData.music[0].audio_url;
+                    if (audioUrl) {
+                        return { audioUrl, title: statusData.music[0].title || '' };
+                    }
+                }
+            }
+            
+            throw new Error('生成超时');
+        }
+        
+        // 修改批量模式下的生成歌词按钮行为
+        const _originalGenerateLyrics = generateLyrics;
+        generateLyrics = async function() {
+            if (batchMode) {
+                await generateBatchLyrics();
+            } else {
+                await _originalGenerateLyrics();
+            }
+        };
+    </script>
+</body>
+
+</html>

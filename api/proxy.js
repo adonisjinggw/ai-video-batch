@@ -2,37 +2,41 @@ const https = require('https');
 const http = require('http');
 const crypto = require('crypto');
 
+// ==================== API Key管理和验证辅助函数 ====================
+const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
 async function __billingPublic(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
-    
+
     const intAmount = Math.ceil(amount);
     const action = billingAction === 'refund' ? 'recharge' : 'consume';
-    
+
     try {
         const headers = {
             'Content-Type': 'application/json',
             'apikey': SUPABASE_SERVICE_KEY,
             'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
         };
-        
+
         const profileUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}&select=quota_balance,quota_used,membership_type`;
         const profileRes = await fetch(profileUrl, { headers });
-        
+
         if (!profileRes.ok) {
             throw new Error('查询用户信息失败');
         }
-        
+
         const profiles = await profileRes.json();
         if (!profiles || profiles.length === 0) {
             throw new Error('用户不存在');
         }
-        
+
         const currentProfile = profiles[0];
         let currentBalance = Number(currentProfile.quota_balance || 0);
         let currentUsed = Number(currentProfile.quota_used || 0);
         let newBalance = currentBalance;
         let newUsed = currentUsed;
-        
+
         if (action === 'recharge') {
             newBalance = Math.round((currentBalance + intAmount) * 100) / 100;
         } else if (action === 'consume') {
@@ -42,32 +46,32 @@ async function __billingPublic(billingAction, userId, amount, description) {
             newBalance = Math.round((currentBalance - intAmount) * 100) / 100;
             newUsed = Math.round((currentUsed + intAmount) * 100) / 100;
         }
-        
+
         const needUpdateQuotaBalance = newBalance !== currentBalance;
         const needUpdateQuotaUsed = action === 'consume' && newUsed !== currentUsed;
-        
+
         if (needUpdateQuotaBalance || needUpdateQuotaUsed) {
             const updateUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`;
             const updateData = {};
-            
+
             if (needUpdateQuotaBalance) {
                 updateData.quota_balance = newBalance;
             }
             if (needUpdateQuotaUsed) {
                 updateData.quota_used = newUsed;
             }
-            
+
             const updateRes = await fetch(updateUrl, {
                 method: 'PATCH',
                 headers,
                 body: JSON.stringify(updateData)
             });
-            
+
             if (!updateRes.ok) {
                 throw new Error('更新余额失败');
             }
         }
-        
+
         try {
             const logUrl = `${SUPABASE_URL}/rest/v1/quota_logs`;
             await fetch(logUrl, {
@@ -84,7 +88,7 @@ async function __billingPublic(billingAction, userId, amount, description) {
         } catch (logErr) {
             console.warn('[proxy-billing] 日志记录失败:', logErr.message);
         }
-        
+
         console.log(`[proxy-billing] 💰 ${action === 'recharge' ? '充值' : '扣费'}成功: ${userId} ${action === 'recharge' ? '+' : '-'}${intAmount}胶片`);
         return { success: true, newBalance, newUsed };
     } catch (e) {
@@ -95,10 +99,6 @@ async function __billingPublic(billingAction, userId, amount, description) {
         return { success: false, error: e.message };
     }
 }
-
-// ==================== API Key管理和验证辅助函数 ====================
-const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 async function supabaseRpc(functionName, params) {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -402,6 +402,123 @@ module.exports = async function handler(req, res) {
     }
     // ============================================================
 
+    // ==================== 🔍 内部联网搜索（无需API Key） ====================
+    const _internalAction = requestBody?.action || req.query?.action;
+    
+    // Tavily Search API - 专业联网搜索
+    async function callTavilySearch(query, count = 5) {
+        const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
+        if (!TAVILY_API_KEY) {
+            return null; // 没有配置 Tavily API Key，降级使用其他搜索
+        }
+        
+        try {
+            console.log('[tavily-search] 调用 Tavily API');
+            const response = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${TAVILY_API_KEY}`
+                },
+                body: JSON.stringify({
+                    query,
+                    search_depth: 'basic',
+                    max_results: count,
+                    include_answer: true,
+                    include_images: false
+                }),
+                signal: AbortSignal.timeout(10000)
+            });
+            
+            if (!response.ok) {
+                console.error('[tavily-search] Tavily API 错误:', response.status);
+                return null;
+            }
+            
+            const data = await response.json();
+            console.log('[tavily-search] Tavily API 响应成功');
+            
+            return {
+                answer: data.answer || '',
+                results: (data.results || []).slice(0, count).map((r, i) => ({
+                    title: r.title || '无标题',
+                    url: r.url || '',
+                    content: r.content || '',
+                    score: 0.95 - i * 0.02
+                }))
+            };
+        } catch (e) {
+            console.error('[tavily-search] Tavily API 调用失败:', e.message);
+            return null;
+        }
+    }
+    
+    if (_internalAction === 'web-search' || _internalAction === 'tavily-search') {
+        const { query, count = 5 } = requestBody || {};
+        if (!query) {
+            return res.status(400).json({ success: false, error: 'MISSING_QUERY', message: '缺少 query 参数' });
+        }
+        try {
+            let searchResults = [];
+            let answer = '';
+            
+            if (_internalAction === 'tavily-search' || _internalAction === 'web-search') {
+                const tavilyResult = await callTavilySearch(query, count);
+                if (tavilyResult) {
+                    searchResults = tavilyResult.results;
+                    answer = tavilyResult.answer;
+                }
+            }
+            
+            if (searchResults.length === 0) {
+                const searchEngines = [
+                    `https://search.sapti.me/search?q=${encodeURIComponent(query)}&format=json&language=zh-CN`,
+                    `https://search.bus-hit.me/search?q=${encodeURIComponent(query)}&format=json&language=zh-CN`,
+                    `https://search.projectsegfault.com/search?q=${encodeURIComponent(query)}&format=json&language=zh-CN`
+                ];
+                for (const searchUrl of searchEngines) {
+                    try {
+                        const sr = await fetch(searchUrl, {
+                            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+                            signal: AbortSignal.timeout(8000)
+                        });
+                        if (sr.ok) {
+                            const data = await sr.json();
+                            if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+                                searchResults = data.results.slice(0, count).map((r, i) => ({
+                                    title: r.title || '无标题',
+                                    url: r.url || r.link || '',
+                                    content: r.content || r.snippet || '',
+                                    score: 0.9 - i * 0.05
+                                }));
+                                break;
+                            }
+                        }
+                    } catch (e) { continue; }
+                }
+            }
+            
+            if (searchResults.length === 0) {
+                searchResults = [
+                    { title: `在 DuckDuckGo 搜索 "${query}"`, url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`, content: '点击链接查看搜索结果', score: 0.9 },
+                    { title: `在 Bing 搜索 "${query}"`, url: `https://www.bing.com/search?q=${encodeURIComponent(query)}`, content: '点击链接查看搜索结果', score: 0.85 }
+                ];
+            }
+            
+            return res.json({ 
+                success: true, 
+                data: { 
+                    results: searchResults, 
+                    query,
+                    answer: answer || `关于 "${query}" 的搜索结果：`
+                } 
+            });
+        } catch (e) {
+            return res.status(500).json({ success: false, error: e.message });
+        }
+    }
+    // ============================================================
+
     // ==================== 🆕 对外公开API ====================
     if (type === 'public-api') {
         const action = requestBody?.action || req.query?.action;
@@ -506,10 +623,10 @@ module.exports = async function handler(req, res) {
             // 4. requestBody.authorization
             // 5. query参数 apiKey
             let apiKey = null;
-            
+
             const authHeader = req.headers.authorization;
             const xApiKeyHeader = req.headers['x-api-key'];
-            
+
             if (authHeader && authHeader.startsWith('Bearer ')) {
                 apiKey = authHeader.substring(7);
             } else if (xApiKeyHeader) {
@@ -609,10 +726,10 @@ module.exports = async function handler(req, res) {
                     });
                 }
                 try {
-                    const baseUrl = process.env.VERCEL_URL 
-                        ? `https://${process.env.VERCEL_URL}` 
+                    const baseUrl = process.env.VERCEL_URL
+                        ? `https://${process.env.VERCEL_URL}`
                         : 'https://www.rollroll.art';
-                    
+
                     const proxyResponse = await fetch(`${baseUrl}/api/banana2`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -624,13 +741,13 @@ module.exports = async function handler(req, res) {
                             skip_billing: true
                         })
                     });
-                    
+
                     const result = await proxyResponse.json();
                     const responseTime = Date.now() - startTime;
                     const filmConsumed = result?.data?.cost || 0;
-                    
+
                     await logApiCall(authResult.key_id, authResult.user_id, 'generate', requestBody, proxyResponse.status, result.success !== false, result.error || null, responseTime, filmConsumed);
-                    
+
                     if (filmConsumed > 0 && result.success !== false) {
                         try {
                             await __billingPublic('consume', authResult.user_id, filmConsumed, `图像生成:${model}`);
@@ -638,7 +755,7 @@ module.exports = async function handler(req, res) {
                             console.warn('[generate] 扣费失败:', billingErr.message);
                         }
                     }
-                    
+
                     return res.json({
                         success: true,
                         data: result,
@@ -665,7 +782,7 @@ module.exports = async function handler(req, res) {
                         name: 'ai-video-batch',
                         version: '9.0.0',
                         description: 'RollRoll AI - 手机版完整功能集',
-                        
+
                         // 手机版独立功能页面
                         standaloneTools: [
                             { id: 'knolling', name: '提示词', icon: '📝', page: 'knolling.html' },
@@ -684,13 +801,13 @@ module.exports = async function handler(req, res) {
                             { id: 'voice', name: '配音', icon: '🎤', page: 'voice.html' },
                             { id: 'sora2-character', name: 'Sora2角色', icon: '🎭', internal: true }
                         ],
-                        
+
                         // 主要模式
                         mainModes: [
                             { id: 'video', name: 'AI视频', icon: '🎬' },
                             { id: 'comic', name: 'AI漫画', icon: '📖' }
                         ],
-                        
+
                         // 技能系统（19个）
                         skillCategories: {
                             'video': [
@@ -727,7 +844,7 @@ module.exports = async function handler(req, res) {
                                 { id: 'image_ocr', name: '图片文字识别', filmCost: 2 }
                             ]
                         },
-                        
+
                         // 填空模板（100+个）
                         fillTemplates: {
                             count: 100,
@@ -761,7 +878,7 @@ module.exports = async function handler(req, res) {
                                 '时尚模特', '毛绒玩具', '珐琅徽章', '纹身设计'
                             ]
                         },
-                        
+
                         // 视频生成模型
                         videoModels: [
                             { id: 'text-to-video', name: 'Sora-2 (文生视频)', series: 'Sora' },
@@ -815,7 +932,7 @@ module.exports = async function handler(req, res) {
                             { id: 'grok-video-3-15s', name: 'Grok Video 3 15秒 (图生视频)', series: 'Grok', duration: '15s' },
                             { id: 'video-continuity', name: '连续性视频 (逐帧衔接)', series: 'Continuity' }
                         ],
-                        
+
                         // 图像生成模型
                         imageModels: [
                             { id: 'modelscope', name: '智能绘图（推荐、免费）', filmCost: 0 },
@@ -828,7 +945,7 @@ module.exports = async function handler(req, res) {
                             { id: 'midjourney-turbo', name: 'Midjourney Turbo (2胶片)', filmCost: 2 },
                             { id: 'midjourney-relax', name: 'Midjourney Relax (2胶片)', filmCost: 2 }
                         ],
-                        
+
                         // 漫画风格
                         comicStyles: [
                             { id: 'japanese', name: '日式漫画' },
@@ -838,7 +955,7 @@ module.exports = async function handler(req, res) {
                             { id: 'shagou', name: '沙雕漫画' },
                             { id: 'children', name: '儿童绘本' }
                         ],
-                        
+
                         // 运镜选项
                         cameraMoves: [
                             { key: '35mm_wide', label: '35mm广角建立' },
@@ -850,7 +967,7 @@ module.exports = async function handler(req, res) {
                             { key: 'pull', label: '拉镜头揭示环境' },
                             { key: 'orbit', label: '环绕镜头360度旋转' }
                         ],
-                        
+
                         // 发布平台
                         publishPlatforms: [
                             { id: 'xiaohongshu', name: '小红书', icon: '📕' },
@@ -860,13 +977,13 @@ module.exports = async function handler(req, res) {
                             { id: 'bilibili', name: 'B站', icon: '📺' },
                             { id: 'kuaishou', name: '快手', icon: '⚡' }
                         ],
-                        
+
                         // 作品管理
                         worksManagement: {
                             filters: ['all', 'video', 'comic', 'completed', 'processing', 'skill'],
                             features: ['sync', 'view', 'share', 'retry', 'delete']
                         },
-                        
+
                         // 交互功能
                         interactiveFeatures: [
                             '下拉刷新',
@@ -875,10 +992,10 @@ module.exports = async function handler(req, res) {
                             '双指缩放图片预览',
                             '手势操作'
                         ],
-                        
+
                         // 可用API接口
                         availableApis: [
-                            'yunwu', 'banana2', 'modelscope', 'sora2', 'suno', 
+                            'yunwu', 'banana2', 'modelscope', 'sora2', 'suno',
                             'writer-llm', 'video-continuity', 'mv-merge', 'supabase-proxy'
                         ]
                     },
@@ -892,10 +1009,10 @@ module.exports = async function handler(req, res) {
             const ttsActions = ['tts-voices', 'tts-generate', 'tts-poll', 'gemini-tts', 'kling-tts', 'kling-tts-poll', 'vc-list', 'vc-create', 'vc-poll', 'speech-to-text', 'kling-custom-voice', 'kling-custom-voice-query'];
             if (ttsActions.includes(action)) {
                 try {
-                    const baseUrl = process.env.VERCEL_URL 
-                        ? `https://${process.env.VERCEL_URL}` 
+                    const baseUrl = process.env.VERCEL_URL
+                        ? `https://${process.env.VERCEL_URL}`
                         : 'https://www.rollroll.art';
-                    
+
                     const proxyResponse = await fetch(`${baseUrl}/api/yunwu`, {
                         method: 'POST',
                         headers: {
@@ -908,10 +1025,10 @@ module.exports = async function handler(req, res) {
                             skip_billing: true
                         })
                     });
-                    
+
                     const result = await proxyResponse.json();
                     const responseTime = Date.now() - startTime;
-                    
+
                     let filmConsumed = 0;
                     if (action === 'tts-generate') filmConsumed = 2;
                     else if (action === 'gemini-tts') {
@@ -920,9 +1037,9 @@ module.exports = async function handler(req, res) {
                     else if (action === 'vc-create') filmConsumed = 2;
                     else if (action === 'speech-to-text') filmConsumed = 1;
                     else if (action === 'kling-custom-voice') filmConsumed = 5;
-                    
+
                     await logApiCall(authResult.key_id, authResult.user_id, `tts-${action}`, requestBody, proxyResponse.status, result.success !== false, result.error || null, responseTime, filmConsumed);
-                    
+
                     if (filmConsumed > 0 && result.success !== false) {
                         try {
                             await __billingPublic('consume', authResult.user_id, filmConsumed, `TTS配音:${action}`);
@@ -930,7 +1047,7 @@ module.exports = async function handler(req, res) {
                             console.warn('[TTS] 扣费失败:', billingErr.message);
                         }
                     }
-                    
+
                     return res.json({
                         success: true,
                         data: result,
@@ -963,10 +1080,10 @@ module.exports = async function handler(req, res) {
                 }
 
                 try {
-                    const baseUrl = process.env.VERCEL_URL 
-                        ? `https://${process.env.VERCEL_URL}` 
+                    const baseUrl = process.env.VERCEL_URL
+                        ? `https://${process.env.VERCEL_URL}`
                         : 'https://www.rollroll.art';
-                    
+
                     const proxyResponse = await fetch(`${baseUrl}/api/sora2`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -982,13 +1099,13 @@ module.exports = async function handler(req, res) {
                             skip_billing: true
                         })
                     });
-                    
+
                     const result = await proxyResponse.json();
                     const responseTime = Date.now() - startTime;
                     const filmConsumed = result?.data?.cost || 7;
-                    
+
                     await logApiCall(authResult.key_id, authResult.user_id, 'text-to-video', requestBody, proxyResponse.status, true, null, responseTime, filmConsumed);
-                    
+
                     if (filmConsumed > 0) {
                         try {
                             await __billingPublic('consume', authResult.user_id, filmConsumed, `文生视频:${model || 'sora-2-vip-all'}`);
@@ -996,7 +1113,7 @@ module.exports = async function handler(req, res) {
                             console.warn('[text-to-video] 扣费失败:', billingErr.message);
                         }
                     }
-                    
+
                     return res.json({
                         success: true,
                         data: result,
@@ -1029,10 +1146,10 @@ module.exports = async function handler(req, res) {
                 }
 
                 try {
-                    const baseUrl = process.env.VERCEL_URL 
-                        ? `https://${process.env.VERCEL_URL}` 
+                    const baseUrl = process.env.VERCEL_URL
+                        ? `https://${process.env.VERCEL_URL}`
                         : 'https://www.rollroll.art';
-                    
+
                     const proxyResponse = await fetch(`${baseUrl}/api/sora2`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1049,13 +1166,13 @@ module.exports = async function handler(req, res) {
                             skip_billing: true
                         })
                     });
-                    
+
                     const result = await proxyResponse.json();
                     const responseTime = Date.now() - startTime;
                     const filmConsumed = result?.data?.cost || 7;
-                    
+
                     await logApiCall(authResult.key_id, authResult.user_id, 'image-to-video', requestBody, proxyResponse.status, true, null, responseTime, filmConsumed);
-                    
+
                     if (filmConsumed > 0) {
                         try {
                             await __billingPublic('consume', authResult.user_id, filmConsumed, `图生视频:${model || 'sora-image'}`);
@@ -1063,7 +1180,7 @@ module.exports = async function handler(req, res) {
                             console.warn('[image-to-video] 扣费失败:', billingErr.message);
                         }
                     }
-                    
+
                     return res.json({
                         success: true,
                         data: result,
@@ -1094,10 +1211,10 @@ module.exports = async function handler(req, res) {
                 }
 
                 try {
-                    const baseUrl = process.env.VERCEL_URL 
-                        ? `https://${process.env.VERCEL_URL}` 
+                    const baseUrl = process.env.VERCEL_URL
+                        ? `https://${process.env.VERCEL_URL}`
                         : 'https://www.rollroll.art';
-                    
+
                     const proxyResponse = await fetch(`${baseUrl}/api/sora2`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1108,12 +1225,12 @@ module.exports = async function handler(req, res) {
                             userId: authResult.user_id
                         })
                     });
-                    
+
                     const result = await proxyResponse.json();
                     const responseTime = Date.now() - startTime;
-                    
+
                     await logApiCall(authResult.key_id, authResult.user_id, 'poll', requestBody, proxyResponse.status, true, null, responseTime, 0);
-                    
+
                     return res.json({
                         success: true,
                         data: result,
@@ -1156,10 +1273,10 @@ module.exports = async function handler(req, res) {
                 }
 
                 try {
-                    const baseUrl = process.env.VERCEL_URL 
-                        ? `https://${process.env.VERCEL_URL}` 
+                    const baseUrl = process.env.VERCEL_URL
+                        ? `https://${process.env.VERCEL_URL}`
                         : 'https://www.rollroll.art';
-                    
+
                     const proxyResponse = await fetch(`${baseUrl}/api/${targetApi}`, {
                         method: 'POST',
                         headers: {
@@ -1170,13 +1287,13 @@ module.exports = async function handler(req, res) {
                             userId: authResult.user_id
                         })
                     });
-                    
+
                     const result = await proxyResponse.json();
                     const responseTime = Date.now() - startTime;
                     const filmConsumed = result?.data?.cost || 0;
-                    
+
                     await logApiCall(authResult.key_id, authResult.user_id, `proxy-${targetApi}`, requestBody, proxyResponse.status, true, null, responseTime, filmConsumed);
-                    
+
                     return res.json({
                         success: true,
                         data: result,
@@ -1189,6 +1306,134 @@ module.exports = async function handler(req, res) {
                         success: false,
                         error: 'PROXY_ERROR',
                         message: `代理请求失败: ${proxyError.message}`
+                    });
+                }
+            }
+
+            // 11. 联网搜索代理
+            if (action === 'web-search') {
+                const { query, count = 5 } = requestBody || {};
+                if (!query) {
+                    const responseTime = Date.now() - startTime;
+                    await logApiCall(authResult.key_id, authResult.user_id, 'web-search', requestBody, 400, false, '缺少 query 参数', responseTime, 0);
+                    return res.status(400).json({
+                        success: false,
+                        error: 'MISSING_QUERY',
+                        message: '缺少 query 参数'
+                    });
+                }
+
+                try {
+                    // 使用 SearXNG 搜索 API（开源、无需认证）
+                    const searchEngines = [
+                        // SearXNG 公共实例
+                        `https://search.sapti.me/search?q=${encodeURIComponent(query)}&format=json&language=zh-CN`,
+                        `https://search.bus-hit.me/search?q=${encodeURIComponent(query)}&format=json&language=zh-CN`,
+                        `https://search.projectsegfault.com/search?q=${encodeURIComponent(query)}&format=json&language=zh-CN`,
+                        // 备用：直接返回搜索链接
+                        null
+                    ];
+
+                    let searchResults = [];
+                    let searchError = null;
+
+                    for (const searchUrl of searchEngines) {
+                        if (!searchUrl) break; // 所有引擎都失败了
+
+                        try {
+                            console.log('[web-search] 尝试搜索引擎:', searchUrl);
+                            const searchResponse = await fetch(searchUrl, {
+                                headers: {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                    'Accept': 'application/json'
+                                },
+                                timeout: 8000
+                            });
+
+                            if (searchResponse.ok) {
+                                const data = await searchResponse.json();
+                                if (data.results && Array.isArray(data.results)) {
+                                    searchResults = data.results.slice(0, count).map(r => ({
+                                        title: r.title || '无标题',
+                                        url: r.url || r.link || '',
+                                        content: r.content || r.snippet || '',
+                                        score: 0.9 - (searchResults.length * 0.05)
+                                    }));
+                                    console.log('[web-search] 搜索成功，找到', searchResults.length, '条结果');
+                                    break;
+                                }
+                            }
+                        } catch (e) {
+                            console.log('[web-search] 搜索引擎失败:', searchUrl, e.message);
+                            searchError = e;
+                            continue; // 尝试下一个引擎
+                        }
+                    }
+
+                    // 如果所有搜索引擎都失败了，返回手动构造的搜索链接
+                    if (searchResults.length === 0) {
+                        console.log('[web-search] 所有搜索引擎都失败，返回降级结果');
+                        searchResults = [
+                            {
+                                title: `在 DuckDuckGo 中搜索 "${query}"`,
+                                url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+                                content: '点击链接在 DuckDuckGo 中查看搜索结果',
+                                score: 0.9
+                            },
+                            {
+                                title: `在 Bing 中搜索 "${query}"`,
+                                url: `https://www.bing.com/search?q=${encodeURIComponent(query)}`,
+                                content: '点击链接在 Bing 中查看搜索结果',
+                                score: 0.85
+                            },
+                            {
+                                title: `在 Google 中搜索 "${query}"`,
+                                url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+                                content: '点击链接在 Google 中查看搜索结果',
+                                score: 0.8
+                            }
+                        ];
+                    }
+
+                    const responseTime = Date.now() - startTime;
+                    await logApiCall(authResult.key_id, authResult.user_id, 'web-search', requestBody, 200, true, null, responseTime, 0);
+
+                    return res.json({
+                        success: true,
+                        data: {
+                            query,
+                            answer: `关于 "${query}" 的搜索结果：`,
+                            results: searchResults
+                        },
+                        quotaRemaining: authResult.quota_remaining - 1
+                    });
+                } catch (error) {
+                    console.error('[web-search] 搜索代理错误:', error);
+                    const responseTime = Date.now() - startTime;
+                    await logApiCall(authResult.key_id, authResult.user_id, 'web-search', requestBody, 500, false, error.message, responseTime, 0);
+
+                    // 返回降级结果
+                    return res.json({
+                        success: true,
+                        data: {
+                            query,
+                            answer: `关于 "${query}" 的搜索：`,
+                            results: [
+                                {
+                                    title: `在 DuckDuckGo 中搜索 "${query}"`,
+                                    url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+                                    content: '点击链接在 DuckDuckGo 中查看搜索结果',
+                                    score: 0.9
+                                },
+                                {
+                                    title: `在 Bing 中搜索 "${query}"`,
+                                    url: `https://www.bing.com/search?q=${encodeURIComponent(query)}`,
+                                    content: '点击链接在 Bing 中查看搜索结果',
+                                    score: 0.85
+                                }
+                            ]
+                        },
+                        quotaRemaining: authResult.quota_remaining - 1
                     });
                 }
             }
@@ -1222,7 +1467,8 @@ module.exports = async function handler(req, res) {
                     'vc-poll',
                     'speech-to-text',
                     'kling-custom-voice',
-                    'kling-custom-voice-query'
+                    'kling-custom-voice-query',
+                    'web-search'
                 ]
             });
 

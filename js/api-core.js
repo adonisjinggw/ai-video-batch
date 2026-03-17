@@ -35,6 +35,56 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    // ==================== 🛡️ 内容审核错误检测（借鉴 moyin-creator） ====================
+
+    const _CONTENT_MODERATION_KEYWORDS = [
+        'moderation', 'content_sensitive', 'violation', 'sensitive', 'policy',
+        'refused', 'rejected', 'inappropriate', 'blocked', 'prohibited', 'unsafe',
+        '内容审核', '违规', '敏感', '禁止', '拒绝', '不合规', '涉嫌', '审核未通过'
+    ];
+
+    /**
+     * 🛡️ 检测错误是否为内容审核类（区别于技术错误，方便上层给出友好提示）
+     */
+    function isContentModerationError(error) {
+        const s = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+        return _CONTENT_MODERATION_KEYWORDS.some(k => s.includes(k.toLowerCase()));
+    }
+
+    // ==================== 🖼️ 图片最小尺寸保障（借鉴 moyin-creator） ====================
+
+    /**
+     * 🖼️ 确保图片满足视频 API 最小尺寸要求（如 ≥ 300px）
+     * 当九宫格切割/缩略图等场景导致图片过小时，自动等比放大后返回 base64
+     * @param {string} imageUrl - HTTP URL 图片地址
+     * @param {number} minDimension - 宽高最小像素值（默认 300）
+     * @returns {Promise<string>} 原始 URL（尺寸达标）或放大后的 base64 data URL
+     */
+    async function ensureMinImageSize(imageUrl, minDimension = 300) {
+        if (!imageUrl || typeof imageUrl !== 'string') return imageUrl;
+        // 只处理 http(s) URL，data: URL 不处理
+        if (!imageUrl.startsWith('http')) return imageUrl;
+        try {
+            const img = await new Promise((resolve, reject) => {
+                const image = new Image();
+                image.crossOrigin = 'anonymous';
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(new Error('图片加载失败'));
+                image.src = imageUrl;
+            });
+            const { naturalWidth, naturalHeight } = img;
+            if (naturalWidth >= minDimension && naturalHeight >= minDimension) {
+                return imageUrl; // 尺寸达标，原样返回
+            }
+            // ⚠️ 图片过小：仅记录警告（远程视频 API 只接受 HTTP URL，无法传 data URL）
+            console.warn(`⚠️ [ensureMinImageSize] 图片尺寸过小 (${naturalWidth}×${naturalHeight})，建议 ≥${minDimension}px，视频生成可能失败`);
+            return imageUrl;
+        } catch (e) {
+            console.warn('⚠️ [ensureMinImageSize] 检测失败，使用原图:', e.message);
+            return imageUrl;
+        }
+    }
+
     /**
      * 🔐 获取当前用户ID（用于API调用时传递userId）
      */
@@ -135,9 +185,9 @@
         if (ml === 'sora2' || ml === 'sora-2' || ml === 'sora-2-hd' || ml === 'sora2-hd' || ml === 'sora-2-all') return 'sora-2-vip-all';
         if (ml === 'sora2pro' || ml === 'sora-2-pro' || ml === 'sora2-pro' || ml === 'sora-2-pro-all') return 'sora-2-vip-all';
         if (ml === 'sora-2-characters') return 'sora-2-vip-all';
-        if (ml === 'veo3.1fast' || ml === 'veo-3.1fast' || ml === 'veo-3.1-fast') return 'veo3.1';
-        if (ml === 'veo3.1' || ml === 'veo-3.1') return 'veo3.1';
-        if (ml === 'veo3.1-pro' || ml === 'veo-3.1-pro' || ml === 'veo3.1pro') return 'veo3.1';
+        if (ml === 'veo3.1fast' || ml === 'veo-3.1fast' || ml === 'veo-3.1-fast') return 'veo_3_1-4K';
+        if (ml === 'veo_3_1-4k' || ml === 'veo3.1' || ml === 'veo-3.1') return 'veo_3_1-4K';
+        if (ml === 'veo3.1-pro' || ml === 'veo-3.1-pro' || ml === 'veo3.1pro') return 'veo_3_1-4K';
         if (ml === 'veo2' || ml === 'veo-2' || ml === 'veo2-fast' || ml === 'veo-2-fast') return 'veo2';
         if (ml === 'veo3' || ml === 'veo-3') return 'veo3';
         if (ml === 'grok3' || ml === 'grok-video-3' || ml === 'grok-video-3-text' || ml === 'grok-video-3-hd') return 'grok-video-3';
@@ -155,7 +205,7 @@
         }
         if (m === 'grok-video-3') return 6;
         if (m === 'grok-video-3-10s') return 10;
-        if (m === 'veo3.1' || m === 'veo3') return 8;
+        if (m === 'veo_3_1-4K' || m === 'veo3') return 8;
         if (m === 'veo2') return 8;
         if (String(m).startsWith('vidu-') || String(m).startsWith('kling-')) {
             const durationMatch = String(m).match(/-(\\d+)s[-$]/i) || String(m).match(/-(\\d+)s$/i);
@@ -255,7 +305,7 @@
      * 🔧 增加重试机制，解决 HTTP/2 连接空闲断开问题
      */
     async function callZhenzhenTextAPI(prompt, options = {}) {
-        const model = options.model || 'gemini-3-pro-preview';
+        const model = options.model || 'gemini-3.1-pro-preview';
         const temperature = (typeof options.temperature === 'number') ? options.temperature : 0.7;
         const max_tokens = (typeof options.max_tokens === 'number') ? options.max_tokens : 4096;
         const speed = (typeof options.speed === 'number') ? options.speed : 1;
@@ -273,50 +323,28 @@
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
 
-        // 🔧 内部请求函数（带重试）
-        const maxRetries = 3;
-        let lastErr = null;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            let res;
-            try {
-                res = await fetch('/api/yunwu', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'text',
-                        prompt,
-                        model,
-                        temperature,
-                        max_tokens,
-                        speed,
-                        userId,
-                        skip_billing: _billingSessionCount > 0 || undefined
-                    })
-                });
-            } catch (fetchErr) {
-                lastErr = fetchErr;
-                if (attempt < maxRetries) {
-                    console.warn(`[ZhenzhenText] 网络错误第${attempt}次，重试中...`, fetchErr.message);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(`文本生成网络错误: ${fetchErr.message}`);
-            }
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) {
-                // 🔧 服务器错误，重试
-                if (res.status >= 500 && attempt < maxRetries) {
-                    console.warn(`[ZhenzhenText] 服务器错误${res.status}，重试中...`);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(data.message || data.error || `文本生成失败: ${res.status}`);
-            }
-            const content = String(data.content || data.text || '').trim();
-            if (!content) throw new Error('文本生成返回为空');
-            return content;
+        // ⚠️ 不重试：后端收到请求即扣费，重试会重复扣费
+        const res = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'text',
+                prompt,
+                model,
+                temperature,
+                max_tokens,
+                speed,
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || data.error || `文本生成失败: ${res.status}`);
         }
-        throw lastErr || new Error('文本生成请求失败');
+        const content = String(data.content || data.text || '').trim();
+        if (!content) throw new Error('文本生成返回为空');
+        return content;
     }
 
     /**
@@ -333,7 +361,7 @@
                 action: 'text',
                 prompt,
                 userId
-,
+                ,
                 skip_billing: _billingSessionCount > 0 || undefined
             })
         });
@@ -371,39 +399,17 @@
             max_tokens: typeof opts.max_tokens === 'number' ? opts.max_tokens : 4096
         };
 
-        // 🔧 内部请求函数（带重试）
-        const maxRetries = 3;
-        let lastErr = null;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            let res;
-            try {
-                res = await fetch('/api/writer-llm', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-            } catch (fetchErr) {
-                lastErr = fetchErr;
-                if (attempt < maxRetries) {
-                    console.warn(`[WriterLLM] 网络错误第${attempt}次，重试中...`, fetchErr.message);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(`WriterLLM网络错误: ${fetchErr.message}`);
-            }
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || data?.success === false) {
-                // 🔧 服务器错误，重试
-                if (res.status >= 500 && attempt < maxRetries) {
-                    console.warn(`[WriterLLM] 服务器错误${res.status}，重试中...`);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(data?.message || data?.error || `writer-llm failed: ${res.status}`);
-            }
-            return String(data?.content || '').trim();
+        // ⚠️ 不重试：后端收到请求即扣费，重试会重复扣费
+        const res = await fetch('/api/writer-llm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data?.success === false) {
+            throw new Error(data?.message || data?.error || `writer-llm failed: ${res.status}`);
         }
-        throw lastErr || new Error('WriterLLM请求失败');
+        return String(data?.content || '').trim();
     }
 
     /**
@@ -435,7 +441,7 @@
 
             // 1) 优先：ModelScope 文本
             try {
-                const out = await retryableAPICall(() => callModelScopeTextAPI(prompt), 2, 2000);
+                const out = await retryableAPICall(() => callModelScopeTextAPI(prompt), 1, 2000);
                 if (out) return out;
             } catch (e) { }
 
@@ -445,7 +451,7 @@
                     { role: 'system', content: '你是中文短视频剧本/故事写作助手。请直接输出连贯的故事正文，不要解释。' },
                     { role: 'user', content: String(prompt || '') }
                 ];
-                const out = await retryableAPICall(() => callWriterLLM(msg, { temperature: 0.8, max_tokens: 4096 }), 2, 2000);
+                const out = await retryableAPICall(() => callWriterLLM(msg, { temperature: 0.8, max_tokens: 4096 }), 1, 2000);
                 if (out) return out;
             } catch (e) { }
 
@@ -453,11 +459,11 @@
         }
 
         // 💎 付费用户 / Gemini3 高级通道
-        const model = s.scriptModel || s.textModel || 'gemini-3-pro-preview';
+        const model = s.scriptModel || s.textModel || 'gemini-3.1-pro-preview';
         const temperature = (typeof s.scriptTemperature === 'number') ? s.scriptTemperature : 0.8;
         const max_tokens = (typeof s.scriptMaxTokens === 'number') ? s.scriptMaxTokens : 4096;
         const speed = (typeof s.scriptSpeed === 'number') ? s.scriptSpeed : 1;
-        return await retryableAPICall(() => callZhenzhenTextAPI(prompt, { model, temperature, max_tokens, speed }), 2, 2500);
+        return await retryableAPICall(() => callZhenzhenTextAPI(prompt, { model, temperature, max_tokens, speed }), 1, 2500);
     }
 
     // ==================== 🎨 图片生成 API ====================
@@ -488,51 +494,26 @@
             action = 'image2image';
         }
 
-        // 🔧 内部请求函数（带重试）
-        const maxRetries = 3;
-        let lastErr = null;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            let msRes;
-            try {
-                // 🔧 移除 signal，让请求自然完成（与 AI 画图页面一致）
-                msRes = await fetch('/api/modelscope', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action,
-                        prompt,
-                        aspectRatio,
-                        imageUrls,
-                        userId,
-                        skip_billing: _billingSessionCount > 0 || undefined
-                    })
-                });
-            } catch (fetchErr) {
-                lastErr = fetchErr;
-                // 🔧 HTTP/2 连接断开或网络错误，重试
-                if (attempt < maxRetries) {
-                    console.warn(`[ModelScope] 网络错误第${attempt}次，重试中...`, fetchErr.message);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(`ModelScope网络错误: ${fetchErr.message}`);
-            }
-            const res = msRes;
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) {
-                // 🔧 服务器错误，重试
-                if (res.status >= 500 && attempt < maxRetries) {
-                    console.warn(`[ModelScope] 服务器错误${res.status}，重试中...`);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(data.message || data.error || `ModelScope失败: ${res.status}`);
-            }
-            const img = (data.images && data.images[0]) ? data.images[0] : null;
-            if (!img) throw new Error('ModelScope 未返回图片');
-            return img;
+        // ⚠️ 不重试：后端收到请求即处理，重试会导致重复生成
+        const res = await fetch('/api/modelscope', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action,
+                prompt,
+                aspectRatio,
+                imageUrls,
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || data.error || `ModelScope失败: ${res.status}`);
         }
-        throw lastErr || new Error('ModelScope请求失败');
+        const img = (data.images && data.images[0]) ? data.images[0] : null;
+        if (!img) throw new Error('ModelScope 未返回图片');
+        return img;
     }
 
     /**
@@ -546,42 +527,27 @@
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
 
-        // 🔧 内部请求函数（带重试）
-        const maxRetries = 2;
-        let lastErr = null;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                const msRes = await fetch('/api/modelscope', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'video',
-                        prompt,
-                        aspectRatio,
-                        duration,
-                        model,
-                        userId,
-                        skip_billing: _billingSessionCount > 0 || undefined
-                    })
-                });
-                const data = await msRes.json().catch(() => ({}));
-                if (!msRes.ok || !data.success) {
-                    throw new Error(data.message || data.error || `ModelScope视频失败: ${msRes.status}`);
-                }
-                const video = (data.videos && data.videos[0]) ? data.videos[0] : null;
-                if (!video) throw new Error('ModelScope 未返回视频');
-                return video;
-            } catch (fetchErr) {
-                lastErr = fetchErr;
-                if (attempt < maxRetries) {
-                    console.warn(`[ModelScope Video] 网络错误第${attempt}次，重试中...`, fetchErr.message);
-                    await new Promise(r => setTimeout(r, 3000 * attempt));
-                    continue;
-                }
-                throw lastErr;
-            }
+        // ⚠️ 不重试：后端收到请求即扣费+创建任务，重试会重复扣费
+        const msRes = await fetch('/api/modelscope', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'video',
+                prompt,
+                aspectRatio,
+                duration,
+                model,
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
+            })
+        });
+        const data = await msRes.json().catch(() => ({}));
+        if (!msRes.ok || !data.success) {
+            throw new Error(data.message || data.error || `ModelScope视频失败: ${msRes.status}`);
         }
-        throw lastErr || new Error('ModelScope视频请求失败');
+        const video = (data.videos && data.videos[0]) ? data.videos[0] : null;
+        if (!video) throw new Error('ModelScope 未返回视频');
+        return video;
     }
 
     /**
@@ -595,43 +561,28 @@
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
 
-        // 🔧 内部请求函数（带重试）
-        const maxRetries = 2;
-        let lastErr = null;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                const msRes = await fetch('/api/modelscope', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'image2video',
-                        prompt,
-                        imageUrls: Array.isArray(imageUrls) ? imageUrls : [imageUrls],
-                        aspectRatio,
-                        duration,
-                        model,
-                        userId,
-                        skip_billing: _billingSessionCount > 0 || undefined
-                    })
-                });
-                const data = await msRes.json().catch(() => ({}));
-                if (!msRes.ok || !data.success) {
-                    throw new Error(data.message || data.error || `ModelScope图生视频失败: ${msRes.status}`);
-                }
-                const video = (data.videos && data.videos[0]) ? data.videos[0] : null;
-                if (!video) throw new Error('ModelScope 未返回视频');
-                return video;
-            } catch (fetchErr) {
-                lastErr = fetchErr;
-                if (attempt < maxRetries) {
-                    console.warn(`[ModelScope I2V] 网络错误第${attempt}次，重试中...`, fetchErr.message);
-                    await new Promise(r => setTimeout(r, 3000 * attempt));
-                    continue;
-                }
-                throw lastErr;
-            }
+        // ⚠️ 不重试：后端收到请求即扣费+创建任务，重试会重复扣费
+        const msRes = await fetch('/api/modelscope', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'image2video',
+                prompt,
+                imageUrls: Array.isArray(imageUrls) ? imageUrls : [imageUrls],
+                aspectRatio,
+                duration,
+                model,
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
+            })
+        });
+        const data = await msRes.json().catch(() => ({}));
+        if (!msRes.ok || !data.success) {
+            throw new Error(data.message || data.error || `ModelScope图生视频失败: ${msRes.status}`);
         }
-        throw lastErr || new Error('ModelScope图生视频请求失败');
+        const video = (data.videos && data.videos[0]) ? data.videos[0] : null;
+        if (!video) throw new Error('ModelScope 未返回视频');
+        return video;
     }
 
     /**
@@ -649,59 +600,88 @@
 
         const model = options.model || 'nano-banana-2';
 
-        // 🔧 内部请求函数（带重试）
-        const maxRetries = 3;
-        let lastErr = null;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            let res;
-            try {
-                const body = {
-                    prompt,
-                    model,
-                    aspect_ratio: options.aspectRatio || options.aspect_ratio || '16:9',
-                    userId,
-                    skip_billing: _billingSessionCount > 0 || undefined
-                };
-                // 多参考图优先，否则单图
-                if (refImagesArr && Array.isArray(refImagesArr) && refImagesArr.length > 0) {
-                    body.image_urls = refImagesArr;
-                } else if (refImageUrl) {
-                    body.image_url = refImageUrl;
-                }
-                // 🔧 移除 signal，让请求自然完成（与 AI 画图页面一致）
-                res = await fetch('/api/banana2', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-            } catch (fetchErr) {
-                lastErr = fetchErr;
-                // 🔧 HTTP/2 连接断开或网络错误，重试
-                if (attempt < maxRetries) {
-                    console.warn(`[Banana2] 网络错误第${attempt}次，重试中...`, fetchErr.message);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(`Banana2网络错误: ${fetchErr.message}`);
-            }
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) {
-                // 🔧 服务器错误，重试
-                if (res.status >= 500 && attempt < maxRetries) {
-                    console.warn(`[Banana2] 服务器错误${res.status}，重试中...`);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(data.message || data.error || `Banana2失败: ${res.status}`);
-            }
-            const img = data.url || (data.urls && data.urls[0]) || (data.data && data.data[0] && data.data[0].url);
-            if (!img) throw new Error('Banana2 未返回图片');
-            return img;
+        // ⚠️ 不重试：后端收到请求即扣费，重试会导致重复扣费和重复生成
+        const body = {
+            prompt,
+            model,
+            aspect_ratio: options.aspectRatio || options.aspect_ratio || '16:9',
+            userId,
+            skip_billing: _billingSessionCount > 0 || undefined
+        };
+        if (refImagesArr && Array.isArray(refImagesArr) && refImagesArr.length > 0) {
+            body.image_urls = refImagesArr;
+        } else if (refImageUrl) {
+            body.image_url = refImageUrl;
         }
-        throw lastErr || new Error('Banana2请求失败');
+        // 🔧 加前端超时：防止移动端浏览器静默断开长连接导致 net::ERR
+        const _b2Controller = new AbortController();
+        const _b2Timeout = setTimeout(() => _b2Controller.abort(), 150000); // 150秒超时
+        let res;
+        try {
+            res = await fetch('/api/banana2', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                signal: _b2Controller.signal
+            });
+        } catch (fetchErr) {
+            clearTimeout(_b2Timeout);
+            throw new Error(fetchErr.name === 'AbortError' ? '图片生成超时（150秒）' : fetchErr.message);
+        }
+        clearTimeout(_b2Timeout);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || data.error || `Banana2失败: ${res.status}`);
+        }
+        const img = data.url || (data.urls && data.urls[0]) || (data.data && data.data[0] && data.data[0].url);
+        if (!img) throw new Error('Banana2 未返回图片');
+        return img;
     }
 
     // ==================== 🎬 视频生成 API ====================
+
+    /**
+     * 📽️ 轮询腾讯VOD任务状态（Vidu/Hailuo/Kling 共用）
+     */
+    async function pollVodTask(taskId) {
+        const maxAttempts = 300;
+        for (let i = 0; i < maxAttempts; i++) {
+            await sleep(3000);
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'poll-vod', task_id: taskId })
+                });
+                if (!res.ok) {
+                    console.warn(`⚠️ VOD轮询请求失败: ${res.status} (${i + 1}/${maxAttempts})`);
+                    continue;
+                }
+                const data = await res.json();
+                const status = String(data.status || '').toUpperCase();
+
+                if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'DONE') {
+                    const videoUrl = data.video_url || data.url || data.output_url;
+                    if (videoUrl) {
+                        console.log(`✅ VOD任务完成: ${taskId}`);
+                        return videoUrl;
+                    }
+                    throw new Error('VOD任务完成但未找到视频URL');
+                }
+                if (status === 'FAILED' || status === 'ERROR' || status === 'FAIL') {
+                    const errorMsg = data.error || data.message || '未知错误';
+                    throw new Error(`视频生成失败: ${errorMsg}`);
+                }
+                if (i === 0 || ((i + 1) % 10 === 0)) {
+                    console.log(`⏳ VOD任务进行中... (${i + 1}/${maxAttempts})`);
+                }
+            } catch (pollError) {
+                if (pollError.message.includes('视频生成失败')) throw pollError;
+                console.warn(`⚠️ VOD轮询异常: ${pollError.message}`);
+            }
+        }
+        throw new Error('视频生成超时（已等待15分钟），服务器可能繁忙，请稍后重试');
+    }
 
     /**
      * 🌊 轮询 Wan2.6 任务状态（alibailian API）
@@ -818,6 +798,31 @@
     }
 
     /**
+     * 🎬 视频API专用带重试fetch：遇到500/502/503/网络错误自动重试，最多3次
+     */
+    async function _videoFetchWithRetry(url, fetchOptions, maxRetries = 1) {
+        // ⚠️ 默认不重试：后端收到请求即扣费+创建任务，重试会重复扣费
+        // maxRetries=1 表示只请求一次
+        let lastErr = null;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const res = await fetch(url, fetchOptions);
+                return res;
+            } catch (e) {
+                lastErr = e;
+                if (/abort/i.test(e.name)) throw e;
+                if (attempt < maxRetries) {
+                    console.warn(`[视频API] ${url} 网络错误(${e.message})，第${attempt}次重试...`);
+                    await new Promise(r => setTimeout(r, 2000 * attempt));
+                } else {
+                    throw e;
+                }
+            }
+        }
+        throw lastErr || new Error('视频API请求失败');
+    }
+
+    /**
      * 🎬 Sora2 文生视频 API
      */
     async function callSora2TextToVideoAPI(prompt, options = {}) {
@@ -836,7 +841,7 @@
         if (__isViduModel(_m)) {
             const viduParams = __parseViduModel(_m);
             console.log(`🎬 [Vidu] 使用 yunwu API, version=${viduParams.version}`);
-            const res = await fetch('/api/yunwu', {
+            const res = await _videoFetchWithRetry('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -847,7 +852,7 @@
                     duration: parseInt(_dur) || 5,
                     resolution: viduParams.resolution,
                     userId
-,
+                    ,
                     skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
@@ -856,7 +861,7 @@
 
             if (data.url || data.video_url) return data.url || data.video_url;
             if (data.task_id || data.id) {
-                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint, isVidu: true });
+                return await pollVodTask(data.task_id || data.id);
             }
             throw new Error('未返回视频URL或task_id');
         }
@@ -865,7 +870,7 @@
         if (__isHailuoModel(_m)) {
             const hailuoParams = __parseHailuoModel(_m);
             console.log(`🐚 [Hailuo] 使用 yunwu API, version=${hailuoParams.version}`);
-            const res = await fetch('/api/yunwu', {
+            const res = await _videoFetchWithRetry('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -875,7 +880,7 @@
                     duration: hailuoParams.duration,
                     resolution: hailuoParams.resolution,
                     userId
-,
+                    ,
                     skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
@@ -884,7 +889,7 @@
 
             if (data.url || data.video_url) return data.url || data.video_url;
             if (data.task_id || data.id) {
-                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint, isVidu: true });
+                return await pollVodTask(data.task_id || data.id);
             }
             throw new Error('未返回视频URL或task_id');
         }
@@ -893,7 +898,7 @@
         if (__isKlingModel(_m)) {
             const klingParams = __parseKlingModel(_m);
             console.log(`✨ [Kling] 使用 yunwu API, version=${klingParams.version}`);
-            const res = await fetch('/api/yunwu', {
+            const res = await _videoFetchWithRetry('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -904,7 +909,7 @@
                     duration: klingParams.duration,
                     resolution: klingParams.resolution,
                     userId
-,
+                    ,
                     skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
@@ -913,13 +918,100 @@
 
             if (data.url || data.video_url) return data.url || data.video_url;
             if (data.task_id || data.id) {
-                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint, isVidu: true });
+                return await pollVodTask(data.task_id || data.id);
+            }
+            throw new Error('未返回视频URL或task_id');
+        }
+
+        // 🎬 Veo 模型（veo3.1 / veo_3_1 / veo2 / veo3 等）
+        if (_m.startsWith('veo')) {
+            console.log(`🎬 [Veo T2V] 使用 yunwu API, model=${_m}`);
+            const res = await _videoFetchWithRetry('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'veo3',
+                    prompt,
+                    model: _m,
+                    aspect_ratio: aspectRatio,
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Veo失败: ${res.status}`);
+            if (data.url || data.video_url) return data.url || data.video_url;
+            if (data.task_id || data.id) {
+                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint });
+            }
+            throw new Error('Veo未返回视频URL或task_id');
+        }
+
+        // �🌊 Wan2.6 文生视频（专用 alibailian API）
+        if (__isWan26Model(_m)) {
+            const wan26Params = __parseWan26Model(_m);
+            const realReferenceImage = input_reference || undefined;
+            if (!realReferenceImage) {
+                const fallbackModel = wan26Params.duration >= 15
+                    ? 'grok-video-3-15s'
+                    : (wan26Params.duration >= 10 ? 'grok-video-3-10s' : 'grok-video-3');
+                console.warn(`🌊 [Wan2.6 T2V] 文生视频已禁用，自动改用 ${fallbackModel}`);
+                return await callSora2TextToVideoAPI(prompt, {
+                    ...(options || {}),
+                    model: fallbackModel,
+                    input_reference: undefined
+                });
+            }
+            console.log(`🌊 [Wan2.6 T2V] 使用 yunwu alibailian API, resolution=${wan26Params.resolution}, duration=${wan26Params.duration}, audio=${wan26Params.audio}`);
+            const res = await _videoFetchWithRetry('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'wan26',
+                    prompt,
+                    img_url: realReferenceImage,
+                    resolution: wan26Params.resolution,
+                    duration: wan26Params.duration,
+                    audio: wan26Params.audio,
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Wan2.6失败: ${res.status}`);
+            if (data.url || data.video_url) return data.url || data.video_url;
+            if (data.task_id || data.id) {
+                return await pollWan26Task(data.task_id || data.id);
+            }
+            throw new Error('Wan2.6未返回视频URL或task_id');
+        }
+
+        // 🚀 Grok Video 3 模型
+        if (_m && String(_m).startsWith('grok-video')) {
+            console.log(`🚀 [Grok T2V] 使用 yunwu API, model=${_m}`);
+            const res = await _videoFetchWithRetry('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'grok',
+                    prompt,
+                    model: _m,
+                    aspect_ratio: aspectRatio,
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Grok失败: ${res.status}`);
+            if (data.url || data.video_url) return data.url || data.video_url;
+            if (data.task_id || data.id) {
+                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint });
             }
             throw new Error('未返回视频URL或task_id');
         }
 
         // 默认 Sora2
-        const res = await fetch('/api/sora2', {
+        const res = await _videoFetchWithRetry('/api/sora2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -938,7 +1030,7 @@
                 input_reference,
                 style,
                 userId
-,
+                ,
                 skip_billing: _billingSessionCount > 0 || undefined
             })
         });
@@ -947,7 +1039,31 @@
 
         if (data.url) return data.url;
         if (!data.task_id) throw new Error('未返回 task_id');
-        return await pollSora2Task(data.task_id, { _source: data._source, _endpoint: data._endpoint });
+        try {
+            return await pollSora2Task(data.task_id, { _source: data._source, _endpoint: data._endpoint });
+        } catch (pollError) {
+            // 🎵 AUDIO_FILTERED：自动重试（禁用音频）
+            if (pollError.audioFiltered && _m.startsWith('veo')) {
+                console.warn('🎵 [api-core 文生视频] Veo音频被过滤，自动重试（禁用音频）...');
+                const retryRes = await _videoFetchWithRetry('/api/sora2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'text-to-video', prompt, model: _m,
+                        duration: parseInt(_dur) || 15, aspect_ratio: aspectRatio, hd: !!_hd,
+                        key_value, video_url, character_username, character_usernames,
+                        character_url, character_timestamps, input_reference, style, userId,
+                        enable_audio: false, skip_billing: true
+                    })
+                });
+                const retryData = await retryRes.json().catch(() => ({}));
+                if (!retryRes.ok) throw new Error(retryData.message || retryData.error || `重试失败: ${retryRes.status}`);
+                if (retryData.url) return retryData.url;
+                if (retryData.task_id) return await pollSora2Task(retryData.task_id, { _source: retryData._source, _endpoint: retryData._endpoint });
+                throw new Error('AUDIO_FILTERED 重试未返回 task_id');
+            }
+            throw pollError;
+        }
     }
 
     /**
@@ -962,6 +1078,9 @@
 
         console.log(`🎞️ [图生视频] 跳过前端预扣费，由后端统一扣费`);
 
+        // 🖼️ 确保输入图片满足视频 API 最小尺寸要求
+        imageUrl = await ensureMinImageSize(imageUrl);
+
         // 强制参考图约束
         const imageRefPrefix = `[CRITICAL IMAGE REFERENCE: The uploaded reference image MUST be the primary visual source. Strictly maintain ALL visual elements from the reference image: exact face features, hairstyle, hair color, clothing, accessories, body proportions, art style, color palette. The video must look like the reference image came to life with motion. Do NOT generate new characters or change the visual style. Only add natural movement and animation to the existing image content.] `;
         const enhancedPrompt = imageRefPrefix + (prompt || 'Animate this image with natural movement');
@@ -969,11 +1088,36 @@
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
 
+        // 🎬 Veo 图生视频（veo3.1 / veo_3_1 / veo2 / veo3 等）
+        if (_m.startsWith('veo')) {
+            console.log(`🎬 [Veo I2V] 使用 yunwu API, model=${_m}`);
+            const res = await _videoFetchWithRetry('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'veo3',
+                    prompt: prompt || 'Animate this image with natural movement',
+                    image_url: imageUrl,
+                    model: _m,
+                    aspect_ratio: aspectRatio,
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Veo失败: ${res.status}`);
+            if (data.url || data.video_url) return data.url || data.video_url;
+            if (data.task_id || data.id) {
+                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint });
+            }
+            throw new Error('Veo未返回视频URL或task_id');
+        }
+
         // 🌊 Wan2.6 图生视频（专用 alibailian API）
         if (__isWan26Model(_m)) {
             const wan26Params = __parseWan26Model(_m);
             console.log(`🌊 [Wan2.6] 使用 yunwu alibailian API, resolution=${wan26Params.resolution}, duration=${wan26Params.duration}, audio=${wan26Params.audio}`);
-            const res = await fetch('/api/yunwu', {
+            const res = await _videoFetchWithRetry('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1001,7 +1145,7 @@
         if (__isViduModel(_m)) {
             const viduParams = __parseViduModel(_m);
             console.log(`🎬 [Vidu I2V] 使用 yunwu API, version=${viduParams.version}`);
-            const res = await fetch('/api/yunwu', {
+            const res = await _videoFetchWithRetry('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1020,7 +1164,32 @@
             if (!res.ok) throw new Error(data.message || data.error || `Vidu失败: ${res.status}`);
             if (data.url || data.video_url) return data.url || data.video_url;
             if (data.task_id || data.id) {
-                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint, isVidu: true });
+                return await pollVodTask(data.task_id || data.id);
+            }
+            throw new Error('未返回视频URL或task_id');
+        }
+
+        // 🚀 Grok Video 3 图生视频
+        if (_m && String(_m).startsWith('grok-video')) {
+            console.log(`🚀 [Grok I2V] 使用 yunwu API, model=${_m}`);
+            const res = await _videoFetchWithRetry('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'grok',
+                    prompt: enhancedPrompt,
+                    image_url: imageUrl,
+                    model: _m,
+                    aspect_ratio: aspectRatio,
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Grok失败: ${res.status}`);
+            if (data.url || data.video_url) return data.url || data.video_url;
+            if (data.task_id || data.id) {
+                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint });
             }
             throw new Error('未返回视频URL或task_id');
         }
@@ -1029,7 +1198,7 @@
         if (__isHailuoModel(_m)) {
             const hailuoParams = __parseHailuoModel(_m);
             console.log(`🐚 [Hailuo I2V] 使用 yunwu API, version=${hailuoParams.version}`);
-            const res = await fetch('/api/yunwu', {
+            const res = await _videoFetchWithRetry('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1047,7 +1216,7 @@
             if (!res.ok) throw new Error(data.message || data.error || `Hailuo失败: ${res.status}`);
             if (data.url || data.video_url) return data.url || data.video_url;
             if (data.task_id || data.id) {
-                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint, isVidu: true });
+                return await pollVodTask(data.task_id || data.id);
             }
             throw new Error('未返回视频URL或task_id');
         }
@@ -1056,7 +1225,7 @@
         if (__isKlingModel(_m)) {
             const klingParams = __parseKlingModel(_m);
             console.log(`✨ [Kling I2V] 使用 yunwu API, version=${klingParams.version}`);
-            const res = await fetch('/api/yunwu', {
+            const res = await _videoFetchWithRetry('/api/yunwu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1075,13 +1244,13 @@
             if (!res.ok) throw new Error(data.message || data.error || `Kling失败: ${res.status}`);
             if (data.url || data.video_url) return data.url || data.video_url;
             if (data.task_id || data.id) {
-                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint, isVidu: true });
+                return await pollVodTask(data.task_id || data.id);
             }
             throw new Error('未返回视频URL或task_id');
         }
 
         // 默认 Sora2 图生视频
-        const res = await fetch('/api/sora2', {
+        const res = await _videoFetchWithRetry('/api/sora2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1108,7 +1277,31 @@
 
         if (data.url) return data.url;
         if (!data.task_id) throw new Error('未返回 task_id');
-        return await pollSora2Task(data.task_id, { _source: data._source, _endpoint: data._endpoint });
+        try {
+            return await pollSora2Task(data.task_id, { _source: data._source, _endpoint: data._endpoint });
+        } catch (pollError) {
+            // 🎵 AUDIO_FILTERED：自动重试（禁用音频）
+            if (pollError.audioFiltered && _m.startsWith('veo')) {
+                console.warn('🎵 [api-core 图生视频] Veo音频被过滤，自动重试（禁用音频）...');
+                const retryRes = await _videoFetchWithRetry('/api/sora2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'image-to-video', image_url: imageUrl, prompt: enhancedPrompt,
+                        model: _m, duration: parseInt(_dur) || 15, aspect_ratio: aspectRatio, hd: !!_hd,
+                        key_value, video_url, character_username, character_usernames,
+                        character_url, character_timestamps, style, userId,
+                        enable_audio: false, skip_billing: true
+                    })
+                });
+                const retryData = await retryRes.json().catch(() => ({}));
+                if (!retryRes.ok) throw new Error(retryData.message || retryData.error || `重试失败: ${retryRes.status}`);
+                if (retryData.url) return retryData.url;
+                if (retryData.task_id) return await pollSora2Task(retryData.task_id, { _source: retryData._source, _endpoint: retryData._endpoint });
+                throw new Error('AUDIO_FILTERED 重试未返回 task_id');
+            }
+            throw pollError;
+        }
     }
 
     /**
@@ -1171,7 +1364,7 @@
                     image: posterUrl || '',
                     video: videoUrl || ''
                 };
-                
+
                 if (mobileExistingIdx >= 0) {
                     mobileLib[mobileExistingIdx] = mobileChar;
                 } else {
@@ -1202,7 +1395,7 @@
                         turnaround: turnaroundUrl || ''
                     }
                 };
-                
+
                 if (pcExistingIdx >= 0) {
                     pcLib[pcExistingIdx] = pcChar;
                 } else {
@@ -1444,56 +1637,29 @@
         let userId = await getCurrentUserId();
         if (!userId) throw new Error('请先登录后再使用此功能');
 
-        // 🔧 内部请求函数（带重试）
-        const maxRetries = 3;
-        let lastErr = null;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            let res;
-            try {
-                // 🔧 移除 signal，让请求自然完成（与 AI 画图页面一致）
-                res = await fetch('/api/yunwu', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'midjourney',
-                        prompt,
-                        model,
-                        aspect_ratio: aspectRatio,
-                        version,
-                        image_url,
-                        userId,
-                        skip_billing: _billingSessionCount > 0 || undefined
-                    })
-                });
-            } catch (fetchErr) {
-                lastErr = fetchErr;
-                // 🔧 HTTP/2 连接断开或网络错误，重试
-                if (attempt < maxRetries) {
-                    console.warn(`[Midjourney] 网络错误第${attempt}次，重试中...`, fetchErr.message);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(`Midjourney网络错误: ${fetchErr.message}`);
-            }
-
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) {
-                // 🔧 服务器错误，重试
-                if (res.status >= 500 && attempt < maxRetries) {
-                    console.warn(`[Midjourney] 服务器错误${res.status}，重试中...`);
-                    await new Promise(r => setTimeout(r, 2000 * attempt));
-                    continue;
-                }
-                throw new Error(data.message || data.error || `Midjourney失败: ${res.status}`);
-            }
-
-            const imageUrl = data.imageUrl || data.url || '';
-            if (!imageUrl) throw new Error('Midjourney 未返回图片URL');
-
-            console.log(`🎨 [api-core MJ] 生成成功: ${imageUrl.substring(0, 80)}`);
-            return imageUrl;
+        // ⚠️ 不重试：后端收到请求即扣费，重试会重复扣费
+        const res = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'midjourney',
+                prompt,
+                model,
+                aspect_ratio: aspectRatio,
+                version,
+                image_url,
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || data.error || `Midjourney失败: ${res.status}`);
         }
-        throw lastErr || new Error('Midjourney请求失败');
+        const imageUrl = data.imageUrl || data.url || '';
+        if (!imageUrl) throw new Error('Midjourney 未返回图片URL');
+        console.log(`🎨 [api-core MJ] 生成成功: ${imageUrl.substring(0, 80)}`);
+        return imageUrl;
     }
 
     // ==================== 🔍 OCR 文字识别 ====================
@@ -1556,7 +1722,7 @@
                     voiceName: options.voiceId || options.voiceName || 'Kore',
                     model: options.model || 'flash',
                     userId
-,
+                    ,
                     skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
@@ -1581,7 +1747,7 @@
                     voiceId: options.voiceId || 'genshin_vindi2',
                     voiceSpeed: options.speed || 1,
                     userId
-,
+                    ,
                     skip_billing: _billingSessionCount > 0 || undefined
                 })
             });
@@ -1602,34 +1768,34 @@
                             body: JSON.stringify({ action: 'kling-tts-poll', taskId: data.taskId })
                         });
                         const pd = await pr.json().catch(() => ({}));
-                        
+
                         // 成功获取音频URL
                         if (pd.audioUrl) {
                             console.log(`✅ [api-core] Kling TTS 完成: ${pd.audioUrl.substring(0, 80)}`);
                             return pd.audioUrl;
                         }
                         if (pd.status === 'completed' && pd.audioUrl) return pd.audioUrl;
-                        
+
                         // 彻底失败
                         if (pd.status === 'failed') {
                             throw new Error(pd.error || 'Kling TTS生成失败');
                         }
-                        
+
                         // 状态完成但没有URL，尝试从rawData提取
                         if (pd.status === 'completed_no_url' && pd.rawData) {
                             console.warn('[api-core] Kling TTS: 后端状态完成但无URL，尝试前端提取:', JSON.stringify(pd.rawData).substring(0, 300));
                             const rd = pd.rawData;
                             const extractedUrl = rd?.data?.task_result?.works?.[0]?.resource?.resource ||
-                                                rd?.data?.task_result?.works?.[0]?.audio?.resource ||
-                                                rd?.data?.works?.[0]?.resource?.resource ||
-                                                rd?.data?.works?.[0]?.audio?.resource ||
-                                                rd?.data?.audio_url || rd?.audio_url || rd?.data?.resource || rd?.resource;
+                                rd?.data?.task_result?.works?.[0]?.audio?.resource ||
+                                rd?.data?.works?.[0]?.resource?.resource ||
+                                rd?.data?.works?.[0]?.audio?.resource ||
+                                rd?.data?.audio_url || rd?.audio_url || rd?.data?.resource || rd?.resource;
                             if (extractedUrl) {
                                 console.log(`✅ [api-core] Kling TTS 前端提取成功: ${extractedUrl.substring(0, 80)}`);
                                 return extractedUrl;
                             }
                         }
-                        
+
                         if ((i + 1) % 10 === 0) {
                             console.log(`🔄 [api-core] Kling TTS 轮询中... ${i + 1}/90 status=${pd.status || 'unknown'}`);
                         }
@@ -1645,41 +1811,99 @@
             throw new Error('Kling TTS未返回结果');
         }
 
-        // DubbingX TTS
+        // DubbingX TTS（失败自动降级到 gemini）
         if (engine === 'dubbingx') {
-            // DubbingX 需要 voiceId，如果为空则使用默认音色
-            const dxVoiceId = options.voiceId || 'zh_female_shuangkuaisisi_moon_bigtts';
-            const res = await fetch('/api/yunwu', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'tts-generate',
-                    text,
-                    voiceId: dxVoiceId,
-                    language: options.language || 'zh',
-                    audioSpeed: options.speed || 1,
-                    emotion: options.emotion || '',
-                    userId
-,
-                    skip_billing: _billingSessionCount > 0 || undefined
-                })
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) throw new Error(data.message || data.error || 'DubbingX TTS失败');
-            if (!data.taskId) throw new Error('DubbingX TTS未返回taskId');
-            // 轮询
-            for (let i = 0; i < 60; i++) {
-                await sleep(3000);
-                const pr = await fetch('/api/yunwu', {
+            try {
+                const dxVoiceId = options.voiceId || '';
+                const res = await fetch('/api/yunwu', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'tts-poll', taskId: data.taskId })
+                    body: JSON.stringify({
+                        action: 'tts-generate',
+                        text,
+                        voiceId: dxVoiceId,
+                        language: options.language || 'zh',
+                        audioSpeed: options.speed || 1,
+                        emotion: options.emotion || '',
+                        roleHint: options.roleHint || '',
+                        userId,
+                        skip_billing: _billingSessionCount > 0 || undefined
+                    })
                 });
-                const pd = await pr.json().catch(() => ({}));
-                if (pd.success && pd.fileUrl) return pd.fileUrl;
-                if (pd.status === 'Failed' || pd.status === 'Error') throw new Error('DubbingX TTS生成失败');
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.success) throw new Error(data.message || data.error || 'DubbingX TTS失败');
+                if (!data.taskId) throw new Error('DubbingX TTS未返回taskId');
+                // 轮询
+                for (let i = 0; i < 60; i++) {
+                    await sleep(3000);
+                    const pr = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-poll', taskId: data.taskId })
+                    });
+                    const pd = await pr.json().catch(() => ({}));
+                    if (pd.success && pd.fileUrl) return pd.fileUrl;
+                    if (pd.status === 'Failed' || pd.status === 'Error') throw new Error('DubbingX TTS生成失败');
+                }
+                throw new Error('DubbingX TTS超时');
+            } catch (dxErr) {
+                console.warn(`⚠️ [callTTSAPI] DubbingX失败，自动降级到Gemini TTS: ${dxErr.message}`);
+                // 降级到 gemini
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'gemini-tts',
+                            text,
+                            voiceName: 'Kore',
+                            model: 'flash',
+                            userId,
+                            skip_billing: _billingSessionCount > 0 || undefined
+                        })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Gemini TTS失败');
+                    if (data.audioData) {
+                        const mime = data.mimeType || 'audio/wav';
+                        return `data:${mime};base64,${data.audioData}`;
+                    }
+                    return data.audioUrl || data.audio_url || '';
+                } catch (geminiErr) {
+                    console.warn(`⚠️ [callTTSAPI] Gemini TTS也失败(${geminiErr.message})，三级降级到Kling TTS`);
+                    // 三级降级到 kling
+                    const res2 = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'kling-tts',
+                            text,
+                            voiceId: options.voiceId || 'genshin_vindi2',
+                            voiceSpeed: options.speed || 1,
+                            userId,
+                            skip_billing: _billingSessionCount > 0 || undefined
+                        })
+                    });
+                    const data2 = await res2.json().catch(() => ({}));
+                    if (!res2.ok || !data2.success) throw new Error(data2.message || data2.error || 'Kling TTS三级降级也失败');
+                    if (data2.audioUrl) return data2.audioUrl;
+                    if (data2.taskId) {
+                        for (let i = 0; i < 60; i++) {
+                            await sleep(2000);
+                            const pr = await fetch('/api/yunwu', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'kling-tts-poll', taskId: data2.taskId })
+                            });
+                            const pd = await pr.json().catch(() => ({}));
+                            if (pd.audioUrl) return pd.audioUrl;
+                            if (pd.status === 'failed') throw new Error(pd.error || 'Kling TTS生成失败');
+                        }
+                        throw new Error('Kling TTS三级降级超时');
+                    }
+                    throw new Error('Kling TTS三级降级未返回结果');
+                }
             }
-            throw new Error('DubbingX TTS超时');
         }
 
         throw new Error(`不支持的TTS引擎: ${engine}`);
@@ -1700,7 +1924,7 @@
             action: 'generate',
             userId,
             skip_billing: _billingSessionCount > 0 || undefined,
-            mv: options.model || 'chirp-v4',
+            mv: options.model || 'chirp-auk',
             title: options.title || '',
             tags: options.tags || '',
             make_instrumental: !!options.instrumental
@@ -1757,6 +1981,236 @@
         return data;
     }
 
+    // ==================== 🏃 RunningHub v2 ComfyUI 工作流 API ====================
+
+    /**
+     * 🏃 RunningHub 提交工作流任务（仅提交，不轮询）
+     * @param {Array} nodeInfoList - 节点参数列表 [{nodeId, fieldName, fieldValue}]
+     * @param {object} options - { instanceType, usePersonalQueue, webhookUrl, filmCost, workflowName }
+     * @returns {Promise<{taskId: string, status: string, clientId: string}>}
+     */
+    async function callRunningHubSubmit(nodeInfoList, options = {}) {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('请先登录');
+
+        const res = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'runninghub-submit',
+                nodeInfoList,
+                instanceType: options.instanceType || 'default',
+                usePersonalQueue: options.usePersonalQueue || false,
+                webhookUrl: options.webhookUrl || '',
+                filmCost: options.filmCost || ((options.instanceType === 'plus') ? 82 : 41),
+                workflowName: options.workflowName || 'comfyui',
+                userId,
+                skip_billing: _billingSessionCount > 0 || undefined
+            })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) throw new Error(data.message || data.error || 'RunningHub提交失败');
+        console.log(`🏃 [RunningHub] 任务已提交: ${data.taskId}`);
+        return data;
+    }
+
+    /**
+     * 🏃 RunningHub 查询任务状态
+     * @param {string} taskId - 任务ID
+     * @returns {Promise<{status, results, videoUrl, usage, errorMessage}>}
+     */
+    async function callRunningHubQuery(taskId) {
+        const userId = await getCurrentUserId();
+        const res = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'runninghub-query', taskId, userId })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || data.error || '查询失败');
+        return data;
+    }
+
+    /**
+     * 🏃 RunningHub 上传文件
+     * @param {string} fileBase64 - base64编码的文件（支持data:URI或纯base64）
+     * @param {object} options - { fileName, mimeType }
+     * @returns {Promise<{downloadUrl, fileName, fileType, fileSize}>}
+     */
+    async function callRunningHubUpload(fileBase64, options = {}) {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('请先登录');
+
+        const res = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'runninghub-upload',
+                fileBase64,
+                fileName: options.fileName || 'upload.png',
+                mimeType: options.mimeType || 'image/png',
+                userId
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) throw new Error(data.message || data.error || '上传失败');
+        console.log(`🏃 [RunningHub] 文件上传成功: ${data.downloadUrl}`);
+        return data;
+    }
+
+    /**
+     * 🏃 RunningHub 通用工作流执行（提交+轮询直到完成）
+     * @param {Array} nodeInfoList - 节点参数列表
+     * @param {object} options - { instanceType, filmCost, workflowName, pollInterval, maxPollTime, onProgress }
+     * @returns {Promise<{results: Array<{url,type,text}>, taskId, usage}>}
+     */
+    async function callRunningHubWorkflow(nodeInfoList, options = {}) {
+        const pollInterval = options.pollInterval || 5000;
+        const maxPollTime = options.maxPollTime || 600000; // 默认10分钟
+        const onProgress = options.onProgress || (() => { });
+
+        // 1. 提交任务
+        const submitData = await callRunningHubSubmit(nodeInfoList, options);
+        const { taskId } = submitData;
+        onProgress({ phase: 'submitted', taskId, status: submitData.status });
+
+        // 2. 轮询结果
+        const maxAttempts = Math.ceil(maxPollTime / pollInterval);
+        for (let i = 0; i < maxAttempts; i++) {
+            await sleep(pollInterval);
+
+            try {
+                const queryData = await callRunningHubQuery(taskId);
+                const pct = Math.min(95, Math.round((i + 1) / maxAttempts * 100));
+                onProgress({ phase: 'polling', taskId, status: queryData.status, attempt: i + 1, maxAttempts, pct });
+                console.log(`🏃 [RunningHub] 轮询 ${i + 1}/${maxAttempts}: ${queryData.status}`);
+
+                if (queryData.status === 'SUCCESS') {
+                    onProgress({ phase: 'done', taskId, status: 'SUCCESS', pct: 100 });
+                    return { results: queryData.results || [], taskId, videoUrl: queryData.videoUrl, usage: queryData.usage };
+                }
+
+                if (queryData.status === 'FAILED') {
+                    throw new Error(`RunningHub任务失败: ${queryData.errorMessage || '未知错误'}`);
+                }
+            } catch (err) {
+                if (err.message.includes('任务失败')) throw err;
+                console.warn(`🏃 [RunningHub] 查询异常: ${err.message}`);
+            }
+        }
+
+        throw new Error(`RunningHub工作流超时（${Math.round(maxPollTime / 60000)}分钟）`);
+    }
+
+    /**
+     * 🏃 RunningHub 视频生成 API（向后兼容旧接口）
+     */
+    async function callRunningHubVideoAPI(prompt, options = {}) {
+        const { width = 640, height = 480, duration = 10 } = options;
+        const result = await callRunningHubWorkflow(
+            [
+                { nodeId: "197", fieldName: "text", fieldValue: prompt },
+                { nodeId: "198", fieldName: "value", fieldValue: String(width) },
+                { nodeId: "199", fieldName: "value", fieldValue: String(height) },
+                { nodeId: "202", fieldName: "value", fieldValue: String(duration) }
+            ],
+            { filmCost: 8, workflowName: 'MV视频', ...options }
+        );
+        return { videoUrl: result.videoUrl || (result.results?.[0]?.url || ''), taskId: result.taskId };
+    }
+
+    // ==================== 🎬 LTX-Video 提示词增强 ====================
+
+    /**
+     * 🎬 LTX-Video 提示词优化
+     * 基于官方规则：必须英文、越详细越好（颜色/纹理/光影/镜头运动/环境）
+     * @param {string} rawPrompt - 原始提示词（中文或英文）
+     * @returns {Promise<string>} 优化后的英文提示词
+     */
+    async function enhanceLTXPrompt(rawPrompt) {
+        if (!rawPrompt || !rawPrompt.trim()) return rawPrompt;
+
+        const systemPrompt = `You are an expert prompt engineer for LTX-Video, a text-to-video AI model by Lightricks.
+
+Your task: Transform the user's input into an optimized English video prompt following LTX-Video's official guidelines.
+
+Rules:
+1. Output MUST be in English (translate if input is Chinese or other languages)
+2. Be extremely detailed and elaborate - describe specific colors, textures, materials, lighting conditions
+3. Include camera movement descriptions (e.g. "slow pan", "tracking shot", "static wide angle")
+4. Describe the scene's atmosphere, mood, and ambient details
+5. Mention foreground, midground, and background elements
+6. Include motion descriptions - what is moving and how
+7. Describe lighting quality (e.g. "golden hour sunlight", "soft diffused overcast light", "dramatic rim lighting")
+8. Keep the prompt as one flowing paragraph, no line breaks or bullet points
+9. Do NOT add any prefix like "prompt:" or quotes
+10. Output ONLY the optimized prompt text, nothing else
+11. Target length: 80-200 words for best results
+
+Example of a good LTX prompt:
+"The turquoise waves crash against the dark, jagged rocks of the shore, sending white foam spraying into the air. The scene is dominated by the stark contrast between the bright blue water and the dark, almost black rocks. The water is a clear, turquoise color, and the waves are capped with white foam. The rocks are dark and jagged, and they are covered in patches of green moss. The shore is lined with lush green vegetation, including trees and bushes. In the background, there are rolling hills covered in dense forest. The sky is cloudy, and the light is dim."`;
+
+        try {
+            const enhanced = await callWriterLLM([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: rawPrompt }
+            ], { temperature: 0.6, max_tokens: 512 });
+            if (enhanced && enhanced.length > 20) {
+                console.log(`🎬 [LTX] 提示词优化: "${rawPrompt.substring(0, 30)}..." → "${enhanced.substring(0, 50)}..."`);
+                return enhanced;
+            }
+        } catch (err) {
+            console.warn(`🎬 [LTX] 提示词优化失败，使用原始提示词:`, err.message);
+        }
+        return rawPrompt;
+    }
+
+    // ==================== 🧊 腾讯混元生3D ====================
+
+    /**
+     * 混元生3D专业版 - 提交任务并轮询结果
+     * @param {object} options - { prompt, imageUrl, imageBase64 }
+     * @returns {Promise<{files: Array<{type,url,previewUrl}>}>}
+     */
+    async function callHunyuan3DAPI(options = {}) {
+        const { prompt, imageUrl, imageBase64 } = options;
+        if (!prompt && !imageUrl && !imageBase64) throw new Error('需要提供 prompt 或 imageUrl');
+
+        let userId = await getCurrentUserId();
+        if (!userId) throw new Error('请先登录后再使用此功能');
+
+        // 提交任务
+        const submitRes = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'hunyuan3d-submit', userId, prompt, imageUrl, imageBase64, skip_billing: _billingSessionCount > 0 || undefined })
+        });
+        const submitData = await submitRes.json().catch(() => ({}));
+        if (!submitRes.ok || !submitData.success) throw new Error(submitData.message || submitData.error || '混元3D提交失败');
+
+        const { jobId } = submitData;
+        console.log(`🧊 [混元3D] 任务已提交: ${jobId}`);
+
+        // 轮询结果（最多等待 5 分钟，每 5s 查一次）
+        const maxAttempts = 60;
+        for (let i = 0; i < maxAttempts; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const queryRes = await fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'hunyuan3d-query', userId, jobId })
+            });
+            const queryData = await queryRes.json().catch(() => ({}));
+            if (!queryRes.ok) throw new Error(queryData.message || '查询失败');
+
+            console.log(`🧊 [混元3D] 轮询 ${i + 1}/${maxAttempts}: ${queryData.status}`);
+            if (queryData.done) return { jobId, files: queryData.files || [] };
+            if (queryData.failed) throw new Error(`混元3D生成失败: ${queryData.errorMessage || '未知错误'}`);
+        }
+        throw new Error('混元3D生成超时（5分钟）');
+    }
+
     // ==================== 📤 导出到全局 ====================
 
     // 核心 API 函数
@@ -1774,6 +2228,17 @@
     global.callWriterLLM = callWriterLLM;
     global.callOCRAPI = callOCRAPI;
     global.callMidjourneyImageAPI = global.callMidjourneyImageAPI || callMidjourneyImageAPI;
+
+    // 🧊 混元生3D
+    global.callHunyuan3DAPI = callHunyuan3DAPI;
+
+    // 🏃 RunningHub v2 ComfyUI 工作流
+    global.callRunningHubVideoAPI = callRunningHubVideoAPI;
+    global.callRunningHubSubmit = callRunningHubSubmit;
+    global.callRunningHubQuery = callRunningHubQuery;
+    global.callRunningHubUpload = callRunningHubUpload;
+    global.callRunningHubWorkflow = callRunningHubWorkflow;
+    global.enhanceLTXPrompt = enhanceLTXPrompt;
 
     // 🎤 音频/音乐 API
     global.callTTSAPI = callTTSAPI;
@@ -1796,6 +2261,10 @@
     global.saveImageToLibrary = global.saveImageToLibrary || saveImageToLibrary;
     global.saveVideoToLibrary = global.saveVideoToLibrary || saveVideoToLibrary;
     global.isValidMediaUrl = global.isValidMediaUrl || isValidMediaUrl;
+
+    // 🛡️ 优化工具函数
+    global.ensureMinImageSize = global.ensureMinImageSize || ensureMinImageSize;
+    global.isContentModerationError = global.isContentModerationError || isContentModerationError;
 
     console.log('✅ [api-core.js] API 核心模块已加载');
 

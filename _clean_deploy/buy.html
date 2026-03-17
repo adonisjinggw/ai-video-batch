@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI视频创作平台 - 购买会员</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .card.selected {
+            border: 3px solid #667eea;
+            transform: translateY(-10px);
+        }
+
+        .card.popular::before {
+            content: "🔥 最热门";
+            position: absolute;
+            top: 20px;
+            right: -35px;
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 40px;
+            transform: rotate(45deg);
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .card-title {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .card-price {
+            font-size: 3em;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .card-price small {
+            font-size: 0.4em;
+            color: #999;
+        }
+
+        .card-features {
+            text-align: left;
+            margin: 30px 0;
+        }
+
+        .feature {
+            padding: 10px 0;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .feature::before {
+            content: "✓";
+            color: #4caf50;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .purchase-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .payment-method {
+            text-align: center;
+            padding: 20px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            transition: border-color 0.3s;
+        }
+
+        .payment-method:hover {
+            border-color: #667eea;
+        }
+
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result-section.success {
+            background: #d4edda;
+            border: 2px solid #c3e6cb;
+        }
+
+        .result-section.error {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+        }
+
+        .activation-code {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            margin: 20px 0;
+            letter-spacing: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .notice {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .notice h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+
+        .notice ul {
+            list-style-position: inside;
+            color: #856404;
+        }
+
+        .notice li {
+            padding: 5px 0;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .card-price {
+                font-size: 2.5em;
+            }
+
+            .pricing-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>🎬 AI视频批量创作平台</h1>
+            <p>让AI成为您的专属视频创作助手</p>
+        </div>
+
+        <!-- 价格套餐 -->
+        <div class="pricing-cards">
+            <div class="card" onclick="selectPlan('monthly', 29.9)">
+                <div class="card-title">月卡</div>
+                <div class="card-price">¥29.9<small>/月</small></div>
+                <div class="card-features">
+                    <div class="feature">30天有效期</div>
+                    <div class="feature">每日15秒视频</div>
+                    <div class="feature">4个分镜场景</div>
+                    <div class="feature">支持所有AI模型</div>
+                    <div class="feature">优先客服支持</div>
+                </div>
+            </div>
+
+            <div class="card popular" onclick="selectPlan('quarterly', 79.9)">
+                <div class="card-title">季卡</div>
+                <div class="card-price">¥79.9<small>/季</small></div>
+                <div class="card-features">
+                    <div class="feature">90天有效期</div>
+                    <div class="feature">每日30秒视频</div>
+                    <div class="feature">8个分镜场景</div>
+                    <div class="feature">支持所有AI模型</div>
+                    <div class="feature">优先客服支持</div>
+                    <div class="feature">🎁 赠送10次额外配额</div>
+                </div>
+            </div>
+
+            <div class="card" onclick="selectPlan('yearly', 199)">
+                <div class="card-title">年卡</div>
+                <div class="card-price">¥199<small>/年</small></div>
+                <div class="card-features">
+                    <div class="feature">365天有效期</div>
+                    <div class="feature">每日60秒视频</div>
+                    <div class="feature">12个分镜场景</div>
+                    <div class="feature">支持所有AI模型</div>
+                    <div class="feature">专属客服支持</div>
+                    <div class="feature">🎁 赠送50次额外配额</div>
+                    <div class="feature">🎁 优先体验新功能</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 购买流程 -->
+        <div class="purchase-section">
+            <h2 class="section-title">💳 购买流程</h2>
+
+            <!-- 支付方式 -->
+            <div class="payment-methods">
+                <div class="payment-method">
+                    <h3>💚 微信支付</h3>
+                    <div class="qr-code" id="wechatQR">
+                        扫码付款<br>备注订单号
+                    </div>
+                    <p style="color: #999; font-size: 0.9em;">支付后请记录订单号</p>
+                </div>
+
+                <div class="payment-method">
+                    <h3>💙 支付宝</h3>
+                    <div class="qr-code" id="alipayQR">
+                        扫码付款<br>备注订单号
+                    </div>
+                    <p style="color: #999; font-size: 0.9em;">支付后请记录订单号</p>
+                </div>
+            </div>
+
+            <!-- 订单信息表单 -->
+            <form id="orderForm">
+                <div class="form-group">
+                    <label>选择套餐 *</label>
+                    <select id="planSelect" required>
+                        <option value="">请选择套餐</option>
+                        <option value="monthly">月卡 - ¥29.9</option>
+                        <option value="quarterly">季卡 - ¥79.9</option>
+                        <option value="yearly">年卡 - ¥199</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>支付方式 *</label>
+                    <select id="paymentMethod" required>
+                        <option value="">请选择支付方式</option>
+                        <option value="wechat">微信支付</option>
+                        <option value="alipay">支付宝</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>付款订单号后4位 *</label>
+                    <input type="text" id="orderNumber" placeholder="例如：1234" maxlength="4" required>
+                    <small style="color: #999;">请输入您付款后的订单号后4位数字</small>
+                </div>
+
+                <div class="form-group">
+                    <label>接收邮箱（可选）</label>
+                    <input type="email" id="email" placeholder="example@email.com">
+                    <small style="color: #999;">填写后激活码将同时发送到邮箱</small>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    🚀 获取激活码
+                </button>
+            </form>
+
+            <!-- 结果显示 -->
+            <div class="result-section" id="resultSection"></div>
+
+            <!-- 注意事项 -->
+            <div class="notice">
+                <h3>📌 购买须知</h3>
+                <ul>
+                    <li>虚拟商品，一经激活概不退换</li>
+                    <li>激活码请妥善保管，遗失不补发</li>
+                    <li>如遇问题请联系客服微信：jingguangwei</li>
+                    <li>付款后请在30分钟内提交订单信息</li>
+                    <li>激活码有效期从激活时开始计算</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // VIP Secret (与 admin.html 保持一致)
+        const VIP_SECRET = 'nano-video-2025';
+
+        // 套餐配置
+        const plans = {
+            monthly: { name: '月卡', price: 29.9, days: 30 },
+            quarterly: { name: '季卡', price: 79.9, days: 90 },
+            yearly: { name: '年卡', price: 199, days: 365 }
+        };
+
+        let selectedPlan = null;
+
+        // 选择套餐
+        function selectPlan(plan, price) {
+            selectedPlan = plan;
+            
+            // 移除所有选中状态
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // 添加选中状态
+            event.currentTarget.classList.add('selected');
+            
+            // 自动填充表单
+            document.getElementById('planSelect').value = plan;
+            
+            // 滚动到表单
+            document.getElementById('orderForm').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 生成激活码 (与 admin.html 相同的算法)
+        async function generateActivationCode(type) {
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const typePrefix = type === 'monthly' ? 'M' : type === 'quarterly' ? 'Q' : 'Y';
+            
+            const data = `${VIP_SECRET}-${type}-${timestamp}`;
+            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            const signature = hashHex.substring(0, 8).toUpperCase();
+            
+            return `${typePrefix}${random}-${signature}`;
+        }
+
+        // 表单提交
+        document.getElementById('orderForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const plan = document.getElementById('planSelect').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const orderNumber = document.getElementById('orderNumber').value;
+            const email = document.getElementById('email').value;
+            
+            if (!plan || !paymentMethod || !orderNumber) {
+                alert('请填写所有必填项！');
+                return;
+            }
+            
+            if (!/^\d{4}$/.test(orderNumber)) {
+                alert('订单号后4位必须是数字！');
+                return;
+            }
+            
+            // 显示加载状态
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> 正在生成激活码...';
+            
+            try {
+                // 模拟验证订单（实际应该调用后端API验证）
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // 生成激活码
+                const activationCode = await generateActivationCode(plan);
+                
+                // 显示结果
+                const resultSection = document.getElementById('resultSection');
+                resultSection.className = 'result-section success';
+                resultSection.style.display = 'block';
+                resultSection.innerHTML = `
+                    <h3 style="color: #155724; text-align: center; margin-bottom: 20px;">✅ 购买成功！</h3>
+                    <div class="activation-code">${activationCode}</div>
+                    <p style="text-align: center; color: #155724; margin-bottom: 15px;">
+                        <strong>套餐：</strong>${plans[plan].name} | 
+                        <strong>有效期：</strong>${plans[plan].days}天
+                    </p>
+                    <p style="text-align: center; color: #666;">
+                        请复制激活码，前往 
+                        <a href="https://ai-video-batch.vercel.app" target="_blank" style="color: #667eea; text-decoration: none;">
+                            平台首页
+                        </a> 
+                        激活使用
+                    </p>
+                    ${email ? `<p style="text-align: center; color: #666; margin-top: 15px;">激活码已发送到：${email}</p>` : ''}
+                `;
+                
+                // 滚动到结果
+                resultSection.scrollIntoView({ behavior: 'smooth' });
+                
+                // TODO: 如果填写了邮箱，这里应该调用后端API发送邮件
+                
+            } catch (error) {
+                // 显示错误
+                const resultSection = document.getElementById('resultSection');
+                resultSection.className = 'result-section error';
+                resultSection.style.display = 'block';
+                resultSection.innerHTML = `
+                    <h3 style="color: #721c24; text-align: center; margin-bottom: 20px;">❌ 获取失败</h3>
+                    <p style="text-align: center; color: #721c24;">
+                        订单验证失败，请确认订单号是否正确<br>
+                        如有问题请联系客服微信：jingguangwei
+                    </p>
+                `;
+                resultSection.scrollIntoView({ behavior: 'smooth' });
+            } finally {
+                // 恢复按钮状态
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '🚀 获取激活码';
+            }
+        });
+
+        // 页面加载时的提示
+        window.addEventListener('load', () => {
+            // TODO: 这里可以通过 URL 参数自动选择套餐
+            // 例如：buy.html?plan=quarterly
+            const urlParams = new URLSearchParams(window.location.search);
+            const planParam = urlParams.get('plan');
+            if (planParam && plans[planParam]) {
+                document.getElementById('planSelect').value = planParam;
+                // 自动选中对应卡片
+                const cards = document.querySelectorAll('.card');
+                const planIndex = Object.keys(plans).indexOf(planParam);
+                if (cards[planIndex]) {
+                    cards[planIndex].classList.add('selected');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

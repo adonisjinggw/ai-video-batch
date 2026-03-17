@@ -35,6 +35,7 @@ npm run predeploy        # scripts/sync-version.js 同步版本号
 - 不能大量删除或改动代码，除非用户明确指示
 - 出错后不能用错误的备份文件覆盖替换，等待用户命令
 - 全部修好再部署，不要每次没修好就部署
+- **禁止使用 PowerShell 命令编辑/写入代码文件**，只能使用 IDE 的 edit/multi_edit/write_to_file 工具修改文件。PowerShell 仅用于运行检查命令（如 `node -c`、`vercel` 部署等）
 
 ### Supabase 集成规则
 - 使用 `var _sbClient` 而不是 `let supabase`（避免和 CDN 全局变量冲突）

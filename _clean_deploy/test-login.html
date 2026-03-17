@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录状态测试</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        h1 { color: #fbbf24; margin-bottom: 20px; font-size: 20px; }
+        .card { background: #1a1a22; border: 1px solid #333; border-radius: 12px; padding: 20px; margin-bottom: 15px; }
+        .card-title { color: #fbbf24; font-size: 14px; margin-bottom: 15px; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #2a2a35; font-size: 14px; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #94a3b8; }
+        .info-value { color: #22c55e; font-weight: 600; }
+        .info-value.error { color: #ef4444; }
+        .info-value.loading { color: #fbbf24; }
+        .btn { display: block; width: 100%; padding: 14px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border: none; border-radius: 10px; color: #000; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn.secondary { background: #333; color: #fff; }
+        .log-box { background: #111; border: 1px solid #222; border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; }
+        .log-item { padding: 2px 0; }
+        .log-item.success { color: #22c55e; }
+        .log-item.error { color: #ef4444; }
+        .log-item.warn { color: #fbbf24; }
+        .log-item.info { color: #60a5fa; }
+        .login-form { display: none; }
+        .login-form.show { display: block; }
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; color: #94a3b8; font-size: 12px; margin-bottom: 5px; }
+        .input-group input { width: 100%; padding: 12px; background: #0a0a0f; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; }
+        .input-group input:focus { outline: none; border-color: #fbbf24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 登录状态测试页</h1>
+        <div class="card">
+            <div class="card-title">📊 当前状态</div>
+            <div class="info-row"><span class="info-label">登录状态</span><span id="statusLogin" class="info-value loading">检测中...</span></div>
+            <div class="info-row"><span class="info-label">用户ID</span><span id="statusUserId" class="info-value">--</span></div>
+            <div class="info-row"><span class="info-label">邮箱</span><span id="statusEmail" class="info-value">--</span></div>
+            <div class="info-row"><span class="info-label">昵称</span><span id="statusNickname" class="info-value">--</span></div>
+            <div class="info-row"><span class="info-label">会员等级</span><span id="statusLevel" class="info-value">--</span></div>
+            <div class="info-row"><span class="info-label">胶片余额</span><span id="statusBalance" class="info-value">--</span></div>
+        </div>
+        <div class="card">
+            <button class="btn" onclick="refreshStatus()">🔄 刷新状态</button>
+            <button class="btn secondary" id="btnLoginToggle" onclick="toggleLoginForm()">🔒 登录</button>
+            <button class="btn secondary" id="btnLogout" onclick="doLogout()" style="display:none;">🚪 退出登录</button>
+        </div>
+        <div class="card login-form" id="loginForm">
+            <div class="card-title">🔑 登录</div>
+            <div class="input-group"><label>邮箱</label><input type="email" id="inputEmail" placeholder="请输入邮箱"></div>
+            <div class="input-group"><label>密码</label><input type="password" id="inputPassword" placeholder="请输入密码"></div>
+            <button class="btn" onclick="doLogin()">登录</button>
+        </div>
+        <div class="card">
+            <div class="card-title">📝 日志</div>
+            <div class="log-box" id="logBox"></div>
+        </div>
+    </div>
+    <script>
+        function log(msg, type = 'info') {
+            const box = document.getElementById('logBox');
+            const div = document.createElement('div');
+            div.className = 'log-item ' + type;
+            div.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            box.insertBefore(div, box.firstChild);
+        }
+        function updateStatus(data) {
+            document.getElementById('statusLogin').textContent = data.loggedIn ? '✅ 已登录' : '❌ 未登录';
+            document.getElementById('statusLogin').className = 'info-value ' + (data.loggedIn ? '' : 'error');
+            document.getElementById('statusUserId').textContent = data.userId || '--';
+            document.getElementById('statusEmail').textContent = data.email || '--';
+            document.getElementById('statusNickname').textContent = data.nickname || '--';
+            document.getElementById('statusLevel').textContent = data.level !== undefined ? 'LV' + data.level : '--';
+            document.getElementById('statusBalance').textContent = data.balance !== undefined ? data.balance : '--';
+            document.getElementById('btnLoginToggle').style.display = data.loggedIn ? 'none' : 'block';
+            document.getElementById('btnLogout').style.display = data.loggedIn ? 'block' : 'none';
+            if (data.loggedIn) document.getElementById('loginForm').classList.remove('show');
+        }
+        async function refreshStatus() {
+            log('检测登录状态...', 'info');
+            document.getElementById('statusLogin').textContent = '检测中...';
+            document.getElementById('statusLogin').className = 'info-value loading';
+            if (typeof NVAuth === 'undefined') {
+                log('等待NVAuth...', 'warn');
+                for (var i = 0; i < 20; i++) { await new Promise(function(r){setTimeout(r,300)}); if (typeof NVAuth !== 'undefined') break; }
+            }
+            if (typeof NVAuth === 'undefined') { log('NVAuth加载失败', 'error'); updateStatus({loggedIn:false}); return; }
+            log('NVAuth已加载', 'success');
+            var user = null;
+            for (var i = 0; i < 10; i++) { try { user = await NVAuth.getCurrentUser(); if (user) break; } catch(e){} await new Promise(function(r){setTimeout(r,300)}); }
+            if (!user) { log('未登录', 'warn'); updateStatus({loggedIn:false}); return; }
+            log('用户: ' + user.email, 'success');
+            var profile = null;
+            try { profile = await NVAuth.getUserProfile(user.id); } catch(e){ log('获取资料失败', 'error'); }
+            updateStatus({ loggedIn: true, userId: user.id, email: user.email, nickname: profile ? profile.nickname : '', level: profile ? profile.membership_level : 0, balance: profile ? profile.quota_balance : 0 });
+        }
+        function toggleLoginForm() { document.getElementById('loginForm').classList.toggle('show'); }
+        async function doLogin() {
+            var email = document.getElementById('inputEmail').value.trim();
+            var password = document.getElementById('inputPassword').value;
+            if (!email || !password) { log('请输入邮箱密码', 'error'); return; }
+            log('登录中: ' + email, 'info');
+            try { await NVAuth.signInWithEmail(email, password); log('登录成功', 'success'); await new Promise(function(r){setTimeout(r,1500)}); await refreshStatus(); } catch(e) { log('登录失败: ' + e.message, 'error'); }
+        }
+        async function doLogout() {
+            log('退出中...', 'info');
+            try { await NVAuth.signOut(); log('已退出', 'success'); updateStatus({loggedIn:false}); } catch(e) { log('退出失败', 'error'); }
+        }
+        document.addEventListener('DOMContentLoaded', async function() { log('页面加载', 'info'); await refreshStatus(); });
+    </script>
+</body>
+</html>

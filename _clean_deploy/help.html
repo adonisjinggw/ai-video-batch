@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>使用教程 - RollRoll AI视频工坊</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-dark: #0f0f1a;
+            --bg-card: #1a1a2e;
+            --bg-card-hover: #252540;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #666680;
+            --accent-gold: #fbbf24;
+            --accent-purple: #a78bfa;
+            --accent-blue: #60a5fa;
+            --accent-green: #34d399;
+            --accent-pink: #f472b6;
+            --border-color: rgba(255,255,255,0.1);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1a2e 50%, #0f0f23 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        /* 顶部导航 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 15, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            padding: 0 24px;
+        }
+        
+        .navbar-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+        
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .nav-link {
+            padding: 8px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .nav-link.primary {
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            color: #000;
+            font-weight: 600;
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 100px 24px 60px;
+        }
+        
+        /* 页面标题 */
+        .page-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .page-title {
+            font-size: 42px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .page-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+        
+        /* 目录导航 */
+        .toc {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 48px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .toc-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--accent-gold);
+        }
+        
+        .toc-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            list-style: none;
+        }
+        
+        .toc-item a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        
+        .toc-item a:hover {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.05);
+        }
+        
+        /* 章节样式 */
+        .section {
+            margin-bottom: 60px;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .section-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        
+        .section-icon.gold { background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(249,115,22,0.2)); }
+        .section-icon.purple { background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(139,92,246,0.2)); }
+        .section-icon.blue { background: linear-gradient(135deg, rgba(96,165,250,0.2), rgba(59,130,246,0.2)); }
+        .section-icon.green { background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(16,185,129,0.2)); }
+        .section-icon.pink { background: linear-gradient(135deg, rgba(244,114,182,0.2), rgba(236,72,153,0.2)); }
+        
+        .section-title {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        /* 卡片网格 */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            border-color: rgba(251,191,36,0.3);
+        }
+        
+        .card-icon {
+            font-size: 36px;
+            margin-bottom: 16px;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .card-desc {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        /* 步骤列表 */
+        .steps {
+            counter-reset: step;
+        }
+        
+        .step {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #000;
+            flex-shrink: 0;
+        }
+        
+        .step-content {
+            flex: 1;
+        }
+        
+        .step-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .step-desc {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        /* 会员等级表格 */
+        .tier-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+        }
+        
+        .tier-table th,
+        .tier-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .tier-table th {
+            background: rgba(255,255,255,0.05);
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .tier-table td {
+            font-size: 14px;
+        }
+        
+        .tier-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tier-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .tier-free { background: rgba(156,163,175,0.2); color: #9ca3af; }
+        .tier-basic { background: rgba(96,165,250,0.2); color: #60a5fa; }
+        .tier-pro { background: rgba(167,139,250,0.2); color: #a78bfa; }
+        .tier-premium { background: rgba(251,191,36,0.2); color: #fbbf24; }
+        
+        .check { color: var(--accent-green); }
+        .cross { color: var(--text-muted); }
+        
+        /* 功能卡片 */
+        .feature-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+        
+        .feature-header {
+            padding: 20px 24px;
+            background: linear-gradient(135deg, rgba(251,191,36,0.1), rgba(167,139,250,0.1));
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .feature-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .feature-body {
+            padding: 24px;
+        }
+        
+        .feature-list {
+            list-style: none;
+        }
+        
+        .feature-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .feature-list .icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .feature-list .text {
+            flex: 1;
+        }
+        
+        .feature-list .label {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .feature-list .desc {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        
+        /* 提示框 */
+        .tip-box {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .tip-box.info {
+            background: rgba(96,165,250,0.1);
+            border: 1px solid rgba(96,165,250,0.3);
+        }
+        
+        .tip-box.warning {
+            background: rgba(251,191,36,0.1);
+            border: 1px solid rgba(251,191,36,0.3);
+        }
+        
+        .tip-box.success {
+            background: rgba(52,211,153,0.1);
+            border: 1px solid rgba(52,211,153,0.3);
+        }
+        
+        .tip-box .icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .tip-box .content {
+            flex: 1;
+            font-size: 14px;
+        }
+        
+        /* 图片占位符 */
+        .img-placeholder {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            border: 2px dashed var(--border-color);
+            margin: 16px 0;
+        }
+        
+        .img-placeholder .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+        
+        .img-placeholder .text {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        
+        /* 快捷键表格 */
+        .shortcut-table {
+            width: 100%;
+            margin: 16px 0;
+        }
+        
+        .shortcut-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .shortcut-key {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .key {
+            background: rgba(255,255,255,0.1);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        /* FAQ */
+        .faq-item {
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        
+        .faq-question {
+            padding: 16px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 500;
+        }
+        
+        .faq-question:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        
+        .faq-answer {
+            padding: 0 20px 16px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            display: none;
+        }
+        
+        .faq-item.active .faq-answer {
+            display: block;
+        }
+        
+        /* 可展开卡片 */
+        .card.expandable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .card.expandable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .card-header .card-icon {
+            margin-bottom: 0;
+        }
+        
+        .card-header .card-title {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .expand-icon {
+            font-size: 12px;
+            color: var(--text-muted);
+            transition: transform 0.3s ease;
+        }
+        
+        .card.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+        
+        .card-detail {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: all 0.3s ease;
+            margin-top: 0;
+            padding-top: 0;
+            border-top: 1px solid transparent;
+        }
+        
+        .card.expanded .card-detail {
+            max-height: 500px;
+            opacity: 1;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top-color: var(--border-color);
+        }
+        
+        .detail-section {
+            margin-bottom: 16px;
+        }
+        
+        .detail-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .detail-title {
+            font-weight: 600;
+            color: var(--accent-gold);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .detail-section ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .detail-section li {
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        
+        .detail-section p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        /* 教程图片 */
+        .tutorial-image {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .tutorial-image img {
+            max-width: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+        
+        .tutorial-image img:hover {
+            transform: scale(1.02);
+        }
+        
+        .image-caption {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        /* 底部 */
+        .footer {
+            text-align: center;
+            padding: 40px 24px;
+            border-top: 1px solid var(--border-color);
+            margin-top: 60px;
+        }
+        
+        .footer-text {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 32px;
+            }
+            
+            .section-title {
+                font-size: 22px;
+            }
+            
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tier-table {
+                font-size: 12px;
+            }
+            
+            .tier-table th,
+            .tier-table td {
+                padding: 10px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="index.html" class="logo">
+                <div class="logo-icon">🎬</div>
+                <span class="logo-text">RollRoll</span>
+            </a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">返回工作台</a>
+                <a href="auth.html" class="nav-link primary">登录/注册</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="main-content">
+        <!-- 页面标题 -->
+        <header class="page-header">
+            <h1 class="page-title">📚 使用教程</h1>
+            <p class="page-subtitle">从零开始，轻松掌握 AI 视频创作</p>
+        </header>
+
+        <!-- 目录导航 -->
+        <nav class="toc">
+            <div class="toc-title">📋 目录导航</div>
+            <ul class="toc-list">
+                <li class="toc-item"><a href="#getting-started">🚀 新手入门</a></li>
+                <li class="toc-item"><a href="#free-features">🎁 免费用户功能</a></li>
+                <li class="toc-item"><a href="#membership">👑 会员等级介绍</a></li>
+                <li class="toc-item"><a href="#video-tutorial">🎬 AI视频教程</a></li>
+                <li class="toc-item"><a href="#comic-tutorial">📚 AI漫画教程</a></li>
+                <li class="toc-item"><a href="#publish-tutorial">📤 发布教程</a></li>
+                <li class="toc-item"><a href="#canvas-guide">🎨 画布操作指南</a></li>
+                <li class="toc-item"><a href="#faq">❓ 常见问题</a></li>
+            </ul>
+        </nav>
+
+        <!-- 第1章：新手入门 -->
+        <section class="section" id="getting-started">
+            <div class="section-header">
+                <div class="section-icon gold">🚀</div>
+                <h2 class="section-title">新手入门</h2>
+            </div>
+            
+            <p style="margin-bottom: 24px; color: var(--text-secondary);">
+                欢迎使用 RollRoll AI视频工坊！只需几分钟，你就能创作出令人惊艳的 AI 视频。
+            </p>
+            
+            <div class="tutorial-image">
+                <img src="images/tutorial-workspace.png" alt="RollRoll 工作台界面" loading="lazy">
+                <div class="image-caption">📸 RollRoll AI 创作工作台</div>
+            </div>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">注册账号</div>
+                        <div class="step-desc">
+                            点击右上角「登录/注册」，使用邮箱或手机号快速注册。新用户注册即送免费创作额度！
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">输入创意</div>
+                        <div class="step-desc">
+                            在左侧输入框输入你的创意主题，例如："一只可爱的猫咪在草地上玩耍"，然后点击「添加任务」。
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">选择模式</div>
+                        <div class="step-desc">
+                            选择生成模式：<br>
+                            • <strong>文生视频</strong> - 直接从文字生成视频<br>
+                            • <strong>图生视频</strong> - 先生成图片再转视频，画面更精美<br>
+                            • <strong>带音频视频</strong> - 自动生成环境音效，更沉浸
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <div class="step-title">开始创作</div>
+                        <div class="step-desc">
+                            点击「开始批量创作」，AI 将自动完成剧本→分镜→视频的全流程。通常需要 2-5 分钟。
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <div class="step-title">下载分享</div>
+                        <div class="step-desc">
+                            生成完成后，点击视频卡片可以预览、下载，或使用「智能发布」一键分发到各大平台！
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tip-box success">
+                <span class="icon">💡</span>
+                <div class="content">
+                    <strong>小技巧：</strong>描述越详细，AI 生成的视频越符合预期。尝试描述场景、人物、动作、氛围等细节。
+                </div>
+            </div>
+        </section>
+
+        <!-- 第2章：免费用户功能 -->
+        <section class="section" id="free-features">
+            <div class="section-header">
+                <div class="section-icon purple">🎁</div>
+                <h2 class="section-title">免费用户功能</h2>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-header">
+                    <div class="feature-title">
+                        <span>🎉</span> 新用户注册礼包
+                    </div>
+                </div>
+                <div class="feature-body">
+                    <ul class="feature-list">
+                        <li>
+                            <span class="icon">🖼️</span>
+                            <div class="text">
+                                <div class="label">免费高清图片额度</div>
+                                <div class="desc">高质量 AI 绘图，支持角色一致性</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="icon">🎬</span>
+                            <div class="text">
+                                <div class="label">免费视频生成额度</div>
+                                <div class="desc">顶级视频生成，电影级画质</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="icon">📝</span>
+                            <div class="text">
+                                <div class="label">无限文本生成</div>
+                                <div class="desc">AI 剧本、台词、描述全部免费</div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-header">
+                    <div class="feature-title">
+                        <span>📅</span> 每日福利
+                    </div>
+                </div>
+                <div class="feature-body">
+                    <ul class="feature-list">
+                        <li>
+                            <span class="icon">🔄</span>
+                            <div class="text">
+                                <div class="label">每日分享奖励</div>
+                                <div class="desc">分享给好友，每天可获得额外图片生成额度</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="icon">🆓</span>
+                            <div class="text">
+                                <div class="label">免费基础通道</div>
+                                <div class="desc">基础图片生成永久免费，适合快速测试创意</div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-icon">✅</div>
+                    <div class="card-title">免费可用功能</div>
+                    <div class="card-desc">
+                        • 手动模式创作<br>
+                        • 基础图片生成<br>
+                        • AI 剧本生成<br>
+                        • 视频预览下载<br>
+                        • 智能发布助手
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🔒</div>
+                    <div class="card-title">会员专享功能</div>
+                    <div class="card-desc">
+                        • 全自动一键出片<br>
+                        • 高清 4K 画质<br>
+                        • 角色一致性<br>
+                        • 优先生成队列<br>
+                        • 无限生成额度
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第3章：会员等级 -->
+        <section class="section" id="membership">
+            <div class="section-header">
+                <div class="section-icon gold">👑</div>
+                <h2 class="section-title">会员等级介绍</h2>
+            </div>
+            
+            <p style="margin-bottom: 24px; color: var(--text-secondary);">
+                我们提供灵活的会员方案，满足不同创作需求。
+            </p>
+            
+            <div style="overflow-x: auto;">
+                <table class="tier-table">
+                    <thead>
+                        <tr>
+                            <th>功能特性</th>
+                            <th><span class="tier-badge tier-free">免费用户</span></th>
+                            <th><span class="tier-badge tier-basic">基础会员</span></th>
+                            <th><span class="tier-badge tier-pro">专业会员</span></th>
+                            <th><span class="tier-badge tier-premium">尊享会员</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>AI 视频生成</td>
+                            <td>体验额度</td>
+                            <td>基础额度</td>
+                            <td>大量额度</td>
+                            <td>无限制</td>
+                        </tr>
+                        <tr>
+                            <td>AI 图片生成</td>
+                            <td>体验额度</td>
+                            <td>基础额度</td>
+                            <td>大量额度</td>
+                            <td>无限制</td>
+                        </tr>
+                        <tr>
+                            <td>全自动模式</td>
+                            <td class="cross">✗</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                        </tr>
+                        <tr>
+                            <td>半自动模式</td>
+                            <td class="cross">✗</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                        </tr>
+                        <tr>
+                            <td>4K 高清画质</td>
+                            <td class="cross">✗</td>
+                            <td class="cross">✗</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                        </tr>
+                        <tr>
+                            <td>角色一致性</td>
+                            <td class="cross">✗</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                        </tr>
+                        <tr>
+                            <td>优先队列</td>
+                            <td class="cross">✗</td>
+                            <td class="cross">✗</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓ (最高)</td>
+                        </tr>
+                        <tr>
+                            <td>并发任务数</td>
+                            <td>少量</td>
+                            <td>较多</td>
+                            <td>更多</td>
+                            <td>最多</td>
+                        </tr>
+                        <tr>
+                            <td>AI 漫画生成</td>
+                            <td class="cross">✗</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓</td>
+                        </tr>
+                        <tr>
+                            <td>专属客服支持</td>
+                            <td class="cross">✗</td>
+                            <td class="cross">✗</td>
+                            <td class="check">✓</td>
+                            <td class="check">✓ (优先)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="tip-box warning">
+                <span class="icon">💰</span>
+                <div class="content">
+                    <strong>省钱技巧：</strong>选择年付套餐可享受最高 6 折优惠！详情请点击工作台「👑 会员」按钮查看。
+                </div>
+            </div>
+        </section>
+
+        <!-- 第4章：AI视频教程 -->
+        <section class="section" id="video-tutorial">
+            <div class="section-header">
+                <div class="section-icon blue">🎬</div>
+                <h2 class="section-title">AI视频创作教程</h2>
+            </div>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">模式选择指南</h3>
+            
+            <div class="tutorial-image">
+                <img src="images/tutorial-mode.png" alt="模式选择界面" loading="lazy">
+                <div class="image-caption">💡 点击卡片查看详细说明</div>
+            </div>
+            
+            <div class="card-grid">
+                <div class="card expandable" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🎥</div>
+                        <div class="card-title">文生视频模式</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-desc">
+                        <strong>适合：</strong>快速测试、简单场景<br>
+                        <strong>特点：</strong>直接从文字生成视频，速度快
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📝 使用场景</div>
+                            <ul>
+                                <li>快速验证创意想法</li>
+                                <li>简单的产品展示</li>
+                                <li>社交媒体短视频</li>
+                                <li>教程演示片段</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">⚡ 优势</div>
+                            <ul>
+                                <li>生成速度最快</li>
+                                <li>操作最简单</li>
+                                <li>消耗胶片最少</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 技巧</div>
+                            <p>描述要具体：包含主体、动作、场景、光线、风格等细节，效果更好。</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🖼️</div>
+                        <div class="card-title">图生视频模式</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-desc">
+                        <strong>适合：</strong>精美画面、人物故事<br>
+                        <strong>特点：</strong>先生成高清图再转视频，角色一致
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📝 使用场景</div>
+                            <ul>
+                                <li>人物角色故事</li>
+                                <li>需要角色一致性的连续剧情</li>
+                                <li>精美画面的品牌宣传</li>
+                                <li>漫画/动画风格内容</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">⚡ 优势</div>
+                            <ul>
+                                <li>画面质量更高</li>
+                                <li>角色形象一致</li>
+                                <li>可预览并调整图片后再生成视频</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 技巧</div>
+                            <p>开启「角色设定图」功能，AI 会先生成角色三视图，确保整个故事中角色外观统一。</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🔊</div>
+                        <div class="card-title">带音频视频模式</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-desc">
+                        <strong>适合：</strong>沉浸式内容、Vlog<br>
+                        <strong>特点：</strong>自动生成环境音效和配乐
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📝 使用场景</div>
+                            <ul>
+                                <li>Vlog 风格视频</li>
+                                <li>沉浸式体验内容</li>
+                                <li>需要背景音乐的作品</li>
+                                <li>自然环境展示</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">⚡ 优势</div>
+                            <ul>
+                                <li>自动匹配环境音效</li>
+                                <li>无需后期配音</li>
+                                <li>观看体验更沉浸</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 技巧</div>
+                            <p>在描述中加入声音相关词汇（如"海浪声"、"鸟鸣"），AI 会生成更匹配的音效。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">自动化程度选择</h3>
+            
+            <div class="feature-card">
+                <div class="feature-body">
+                    <ul class="feature-list">
+                        <li>
+                            <span class="icon">🤖</span>
+                            <div class="text">
+                                <div class="label">全自动模式（推荐）</div>
+                                <div class="desc">输入主题后一键完成：写剧本 → 设计角色 → 绘制分镜 → 生成视频 → 合并导出。适合快速出片。</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="icon">⚡</span>
+                            <div class="text">
+                                <div class="label">半自动模式</div>
+                                <div class="desc">AI 生成剧本和分镜后暂停，你可以手动修改调整，确认后再继续生成视频。适合追求完美的创作者。</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="icon">✋</span>
+                            <div class="text">
+                                <div class="label">手动模式</div>
+                                <div class="desc">完全手动控制每一步：单独写剧本、单独画图、单独生成视频。适合专业用户和学习者。</div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">角色一致性功能（会员专享）</h3>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">开启角色设定图</div>
+                        <div class="step-desc">在设置中开启「生成角色设定图」选项，AI 会先为你的故事角色生成三视图。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">角色自动识别</div>
+                        <div class="step-desc">系统会分析剧本，自动提取主要角色（主角、配角等），并为每个角色生成一致的外观。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">分镜应用</div>
+                        <div class="step-desc">生成分镜图时，AI 会参考角色设定图，确保同一角色在不同镜头中外观一致。</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第5章：AI漫画教程 -->
+        <section class="section" id="comic-tutorial">
+            <div class="section-header">
+                <div class="section-icon pink">📚</div>
+                <h2 class="section-title">AI漫画创作教程</h2>
+            </div>
+            
+            <p style="margin-bottom: 24px; color: var(--text-secondary);">
+                一键生成专业级漫画，支持日漫、美漫、国漫等多种风格。
+            </p>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">漫画风格选择</h3>
+            
+            <div class="tutorial-image">
+                <img src="images/tutorial-comic.jpg" alt="漫画创作界面" loading="lazy">
+                <div class="image-caption">💡 点击卡片查看风格详情</div>
+            </div>
+            
+            <div class="card-grid">
+                <div class="card expandable" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🇯🇵</div>
+                        <div class="card-title">日本漫画风格</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-desc">
+                        经典日漫画风，大眼睛、精致线条，适合校园、恋爱、奇幻题材。
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">🎨 风格特点</div>
+                            <ul>
+                                <li>大眼睛、尖下巴的角色设计</li>
+                                <li>精致流畅的线条</li>
+                                <li>丰富的表情和动态</li>
+                                <li>经典的网点和效果线</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">📚 适合题材</div>
+                            <p>校园青春、恋爱日常、奇幻冒险、热血战斗、治愈系</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 创作建议</div>
+                            <p>描述角色时加入发色、瞳色等细节，效果更好。可参考知名日漫风格。</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🇺🇸</div>
+                        <div class="card-title">美式漫画风格</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-desc">
+                        硬朗线条、强烈对比，适合超级英雄、动作、科幻题材。
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">🎨 风格特点</div>
+                            <ul>
+                                <li>粗犷有力的线条</li>
+                                <li>夸张的肌肉和动态</li>
+                                <li>强烈的明暗对比</li>
+                                <li>饱和度高的配色</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">📚 适合题材</div>
+                            <p>超级英雄、动作冒险、科幻未来、恐怖惊悚、西部故事</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 创作建议</div>
+                            <p>注重人物的力量感和动态表现，场景描述要有视觉冲击力。</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🇨🇳</div>
+                        <div class="card-title">国风漫画风格</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-desc">
+                        水墨意境、古典韵味，适合武侠、仙侠、历史题材。
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">🎨 风格特点</div>
+                            <ul>
+                                <li>水墨晕染的笔触</li>
+                                <li>古典优雅的人物造型</li>
+                                <li>留白与意境的结合</li>
+                                <li>传统纹样装饰元素</li>
+                            </ul>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">📚 适合题材</div>
+                            <p>武侠江湖、仙侠修真、历史演义、古风言情、神话传说</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 创作建议</div>
+                            <p>融入古诗词意境，描述服饰、场景时使用古典词汇效果更佳。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">创作流程</h3>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">切换到漫画模式</div>
+                        <div class="step-desc">点击顶部「AI漫画」按钮，进入漫画创作界面。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">输入故事主题</div>
+                        <div class="step-desc">输入你想创作的漫画故事，例如："一个少年发现自己拥有超能力的故事"。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">选择风格和页数</div>
+                        <div class="step-desc">选择漫画风格（日漫/美漫/国漫），设置所需页数。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <div class="step-title">生成并导出</div>
+                        <div class="step-desc">点击开始创作，AI 会自动生成完整漫画。完成后可导出为 PDF 或图片压缩包。</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tip-box info">
+                <span class="icon">📖</span>
+                <div class="content">
+                    <strong>对白模式：</strong>选择「内嵌对白」会在漫画中直接显示角色台词，选择「分离对白」则生成纯图片+单独的台词文件。
+                </div>
+            </div>
+        </section>
+
+        <!-- 第6章：发布教程 -->
+        <section class="section" id="publish-tutorial">
+            <div class="section-header">
+                <div class="section-icon green">📤</div>
+                <h2 class="section-title">智能发布教程</h2>
+            </div>
+            
+            <p style="margin-bottom: 24px; color: var(--text-secondary);">
+                一键将视频发布到抖音、小红书、B站等主流平台。
+            </p>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">支持的平台（点击查看详情）</h3>
+            
+            <div class="card-grid">
+                <div class="card expandable platform-card" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🎵</div>
+                        <div class="card-title">抖音</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📊 平台特点</div>
+                            <p>短视频霸主，流量最大，适合15秒-3分钟作品</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 发布建议</div>
+                            <ul>
+                                <li>标题加热门话题标签</li>
+                                <li>封面选择吸引眼球的画面</li>
+                                <li>发布时间选晚7-10点</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable platform-card" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">📕</div>
+                        <div class="card-title">小红书</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📊 平台特点</div>
+                            <p>种草社区，女性用户多，内容精致度要求高</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 发布建议</div>
+                            <ul>
+                                <li>标题要有情绪词和emoji</li>
+                                <li>内容注重美感和实用性</li>
+                                <li>多用标签增加曝光</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable platform-card" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">📺</div>
+                        <div class="card-title">B站</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📊 平台特点</div>
+                            <p>年轻人聚集地，适合中长视频，弹幕文化</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 发布建议</div>
+                            <ul>
+                                <li>选择合适的分区投稿</li>
+                                <li>封面和标题要吸引点击</li>
+                                <li>互动回复提升权重</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable platform-card" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">⚡</div>
+                        <div class="card-title">快手</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📊 平台特点</div>
+                            <p>下沉市场大，真实接地气，互动性强</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 发布建议</div>
+                            <ul>
+                                <li>内容真实自然更受欢迎</li>
+                                <li>多与粉丝互动</li>
+                                <li>直播配合短视频效果好</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable platform-card" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">📱</div>
+                        <div class="card-title">视频号</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📊 平台特点</div>
+                            <p>微信生态，社交推荐，中老年用户多</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 发布建议</div>
+                            <ul>
+                                <li>内容正能量积极向上</li>
+                                <li>借助朋友圈和群传播</li>
+                                <li>适合知识类和生活类</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable platform-card" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🐦</div>
+                        <div class="card-title">微博</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📊 平台特点</div>
+                            <p>热点话题集散地，追热点效果好</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 发布建议</div>
+                            <ul>
+                                <li>蹭热搜话题增加曝光</li>
+                                <li>@相关大V可能被转发</li>
+                                <li>发布时间配合热点</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable platform-card" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">▶️</div>
+                        <div class="card-title">YouTube</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📊 平台特点</div>
+                            <p>全球最大视频平台，适合中长视频变现</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 发布建议</div>
+                            <ul>
+                                <li>标题和缩略图是关键</li>
+                                <li>SEO优化标签和描述</li>
+                                <li>保持更新频率</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card expandable platform-card" onclick="this.classList.toggle('expanded')">
+                    <div class="card-header">
+                        <div class="card-icon">🎶</div>
+                        <div class="card-title">TikTok</div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="card-detail">
+                        <div class="detail-section">
+                            <div class="detail-title">📊 平台特点</div>
+                            <p>海外版抖音，全球化传播，出海首选</p>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-title">💡 发布建议</div>
+                            <ul>
+                                <li>内容无需翻译也能火</li>
+                                <li>配合热门音乐和特效</li>
+                                <li>关注海外热门趋势</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">发布流程</h3>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">打开发布面板</div>
+                        <div class="step-desc">视频生成完成后，点击任务卡片上的「📤 发布」按钮。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">编辑发布信息</div>
+                        <div class="step-desc">修改标题、描述、标签（可选），系统会自动生成合适的内容。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">一键复制</div>
+                        <div class="step-desc">点击「📋 一键复制全部信息」，标题、描述、标签会自动复制到剪贴板。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <div class="step-title">跳转发布</div>
+                        <div class="step-desc">点击目标平台图标（如抖音），系统会自动打开该平台的创作中心。</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <div class="step-title">粘贴并上传</div>
+                        <div class="step-desc">在平台页面按 Ctrl+V 粘贴信息，上传视频文件，点击发布即可！</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tip-box success">
+                <span class="icon">✨</span>
+                <div class="content">
+                    <strong>效率技巧：</strong>发布完成后记得在面板中标记已发布的平台，方便跟踪发布状态。
+                </div>
+            </div>
+        </section>
+
+        <!-- 第7章：画布操作 -->
+        <section class="section" id="canvas-guide">
+            <div class="section-header">
+                <div class="section-icon purple">🎨</div>
+                <h2 class="section-title">画布操作指南</h2>
+            </div>
+            
+            <p style="margin-bottom: 24px; color: var(--text-secondary);">
+                交互式画布让你可以可视化管理创作流程，连接不同节点实现高级功能。
+            </p>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">基础操作</h3>
+            
+            <table class="shortcut-table">
+                <tr>
+                    <td style="width: 40%;">
+                        <span class="shortcut-key">
+                            <span class="key">空格</span> + <span class="key">拖拽</span>
+                        </span>
+                    </td>
+                    <td>平移画布</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="shortcut-key">
+                            <span class="key">鼠标中键</span> + <span class="key">拖拽</span>
+                        </span>
+                    </td>
+                    <td>平移画布（备选）</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="shortcut-key">
+                            <span class="key">滚轮</span>
+                        </span>
+                    </td>
+                    <td>缩放画布</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="shortcut-key">
+                            <span class="key">右键</span>
+                        </span>
+                    </td>
+                    <td>打开快捷菜单</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="shortcut-key">
+                            <span class="key">双击</span>
+                        </span>
+                    </td>
+                    <td>编辑节点内容</td>
+                </tr>
+            </table>
+            
+            <h3 style="font-size: 18px; margin: 24px 0 16px;">节点类型</h3>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-icon">🎨</div>
+                    <div class="card-title">绘图节点</div>
+                    <div class="card-desc">
+                        在画布上绘制草图或上传参考图，连接到任务卡片可以精准控制画面构图。
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon">📝</div>
+                    <div class="card-title">文本节点</div>
+                    <div class="card-desc">
+                        添加文字说明、备注或提示词，帮助组织创作思路。
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🔗</div>
+                    <div class="card-title">连接线</div>
+                    <div class="card-desc">
+                        从节点的输出点拖拽到任务卡片，建立参考关系，AI 会参考连接的内容生成。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第8章：FAQ -->
+        <section class="section" id="faq">
+            <div class="section-header">
+                <div class="section-icon gold">❓</div>
+                <h2 class="section-title">常见问题</h2>
+            </div>
+            
+            <div class="faq-item active">
+                <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                    <span>为什么视频生成失败了？</span>
+                    <span>▼</span>
+                </div>
+                <div class="faq-answer">
+                    常见原因：<br>
+                    1. 网络连接不稳定，请刷新页面重试<br>
+                    2. API 服务繁忙，请稍后再试<br>
+                    3. 描述中包含敏感内容，请修改后重试<br>
+                    4. 免费额度已用完，请充值或等待次日刷新
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                    <span>生成的视频可以商用吗？</span>
+                    <span>▼</span>
+                </div>
+                <div class="faq-answer">
+                    会员用户生成的内容支持商业使用。但请注意：<br>
+                    1. 不得用于违法违规用途<br>
+                    2. 涉及真实人物肖像需获得授权<br>
+                    3. 建议在视频中注明 "AI 生成内容"
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                    <span>如何提高视频生成质量？</span>
+                    <span>▼</span>
+                </div>
+                <div class="faq-answer">
+                    1. <strong>详细描述：</strong>描述越具体，效果越好<br>
+                    2. <strong>使用角色一致性：</strong>开启角色设定图功能<br>
+                    3. <strong>选择合适模式：</strong>图生视频模式画面更精美<br>
+                    4. <strong>参考图辅助：</strong>上传参考图可以更精准控制画面
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                    <span>会员可以退款吗？</span>
+                    <span>▼</span>
+                </div>
+                <div class="faq-answer">
+                    购买后 7 天内，如果未使用任何付费功能，可以申请全额退款。<br>
+                    请联系客服微信：jingguangwei
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                    <span>如何联系客服？</span>
+                    <span>▼</span>
+                </div>
+                <div class="faq-answer">
+                    • 官方微信：jingguangwei<br>
+                    • 邮箱：support@rollroll.com<br>
+                    • 工作时间：周一至周五 9:00-18:00
+                </div>
+            </div>
+        </section>
+
+        <!-- 底部 -->
+        <footer class="footer">
+            <p class="footer-text">
+                © 2025 RollRoll AI视频工坊 · 让每个人都能成为导演
+            </p>
+        </footer>
+    </main>
+</body>
+</html>

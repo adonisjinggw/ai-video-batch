@@ -1,0 +1,3916 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>馃帣锔?AI閰嶉煶 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+            --accent-orange: #f97316;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+        .header h1 { font-size: 18px; }
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--accent);
+        }
+        .tabs {
+            display: flex;
+            padding: 12px 20px;
+            gap: 8px;
+            overflow-x: auto;
+            border-bottom: 1px solid #222;
+        }
+        .tab {
+            flex-shrink: 0;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .tab.active {
+            background: var(--accent);
+            color: #000;
+        }
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .input-section { margin-bottom: 20px; }
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 120px;
+        }
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .setting-item { flex: 1; min-width: 120px; }
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+        .setting-item select,
+        .setting-item input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), var(--accent-orange));
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .upload-area {
+            background: var(--bg-card);
+            border: 2px dashed #333;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover { border-color: var(--accent); }
+        .upload-area .icon { font-size: 40px; margin-bottom: 8px; }
+        .upload-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            display: none;
+        }
+        .result-title { font-size: 16px; margin-bottom: 16px; }
+        .result-audio {
+            width: 100%;
+            margin-bottom: 16px;
+        }
+        .result-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .result-btn.primary {
+            background: var(--accent);
+            color: #000;
+            border: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .loading.show { display: block; }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .queue-info {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--text-dim);
+            display: none;
+        }
+        .queue-info.show { display: block; }
+        .queue-info .queue-pos {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .voice-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+        .voice-item {
+            background: var(--bg-input);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .voice-item:hover { border-color: #444; }
+        .voice-item.selected { border-color: var(--accent); background: rgba(251, 191, 36, 0.1); }
+        .voice-item .name { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+        .voice-item .desc { font-size: 11px; color: var(--text-dim); }
+        .voice-item .play-btn {
+            margin-top: 8px;
+            padding: 4px 10px;
+            background: var(--accent);
+            border: none;
+            border-radius: 4px;
+            color: #000;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        /* 婊戝潡鏍峰紡 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .slider-value {
+            text-align: center;
+            font-size: 12px;
+            color: var(--accent);
+            margin-top: 4px;
+        }
+        /* 鎵归噺瀹牸鏍峰紡 */
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+            width: 100%;
+        }
+        .batch-cell {
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 12px;
+            position: relative;
+            box-sizing: border-box;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .batch-cell .cell-num {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            color: #000;
+            border-radius: 50%;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .batch-cell textarea {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px;
+            color: var(--text);
+            font-size: 12px;
+            resize: none;
+            min-height: 60px;
+            margin-top: 20px;
+        }
+        .batch-cell select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 6px;
+            color: var(--text);
+            font-size: 11px;
+            margin-top: 8px;
+        }
+        .batch-cell .cell-status {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 6px;
+            text-align: center;
+        }
+        .batch-cell .cell-status.success { color: #22c55e; }
+        .batch-cell .cell-status.error { color: #ef4444; }
+        .batch-cell .cell-status.loading { color: var(--accent); }
+        .batch-cell audio {
+            width: 100%;
+            height: 32px;
+            margin-top: 8px;
+        }
+        .batch-progress {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+        .batch-progress-bar {
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .batch-progress-bar .fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="mobile.html?skip_welcome=1" class="back-btn">鈫?杩斿洖</a>
+        <h1>馃帣锔?AI閰嶉煶</h1>
+        <div class="user-info">
+            <span id="userQuota">--</span> 鑳剁墖
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-panel="tts">馃摑 鏂囧瓧杞闊?/button>
+        <button class="tab" data-panel="script">馃幀 鍓ф湰閰嶉煶</button>
+        <button class="tab" data-panel="vc">馃帳 VC鍙樺０</button>
+        <button class="tab" data-panel="batch">馃摎 鎵归噺閰嶉煶</button>
+        <button class="tab" data-panel="img2voice">馃柤锔?鍥剧墖閰嶉煶</button>
+        <button class="tab" data-panel="video2voice">馃幀 瑙嗛閰嶉煶</button>
+    </div>
+
+    <div class="main">
+        <!-- 馃帣锔?鏂囧瓧杞闊抽潰鏉?-->
+        <div class="panel active" id="panel-tts">
+            <div class="input-section">
+                <label class="input-label">鉁嶏笍 杈撳叆瑕佽浆鎹㈢殑鏂囧瓧</label>
+                <textarea class="input-box" id="ttsText" placeholder="璇疯緭鍏ヨ杞崲涓鸿闊崇殑鏂囧瓧鍐呭...&#10;&#10;鏀寔鏈€澶?000瀛?></textarea>
+                <div style="text-align:right;font-size:12px;color:#666;margin-top:4px;">
+                    <span id="ttsCharCount">0</span>/5000
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">馃攰 閫夋嫨TTS寮曟搸</label>
+                <div class="settings-row">
+                    <div class="setting-item" style="flex:2;">
+                        <select id="ttsEngine" onchange="switchTTSEngine()">
+                            <option value="dubbingx">DubbingX 涓撲笟閰嶉煶 (2鑳剁墖)</option>
+                            <option value="gemini-flash">Gemini Flash TTS (1鑳剁墖)</option>
+                            <option value="gemini-pro">Gemini Pro TTS (3鑳剁墖)</option>
+                            <option value="kling">Kling 鍙伒TTS (2鑳剁墖)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DubbingX 闊宠壊閫夋嫨 -->
+            <div class="input-section" id="dubbingxVoiceSection">
+                <label class="input-label">馃帳 閫夋嫨闊宠壊</label>
+                <div class="settings-row" style="margin-bottom:8px;">
+                    <div class="setting-item">
+                        <select id="voiceGender" onchange="filterVoices()">
+                            <option value="">鍏ㄩ儴鎬у埆</option>
+                            <option value="1">鐢峰０</option>
+                            <option value="0">濂冲０</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <select id="voiceGrade" onchange="filterVoices()">
+                            <option value="premium">鍏ㄦ儏缁煶鑹?/option>
+                            <option value="ordinary">鍗曟儏缁煶鑹?/option>
+                            <option value="custom">澶氭儏缁煶鑹?/option>
+                        </select>
+                    </div>
+                </div>
+                <div class="voice-list" id="voiceList">
+                    <div style="text-align:center;padding:20px;color:#666;">鍔犺浇闊宠壊涓?..</div>
+                </div>
+            </div>
+
+            <!-- Gemini TTS 闊宠壊閫夋嫨 -->
+            <div class="input-section" id="geminiVoiceSection" style="display:none;">
+                <label class="input-label">馃帳 閫夋嫨Gemini闊宠壊</label>
+                <select id="geminiVoice" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <optgroup label="馃嚚馃嚦 涓枃闊宠壊">
+                        <option value="Zephyr">馃棧锔?Zephyr - 鐢峰０ (鏀寔涓枃)</option>
+                        <option value="Puck">馃棧锔?Puck - 鐢峰０ (鏀寔涓枃)</option>
+                        <option value="Kore">馃棧锔?Kore - 濂冲０ (鏀寔涓枃)</option>
+                        <option value="Aoede">馃棧锔?Aoede - 濂冲０ (鏀寔涓枃)</option>
+                    </optgroup>
+                    <optgroup label="馃嚞馃嚙 鑻辨枃闊宠壊">
+                        <option value="Charon">馃棧锔?Charon - 鐢峰０ (鑻辫)</option>
+                        <option value="Fenrir">馃棧锔?Fenrir - 鐢峰０ (鑻辫)</option>
+                        <option value="Leda">馃棧锔?Leda - 濂冲０ (鑻辫)</option>
+                        <option value="Orus">馃棧锔?Orus - 鐢峰０ (鑻辫)</option>
+                    </optgroup>
+                </select>
+                <div style="font-size:11px;color:#666;margin-top:6px;">鈩癸笍 Gemini TTS 鏀寔澶氳瑷€杈撳叆锛岃嚜鍔ㄨ瘑鍒瑷€銆備腑鏂囧缓璁€夋嫨 Zephyr/Puck/Kore/Aoede</div>
+            </div>
+
+            <!-- Kling TTS 闊宠壊閫夋嫨 -->
+            <div class="input-section" id="klingVoiceSection" style="display:none;">
+                <label class="input-label">馃帳 閫夋嫨鍙伒闊宠壊</label>
+                <select id="klingVoice" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <optgroup label="馃嚚馃嚦 涓枃闊宠壊 - 灏戝勾灏戝コ">
+                        <option value="genshin_vindi2">鈽€锔?闃冲厜灏戝勾</option>
+                        <option value="zhinen_xuesheng">馃摎 鎳備簨灏忓紵</option>
+                        <option value="tiyuxi_xuedi">鈿?杩愬姩灏戝勾</option>
+                        <option value="ai_shatang">馃尭 闈掓槬灏戝コ</option>
+                        <option value="genshin_klee2">馃巰 娓╂煍灏忓</option>
+                        <option value="genshin_kirara">馃専 鍏冩皵灏戝コ</option>
+                    </optgroup>
+                    <optgroup label="馃嚚馃嚦 涓枃闊宠壊 - 闈掑勾">
+                        <option value="ai_kaiya">鈽€锔?闃冲厜鐢风敓</option>
+                        <option value="tiexin_nanyou">馃槃 骞介粯灏忓摜</option>
+                        <option value="ai_chenjiahao_712">馃幍 鏂囪壓灏忓摜</option>
+                        <option value="girlfriend_1_speech02">馃崿 鐢滅編閭诲</option>
+                        <option value="chat1_female_new-3">馃 娓╂煍濮愬</option>
+                        <option value="girlfriend_2_speech02">馃捈 鑱屽満濂抽潚</option>
+                    </optgroup>
+                    <optgroup label="馃嚚馃嚦 涓枃闊宠壊 - 鍎跨">
+                        <option value="cartoon-boy-07">馃懄 娲绘臣鐢风</option>
+                        <option value="cartoon-girl-01">馃懅 淇忕毊濂崇</option>
+                        <option value="mengwa-v1">馃懚 涔栧阀姝ｅお</option>
+                    </optgroup>
+                    <optgroup label="馃嚚馃嚦 涓枃闊宠壊 - 涓勾">
+                        <option value="ai_huangyaoshi_712">馃挭 绋抽噸鑰佺埜</option>
+                        <option value="you_pingjing">馃挄 娓╂煍濡堝</option>
+                        <option value="ai_laoguowang_712">馃搶 涓ヨ們涓婂徃</option>
+                        <option value="chengshu_jiejie">馃憫 浼橀泤璐靛</option>
+                    </optgroup>
+                    <optgroup label="馃嚚馃嚦 涓枃闊宠壊 - 鑰佸勾">
+                        <option value="zhuxi_speech02">馃懘 鎱堢ゥ鐖风埛</option>
+                        <option value="uk_oldman3">馃棧锔?鍞犲彣鐖风埛</option>
+                        <option value="laopopo_speech02">馃棧锔?鍞犲彣濂跺ザ</option>
+                        <option value="heainainai_speech02">馃懙 鍜岃敿濂跺ザ</option>
+                    </optgroup>
+                    <optgroup label="馃嚚馃嚦 涓枃闊宠壊 - 鏂硅█">
+                        <option value="dongbeilaotie_speech02">鉂勶笍 涓滃寳鑰侀搧</option>
+                        <option value="chongqingxiaohuo_speech02">馃尪锔?閲嶅簡灏忎紮</option>
+                        <option value="chuanmeizi_speech02">馃尪锔?鍥涘窛濡瑰瓙</option>
+                        <option value="chaoshandashu_speech02">馃寠 娼睍澶у彅</option>
+                        <option value="ai_taiwan_man2_speech02">馃尨 鍙版咕鐢风敓</option>
+                        <option value="xianzhanggui_speech02">馃徍 瑗垮畨鎺屾煖</option>
+                        <option value="tianjinjiejie_speech02">馃崕 澶╂触濮愬</option>
+                    </optgroup>
+                    <optgroup label="馃嚚馃嚦 涓枃闊宠壊 - 鐗硅壊">
+                        <option value="diyinnansang_DB_CN_M_04-v2">馃帳 鏂伴椈鎾姤鐢?/option>
+                        <option value="yizhipiannan-v1">馃幀 璇戝埗鐗囩敺</option>
+                        <option value="guanxiaofang-v2">馃専 鍏冩皵灏戝コ</option>
+                        <option value="tianmeixuemei-v1">馃挄 鎾掑▏濂冲弸</option>
+                        <option value="daopianyansang-v1">馃敟 鍒€鐗囩儫鍡?/option>
+                    </optgroup>
+                    <optgroup label="馃嚞馃嚙 English Voices">
+                        <option value="genshin_vindi2">Sunny (鈾?Boy)</option>
+                        <option value="zhinen_xuesheng">Sage (鈾?Boy)</option>
+                        <option value="AOT">Ace (鈾?Boy)</option>
+                        <option value="ai_shatang">Blossom (鈾€ Girl)</option>
+                        <option value="genshin_klee2">Peppy (鈾€ Girl)</option>
+                        <option value="genshin_kirara">Dove (鈾€ Girl)</option>
+                        <option value="ai_kaiya">Shine (鈾?Male)</option>
+                        <option value="oversea_male1">Anchor (鈾?Male)</option>
+                        <option value="ai_chenjiahao_712">Lyric (鈾?Male)</option>
+                        <option value="girlfriend_4_speech02">Melody (鈾€ Female)</option>
+                        <option value="chat1_female_new-3">Tender (鈾€ Female)</option>
+                        <option value="chat_0407_5-1">Siren (鈾€ Female)</option>
+                        <option value="cartoon-boy-07">Zippy (鈾?Kid)</option>
+                        <option value="uk_boy1">Bud (鈾?Kid)</option>
+                        <option value="cartoon-girl-01">Sprite (鈾€ Kid)</option>
+                        <option value="PeppaPig_platform">Candy (鈾€ Kid)</option>
+                        <option value="ai_huangzhong_712">Beacon (鈾?Senior)</option>
+                        <option value="ai_huangyaoshi_712">Rock (鈾?Senior)</option>
+                        <option value="ai_laoguowang_712">Titan (鈾?Senior)</option>
+                        <option value="chengshu_jiejie">Grace (鈾€ Senior)</option>
+                        <option value="you_pingjing">Helen (鈾€ Senior)</option>
+                        <option value="calm_story1">Lore (鈾?Narrator)</option>
+                        <option value="uk_man2">Crag (鈾?Narrator)</option>
+                        <option value="laopopo_speech02">Prattle (鈾€ Elder)</option>
+                    </optgroup>
+                </select>
+                <div class="settings-row" style="margin-top:12px;">
+                    <div class="setting-item">
+                        <label>璇█</label>
+                        <select id="klingLanguage">
+                            <option value="zh">涓枃</option>
+                            <option value="en">鑻辨枃</option>
+                            <option value="ja">鏃ヨ</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>璇€?/label>
+                    <input type="range" id="ttsSpeed" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSliderValue(this, 'speedValue')">
+                    <div class="slider-value" id="speedValue">1.0x</div>
+                </div>
+                <div class="setting-item">
+                    <label>璇皟</label>
+                    <input type="range" id="ttsPitch" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSliderValue(this, 'pitchValue')">
+                    <div class="slider-value" id="pitchValue">1.0x</div>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>杈撳嚭鏍煎紡</label>
+                    <select id="ttsFormat">
+                        <option value="mp3">MP3</option>
+                        <option value="wav">WAV (楂樿川閲?</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>璇█</label>
+                    <select id="ttsLanguage">
+                        <option value="zh">涓枃</option>
+                        <option value="en">鑻辨枃</option>
+                        <option value="yue">绮よ</option>
+                        <option value="jp">鏃ヨ</option>
+                        <option value="ko">闊╄</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="queue-info" id="queueInfo">
+                鈴?褰撳墠鎺掗槦浣嶇疆: <span class="queue-pos" id="queuePos">--</span>锛岄璁＄瓑寰?<span id="queueWait">--</span>
+            </div>
+
+            <button class="generate-btn" id="ttsBtn" onclick="generateTTS()">馃帣锔?鐢熸垚璇煶 (2鑳剁墖)</button>
+
+            <div class="loading" id="ttsLoading">
+                <div class="spinner"></div>
+                <div id="ttsLoadingText">璇煶鐢熸垚涓?..</div>
+            </div>
+
+            <div class="result-section" id="ttsResult">
+                <div class="result-title">馃幍 鐢熸垚缁撴灉</div>
+                <audio class="result-audio" id="ttsAudio" controls></audio>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadAudio('tts')">猬囷笍 涓嬭浇</button>
+                    <button class="result-btn primary" onclick="generateTTS()">馃攧 閲嶆柊鐢熸垚</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 馃幀 鍓ф湰閰嶉煶闈㈡澘 -->
+        <div class="panel" id="panel-script">
+            <div class="input-section">
+                <label class="input-label">馃摑 杈撳叆鍓ф湰鍐呭</label>
+                <textarea class="input-box" id="scriptText" placeholder="绮樿创鎴栬緭鍏ュ墽鏈唴瀹?..
+
+鏀寔鏍煎紡锛?鏃佺櫧锛氬湪涓€涓瘨鍐风殑鍐...
+灏忔槑锛氫綘濂斤紝鎴戞槸灏忔槑銆?灏忕孩锛氫綘濂斤紒寰堥珮鍏磋璇嗕綘锛?
+鎴栬€呮櫘閫氬彊杩版枃鏈紝AI浼氳嚜鍔ㄨ瘑鍒鑹插拰鏃佺櫧" style="min-height:180px;"></textarea>
+                <div style="text-align:right;font-size:12px;color:#666;margin-top:4px;">
+                    <span id="scriptCharCount">0</span> 瀛?                </div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+                <button class="generate-btn" style="flex:1;background:var(--bg-input);color:var(--text);border:1px solid #333;margin:0;" onclick="analyzeScript()">
+                    馃 AI鍒嗘瀽鍓ф湰
+                </button>
+                <button class="generate-btn" style="width:auto;padding:0 16px;background:var(--bg-card);color:var(--accent);border:1px solid var(--accent);margin:0;" onclick="loadScriptTemplate()" title="鍔犺浇宸蹭繚瀛樼殑鍓ф湰妯℃澘">
+                    馃搨 鍔犺浇妯℃澘
+                </button>
+            </div>
+
+            <!-- 瑙掕壊鍒楄〃 -->
+            <div class="input-section" id="scriptRolesSection" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <label class="input-label" style="margin:0;">馃幁 璇嗗埆鍒扮殑瑙掕壊</label>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button onclick="saveScriptTemplate()" style="padding:4px 10px;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;" title="淇濆瓨鍓ф湰妯℃澘锛堜笉鍚煶棰戯級锛屼笅娆″彲鐩存帴鍔犺浇閰嶉煶">馃搫 淇濆瓨妯℃澘</button>
+                        <button onclick="saveCurrentRolesToMemory()" style="padding:4px 10px;background:var(--accent);color:#000;border:none;border-radius:4px;font-size:11px;cursor:pointer;">馃捑 淇濆瓨瑙掕壊</button>
+                        <button onclick="showRoleVoiceLibrary()" style="padding:4px 10px;background:var(--bg-input);color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;cursor:pointer;">馃摎 瑙掕壊搴?/button>
+                        <button onclick="clearRoleVoiceLibrary()" style="padding:4px 10px;background:var(--bg-input);color:#888;border:1px solid #333;border-radius:4px;font-size:11px;cursor:pointer;">馃棏锔?娓呯┖</button>
+                    </div>
+                </div>
+                <div id="scriptRolesList" style="display:flex;flex-direction:column;gap:8px;"></div>
+            </div>
+
+            <!-- 鍒嗗彞鍒楄〃 -->
+            <div class="input-section" id="scriptLinesSection" style="display:none;">
+                <label class="input-label">馃摐 鍙拌瘝鍒楄〃锛堝彲缂栬緫锛?/label>
+                <div id="scriptLinesList" style="max-height:400px;overflow-y:auto;"></div>
+            </div>
+
+            <div id="scriptGenerateSection" style="display:none;">
+                <div class="settings-row">
+                    <div class="setting-item">
+                        <label>榛樿TTS寮曟搸</label>
+                        <select id="scriptEngine" onchange="applyEngineToAllRoles(this.value)">
+                            <option value="">锛堝悇瑙掕壊鐙珛璁剧疆锛?/option>
+                            <option value="gemini-flash">鍏ㄩ儴鐢?Gemini Flash (1鑳剁墖/鍙?</option>
+                            <option value="gemini-pro">鍏ㄩ儴鐢?Gemini Pro (3鑳剁墖/鍙?</option>
+                            <option value="dubbingx">鍏ㄩ儴鐢?DubbingX (2鑳剁墖/鍙?</option>
+                            <option value="kling">鍏ㄩ儴鐢?Kling 鍙伒 (2鑳剁墖/鍙?</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>璇€?/label>
+                        <select id="scriptSpeed">
+                            <option value="0.8">0.8x 鎱㈤€?/option>
+                            <option value="1.0" selected>1.0x 姝ｅ父</option>
+                            <option value="1.2">1.2x 蹇€?/option>
+                            <option value="1.5">1.5x 寰堝揩</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="scriptCostInfo" style="background:var(--bg-card);padding:12px;border-radius:8px;margin-bottom:16px;font-size:13px;">
+                    <div style="display:flex;justify-content:space-between;">
+                        <span>馃搳 鎬诲彞鏁帮細<span id="scriptTotalLines">0</span> 鍙?/span>
+                        <span>馃挵 棰勪及璐圭敤锛?span id="scriptTotalCost">0</span> 鑳剁墖</span>
+                    </div>
+                </div>
+
+                <button class="generate-btn" id="scriptGenerateBtn" onclick="generateScriptVoice()">
+                    馃帳 寮€濮嬮厤闊?                </button>
+            </div>
+
+            <div class="loading" id="scriptLoading">
+                <div class="spinner"></div>
+                <div id="scriptLoadingText">鍒嗘瀽涓?..</div>
+            </div>
+
+            <!-- 缁撴灉鍒楄〃 -->
+            <div class="result-section" id="scriptResult">
+                <div class="result-title" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>馃幍 閰嶉煶缁撴灉</span>
+                    <div style="display:flex;gap:6px;">
+                        <button onclick="saveScriptHistory()" style="padding:4px 10px;background:var(--accent);color:#000;border:none;border-radius:4px;font-size:11px;cursor:pointer;">馃捑 淇濆瓨</button>
+                        <button onclick="loadScriptHistory()" style="padding:4px 10px;background:var(--bg-input);color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;cursor:pointer;" id="loadHistoryBtn">馃搨 鍘嗗彶</button>
+                    </div>
+                </div>
+                <div id="scriptResultList" style="max-height:400px;overflow-y:auto;"></div>
+                <div class="result-actions" style="margin-top:16px;">
+                    <button class="result-btn" onclick="downloadAllScriptAudio()">猬囷笍 涓嬭浇鍏ㄩ儴</button>
+                    <button class="result-btn" onclick="mergeScriptAudio()">馃敆 鍚堝苟闊抽</button>
+                    <button class="result-btn primary" onclick="resetScript()">馃攧 閲嶆柊寮€濮?/button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 馃帳 澹伴煶鍏嬮殕闈㈡澘 -->
+        <div class="panel" id="panel-vc">
+            <div class="input-section">
+                <label class="input-label">馃幍 涓婁紶闊抽鏍锋湰锛?-20绉掞級</label>
+                <input type="file" id="cloneAudioInput" accept="audio/*" style="display:none" onchange="loadCloneAudio(this)">
+                <div class="upload-area" onclick="document.getElementById('cloneAudioInput').click()">
+                    <div class="icon">馃幍</div>
+                    <div>鐐瑰嚮涓婁紶闊抽鏍锋湰</div>
+                    <div style="font-size:12px;color:#666;margin-top:8px;">寤鸿5-20绉掞紝鏀寔 MP3銆乄AV</div>
+                </div>
+                <audio id="cloneAudioPreview" class="upload-preview" controls style="display:none;"></audio>
+                <div id="cloneAudioInfo" style="display:none;font-size:12px;color:#666;margin-top:8px;">
+                    <span id="cloneAudioDuration">0</span>绉?| <span id="cloneAudioSize">0</span>MB
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">鈿欙笍 闊宠皟璋冩暣 (Pitch)</label>
+                <div class="settings-row">
+                    <div class="setting-item">
+                        <label>闊宠皟鍋忕Щ (-12~12)</label>
+                        <input type="number" id="cloneVoiceName" value="0" min="-12" max="12" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;">
+                        <div style="font-size:11px;color:#666;margin-top:4px;">鐢疯浆濂冲缓璁?0-12锛屽コ杞敺寤鸿-10~-12</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">馃帳 閫夋嫨鐩爣闊宠壊</label>
+                <div id="cloneVoiceList" style="max-height:300px;overflow-y:auto;">
+                    <div style="text-align:center;padding:20px;color:#666;">鍔犺浇涓?..</div>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="cloneCreateBtn" onclick="createVoiceClone()">馃帣锔?寮€濮嬪彉澹?(2鑳剁墖)</button>
+
+            <div class="loading" id="cloneLoading">
+                <div class="spinner"></div>
+                <div id="cloneLoadingText">澹伴煶鍏嬮殕涓?..</div>
+            </div>
+
+            <div class="result-section" id="cloneResult">
+                <div class="result-title">鉁?鍙樺０鎴愬姛</div>
+                <div id="cloneTestResult">
+                    <audio id="cloneTestAudio" controls style="width:100%;margin-bottom:16px;"></audio>
+                    <div style="display:flex;gap:12px;">
+                        <button class="result-btn" onclick="downloadClonedAudio()">猬囷笍 涓嬭浇</button>
+                        <button class="result-btn primary" onclick="createVoiceClone()">馃攧 閲嶆柊鍙樺０</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 馃摎 鎵归噺閰嶉煶闈㈡澘 -->
+        <div class="panel" id="panel-batch">
+            <div class="input-section">
+                <label class="input-label">馃摑 鎵归噺瀹牸閰嶉煶锛?涓嫭绔嬫牸瀛愶級</label>
+                <div class="batch-grid" id="batchVoiceGrid">
+                    <!-- 9涓鏍?-->
+                </div>
+            </div>
+
+            <div class="batch-progress" id="batchProgress" style="display:none;">
+                <div style="display:flex;justify-content:space-between;font-size:13px;">
+                    <span>鐢熸垚杩涘害</span>
+                    <span id="batchProgressText">0/9</span>
+                </div>
+                <div class="batch-progress-bar">
+                    <div class="fill" id="batchProgressFill"></div>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="batchBtn" onclick="generateBatchVoice()">馃帣锔?鎵归噺鐢熸垚 (2鑳剁墖/鏉?</button>
+
+            <div class="loading" id="batchLoading">
+                <div class="spinner"></div>
+                <div id="batchLoadingText">鎵归噺鐢熸垚涓?..</div>
+            </div>
+        </div>
+
+        <!-- 馃柤锔?鍥剧墖閰嶉煶闈㈡澘 -->
+        <div class="panel" id="panel-img2voice">
+            <div class="input-section">
+                <label class="input-label">馃摲 涓婁紶鍥剧墖锛圓I鐞嗚В鍥剧墖鍐呭鍚庨厤闊筹級</label>
+                <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="previewImage(this)">
+                <div class="upload-area" onclick="document.getElementById('imgInput').click()">
+                    <div class="icon">馃柤锔?/div>
+                    <div>鐐瑰嚮涓婁紶鍥剧墖</div>
+                    <div style="font-size:12px;color:#666;margin-top:8px;">鏀寔 JPG銆丳NG銆乄ebP</div>
+                </div>
+                <img id="imgPreview" class="upload-preview" style="display:none;">
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">馃幆 璇嗗埆妯″紡</label>
+                <select id="imgRecognizeMode" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <option value="understand">馃 鏅鸿兘鐞嗚В锛堟弿杩板浘鐗囧唴瀹圭敓鎴愰厤闊虫枃妗堬級</option>
+                    <option value="ocr">馃摑 OCR璇嗗埆锛堝彧璇嗗埆鍥剧墖涓殑鏂囧瓧锛?/option>
+                    <option value="story">馃摎 鏁呬簨妯″紡锛堟牴鎹浘鐗囩敓鎴愬皬鏁呬簨锛?/option>
+                    <option value="news">馃摵 鏂伴椈鎾姤锛堟柊闂绘挱闊抽鏍兼弿杩帮級</option>
+                </select>
+            </div>
+
+            <div class="input-section" id="imgTextSection" style="display:none;">
+                <label class="input-label">馃摑 鐢熸垚鐨勯厤闊虫枃妗堬紙鍙紪杈戯級</label>
+                <textarea class="input-box" id="imgText" placeholder="AI姝ｅ湪鐞嗚В鍥剧墖鍐呭..." style="min-height:100px;"></textarea>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">馃帳 閫夋嫨闊宠壊</label>
+                <select id="imgVoiceSelect" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <option value="">璇峰厛鍔犺浇闊宠壊鍒楄〃</option>
+                </select>
+            </div>
+
+            <button class="generate-btn" id="imgBtn" onclick="generateImgVoice()">馃帳 璇嗗埆骞堕厤闊?(3鑳剁墖)</button>
+
+            <div class="loading" id="imgLoading">
+                <div class="spinner"></div>
+                <div id="imgLoadingText">澶勭悊涓?..</div>
+            </div>
+
+            <div class="result-section" id="imgResult">
+                <div class="result-title">馃幍 閰嶉煶缁撴灉</div>
+                <audio class="result-audio" id="imgAudio" controls></audio>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadAudio('img')">猬囷笍 涓嬭浇</button>
+                    <button class="result-btn primary" onclick="generateImgVoice()">馃攧 閲嶆柊鐢熸垚</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 馃幀 瑙嗛閰嶉煶闈㈡澘 -->
+        <div class="panel" id="panel-video2voice">
+            <div class="input-section">
+                <label class="input-label">馃幀 瑙嗛閰嶉煶鏂瑰紡</label>
+                <select id="videoMode" onchange="toggleVideoMode()" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;margin-bottom:12px;">
+                    <option value="text">馃摑 杈撳叆鏂囨閰嶉煶</option>
+                    <option value="upload">馃摛 涓婁紶瑙嗛璇嗗埆閰嶉煶</option>
+                </select>
+            </div>
+
+            <!-- 鏂囨閰嶉煶妯″紡 -->
+            <div id="videoTextMode">
+                <div class="input-section">
+                    <label class="input-label">鉁嶏笍 杈撳叆閰嶉煶鏂囨</label>
+                    <textarea class="input-box" id="videoText" placeholder="杈撳叆瑕佷负瑙嗛閰嶉煶鐨勬枃妗?.."></textarea>
+                </div>
+            </div>
+
+            <!-- 瑙嗛涓婁紶妯″紡 -->
+            <div id="videoUploadMode" style="display:none;">
+                <div class="input-section">
+                    <label class="input-label">馃摛 涓婁紶瑙嗛锛堣嚜鍔ㄨ瘑鍒唴瀹归厤闊筹級</label>
+                    <input type="file" id="videoInput" accept="video/*" style="display:none" onchange="previewVideo(this)">
+                    <div class="upload-area" onclick="document.getElementById('videoInput').click()">
+                        <div class="icon">馃幀</div>
+                        <div>鐐瑰嚮涓婁紶瑙嗛</div>
+                        <div style="font-size:12px;color:#666;margin-top:8px;">鏀寔 MP4銆乄ebM锛堟渶澶?00MB锛?/div>
+                    </div>
+                    <video id="videoPreview" class="upload-preview" style="display:none;" controls></video>
+                </div>
+
+                <div class="input-section" id="videoTextSection" style="display:none;">
+                    <label class="input-label">馃摑 璇嗗埆鍒扮殑鍐呭锛堝彲缂栬緫锛?/label>
+                    <textarea class="input-box" id="videoRecognizedText" placeholder="瑙嗛鍐呭璇嗗埆涓?.."></textarea>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label class="input-label">馃帳 閫夋嫨闊宠壊</label>
+                <select id="videoVoiceSelect" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid #333;border-radius:8px;color:#fff;">
+                    <option value="">璇峰厛鍔犺浇闊宠壊鍒楄〃</option>
+                </select>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>璇€?/label>
+                    <input type="range" id="videoSpeed" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSliderValue(this, 'videoSpeedValue')">
+                    <div class="slider-value" id="videoSpeedValue">1.0x</div>
+                </div>
+            </div>
+
+            <button class="generate-btn" id="videoBtn" onclick="generateVideoVoice()">馃帣锔?鐢熸垚閰嶉煶 (3鑳剁墖)</button>
+
+            <div class="loading" id="videoLoading">
+                <div class="spinner"></div>
+                <div id="videoLoadingText">閰嶉煶鐢熸垚涓?..</div>
+            </div>
+
+            <div class="result-section" id="videoResult">
+                <div class="result-title">馃幍 閰嶉煶缁撴灉</div>
+                <audio class="result-audio" id="videoAudio" controls></audio>
+                <div class="result-actions">
+                    <button class="result-btn" onclick="downloadAudio('video')">猬囷笍 涓嬭浇</button>
+                    <button class="result-btn primary" onclick="generateVideoVoice()">馃攧 閲嶆柊鐢熸垚</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== 鍏ㄥ眬鍙橀噺 ====================
+        let currentUser = null;
+        let userQuota = 0;
+        let voiceList = [];  // 闊宠壊鍒楄〃缂撳瓨
+        let selectedVoiceId = null;
+        let currentAudioUrls = { tts: null, img: null, video: null };
+
+        // ==================== 鍒濆鍖?====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 鍒濆鍖栨壒閲忛厤闊冲鏍?            initBatchVoiceGrid();
+            // 妫€鏌ョ櫥褰?            await checkUser();
+            // 鍔犺浇闊宠壊鍒楄〃
+            await loadVoiceList();
+            // 鍔犺浇VC闊宠壊鍒楄〃
+            await loadVCTimbreList();
+            // 馃敡 妫€鏌ユ槸鍚︿粠鍐欎綔椤甸潰璺宠浆杩囨潵
+            checkFromWriting();
+            // 缁戝畾鏍囩鍒囨崲
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', async () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+                    
+                    // 馃敡 鍒囨崲鍒伴渶瑕侀煶鑹茬殑妯″紡鏃讹紝鑷姩妫€鏌ュ苟鍔犺浇闊宠壊搴?                    const panel = tab.dataset.panel;
+                    if (['tts', 'script', 'batch', 'img2voice', 'video2voice'].includes(panel)) {
+                        if (!voiceListLoaded || !voiceList || voiceList.length === 0) {
+                            console.log(`[Voice] 鍒囨崲鍒?${panel}锛屾鏌ラ煶鑹插簱...`);
+                            await loadVoiceList(panel === 'tts');  // 鍙湪TTS妯″紡鏄剧ず鍔犺浇鎻愮ず
+                        }
+                    }
+                });
+            });
+            // 瀛楁暟缁熻
+            document.getElementById('ttsText').addEventListener('input', function() {
+                document.getElementById('ttsCharCount').textContent = this.value.length;
+            });
+        });
+
+        // ==================== 鐢ㄦ埛璁よ瘉 ====================
+        async function checkUser() {
+            try {
+                if (typeof NVAuth === 'undefined') {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+                
+                if (typeof NVAuth === 'undefined') {
+                    console.error('NVAuth 鏈垵濮嬪寲');
+                    showToast('绯荤粺鍒濆鍖栧け璐ワ紝璇峰埛鏂伴〉闈?);
+                    return;
+                }
+                
+                const result = await NVAuth.getCurrentUserAndQuota();
+                console.log('[Voice] 鐢ㄦ埛淇℃伅:', result);
+                
+                if (result && result.user) {
+                    currentUser = result.user;
+                    userQuota = result.quota || 0;
+                    document.getElementById('userQuota').textContent = userQuota;
+                    console.log('[Voice] 鐢ㄦ埛宸茬櫥褰?', currentUser.email, '鑳剁墖:', userQuota);
+                } else {
+                    console.log('[Voice] 鏈櫥褰曪紝璺宠浆鐧诲綍椤?);
+                    showToast('璇峰厛鐧诲綍');
+                    setTimeout(() => {
+                        window.location.href = 'auth.html?return_to=voice.html';
+                    }, 1500);
+                }
+            } catch (e) {
+                console.error('璁よ瘉妫€鏌ュけ璐?', e);
+                showToast('鑾峰彇鐢ㄦ埛淇℃伅澶辫触');
+            }
+        }
+
+        // ==================== 浠庡啓浣滈〉闈㈠鍏?====================
+        function checkFromWriting() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromWriting = urlParams.get('from_writing');
+            const isBatch = urlParams.get('batch');
+            
+            if (fromWriting !== '1') return;
+            
+            console.log('[Voice] 妫€娴嬪埌浠庡啓浣滈〉闈㈣烦杞?);
+            
+            // 馃摑 鍗曠瘒妯″紡锛氳鍙?writing_to_voice
+            if (!isBatch) {
+                try {
+                    const data = localStorage.getItem('writing_to_voice');
+                    if (data) {
+                        const parsed = JSON.parse(data);
+                        // 妫€鏌ユ椂鏁堟€э紙10鍒嗛挓鍐呮湁鏁堬級
+                        if (parsed.timestamp && Date.now() - parsed.timestamp < 10 * 60 * 1000) {
+                            console.log('[Voice] 璇诲彇鍒板崟绡囧唴瀹癸紝闀垮害:', parsed.content?.length);
+                            
+                            // 濉厖鍒版枃瀛楄浆璇煶杈撳叆妗?                            const ttsText = document.getElementById('ttsText');
+                            if (ttsText && parsed.content) {
+                                ttsText.value = parsed.content;
+                                document.getElementById('ttsCharCount').textContent = parsed.content.length;
+                                showToast('鉁?宸插鍏ュ啓浣滃唴瀹?);
+                            }
+                            
+                            // 娓呯悊鏁版嵁
+                            localStorage.removeItem('writing_to_voice');
+                        }
+                    }
+                } catch (e) {
+                    console.error('[Voice] 瑙ｆ瀽鍐欎綔鏁版嵁澶辫触:', e);
+                }
+            } else {
+                // 馃摎 鎵归噺妯″紡锛氳鍙?voice_batch_scripts
+                try {
+                    const scripts = localStorage.getItem('voice_batch_scripts');
+                    if (scripts) {
+                        const parsed = JSON.parse(scripts);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            console.log('[Voice] 璇诲彇鍒版壒閲忓唴瀹癸紝鏁伴噺:', parsed.length);
+                            
+                            // 鍒囨崲鍒版壒閲忛厤闊抽潰鏉?                            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                            const batchTab = document.querySelector('.tab[data-panel="batch"]');
+                            const batchPanel = document.getElementById('panel-batch');
+                            if (batchTab && batchPanel) {
+                                batchTab.classList.add('active');
+                                batchPanel.classList.add('active');
+                            }
+                            
+                            // 濉厖鍒版壒閲忚緭鍏ユ
+                            parsed.slice(0, 8).forEach((content, i) => {
+                                const input = document.getElementById(`batchInput${i}`);
+                                if (input && content) {
+                                    input.value = content;
+                                }
+                            });
+                            
+                            showToast(`鉁?宸插鍏?${Math.min(parsed.length, 8)} 涓厤闊冲墽鏈琡);
+                            
+                            // 娓呯悊鏁版嵁
+                            localStorage.removeItem('voice_batch_scripts');
+                            localStorage.removeItem('writing_batch_to_voice');
+                        }
+                    }
+                } catch (e) {
+                    console.error('[Voice] 瑙ｆ瀽鎵归噺鏁版嵁澶辫触:', e);
+                }
+            }
+        }
+
+        // ==================== 闊宠壊鍒楄〃 ====================
+        // 馃敡 缁熶竴闊宠壊搴撳姞杞斤紙甯﹂噸璇曟満鍒讹紝鎵€鏈夋ā寮忓叡鐢級
+        let voiceListLoading = false;  // 闃叉閲嶅鍔犺浇
+        let voiceListLoaded = false;   // 鍔犺浇鎴愬姛鏍囧織
+        
+        async function loadVoiceList(showLoading = true) {
+            // 濡傛灉宸插姞杞芥垚鍔熶笖鏈夋暟鎹紝鐩存帴杩斿洖
+            if (voiceListLoaded && voiceList && voiceList.length > 0) {
+                console.log('[Voice] 闊宠壊搴撳凡鍔犺浇锛岃烦杩?);
+                syncVoiceListToAllModes();
+                return true;
+            }
+            
+            // 濡傛灉姝ｅ湪鍔犺浇锛岀瓑寰呭畬鎴?            if (voiceListLoading) {
+                console.log('[Voice] 闊宠壊搴撴鍦ㄥ姞杞戒腑锛岀瓑寰?..');
+                await new Promise(r => setTimeout(r, 2000));
+                return voiceListLoaded;
+            }
+            
+            voiceListLoading = true;
+            const maxRetries = 3;
+            
+            if (showLoading) {
+                document.getElementById('voiceList').innerHTML = '<div style="text-align:center;padding:20px;color:#888;">鍔犺浇闊宠壊涓?..</div>';
+            }
+            
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    console.log(`[Voice] 鍔犺浇闊宠壊搴擄紝灏濊瘯 ${i + 1}/${maxRetries}`);
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-voices', grade: 'premium' })
+                    });
+                    
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+                    
+                    const data = await res.json();
+                    if (data.success && data.voices && data.voices.length > 0) {
+                        voiceList = data.voices;
+                        voiceListLoaded = true;
+                        console.log(`[Voice] 鉁?闊宠壊搴撳姞杞芥垚鍔燂紝鍏?${voiceList.length} 涓煶鑹瞏);
+                        // 馃敡 鍚屾鏇存柊鎵€鏈夋ā寮忕殑闊宠壊鍒楄〃
+                        syncVoiceListToAllModes();
+                        voiceListLoading = false;
+                        return true;
+                    } else {
+                        console.warn(`[Voice] 鍔犺浇澶辫触:`, data.error || '鏃犻煶鑹叉暟鎹?);
+                    }
+                } catch (e) {
+                    console.error(`[Voice] 鍔犺浇寮傚父 (${i + 1}/${maxRetries}):`, e.message);
+                }
+                // 绛夊緟鍚庨噸璇?                if (i < maxRetries - 1) {
+                    await new Promise(r => setTimeout(r, 1500));
+                }
+            }
+            
+            // 鎵€鏈夐噸璇曞け璐?            voiceListLoading = false;
+            console.error('[Voice] 鉂?闊宠壊搴撳姞杞藉け璐ワ紝宸查噸璇?, maxRetries, '娆?);
+            document.getElementById('voiceList').innerHTML = `
+                <div style="text-align:center;padding:20px;">
+                    <div style="color:#f66;margin-bottom:12px;">鉂?闊宠壊鍔犺浇澶辫触</div>
+                    <button onclick="loadVoiceList(true)" style="padding:8px 16px;background:var(--accent);color:#000;border:none;border-radius:6px;cursor:pointer;margin-bottom:8px;">馃攧 閲嶈瘯鍔犺浇</button>
+                    <div style="color:#888;font-size:13px;">鎴栧垏鎹㈠埌 Gemini TTS / 鍙伒 TTS</div>
+                </div>`;
+            return false;
+        }
+        
+        // 馃敡 鍚屾闊宠壊鍒楄〃鍒版墍鏈夋ā寮?        function syncVoiceListToAllModes() {
+            if (!voiceList || voiceList.length === 0) return;
+            
+            // 1. 鏂囧瓧杞闊抽潰鏉?            renderVoiceList(voiceList);
+            
+            // 2. 鍥剧墖/瑙嗛閰嶉煶涓嬫媺妗?            updateVoiceSelects(voiceList);
+            
+            // 3. 鎵归噺閰嶉煶瀹牸
+            updateBatchGridVoices(voiceList);
+            
+            console.log('[Voice] 鉁?闊宠壊搴撳凡鍚屾鍒版墍鏈夋ā寮?);
+        }
+
+        // 鍓ф湰閰嶉煶涓撶敤闊宠壊鍔犺浇鍑芥暟锛堝鐢ㄧ粺涓€鍔犺浇锛?        async function loadVoiceListForScript() {
+            return await loadVoiceList(false);
+        }
+
+        function renderVoiceList(voices) {
+            const container = document.getElementById('voiceList');
+            if (!voices || voices.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">鏆傛棤闊宠壊</div>';
+                return;
+            }
+            // DubbingX杩斿洖鐨勫瓧娈垫槸 voiceId锛屼笉鏄?id
+            container.innerHTML = voices.slice(0, 20).map(v => {
+                const vid = v.voiceId || v.id;  // 鍏煎涓ょ瀛楁
+                return `
+                <div class="voice-item ${selectedVoiceId === vid ? 'selected' : ''}" data-id="${vid}" onclick="selectVoice('${vid}')">
+                    <div class="name">${v.name}</div>
+                    <div class="desc">${v.description || (v.gender === 1 ? '鐢峰０' : '濂冲０')}</div>
+                    ${v.voiceUrl ? `<button class="play-btn" onclick="event.stopPropagation();playVoiceSample('${v.voiceUrl}')">鈻?璇曞惉</button>` : ''}
+                </div>
+            `}).join('');
+        }
+
+        function filterVoices() {
+            const gender = document.getElementById('voiceGender').value;
+            const grade = document.getElementById('voiceGrade').value;
+            
+            // 閲嶆柊璇锋眰绛涢€夊悗鐨勯煶鑹?            fetch('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'tts-voices', 
+                    grade: grade || 'premium',
+                    gender: gender || undefined
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.voices) {
+                    voiceList = data.voices;
+                    renderVoiceList(voiceList);
+                }
+            });
+        }
+
+        function selectVoice(voiceId) {
+            selectedVoiceId = voiceId;
+            document.querySelectorAll('.voice-item').forEach(item => {
+                item.classList.toggle('selected', item.dataset.id === voiceId);
+            });
+            // 鍚屾鏇存柊涓嬫媺閫夋嫨
+            document.getElementById('imgVoiceSelect').value = voiceId;
+            document.getElementById('videoVoiceSelect').value = voiceId;
+        }
+
+        function updateVoiceSelects(voices) {
+            const options = voices.map(v => {
+                const vid = v.voiceId || v.id;  // 鍏煎涓ょ瀛楁
+                return `<option value="${vid}">${v.name} (${v.gender === 1 ? '鐢? : '濂?})</option>`;
+            }).join('');
+            document.getElementById('imgVoiceSelect').innerHTML = '<option value="">閫夋嫨闊宠壊</option>' + options;
+            document.getElementById('videoVoiceSelect').innerHTML = '<option value="">閫夋嫨闊宠壊</option>' + options;
+        }
+
+        let sampleAudio = null;
+        function playVoiceSample(url) {
+            if (sampleAudio) {
+                sampleAudio.pause();
+            }
+            sampleAudio = new Audio(url);
+            sampleAudio.play();
+        }
+
+        // ==================== TTS寮曟搸鍒囨崲 ====================
+        function switchTTSEngine() {
+            const engine = document.getElementById('ttsEngine').value;
+            // 鏄剧ず/闅愯棌瀵瑰簲鐨勯煶鑹查€夋嫨鍖?            document.getElementById('dubbingxVoiceSection').style.display = engine === 'dubbingx' ? 'block' : 'none';
+            document.getElementById('geminiVoiceSection').style.display = (engine === 'gemini-flash' || engine === 'gemini-pro') ? 'block' : 'none';
+            document.getElementById('klingVoiceSection').style.display = engine === 'kling' ? 'block' : 'none';
+            
+            // 鏇存柊鎸夐挳鏂囧瓧鍜屼环鏍?            const btn = document.getElementById('ttsBtn');
+            const prices = { 'dubbingx': 2, 'gemini-flash': 1, 'gemini-pro': 3, 'kling': 2 };
+            btn.textContent = `馃帣锔?鐢熸垚璇煶 (${prices[engine] || 2}鑳剁墖)`;
+        }
+
+        // ==================== 鏂囧瓧杞闊?====================
+        async function generateTTS() {
+            const text = document.getElementById('ttsText').value.trim();
+            if (!text) {
+                showToast('璇疯緭鍏ユ枃瀛楀唴瀹?);
+                return;
+            }
+            if (text.length > 5000) {
+                showToast('鏂囧瓧涓嶈兘瓒呰繃5000瀛?);
+                return;
+            }
+
+            const engine = document.getElementById('ttsEngine').value;
+            const prices = { 'dubbingx': 2, 'gemini-flash': 1, 'gemini-pro': 3, 'kling': 2 };
+            const cost = prices[engine] || 2;
+            
+            if (userQuota < cost) {
+                showToast('鑳剁墖涓嶈冻');
+                return;
+            }
+
+            const btn = document.getElementById('ttsBtn');
+            const loading = document.getElementById('ttsLoading');
+            const result = document.getElementById('ttsResult');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+
+            try {
+                let audioUrl = null;
+                
+                if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                    // Gemini TTS - 瀹炴椂杩斿洖 base64 闊抽
+                    const voiceName = document.getElementById('geminiVoice').value;
+                    document.getElementById('ttsLoadingText').textContent = 'Gemini璇煶鐢熸垚涓?..';
+                    
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'gemini-tts',
+                            text: text,
+                            voiceName: voiceName,
+                            model: engine === 'gemini-pro' ? 'pro' : 'flash',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success && data.audioData) {
+                        // 杞崲 base64 涓?data URL
+                        // Gemini 杩斿洖鐨勫彲鑳芥槸 audio/L16 (PCM) 鎴?audio/wav锛岄渶瑕佺粺涓€澶勭悊
+                        let mimeType = data.mimeType || 'audio/wav';
+                        // 濡傛灉鏄?PCM 鏍煎紡锛屾祻瑙堝櫒鍙兘涓嶆敮鎸侊紝灏濊瘯浣滀负 wav 鎾斁
+                        if (mimeType.includes('L16') || mimeType.includes('pcm')) {
+                            mimeType = 'audio/wav';
+                        }
+                        audioUrl = `data:${mimeType};base64,${data.audioData}`;
+                    } else if (data.success && data.audioUrl) {
+                        audioUrl = data.audioUrl;
+                    } else {
+                        throw new Error(data.error || 'Gemini TTS澶辫触');
+                    }
+                } else if (engine === 'kling') {
+                    // 鍙伒 TTS
+                    const voiceId = document.getElementById('klingVoice').value;
+                    const voiceLanguage = document.getElementById('klingLanguage').value;
+                    document.getElementById('ttsLoadingText').textContent = '鍙伒璇煶鐢熸垚涓?..';
+                    
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'kling-tts',
+                            text: text,
+                            voiceId: voiceId,
+                            voiceLanguage: voiceLanguage,
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success && data.audioUrl) {
+                        audioUrl = data.audioUrl;
+                    } else if (data.success && data.taskId) {
+                        // 闇€瑕佽疆璇?                        document.getElementById('ttsLoadingText').textContent = '鍙伒璇煶澶勭悊涓?..';
+                        audioUrl = await pollKlingTTSResult(data.taskId);
+                    } else {
+                        throw new Error(data.error || '鍙伒TTS澶辫触');
+                    }
+                } else {
+                    // DubbingX TTS - 闇€瑕佽疆璇?                    if (!selectedVoiceId) {
+                        showToast('璇烽€夋嫨闊宠壊');
+                        btn.disabled = false;
+                        loading.classList.remove('show');
+                        return;
+                    }
+                    
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'tts-generate',
+                            voiceId: selectedVoiceId,
+                            text: text,
+                            language: document.getElementById('ttsLanguage').value,
+                            audioSpeed: parseFloat(document.getElementById('ttsSpeed').value),
+                            audioPitch: parseFloat(document.getElementById('ttsPitch').value),
+                            fileFormat: document.getElementById('ttsFormat').value,
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+
+                    if (data.success && data.taskId) {
+                        document.getElementById('ttsLoadingText').textContent = '璇煶鍚堟垚涓?..';
+                        audioUrl = await pollTTSResult(data.taskId);
+                    } else if (data.queuePosition) {
+                        document.getElementById('queueInfo').classList.add('show');
+                        document.getElementById('queuePos').textContent = data.queuePosition;
+                        document.getElementById('queueWait').textContent = `${data.queuePosition * 10}绉抈;
+                        showToast(`鎺掗槦涓紝浣嶇疆: ${data.queuePosition}`);
+                        setTimeout(() => generateTTS(), data.queuePosition * 5000);
+                        return;
+                    } else {
+                        throw new Error(data.message || data.error || 'DubbingX鐢熸垚澶辫触');
+                    }
+                }
+                
+                if (audioUrl) {
+                    currentAudioUrls.tts = audioUrl;
+                    document.getElementById('ttsAudio').src = audioUrl;
+                    result.style.display = 'block';
+                    showToast('鐢熸垚鎴愬姛锛?);
+                    userQuota -= cost;
+                    document.getElementById('userQuota').textContent = userQuota;
+                } else {
+                    throw new Error('鏈幏鍙栧埌闊抽');
+                }
+            } catch (e) {
+                const errMsg = e?.message || e?.error || (typeof e === 'string' ? e : '鏈煡閿欒');
+                showToast('鐢熸垚澶辫触: ' + errMsg);
+                console.error('TTS鐢熸垚閿欒:', e);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+                document.getElementById('queueInfo').classList.remove('show');
+            }
+        }
+
+        async function pollTTSResult(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-poll', taskId })
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'Completed' && data.fileUrl) {
+                        return data.fileUrl;
+                    } else if (data.status === 'Failed') {
+                        throw new Error('鍚堟垚澶辫触');
+                    }
+                    
+                    const loadingEl = document.getElementById('ttsLoadingText');
+                    if (loadingEl) loadingEl.textContent = `璇煶鍚堟垚涓?.. (${i + 1}/${maxAttempts})`;
+                } catch (e) {
+                    console.warn('杞閿欒:', e);
+                }
+            }
+            throw new Error('鍚堟垚瓒呮椂');
+        }
+        
+        // 鍓ф湰閰嶉煶涓撶敤鐨勯潤榛樿疆璇紙涓嶆洿鏂癠I锛屾敮鎸佸苟鍙戯級
+        async function pollTTSResultSilent(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-poll', taskId })
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'Completed' && data.fileUrl) {
+                        return data.fileUrl;
+                    } else if (data.status === 'Failed') {
+                        console.error(`[TTS Poll] taskId=${taskId} 澶辫触`);
+                        throw new Error('鍚堟垚澶辫触');
+                    }
+                    // 闈欓粯杞锛屼笉鏇存柊UI
+                } catch (e) {
+                    console.warn(`[TTS Poll] taskId=${taskId} 杞閿欒:`, e.message);
+                    if (i === maxAttempts - 1) throw e;
+                }
+            }
+            throw new Error('鍚堟垚瓒呮椂');
+        }
+
+        // 鍙伒 TTS 杞
+        async function pollKlingTTSResult(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'kling-tts-poll', taskId })
+                    });
+                    const data = await res.json();
+
+                    if (data.success && data.audioUrl) {
+                        return data.audioUrl;
+                    } else if (data.status === 'failed') {
+                        throw new Error('鍙伒TTS鍚堟垚澶辫触');
+                    }
+                    
+                    const loadingEl = document.getElementById('ttsLoadingText');
+                    if (loadingEl) loadingEl.textContent = `鍙伒璇煶澶勭悊涓?.. (${i + 1}/${maxAttempts})`;
+                } catch (e) {
+                    console.warn('鍙伒TTS杞閿欒:', e);
+                }
+            }
+            throw new Error('鍙伒TTS瓒呮椂');
+        }
+        
+        // 鍙伒 TTS 闈欓粯杞锛堝墽鏈厤闊冲苟鍙戠敤锛?        async function pollKlingTTSResultSilent(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'kling-tts-poll', taskId })
+                    });
+                    const data = await res.json();
+
+                    if (data.success && data.audioUrl) {
+                        return data.audioUrl;
+                    } else if (data.status === 'failed') {
+                        throw new Error('鍙伒TTS鍚堟垚澶辫触');
+                    }
+                } catch (e) {
+                    console.warn(`[Kling TTS Poll] taskId=${taskId} 杞閿欒:`, e.message);
+                    if (i === maxAttempts - 1) throw e;
+                }
+            }
+            throw new Error('鍙伒TTS瓒呮椂');
+        }
+
+        // ==================== 鍥剧墖閰嶉煶 ====================
+        let imgFile = null;
+        let imgBase64Cache = null;  // 缂撳瓨base64閬垮厤閲嶅璇诲彇
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                imgFile = input.files[0];
+                imgBase64Cache = null;  // 娓呴櫎缂撳瓨
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('imgPreview').src = e.target.result;
+                    document.getElementById('imgPreview').style.display = 'block';
+                    imgBase64Cache = e.target.result;  // 缂撳瓨base64
+                };
+                reader.readAsDataURL(imgFile);
+                // 闅愯棌涔嬪墠鐨勮瘑鍒粨鏋?                document.getElementById('imgTextSection').style.display = 'none';
+                document.getElementById('imgText').value = '';
+            }
+        }
+
+        async function generateImgVoice() {
+            if (!imgFile && !imgBase64Cache) {
+                showToast('璇峰厛涓婁紶鍥剧墖');
+                return;
+            }
+            
+            // 妫€鏌ユ槸鍚﹀凡鏈夌紪杈戣繃鐨勬枃妗堬紝鐩存帴浣跨敤
+            const existingText = document.getElementById('imgText').value.trim();
+            const voiceId = document.getElementById('imgVoiceSelect').value || selectedVoiceId;
+            
+            if (!voiceId) {
+                showToast('璇烽€夋嫨闊宠壊');
+                return;
+            }
+            if (userQuota < 3) {
+                showToast('鑳剁墖涓嶈冻');
+                return;
+            }
+
+            const btn = document.getElementById('imgBtn');
+            const loading = document.getElementById('imgLoading');
+            const result = document.getElementById('imgResult');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+
+            try {
+                let textToSpeak = existingText;
+                
+                // 濡傛灉娌℃湁鐜版湁鏂囨锛屽厛杩涜AI璇嗗埆
+                if (!textToSpeak) {
+                    const mode = document.getElementById('imgRecognizeMode').value;
+                    document.getElementById('imgLoadingText').textContent = 'AI姝ｅ湪鐞嗚В鍥剧墖...';
+                    
+                    const base64 = imgBase64Cache || await fileToBase64(imgFile);
+                    
+                    // 馃 鏍规嵁妯″紡閫夋嫨涓嶅悓鐨刾rompt
+                    const modePrompts = {
+                        'understand': `璇蜂粩缁嗚瀵熻繖寮犲浘鐗囷紝鐢ㄦ祦鐣呯殑涓枃鎻忚堪鍥剧墖鐨勫唴瀹癸紝鍖呮嫭锛?1. 鍥剧墖涓湁浠€涔堜富瑕佸厓绱狅紙浜虹墿銆佺墿浣撱€佸満鏅瓑锛?2. 鍥剧墖鐨勬皼鍥淬€佹儏缁垨琛ㄨ揪鐨勬剰澧?3. 濡傛灉鏈夋枃瀛楋紝璇蜂竴骞惰鍑烘潵
+
+璇风洿鎺ヨ緭鍑洪€傚悎閰嶉煶鐨勬枃妗堬紝50-150瀛楀乏鍙筹紝涓嶈鍒嗙偣鍒楀嚭锛岃鏄竴娈佃繛璐殑鍙欒堪銆俙,
+                        
+                        'ocr': `璇疯瘑鍒浘鐗囦腑鐨勬墍鏈夋枃瀛楀唴瀹广€傚鏋滃浘鐗囦腑娌℃湁鏂囧瓧锛岃鎻忚堪鍥剧墖涓彲瑙佺殑涓昏鍐呭銆傚彧杩斿洖鏂囧瓧鍐呭锛屼笉瑕佸叾浠栬В閲娿€俙,
+                        
+                        'story': `璇锋牴鎹繖寮犲浘鐗囷紝鍒涗綔涓€涓畝鐭殑灏忔晠浜嬫垨灏忓満鏅€傝姹傦細
+- 100-200瀛楀乏鍙?- 鐢熷姩鏈夎叮锛屾湁鎯呰妭
+- 閫傚悎閰嶉煶鏈楄
+- 鐩存帴杈撳嚭鏁呬簨鍐呭锛屼笉瑕佸叾浠栬В閲奰,
+                        
+                        'news': `璇风敤鏂伴椈鎾姤鐨勯鏍兼弿杩拌繖寮犲浘鐗囥€傝姹傦細
+- 瀹㈣銆佷笓涓氱殑鏂伴椈璇█
+- 50-100瀛楀乏鍙?- 鎸夆€滀粈涔堜汉/浠€涔堜簨/浠€涔堝湴鐐?浠€涔堢粨鏋溾€濈殑缁撴瀯
+- 鐩存帴杈撳嚭鏂伴椈绋匡紝涓嶈鍏朵粬瑙ｉ噴`
+                    };
+                    
+                    const prompt = modePrompts[mode] || modePrompts['understand'];
+                    
+                    // 璋冪敤瑙嗚鐞嗚ВAPI
+                    const visionRes = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'vision',
+                            image_url: base64,
+                            prompt: prompt,
+                            userId: currentUser?.id
+                        })
+                    });
+                    const visionData = await visionRes.json();
+                    
+                    console.log('[ImgVoice] 瑙嗚鐞嗚В缁撴灉:', visionData);
+
+                    if (!visionData.success) {
+                        // 濡傛灉瑙嗚API澶辫触锛屽皾璇曠敤澶囩敤鏂规
+                        console.warn('[ImgVoice] 瑙嗚API澶辫触锛屽皾璇曞鐢ㄦ柟妗?);
+                        document.getElementById('imgLoadingText').textContent = '灏濊瘯澶囩敤璇嗗埆鏂瑰紡...';
+                        
+                        // 灏濊瘯鐢℅emini vision
+                        const geminiRes = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-vision',
+                                image_url: base64,
+                                prompt: prompt,
+                                userId: currentUser?.id
+                            })
+                        });
+                        const geminiData = await geminiRes.json();
+                        
+                        if (geminiData.success && geminiData.text) {
+                            textToSpeak = geminiData.text;
+                        } else {
+                            throw new Error('鍥剧墖鐞嗚В澶辫触锛岃灏濊瘯鍏朵粬鍥剧墖鎴栨墜鍔ㄨ緭鍏ユ枃妗?);
+                        }
+                    } else {
+                        textToSpeak = visionData.text;
+                    }
+                    
+                    // 妫€鏌ヨ瘑鍒粨鏋滄槸鍚︽湁鏁?                    if (!textToSpeak || textToSpeak.length < 5) {
+                        throw new Error('鍥剧墖鍐呭璇嗗埆缁撴灉杩囩煭锛岃灏濊瘯鍏朵粬鍥剧墖鎴栨墜鍔ㄨ緭鍏ユ枃妗?);
+                    }
+
+                    // 鏄剧ず璇嗗埆缁撴灉
+                    document.getElementById('imgTextSection').style.display = 'block';
+                    document.getElementById('imgText').value = textToSpeak;
+                }
+
+                // 2. 璋冪敤TTS鐢熸垚閰嶉煶
+                document.getElementById('imgLoadingText').textContent = '鐢熸垚閰嶉煶涓?..';
+                
+                // 浼樺厛浣跨敤Gemini TTS锛堟洿绋冲畾锛?                let audioUrl = null;
+                
+                // 妫€鏌ユ槸鍚︽槸Gemini闊宠壊
+                const isGeminiVoice = ['Zephyr', 'Puck', 'Kore', 'Aoede', 'Charon', 'Fenrir', 'Leda', 'Orus'].includes(voiceId);
+                
+                if (isGeminiVoice) {
+                    // 浣跨敤Gemini TTS
+                    const ttsRes = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'gemini-tts',
+                            text: textToSpeak,
+                            voiceName: voiceId,
+                            model: 'flash',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const ttsData = await ttsRes.json();
+                    
+                    if (ttsData.success && ttsData.audioData) {
+                        let mimeType = ttsData.mimeType || 'audio/wav';
+                        if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                        audioUrl = `data:${mimeType};base64,${ttsData.audioData}`;
+                    } else if (ttsData.success && ttsData.audioUrl) {
+                        audioUrl = ttsData.audioUrl;
+                    }
+                } else {
+                    // 浣跨敤DubbingX TTS
+                    const ttsRes = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'tts-generate',
+                            voiceId: voiceId,
+                            text: textToSpeak,
+                            language: 'zh',
+                            fileFormat: 'mp3',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const ttsData = await ttsRes.json();
+
+                    if (ttsData.success && ttsData.taskId) {
+                        audioUrl = await pollTTSResultFor('img', ttsData.taskId);
+                    } else if (!ttsData.success) {
+                        // DubbingX澶辫触锛屽洖閫€鍒癎emini
+                        console.warn('[ImgVoice] DubbingX澶辫触锛屽洖閫€Gemini');
+                        const fallbackRes = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-tts',
+                                text: textToSpeak,
+                                voiceName: 'Zephyr',
+                                model: 'flash',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const fallbackData = await fallbackRes.json();
+                        if (fallbackData.success && fallbackData.audioData) {
+                            let mimeType = fallbackData.mimeType || 'audio/wav';
+                            if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                            audioUrl = `data:${mimeType};base64,${fallbackData.audioData}`;
+                        }
+                    }
+                }
+                
+                if (audioUrl) {
+                    currentAudioUrls.img = audioUrl;
+                    document.getElementById('imgAudio').src = audioUrl;
+                    result.style.display = 'block';
+                    showToast('閰嶉煶鐢熸垚鎴愬姛锛?);
+                    userQuota -= 3;
+                    document.getElementById('userQuota').textContent = userQuota;
+                } else {
+                    throw new Error('閰嶉煶鐢熸垚澶辫触');
+                }
+            } catch (e) {
+                const errMsg = e?.message || e?.error || (typeof e === 'string' ? e : '鏈煡閿欒');
+                showToast('澶辫触: ' + errMsg);
+                console.error('鍥剧墖閰嶉煶閿欒:', e);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        async function pollTTSResultFor(type, taskId, maxAttempts = 30) {
+            const loadingTextEl = document.getElementById(type + 'LoadingText');
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-poll', taskId })
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'Completed' && data.fileUrl) {
+                        return data.fileUrl;
+                    } else if (data.status === 'Failed') {
+                        throw new Error('鍚堟垚澶辫触');
+                    }
+                    
+                    if (loadingTextEl) {
+                        loadingTextEl.textContent = `璇煶鍚堟垚涓?.. (${i + 1}/${maxAttempts})`;
+                    }
+                } catch (e) {
+                    console.warn('杞閿欒:', e);
+                }
+            }
+            throw new Error('鍚堟垚瓒呮椂');
+        }
+
+        // ==================== 瑙嗛閰嶉煶 ====================
+        let videoFile = null;
+
+        function toggleVideoMode() {
+            const mode = document.getElementById('videoMode').value;
+            document.getElementById('videoTextMode').style.display = mode === 'text' ? 'block' : 'none';
+            document.getElementById('videoUploadMode').style.display = mode === 'upload' ? 'block' : 'none';
+        }
+
+        function previewVideo(input) {
+            if (input.files && input.files[0]) {
+                videoFile = input.files[0];
+                if (videoFile.size > 100 * 1024 * 1024) {
+                    showToast('瑙嗛涓嶈兘瓒呰繃100MB');
+                    return;
+                }
+                const url = URL.createObjectURL(videoFile);
+                document.getElementById('videoPreview').src = url;
+                document.getElementById('videoPreview').style.display = 'block';
+            }
+        }
+
+        async function generateVideoVoice() {
+            const mode = document.getElementById('videoMode').value;
+            let text = '';
+            
+            if (mode === 'text') {
+                text = document.getElementById('videoText').value.trim();
+                if (!text) {
+                    showToast('璇疯緭鍏ラ厤闊虫枃妗?);
+                    return;
+                }
+            } else {
+                // 涓婁紶妯″紡 - 鏆傛椂浣跨敤鎵嬪姩杈撳叆鐨勮瘑鍒枃鏈?                text = document.getElementById('videoRecognizedText').value.trim();
+                if (!text && !videoFile) {
+                    showToast('璇蜂笂浼犺棰戞垨杈撳叆鏂囨');
+                    return;
+                }
+                if (!text) {
+                    showToast('璇峰厛璇嗗埆瑙嗛鍐呭鎴栨墜鍔ㄨ緭鍏ユ枃妗?);
+                    return;
+                }
+            }
+
+            const voiceId = document.getElementById('videoVoiceSelect').value || selectedVoiceId;
+            if (!voiceId) {
+                showToast('璇烽€夋嫨闊宠壊');
+                return;
+            }
+            if (userQuota < 3) {
+                showToast('鑳剁墖涓嶈冻');
+                return;
+            }
+
+            const btn = document.getElementById('videoBtn');
+            const loading = document.getElementById('videoLoading');
+            const result = document.getElementById('videoResult');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+
+            try {
+                document.getElementById('videoLoadingText').textContent = '鐢熸垚閰嶉煶涓?..';
+                
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'tts-generate',
+                        voiceId: voiceId,
+                        text: text,
+                        language: 'zh',
+                        audioSpeed: parseFloat(document.getElementById('videoSpeed').value),
+                        fileFormat: 'mp3',
+                        userId: currentUser?.id
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success && data.taskId) {
+                    const audioUrl = await pollTTSResultFor('video', data.taskId);
+                    
+                    if (audioUrl) {
+                        currentAudioUrls.video = audioUrl;
+                        document.getElementById('videoAudio').src = audioUrl;
+                        result.style.display = 'block';
+                        showToast('閰嶉煶鐢熸垚鎴愬姛锛?);
+                        userQuota -= 3;
+                        document.getElementById('userQuota').textContent = userQuota;
+                    }
+                } else {
+                    throw new Error(data.message || data.error || '閰嶉煶鐢熸垚澶辫触');
+                }
+            } catch (e) {
+                const errMsg = e?.message || e?.error || (typeof e === 'string' ? e : '鏈煡閿欒');
+                showToast('澶辫触: ' + errMsg);
+                console.error('瑙嗛閰嶉煶閿欒:', e);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        // ==================== 鎵归噺閰嶉煶瀹牸 ====================
+        const BATCH_CELL_COUNT = 9;  // 瀹牸鏁伴噺
+        let batchVoiceResults = [];   // 瀛樺偍缁撴灉
+        
+        // 鍒濆鍖栨壒閲忛厤闊冲鏍?        function initBatchVoiceGrid() {
+            const grid = document.getElementById('batchVoiceGrid');
+            if (!grid) return;
+            
+            let html = '';
+            for (let i = 0; i < BATCH_CELL_COUNT; i++) {
+                html += `
+                    <div class="batch-cell" id="batchCell${i}" data-index="${i}">
+                        <div class="cell-num">${i + 1}</div>
+                        <textarea placeholder="杈撳叆鏂囨湰..." data-cell="${i}"></textarea>
+                        <select class="cell-voice" data-cell="${i}">
+                            <option value="">閫夐煶鑹?/option>
+                        </select>
+                        <select class="cell-engine" data-cell="${i}" onchange="onCellEngineChange(${i})">
+                            <option value="dubbingx">DubbingX</option>
+                            <option value="gemini-flash">Gemini Flash</option>
+                            <option value="gemini-pro">Gemini Pro</option>
+                            <option value="kling">Kling TTS</option>
+                        </select>
+                        <div class="cell-status" id="cellStatus${i}"></div>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+        }
+        
+        // TTS寮曟搸鍒囨崲鏃舵洿鏂伴煶鑹插垪琛?        function onCellEngineChange(cellIndex) {
+            const cell = document.getElementById(`batchCell${cellIndex}`);
+            const engineSelect = cell.querySelector('.cell-engine');
+            const voiceSelect = cell.querySelector('.cell-voice');
+            const engine = engineSelect.value;
+            
+            if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                voiceSelect.innerHTML = `
+                    <option value="Kore">Kore (濂?</option>
+                    <option value="Charon">Charon (鐢?</option>
+                    <option value="Puck">Puck (鐢?</option>
+                    <option value="Aoede">Aoede (濂?</option>
+                    <option value="Fenrir">Fenrir (鐢?</option>
+                    <option value="Leda">Leda (濂?</option>
+                `;
+            } else if (engine === 'kling') {
+                voiceSelect.innerHTML = `
+                    <option value="male_dongfang">Kling 涓滄柟(鐢?</option>
+                    <option value="female_qingxin">Kling 娓呮柊(濂?</option>
+                    <option value="male_chenwen">Kling 娌夌ǔ(鐢?</option>
+                    <option value="female_tianmei">Kling 鐢滅編(濂?</option>
+                `;
+            } else {
+                // DubbingX浣跨敤鍏ㄥ眬闊宠壊鍒楄〃
+                if (voiceList && voiceList.length > 0) {
+                    voiceSelect.innerHTML = '<option value="">閫夐煶鑹?/option>' + 
+                        voiceList.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+                }
+            }
+        }
+        
+        // 鏇存柊瀹牸闊宠壊鍒楄〃
+        function updateBatchGridVoices(voices) {
+            document.querySelectorAll('.batch-cell .cell-voice').forEach(select => {
+                const cellIndex = select.dataset.cell;
+                const cell = document.getElementById(`batchCell${cellIndex}`);
+                const engine = cell.querySelector('.cell-engine').value;
+                
+                // 鍙洿鏂?DubbingX 寮曟搸鐨勯煶鑹插垪琛?                if (engine === 'dubbingx') {
+                    select.innerHTML = '<option value="">閫夐煶鑹?/option>' + 
+                        voices.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+                }
+            });
+        }
+        
+        // 鎵归噺鐢熸垚
+        async function generateBatchVoice() {
+            // 鏀堕泦鏈夊唴瀹圭殑瀹牸
+            const inputs = [];
+            for (let i = 0; i < BATCH_CELL_COUNT; i++) {
+                const cell = document.getElementById(`batchCell${i}`);
+                const text = cell.querySelector('textarea').value.trim();
+                if (!text) continue;
+                
+                const voiceId = cell.querySelector('.cell-voice').value;
+                const engine = cell.querySelector('.cell-engine').value;
+                
+                if (!voiceId) {
+                    showToast(`鏍煎瓙 ${i + 1} 璇烽€夋嫨闊宠壊`);
+                    return;
+                }
+                
+                inputs.push({ index: i, text, voiceId, engine });
+            }
+            
+            if (inputs.length === 0) {
+                showToast('璇疯嚦灏戝～鍐欎竴涓牸瀛愮殑鏂囨湰');
+                return;
+            }
+            
+            // 璁＄畻璐圭敤
+            const totalCost = inputs.reduce((sum, item) => {
+                if (item.engine === 'gemini-pro') return sum + 3;
+                return sum + 2;
+            }, 0);
+            
+            if (userQuota < totalCost) {
+                showToast(`鑳剁墖涓嶈冻锛岄渶瑕?{totalCost}鑳剁墖`);
+                return;
+            }
+            
+            const btn = document.getElementById('batchBtn');
+            const progressDiv = document.getElementById('batchProgress');
+            
+            btn.disabled = true;
+            progressDiv.style.display = 'block';
+            batchVoiceResults = [];
+            let completed = 0;
+            
+            // 鏇存柊杩涘害
+            const updateProgress = () => {
+                const percent = Math.round((completed / inputs.length) * 100);
+                document.getElementById('batchProgressText').textContent = `${completed}/${inputs.length}`;
+                document.getElementById('batchProgressFill').style.width = percent + '%';
+            };
+            updateProgress();
+            
+            // 骞跺彂鐢熸垚锛堟渶澶?涓悓鏃讹級
+            const processCell = async (item) => {
+                const cell = document.getElementById(`batchCell${item.index}`);
+                const statusDiv = document.getElementById(`cellStatus${item.index}`);
+                
+                cell.style.borderColor = 'var(--accent)';
+                statusDiv.textContent = '鈿欙笍 鐢熸垚涓?..';
+                statusDiv.className = 'cell-status loading';
+                
+                try {
+                    let audioUrl = null;
+                    
+                    if (item.engine === 'gemini-flash' || item.engine === 'gemini-pro') {
+                        // Gemini TTS
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-tts',
+                                text: item.text,
+                                voiceName: item.voiceId,
+                                model: item.engine === 'gemini-pro' ? 'pro' : 'flash',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.audioData) {
+                            audioUrl = `data:${data.mimeType || 'audio/mp3'};base64,${data.audioData}`;
+                        } else {
+                            throw new Error(data.error || 'Gemini TTS澶辫触');
+                        }
+                    } else if (item.engine === 'kling') {
+                        // Kling TTS
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'kling-tts',
+                                text: item.text,
+                                voiceId: item.voiceId,
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && (data.audioUrl || data.taskId)) {
+                            if (data.audioUrl) {
+                                audioUrl = data.audioUrl;
+                            } else {
+                                // 闇€瑕佽疆璇?                                audioUrl = await pollKlingTTS(data.taskId);
+                            }
+                        } else {
+                            throw new Error(data.error || 'Kling TTS澶辫触');
+                        }
+                    } else {
+                        // DubbingX TTS
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'tts-generate',
+                                voiceId: item.voiceId,
+                                text: item.text,
+                                language: 'zh',
+                                fileFormat: 'mp3',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.taskId) {
+                            audioUrl = await pollTTSResultFor('batch', data.taskId);
+                        } else {
+                            throw new Error(data.error || 'DubbingX TTS澶辫触');
+                        }
+                    }
+                    
+                    if (audioUrl) {
+                        // 鎴愬姛
+                        cell.style.borderColor = '#22c55e';
+                        statusDiv.textContent = '鉁?瀹屾垚';
+                        statusDiv.className = 'cell-status success';
+                        
+                        // 娣诲姞闊抽鎾斁鍣?                        let audio = cell.querySelector('audio');
+                        if (!audio) {
+                            audio = document.createElement('audio');
+                            audio.controls = true;
+                            cell.appendChild(audio);
+                        }
+                        audio.src = audioUrl;
+                        
+                        batchVoiceResults.push({ index: item.index, url: audioUrl, text: item.text });
+                    } else {
+                        throw new Error('鏈幏鍙栧埌闊抽');
+                    }
+                } catch (err) {
+                    console.error(`鏍煎瓙 ${item.index + 1} 澶辫触:`, err);
+                    cell.style.borderColor = '#ef4444';
+                    statusDiv.textContent = '鉂?' + (err.message || '澶辫触');
+                    statusDiv.className = 'cell-status error';
+                }
+                
+                completed++;
+                updateProgress();
+            };
+            
+            // 鍒嗘壒澶勭悊锛屾瘡鎵规渶澶?涓?            for (let i = 0; i < inputs.length; i += 3) {
+                const batch = inputs.slice(i, i + 3);
+                await Promise.all(batch.map(processCell));
+            }
+            
+            btn.disabled = false;
+            
+            const successCount = batchVoiceResults.length;
+            if (successCount > 0) {
+                showToast(`瀹屾垚锛佹垚鍔?${successCount} 鏉);
+                userQuota -= successCount * 2;
+                document.getElementById('userQuota').textContent = userQuota;
+            } else {
+                showToast('鎵归噺鐢熸垚澶辫触');
+            }
+        }
+        
+        // Kling TTS杞
+        async function pollKlingTTS(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'kling-tts-poll', taskId })
+                });
+                const data = await res.json();
+                if (data.success && data.audioUrl) {
+                    return data.audioUrl;
+                }
+                if (data.status === 'FAILED') {
+                    throw new Error(data.error || 'Kling TTS澶辫触');
+                }
+            }
+            throw new Error('Kling TTS瓒呮椂');
+        }
+        
+        // 涓嬭浇鎵€鏈夋垚鍔熺殑闊抽
+        function downloadAllBatchAudio() {
+            if (batchVoiceResults.length === 0) {
+                showToast('娌℃湁鍙笅杞界殑闊抽');
+                return;
+            }
+            batchVoiceResults.forEach((item, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = item.url;
+                    a.download = `voice_${item.index + 1}.mp3`;
+                    a.target = '_blank';
+                    a.click();
+                }, i * 500);
+            });
+            showToast('寮€濮嬩笅杞藉叏閮ㄩ煶棰?);
+        }
+
+        // ==================== VC鍙樺０ ====================
+        let vcAudioFile = null;
+        let vcTimbreList = [];  // VC闊宠壊鍒楄〃
+        let currentVcAudioUrl = null;
+        
+        // 鍔犺浇闊抽鏍锋湰
+        function loadCloneAudio(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            if (file.size > 20 * 1024 * 1024) {
+                showToast('闊抽鏂囦欢涓嶈兘瓒呰繃20MB');
+                return;
+            }
+            
+            vcAudioFile = file;
+            
+            const preview = document.getElementById('cloneAudioPreview');
+            const info = document.getElementById('cloneAudioInfo');
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+            info.style.display = 'block';
+            
+            document.getElementById('cloneAudioSize').textContent = (file.size / 1024 / 1024).toFixed(2);
+            
+            preview.onloadedmetadata = () => {
+                const duration = Math.round(preview.duration);
+                document.getElementById('cloneAudioDuration').textContent = duration;
+            };
+        }
+        
+        // 鍔犺浇VC闊宠壊鍒楄〃
+        async function loadVCTimbreList() {
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'vc-list',
+                        pageIndex: 1,
+                        pageSize: 50,
+                        isMyModel: false
+                    })
+                });
+                const data = await res.json();
+                if (data.success && data.voices && data.voices.length > 0) {
+                    vcTimbreList = data.voices;
+                    renderVCTimbreList(data.voices);
+                } else {
+                    document.getElementById('cloneVoiceList').innerHTML = '<div style="text-align:center;padding:20px;color:#666;">鏆傛棤闊宠壊</div>';
+                }
+            } catch (e) {
+                console.error('鍔犺浇VC闊宠壊澶辫触:', e);
+            }
+        }
+        
+        function renderVCTimbreList(voices) {
+            const container = document.getElementById('cloneVoiceList');
+            container.innerHTML = voices.slice(0, 20).map(v => `
+                <div class="voice-item ${selectedVcTimbre === v.id ? 'selected' : ''}" data-id="${v.id}" onclick="selectVcTimbre('${v.id}')" style="background:var(--bg-input);padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;">
+                    <div style="font-size:14px;font-weight:500;">${v.name}</div>
+                    <div style="font-size:11px;color:#666;margin-top:4px;">${v.description || ''}</div>
+                    ${v.voiceUrl ? `<button class="play-btn" onclick="event.stopPropagation();playVoiceSample('${v.voiceUrl}')">鈻?璇曞惉</button>` : ''}
+                </div>
+            `).join('');
+        }
+        
+        let selectedVcTimbre = null;
+        function selectVcTimbre(timbreId) {
+            selectedVcTimbre = timbreId;
+            document.querySelectorAll('#cloneVoiceList .voice-item').forEach(item => {
+                item.classList.toggle('selected', item.dataset.id === timbreId);
+            });
+        }
+        
+        // 鍒涘缓VC鍙樺０
+        async function createVoiceClone() {
+            if (!vcAudioFile) {
+                showToast('璇峰厛涓婁紶闊抽鏍锋湰');
+                return;
+            }
+            
+            if (!selectedVcTimbre) {
+                showToast('璇烽€夋嫨鐩爣闊宠壊');
+                return;
+            }
+            
+            if (userQuota < 2) {
+                showToast('鑳剁墖涓嶈冻锛岄渶瑕?鑳剁墖');
+                return;
+            }
+            
+            const btn = document.getElementById('cloneCreateBtn');
+            const loading = document.getElementById('cloneLoading');
+            const result = document.getElementById('cloneResult');
+            
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+            
+            try {
+                document.getElementById('cloneLoadingText').textContent = '姝ｅ湪涓婁紶闊抽...';
+                const base64Audio = await fileToBase64(vcAudioFile);
+                
+                document.getElementById('cloneLoadingText').textContent = '姝ｅ湪鍙樺０澶勭悊...';
+                const pitch = parseInt(document.getElementById('cloneVoiceName').value) || 0;  // 澶嶇敤杈撳叆妗嗕綔涓簆itch
+                
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'vc-create',
+                        audioData: base64Audio,
+                        timbreId: selectedVcTimbre,
+                        pitch: pitch,
+                        userId: currentUser?.id
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success && data.taskId) {
+                    document.getElementById('cloneLoadingText').textContent = '姝ｅ湪杞缁撴灉...';
+                    const audioUrl = await pollVCResult(data.taskId);
+                    if (audioUrl) {
+                        currentVcAudioUrl = audioUrl;
+                        document.getElementById('cloneTestAudio').src = audioUrl;
+                        document.getElementById('cloneTestResult').style.display = 'block';
+                        result.style.display = 'block';
+                        showToast('VC鍙樺０鎴愬姛锛?);
+                        
+                        userQuota -= 2;
+                        document.getElementById('userQuota').textContent = userQuota;
+                    }
+                } else {
+                    throw new Error(data.error || data.message || 'VC鍙樺０澶辫触');
+                }
+            } catch (e) {
+                const errMsg = e?.message || e?.error || (typeof e === 'string' ? e : '鏈煡閿欒');
+                showToast('澶辫触: ' + errMsg);
+                console.error('VC鍙樺０閿欒:', e);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+        
+        // 杞VC缁撴灉
+        async function pollVCResult(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'vc-poll', taskId })
+                });
+                const data = await res.json();
+                if (data.success && data.status === 'Completed' && data.audioUrl) {
+                    return data.audioUrl;
+                }
+                if (data.status === 'Failed') {
+                    throw new Error('VC鍙樺０澶辫触');
+                }
+            }
+            throw new Error('VC鍙樺０瓒呮椂');
+        }
+        
+        // VC涓嶉渶瑕佹鍑芥暟锛屽垹闄?        async function testClonedVoice() {
+            const text = document.getElementById('cloneTestText').value.trim();
+            if (!text) {
+                showToast('璇疯緭鍏ユ枃鏈?);
+                return;
+            }
+            
+            if (!clonedVoiceId) {
+                showToast('璇峰厛鍏嬮殕澹伴煶');
+                return;
+            }
+            
+            if (userQuota < 2) {
+                showToast('鑳剁墖涓嶈冻');
+                return;
+            }
+            
+            const loading = document.getElementById('cloneLoading');
+            const testResult = document.getElementById('cloneTestResult');
+            
+            loading.classList.add('show');
+            document.getElementById('cloneLoadingText').textContent = '姝ｅ湪鐢熸垚璇煶...';
+            testResult.style.display = 'none';
+            
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'voice-clone-tts',
+                        voiceId: clonedVoiceId,
+                        text: text,
+                        language: 'zh',
+                        userId: currentUser?.id
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success && data.taskId) {
+                    // 杞缁撴灉
+                    const audioUrl = await pollTTSResultFor('clone', data.taskId);
+                    if (audioUrl) {
+                        currentClonedAudioUrl = audioUrl;
+                        document.getElementById('cloneTestAudio').src = audioUrl;
+                        testResult.style.display = 'block';
+                        showToast('鐢熸垚鎴愬姛锛?);
+                        
+                        userQuota -= 2;
+                        document.getElementById('userQuota').textContent = userQuota;
+                    }
+                } else if (data.success && data.audioUrl) {
+                    currentClonedAudioUrl = data.audioUrl;
+                    document.getElementById('cloneTestAudio').src = data.audioUrl;
+                    testResult.style.display = 'block';
+                    showToast('鐢熸垚鎴愬姛锛?);
+                    
+                    userQuota -= 2;
+                    document.getElementById('userQuota').textContent = userQuota;
+                } else {
+                    throw new Error(data.error || data.message || '鐢熸垚澶辫触');
+                }
+            } catch (e) {
+                const errMsg = e?.message || e?.error || (typeof e === 'string' ? e : '鏈煡閿欒');
+                showToast('澶辫触: ' + errMsg);
+                console.error('鍏嬮殕闊宠壊TTS閿欒:', e);
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+        
+        // 涓嬭浇VC闊抽
+        function downloadClonedAudio() {
+            if (!currentVcAudioUrl) return;
+            const a = document.createElement('a');
+            a.href = currentVcAudioUrl;
+            a.download = `vc_voice_${Date.now()}.mp3`;
+            a.target = '_blank';
+            a.click();
+            showToast('寮€濮嬩笅杞?);
+        }
+        
+        // VC涓嶉渶瑕佹鍑芥暟锛屽垹闄?        async function loadMyClonedVoices() {
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'voice-clone-list',
+                        userId: currentUser?.id
+                    })
+                });
+                
+                const data = await res.json();
+                const listDiv = document.getElementById('cloneVoiceList');
+                
+                if (data.success && data.voices && data.voices.length > 0) {
+                    myClonedVoices = data.voices;
+                    listDiv.innerHTML = data.voices.map(v => `
+                        <div style="background:var(--bg-input);padding:12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:14px;font-weight:500;">${v.name || v.voiceName}</div>
+                                <div style="font-size:11px;color:#666;margin-top:4px;">鍒涘缓浜?${new Date(v.createTime || v.created_at).toLocaleDateString()}</div>
+                            </div>
+                            <button onclick="useClonedVoice('${v.id || v.voiceId}')"
+                                style="padding:8px 12px;background:var(--accent);color:#000;border:none;border-radius:6px;font-size:12px;cursor:pointer;">
+                                浣跨敤
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">鏆傛棤鍏嬮殕闊宠壊</div>';
+                }
+            } catch (e) {
+                console.error('鍔犺浇鍏嬮殕闊宠壊鍒楄〃澶辫触:', e);
+            }
+        }
+        
+        // VC涓嶉渶瑕佹鍑芥暟锛屽垹闄?        function useClonedVoice(voiceId) {
+            clonedVoiceId = voiceId;
+            const voice = myClonedVoices.find(v => (v.id || v.voiceId) === voiceId);
+            if (voice) {
+                document.getElementById('clonedVoiceName').textContent = voice.name || voice.voiceName;
+                document.getElementById('cloneResult').style.display = 'block';
+                showToast('宸查€夋嫨闊宠壊: ' + (voice.name || voice.voiceName));
+            }
+        }
+
+        // ==================== 宸ュ叿鍑芥暟 ====================
+        function updateSliderValue(slider, valueId) {
+            document.getElementById(valueId).textContent = slider.value + 'x';
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function downloadAudio(type) {
+            const url = currentAudioUrls[type];
+            if (!url) return;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `voice_${type}_${Date.now()}.mp3`;
+            a.target = '_blank';
+            a.click();
+            showToast('寮€濮嬩笅杞?);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ==================== 鍓ф湰閰嶉煶 ====================
+        let scriptData = {
+            roles: [],      // { name, gender, voiceEngine, voiceId, voiceName, emotion }
+            lines: []       // { index, role, text, audioUrl, status }
+        };
+        let scriptAudioResults = [];  // 鐢熸垚鐨勯煶棰戝垪琛?        
+        // ========== 瑙掕壊闊宠壊璁板繂鍔熻兘 ==========
+        const ROLE_VOICE_MAP_KEY = 'script_role_voice_map';
+        
+        // 鍔犺浇宸蹭繚瀛樼殑瑙掕壊-闊宠壊鏄犲皠
+        function loadRoleVoiceMap() {
+            try {
+                const saved = localStorage.getItem(ROLE_VOICE_MAP_KEY);
+                return saved ? JSON.parse(saved) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+        
+        // 淇濆瓨瑙掕壊-闊宠壊鏄犲皠
+        function saveRoleVoiceMap(map) {
+            try {
+                localStorage.setItem(ROLE_VOICE_MAP_KEY, JSON.stringify(map));
+            } catch (e) {
+                console.warn('淇濆瓨瑙掕壊鏄犲皠澶辫触:', e);
+            }
+        }
+        
+        // 淇濆瓨褰撳墠瑙掕壊閰嶇疆鍒拌蹇嗗簱
+        function saveCurrentRolesToMemory() {
+            if (scriptData.roles.length === 0) {
+                showToast('璇峰厛鍒嗘瀽鍓ф湰');
+                return;
+            }
+            const map = loadRoleVoiceMap();
+            let savedCount = 0;
+            for (const role of scriptData.roles) {
+                if (role.name && role.voiceId) {
+                    map[role.name] = {
+                        voiceEngine: role.voiceEngine,
+                        voiceId: role.voiceId,
+                        voiceName: role.voiceName,
+                        gender: role.gender,
+                        savedAt: new Date().toISOString()
+                    };
+                    savedCount++;
+                }
+            }
+            saveRoleVoiceMap(map);
+            showToast(`鉁?宸蹭繚瀛?${savedCount} 涓鑹茬殑闊宠壊閰嶇疆`);
+        }
+        
+        // 鏌ョ湅瑙掕壊搴?        function showRoleVoiceLibrary() {
+            const map = loadRoleVoiceMap();
+            const roles = Object.entries(map);
+            if (roles.length === 0) {
+                alert('瑙掕壊搴撲负绌篭n\n閰嶉煶鍚庣偣鍑烩€滀繚瀛樿鑹测€濆彲璁板繂瑙掕壊闊宠壊閰嶇疆');
+                return;
+            }
+            let msg = `馃摎 瑙掕壊搴?(鍏?{roles.length}涓鑹?\n\n`;
+            for (const [name, config] of roles) {
+                msg += `鈥?${name}: ${config.voiceName || config.voiceId} (${config.voiceEngine})\n`;
+            }
+            msg += '\n鐐瑰嚮鈥滄竻绌鸿鑹插簱鈥濆彲鍒犻櫎鎵€鏈夎蹇?;
+            alert(msg);
+        }
+        
+        // 娓呯┖瑙掕壊搴?        function clearRoleVoiceLibrary() {
+            const map = loadRoleVoiceMap();
+            const count = Object.keys(map).length;
+            if (count === 0) {
+                showToast('瑙掕壊搴撳凡涓虹┖');
+                return;
+            }
+            if (confirm(`纭娓呯┖瑙掕壊搴擄紵\n\n灏嗗垹闄?${count} 涓鑹茬殑闊宠壊璁板繂`)) {
+                localStorage.removeItem(ROLE_VOICE_MAP_KEY);
+                showToast('鉁?瑙掕壊搴撳凡娓呯┖');
+            }
+        }
+        
+        // 浠庤蹇嗗簱鍖归厤瑙掕壊闊宠壊
+        function matchRoleFromMemory(roleName, gender) {
+            const map = loadRoleVoiceMap();
+            // 鍏堢簿纭尮閰嶅悕瀛?            if (map[roleName]) {
+                return map[roleName];
+            }
+            // 鍐嶅皾璇曟ā绯婂尮閰嶏紙鍖呭惈鍏崇郴锛?            for (const [name, config] of Object.entries(map)) {
+                if (roleName.includes(name) || name.includes(roleName)) {
+                    return config;
+                }
+            }
+            return null;
+        }
+
+        // 瀛楃璁℃暟
+        document.getElementById('scriptText').addEventListener('input', function() {
+            document.getElementById('scriptCharCount').textContent = this.value.length;
+        });
+
+        // AI 鍒嗘瀽鍓ф湰
+        async function analyzeScript() {
+            const text = document.getElementById('scriptText').value.trim();
+            if (!text) {
+                showToast('璇峰厛杈撳叆鍓ф湰鍐呭');
+                return;
+            }
+            if (text.length < 10) {
+                showToast('鍓ф湰鍐呭杩囩煭锛岃鑷冲皯杈撳叆10涓瓧');
+                return;
+            }
+
+            const loading = document.getElementById('scriptLoading');
+            loading.classList.add('show');
+            
+            // 纭繚闊宠壊搴撳凡鍔犺浇锛堝己鍒堕噸鏂板姞杞斤級
+            if (!voiceList || voiceList.length === 0) {
+                document.getElementById('scriptLoadingText').textContent = '姝ｅ湪鍔犺浇闊宠壊搴?..';
+                await loadVoiceListForScript();  // 浣跨敤涓撶敤鍑芥暟鍔犺浇
+            }
+            
+            document.getElementById('scriptLoadingText').textContent = 'AI姝ｅ湪鍒嗘瀽鍓ф湰...';
+
+            try {
+                const prompt = `浣犳槸涓€涓笓涓氱殑鍓ф湰鍒嗘瀽鍔╂墜銆傝鍒嗘瀽浠ヤ笅鍓ф湰鍐呭锛岃瘑鍒嚭鎵€鏈夎鑹插拰鍙拌瘝銆?
+瑕佹眰锛?1. 璇嗗埆鎵€鏈夊嚭鐜扮殑瑙掕壊锛堝寘鎷梺鐧斤級
+2. 鍒ゆ柇姣忎釜瑙掕壊鐨勬€у埆锛坢ale/female/unknown锛?3. 涓烘瘡涓鑹插缓璁竴涓儏缁熀璋冿紙濡傦細娓╂煍銆佸喎閰枫€佹椿娉笺€佹矇绋炽€佸菇榛樼瓑锛?4. 灏嗗墽鏈媶鍒嗘垚鎸夐『搴忕殑鍙拌瘝鍒楄〃
+
+璇蜂弗鏍兼寜浠ヤ笅JSON鏍煎紡杈撳嚭锛?{
+  "roles": [
+    { "name": "鏃佺櫧", "gender": "unknown", "emotion": "娌夌ǔ鍙欒堪" },
+    { "name": "瑙掕壊鍚?, "gender": "male/female", "emotion": "鎯呯华鎻忚堪" }
+  ],
+  "lines": [
+    { "role": "瑙掕壊鍚?, "text": "鍙拌瘝鍐呭" }
+  ]
+}
+
+鍓ф湰鍐呭锛?${text}`;
+
+                // 澶氭ā鍨嬪垏鎹細浼樺厛鐢?yunwu chat锛屽け璐ュ垯鐢?modelscope
+                let data = null;
+                let lastError = null;
+                
+                // 灏濊瘯 yunwu API (qwen-plus - 鏇寸ǔ瀹?
+                try {
+                    document.getElementById('scriptLoadingText').textContent = 'AI鍒嗘瀽涓?(Qwen)...';
+                    const res1 = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'chat',
+                            model: 'qwen-plus',
+                            messages: [{ role: 'user', content: prompt }],
+                            userId: currentUser?.id
+                        })
+                    });
+                    const result1 = await res1.json();
+                    console.log('[analyzeScript] yunwu缁撴灉:', result1);
+                    if (result1.success && result1.content) {
+                        data = { success: true, text: result1.content };
+                    } else {
+                        lastError = result1.error || result1.message || 'yunwu澶辫触';
+                        console.warn('[analyzeScript] yunwu澶辫触:', lastError);
+                    }
+                } catch (e) {
+                    lastError = e.message;
+                    console.warn('鍓ф湰鍒嗘瀽 yunwu 澶辫触:', e);
+                }
+                
+                // 濡傛灉 yunwu 澶辫触锛屽皾璇?modelscope
+                if (!data) {
+                    try {
+                        document.getElementById('scriptLoadingText').textContent = 'AI鍒嗘瀽涓?(澶囩敤妯″瀷)...';
+                        const res2 = await fetch('/api/modelscope', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'text',
+                                prompt: prompt,
+                                userId: currentUser?.id
+                            })
+                        });
+                        const result2 = await res2.json();
+                        console.log('[analyzeScript] modelscope缁撴灉:', result2);
+                        if (result2.success && result2.text) {
+                            data = result2;
+                        } else {
+                            lastError = result2.error || result2.message || 'modelscope澶辫触';
+                            console.warn('[analyzeScript] modelscope澶辫触:', lastError);
+                        }
+                    } catch (e) {
+                        lastError = e.message;
+                        console.warn('鍓ф湰鍒嗘瀽 modelscope 澶辫触:', e);
+                    }
+                }
+                
+                if (!data || !data.text) {
+                    throw new Error(lastError || 'AI鍒嗘瀽澶辫触锛岃绋嶅悗閲嶈瘯');
+                }
+
+                // 瑙ｆ瀽 JSON 缁撴灉
+                let parsed;
+                try {
+                    // 鎻愬彇 JSON 鍐呭锛堝彲鑳借鍖呰９鍦?markdown 浠ｇ爜鍧椾腑锛?                    let jsonStr = data.text;
+                    const jsonMatch = jsonStr.match(/```json?\n?([\s\S]*?)\n?```/);
+                    if (jsonMatch) {
+                        jsonStr = jsonMatch[1];
+                    }
+                    parsed = JSON.parse(jsonStr);
+                } catch (e) {
+                    console.error('JSON瑙ｆ瀽澶辫触:', data.text);
+                    throw new Error('AI杩斿洖鏍煎紡寮傚父锛岃閲嶈瘯');
+                }
+
+                if (!parsed.roles || !parsed.lines) {
+                    throw new Error('AI鍒嗘瀽缁撴灉涓嶅畬鏁?);
+                }
+
+                // 淇濆瓨鍒嗘瀽缁撴灉 - 浼樺厛浠庤鑹插簱鍖归厤锛屽惁鍒欑敤榛樿闊宠壊
+                let matchedCount = 0;
+                scriptData.roles = parsed.roles.map((r, i) => {
+                    // 鍏堜粠璁板繂搴撳尮閰?                    const remembered = matchRoleFromMemory(r.name, r.gender);
+                    if (remembered) {
+                        matchedCount++;
+                        return {
+                            ...r,
+                            voiceEngine: remembered.voiceEngine,
+                            voiceId: remembered.voiceId,
+                            voiceName: remembered.voiceName
+                        };
+                    }
+                    
+                // 鏈尮閰嶅埌锛屼粠 voiceList 鎵惧尮閰嶆€у埆鐨勯煶鑹?                    let defaultVoice = null;
+                    let defaultEngine = 'gemini-flash';  // 榛樿鐢℅emini锛屾洿绋冲畾
+                    let defaultVoiceId = r.gender === 'female' ? 'Kore' : 'Zephyr';
+                    let defaultVoiceName = r.gender === 'female' ? 'Kore (濂冲０)' : 'Zephyr (鐢峰０)';
+                    
+                    if (voiceList && voiceList.length > 0) {
+                        // 馃敡 鍏煎涓ょ瀛楁: sex (0=濂? 1=鐢? 鎴?gender (1=鐢? 2=濂?
+                        defaultVoice = voiceList.find(v => {
+                            const isFemale = v.sex === 0 || v.gender === 2;
+                            const isMale = v.sex === 1 || v.gender === 1;
+                            return (r.gender === 'female' && isFemale) || (r.gender === 'male' && isMale);
+                        }) || voiceList[0];
+                        
+                        if (defaultVoice) {
+                            defaultEngine = 'dubbingx';
+                            defaultVoiceId = defaultVoice.voiceId || defaultVoice.id;
+                            const isFemale = defaultVoice.sex === 0 || defaultVoice.gender === 2;
+                            defaultVoiceName = `${defaultVoice.name} (${isFemale ? '濂? : '鐢?})`;
+                        }
+                    }
+                    
+                    return {
+                        ...r,
+                        voiceEngine: defaultEngine,
+                        voiceId: defaultVoiceId,
+                        voiceName: defaultVoiceName
+                    };
+                });
+                scriptData.lines = parsed.lines.map((l, i) => ({
+                    index: i,
+                    role: l.role,
+                    text: l.text,
+                    audioUrl: null,
+                    status: 'pending'
+                }));
+
+                // 娓叉煋瑙掕壊鍜屽彴璇?                renderScriptRoles();
+                renderScriptLines();
+                updateScriptCost();
+
+                // 鏄剧ず鐩稿叧鍖哄潡
+                document.getElementById('scriptRolesSection').style.display = 'block';
+                document.getElementById('scriptLinesSection').style.display = 'block';
+                document.getElementById('scriptGenerateSection').style.display = 'block';
+
+                // 鏄剧ず鍖归厤缁撴灉
+                if (matchedCount > 0) {
+                    showToast(`璇嗗埆鍒?${scriptData.roles.length} 涓鑹诧紝鍏朵腑 ${matchedCount} 涓凡鍖归厤瑙掕壊搴揱);
+                } else {
+                    showToast(`璇嗗埆鍒?${scriptData.roles.length} 涓鑹诧紝${scriptData.lines.length} 鍙ュ彴璇峘);
+                }
+            } catch (e) {
+                showToast('鍒嗘瀽澶辫触: ' + e.message);
+                console.error('鍓ф湰鍒嗘瀽閿欒:', e);
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        // 娓叉煋瑙掕壊鍒楄〃
+        function renderScriptRoles() {
+            const container = document.getElementById('scriptRolesList');
+            container.innerHTML = scriptData.roles.map((role, idx) => `
+                <div class="voice-item" style="background:var(--bg-input);padding:12px;border-radius:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div>
+                            <span style="font-size:16px;font-weight:600;">${role.name}</span>
+                            <span style="font-size:12px;color:#888;margin-left:8px;">${role.gender === 'female' ? '馃懇 濂? : role.gender === 'male' ? '馃懆 鐢? : '鉂?鏈煡'}</span>
+                        </div>
+                        <span style="font-size:11px;background:var(--accent);color:#000;padding:2px 8px;border-radius:10px;">${role.emotion}</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <select onchange="updateRoleEngine(${idx}, this.value)" style="flex:1;padding:8px;background:var(--bg-card);border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;">
+                            <option value="gemini-flash" ${role.voiceEngine === 'gemini-flash' ? 'selected' : ''}>Gemini Flash</option>
+                            <option value="gemini-pro" ${role.voiceEngine === 'gemini-pro' ? 'selected' : ''}>Gemini Pro</option>
+                            <option value="dubbingx" ${role.voiceEngine === 'dubbingx' ? 'selected' : ''}>DubbingX</option>
+                            <option value="kling" ${role.voiceEngine === 'kling' ? 'selected' : ''}>Kling鍙伒</option>
+                        </select>
+                        <select id="roleVoice_${idx}" onchange="updateRoleVoice(${idx}, this)" style="flex:1;padding:8px;background:var(--bg-card);border:1px solid #333;border-radius:6px;color:#fff;font-size:12px;">
+                            ${getVoiceOptions(role.voiceEngine, role.gender, role.voiceId)}
+                        </select>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 鑾峰彇闊宠壊閫夐」
+        function getVoiceOptions(engine, gender, selectedId) {
+            let options = [];
+            if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                options = [
+                    { id: 'Zephyr', name: 'Zephyr (鐢峰０涓枃)', gender: 'male' },
+                    { id: 'Puck', name: 'Puck (鐢峰０涓枃)', gender: 'male' },
+                    { id: 'Kore', name: 'Kore (濂冲０涓枃)', gender: 'female' },
+                    { id: 'Aoede', name: 'Aoede (濂冲０涓枃)', gender: 'female' },
+                    { id: 'Charon', name: 'Charon (鐢峰０鑻辫)', gender: 'male' },
+                    { id: 'Fenrir', name: 'Fenrir (鐢峰０鑻辫)', gender: 'male' },
+                    { id: 'Leda', name: 'Leda (濂冲０鑻辫)', gender: 'female' },
+                    { id: 'Orus', name: 'Orus (鐢峰０鑻辫)', gender: 'male' }
+                ];
+            } else if (engine === 'kling') {
+                options = [
+                    { id: 'genshin_vindi2', name: '闃冲厜灏戝勾 (鐢?', gender: 'male' },
+                    { id: 'ai_kaiya', name: '闃冲厜鐢风敓 (鐢?', gender: 'male' },
+                    { id: 'tiexin_nanyou', name: '骞介粯灏忓摜 (鐢?', gender: 'male' },
+                    { id: 'ai_chenjiahao_712', name: '鏂囪壓灏忓摜 (鐢?', gender: 'male' },
+                    { id: 'ai_huangyaoshi_712', name: '绋抽噸鑰佺埜 (鐢?', gender: 'male' },
+                    { id: 'diyinnansang_DB_CN_M_04-v2', name: '鏂伴椈鎾姤鐢?(鐢?', gender: 'male' },
+                    { id: 'ai_shatang', name: '闈掓槬灏戝コ (濂?', gender: 'female' },
+                    { id: 'genshin_klee2', name: '娓╂煍灏忓 (濂?', gender: 'female' },
+                    { id: 'genshin_kirara', name: '鍏冩皵灏戝コ (濂?', gender: 'female' },
+                    { id: 'girlfriend_1_speech02', name: '鐢滅編閭诲 (濂?', gender: 'female' },
+                    { id: 'chat1_female_new-3', name: '娓╂煍濮愬 (濂?', gender: 'female' },
+                    { id: 'you_pingjing', name: '娓╂煍濡堝 (濂?', gender: 'female' },
+                    { id: 'cartoon-boy-07', name: '娲绘臣鐢风 (绔?', gender: 'male' },
+                    { id: 'cartoon-girl-01', name: '淇忕毊濂崇 (绔?', gender: 'female' }
+                ];
+            } else {
+                // DubbingX - 浠庡凡鍔犺浇鐨勯煶鑹插垪琛ㄨ幏鍙?                if (voiceList && voiceList.length > 0) {
+                    // 馃敡 鍏煎涓ょ瀛楁鏍煎紡: sex (0=濂? 1=鐢? 鎴?gender (1=鐢? 2=濂?
+                    const filtered = voiceList.filter(v => {
+                        if (!gender || gender === 'unknown') return true;
+                        // 鍒ゆ柇闊宠壊鎬у埆
+                        const isFemale = v.sex === 0 || v.gender === 2;
+                        const isMale = v.sex === 1 || v.gender === 1;
+                        return (gender === 'female' && isFemale) || (gender === 'male' && isMale);
+                    }).slice(0, 50);  // 澧炲姞鍒?50 涓?                    
+                    options = filtered.map(v => {
+                        const isFemale = v.sex === 0 || v.gender === 2;
+                        return {
+                            id: v.voiceId || v.id,
+                            name: `${v.name} (${isFemale ? '濂? : '鐢?})`,
+                            gender: isFemale ? 'female' : 'male'
+                        };
+                    });
+                }
+                if (options.length === 0) {
+                    // 闊宠壊搴撴湭鍔犺浇锛屾彁渚汫emini澶囬€?                    console.warn('[getVoiceOptions] voiceList 涓虹┖锛屼娇鐢℅emini澶囬€?);
+                    options = [
+                        { id: 'Zephyr', name: 'Zephyr (鐢峰０)', gender: 'male' },
+                        { id: 'Puck', name: 'Puck (鐢峰０)', gender: 'male' },
+                        { id: 'Kore', name: 'Kore (濂冲０)', gender: 'female' },
+                        { id: 'Aoede', name: 'Aoede (濂冲０)', gender: 'female' }
+                    ];
+                }
+            }
+
+            // 鎸夋€у埆鎺掑簭锛屼紭鍏堟樉绀哄尮閰嶆€у埆鐨?            if (gender && gender !== 'unknown') {
+                options.sort((a, b) => {
+                    if (a.gender === gender && b.gender !== gender) return -1;
+                    if (a.gender !== gender && b.gender === gender) return 1;
+                    return 0;
+                });
+            }
+
+            return options.map(o => 
+                `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${o.name}</option>`
+            ).join('');
+        }
+
+        // 鏇存柊瑙掕壊寮曟搸
+        function updateRoleEngine(idx, engine) {
+            const role = scriptData.roles[idx];
+            role.voiceEngine = engine;
+            // 閲嶇疆涓洪粯璁ら煶鑹?            if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                role.voiceId = role.gender === 'female' ? 'Kore' : 'Zephyr';
+            } else if (engine === 'kling') {
+                role.voiceId = role.gender === 'female' ? 'ai_shatang' : 'genshin_vindi2';
+            } else {
+                role.voiceId = '';
+            }
+            // 鏇存柊闊宠壊閫夋嫨鍣?            const voiceSelect = document.getElementById(`roleVoice_${idx}`);
+            if (voiceSelect) {
+                voiceSelect.innerHTML = getVoiceOptions(engine, role.gender, role.voiceId);
+            }
+            updateScriptCost();
+        }
+
+        // 鏇存柊瑙掕壊闊宠壊
+        function updateRoleVoice(idx, select) {
+            scriptData.roles[idx].voiceId = select.value;
+            scriptData.roles[idx].voiceName = select.options[select.selectedIndex].text;
+        }
+
+        // 搴旂敤寮曟搸鍒版墍鏈夎鑹?        function applyEngineToAllRoles(engine) {
+            if (!engine) return;  // 绌哄€艰〃绀哄悇瑙掕壊鐙珛璁剧疆
+            for (let idx = 0; idx < scriptData.roles.length; idx++) {
+                updateRoleEngine(idx, engine);
+            }
+            renderScriptRoles();
+            showToast(`宸插皢鎵€鏈夎鑹插垏鎹负 ${engine}`);
+        }
+
+        // 娓叉煋鍙拌瘝鍒楄〃
+        function renderScriptLines() {
+            const container = document.getElementById('scriptLinesList');
+            container.innerHTML = scriptData.lines.map((line, idx) => {
+                const role = scriptData.roles.find(r => r.name === line.role) || {};
+                const statusIcon = line.status === 'done' ? '鉁? : line.status === 'error' ? '鉂? : '鈴?;
+                const genderIcon = role.gender === 'female' ? '馃懇' : role.gender === 'male' ? '馃懆' : '馃棧锔?;
+                return `
+                    <div class="script-line-item" style="background:var(--bg-input);padding:10px 12px;border-radius:6px;margin-bottom:6px;${line.status === 'done' ? 'border-left:3px solid #4CAF50;' : line.status === 'error' ? 'border-left:3px solid #f44336;' : ''}">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span style="font-size:12px;color:var(--accent);font-weight:500;">${genderIcon} ${line.role}</span>
+                                ${role.emotion ? `<span style="font-size:10px;background:rgba(251,191,36,0.2);color:var(--accent);padding:1px 6px;border-radius:8px;">${role.emotion}</span>` : ''}
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span style="font-size:11px;color:#666;">${statusIcon} #${idx + 1}</span>
+                                <button onclick="regenerateSingleLine(${idx})" style="padding:2px 8px;font-size:10px;background:var(--bg-card);border:1px solid #444;border-radius:4px;color:#fff;cursor:pointer;" title="閲嶆柊鐢熸垚杩欏彞">馃攧</button>
+                            </div>
+                        </div>
+                        <input type="text" value="${line.text.replace(/"/g, '&quot;')}" 
+                            onchange="updateLineText(${idx}, this.value)"
+                            style="width:100%;background:transparent;border:none;color:#fff;font-size:13px;outline:none;" />
+                        ${line.audioUrl ? `
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                                <audio src="${line.audioUrl}" controls style="flex:1;height:32px;"></audio>
+                                <button onclick="regenerateSingleLine(${idx})" style="padding:4px 10px;font-size:11px;background:var(--accent);border:none;border-radius:4px;color:#000;cursor:pointer;white-space:nowrap;">馃攧 閲嶆柊閰嶉煶</button>
+                            </div>
+                        ` : ''}
+                        ${line.status === 'error' ? `<div style="color:#f44336;font-size:11px;margin-top:4px;">鉂?${line.error || '鐢熸垚澶辫触'}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 鏇存柊鍙拌瘝鏂囨湰
+        function updateLineText(idx, text) {
+            scriptData.lines[idx].text = text;
+        }
+        
+        // 馃攧 鍗曞彞閲嶆柊鐢熸垚
+        async function regenerateSingleLine(idx) {
+            const line = scriptData.lines[idx];
+            const role = scriptData.roles.find(r => r.name === line.role);
+            
+            if (!role) {
+                showToast('鎵句笉鍒拌鑹查厤缃?);
+                return;
+            }
+            
+            // 妫€鏌ヤ綑棰?            const engineCosts = { 'gemini-flash': 1, 'gemini-pro': 3, 'dubbingx': 2, 'kling': 2 };
+            const cost = engineCosts[role.voiceEngine] || 2;
+            if (userQuota < cost) {
+                showToast(`鑳剁墖涓嶈冻锛岄渶瑕?${cost} 鑳剁墖`);
+                return;
+            }
+            
+            // 鏍囪涓虹敓鎴愪腑
+            line.status = 'generating';
+            line.audioUrl = null;
+            renderScriptLines();
+            showToast(`姝ｅ湪閲嶆柊鐢熸垚绗?${idx + 1} 鍙?..`);
+            
+            const speed = parseFloat(document.getElementById('scriptSpeed')?.value || '1.0');
+            
+            try {
+                let audioUrl = null;
+                let engine = role.voiceEngine || 'gemini-flash';
+                let voiceId = role.voiceId || '';
+                
+                // DubbingX鏃爒oiceId鏃跺洖閫€鍒癎emini
+                if (engine === 'dubbingx' && !voiceId) {
+                    engine = 'gemini-flash';
+                    voiceId = role.gender === 'female' ? 'Kore' : 'Zephyr';
+                }
+                if (!voiceId) voiceId = role.gender === 'female' ? 'Kore' : 'Zephyr';
+                
+                console.log(`[TTS] 閲嶆柊鐢熸垚绗?{idx+1}鍙? engine=${engine}, voiceId=${voiceId}`);
+                
+                if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'gemini-tts',
+                            text: line.text,
+                            voiceName: voiceId,
+                            model: engine === 'gemini-pro' ? 'pro' : 'flash',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.audioData) {
+                        let mimeType = data.mimeType || 'audio/wav';
+                        if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                        audioUrl = `data:${mimeType};base64,${data.audioData}`;
+                    } else if (data.success && data.audioUrl) {
+                        audioUrl = data.audioUrl;
+                    }
+                } else if (engine === 'kling') {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'kling-tts',
+                            text: line.text,
+                            voiceId: voiceId,
+                            voiceLanguage: 'zh',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.audioUrl) {
+                        audioUrl = data.audioUrl;
+                    } else if (data.success && data.taskId) {
+                        audioUrl = await pollKlingTTSResultSilent(data.taskId);
+                    }
+                } else {
+                    // DubbingX
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'tts-generate',
+                            voiceId: voiceId,
+                            text: line.text,
+                            language: 'zh',
+                            audioSpeed: speed,
+                            audioPitch: 1.0,
+                            fileFormat: 'mp3',
+                            userId: currentUser?.id
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.taskId) {
+                        audioUrl = await pollTTSResultSilent(data.taskId);
+                    } else if (!data.success) {
+                        // 鍥為€€鍒癎emini
+                        const fallbackVoice = role.gender === 'female' ? 'Kore' : 'Zephyr';
+                        const fallbackRes = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-tts',
+                                text: line.text,
+                                voiceName: fallbackVoice,
+                                model: 'flash',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const fallbackData = await fallbackRes.json();
+                        if (fallbackData.success && fallbackData.audioData) {
+                            let mimeType = fallbackData.mimeType || 'audio/wav';
+                            if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                            audioUrl = `data:${mimeType};base64,${fallbackData.audioData}`;
+                        }
+                    }
+                }
+                
+                if (audioUrl) {
+                    line.audioUrl = audioUrl;
+                    line.status = 'done';
+                    line.error = null;
+                    
+                    // 鏇存柊缁撴灉鍒楄〃
+                    const existingResult = scriptAudioResults.find(r => r.index === idx);
+                    if (existingResult) {
+                        existingResult.audioUrl = audioUrl;
+                    } else {
+                        scriptAudioResults.push({ index: idx, role: line.role, text: line.text, audioUrl, success: true });
+                        scriptAudioResults.sort((a, b) => a.index - b.index);
+                    }
+                    
+                    // 鎵ｈ垂
+                    userQuota -= cost;
+                    document.getElementById('userQuota').textContent = userQuota;
+                    
+                    showToast(`鉁?绗?${idx + 1} 鍙ラ噸鏂扮敓鎴愭垚鍔焋);
+                } else {
+                    throw new Error('鏈幏鍙栧埌闊抽');
+                }
+            } catch (e) {
+                line.status = 'error';
+                line.error = e.message || '鐢熸垚澶辫触';
+                showToast(`鉂?绗?${idx + 1} 鍙ュけ璐? ${e.message}`);
+            }
+            
+            renderScriptLines();
+            if (scriptAudioResults.length > 0) {
+                renderScriptResults();
+            }
+        }
+
+        // 鏇存柊璐圭敤浼扮畻
+        function updateScriptCost() {
+            const totalLines = scriptData.lines.length;
+            let totalCost = 0;
+            
+            // 鎸夊紩鎿庣粺璁¤垂鐢?            const engineCosts = { 'gemini-flash': 1, 'gemini-pro': 3, 'dubbingx': 2, 'kling': 2 };
+            
+            for (const line of scriptData.lines) {
+                const role = scriptData.roles.find(r => r.name === line.role);
+                if (role) {
+                    totalCost += engineCosts[role.voiceEngine] || 2;
+                }
+            }
+
+            document.getElementById('scriptTotalLines').textContent = totalLines;
+            document.getElementById('scriptTotalCost').textContent = totalCost;
+        }
+
+        // 寮€濮嬮厤闊?        async function generateScriptVoice() {
+            if (scriptData.lines.length === 0) {
+                showToast('璇峰厛鍒嗘瀽鍓ф湰');
+                return;
+            }
+
+            const totalCost = parseInt(document.getElementById('scriptTotalCost').textContent);
+            if (userQuota < totalCost) {
+                showToast(`鑳剁墖涓嶈冻锛岄渶瑕?${totalCost} 鑳剁墖`);
+                return;
+            }
+
+            const btn = document.getElementById('scriptGenerateBtn');
+            const loading = document.getElementById('scriptLoading');
+            const result = document.getElementById('scriptResult');
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+            scriptAudioResults = [];
+
+            const speed = parseFloat(document.getElementById('scriptSpeed').value);
+            let completed = 0;
+            let failed = 0;
+
+            // 鍗曞彞閰嶉煶鍑芥暟
+            async function generateSingleLine(i) {
+                const line = scriptData.lines[i];
+                const role = scriptData.roles.find(r => r.name === line.role);
+                
+                try {
+                    let audioUrl = null;
+                    // 濡傛灉鏄痙ubbingx浣唙oiceId涓虹┖锛屽洖閫€鍒癵emini-flash
+                    let engine = role?.voiceEngine || 'gemini-flash';
+                    let voiceId = role?.voiceId || '';
+                    
+                    if (engine === 'dubbingx' && !voiceId) {
+                        console.warn(`[TTS] 绗?{i+1}鍙? DubbingX鏃爒oiceId锛屽洖閫€鍒癎emini`);
+                        engine = 'gemini-flash';
+                        voiceId = role?.gender === 'female' ? 'Kore' : 'Zephyr';
+                    }
+                    if (!voiceId) voiceId = 'Zephyr';
+                    
+                    console.log(`[TTS] 鐢熸垚绗?{i+1}鍙? engine=${engine}, voiceId=${voiceId}, text=${line.text.substring(0,20)}...`);
+
+                    if (engine === 'gemini-flash' || engine === 'gemini-pro') {
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'gemini-tts',
+                                text: line.text,
+                                voiceName: voiceId,
+                                model: engine === 'gemini-pro' ? 'pro' : 'flash',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.audioData) {
+                            let mimeType = data.mimeType || 'audio/wav';
+                            if (mimeType.includes('L16') || mimeType.includes('pcm')) {
+                                mimeType = 'audio/wav';
+                            }
+                            audioUrl = `data:${mimeType};base64,${data.audioData}`;
+                        } else if (data.success && data.audioUrl) {
+                            audioUrl = data.audioUrl;
+                        }
+                    } else if (engine === 'kling') {
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'kling-tts',
+                                text: line.text,
+                                voiceId: voiceId,
+                                voiceLanguage: 'zh',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success && data.audioUrl) {
+                            audioUrl = data.audioUrl;
+                        } else if (data.success && data.taskId) {
+                            audioUrl = await pollKlingTTSResultSilent(data.taskId);
+                        }
+                    } else {
+                        // DubbingX
+                        console.log(`[TTS] 璋冪敤DubbingX: voiceId=${voiceId}`);
+                        const res = await fetch('/api/yunwu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'tts-generate',
+                                voiceId: voiceId,
+                                text: line.text,
+                                language: 'zh',
+                                audioSpeed: speed,
+                                audioPitch: 1.0,
+                                fileFormat: 'mp3',
+                                userId: currentUser?.id
+                            })
+                        });
+                        const data = await res.json();
+                        console.log(`[TTS] DubbingX鍝嶅簲:`, data);
+                        if (data.success && data.taskId) {
+                            audioUrl = await pollTTSResultSilent(data.taskId);
+                        } else if (!data.success) {
+                            // DubbingX澶辫触锛屽洖閫€鍒癎emini
+                            console.warn(`[TTS] DubbingX澶辫触锛屽洖閫€Gemini: ${data.error || data.message}`);
+                            const fallbackVoice = role?.gender === 'female' ? 'Kore' : 'Zephyr';
+                            const fallbackRes = await fetch('/api/yunwu', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: 'gemini-tts',
+                                    text: line.text,
+                                    voiceName: fallbackVoice,
+                                    model: 'flash',
+                                    userId: currentUser?.id
+                                })
+                            });
+                            const fallbackData = await fallbackRes.json();
+                            if (fallbackData.success && fallbackData.audioData) {
+                                let mimeType = fallbackData.mimeType || 'audio/wav';
+                                if (mimeType.includes('L16') || mimeType.includes('pcm')) mimeType = 'audio/wav';
+                                audioUrl = `data:${mimeType};base64,${fallbackData.audioData}`;
+                            }
+                        }
+                    }
+
+                    if (audioUrl) {
+                        // 楠岃瘉闊抽URL鏄惁鏈夋晥
+                        if (audioUrl.startsWith('data:') && audioUrl.length < 1000) {
+                            console.warn(`[TTS] 绗?{i+1}鍙? 闊抽鏁版嵁杩囩煭(${audioUrl.length}瀛楃)锛屽彲鑳戒负绌洪煶棰慲);
+                        }
+                        line.audioUrl = audioUrl;
+                        line.status = 'done';
+                        console.log(`[TTS] 鉁?绗?{i+1}鍙ョ敓鎴愭垚鍔焋);
+                        return { success: true, index: i, role: line.role, text: line.text, audioUrl };
+                    } else {
+                        throw new Error('鏈幏鍙栧埌闊抽');
+                    }
+                } catch (e) {
+                    console.error(`[TTS] 鉂?绗?${i + 1} 鍙ュけ璐?`, e?.message || e);
+                    line.status = 'error';
+                    line.error = e?.message || '鏈煡閿欒';
+                    return { success: false, index: i, error: e?.message };
+                }
+            }
+
+            try {
+                // 5璺苟鍙戞墽琛?                const CONCURRENCY = 5;
+                const total = scriptData.lines.length;
+                let currentIndex = 0;
+                
+                async function runBatch() {
+                    const batch = [];
+                    while (batch.length < CONCURRENCY && currentIndex < total) {
+                        batch.push(generateSingleLine(currentIndex));
+                        currentIndex++;
+                    }
+                    if (batch.length === 0) return [];
+                    
+                    document.getElementById('scriptLoadingText').textContent = 
+                        `姝ｅ湪鐢熸垚 ${Math.min(currentIndex, total)}/${total} (5璺苟鍙?...`;
+                    
+                    return await Promise.all(batch);
+                }
+                
+                while (currentIndex < total) {
+                    const results = await runBatch();
+                    for (const result of results) {
+                        if (result.success) {
+                            scriptAudioResults.push(result);
+                            completed++;
+                        } else {
+                            failed++;
+                        }
+                    }
+                    renderScriptLines();
+                }
+                
+                // 鎸夊師濮嬮『搴忔帓搴?                scriptAudioResults.sort((a, b) => a.index - b.index);
+
+                // 鏇存柊浣欓
+                const actualCost = completed * 2;  // 绠€鍖栬璐?                userQuota -= actualCost;
+                document.getElementById('userQuota').textContent = userQuota;
+
+                // 鏄剧ず缁撴灉
+                renderScriptResults();
+                result.style.display = 'block';
+                showToast(`閰嶉煶瀹屾垚锛佹垚鍔?${completed} 鍙ワ紝澶辫触 ${failed} 鍙);
+            } catch (e) {
+                const errMsg = e?.message || e?.error || (typeof e === 'string' ? e : '鏈煡閿欒');
+                showToast('閰嶉煶澶辫触: ' + errMsg);
+                console.error('鍓ф湰閰嶉煶閿欒:', e);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        // 娓叉煋閰嶉煶缁撴灉
+        function renderScriptResults() {
+            const container = document.getElementById('scriptResultList');
+            container.innerHTML = scriptAudioResults.map((item, idx) => {
+                const role = scriptData.roles.find(r => r.name === item.role) || {};
+                const genderIcon = role.gender === 'female' ? '馃懇' : role.gender === 'male' ? '馃懆' : '馃棧锔?;
+                return `
+                <div style="background:var(--bg-input);padding:10px;border-radius:6px;margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="font-size:12px;color:var(--accent);">${genderIcon} ${item.role}</span>
+                            ${role.emotion ? `<span style="font-size:10px;background:rgba(251,191,36,0.2);color:var(--accent);padding:1px 6px;border-radius:8px;">${role.emotion}</span>` : ''}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="font-size:11px;color:#666;">#${item.index + 1}</span>
+                            <button onclick="regenerateSingleLine(${item.index})" style="padding:2px 8px;font-size:10px;background:var(--accent);border:none;border-radius:4px;color:#000;cursor:pointer;" title="閲嶆柊鐢熸垚">馃攧</button>
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:#aaa;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.text}</div>
+                    <audio src="${item.audioUrl}" controls style="width:100%;height:32px;"></audio>
+                </div>
+            `}).join('');
+        }
+
+        // 涓嬭浇鍏ㄩ儴闊抽
+        async function downloadAllScriptAudio() {
+            if (scriptAudioResults.length === 0) {
+                showToast('娌℃湁鍙笅杞界殑闊抽');
+                return;
+            }
+
+            showToast(`寮€濮嬩笅杞?${scriptAudioResults.length} 涓煶棰?..`);
+            let successCount = 0;
+            
+            for (let i = 0; i < scriptAudioResults.length; i++) {
+                const item = scriptAudioResults[i];
+                if (!item.audioUrl) continue;
+                
+                try {
+                    const filename = `${String(i + 1).padStart(3, '0')}_${item.role || 'voice'}.mp3`;
+                    
+                    if (item.audioUrl.startsWith('data:')) {
+                        // Base64 杞?Blob 涓嬭浇
+                        const parts = item.audioUrl.split(',');
+                        const mime = parts[0].match(/:(.*?);/)?.[1] || 'audio/mp3';
+                        const bstr = atob(parts[1]);
+                        const n = bstr.length;
+                        const u8arr = new Uint8Array(n);
+                        for (let j = 0; j < n; j++) u8arr[j] = bstr.charCodeAt(j);
+                        const blob = new Blob([u8arr], { type: mime });
+                        const blobUrl = URL.createObjectURL(blob);
+                        
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(blobUrl);
+                    } else {
+                        // 鏅€?URL 涓嬭浇
+                        const a = document.createElement('a');
+                        a.href = item.audioUrl;
+                        a.download = filename;
+                        a.target = '_blank';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
+                    successCount++;
+                } catch (e) {
+                    console.warn(`涓嬭浇绗?${i + 1} 涓煶棰戝け璐?`, e);
+                }
+                
+                // 寤惰繜閬垮厤娴忚鍣ㄩ檺鍒?                await new Promise(r => setTimeout(r, 400));
+            }
+            
+            showToast(`宸蹭笅杞?${successCount} 涓煶棰戞枃浠禶);
+        }
+
+        // 鍚堝苟闊抽 - 浣跨敤 Web Audio API
+        async function mergeScriptAudio() {
+            if (scriptAudioResults.length === 0) {
+                showToast('娌℃湁鍙悎骞剁殑闊抽');
+                return;
+            }
+            
+            if (scriptAudioResults.length < 2) {
+                // 鍗曟闊抽鐩存帴涓嬭浇
+                const item = scriptAudioResults[0];
+                if (item?.audioUrl) {
+                    const a = document.createElement('a');
+                    a.href = item.audioUrl;
+                    a.download = `audio_001_${item.role || 'voice'}.mp3`;
+                    a.click();
+                    showToast('宸蹭笅杞介煶棰?);
+                } else {
+                    showToast('娌℃湁鍙笅杞界殑闊抽');
+                }
+                return;
+            }
+
+            const loading = document.getElementById('scriptLoading');
+            loading.classList.add('show');
+            document.getElementById('scriptLoadingText').textContent = '姝ｅ湪鍚堝苟闊抽...';
+
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffers = [];
+                
+                // 鍔犺浇鎵€鏈夐煶棰?                for (let i = 0; i < scriptAudioResults.length; i++) {
+                    document.getElementById('scriptLoadingText').textContent = 
+                        `鍔犺浇闊抽 ${i + 1}/${scriptAudioResults.length}...`;
+                    
+                    const item = scriptAudioResults[i];
+                    if (!item.audioUrl) {
+                        console.warn(`绗?${i + 1} 娈甸煶棰慤RL涓虹┖锛岃烦杩嘸);
+                        continue;
+                    }
+                    
+                    let audioData;
+                    
+                    try {
+                        if (item.audioUrl.startsWith('data:')) {
+                            // Base64 鏁版嵁
+                            const base64 = item.audioUrl.split(',')[1];
+                            const binaryString = atob(base64);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let j = 0; j < binaryString.length; j++) {
+                                bytes[j] = binaryString.charCodeAt(j);
+                            }
+                            audioData = bytes.buffer;
+                        } else {
+                            // URL - 浣跨敤 no-cors 妯″紡灏濊瘯鑾峰彇
+                            try {
+                                const response = await fetch(item.audioUrl);
+                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                audioData = await response.arrayBuffer();
+                            } catch (fetchErr) {
+                                console.warn(`鑾峰彇绗?${i + 1} 娈甸煶棰戝け璐?`, fetchErr.message);
+                                continue;
+                            }
+                        }
+                        
+                        // 瑙ｇ爜闊抽 - 浣跨敤澶嶅埗鐨?ArrayBuffer 閬垮厤 "buffer already detached" 閿欒
+                        const audioDataCopy = audioData.slice(0);
+                        const buffer = await audioContext.decodeAudioData(audioDataCopy);
+                        audioBuffers.push(buffer);
+                        console.log(`鉁?绗?${i + 1} 娈甸煶棰戣В鐮佹垚鍔? ${buffer.duration.toFixed(2)}绉抈);
+                    } catch (decodeErr) {
+                        console.warn(`瑙ｇ爜绗?${i + 1} 娈甸煶棰戝け璐?`, decodeErr.message);
+                    }
+                }
+                
+                if (audioBuffers.length === 0) {
+                    throw new Error('娌℃湁鍙В鐮佺殑闊抽');
+                }
+                
+                document.getElementById('scriptLoadingText').textContent = '姝ｅ湪鎷兼帴闊抽...';
+                
+                // 璁＄畻鎬绘椂闀匡紙姣忔涔嬮棿鍔?.3绉掗棿闅旓級
+                const gapDuration = 0.3;
+                let totalLength = 0;
+                for (const buffer of audioBuffers) {
+                    totalLength += buffer.length;
+                }
+                totalLength += Math.floor((audioBuffers.length - 1) * gapDuration * audioBuffers[0].sampleRate);
+                
+                // 鍒涘缓鍚堝苟鍚庣殑 buffer
+                const sampleRate = audioBuffers[0].sampleRate;
+                const numberOfChannels = audioBuffers[0].numberOfChannels;
+                const mergedBuffer = audioContext.createBuffer(numberOfChannels, totalLength, sampleRate);
+                
+                // 澶嶅埗鏁版嵁
+                let offset = 0;
+                const gapSamples = Math.floor(gapDuration * sampleRate);
+                
+                for (let i = 0; i < audioBuffers.length; i++) {
+                    const buffer = audioBuffers[i];
+                    for (let channel = 0; channel < numberOfChannels; channel++) {
+                        const channelData = mergedBuffer.getChannelData(channel);
+                        const sourceData = buffer.getChannelData(Math.min(channel, buffer.numberOfChannels - 1));
+                        channelData.set(sourceData, offset);
+                    }
+                    offset += buffer.length;
+                    if (i < audioBuffers.length - 1) {
+                        offset += gapSamples;
+                    }
+                }
+                
+                document.getElementById('scriptLoadingText').textContent = '姝ｅ湪瀵煎嚭...';
+                
+                // 瀵煎嚭涓?WAV
+                const wavBlob = audioBufferToWav(mergedBuffer);
+                const url = URL.createObjectURL(wavBlob);
+                
+                // 涓嬭浇
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `merged_audio_${Date.now()}.wav`;
+                a.click();
+                
+                showToast(`鉁?宸插悎骞?${audioBuffers.length} 娈甸煶棰慲);
+                
+            } catch (e) {
+                console.error('闊抽鍚堝苟澶辫触:', e);
+                showToast('鍚堝苟澶辫触: ' + e.message);
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+        
+        // AudioBuffer 杞?WAV
+        function audioBufferToWav(buffer) {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+            
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+            
+            const dataLength = buffer.length * blockAlign;
+            const bufferLength = 44 + dataLength;
+            
+            const arrayBuffer = new ArrayBuffer(bufferLength);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV 鏂囦欢澶?            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, bufferLength - 8, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, format, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * blockAlign, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            writeString(36, 'data');
+            view.setUint32(40, dataLength, true);
+            
+            // 鍐欏叆闊抽鏁版嵁
+            let offset = 44;
+            const channels = [];
+            for (let i = 0; i < numChannels; i++) {
+                channels.push(buffer.getChannelData(i));
+            }
+            
+            for (let i = 0; i < buffer.length; i++) {
+                for (let ch = 0; ch < numChannels; ch++) {
+                    let sample = channels[ch][i];
+                    sample = Math.max(-1, Math.min(1, sample));
+                    sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        // 閲嶇疆鍓ф湰閰嶉煶
+        function resetScript() {
+            scriptData = { roles: [], lines: [] };
+            scriptAudioResults = [];
+            document.getElementById('scriptText').value = '';
+            document.getElementById('scriptCharCount').textContent = '0';
+            document.getElementById('scriptRolesSection').style.display = 'none';
+            document.getElementById('scriptLinesSection').style.display = 'none';
+            document.getElementById('scriptGenerateSection').style.display = 'none';
+            document.getElementById('scriptResult').style.display = 'none';
+            showToast('宸查噸缃?);
+        }
+        
+        // ==================== 馃搫 鍓ф湰妯℃澘鍔熻兘锛堜笉鍚煶棰戯紝鍙噸澶嶄娇鐢級 ====================
+        const SCRIPT_TEMPLATE_KEY = 'script_voice_templates';
+        const MAX_TEMPLATE_COUNT = 20;  // 鏈€澶氫繚瀛?0涓ā鏉?        
+        // 淇濆瓨褰撳墠鍒嗘瀽缁撴灉涓烘ā鏉?        function saveScriptTemplate() {
+            if (scriptData.roles.length === 0 || scriptData.lines.length === 0) {
+                showToast('璇峰厛鍒嗘瀽鍓ф湰');
+                return;
+            }
+            
+            const name = prompt('璇疯緭鍏ユā鏉垮悕绉?, `鍓ф湰妯℃澘_${new Date().toLocaleDateString()}`);
+            if (!name) return;
+            
+            try {
+                const templates = JSON.parse(localStorage.getItem(SCRIPT_TEMPLATE_KEY) || '[]');
+                
+                // 淇濆瓨褰撳墠鍒嗘瀽缁撴灉锛堜笉鍚煶棰戯級
+                const template = {
+                    id: Date.now(),
+                    name: name,
+                    savedAt: new Date().toISOString(),
+                    scriptText: document.getElementById('scriptText').value,
+                    roles: scriptData.roles.map(r => ({
+                        name: r.name,
+                        gender: r.gender,
+                        emotion: r.emotion,
+                        voiceEngine: r.voiceEngine,
+                        voiceId: r.voiceId,
+                        voiceName: r.voiceName
+                    })),
+                    lines: scriptData.lines.map(l => ({
+                        role: l.role,
+                        text: l.text
+                    })),
+                    lineCount: scriptData.lines.length,
+                    roleCount: scriptData.roles.length
+                };
+                
+                // 娣诲姞鍒板紑澶?                templates.unshift(template);
+                
+                // 闄愬埗鏁伴噺
+                if (templates.length > MAX_TEMPLATE_COUNT) {
+                    templates.splice(MAX_TEMPLATE_COUNT);
+                }
+                
+                localStorage.setItem(SCRIPT_TEMPLATE_KEY, JSON.stringify(templates));
+                showToast(`鉁?宸蹭繚瀛樻ā鏉裤€?{name}銆峔n涓嬫鍙洿鎺ュ姞杞介厤闊砢);
+            } catch (e) {
+                console.error('淇濆瓨妯℃澘澶辫触:', e);
+                showToast('淇濆瓨澶辫触: ' + e.message);
+            }
+        }
+        
+        // 鍔犺浇鍓ф湰妯℃澘
+        function loadScriptTemplate() {
+            try {
+                const templates = JSON.parse(localStorage.getItem(SCRIPT_TEMPLATE_KEY) || '[]');
+                
+                if (templates.length === 0) {
+                    alert('鏆傛棤淇濆瓨鐨勬ā鏉縗n\nAI鍒嗘瀽鍓ф湰鍚庯紝鐐瑰嚮"淇濆瓨妯℃澘"鍙繚鐣欏垎鏋愮粨鏋淺n涓嬫鐩存帴鍔犺浇鍗冲彲閰嶉煶锛屾棤闇€閲嶆柊鍒嗘瀽');
+                    return;
+                }
+                
+                // 鏄剧ず閫夋嫨鍒楄〃
+                let msg = '馃搫 鍓ф湰妯℃澘搴揬n\n璇疯緭鍏ュ簭鍙烽€夋嫨锛歕n\n';
+                templates.forEach((tpl, i) => {
+                    const date = new Date(tpl.savedAt).toLocaleDateString();
+                    msg += `${i + 1}. ${tpl.name} (馃幁${tpl.roleCount}瑙掕壊 馃摐${tpl.lineCount}鍙? - ${date}\n`;
+                });
+                msg += '\n杈撳叆 0 鍙鐞嗭紙鍒犻櫎锛夋ā鏉?;
+                
+                const choice = prompt(msg);
+                if (choice === null) return;
+                
+                const idx = parseInt(choice);
+                if (idx === 0) {
+                    manageScriptTemplates();
+                    return;
+                }
+                
+                if (idx < 1 || idx > templates.length) {
+                    showToast('鏃犳晥鐨勯€夋嫨');
+                    return;
+                }
+                
+                const template = templates[idx - 1];
+                
+                // 纭鍔犺浇
+                if (!confirm(`纭鍔犺浇妯℃澘銆?{template.name}銆嶏紵\n\n鍖呭惈 ${template.roleCount} 涓鑹层€?{template.lineCount} 鍙ュ彴璇峔n\n鍔犺浇鍚庡彲鐩存帴鐐瑰嚮"寮€濮嬮厤闊?`)) return;
+                
+                // 鎭㈠鏁版嵁
+                document.getElementById('scriptText').value = template.scriptText || '';
+                document.getElementById('scriptCharCount').textContent = (template.scriptText || '').length;
+                
+                // 鎭㈠瑙掕壊鍜屽彴璇?                scriptData.roles = (template.roles || []).map(r => ({ ...r }));
+                scriptData.lines = (template.lines || []).map(l => ({ ...l, status: 'pending' }));
+                scriptAudioResults = [];  // 娓呯┖闊抽缁撴灉
+                
+                // 鏄剧ずUI
+                if (scriptData.roles.length > 0) {
+                    document.getElementById('scriptRolesSection').style.display = 'block';
+                    renderScriptRoles();
+                }
+                if (scriptData.lines.length > 0) {
+                    document.getElementById('scriptLinesSection').style.display = 'block';
+                    document.getElementById('scriptGenerateSection').style.display = 'block';
+                    renderScriptLines();
+                    updateScriptCost();
+                }
+                // 闅愯棌缁撴灉鍖哄煙锛堣繕鏈厤闊筹級
+                document.getElementById('scriptResult').style.display = 'none';
+                
+                showToast(`鉁?宸插姞杞芥ā鏉裤€?{template.name}銆峔n鍙洿鎺ョ偣鍑?寮€濮嬮厤闊?`);
+            } catch (e) {
+                console.error('鍔犺浇妯℃澘澶辫触:', e);
+                showToast('鍔犺浇澶辫触: ' + e.message);
+            }
+        }
+        
+        // 绠＄悊鍓ф湰妯℃澘
+        function manageScriptTemplates() {
+            try {
+                const templates = JSON.parse(localStorage.getItem(SCRIPT_TEMPLATE_KEY) || '[]');
+                
+                if (templates.length === 0) {
+                    alert('妯℃澘搴撲负绌?);
+                    return;
+                }
+                
+                let msg = '馃棏锔?鍒犻櫎妯℃澘\n\n杈撳叆搴忓彿鍒犻櫎锛歕n\n';
+                templates.forEach((tpl, i) => {
+                    msg += `${i + 1}. ${tpl.name}\n`;
+                });
+                msg += '\n杈撳叆 all 娓呯┖鎵€鏈夋ā鏉?;
+                
+                const choice = prompt(msg);
+                if (!choice) return;
+                
+                if (choice.toLowerCase() === 'all') {
+                    if (confirm('纭娓呯┖鎵€鏈夊墽鏈ā鏉匡紵')) {
+                        localStorage.removeItem(SCRIPT_TEMPLATE_KEY);
+                        showToast('鉁?宸叉竻绌烘墍鏈夋ā鏉?);
+                    }
+                    return;
+                }
+                
+                const idx = parseInt(choice);
+                if (idx < 1 || idx > templates.length) {
+                    showToast('鏃犳晥鐨勯€夋嫨');
+                    return;
+                }
+                
+                const tpl = templates[idx - 1];
+                if (confirm(`纭鍒犻櫎妯℃澘銆?{tpl.name}銆嶏紵`)) {
+                    templates.splice(idx - 1, 1);
+                    localStorage.setItem(SCRIPT_TEMPLATE_KEY, JSON.stringify(templates));
+                    showToast(`鉁?宸插垹闄ゃ€?{tpl.name}銆峘);
+                }
+            } catch (e) {
+                console.error('绠＄悊妯℃澘澶辫触:', e);
+                showToast('鎿嶄綔澶辫触: ' + e.message);
+            }
+        }
+        
+        // ==================== 馃捑 鍓ф湰閰嶉煶鍘嗗彶鍔熻兘锛堝惈闊抽锛?====================
+        const SCRIPT_HISTORY_KEY = 'script_voice_history';
+        const MAX_HISTORY_COUNT = 10;  // 鏈€澶氫繚瀛?0鏉″巻鍙?        
+        // 淇濆瓨褰撳墠閰嶉煶鍒板巻鍙?        function saveScriptHistory() {
+            if (scriptAudioResults.length === 0) {
+                showToast('娌℃湁鍙繚瀛樼殑閰嶉煶缁撴灉');
+                return;
+            }
+            
+            const name = prompt('璇疯緭鍏ヤ繚瀛樺悕绉?, `鍓ф湰閰嶉煶_${new Date().toLocaleDateString()}`);
+            if (!name) return;
+            
+            try {
+                const history = JSON.parse(localStorage.getItem(SCRIPT_HISTORY_KEY) || '[]');
+                
+                // 淇濆瓨褰撳墠鐘舵€?                const record = {
+                    id: Date.now(),
+                    name: name,
+                    savedAt: new Date().toISOString(),
+                    scriptText: document.getElementById('scriptText').value,
+                    roles: scriptData.roles,
+                    lines: scriptData.lines,
+                    audioResults: scriptAudioResults
+                };
+                
+                // 娣诲姞鍒板紑澶?                history.unshift(record);
+                
+                // 闄愬埗鏁伴噺
+                if (history.length > MAX_HISTORY_COUNT) {
+                    history.splice(MAX_HISTORY_COUNT);
+                }
+                
+                localStorage.setItem(SCRIPT_HISTORY_KEY, JSON.stringify(history));
+                showToast(`鉁?宸蹭繚瀛樸€?{name}銆嶏紙${scriptAudioResults.length}娈甸煶棰戯級`);
+                updateHistoryBadge();
+            } catch (e) {
+                console.error('淇濆瓨鍘嗗彶澶辫触:', e);
+                showToast('淇濆瓨澶辫触: ' + e.message);
+            }
+        }
+        
+        // 鍔犺浇鍘嗗彶璁板綍
+        function loadScriptHistory() {
+            try {
+                const history = JSON.parse(localStorage.getItem(SCRIPT_HISTORY_KEY) || '[]');
+                
+                if (history.length === 0) {
+                    alert('鏆傛棤鍘嗗彶璁板綍\n\n閰嶉煶瀹屾垚鍚庣偣鍑烩€滀繚瀛樷€濆彲淇濈暀鍘嗗彶');
+                    return;
+                }
+                
+                // 鏄剧ず閫夋嫨鍒楄〃
+                let msg = '馃搨 鍘嗗彶璁板綍\n\n璇疯緭鍏ュ簭鍙烽€夋嫨锛歕n\n';
+                history.forEach((record, i) => {
+                    const date = new Date(record.savedAt).toLocaleString();
+                    const audioCount = record.audioResults?.length || 0;
+                    msg += `${i + 1}. ${record.name} (馃幍${audioCount}娈? - ${date}\n`;
+                });
+                msg += '\n杈撳叆 0 鍙鐞嗭紙鍒犻櫎锛夊巻鍙?;
+                
+                const choice = prompt(msg);
+                if (choice === null) return;
+                
+                const idx = parseInt(choice);
+                if (idx === 0) {
+                    manageScriptHistory();
+                    return;
+                }
+                
+                if (idx < 1 || idx > history.length) {
+                    showToast('鏃犳晥鐨勯€夋嫨');
+                    return;
+                }
+                
+                const record = history[idx - 1];
+                
+                // 纭鍔犺浇
+                if (!confirm(`纭鍔犺浇銆?{record.name}銆嶏紵\n\n鍖呭惈 ${record.audioResults?.length || 0} 娈甸煶棰慭n\n褰撳墠鍐呭灏嗚瑕嗙洊`)) return;
+                
+                // 鎭㈠鏁版嵁
+                document.getElementById('scriptText').value = record.scriptText || '';
+                document.getElementById('scriptCharCount').textContent = (record.scriptText || '').length;
+                
+                scriptData.roles = record.roles || [];
+                scriptData.lines = record.lines || [];
+                scriptAudioResults = record.audioResults || [];
+                
+                // 鏄剧ずUI
+                if (scriptData.roles.length > 0) {
+                    document.getElementById('scriptRolesSection').style.display = 'block';
+                    renderScriptRoles();
+                }
+                if (scriptData.lines.length > 0) {
+                    document.getElementById('scriptLinesSection').style.display = 'block';
+                    document.getElementById('scriptGenerateSection').style.display = 'block';
+                    renderScriptLines();
+                    updateScriptCost();
+                }
+                if (scriptAudioResults.length > 0) {
+                    document.getElementById('scriptResult').style.display = 'block';
+                    renderScriptResults();
+                }
+                
+                showToast(`鉁?宸插姞杞姐€?{record.name}銆峘);
+            } catch (e) {
+                console.error('鍔犺浇鍘嗗彶澶辫触:', e);
+                showToast('鍔犺浇澶辫触: ' + e.message);
+            }
+        }
+        
+        // 绠＄悊鍘嗗彶璁板綍
+        function manageScriptHistory() {
+            try {
+                const history = JSON.parse(localStorage.getItem(SCRIPT_HISTORY_KEY) || '[]');
+                
+                if (history.length === 0) {
+                    showToast('鍘嗗彶璁板綍涓虹┖');
+                    return;
+                }
+                
+                let msg = '馃棏锔?鍒犻櫎鍘嗗彶\n\n杈撳叆搴忓彿鍒犻櫎锛歕n\n';
+                history.forEach((record, i) => {
+                    msg += `${i + 1}. ${record.name}\n`;
+                });
+                msg += '\n杈撳叆 all 娓呯┖鎵€鏈?;
+                
+                const choice = prompt(msg);
+                if (!choice) return;
+                
+                if (choice.toLowerCase() === 'all') {
+                    if (confirm('纭娓呯┖鎵€鏈夊巻鍙茶褰曪紵')) {
+                        localStorage.removeItem(SCRIPT_HISTORY_KEY);
+                        showToast('鉁?宸叉竻绌烘墍鏈夊巻鍙?);
+                        updateHistoryBadge();
+                    }
+                    return;
+                }
+                
+                const idx = parseInt(choice);
+                if (idx < 1 || idx > history.length) {
+                    showToast('鏃犳晥鐨勯€夋嫨');
+                    return;
+                }
+                
+                const record = history[idx - 1];
+                if (confirm(`纭鍒犻櫎銆?{record.name}銆嶏紵`)) {
+                    history.splice(idx - 1, 1);
+                    localStorage.setItem(SCRIPT_HISTORY_KEY, JSON.stringify(history));
+                    showToast(`鉁?宸插垹闄ゃ€?{record.name}銆峘);
+                    updateHistoryBadge();
+                }
+            } catch (e) {
+                showToast('鎿嶄綔澶辫触: ' + e.message);
+            }
+        }
+        
+        // 鏇存柊鍘嗗彶鎸夐挳鏍囪
+        function updateHistoryBadge() {
+            const btn = document.getElementById('loadHistoryBtn');
+            if (!btn) return;
+            
+            try {
+                const history = JSON.parse(localStorage.getItem(SCRIPT_HISTORY_KEY) || '[]');
+                if (history.length > 0) {
+                    btn.innerHTML = `馃搨 鍘嗗彶 <span style="background:#ef4444;color:#fff;font-size:9px;padding:1px 4px;border-radius:8px;margin-left:2px;">${history.length}</span>`;
+                } else {
+                    btn.textContent = '馃搨 鍘嗗彶';
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+        
+        // 椤甸潰鍔犺浇鏃舵鏌ュ巻鍙?        setTimeout(updateHistoryBadge, 500);
+    </script>
+</body>
+</html>

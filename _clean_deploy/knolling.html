@@ -1,0 +1,2841 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>📝 rollroll工坊 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 80px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .template-section {
+            margin-bottom: 20px;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .template-item {
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .template-item:active {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .template-item .icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+
+        .result-text {
+            font-size: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        /* 🆕 批量模式样式 */
+        .batch-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .batch-toggle-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .batch-toggle-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .batch-item {
+            position: relative;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .batch-item-index {
+            position: absolute;
+            top: 6px;
+            left: 8px;
+            font-size: 12px;
+            color: #fbbf24;
+            font-weight: 600;
+            background: rgba(251, 191, 36, 0.15);
+            padding: 3px 8px;
+            border-radius: 6px;
+            z-index: 1;
+        }
+
+        .batch-item textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 60px;
+            background: transparent;
+            border: none;
+            padding: 30px 10px 8px 10px;
+            color: var(--text);
+            font-size: 13px;
+            resize: none;
+            line-height: 1.5;
+        }
+
+        .batch-item textarea:focus {
+            outline: none;
+            background: rgba(251, 191, 36, 0.05);
+        }
+
+        .batch-item textarea::placeholder {
+            color: #555;
+            font-size: 12px;
+        }
+
+        .batch-item-params {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 1px solid #222;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .batch-item-params select {
+            width: 100%;
+            padding: 6px 4px;
+            font-size: 11px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            cursor: pointer;
+        }
+
+        .batch-item-params select option {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        .batch-item-params-row {
+            display: flex;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .batch-item-params-row select {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .batch-template-select {
+            background: #2a2a1e !important;
+            border-color: #fbbf24 !important;
+            color: #fbbf24 !important;
+        }
+
+        .batch-template-select option {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        /* 批量格子填空样式 */
+        .batch-blanks-container {
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            padding: 6px 0;
+            border-top: 1px dashed #444;
+            margin-top: 4px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .batch-blanks-container.active {
+            display: flex;
+        }
+
+        .batch-blank-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .batch-blank-row label {
+            font-size: 10px;
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .batch-blank-row input {
+            width: 100%;
+            padding: 5px 6px;
+            font-size: 11px;
+            background: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #e0e0e0;
+        }
+
+        .batch-blank-row input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .batch-blank-row input::placeholder {
+            color: #666;
+            font-size: 10px;
+        }
+
+        .batch-preview {
+            font-size: 10px;
+            color: #888;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+            line-height: 1.4;
+            max-height: 50px;
+            overflow: hidden;
+        }
+
+        .batch-preview .filled {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .batch-preview .unfilled {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .batch-item-status {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            font-size: 14px;
+        }
+
+        .batch-item.has-result {
+            border-color: #22c55e;
+        }
+
+        .batch-item.generating {
+            border-color: var(--accent);
+            animation: pulse 1s infinite;
+        }
+
+        .batch-item.done {
+            border-color: #22c55e;
+        }
+
+        .batch-item.error {
+            border-color: #ef4444;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .batch-result-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .batch-result-item {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 8px;
+            font-size: 11px;
+            line-height: 1.4;
+            aspect-ratio: 1;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .batch-result-item:hover {
+            border-color: var(--accent);
+        }
+
+        .batch-result-item.selected {
+            border-color: #22c55e;
+        }
+
+        .batch-result-item.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .batch-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .batch-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* 填空模式样式 */
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .mode-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .fill-section {
+            display: none;
+        }
+
+        .fill-section.active {
+            display: block;
+        }
+
+        .fill-row {
+            margin-bottom: 12px;
+        }
+
+        .fill-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .fill-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .fill-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .fill-preview {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-dim);
+        }
+
+        .fill-preview strong {
+            color: var(--accent);
+        }
+
+        /* 🆕 下划线填空输入框样式 */
+        .blank-inputs-container {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .blank-input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .blank-input-row label {
+            font-size: 12px;
+            color: var(--accent);
+            min-width: 70px;
+            flex-shrink: 0;
+        }
+
+        .blank-input-row input {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .blank-input-row input:focus {
+            outline: none;
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.2);
+        }
+
+        .blank-input-row input::placeholder {
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>📝 rollroll工坊</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <!-- 🆕 批量/单个模式切换 -->
+        <div class="batch-toggle">
+            <button class="batch-toggle-btn active" onclick="setBatchMode(false)" id="singleModeBtn">📝 单个模式</button>
+            <button class="batch-toggle-btn" onclick="setBatchMode(true)" id="batchModeBtn">🖼️ 批量模式 (8格)</button>
+        </div>
+
+        <!-- 单个模式输入区 -->
+        <div class="input-section" id="singleInputSection">
+            <label class="input-label">✨ 输入你想要的创意概念</label>
+            <textarea class="input-box" id="conceptInput" placeholder="例如：赛博朋克风格的猫咪战士..."></textarea>
+        </div>
+
+        <!-- 🆕 批量模式输入区 (8宫格，2列4行) -->
+        <div class="input-section" id="batchInputSection" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <label class="input-label" style="margin:0;">✨ 批量输入主题（<span id="batchFilledCount">0</span>/8）</label>
+                <button onclick="clearBatchGrid()"
+                    style="padding:6px 12px; background:var(--bg-card); border:1px solid #444; border-radius:8px; color:#888; font-size:12px; cursor:pointer;">🗑️
+                    清空</button>
+            </div>
+            <div class="batch-grid" id="batchGrid">
+                <!-- 8个宫格由JS动态生成 -->
+            </div>
+            <div style="font-size:12px; color:#fbbf24; margin-top:8px;">💡 每格输入主题并选择模板（可选），AI为每个主题生成专业提示词</div>
+        </div>
+
+        <!-- 🆕 单任务配置区域，批量模式时隐藏 -->
+        <div id="singleTaskConfig">
+            <div class="template-section">
+                <label class="input-label">✏️ 一键填空模板</label>
+                <select id="fillTemplateSelect" onchange="useFillTemplate()"
+                    style="width:100%; background:var(--bg-input); border:1px solid #333; border-radius:8px; padding:12px; color:var(--text); font-size:14px; margin-bottom:12px;">
+                    <option value="">-- 选择填空模板 --</option>
+                    <optgroup label="🎯 热门填空">
+                        <option value="fill_1">✨ 梦幻光效人物</option>
+                        <option value="fill_2">🎨 动漫风格转换</option>
+                        <option value="fill_3">🌸 樱花树下场景</option>
+                        <option value="fill_4">🔥 史诗战斗场景</option>
+                        <option value="fill_5">🌙 月光夜景</option>
+                        <option value="fill_6">🎭 多重身份展示</option>
+                        <option value="fill_7">🏠 房间场景设计</option>
+                        <option value="fill_8">🎪 Q版可爱化</option>
+                        <option value="fill_9">🌈 彩虹渐变效果</option>
+                        <option value="fill_10">📸 复古胶片风</option>
+                        <option value="fill_11">🎮 像素游戏风格</option>
+                        <option value="fill_12">🌊 水下奇幻世界</option>
+                        <option value="fill_13">⚡ 赛博朋克风格</option>
+                        <option value="fill_14">🍃 森林精灵氛围</option>
+                        <option value="fill_15">🎨 油画艺术效果</option>
+                        <option value="fill_16">🦸 超级英雄变身</option>
+                        <option value="fill_17">🎪 马戏团表演场景</option>
+                        <option value="fill_18">🏰 中世纪幻想</option>
+                        <option value="fill_19">🌸 中国风工笔画</option>
+                        <option value="fill_20">🎭 表情包生成器</option>
+                        <option value="fill_21">🌟 星空下的场景</option>
+                        <option value="fill_22">🔮 水晶质感效果</option>
+                        <option value="fill_23">🎨 街头涂鸦风格</option>
+                        <option value="fill_24">🌺 热带度假氛围</option>
+                        <option value="fill_25">❄️ 冰雪奇缘风格</option>
+                        <option value="fill_26">🎭 二次元idol</option>
+                        <option value="fill_27">🌆 都市夜景霓虹</option>
+                        <option value="fill_28">🎃 万圣节主题</option>
+                        <option value="fill_29">🎄 圣诞节氛围</option>
+                        <option value="fill_30">🌸 和服写真</option>
+                        <option value="fill_31">🎪 小丑马戏团</option>
+                        <option value="fill_32">🦋 蝴蝶仙子</option>
+                        <option value="fill_33">🐉 东方龙元素</option>
+                        <option value="fill_34">🔥 火焰战神</option>
+                        <option value="fill_35">⚡ 闪电超能力</option>
+                        <option value="fill_36">🌊 海浪冲浪</option>
+                        <option value="fill_37">🎸 摇滚音乐会</option>
+                        <option value="fill_38">📚 图书馆学霸</option>
+                        <option value="fill_39">☕ 咖啡馆悠闲</option>
+                        <option value="fill_40">🌈 彩虹独角兽</option>
+                        <option value="fill_41">🎨 印象派画风</option>
+                        <option value="fill_42">🎭 京剧脸谱</option>
+                        <option value="fill_43">🦸‍♀️ 女超人装扮</option>
+                        <option value="fill_44">🌙 月亮公主</option>
+                        <option value="fill_45">☀️ 太阳神</option>
+                        <option value="fill_46">🎪 小丑女Harley Quinn</option>
+                        <option value="fill_47">🌟 星际战士</option>
+                        <option value="fill_48">🦇 蝙蝠侠风格</option>
+                        <option value="fill_49">🕷️ 蜘蛛侠变身</option>
+                        <option value="fill_50">🐱 猫耳娘</option>
+                        <option value="fill_51">🦊 狐狸精</option>
+                        <option value="fill_52">🐺 狼人变身</option>
+                        <option value="fill_53">🧛 吸血鬼伯爵</option>
+                        <option value="fill_54">👻 幽灵少女</option>
+                        <option value="fill_55">🤖 机器人改造</option>
+                        <option value="fill_56">🎀 Lolita洋装</option>
+                        <option value="fill_57">⚔️ 女武士</option>
+                        <option value="fill_58">🏹 精灵弓箭手</option>
+                        <option value="fill_59">🪄 魔法少女</option>
+                        <option value="fill_60">🎩 绅士礼帽</option>
+                        <option value="fill_61">👑 皇室贵族</option>
+                        <option value="fill_62">🎓 毕业纪念</option>
+                        <option value="fill_63">💼 职场精英</option>
+                        <option value="fill_64">🍰 甜品师</option>
+                        <option value="fill_65">🌻 向日葵田</option>
+                        <option value="fill_66">🌾 麦田守望者</option>
+                        <option value="fill_67">🌵 沙漠探险</option>
+                        <option value="fill_68">🏔️ 雪山登顶</option>
+                        <option value="fill_69">🌋 火山背景</option>
+                        <option value="fill_70">🌀 时空漩涡</option>
+                        <option value="fill_71">🎆 烟花节日</option>
+                        <option value="fill_72">🌃 城市楼顶</option>
+                        <option value="fill_73">🚂 蒸汽朋克</option>
+                        <option value="fill_74">🎪 马戏团小丑</option>
+                        <option value="fill_75">🎠 旋转木马</option>
+                        <option value="fill_76">🎡 摩天轮剪影</option>
+                        <option value="fill_77">🎢 过山车刺激</option>
+                        <option value="fill_78">🎪 杂技演员</option>
+                        <option value="fill_79">🎯 射箭运动</option>
+                        <option value="fill_80">⚽ 足球明星</option>
+                        <option value="fill_81">🏀 篮球灌篮</option>
+                        <option value="fill_82">🎾 网球比赛</option>
+                        <option value="fill_83">🏊 游泳健将</option>
+                        <option value="fill_84">🚴 自行车骑行</option>
+                        <option value="fill_85">🧘 瑜伽冥想</option>
+                        <option value="fill_86">💆 SPA放松</option>
+                        <option value="fill_87">💅 美甲艺术</option>
+                        <option value="fill_88">💄 化妆教程</option>
+                        <option value="fill_89">👗 时装走秀</option>
+                        <option value="fill_90">📷 摄影师视角</option>
+                        <option value="fill_91">🎬 导演片场</option>
+                        <option value="fill_92">🎤 歌手舞台</option>
+                        <option value="fill_93">🎹 钢琴演奏</option>
+                        <option value="fill_94">🎻 小提琴演奏</option>
+                        <option value="fill_95">🥁 架子鼓表演</option>
+                        <option value="fill_96">🎧 DJ打碟</option>
+                        <option value="fill_97">🍜 拉面师傅</option>
+                        <option value="fill_98">🍣 寿司大师</option>
+                        <option value="fill_99">🎂 蛋糕装饰</option>
+                        <option value="fill_100">🍕 披萨制作</option>
+                        <option value="fill_101">🎄 圣诞夜温馨场景</option>
+                        <option value="fill_102">🧧 春节年味大片</option>
+                        <option value="fill_103">🎄 圣诞贺卡（竖版）</option>
+                        <option value="fill_104">🎁 圣诞红包封面（竖版）</option>
+                        <option value="fill_105">🧧 春节贺卡（竖版）</option>
+                        <option value="fill_106">🧧 春节红包封面（竖版）</option>
+                        <option value="fill_107">🎁 圣诞红包内页（开红包页面）</option>
+                        <option value="fill_108">🧧 春节红包内页（开红包页面）</option>
+                    </optgroup>
+                    <optgroup label="🎬 专业模板">
+                        <option value="knolling">🧩 Knolling万物拆解</option>
+                        <option value="journal_relations">📔 手帐人物关系图</option>
+                        <option value="y2k_poster">✨ Y2K毛玻璃海报</option>
+                        <option value="minimal_bw_illust">🖤 极简黑白插画</option>
+                        <option value="character_card">🪪 人物名片卡</option>
+                        <option value="keychain_merch">🔑 可爱挂件/钥匙扣</option>
+                        <option value="cosplay_photo">📸 Cosplay还原</option>
+                        <option value="character_sheet">📋 角色设定全套</option>
+                        <option value="figure_scene">🎨 手办场景图</option>
+                        <option value="line_sticker_pack">💬 LINE表情包套图</option>
+                    </optgroup>
+                    <optgroup label="🍌 产品展示类">
+                        <option value="product_packaging">📦 产品包装设计</option>
+                        <option value="product_ad">🎬 产品广告海报</option>
+                        <option value="product_exploded">🔧 产品爆炸图</option>
+                    </optgroup>
+                    <optgroup label="🍌 艺术风格转换类">
+                        <option value="ghibli">🏯 吉卜力风格</option>
+                        <option value="pixar">🎪 Pixar 3D风格</option>
+                        <option value="cyberpunk">🌆 赛博朋克风格</option>
+                        <option value="watercolor">🎨 水彩艺术风格</option>
+                        <option value="oil_painting">🖼️ 油画风格</option>
+                        <option value="pixel_retro">👾 像素复古风格</option>
+                    </optgroup>
+                    <optgroup label="🍌 照片处理类">
+                        <option value="photo_to_anime">🎌 照片转动漫</option>
+                        <option value="photo_enhancement">✨ 照片艺术增强</option>
+                        <option value="vintage_photo">📷 复古胶片风格</option>
+                    </optgroup>
+                    <optgroup label="🍌 游戏/UI类">
+                        <option value="game_ui_status">🎮 RPG角色状态界面</option>
+                        <option value="game_card">🃏 游戏卡牌设计</option>
+                        <option value="app_icon">📱 App图标设计</option>
+                    </optgroup>
+                    <optgroup label="🍌 设计工具类">
+                        <option value="text_shape_art">🔤 文字形状艺术</option>
+                        <option value="pictogram">🚻 象形图转换</option>
+                        <option value="infographic">📊 信息图表设计</option>
+                    </optgroup>
+                    <optgroup label="🍌 场景/空间类">
+                        <option value="room_makeover">🏠 房间改造设计</option>
+                        <option value="miniature_world">🔍 微缩世界</option>
+                    </optgroup>
+                    <optgroup label="🍌 人物处理类">
+                        <option value="age_transform">👶👴 年龄变换</option>
+                        <option value="inner_child">💝 内心小孩治愈</option>
+                        <option value="fashion_model">👗 时尚模特照</option>
+                    </optgroup>
+                    <optgroup label="🍌 周边/衍生品类">
+                        <option value="plush_toy">🧸 毛绒玩具设计</option>
+                        <option value="enamel_pin">📍 珐琅徽章设计</option>
+                        <option value="tattoo_design">🖋️ 纹身设计</option>
+                    </optgroup>
+                    <optgroup label="📸 摄影风格">
+                        <option value="portrait_photo">📷 专业人像</option>
+                        <option value="street_photo">🏙️ 街头摄影</option>
+                        <option value="film_photo">🎞️ 胶片质感</option>
+                        <option value="macro_photo">🔍 微距特写</option>
+                    </optgroup>
+                    <optgroup label="🎄 节日主题">
+                        <option value="christmas">🎄 圣诞节</option>
+                        <option value="spring_festival">🧧 春节</option>
+                        <option value="valentines">💕 情人节</option>
+                        <option value="halloween">🎃 万圣节</option>
+                    </optgroup>
+                    <optgroup label="✨ 艺术风格">
+                        <option value="impressionism">🖼️ 印象派</option>
+                        <option value="surrealism">🌀 超现实主义</option>
+                        <option value="pop_art">🎨 波普艺术</option>
+                        <option value="ink_wash">🖌️ 水墨画</option>
+                    </optgroup>
+                    <optgroup label="💅 美甲系列">
+                        <option value="fill_nail_1">💅 法式美甲</option>
+                        <option value="fill_nail_2">🌸 花卉美甲</option>
+                        <option value="fill_nail_3">✨ 闪粉美甲</option>
+                        <option value="fill_nail_4">🎀 网红美甲</option>
+                        <option value="fill_nail_5">🌙 猃砡美甲</option>
+                        <option value="fill_nail_6">🌿 清新美甲</option>
+                        <option value="fill_nail_7">💍 婚礼美甲</option>
+                        <option value="fill_nail_8">🎃 节日美甲</option>
+                        <option value="fill_nail_9">🎲 设计师美甲</option>
+                        <option value="fill_nail_10">🌴 度假美甲</option>
+                    </optgroup>
+                    <optgroup label="🎨 扩展艺术风格">
+                        <option value="ghibli_style">🏯 吉卜力风格(扩展)</option>
+                        <option value="pixar_3d">🎪 Pixar 3D(扩展)</option>
+                        <option value="cyberpunk_style">🌆 赛博朋克(扩展)</option>
+                        <option value="watercolor_art">🎨 水彩艺术(扩展)</option>
+                        <option value="double_exposure">🌲 双重曝光效果</option>
+                        <option value="glitch_art">📺 故障艺术效果</option>
+                        <option value="hologram">🔮 全息投影效果</option>
+                        <option value="ukiyo_e">🌊 浮世绘收藏卡牌</option>
+                        <option value="lego_style">🧱 乐高风格</option>
+                        <option value="crystal_emoji">💎 水晶质感Emoji</option>
+                    </optgroup>
+                    <optgroup label="📐 教程/图解类">
+                        <option value="step_tutorial">📝 步骤教程图</option>
+                        <option value="anatomy_diagram">🫀 解剖/结构图</option>
+                        <option value="doc_to_flowchart">📋 文档转流程图</option>
+                        <option value="article_to_ppt">📊 文章转PPT</option>
+                        <option value="toy_exploded">🧸 玩具分解展示</option>
+                    </optgroup>
+                    <optgroup label="🎵 封面/海报设计">
+                        <option value="album_cover">💿 专辑封面设计</option>
+                        <option value="book_cover">📚 书籍封面设计</option>
+                        <option value="movie_poster">🎬 电影海报设计</option>
+                        <option value="ost_cover">🎵 原声带封面设计</option>
+                    </optgroup>
+                    <optgroup label="🐕 趣味创意类">
+                        <option value="food_art">🍽️ 食物艺术</option>
+                        <option value="pet_costume">🐕 宠物角色扮演</option>
+                        <option value="reaction_meme">😂 个性化反应包</option>
+                        <option value="fake_screenshot">💬 虚构聊天截图</option>
+                        <option value="spot_difference">🔍 找不同游戏图</option>
+                        <option value="maze_puzzle">🧩 迷宫谜题设计</option>
+                    </optgroup>
+                    <optgroup label="📖 故事/角色创作">
+                        <option value="story_setting">📖 故事设定集</option>
+                        <option value="multi_char_comic">🎭 多角色串场漫画</option>
+                        <option value="char_biography">📜 角色平生经历</option>
+                        <option value="fan_art_guide">🎨 同人绘画指南</option>
+                        <option value="voice_cast">🎙️ 声优阵容卡</option>
+                        <option value="universe_timeline">⏰ 虚构宇宙年表</option>
+                        <option value="character_relationship">🕸️ 角色关系网络图</option>
+                        <option value="script_storyboard">🎬 剧本分镜速写</option>
+                        <option value="choices_tree">🌲 选择树剧情图</option>
+                    </optgroup>
+                    <optgroup label="🤖 AI/科技类">
+                        <option value="ai_conversation_art">🤖 AI对话艺术图</option>
+                        <option value="digital_avatar_eco">👤 数字分身生态</option>
+                        <option value="ar_filter_preview">📱 AR滤镜效果图</option>
+                        <option value="nft_artwork">💎 NFT艺术品展示</option>
+                        <option value="data_sculpture">📊 数据雕塑艺术</option>
+                        <option value="brain_wave">🧠 脑电波可视化</option>
+                        <option value="gene_art">🧬 基因序列艺术</option>
+                        <option value="sound_wave_print">🎵 声波纹艺术画</option>
+                    </optgroup>
+                    <optgroup label="💭 心理/成长类">
+                        <option value="emotion_data_viz">💭 情绪数据可视化</option>
+                        <option value="dream_journal_art">🌙 梦境日记插画</option>
+                        <option value="inner_dialogue">💬 内心对话漫画</option>
+                        <option value="anxiety_monster">👹 焦虑怪兽具象化</option>
+                        <option value="gratitude_jar">🫙 感恩罐子可视化</option>
+                        <option value="comfort_zone_map">🎯 舒适区地图</option>
+                        <option value="emotional_weather">🌤️ 情绪天气预报</option>
+                        <option value="self_care_bingo">💆 自我关爱宾果卡</option>
+                        <option value="personality_test">🎭 性格测试图卡</option>
+                        <option value="fortune_card">🔮 塔罗占卜卡面</option>
+                        <option value="multiverse_self">🌌 平行宇宙自己</option>
+                        <option value="future_letter">✉️ 未来信件视觉化</option>
+                        <option value="legacy_blueprint">🏛️ 人生遗产蓝图</option>
+                        <option value="alter_ego">🎭 人格面具图鉴</option>
+                        <option value="energy_distribution">⚡ 精力分配图</option>
+                        <option value="goal_vision_board">🎯 愿景板拼贴</option>
+                        <option value="value_hierarchy">💎 价值观金字塔</option>
+                        <option value="habit_chain">🔗 习惯链条追踪</option>
+                        <option value="decision_matrix">📋 决策矩阵分析</option>
+                        <option value="bucket_list">📝 人生清单可视化</option>
+                    </optgroup>
+                    <optgroup label="📚 教育/学习类">
+                        <option value="memory_palace">🏛️ 记忆宫殿可视化</option>
+                        <option value="knowledge_card">🃏 知识卡片系统</option>
+                        <option value="concept_map_3d">🗺️ 3D概念地图</option>
+                        <option value="formula_story">📐 公式故事化</option>
+                        <option value="timeline_history">⏳ 交互式历史轴</option>
+                        <option value="language_pictogram">🔤 语言图像记忆</option>
+                        <option value="mistake_collection">📓 错题可视化本</option>
+                    </optgroup>
+                    <optgroup label="🎮 游戏化生活">
+                        <option value="life_rpg_status">🎮 人生RPG属性面板</option>
+                        <option value="achievement_badge">🏅 成就徽章系统</option>
+                        <option value="skill_tree">🌳 技能树系统</option>
+                        <option value="quest_log">📜 任务日志界面</option>
+                        <option value="inventory_grid">🎒 物品栏可视化</option>
+                        <option value="map_exploration">🗺️ 探索地图系统</option>
+                    </optgroup>
+                    <optgroup label="💼 商务/职场类">
+                        <option value="visual_resume">📋 可视化简历</option>
+                        <option value="pitch_deck_slide">💡 BP路演幻灯片</option>
+                        <option value="swot_diagram">📊 SWOT分析图</option>
+                        <option value="user_persona">👥 用户画像卡</option>
+                        <option value="journey_map">🗺️ 用户旅程地图</option>
+                        <option value="brand_dna">🧬 品牌DNA图谱</option>
+                    </optgroup>
+                    <optgroup label="🏺 文化/传统类">
+                        <option value="dialect_poster">🗣️ 方言文化海报</option>
+                        <option value="festival_calendar">🎊 节气节日日历</option>
+                        <option value="intangible_heritage">🏺 非遗技艺图解</option>
+                        <option value="tea_ceremony_guide">🍵 茶道图解指南</option>
+                        <option value="hanfu_database">👘 汉服形制图鉴</option>
+                        <option value="mythology_card">🐉 神话人物卡牌</option>
+                    </optgroup>
+                    <optgroup label="📸 社交媒体类">
+                        <option value="nine_grid_story">📸 朋友圈九宫格故事</option>
+                        <option value="vs_comparison">⚖️ 左右对比挑战</option>
+                        <option value="trend_challenge">🔥 挑战模板生成</option>
+                        <option value="story_sticker_pack">📌 快拍贴纸包</option>
+                    </optgroup>
+                    <optgroup label="📝 生活记录类">
+                        <option value="baby_milestone">👶 宝宝成长里程碑</option>
+                        <option value="workout_progress">💪 健身进度可视化</option>
+                        <option value="recipe_card">🍳 美食食谱卡片</option>
+                        <option value="plant_diary">🌱 植物养护日记</option>
+                        <option value="reading_map">📚 阅读地图记录</option>
+                        <option value="mood_tracker">🎨 心情追踪涂色</option>
+                    </optgroup>
+                    <optgroup label="📅 AI日历卡片">
+                        <option value="calendar_art_simple">📅 AI日历（简约版）</option>
+                        <option value="calendar_art_creative">📅 AI日历（创意版）</option>
+                        <option value="calendar_art_chinese">📅 中国风日历</option>
+                        <option value="calendar_art_festival">📅 节日主题日历</option>
+                        <option value="calendar_art_motivational">📅 励志日历</option>
+                        <option value="calendar_art_minimal">📅 极简日历</option>
+                        <option value="calendar_art_photo">📅 摄影日历</option>
+                        <option value="calendar_art_cute">📅 可爱日历</option>
+                        <option value="calendar_birthday">🎂 生日日历</option>
+                        <option value="calendar_solar_term">🌾 节气日历</option>
+                    </optgroup>
+                    <optgroup label="🎬 电影级专业模板">
+                        <option value="cinema_portrait">🎥 电影级人像</option>
+                        <option value="cinema_contact_sheet">📋 电影接触表</option>
+                        <option value="director_storyboard">🎬 导演分镜板</option>
+                        <option value="story_storyboard">📖 故事分镜板</option>
+                        <option value="video_keyframes">🎬 AI视频关键帧</option>
+                        <option value="cinematic_lighting">💡 电影级布光</option>
+                        <option value="camera_movement">📹 运镜设计</option>
+                    </optgroup>
+                    <optgroup label="🎬 视频提示词">
+                        <option value="video_cinematic">🎥 电影级运镜</option>
+                        <option value="video_vlog">📹 日常Vlog风格</option>
+                        <option value="video_product">🛍️ 产品展示视频</option>
+                        <option value="video_nature">🌿 自然风景视频</option>
+                        <option value="video_food">🍜 美食特写视频</option>
+                        <option value="video_portrait">👤 人物特写视频</option>
+                        <option value="video_timelapse">⏱️ 延时摄影效果</option>
+                        <option value="video_slowmo">🐢 慢动作特写</option>
+                        <option value="video_drone">🚁 航拍俯瞰视角</option>
+                        <option value="video_tracking">🎯 跟踪运镜</option>
+                        <option value="video_loop">🔄 无缝循环视频</option>
+                        <option value="video_transition">✨ 转场特效</option>
+                        <option value="video_intro">📝 主题介绍视频</option>
+                        <option value="video_emotion">💖 情感氛围视频</option>
+                        <option value="video_action">💥 动作场面视频</option>
+                        <option value="video_reveal">🌟 揭示/展示视频</option>
+                        <option value="video_tutorial">📖 教程演示视频</option>
+                        <option value="video_story">📚 叙事短片</option>
+                    </optgroup>
+                </select>
+                <div id="fillPreview"
+                    style="display:none; background:var(--bg-card); border-radius:8px; padding:12px; margin-bottom:12px; font-size:13px; line-height:1.6; color:var(--text-dim); cursor:pointer;"
+                    onclick="addFilledTemplateToBatch()" title="点击添加到批量输入">
+                </div>
+                <!-- 🆕 下划线填空输入框容器 -->
+                <div id="blankInputsContainer" class="blank-inputs-container" style="display:none;"></div>
+                <!-- 🆕 添加到批量按钮 -->
+                <button id="addToBatchBtn" onclick="addFilledTemplateToBatch()"
+                    style="display:none; width:100%; margin-top:10px; padding:12px; background:linear-gradient(135deg, #22c55e, #16a34a); border:none; border-radius:8px; color:white; font-size:14px; font-weight:600; cursor:pointer;">
+                    ➕ 添加到批量输入框
+                </button>
+            </div>
+
+            <div class="template-section">
+                <label class="input-label">🎯 快速模板</label>
+                <div class="template-grid">
+                    <div class="template-item" onclick="useTemplate('portrait')">
+                        <div class="icon">👤</div>
+                        <div>人物肖像</div>
+                    </div>
+                    <div class="template-item" onclick="useTemplate('landscape')">
+                        <div class="icon">🏞️</div>
+                        <div>风景场景</div>
+                    </div>
+                    <div class="template-item" onclick="useTemplate('product')">
+                        <div class="icon">📦</div>
+                        <div>产品展示</div>
+                    </div>
+                    <div class="template-item" onclick="useTemplate('anime')">
+                        <div class="icon">🎌</div>
+                        <div>动漫插画</div>
+                    </div>
+                    <div class="template-item" onclick="useTemplate('food')">
+                        <div class="icon">🍜</div>
+                        <div>美食摄影</div>
+                    </div>
+                    <div class="template-item" onclick="useTemplate('architecture')">
+                        <div class="icon">🏛️</div>
+                        <div>建筑设计</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="setting-item">
+                    <label>风格倾向</label>
+                    <select id="styleSelect">
+                        <option value="realistic">写实摄影</option>
+                        <option value="artistic">艺术绘画</option>
+                        <option value="anime">动漫风格</option>
+                        <option value="3d">3D渲染</option>
+                        <option value="abstract">抽象艺术</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>详细程度</label>
+                    <select id="detailSelect">
+                        <option value="simple">简洁</option>
+                        <option value="medium" selected>适中</option>
+                        <option value="detailed">详细</option>
+                        <option value="ultra">超详细</option>
+                    </select>
+                </div>
+            </div>
+        </div><!-- 单任务配置区域结束 -->
+
+        <button class="generate-btn" id="generateBtn" onclick="generatePrompt()">
+            ⚡ 生成提示词
+        </button>
+
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <div>正在优化提示词...</div>
+        </div>
+
+        <!-- 单个模式结果区 -->
+        <div class="result-section" id="resultSection" style="display:none;">
+            <div class="result-title">✨ 优化后的提示词</div>
+            <div class="result-text" id="resultText"></div>
+            <div class="result-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button class="result-btn" onclick="copyPrompt()"
+                    style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #333; color:var(--text);">📋
+                    复制</button>
+                <button class="result-btn" onclick="usePromptForVideo()"
+                    style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #8b5cf6; color:#8b5cf6;">🎬
+                    去生视频</button>
+                <button class="result-btn" onclick="usePromptForSticker()"
+                    style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #f59e0b; color:#f59e0b;">⭐
+                    去生表情包</button>
+                <button class="result-btn primary" onclick="usePrompt()"
+                    style="flex:1; min-width:80px; background:var(--accent); border-color:var(--accent); color:#000;">🎨
+                    去生图</button>
+            </div>
+        </div>
+
+        <!-- 🆕 批量模式结果区 -->
+        <div class="result-section" id="batchResultSection" style="display:none;">
+            <div class="result-title">✨ 批量生成结果 (点击选择，再次点击取消)</div>
+            <div class="batch-result-grid" id="batchResultGrid"></div>
+            <div class="batch-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button class="result-btn" onclick="copySelectedPrompts()"
+                    style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #333; color:var(--text);">📋
+                    复制选中</button>
+                <button class="result-btn" onclick="copyAllPrompts()"
+                    style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #333; color:var(--text);">📋
+                    复制全部</button>
+                <button class="result-btn" onclick="useSelectedPromptsForVideo()"
+                    style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #8b5cf6; color:#8b5cf6;">🎬
+                    批量生视频</button>
+                <button class="result-btn primary" onclick="useSelectedPrompts()"
+                    style="flex:1; min-width:80px; background:var(--accent); border-color:var(--accent); color:#000;">🎨
+                    批量生图</button>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 使用 NVAuth 模块
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        let authInitialized = false;
+        const PROMPT_COST = 1; // 提示词生成费用（1胶片）
+
+        // 返回函数 - 直接返回 mobile.html 工作区
+        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        let currentPrompt = '';
+
+        // 🆕 批量模式变量
+        let isBatchMode = false;
+        let batchResults = [];  // 批量生成结果 [{index, concept, prompt, error, selected}]
+        let batchGenerating = false;
+
+        const templates = {
+            portrait: '一个人物肖像，',
+            landscape: '一幅风景画面，',
+            product: '产品展示图，',
+            anime: '动漫风格插画，',
+            food: '美食摄影，',
+            architecture: '建筑设计图，'
+        };
+
+        // 填空模板库
+        const fillTemplates = {
+            fill_1: { name: '✨ 梦幻光效人物', desc: '给人物加梦幻光效', template: '一个______（人物/动物），周围环绕着闪亮的魔法光粒子和蝴蝶，梦幻氛围，电影感打光，4K高清' },
+            fill_2: { name: '🎨 动漫风格转换', desc: '照片转日系动漫', template: '将照片中的______（人物/场景）转换为精美日本动漫风格，大眼睛，柔和色彩，动漫质感，高清细节' },
+            fill_3: { name: '🌸 樱花树下场景', desc: '浪漫樱花场景', template: '______（人物）站在盛开的樱花树下，花瓣飘落，温柔粉色氛围，电影级构图，柔和光影' },
+            fill_4: { name: '🔥 史诗战斗场景', desc: '热血战斗画面', template: '______（角色）正在激烈战斗，动作帅气，火焰/闪电特效环绕，史诗级构图，动态模糊，电影感' },
+            fill_5: { name: '🌙 月光夜景', desc: '唯美月夜氛围', template: '______（人物/场景）在月光下，星空璀璨，宁静唯美氛围，冷色调，电影级画质' },
+            fill_6: { name: '🎭 多重身份展示', desc: '一人多角色', template: '同一个______（人物）展示多种职业/风格：左边是______（职业1），中间是______（职业2），右边是______（职业3），创意拼贴风格' },
+            fill_7: { name: '🏠 房间场景设计', desc: '室内场景氛围', template: '温馨的______（卧室/客厅/书房），______（风格：北欧/日式/工业风），自然光透过窗户，植物装饰，室内设计杂志质感' },
+            fill_8: { name: '🎪 Q版可爱化', desc: '角色Q版萌化', template: '将______（人物/角色）变成超级可爱的Q版风格，大头小身体，圆润线条，糖果色系，适合做贴纸' },
+            fill_9: { name: '🌈 彩虹渐变效果', desc: '梦幻彩虹色彩', template: '______（主体）被彩虹色光芒包围，渐变色彩流动，梦幻氛围，Instagram风格，高饱和度' },
+            fill_10: { name: '📸 复古胶片风', desc: '老照片怀旧感', template: '______（场景/人物）呈现80年代胶片照片风格，颗粒质感，褪色效果，暖色调，怀旧氛围' },
+            fill_11: { name: '🎮 像素游戏风格', desc: '8-bit像素艺术', template: '将______（人物/场景）转换为8-bit像素游戏风格，复古红白机画面，清晰像素，怀旧游戏感' },
+            fill_12: { name: '🌊 水下奇幻世界', desc: '梦幻海底场景', template: '______（人物/生物）在神秘的水下世界，周围有发光的水母和珊瑚，蓝绿色调，梦幻光线' },
+            fill_13: { name: '⚡ 赛博朋克风格', desc: '未来科技霓虹', template: '______（人物/场景）处于赛博朋克未来城市，霓虹灯光，雨夜氛围，紫色和青色主色调，科幻感' },
+            fill_14: { name: '🍃 森林精灵氛围', desc: '奇幻森林场景', template: '______（人物）在茂密的魔法森林中，阳光透过树叶，小精灵飞舞，奇幻氛围，绿色主调' },
+            fill_15: { name: '🎨 油画艺术效果', desc: '古典油画质感', template: '将______（主体）转换为古典油画风格，厚重笔触，丰富色彩层次，伦勃朗式打光，博物馆级艺术品质感' },
+            fill_16: { name: '🦸 超级英雄变身', desc: '英雄装扮转换', template: '______（人物）变成超级英雄，帅气的______（颜色）战服，动作姿势帅气，电影海报风格，史诗感' },
+            fill_17: { name: '🎪 马戏团表演场景', desc: '复古马戏团氛围', template: '______（人物/动物）在复古马戏团舞台表演，红色帷幕，聚光灯，观众席，怀旧风格，欢乐氛围' },
+            fill_18: { name: '🏰 中世纪幻想', desc: '欧洲奇幻风格', template: '______（人物）身穿中世纪服装，站在古堡前，史诗奇幻氛围，电影级画质，戏剧性光影' },
+            fill_19: { name: '🌸 中国风工笔画', desc: '传统工笔画风', template: '______（主体）呈现中国传统工笔画风格，细腻线条，淡雅色彩，留白艺术，古典美学' },
+            fill_20: { name: '🎭 表情包生成器', desc: '聊天表情包', template: '为______（角色）设计一组表情包，包含______（数量）个不同表情：开心、生气、哭泣、疑惑、比心等，Q版风格，简洁背景' },
+            fill_21: { name: '🎨 印象派画风', desc: '莫奈风格转换', template: '将______（场景）转换为印象派画风，点彩笔触，柔和光影，莫奈风格，艺术感强烈' },
+            fill_22: { name: '🎭 京剧脸谱', desc: '中国京剧妆容', template: '______（人物）画上京剧脸谱，______（角色：花旦/武生/丑角），精致妆容，传统戏曲服装，中国风' },
+            fill_23: { name: '🦸‍♀️ 女超人装扮', desc: '女英雄战服', template: '______（人物）变成女超人，红色斗篷，紧身战衣，飞行姿态，城市天际线背景，英雄气概' },
+            fill_24: { name: '🌙 月亮公主', desc: '月光女神风格', template: '______（人物）扮演月亮公主，银色长发，月亮冠冕，星空长裙，梦幻优雅，童话氛围' },
+            fill_25: { name: '☀️ 太阳神', desc: '金色太阳神', template: '______（人物）变成太阳神，金色盔甲，太阳光环，火焰翅膀，威严气势，暖色调' },
+            fill_26: { name: '🎪 小丑女Harley Quinn', desc: '哈莉奎因风格', template: '______（人物）装扮成小丑女Harley Quinn，双马尾彩色头发，棒球棍，俏皮表情，朋克风' },
+            fill_27: { name: '🌟 星际战士', desc: '科幻战士装备', template: '______（人物）穿着未来星际战士装备，激光武器，科幻背景，金属质感，史诗科幻感' },
+            fill_28: { name: '🦇 蝙蝠侠风格', desc: '黑暗骑士装扮', template: '______（人物）变成蝙蝠侠风格角色，黑色斗篷，哥特风城市，夜晚氛围，黑暗英雄感' },
+            fill_29: { name: '🕷️ 蜘蛛侠变身', desc: '红蓝战衣', template: '______（人物）变成蜘蛛侠，红蓝战衣，吐丝动作，摩天大楼间穿梭，动作场景' },
+            fill_30: { name: '🐱 猫耳娘', desc: '可爱猫耳装扮', template: '______（人物）长出可爱猫耳和猫尾巴，俏皮表情，______（颜色）猫耳，萌系风格' },
+            fill_31: { name: '🦊 狐狸精', desc: '九尾狐狸精', template: '______（人物）变成______尾狐狸精，狐狸耳朵，多条尾巴，东方神话风格，妖艳美丽' },
+            fill_32: { name: '🐺 狼人变身', desc: '月圆之夜狼人', template: '______（人物）在月圆之夜变身狼人，利爪獠牙，野性眼神，恐怖氛围，暗色调' },
+            fill_33: { name: '🧛 吸血鬼伯爵', desc: '哥特吸血鬼', template: '______（人物）变成吸血鬼伯爵，尖牙，红色眼睛，黑色斗篷，哥特城堡背景，神秘感' },
+            fill_34: { name: '👻 幽灵少女', desc: '透明幽灵效果', template: '______（人物）变成半透明幽灵，白色长裙飘动，冷色调，神秘氛围，灵异感' },
+            fill_35: { name: '🤖 机器人改造', desc: '机械义体化', template: '______（人物）被改造成半机械生命体，机械手臂，电子眼，科幻风格，赛博朋克感' },
+            fill_36: { name: '🎀 Lolita洋装', desc: '甜美洋装风格', template: '______（人物）穿着______（颜色）Lolita洋装，蕾丝花边，蝴蝶结，公主卷发，少女甜美风' },
+            fill_37: { name: '🎸 摇滚音乐会', desc: '摇滚乐队表演', template: '______（人物）在摇滚音乐会舞台表演，电吉他，舞台灯光，观众热情，摇滚范儿十足' },
+            fill_38: { name: '📚 图书馆学霸', desc: '文艺书香气息', template: '______（人物）在古老的图书馆，书籍环绕，复古台灯，温暖光线，学院风，文艺氛围' },
+            fill_39: { name: '☕ 咖啡馆悠闲', desc: '慵懒咖啡时光', template: '______（人物）在温馨咖啡馆，手捧咖啡杯，窗外阳光，慵懒氛围，温暖色调，治愈系' },
+            fill_40: { name: '🌈 彩虹独角兽', desc: '梦幻独角兽', template: '______（主体）搭配彩虹独角兽，梦幻云朵，粉色天空，童话般的甜美氛围，少女心满满' },
+            fill_41: { name: '🎨 印象派画风', desc: '莫奈风格转换', template: '将______（场景）转换为印象派画风，点彩笔触，柔和光影，莫奈风格，艺术感强烈' },
+            fill_42: { name: '🎭 京剧脸谱', desc: '中国京剧妆容', template: '______（人物）画上京剧脸谱，______（角色：花旦/武生/丑角），精致妆容，传统戏曲服装，中国风' },
+            fill_43: { name: '🦸‍♀️ 女超人装扮', desc: '女英雄战服', template: '______（人物）变成女超人，红色斗篷，紧身战衣，飞行姿态，城市天际线背景，英雄气概' },
+            fill_44: { name: '🌙 月亮公主', desc: '月光女神风格', template: '______（人物）扮演月亮公主，银色长发，月亮冠冕，星空长裙，梦幻优雅，童话氛围' },
+            fill_45: { name: '☀️ 太阳神', desc: '金色太阳神', template: '______（人物）变成太阳神，金色盔甲，太阳光环，火焰翅膀，威严气势，暖色调' },
+            fill_46: { name: '🎪 小丑女Harley Quinn', desc: '哈莉奎因风格', template: '______（人物）装扮成小丑女Harley Quinn，双马尾彩色头发，棒球棍，俏皮表情，朋克风' },
+            fill_47: { name: '🌟 星际战士', desc: '科幻战士装备', template: '______（人物）穿着未来星际战士装备，激光武器，科幻背景，金属质感，史诗科幻感' },
+            fill_48: { name: '🦇 蝙蝠侠风格', desc: '黑暗骑士装扮', template: '______（人物）变成蝙蝠侠风格角色，黑色斗篷，哥特风城市，夜晚氛围，黑暗英雄感' },
+            fill_49: { name: '🕷️ 蜘蛛侠变身', desc: '红蓝战衣', template: '______（人物）变成蜘蛛侠，红蓝战衣，吐丝动作，摩天大楼间穿梭，动作场景' },
+            fill_50: { name: '🐱 猫耳娘', desc: '可爱猫耳装扮', template: '______（人物）长出可爱猫耳和猫尾巴，俏皮表情，______（颜色）猫耳，萌系风格' },
+            fill_51: { name: '🦊 狐狸精', desc: '九尾狐狸精', template: '______（人物）变成______尾狐狸精，狐狸耳朵，多条尾巴，东方神话风格，妖艳美丽' },
+            fill_52: { name: '🐺 狼人变身', desc: '月圆之夜狼人', template: '______（人物）在月圆之夜变身狼人，利爪獠牙，野性眼神，恐怖氛围，暗色调' },
+            fill_53: { name: '🧛 吸血鬼伯爵', desc: '哥特吸血鬼', template: '______（人物）变成吸血鬼伯爵，尖牙，红色眼睛，黑色斗篷，哥特城堡背景，神秘感' },
+            fill_54: { name: '👻 幽灵少女', desc: '透明幽灵效果', template: '______（人物）变成半透明幽灵，白色长裙飘动，冷色调，神秘氛围，灵异感' },
+            fill_55: { name: '🤖 机器人改造', desc: '机械义体化', template: '______（人物）被改造成半机械生命体，机械手臂，电子眼，科幻风格，赛博朋克感' },
+            fill_56: { name: '🎀 Lolita洋装', desc: '甜美洋装风格', template: '______（人物）穿着______（颜色）Lolita洋装，蕾丝花边，蝴蝶结，公主卷发，少女甜美风' },
+            fill_57: { name: '⚔️ 女武士', desc: '飒爽女剑客', template: '______（人物）变成古代女武士，手持______（武器：剑/刀/枪），英姿飒爽，武侠风' },
+            fill_58: { name: '🏹 精灵弓箭手', desc: '森林精灵射手', template: '______（人物）扮演精灵弓箭手，尖耳朵，绿色斗篷，森林背景，奇幻风格' },
+            fill_59: { name: '🪄 魔法少女', desc: '变身魔法少女', template: '______（人物）变身魔法少女，魔法杖，闪亮变身特效，______（颜色）服装，星星魔法光' },
+            fill_60: { name: '🎩 绅士礼帽', desc: '复古绅士装扮', template: '______（人物）戴着绅士礼帽，西装，手持拐杖，复古欧洲街道，优雅绅士范' },
+            fill_61: { name: '👑 皇室贵族', desc: '华丽宫廷装扮', template: '______（人物）穿着华丽宫廷服装，王冠/头饰，珠宝首饰，宫殿背景，贵族气质' },
+            fill_62: { name: '🎓 毕业纪念', desc: '毕业典礼场景', template: '______（人物）穿学士服，戴学士帽，抛帽子动作，校园背景，青春纪念氛围' },
+            fill_63: { name: '💼 职场精英', desc: '商务职业装', template: '______（人物）穿着专业职业装，办公室/会议室背景，自信姿态，职场精英范' },
+            fill_64: { name: '🍰 甜品师', desc: '烘焙厨师装扮', template: '______（人物）穿着甜品师服装，围裙，厨师帽，周围是蛋糕和甜点，温馨甜蜜氛围' },
+            fill_65: { name: '🌻 向日葵田', desc: '金色花田场景', template: '______（人物）站在向日葵花田，阳光明媚，金黄色调，温暖治愈氛围，夏日清新感' },
+            fill_66: { name: '🌾 麦田守望者', desc: '金色麦浪场景', template: '______（人物）在金色麦田中，麦浪随风摇曳，夕阳余晖，田园诗���，温暖氛围' },
+            fill_67: { name: '🌵 沙漠探险', desc: '沙漠场景', template: '______（人物）在广阔沙漠，沙丘起伏，骆驼，夕阳，异域风情，冒险感' },
+            fill_68: { name: '🏔️ 雪山登顶', desc: '雪山攀登场景', template: '______（人物）登上雪山之巅，雪峰连绵，登山装备，胜利姿态，壮阔景观' },
+            fill_69: { name: '🌋 火山背景', desc: '火山熔岩场景', template: '______（人物/主体）在火山前，岩浆流动，火光冲天，热浪氛围，暖色调，史诗感' },
+            fill_70: { name: '🌀 时空漩涡', desc: '穿越时空效果', template: '______（人物）被时空漩涡包围，扭曲空间，时间碎片，科幻特效，穿越感' },
+            fill_71: { name: '🎆 烟花节日', desc: '绚丽烟花背景', template: '______（人物/场景）夜空中绽放绚丽烟花，五彩斑斓，节日氛围，欢庆场景' },
+            fill_72: { name: '🌃 城市楼顶', desc: '俯瞰城市夜景', template: '______（人物）站在高楼楼顶，俯瞰城市夜景，霓虹灯海，风吹动衣服，电影感' },
+            fill_73: { name: '🚂 蒸汽朋克', desc: '蒸汽机械风格', template: '______（主体）呈现蒸汽朋克风格，齿轮机械，铜色金属，维多利亚时代，复古科幻' },
+            fill_74: { name: '🎪 马戏团小丑', desc: '欢乐小丑表演', template: '______（人物）装扮成欢乐小丑，彩色假发，红鼻子，杂耍道具，马戏团舞台，欢乐氛围' },
+            fill_75: { name: '🎠 旋转木马', desc: '梦幻旋转木马', template: '______（人物）坐在旋转木马上，游乐园，彩灯装饰，童话梦幻氛围，温馨治愈' },
+            fill_76: { name: '🎡 摩天轮剪影', desc: '摩天轮背景', template: '______（人物）在摩天轮前的剪影，夕阳/夜晚，浪漫氛围，暖色调' },
+            fill_77: { name: '🎢 过山车刺激', desc: '游乐园过山车', template: '______（人物）坐过山车，惊险刺激表情，动态模糊，速度感，欢乐刺激氛围' },
+            fill_78: { name: '🎪 杂技演员', desc: '空中杂技表演', template: '______（人物）表演空中杂技，吊环/绸缎，优美动作，聚光灯，马戏团舞台' },
+            fill_79: { name: '🎯 射箭运动', desc: '专注射箭姿态', template: '______（人物）拉弓射箭，专注眼神，运动服装，靶场背景，动作定格' },
+            fill_80: { name: '⚽ 足球明星', desc: '足球运动场景', template: '______（人物）在足球场踢球，动作帅气，球场背景，运动氛围，活力四射' },
+            fill_81: { name: '🏀 篮球灌篮', desc: '篮球运动场景', template: '______（人物）篮球灌篮动作，飞跃空中，球场，动态感强，运动激情' },
+            fill_82: { name: '🎾 网球比赛', desc: '网球运动场景', template: '______（人物）打网球，挥拍动作，网球场，运动装，活力阳光' },
+            fill_83: { name: '🏊 游泳健将', desc: '游泳运动场景', template: '______（人物）在泳池游泳，水花飞溅，运动泳装，健康活力，蓝色调' },
+            fill_84: { name: '🚴 自行车骑行', desc: '骑行运动场景', template: '______（人物）骑自行车，郊外风景，阳光，运动装备，自由惬意氛围' },
+            fill_85: { name: '🧘 瑜伽冥想', desc: '瑜伽姿势', template: '______（人物）做瑜伽动作，______（具体姿势），瑜伽垫，室内/户外，平静氛围' },
+            fill_86: { name: '💆 SPA放松', desc: 'SPA美容场景', template: '______（人物）在SPA馆享受护理，花瓣浴/按摩，蜡烛，放松惬意，温馨氛围' },
+            fill_87: { name: '💅 美甲艺术', desc: '精致美甲展示', template: '展示______（人物）的精致美甲，______（图案/颜色），特写镜头，时尚感，少女女心' },
+            fill_nail_1: { name: '💅 法式美甲', desc: '经典法式美甲', template: '精致法式美甲特写，______（颜色：粉色/裸色/白色）底色，______（指尖颜色：白色/金色/银色）指尖，修长甲型，专业美甲摄影，高清细节，干净背景' },
+            fill_nail_2: { name: '🌸 花卉美甲', desc: '花朵图案美甲', template: '精美花卉美甲特写，______（花卉：樱花/玫瑰/雏菊/小雏菊）图案手绘，______（底色：白色/透明/粉色）底色，精致彩绘细节，少女清新风格，专业美甲摄影' },
+            fill_nail_3: { name: '✨ 闪粉美甲', desc: '亮片闪钻美甲', template: '奢华闪粉美甲特写，______（颜色：玫瑰金/香槟色/蕴萄紫）闪粉，______（装饰：水钻/亮片/金箔）点缀，光泽感强，派对风格，灯光下闪耀，高清专业摄影' },
+            fill_nail_4: { name: '🎀 网红美甲', desc: '潮流网红款式', template: '时尚网红美甲特写，______（风格：极光镶/猃砡妖姬/黑法师/蛋白石）效果，______（颜色：威士忌酒红/奶白色/焦糖色）主色，网红美甲店风格，小红书爆款，专业美甲摄影' },
+            fill_nail_5: { name: '🌙 猃砡美甲', desc: '猃砡猫眼美甲', template: '神秘猃砡美甲特写，______（颜色：威尼斯绿/星河蓝/黑千金）猃砡效果，______（类型：猫眼/极光/银河）效果，光影流动，神秘魅惑，高级感，专业美甲摄影' },
+            fill_nail_6: { name: '🌿 清新美甲', desc: '简约清新风格', template: '清新简约美甲特写，______（元素：小雏菊/叶子/云朵/星星）图案，______（底色：透明/奶白/肉粉）底色，简单干净，日常百搭，小清新风格，专业美甲摄影' },
+            fill_nail_7: { name: '💍 婚礼美甲', desc: '新娘婚礼美甲', template: '优雅婚礼美甲特写，______（元素：珍珠/水钻/蝶结/蕾丝）装饰，______（颜色：白色/香槟/裸粉）主色，精致高雅，适合新娘，浪漫婚礼氛围，专业美甲摄影' },
+            fill_nail_8: { name: '🎃 节日美甲', desc: '节日主题美甲', template: '______（节日：圣诞/万圣/情人/新年）主题美甲特写，______（元素：雪花/南瓜/爱心/龙）图案，应景配色，节日氛围浓厚，创意有趣，专业美甲摄影' },
+            fill_nail_9: { name: '🎲 设计师美甲', desc: '几何/艺术美甲', template: '艺术设计师美甲特写，______（风格：几何图形/抽象艺术/波普风/线条）设计，______（配色：撕裂配/对比色/渐变）配色，独特个性，设计感强，专业美甲摄影' },
+            fill_nail_10: { name: '🌴 度假美甲', desc: '海边/旅行美甲', template: '清凉度假美甲特写，______（元素：棕榈树/海浪/贝壳/水果）图案，______（颜色：海洋蓝/阳光橙/清新绿）主色，海岛度假风，清新活力，专业美甲摄影' },
+            fill_88: { name: '💄 化妆教程', desc: '化妆步骤展示', template: '______（人物）化妆过程，______（妆容类型），化妆品道具，镜子前，时尚美妆感' },
+            fill_89: { name: '👗 时装走秀', desc: 'T台走秀场景', template: '______（人物）在T台走秀，时尚服装，专业姿态，聚光灯，时装周氛围' },
+            fill_90: { name: '📷 摄影师视角', desc: '摄影师工作场景', template: '______（人物）作为摄影师，手持相机，工作状态，摄影棚/户外，专业范' },
+            fill_91: { name: '🎬 导演片场', desc: '电影导演场景', template: '______（人物）作为电影导演，手持导演板，片场，工作状态，电影氛围' },
+            fill_92: { name: '🎤 歌手舞台', desc: '演唱会舞台', template: '______（人物）在演唱会舞台唱歌，手持麦克风，舞台灯光，观众欢呼，明星气场' },
+            fill_93: { name: '🎹 钢琴演奏', desc: '钢琴演奏场景', template: '______（人物）弹钢琴，优雅姿态，音乐厅/家中，艺术氛围，柔和光线' },
+            fill_94: { name: '🎻 小提琴演奏', desc: '小提琴表演', template: '______（人物）拉小提琴，专注表情，音乐厅，古典优雅氛围' },
+            fill_95: { name: '🥁 架子鼓表演', desc: '打鼓场景', template: '______（人物）打架子鼓，动作帅气，音乐工作室，摇滚氛围，动态感' },
+            fill_96: { name: '🎧 DJ打碟', desc: 'DJ现场', template: '______（人物）作为DJ打碟，电音派对，灯光效果，夜店氛围，潮流感' },
+            fill_97: { name: '🍜 拉面师傅', desc: '日式拉面店', template: '______（人物）作为拉面师傅，制作拉面，日式拉面店，传统装束，匠人精神' },
+            fill_98: { name: '🍣 寿司大师', desc: '寿司料理场景', template: '______（人物）制作寿司，寿司刀，料理台，日式料理店，专业匠人' },
+            fill_99: { name: '🎂 蛋糕装饰', desc: '蛋糕师装饰', template: '______（人物）装饰蛋糕，裱花袋，精美蛋糕，烘焙坊，甜蜜温馨' },
+            fill_100: { name: '🍕 披萨制作', desc: '披萨师傅', template: '______（人物）制作披萨，抛起面团，意式餐厅，欢乐氛围，美食诱惑' },
+            fill_101: { name: '🎄 圣诞夜温馨场景', desc: '圣诞节主题视频', template: '【主体】______（人物/家庭：一家人/情侣/独自旅行者/可爱小动物/小镇居民/圣诞老人/孩子们）\n【场景】______（场景：壁炉客厅+圣诞树/雪夜街道+霓虹灯/圣诞市集+摊位灯串/教堂前广场+钟声/礼物工坊+木质桌面）\n【氛围】______（氛围：温馨治愈/浪漫甜蜜/热闹欢乐/安静思念/童话梦幻）\n【光线】______（光线：暖色烛光与灯串光/冷暖对比雪景冷光+室内暖光/柔光箱质感软光/电影级侧逆光+轮廓光）\n【运镜】______（运镜：35mm广角建立/50mm中景叙事/85mm人像特写浅景深/手持纪实轻微晃动/斯坦尼康平滑推进/推镜头强调情绪/拉镜头揭示环境/环绕镜头360度旋转）\n【音乐】______（音乐：钢琴独奏温馨/交响乐团史诗感/圣诞颂歌节日氛围/无配乐环境音为主）\n【特效】______（特效：雪花飘落/礼物丝带细节/姜饼与热可可/红绿配色毛衣纹理/玻璃反射与散景bokeh/慢动作特写/无特殊要求）' },
+            fill_102: { name: '🧧 春节年味大片', desc: '春节/新年主题视频', template: '【主体】______（人物/家庭：一家人团圆/返乡旅人/热闹街市人群/舞狮队伍/小朋友收红包）\n【场景】______（场景：年夜饭餐桌/贴春联与灯笼的门口/庙会夜市/烟花夜空/古镇街巷）\n【元素】______（元素：红灯笼/春联/烟花/饺子汤圆/红包/舞狮/年货摊）\n【氛围】______（氛围：喜庆热闹/温馨团圆/烟火人间/古典中国风/现代城市年味）\n【色彩】______（色彩：中国红+金色点缀/暖色调偏橙黄/红黑对比高级感/红白雪景对比）\n【运镜】______（运镜：24mm广角人群氛围/35mm纪录片叙事/50mm中景家庭互动/85mm特写红包与表情/长焦压缩烟花/推镜头强调情绪/拉镜头揭示环境/环绕镜头360度旋转）\n【音乐】______（音乐：古风民族乐器二胡琵琶古筝/交响乐团喜庆/无配乐环境音鞭炮声为主）\n【特效】______（特效：蒸汽热气腾腾/金色散景bokeh/纸灯笼纹理细节/鞭炮碎屑地面/镜头光晕lens flare/慢动作特写/无特殊要求）' },
+            fill_103: { name: '🎄 圣诞贺卡（竖版）', desc: '圣诞节贺卡海报/社媒图', template: '圣诞节贺卡设计，1080x1920 竖版，主视觉：______（主题：圣诞老人/麋鹿/圣诞树/雪景小屋/姜饼人），红绿金配色，纸张质感与轻微压纹，烫金字体与光泽点缀，留出文案区：标题"_____（Merry Christmas/圣诞快乐）"，副标题"______（祝福语/署名）"，干净背景，高清细节，无水印' },
+            fill_104: { name: '🎁 圣诞红包封面（竖版）', desc: '微信红包封面/电子红包封面', template: '圣诞主题红包封面设计，1080x1920 竖版，主视觉：______（主题：圣诞树礼盒/雪花/圣诞老人/麋鹿/铃铛），金色烫金与浮雕质感，红绿金节日配色，四周预留安全区留白（不要贴边），中部留出祝福文案"______（祝福语）"，底部留出署名/品牌位"______（署名/品牌）"，干净高级，高清细节，无水印' },
+            fill_105: { name: '🧧 春节贺卡（竖版）', desc: '春节贺卡海报/朋友圈海报', template: '春节贺卡设计，1080x1920 竖版，中国红+金色点缀，国风插画风格，主视觉：______（主题：龙/蛇/生肖/财神/灯笼/烟花），祥云纹样与金粉散景，烫金标题"______（新年快乐/恭喜发财/大吉大利）"，副标题"______（祝福语/署名）"，四周留安全区留白，高清细节，无水印' },
+            fill_106: { name: '🧧 春节红包封面（竖版）', desc: '微信红包封面/电子红包封面', template: '微信红包封面设计（春节主题），1080x1920 竖版，中国红底+金色烫金浮雕，主视觉：______（生肖/财神/舞狮/灯笼/年货），背景暗纹：祥云/回纹/剪纸纹理，四周预留安全区留白（不要贴边），中部留出祝福文案"______（祝福语）"，底部留出署名/品牌位"______（署名/品牌）"，高清细节，无水印' },
+            fill_107: { name: '🎁 圣诞红包内页（开红包页面）', desc: '微信红包打开后内部页面/金额与祝福文案页', template: '微信红包内页设计（圣诞主题/开红包页面），1080x1920 竖版，整体高级简洁，顶部保留安全区留白。背景氛围：圣诞树枝、雪花、暖光灯串、金粉散景bokeh（不要遮挡主体信息）。信息区域排版清晰：1) 顶部：发送者/品牌署名"______（From/品牌名/昵称）"；2) 中部：祝福语大字"______（祝福语）"，字形清晰可读，烫金或金属质感；3) 下方：金额展示区域"______（金额/如 8.88）元"或"______（口令/福利）"，留出醒目空间；4) 底部：小字说明/活动规则"______（说明）"，并预留一个二维码/Logo 占位区（用空白框表示，不要生成真实二维码）。配色：深绿+金 或 红绿金；材质：丝绒/磨砂卡纸/局部UV；整体干净、无水印、无乱码文字、四周留安全区。' },
+            fill_108: { name: '🧧 春节红包内页（开红包页面）', desc: '微信红包打开后内部页面/金额与祝福文案页', template: '微信红包内页设计（春节主题/开红包页面），1080x1920 竖版，中国红底+金色点缀，高级克制国风（不过度花哨），顶部保留安全区留白。背景暗纹：祥云/回纹/锦缎纹理/剪纸暗纹，金粉散景bokeh（不要遮挡主体信息）。信息区域排版清晰：1) 顶部：发送者/品牌署名"______（品牌名/昵称/From）"；2) 中部：祝福语大字"______（祝福语）"，烫金浮雕质感，字形清晰可读；3) 下方：金额展示区域"______（金额/如 88.88）元"或"______（口令/福利）"，留出醒目空间；4) 底部：小字说明/活动规则"______（说明）"，并预留一个二维码/Logo 占位区（用空白框表示，不要生成真实二维码）。主视觉可点缀：灯笼、舞狮、金元宝、福字、烟花；整体干净高级、无水印、无乱码文字、四周留安全区。' },
+            knolling: { name: '🧩 Knolling 万物拆解', desc: '物品整齐摆放俯视图', template: 'Knolling layout of ______（填写物品名称），neatly arranged components, top-down view, organized flat lay, professional product photography, white background, soft shadows, 8K detail' },
+            journal_relations: { name: '📔 手帐人物关系图', desc: '剧本角色关系可视化', template: '手帐风格人物关系图，展示______（填写角色们）的关系网络，每个人物有可爱头像，势力派系用不同颜色区分，连接线标注关系类型，温馨插画风格，16:9横版构图' },
+            y2k_poster: { name: '✨ Y2K毛玻璃海报', desc: '照片转现代设计海报', template: '将______（主题/主体）精确抠出作为核心，背景替换为毛玻璃质感抽象背景保留原色调，主体后方添加醒目纯色矩形色块，添加粗大无衬线字体标题置于主体后方形成遮挡层次，添加信息性小字和透明胶带素材，Y2K酸性设计美学，丰富纹理层次感' },
+            minimal_bw_illust: { name: '🖤 极简黑白插画', desc: '多人物统一风格化', template: '黑白极简风插画，______（填写角色们）变成可爱卡通形象，保持各自特点，配上合适小道具，优美线条，头发为黑色块，所有人物在同一张图中，统一风格' },
+            character_card: { name: '🪪 人物名片卡', desc: '角色信息卡片设计', template: '按照名片设计构图和质感，为______（填写角色）生成卡片，右上角可爱卡通形象突出于卡片，Name: ______（姓名）, Occupation: ______（职业）, Company: ______（公司/组织）, 精致材质感' },
+            keychain_merch: { name: '🔑 可爱挂件/钥匙扣', desc: '照片转周边产品', template: '将照片人物变成可爱______（类型：亚克力/橡胶）挂件，扁平设计，挂在______（包包类型）包包上，亚克力/橡胶材质质感，产品摄影风格' },
+            cosplay_photo: { name: '📸 Cosplay还原', desc: '插画转真人Cos', template: 'Generate a highly detailed photo of ______（角色/人物） cosplaying this illustration, at Comiket. Exactly replicate the same pose, body posture, hand gestures, facial expression, and camera framing as in the original illustration. Keep the same angle, perspective, and composition' },
+            character_sheet: { name: '📋 角色设定全套', desc: '三视图/表情/动作/服装', template: '为______（填写角色）生成完整角色设定：比例设定（头身比对比），三视图（正面侧面背面），表情设定（多种��绪），动作设定（常见姿势），服装设定（不同造型），专业角色设计稿风格' },
+            figure_scene: { name: '🎨 手办场景图', desc: '角色转3D手办展示', template: 'Turn ______（角色/人物） into a character figure. Behind it, place a box with the character image printed on it, and a computer showing Blender modeling process. In front of the box, add a round plastic base with the figure standing on it. Indoor scene, product photography' },
+            line_sticker_pack: { name: '💬 LINE表情包套图', desc: 'Q版半身像表情包4x6布局', template: '为______（填写角色）生成Q版LINE风格半身像表情包，彩色手绘风格，头饰正确还原，4x6网格布局（共24个表情），涵盖常用聊天表情和娱乐meme，每个表情配手写简体中文标注，不要原图复制要重新绘制，4K分辨率16:9画幅，表情丰富可爱实用' },
+            ghibli: { name: '🏯 吉卜力风格', desc: '宫崎骏动画风格转换', template: '将______转换为吉卜力工作室动画风格，柔和水彩质感，温暖色调，梦幻氛围，细腻背景细节，宫崎骏电影美学，手绘动画质感' },
+            pixar: { name: '🎪 Pixar 3D风格', desc: '皮克斯动画风格', template: '生成______的3D头像，Pixar动画风格，灿烂笑容，干净白色背景，概念数字艺术，高质量渲染，柔和光照，光滑纹理，色彩鲜明，卡通感但比例真实' },
+            cyberpunk: { name: '🌆 赛博朋克风格', desc: '未来科幻霓虹美学', template: '将______转换为赛博朋克风格，霓虹灯光，雨夜城市背景，全息投影元素，机械增强细节，紫色和青色主色调，高对比度，未来科技感' },
+            watercolor: { name: '🎨 水彩艺术风格', desc: '传统水彩画效果', template: '将______转换为水彩画风格，柔和色彩渐变，纸张纹理质感，颜料晕染效果，留白艺术，传统手绘美感，艺术画廊品质' },
+            oil_painting: { name: '🖼️ 油画风格', desc: '古典油画艺术效果', template: '将______转换为古典油画风格，厚重笔触，丰富色彩层次，戏剧性光影，伦勃朗式打光，博物馆级艺术品质感，金色画框效果' },
+            pixel_retro: { name: '👾 像素复古风格', desc: '8-bit游戏像素艺术', template: '将______转换为像素艺术风格，8-bit复古游戏美学，有限调色板，清晰像素边缘，怀旧游戏机画面感，适合游戏素材使用' },
+            photo_to_anime: { name: '🎌 照片转动漫', desc: '真人照片动漫化', template: '将照片中的______（人物/角色）转换为日本动漫风格，保持面部特征和表情，动漫大眼睛，柔和皮肤，动漫发型处理，背景虚化或纯色，高质量动漫插画' },
+            photo_enhancement: { name: '✨ 照片艺术增强', desc: '照片添加魔法效果', template: '增强照片______（主题/主体），添加魔法粒子/光效/蝴蝶/花瓣等梦幻元素，保持主体清晰，背景添加氛围光效，童话般的视觉效果，Instagram风格' },
+            vintage_photo: { name: '📷 复古胶片风格', desc: '老照片/胶片效果', template: '将______（主题/主体）转换为复古胶片照片风格，添加颗粒感、褪色效果、暖色调偏移，模拟柯达/富士胶片色彩，怀旧氛围，轻微漏光效果' },
+            portrait_photo: { name: '📷 专业人像', template: '______的专业人像摄影，85mm镜头，F1.4浅景深，伦勃朗式打光，奶油散景bokeh，8K高清' },
+            street_photo: { name: '🏙️ 街头摄影', template: '______在城市街头，35mm纪实风格，自然光线，人文气息，真实瞬间，胶片质感' },
+            film_photo: { name: '🎞️ 胶片质感', template: '______拍摄于胶片相机，Kodak Portra 400色调，颗粒感，怀旧复古，柔和色彩，90年代氛围' },
+            macro_photo: { name: '🔍 微距特写', template: '______的微距摄影，极致细节，水珠/纹理特写，浅景深，自然光，8K超高清' },
+            christmas: { name: '🎄 圣诞节', template: '______在圣诞节氛围中，圣诞树和灯串，温暖壁炉，红绿金配色，雪花飘落，温馨治愈' },
+            spring_festival: { name: '🧧 春节', template: '______庆祝春节，红灯笼和春联，中国红配金色，烟花璀璨，喜庆热闹，年味浓厚' },
+            valentines: { name: '💕 情人节', template: '______在情人节氛围中，玫瑰花瓣，心形元素，粉红色调，浪漫烛光，甜蜜梦幻' },
+            halloween: { name: '🎃 万圣节', template: '______在万圣节之夜，南瓜灯，蝙蝠和蜘蛛网，紫黑色调，神秘恐怖氛围，月光下的剪影' },
+            impressionism: { name: '🖼️ 印象派', template: '将______转换为印象派油画风格，莫奈式光影变化，柔和笔触，户外写生感，色彩斑斓' },
+            surrealism: { name: '🌀 超现实主义', template: '______的超现实主义画作，达利风格，梦境元素，非理性组合，融化的时钟，潜意识表达' },
+            pop_art: { name: '🎨 波普艺术', template: '将______转换为安迪·沃霍尔波普艺术风格，大胆色彩，重复图案，商业美学，高对比度' },
+            ink_wash: { name: '🖌️ 水墨画', template: '______的中国水墨画风格，黑白灰层次，留白意境，泼墨写意，东方美学，禅意空灵' },
+            game_ui_status: { name: '🎮 RPG角色状态界面', desc: '游戏角色属性面板', template: '使用______（角色/人物）创建RPG游戏角色状态界面，幻想RPG风格服装，展示角色参数、技能、图标等信息，丰富直观的布局，幻想风格背景，2025年高质量游戏界面设计' },
+            game_card: { name: '🃏 游戏卡牌设计', desc: 'TCG卡牌风格', template: '为______（角色/人物）设计TCG游戏卡牌，包含角色立绘、属性数值、技能描述、稀有度标识，精美边框装饰，全息闪卡效果，收藏级卡牌设计' },
+            app_icon: { name: '📱 App图标设计', desc: '应用图标设计', template: '为______（应用名称）设计App图标，______（图标风格）风格，圆角方形，简洁醒目，渐变色彩，扁平化/3D立体感，iOS/Android规范，1024x1024分辨率' },
+            text_shape_art: { name: '🔤 文字形状艺术', desc: '文字构成图形', template: '创建______（物体名称）形状的文字插画，文字本身构成该形状，粗体活泼字体填满轮廓，文字沿曲线自然排列，鲜明对比色彩，纯色背景，矢量风格，海报格式，1:1比例' },
+            pictogram: { name: '🚻 象形图转换', desc: '图片转象形标识', template: '将______（主题/主体）转换为象形图/图标风格，极简线条，单色或双色，国际通用标识风格，清晰易读，适合指示牌使用' },
+            infographic: { name: '📊 信息图表设计', desc: '数据可视化图表', template: '为______（主题）创建信息图表，包含统计数据、流程图、对比图表，现代扁平设计，品牌色彩方案，清晰的视觉层次，适合社交媒体分享，16:9比例' },
+            room_makeover: { name: '🏠 房间改造设计', desc: '室内设计效果图', template: '将房间改造为______（风格）风格，保持原有空间结构，更换家具和装饰，添加植物和艺术品，自然光照，温馨氛围，室内设计杂志质感' },
+            miniature_world: { name: '🔍 微缩世界', desc: '移轴摄影效果', template: '将______（场景）转换为微缩模型效果，移轴摄影风格，浅景深，饱和色彩增强，玩具般的质感，俯视角度，城市/风景微缩效果' },
+            age_transform: { name: '👶👴 年龄变换', desc: '人物年龄转换', template: '将照片中的人物转换为______（年龄）岁的样子，保持面部特征可识别，自然的年龄变化效果，真实皮肤纹理，专业人像摄影质感' },
+            inner_child: { name: '💝 内心小孩治愈', desc: '成人与童年自己对话', template: '超逼真极简主义治疗室场景：浅色墙面，灰色沙发，木质咖啡桌。同一人以成年和儿童两种状态并排而坐：成年人双手打开交谈，儿童微微低头倾听。两人穿相同______（服装描述）。干净工作室氛围，50mm镜头，4K纵向3:4' },
+            fashion_model: { name: '👗 时尚模特照', desc: '时尚杂志风格', template: '将______（角色/人物）转换为时尚杂志封面风格，高端服装造型，专业模特姿势，工作室打光，时尚摄影后期，Vogue/Elle杂志美学' },
+            plush_toy: { name: '🧸 毛绒玩具设计', desc: '角色毛绒公仔', template: '将______（角色/人物）设计为可爱毛绒玩具，Q版比例，柔软面料质感，精致刺绣细节，产品摄影风格，白色背景，适合量产的玩具设计' },
+            enamel_pin: { name: '📍 珐琅徽章设计', desc: '金属徽章效果', template: '为______（主题/主体）设计珐琅徽章，金属边框，鲜艳填充色，简化的可爱造型，光泽质感，适合收藏的徽章设计，产品展示角度' },
+            tattoo_design: { name: '🖋️ 纹身设计', desc: '纹身图案设计', template: '为______（主题/主体）设计纹身图案，______（风格）风格（传统/日式/几何/水彩/线条），黑白或彩色，清晰线条，适合人体曲线，专业纹身手稿' },
+
+            // ==================== 从电脑版同步的模板 ====================
+            product_packaging: { name: '📦 产品包装设计', desc: '生成产品包装盒效果图', template: '为______（产品名称）设计产品包装盒，展示正面和侧面，包含品牌logo、产品图片、营养/成分信息，现代简约设计风格，工作室灯光，产品摄影质感，白色背景' },
+            product_ad: { name: '🎬 产品广告海报', desc: '专业产品宣传图', template: '为______（产品名称）创建专业广告海报，产品居中，动态飞溅效果/光效环绕，鲜艳色彩，现代排版，包含宣传标语，高端商业摄影风格，4K分辨率' },
+            product_exploded: { name: '🔧 产品爆炸图', desc: '展示产品内部结构', template: '创建______（产品名称）的爆炸分解图，展示所有内部组件和零件，等距视角，每个部件带标注线和名称，技术插图风格，白色背景，专业工程图质感' },
+            ghibli_style: { name: '🏯 吉卜力风格', desc: '宫崎骏动画风格转换', template: '将______（主题/主体）转换为吉卜力工作室动画风格，柔和水彩质感，温暖色调，梦幻氛围，细腻背景细节，宫崎骏电影美学，手绘动画质感' },
+            pixar_3d: { name: '🎪 Pixar 3D风格', desc: '皮克斯动画风格', template: '生成______（角色/人物）的3D头像，Pixar动画风格，灿烂笑容，干净白色背景，概念数字艺术，高质量渲染，柔和光照，光滑纹理，色彩鲜明，卡通感但比例真实' },
+            cyberpunk_style: { name: '🌆 赛博朋克风格', desc: '未来科幻霓虹美学', template: '将______（主题/主体）转换为赛博朋克风格，霓虹灯光，雨夜城市背景，全息投影元素，机械增强细节，紫色和青色主色调，高对比度，未来科技感' },
+            watercolor_art: { name: '🎨 水彩艺术风格', desc: '传统水彩画效果', template: '将______（主题/主体）转换为水彩画风格，柔和色彩渐变，纸张纹理质感，颜料晕染效果，留白艺术，传统手绘美感，艺术画廊品质' },
+            step_tutorial: { name: '📝 步骤教程图', desc: '分步教学图解', template: '创建______（主题）的分步教程图，4-6个清晰步骤，每步配图示和简短说明，箭头指示流程，统一视觉风格，教育插图质感，易于理解' },
+            anatomy_diagram: { name: '🫀 解剖/结构图', desc: '内部结构展示', template: '创建______（主题/主体）的解剖/结构图，展示内部组成，专业标注线和术语，医学/科学插图风格，教科书级别质量，清晰易读' },
+            double_exposure: { name: '🌲 双重曝光效果', desc: '人物与风景融合', template: '创建______（主题/主体）的双重曝光效果，人物剪影与______（场景）风景融合，艺术摄影风格，梦幻氛围，高对比度，创意海报效果' },
+            glitch_art: { name: '📺 故障艺术效果', desc: '数字故障美学', template: '为______（主题/主体）添加故障艺术效果，RGB色彩分离，扫描线，像素错位，VHS噪点，赛博美学，数字艺术风格' },
+            hologram: { name: '🔮 全息投影效果', desc: '科幻全息显示', template: '将______（主题/主体）转换为全息投影效果，蓝色/青色光芒，半透明质感，扫描线纹理，科幻电影风格，未来科技感，黑暗背景' },
+            album_cover: { name: '💿 专辑封面设计', desc: '音乐专辑封面', template: '为______（专辑名）设计专辑封面，______（类型/风格）音乐风格，艺术家名字和专辑标题排版，创意视觉概念，1:1正方形，唱片收藏级设计' },
+            book_cover: { name: '📚 书籍封面设计', desc: '小说/书籍封面', template: '为______（书名）设计书籍封面，______（类型/风格）类型风格，包含标题和作者名，引人注目的主视觉，专业出版物设计，适合印刷' },
+            movie_poster: { name: '🎬 电影海报设计', desc: '电影宣传海报', template: '为______（电影名）设计电影海报，______（类型/风格）类型，主角形象突出，戏剧性光影，电影标题和演员表排版，好莱坞大片质感，27x40英寸比例' },
+            food_art: { name: '🍽️ 食物艺术', desc: '食材创意摆盘', template: '用______（食材）食材创作______（主题/主体）造型的食物艺术，创意摆盘，色彩搭配和谐，美食摄影风格，俯视角度，干净背景' },
+            pet_costume: { name: '🐕 宠物角色扮演', desc: '宠物穿搭/Cosplay', template: '将宠物______（宠物）装扮成______（角色/人物）角色，可爱服装造型，保持宠物自然表情，温馨有趣，宠物摄影风格，高清细节' },
+            lego_style: { name: '🧱 乐高风格', desc: '乐高积木效果', template: '将______（主题/主体）转换为乐高积木风格，方块化造型，乐高人仔比例，鲜艳塑料质感，玩具摄影风格，官方乐高套装效果' },
+            ukiyo_e: { name: '🌊 浮世绘收藏卡牌', desc: '鬼灭之刃风格集换式卡牌', template: '一张日式浮世绘风格的收藏级集换式卡牌设计，竖构图。插画风格紧密模仿《鬼灭之刃》视觉美学：粗细变化的墨笔轮廓线、传统木版画配色、戏剧性动态构图。主角是______（主题/主体），处于动态战斗姿势。周围环绕着传统日式水墨画(Sumi-e)风格的视觉特效。背景融合纹理化镭射闪卡(Holographic Foil)效果。边框使用日本传统纹样(青海波/麻叶纹)装饰，底部横幅用古朴日式书法写角色名' },
+            doc_to_flowchart: { name: '📋 文档转流程图', desc: '根据文档内容生成流程图', template: '根据以下内容生成专业流程图：______（主题/主体）。使用清晰的流程框图格式，包含开始/结束节点、决策菱形、处理矩形、箭头连接线，配色协调统一，添加步骤编号和简短说明，商务演示风格，16:9横版比例' },
+            article_to_ppt: { name: '📊 文章转PPT', desc: '根据文章制作演示幻灯片', template: '将以下内容转换为PPT演示文稿风格：______（主题/主体）。设计4-6张幻灯片布局，包含标题页、目录页、内容页、总结页，现代商务风格，配色统一，包含图标和配图区域，清晰的信息层次，适合商务演示' },
+            toy_exploded: { name: '🧸 玩具分解展示', desc: '玩具零件爆炸图', template: '创建______（主题/主体）玩具的爆炸分解图，展示所有可拆卸零件和内部结构，等距视角，每个部件整齐排列，带标注线和部件名称，产品说明书风格，白色背景，专业玩具设计图质感，适合展示组装过程' },
+            crystal_emoji: { name: '💎 水晶质感Emoji', desc: '3D水晶材质表情符号', template: '将______（主题/主体）设计为3D水晶质感emoji表情，透明玻璃/水晶材质，内部有光线折射和彩虹色散效果，柔和渐变高光，立体感强烈，干净背景，适合作为贴纸或图标使用，高清细节' },
+            story_setting: { name: '📖 故事设定集', desc: '完整世界观设定文档', template: '为______（主题/主体）创建故事设定集页面，包含：世界观概述、时代背景、地理环境、势力分布图、重要地点插图、文化习俗说明、魔法/科技体系图解，古籍/手稿风格排版，羊皮纸质感，手绘插图风格，适合设定集画册' },
+            multi_char_comic: { name: '🎭 多角色串场漫画', desc: '多人物漫画分镜', template: '创建______（角色们）的多角色漫画页面，包含4-6格分镜，展示角色互动场景，统一的漫画画风，对话气泡留白，动态构图，情感表达丰富，日式漫画分镜风格，黑白或彩色均可，适合连载漫画' },
+            char_biography: { name: '📜 角色平生经历', desc: '根据剧本生成角色传记', template: '根据以下剧本/背景为______（角色/人物）生成角色平生经历图：______（主题/主体）。时间线形式展示人生重要节点，配有各时期形象插图（童年/青年/成年），关键事件标注，情感曲线图示，人物关系网络，传记风格排版，适合角色深度设定' },
+            ai_conversation_art: { name: '🤖 AI对话艺术图', desc: 'ChatGPT对话截图美化', template: '将______（主题/主体）AI对话内容转换为艺术海报，保留对话框样式但添加渐变背景、发光效果、装饰性图标，赛博朋克风格配色，对话气泡层次分明，关键词高亮显示，适合社交媒体分享，16:9比例' },
+            digital_avatar_eco: { name: '👤 数字分身生态', desc: '个人数字化身多场景', template: '为______（角色/人物）创建数字分身生态系统：中心是3D数字人立绘，周围展示在不同场景的应用（虚拟主播、游戏角色、AI助手、元宇宙形象），科技感界面，连接线和数据流特效，未来科技风格' },
+            emotion_data_viz: { name: '💭 情绪数据可视化', desc: '一周情绪变化图表', template: '创建______（主题/主体）的情绪数据可视化图表：7天情绪曲线图，不同颜色代表不同情绪（快乐/悲伤/焦虑/平静），配合天气图标和emoji，柔和配色，温暖治愈风格，适合心理健康记录' },
+            memory_palace: { name: '🏛️ 记忆宫殿可视化', desc: '知识点空间记忆法', template: '为______（主题）创建记忆宫殿图：将知识点转化为空间中的物品，3D等距视角展示房间布局，每个物品代表一个知识点并标注，连接线显示逻辑关系，插画风格，助记忆学习' },
+            life_rpg_status: { name: '🎮 人生RPG属性面板', desc: '真实生活游戏化', template: '将真实生活转换为RPG游戏界面：展示______（姓名）的属性值（健康/财富/技能/社交/成就），经验条和等级显示，技能树图示，最近任务列表，游戏UI风格，激励性视觉设计' },
+            dream_journal_art: { name: '🌙 梦境日记插画', desc: '梦境内容艺术化', template: '将梦境描述转换为超现实主义插画：______（主题/主体），非理性的场景组合，梦幻柔和的色彩，模糊的边界感，达利式的超现实元素，柔和笔触，适合梦境记录' },
+            inner_dialogue: { name: '💬 内心对话漫画', desc: '理性与感性对话', template: '创建内心对话漫画：一人分饰两角，左侧是理性自我（冷静职业装），右侧是感性自我（温暖休闲装），中间是对话气泡展示内心挣扎过程，温暖治愈画风，2-4格分镜，关于______（主题）的内心对话' },
+            anxiety_monster: { name: '👹 焦虑怪兽具象化', desc: '负面情绪可视化', template: '将______（焦虑类型）焦虑转化为可爱怪兽形象：赋予焦虑独特外观和性格，用温柔的方式展现其特征，配文字说明应对方法，治愈系插画风格，帮助认识和接纳负面情绪' },
+            gratitude_jar: { name: '🫙 感恩罐子可视化', desc: '感恩事件收集展示', template: '创建感恩罐子插画：透明玻璃罐内装满彩色纸条，每张纸条上写着一件______（时间段）期间的感恩事件，温暖光线透过罐子，周围点缀小花小草，水彩画风格，正念生活记录' },
+            comfort_zone_map: { name: '🎯 舒适区地图', desc: '个人成长可视化', template: '绘制______（姓名）的舒适区地图：中心是舒适区（温暖色调），外圈是学习区（渐变色），最外是恐慌区（冷色调），标注具体事项在各区域位置，添加成长路径箭头，插画地图风格' },
+            emotional_weather: { name: '🌤️ 情绪天气预报', desc: '心情用天气符号表达', template: '创建______（时间段）的情绪天气预报图：用天气图标表达每天心情（晴天/阴天/雨天/雷暴/彩虹），温度表示情绪强度，配简短文字说明，天气预报卡片风格，温馨可爱' },
+            self_care_bingo: { name: '💆 自我关爱宾果卡', desc: '打卡式自我照顾', template: '设计自我关爱宾果卡：5x5网格，每格一项自我照顾活动（冥想/运动/美食/社交/休息等），完成的格子打勾并高亮，温暖配色，可爱图标，激励式设计，关于______（主题）的自我关爱' },
+            nine_grid_story: { name: '📸 朋友圈九宫格故事', desc: '连贯叙事九图', template: '创建九宫格叙事图片：______（故事内容）分解为9个连续画面，每张图独立但组合后形成完整故事，统一视觉风格和配色，适合Instagram/朋友圈发布，漫画分镜感' },
+            vs_comparison: { name: '⚖️ 左右对比挑战', desc: 'Before/After对比图', template: '创建VS对比图：左侧展示______（改变前），右侧展示______（改变后），中间醒目VS标识，箭头或分割线明确，对比强烈，适合展示变化/成长/改造，社交媒体风格' },
+            reaction_meme: { name: '😂 个性化反应包', desc: '专属表情包模板', template: '为______（角色/人物）创建专属反应表情包：6-9个常用反应场景（震惊/无语/比心/拒绝/思考/崩溃），保持角色特征，夸张表情，简洁背景，配中文短语，适合聊天使用' },
+            fake_screenshot: { name: '💬 虚构聊天截图', desc: '搞笑对话生成器', template: '生成搞笑聊天截图：模仿微信/iMessage界面，______（主题/主体）的对话内容，头像可自定义，时间戳真实，包含已读/表情反应，用于搞笑段子/创意营销' },
+            trend_challenge: { name: '🔥 挑战模板生成', desc: '社交媒体挑战模板', template: '创建______（挑战名称）挑战模板：清晰的规则说明，步骤示意图，参与方式指引，品牌标识区域，吸引眼球的视觉设计，适合发起社交媒体挑战活动' },
+            story_sticker_pack: { name: '📌 快拍贴纸包', desc: 'Instagram Story装饰', template: '设计______（主题）主题的快拍贴纸包：10-15个贴纸（文字框/箭头/装饰/emoji/边框），统一视觉风格，透明背景，适合叠加在照片上，社交媒体风格' },
+            knowledge_card: { name: '🃏 知识卡片系统', desc: 'Anki风格学习卡', template: '为______（主题）创建知识卡片：正面是问题/概念，背面是详细解答，配插图和记忆提示，颜色编码分类，适合碎片化学习，卡片设计精美实用' },
+            concept_map_3d: { name: '🗺️ 3D概念地图', desc: '立体化知识结构', template: '将______（主题/主体）转换为3D概念地图：核心概念在中心高塔，分支概念环绕四周，高度表示重要性，连接线显示关系，等距3D视角，游戏地图风格' },
+            formula_story: { name: '📐 公式故事化', desc: '数学公式场景化', template: '将______（公式）数学公式转化为故事插画：公式的每个元素变成角色/物品，用场景和动作解释运算过程，可爱插画风格，让抽象概念具象化，适合儿童数学教育' },
+            timeline_history: { name: '⏳ 交互式历史轴', desc: '历史事件时间线', template: '创建______（时间段）历史事件时间线：横向时间轴，重大事件用图标和插图标注，人物头像连接事件，年份清晰标注，古典羊皮纸风格或现代简约风格可选' },
+            language_pictogram: { name: '🔤 语言图像记忆', desc: '单词联想记忆图', template: '为______（单词）创建图像联想记忆图：将单词字母融入相关场景插画中，视觉联想帮助记忆，有趣生动，配音标和例句，适合英语/外语学习' },
+            mistake_collection: { name: '📓 错题可视化本', desc: '错题整理美化', template: '将______（主题/主体）错题整理为可视化笔记：错题展示+错因分析+正确解法+知识点标注，配色区分不同题型，手绘笔记风格，适合复习巩固' },
+            visual_resume: { name: '📋 可视化简历', desc: '信息图表式简历', template: '为______（姓名）创建可视化简历：时间轴展示工作经历，雷达图显示技能，数据图表展示成就，配色专业大气，图文并茂，适合创意行业求职' },
+            pitch_deck_slide: { name: '💡 BP路演幻灯片', desc: '创业融资演示', template: '设计______（项目名称）项目BP幻灯片：痛点/解决方案/市场规模/商业模式/竞争优势/团队/融资需求，每页一个核心观点，数据可视化，简约商务风格' },
+            swot_diagram: { name: '📊 SWOT分析图', desc: '四象限战略分析', template: '创建______（公司/项目）的SWOT分析图：四象限展示优势/劣势/机会/威胁，每个象限配图标和要点，中心是主体logo/形象，商务图表风格，清晰专业' },
+            user_persona: { name: '👥 用户画像卡', desc: '目标用户可视化', template: '创建______（产品名称）的用户画像：虚构用户头像照片，基本信息（年龄/职业/收入），痛点需求，使用场景，行为特征，配色专业，信息图表式布局' },
+            journey_map: { name: '🗺️ 用户旅程地图', desc: '用户体验全流程', template: '绘制______（服务名称）用户旅程地图：时间线展示用户接触点，标注每个阶段情绪曲线，痛点/爽点标识，机会点建议，插画+图表结合，UX设计风格' },
+            brand_dna: { name: '🧬 品牌DNA图谱', desc: '品牌基因可视化', template: '创建______（品牌名称）品牌DNA图谱：核心价值观为中心，辐射出品牌个性/视觉风格/语言特征/目标受众，DNA双螺旋结构，科技感配色，品牌战略图' },
+            dialect_poster: { name: '🗣️ 方言文化海报', desc: '地域方言可视化', template: '创建______（地区）方言文化海报：展示特色方言词汇，配普通话对照和发音标注，融入地域文化元素（建筑/美食/风俗），复古海报风格，文化传承主题' },
+            festival_calendar: { name: '🎊 节气节日日历', desc: '传统节日插画历', template: '设计______（年份）年传统节日日历：12个月每月一幅插画展示节日/节气，配习俗说明和日期，传统国画风格或现代插画风格，文化教育意义' },
+            intangible_heritage: { name: '🏺 非遗技艺图解', desc: '传统工艺可视化', template: '展示______（工艺名称）非遗技艺流程：分步骤图解制作过程，工具材料说明，历史文化背景，匠人形象，古籍风格或现代科普风格，传承非遗文化' },
+            tea_ceremony_guide: { name: '🍵 茶道图解指南', desc: '茶艺流程美学', template: '创建______（茶类）茶道图解：泡茶步骤分解图示，器具名称标注，水温时间说明，茶席布置俯视图，禅意美学，中国风插画，茶文化传播' },
+            hanfu_database: { name: '👘 汉服形制图鉴', desc: '传统服饰科普', template: '创建______（朝代）朝代汉服图鉴：不同款式正面展示，细节放大图，名称注释，穿着场合说明，古典配色，博物馆展板风格，服饰文化科普' },
+            mythology_card: { name: '🐉 神话人物卡牌', desc: '传说故事可视化', template: '设计______（神话体系）神话人物卡牌：人物立绘形象，背景故事简介，代表神器/法宝，关系网络，TCG卡牌设计风格，传统纹样边框，文化IP开发' },
+            baby_milestone: { name: '👶 宝宝成长里程碑', desc: '婴儿发育记录卡', template: '创建宝宝______（里程碑）成长记录卡：可爱宝宝插画，里程碑事件（第一次笑/翻身/说话），日期和照片区域，成长曲线图，温馨配色，适合育儿日记' },
+            workout_progress: { name: '💪 健身进度可视化', desc: '运动打卡记录', template: '设计______（时间段）健身进度图表：体重/体脂/肌肉量曲线，训练项目打卡日历，力量进步数据，前后对比照片区，运动风配色，激励式设计' },
+            recipe_card: { name: '🍳 美食食谱卡片', desc: '菜谱图文记录', template: '制作______（菜品名）美食食谱卡片：成品美食照片居中，食材清单配图标，步骤分解图示，烹饪小贴士，手绘插画风格，适合美食博主/家庭收藏' },
+            plant_diary: { name: '🌱 植物养护日记', desc: '绿植成长记录', template: '创建______（植物名）植物养护日记：植物生长阶段对比照片，浇水施肥时间表，生长环境说明，小知识卡片，清新自然风格，适合园艺爱好者' },
+            reading_map: { name: '📚 阅读地图记录', desc: '读书笔记可视化', template: '绘制______（年份）年阅读地图：书籍封面拼贴，按月份/类别分类，阅读时长数据，评分和短评，金句摘抄区，文艺风格排版，阅读者年度总结' },
+            mood_tracker: { name: '🎨 心情追踪涂色', desc: '情绪日历艺术', template: '设计______（月份）月心情追踪器：日历网格，每天用不同颜色表示心情，配色彩图例，月末统计分析，曼陀罗涂色风格，正念记录工具' },
+            script_storyboard: { name: '🎬 剧本分镜速写', desc: '快速分镜草图', template: '为______（场景）创建分镜草图：6-12格分镜框，每格简笔画展示画面构图，镜头说明（特写/全景/运动），对话/音效标注，电影分镜风格，创作前期工具' },
+            ost_cover: { name: '🎵 原声带封面设计', desc: '音乐专辑视觉', template: '设计______（作品名）原声带封面：提取作品核心意境，音乐主题视觉化，艺术家/曲目信息排版，黑胶唱片或CD封面规格，音乐行业标准设计' },
+            fan_art_guide: { name: '🎨 同人绘画指南', desc: '角色二创参考', template: '创建______（角色/人物）同人创作参考：角色特征标注（发型/服装/配饰细节），表情参考，姿势参考，常见搭配，为粉丝创作提供标准，动漫风格' },
+            voice_cast: { name: '🎙️ 声优阵容卡', desc: '配音演员可视化', template: '设计______（作品名）声优阵容卡：角色形象+对应声优照片并排展示，代表作品标注，声线特点描述，精美排版，适合动画/广播剧宣传' },
+            universe_timeline: { name: '⏰ 虚构宇宙年表', desc: '世界观时间线', template: '绘制______（宇宙名称）虚构宇宙年表：宏大时间跨度，重大事件节点，文明兴衰，角色出生/死亡，多条时间线交织，史诗感视觉，世界观设定工具' },
+            character_relationship: { name: '🕸️ 角色关系网络图', desc: '复杂人物关系', template: '创建______（作品名）角色关系网络：人物头像节点，不同颜色/粗细连接线表示关系类型（亲人/恋人/敌对/师徒），关系标签，阵营分组，适合复杂剧情梳理' },
+            achievement_badge: { name: '🏅 成就徽章系统', desc: '个人成就可视化', template: '设计______（分类）成就徽章集：不同等级徽章（青铜/白银/黄金/钻石），解锁条件说明，稀有度标识，游戏风格图标，激励用户完成目标' },
+            skill_tree: { name: '🌳 技能树系统', desc: '能力成长路径', template: '绘制______（领域）技能树：从基础技能开始向上分支，进阶技能逐级解锁，已掌握技能高亮，未解锁灰显，连接线显示前置要求，RPG游戏风格' },
+            quest_log: { name: '📜 任务日志界面', desc: '待办事项游戏化', template: '为______（姓名/角色）创建游戏化任务日志：主线任务/支线任务/日常任务分类，完成度进度条，奖励预览，任务描述，RPG游戏UI风格，让工作生活变有趣' },
+            inventory_grid: { name: '🎒 物品栏可视化', desc: '个人物品整理', template: '设计______（分类）物品栏界面：网格布局展示物品图标，稀有度配色边框，数量/属性标注，分类标签，游戏背包风格，适合物品整理展示' },
+            map_exploration: { name: '🗺️ 探索地图系统', desc: '目标打卡地图', template: '创建______（城市/地区）探索地图：地图上标注已访问/未访问地点，解锁成就显示，隐藏地点提示，探索度百分比，游戏世界地图风格，旅行打卡记录' },
+            ar_filter_preview: { name: '📱 AR滤镜效果图', desc: 'AR特效可视化', template: '展示______（特效名称）AR滤镜效果：真实人脸照片+AR特效叠加（耳朵/配饰/妆容/背景），多角度展示，使用说明，适合AR滤镜开发展示' },
+            nft_artwork: { name: '💎 NFT艺术品展示', desc: '数字藏品视觉化', template: '设计______（作品名称）NFT展示卡：艺术品主图居中，区块链信息（编号/版次/持有者），稀有度标识，交易历史，加密朋克美学风格' },
+            data_sculpture: { name: '📊 数据雕塑艺术', desc: '数据3D可视化', template: '将______（数据集）数据转换为3D雕塑：数据值转化为高度/颜色/形状，抽象艺术形式，科技感材质，适合数据艺术展览/科普' },
+            brain_wave: { name: '🧠 脑电波可视化', desc: '思维活动艺术化', template: '将______（活动）时的脑电波数据转化为艺术图：波形转换为流动线条/色彩，不同频段用不同颜色，抽象艺术风格，科学与艺术结合' },
+            gene_art: { name: '🧬 基因序列艺术', desc: 'DNA数据可视化', template: '将基因序列______（序列）转化为艺术作品：ATCG碱基转换为颜色/形状/图案，对称或重复构成，生物信息学美学，科学艺术跨界' },
+            sound_wave_print: { name: '🎵 声波纹艺术画', desc: '声音可视化艺术', template: '将______（音频）声音波形转化为装饰画：波形线条艺术化处理，配色优雅，可标注声音内容（歌曲/名言/爱语），适合定制礼物' },
+            choices_tree: { name: '🌲 选择树剧情图', desc: '互动小说流程', template: '绘制______（故事内容）选择树：从起点分支出多个选择路径，不同选择导向不同结局，标注关键选择点和结局，流程图风格，适合互动故事设计' },
+            personality_test: { name: '🎭 性格测试图卡', desc: '心理测试可视化', template: '设计______（测试名称）性格测试结果卡：测试结果类型（4-16种），每种配专属插画和描述，雷达图显示特质，名人同类型举例，测试结果分享图' },
+            fortune_card: { name: '🔮 塔罗占卜卡面', desc: '神秘学卡牌设计', template: '设计______（卡牌名称）塔罗牌卡面：中心象征图案，边框神秘纹样，卡牌编号和名称，正逆位含义区域，神秘学美学，金色线条，适合占卜/收藏' },
+            spot_difference: { name: '🔍 找不同游戏图', desc: '视觉游戏生成', template: '创建______（主题/场景）找不同游戏图：两幅相似图片并排，设置5-10处细微差异，可爱插画风格，适合儿童益智/社交媒体互动' },
+            maze_puzzle: { name: '🧩 迷宫谜题设计', desc: '益智游戏生成', template: '设计______（主题）主题迷宫：起点到终点的曲折路径，背景融入主题元素，难度可调，可爱风格或几何风格，适合儿童游戏/营销互动' },
+            multiverse_self: { name: '🌌 平行宇宙自己', desc: '多重身份可能性', template: '展示______（姓名）在平行宇宙的不同人生：中心是现实照片，周围4-6个分支展示不同职业/风格的自己（科学家/艺术家/运动员等），科幻插画风格' },
+            future_letter: { name: '✉️ 未来信件视觉化', desc: '给未来自己的信', template: '设计写给______（年数）年后自己的信件视觉化：信纸背景，手写字体，装饰邮票和邮戳，时光胶囊概念，怀旧温馨风格，人生规划工具' },
+            legacy_blueprint: { name: '🏛️ 人生遗产蓝图', desc: '个人影响力可视化', template: '绘制______（姓名）的人生遗产蓝图：展示希望留下的影响（作品/思想/关系/善举），建筑蓝图风格，哲学思考视觉化，人生意义探索' },
+            alter_ego: { name: '🎭 人格面具图鉴', desc: '社交角色可视化', template: '展示______（姓名）的不同社交面具：工作/家庭/朋友/陌生人面前的不同形象，每个配插画和特征描述，心理学视角，自我认知工具' },
+            energy_distribution: { name: '⚡ 精力分配图', desc: '时间精力可视化', template: '创建______（时间段）精力分配图：饼图或条形图展示时间精力投入（工作/学习/娱乐/休息/社交），分析是否合理，配建议，生活平衡工具' },
+            goal_vision_board: { name: '🎯 愿景板拼贴', desc: '目标梦想可视化', template: '制作______（年份）年愿景板：图片拼贴风格，展示目标梦想（事业/健康/旅行/成长），激励性文字，杂志剪贴风格，目标实现工具' },
+            value_hierarchy: { name: '💎 价值观金字塔', desc: '核心价值排序', template: '绘制______（姓名）的价值观金字塔：从底层到顶层依次是基础价值到核心价值，每层标注具体价值观，配色区分重要性，自我认知图' },
+            habit_chain: { name: '🔗 习惯链条追踪', desc: '习惯养成可视化', template: '设计______（习惯）习惯链条：连续打卡形成链条，中断则断开，打卡天数统计，链条越长越醒目，游戏化激励，习惯养成工具' },
+            decision_matrix: { name: '📋 决策矩阵分析', desc: '理性决策工具', template: '创建______（决策主题）决策矩阵：列出选项和评判标准，打分/权重计算，可视化对比，推荐结果，商务图表风格，科学决策工具' },
+            bucket_list: { name: '📝 人生清单可视化', desc: '愿望清单图鉴', template: '设计人生愿望清单：______（分类）分类展示（旅行/技能/体验/成就），已完成项目打勾，配小插图，手帐风格，人生规划工具' },
+            calendar_art_simple: { name: '📅 AI日历卡片（简约版）', desc: '极简风格日历+AI艺术图', template: '设计一张极简风格日历卡片，白色背景，左上角大号数字"______（日期数字如09/26/12）"，旁边竖排显示"______（农历如五月十四/七月初四）"和"______（公历如2025.06）"以及"______（星期如星期一/星期二）"。下方主体是一幅AI艺术图：______（图片主题/风格描述），图片下方有简短标题"______（图片标题/描述）"。整体干净高级，适合社交媒体分享，竖版3:4比例' },
+            calendar_art_creative: { name: '📅 AI日历卡片（创意版）', desc: '创意日历+艺术插画', template: '创意日历卡片设计，顶部信息区：超大粗体数字"______（日期如08/04/12）"，右侧竖排农历"______（如六月十四/九月廿三）"、公历"______（如2025.07）"、星期"______（如星期二/星期三）"。中间主视觉区域：______（艺术图主题，如：世界名画风格的鸟类、复古插画风格的美食、赛博朋克风格的城市）。底部：图片标题"______（标题）"和创作者署名区。白色或浅色背景，现代排版，高清细节，竖版9:16比例' },
+            calendar_art_chinese: { name: '📅 中国风日历卡片', desc: '传统国风日历+水墨画', template: '中国风日历卡片，宣纸质感背景。顶部：大号书法数字"______（日期）"，旁边竖排毛笔字体显示农历"______（如腊月初八/正月十五）"、节气"______（如小寒/大雪/立春）"、公历"______（如2025年1月）"。主视觉：______（水墨画/国画风格主题，如：山水、花鸟、人物）。底部：诗词或格言"______（古诗词/励志语录）"。整体古典雅致，适合传统节日，竖版3:4比例' },
+            calendar_art_festival: { name: '📅 节日主题日历卡片', desc: '节日氛围日历设计', template: '节日主题日历卡片，______（节日：春节/元宵/清明/端午/中秋/重阳/冬至/圣诞/元旦）氛围。顶部日期区：大号数字"______（日期）"，农历"______（农历日期）"，节日名称"______（节日名）"醒目标注。主视觉：______（节日相关插画/场景），融入节日元素（______节日特色元素）。底部：节日祝福语"______（祝福语）"。节日配色，喜庆/温馨氛围，竖版9:16比例' },
+            calendar_art_motivational: { name: '📅 励志日历卡片', desc: '每日一句+艺术图', template: '励志日历卡片设计。顶部：简洁日期显示"______（日期数字）"、"______（星期）"、"______（公历月份）"。中间主视觉：______（励志主题插画/摄影，如：日出、攀登、奔跑、破茧成蝶）。底部醒目位置：励志金句"______（励志语录/名人名言）"，署名"______（作者/出处）"。整体积极向上，适合早安打卡，竖版3:4比例' },
+            calendar_art_minimal: { name: '📅 极简日历卡片', desc: '纯净极简+单色艺术', template: '极简主义日历卡片。超大粗体无衬线数字"______（日期如09）"占据画面1/3，旁边小字"______（月份如JAN/FEB或一月/二月）"、"______（星期如MON/TUE或周一/周二）"、"______（年份如2025）"。下方2/3是______（单色调/极简风格艺术图，如：线条画、几何图形、抽象艺术）。整体黑白或单色调，留白充足，高级感，正方形1:1比例' },
+            calendar_art_photo: { name: '📅 摄影日历卡片', desc: '精美摄影+日期叠加', template: '摄影风格日历卡片。全幅背景：______（摄影主题，如：风景/人像/美食/建筑/动物）高清摄影图。左上角半透明日期区叠加：大号数字"______（日期）"，下方小字"______（月份年份如2025年6月）"、"______（星期）"。右下角可选：摄影标题"______（图片标题）"或拍摄地点"______（地点）"。整体电影感，适合壁纸使用，横版16:9或竖版9:16' },
+            calendar_art_cute: { name: '📅 可爱日历卡片', desc: 'Q版插画+萌系设计', template: '可爱风格日历卡片，柔和糖果色背景。顶部：圆润可爱字体数字"______（日期）"，旁边小图标装饰，显示"______（星期）"、"______（月份）"。主视觉：______（Q版/萌系插画主题，如：小动物、美食、植物、角色），可爱治愈风格。底部：温馨文案"______（治愈系文案/小确幸）"。整体少女心/治愈系，适合手账风格，竖版3:4比例' },
+            calendar_birthday: { name: '🎂 生日日历卡片', desc: '生日纪念日历设计', template: '生日主题日历卡片。顶部醒目显示：大号日期"______（生日日期如09/26）"，旁边"______（公历如2025.06）"、"______（农历如五月十四）"、"______（星期）"。主视觉：______（生日主题艺术图/人物插画/蛋糕场景），温馨欢乐氛围。底部：生日祝福"______（生日快乐/祝福语）"，寿星名字"______（姓名）"。蛋糕/气球/彩带装饰元素，竖版9:16比例' },
+            calendar_solar_term: { name: '🌿 节气日历卡片', desc: '二十四节气专属设计', template: '二十四节气日历卡片。顶部：节气名称"______（节气如立春/雨水/惊蛰/春分/清明/谷雨/立夏/小满/芒种/夏至/小暑/大暑/立秋/处暑/白露/秋分/寒露/霜降/立冬/小雪/大雪/冬至/小寒/大寒）"大字，公历日期"______（如2025年2月4日）"，农历"______（如正月初六）"。主视觉：______（节气相关自然景象/传统习俗插画），体现节气特色。底部：节气诗词或谚语"______（节气相关诗词/农谚）"。传统与现代结合，竖版3:4比例' },
+
+            // === 🎬 电影级专业模板 + 视频提示词 (knolling工坊专属) ===
+            cinema_portrait: {
+                name: '🎬 电影级人像',
+                desc: '超写实电影级人物肖像',
+                template: 'Ultra-realistic cinematic portrait of ______（人物描述：如 a determined female astronaut in her 40s）, set in ______（环境：如 dimly lit spacecraft cockpit）. Wearing ______（服装：如 weathered NASA flight suit with mission patches）. ______（光线：如 Volumetric lighting from control panel screens, rim light from emergency indicators）, shot on ______（镜头：如 85mm f/1.2 lens with shallow depth of field）, ______（色彩：如 desaturated teal and orange color grade, film grain）. 8K resolution, photorealistic detail.'
+            },
+            cinema_contact_sheet: {
+                name: '🎞️ 3x3电影分镜表',
+                desc: '9种镜头角度专业分镜',
+                template: 'Create a cinematic 3x3 contact sheet (9 panels) for: ______（场景/人物描述）。包含9种镜头：Row 1: Extreme Long Shot (ELS 大远景建立环境), Long Shot (LS 全景展示人物全身), Medium Long Shot (MLS 中远景膝盖以上)。Row 2: Medium Shot (MS 中景腰部以上), Medium Close-up (MCU 中近景胸部以上), Close-up (CU 近景面部特写)。Row 3: Extreme Close-up (ECU 超近景眼睛/细节), Low Angle Shot (低角度仰视), High Angle Shot (高角度俯视)。Every panel maintains consistent ______（风格/色调：如 cinematic lighting, teal-orange color grade）, 8K quality, professional film production.'
+            },
+            director_storyboard: {
+                name: '🎥 导演版分镜',
+                desc: '完整电影关键帧序列',
+                template: 'Director\'s cinematographer breakdown for scene: ______（场景描述）。Theme/Story: ______（主题/故事核心）。Generate 9-12 cinematic keyframes for AI video production: 1) Opening establishing shot (ELS wide环境), 2) Character introduction (MS medium人物), 3) Key action beat (动作高潮), 4) Emotional close-up (CU情感特写), 5) Reaction shot (反应镜头), 6) Environmental detail (环境细节), 7) Tension building (紧张氛围), 8) Climax moment (高潮时刻), 9) Resolution/ending (结局画面)。Cinematic approach: ______（电影风格：如 Blade Runner neon noir / Spielberg wonder / Villeneuve atmospheric）。Include camera movement suggestions and transitions.'
+            },
+            story_storyboard: {
+                name: '📖 故事转分镜',
+                desc: '故事自动拆解为9格分镜',
+                template: 'Transform this story synopsis into a professional 3x3 storyboard grid: ______（故事简介/剧情）。Requirements: 1) Analyze narrative structure (起承转合), 2) Identify 9 key visual moments, 3) Apply cinematic shot progression: Row 1 - Establishing (ELS→LS→MLS showing world/context), Row 2 - Core coverage (MS→MCU→CU character/emotion), Row 3 - Impact shots (ECU details, Low/High angle drama)。Each panel includes: shot type, camera angle, character action, lighting mood, color palette suggestion. Output as structured storyboard prompts for AI image/video generation.'
+            },
+            video_keyframes: {
+                name: '🎬 AI视频关键帧',
+                desc: '为AI视频生成设计关键帧',
+                template: '为AI视频设计关键帧序列，主题：______（视频主题/场景）。要求生成连贯的视觉叙事：帧1(0s): ______（开场画面，建立环境）, 帧2(2s): ______（人物/主体出现）, 帧3(4s): ______（动作/事件发生）, 帧4(6s): ______（高潮/转折点）, 帧5(8s): ______（结局/收尾）。每帧需包含：画面构图、镜头类型(ELS/LS/MS/CU)、光线氛围、色彩基调、运镜建议(推/拉/摇/移/跟)。适用于Sora/Veo等AI视频模型。'
+            },
+            cinematic_lighting: {
+                name: '💡 电影级布光',
+                desc: '专业电影打光方案',
+                template: '______（主体/场景）的电影级布光设计。主光源：______（如 key light from upper left 45°）。填充光：______（如 soft fill from opposite side）。轮廓光：______（如 rim light separating subject from background）。氛围光：______（如 practical lights, neon signs, fire glow）。光质：______（硬光/柔光/混合）。色温：______（冷暖对比/单一色调）。参考：______（电影/摄影师风格如 Roger Deakins atmospheric / Vittorio Storaro painterly）。8K cinematic quality.'
+            },
+            camera_movement: {
+                name: '🎥 运镜设计',
+                desc: '专业摄影机运动方案',
+                template: '为______（场景/动作）设计专业运镜。起始帧：______（构图描述）。运镜方式：______（推push-in/拉pull-out/横摇pan/纵摇tilt/跟拍tracking/斯坦尼康steadicam/手持handheld/航拍drone）。运动路径：______（具体轨迹）。结束帧：______（构图描述）。速度节奏：______（缓慢渐进/匀速/加速/减速）。情感目的：______（如 建立悬疑/揭示惊喜/跟随动作/沉浸环境）。参考：______（经典镜头如 Goodfellas copacabana oner / 1917 continuous）。'
+            },
+
+            // === 🎬 视频提示词模版 ===
+            video_cinematic: {
+                name: '🎥 电影级运镜',
+                desc: '专业电影感镜头运动',
+                template: '______（主体/场景描述），cinematic camera movement, smooth dolly shot, 电影级画质，浅景深，专业调色，anamorphic lens flare, 24fps电影帧率，dramatic lighting'
+            },
+            video_vlog: {
+                name: '📹 日常Vlog风格',
+                desc: '轻松自然的日常记录',
+                template: '______（人物/场景），vlog风格，自然光线，轻微手持晃动增加真实感，温暖色调，生活化构图，舒适氛围，背景虚化'
+            },
+            video_product: {
+                name: '🛍️ 产品展示视频',
+                desc: '商业产品展示',
+                template: '______（产品名称）的产品展示视频，360度旋转展示，干净白色/渐变背景，专业打光突出质感，微距特写细节，流畅运镜，高端商业广告质感'
+            },
+            video_nature: {
+                name: '🌿 自然风景视频',
+                desc: '大自然风光展示',
+                template: '______（自然场景：如森林/海洋/山脉），epic自然风光，golden hour光线，云层流动，水面波纹，树叶摇曳，沉浸式大自然氛围，4K高清'
+            },
+            video_food: {
+                name: '🍜 美食特写视频',
+                desc: '诱人美食展示',
+                template: '______（食物名称）的美食特写，steam rising蒸汽升腾，食材掉落慢动作，酱汁流淌，诱人质感，暖色调灯光，食欲感满满，专业美食摄影'
+            },
+            video_portrait: {
+                name: '👤 人物特写视频',
+                desc: '人物情绪表达',
+                template: '______（人物描述），人物特写镜头，捕捉微表情变化，眼神聚焦，浅景深背景虚化，柔和侧光，情绪感染力强，电影人像质感'
+            },
+            video_timelapse: {
+                name: '⏱️ 延时摄影效果',
+                desc: '时间流逝感',
+                template: '______（场景描述）的延时摄影效果，云朵快速移动，日出日落变化，城市车流光轨，星空旋转，时间流逝感，hyperlapse风格'
+            },
+            video_slowmo: {
+                name: '🐢 慢动作特写',
+                desc: '细节放大展示',
+                template: '______（动作/场景）的超级慢动作特写，120fps高帧率，水滴飞溅/头发飘动/布料翻飞等细节放大，dramatic moment定格，每一帧都是大片'
+            },
+            video_drone: {
+                name: '🚁 航拍俯瞰视角',
+                desc: '空中视角展示',
+                template: '______（场景/地点）的航拍镜头，drone俯瞰视角，reveal shot渐渐展开全景，壮阔场面，smooth上升/下降运动，epic大气感'
+            },
+            video_tracking: {
+                name: '🎯 跟踪运镜',
+                desc: '跟随主体运动',
+                template: '______（运动中的主体）的跟踪镜头，camera tracking shot，主体始终保持画面中心，背景motion blur动态模糊，速度感与稳定性兼具'
+            },
+            video_loop: {
+                name: '🔄 无缝循环视频',
+                desc: '可循环播放的视频',
+                template: '______（循环元素：如火焰/水流/旋转物体）的无缝循环视频，seamless loop，首尾完美衔接，适合做动态壁纸/背景素材，催眠效果'
+            },
+            video_transition: {
+                name: '✨ 转场特效',
+                desc: '创意转场效果',
+                template: '______（场景A）通过______（转场方式：zoom穿越/whip pan快速摇/morph变形/光效闪白）过渡到______（场景B），创意转场，流畅自然，视觉冲击力强'
+            },
+            video_intro: {
+                name: '📝 主题介绍视频',
+                desc: '介绍某个主题/概念',
+                template: '______（主题名称）的介绍视频，展示其核心特点和魅力，从全景到特写，多角度呈现，信息量丰富，视觉吸引力强，适合科普/宣传用途'
+            },
+            video_emotion: {
+                name: '💖 情感氛围视频',
+                desc: '渲染情绪和氛围',
+                template: '______（场景/人物），渲染______（情绪：温馨/怕惧/快乐/悲伤/愤怒）的氛围，通过光影、色调、节奏传递情感，慢动作细节，音乐感强，沿浸式体验'
+            },
+            video_action: {
+                name: '💥 动作场面视频',
+                desc: '精彩动作/运动场面',
+                template: '______（动作场景：如跑酷/战斗/运动），动态十足，多角度切换，慢动作特写突出精彩瞬间，节奏紧凑，肾上腺素飙升，大片感'
+            },
+            video_reveal: {
+                name: '🌟 揭示/展示视频',
+                desc: '神秘揭晓效果',
+                template: '______（要揭示的主体）的揭示视频，从蒙纱/黑暗/迷雾中渐渐显现，制造悬念和期待感，最终完整展示，光线渐亮，或reveal shot穿越障碍物'
+            },
+            video_tutorial: {
+                name: '📖 教程演示视频',
+                desc: '步骤式教学展示',
+                template: '______（教学内容：如烹饪/绘画/手工）的教程视频，清晰展示每个步骤，俯视角度展示操作细节，特写关键步骤，节奏清晰，易于跟随学习'
+            },
+            video_story: {
+                name: '📚 叙事短片',
+                desc: '微电影/故事视频',
+                template: '关于______（故事主题）的叙事短片，______（主角）在______（场景）中，有开头、发展、高潮、结尾，电影级运镜，情感张力，讲述一个完整的微故事'
+            }
+        };
+
+        // 🆕 全局变量存储当前模板和填空值
+        let currentFillTemplate = null;
+        let blankInputValues = [];
+
+        // 🆕 检测模板中的下划线数量和提示词
+        function parseTemplateBlanks(template) {
+            // 匹配 ______（下划线括号内容） 或 单独的 ______
+            const pattern = /______（([^）]+)）|______\uff08([^）]+)\uff09|______\(([^)]+)\)|______/g;
+            const blanks = [];
+            let match;
+            while ((match = pattern.exec(template)) !== null) {
+                const hint = match[1] || match[2] || match[3] || '请输入内容';
+                blanks.push({
+                    fullMatch: match[0],
+                    hint: hint,
+                    index: match.index
+                });
+            }
+            return blanks;
+        }
+
+        // 🆕 渲染填空输入框
+        function renderBlankInputs(blanks) {
+            const container = document.getElementById('blankInputsContainer');
+            if (blanks.length === 0) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            blanks.forEach((blank, i) => {
+                const label = blanks.length === 1 ? '✉️ 填写' : `✉️ 填空 ${i + 1}`;
+                html += `
+                    <div class="blank-input-row">
+                        <label>${label}</label>
+                        <input type="text" id="blankInput_${i}" placeholder="${blank.hint}" 
+                            oninput="updateBlankValue(${i}, this.value)">
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            container.style.display = 'flex';
+
+            // 初始化填空值数组
+            blankInputValues = new Array(blanks.length).fill('');
+        }
+
+        // 🆕 更新填空值并实时更新预览和输入框
+        function updateBlankValue(index, value) {
+            blankInputValues[index] = value;
+            updateTemplatePreviewAndInput();
+        }
+
+        // 🆕 更新模板预览和输入框
+        function updateTemplatePreviewAndInput() {
+            if (!currentFillTemplate) return;
+
+            const preview = document.getElementById('fillPreview');
+            const input = document.getElementById('conceptInput');
+
+            // 用填写的值替换下划线
+            let filledTemplate = currentFillTemplate.template;
+            let previewHtml = currentFillTemplate.template;
+            let blankIndex = 0;
+
+            // 替换模板中的下划线
+            const pattern = /______（[^）]+）|______\uff08[^）]+\uff09|______\([^)]+\)|______/g;
+
+            filledTemplate = currentFillTemplate.template.replace(pattern, (match) => {
+                const value = blankInputValues[blankIndex] || '';
+                blankIndex++;
+                return value || match; // 如果没填写，保留原样
+            });
+
+            blankIndex = 0;
+            previewHtml = currentFillTemplate.template.replace(pattern, (match) => {
+                const value = blankInputValues[blankIndex] || '';
+                blankIndex++;
+                if (value) {
+                    return `<span style="color:#22c55e;font-weight:bold;">${value}</span>`;
+                } else {
+                    return `<span style="color:var(--accent);font-weight:bold;">[${match}]</span>`;
+                }
+            });
+
+            preview.innerHTML = '<b>' + currentFillTemplate.name + '</b><br>' + previewHtml;
+            input.value = filledTemplate;
+        }
+
+        function useFillTemplate() {
+            const select = document.getElementById('fillTemplateSelect');
+            const preview = document.getElementById('fillPreview');
+            const input = document.getElementById('conceptInput');
+            const key = select.value;
+
+            if (!key || !fillTemplates[key]) {
+                preview.style.display = 'none';
+                document.getElementById('blankInputsContainer').style.display = 'none';
+                currentFillTemplate = null;
+                updateAddToBatchBtn();  // 🆕 更新按钮状态
+                return;
+            }
+
+            const tpl = fillTemplates[key];
+            currentFillTemplate = tpl;
+
+            // 检测下划线并渲染输入框
+            const blanks = parseTemplateBlanks(tpl.template);
+            renderBlankInputs(blanks);
+
+            // 显示预览
+            let previewHtml = tpl.template.replace(/______（[^）]+）|______\uff08[^）]+\uff09|______\([^)]+\)|______/g,
+                (match) => `<span style="color:var(--accent);font-weight:bold;">[${match}]</span>`);
+            preview.innerHTML = '<b>' + tpl.name + '</b><br>' + previewHtml;
+            preview.style.display = 'block';
+
+            // 自动填充模板到输入框
+            input.value = tpl.template;
+
+            if (blanks.length > 0) {
+                showToast(`请填写 ${blanks.length} 个填空项`);
+                // 聚焦到第一个输入框
+                setTimeout(() => {
+                    const firstInput = document.getElementById('blankInput_0');
+                    if (firstInput) firstInput.focus();
+                }, 100);
+            } else {
+                input.focus();
+                showToast('已选择模板');
+            }
+
+            // 🆕 更新"添加到批量"按钮状态
+            updateAddToBatchBtn();
+        }
+
+        function useTemplate(type) {
+            // 根据当前模式选择对应的输入框
+            if (isBatchMode) {
+                const input = document.getElementById('batchConceptInput');
+                const currentContent = input.value.trim();
+                if (currentContent) {
+                    input.value = currentContent + '\n' + templates[type];
+                } else {
+                    input.value = templates[type];
+                }
+                input.focus();
+                showToast('✅ 已添加到批量输入框');
+            } else {
+                const input = document.getElementById('conceptInput');
+                input.value = templates[type] + input.value;
+                input.focus();
+            }
+        }
+
+        function copyPrompt() {
+            if (!currentPrompt) {
+                showToast('没有可复制的提示词');
+                return;
+            }
+            navigator.clipboard.writeText(currentPrompt);
+            showToast('已复制到剪贴板');
+        }
+
+        function usePrompt() {
+            if (!currentPrompt) {
+                showToast('请先生成提示词');
+                return;
+            }
+            localStorage.setItem('knolling_prompt', currentPrompt);
+            location.href = 'banana.html';
+        }
+
+        // 🎬 单个去生视频
+        function usePromptForVideo() {
+            if (!currentPrompt) {
+                showToast('请先生成提示词');
+                return;
+            }
+            // 存储到 localStorage 供 video-tools.html 读取
+            localStorage.setItem('video_batch_prompts', JSON.stringify([currentPrompt]));
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            const targetUrl = fromMobile ? 'video-tools.html?force=mobile&batch=1&from_writing=1' : 'video-tools.html?batch=1&from_writing=1';
+            location.href = targetUrl;
+        }
+
+        // ⭐ 单个去生表情包
+        function usePromptForSticker() {
+            if (!currentPrompt) {
+                showToast('请先生成提示词');
+                return;
+            }
+            // 存储到 localStorage 供 sticker.html 读取
+            localStorage.setItem('sticker_prompt', currentPrompt);
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            const targetUrl = fromMobile ? 'sticker.html?force=mobile' : 'sticker.html';
+            location.href = targetUrl;
+        }
+
+        // 🆕 ==================== 批量模式函数 ====================
+        const BATCH_GRID_SIZE = 8;  // 宫格数量（2列4行）
+
+        function setBatchMode(batch) {
+            isBatchMode = batch;
+            document.getElementById('singleModeBtn').classList.toggle('active', !batch);
+            document.getElementById('batchModeBtn').classList.toggle('active', batch);
+            document.getElementById('singleInputSection').style.display = batch ? 'none' : 'block';
+            document.getElementById('batchInputSection').style.display = batch ? 'block' : 'none';
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('batchResultSection').style.display = 'none';
+
+            // 🆕 隐藏/显示单任务配置区域
+            const singleTaskConfig = document.getElementById('singleTaskConfig');
+            if (singleTaskConfig) {
+                singleTaskConfig.style.display = batch ? 'none' : 'block';
+            }
+
+            // 更新按钮文本
+            const btn = document.getElementById('generateBtn');
+            btn.textContent = batch ? '⚡ 批量生成提示词' : '⚡ 生成提示词';
+
+            // 🆕 批量模式时初始化宫格
+            if (batch) {
+                initBatchGrid();
+            }
+
+            // 🆕 更新"添加到批量"按钮可见性
+            updateAddToBatchBtn();
+        }
+
+        // 🆕 初始化批量宫格（每个格子有独立模板选择）
+        function initBatchGrid() {
+            const grid = document.getElementById('batchGrid');
+            if (!grid) return;
+
+            grid.innerHTML = '';
+            const placeholders = [
+                '赛博朋克风格的猫咪战士',
+                '日本动漫风格的少女',
+                '古风仙侠女子执剑',
+                '蒸汽朋克机械龙',
+                '水墨山水画风景',
+                '未来科技感机器人',
+                '夏日海边度假场景',
+                '奇幻森林中的精灵'
+            ];
+
+            // 🔧 构建模板选项列表（与单模式保持一致）
+            let templateOptions = '<option value="">--不用模板--</option>';
+
+            // 🎯 热门填空 (fill_1 到 fill_108)
+            templateOptions += '<optgroup label="🎯 热门填空">';
+            for (let i = 1; i <= 108; i++) {
+                const key = `fill_${i}`;
+                if (fillTemplates[key]) {
+                    templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+                }
+            }
+            templateOptions += '</optgroup>';
+
+            // 🎬 专业模板
+            templateOptions += '<optgroup label="🎬 专业模板">';
+            ['knolling', 'journal_relations', 'y2k_poster', 'minimal_bw_illust', 'character_card', 'keychain_merch', 'cosplay_photo', 'character_sheet', 'figure_scene', 'line_sticker_pack'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🍌 产品展示类
+            templateOptions += '<optgroup label="🍌 产品展示类">';
+            ['product_packaging', 'product_ad', 'product_exploded'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🍌 艺术风格转换类
+            templateOptions += '<optgroup label="🍌 艺术风格转换类">';
+            ['ghibli', 'pixar', 'cyberpunk', 'watercolor', 'oil_painting', 'pixel_retro'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🍌 照片处理类
+            templateOptions += '<optgroup label="🍌 照片处理类">';
+            ['photo_to_anime', 'photo_enhancement', 'vintage_photo'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🍌 游戏/UI类
+            templateOptions += '<optgroup label="🍌 游戏/UI类">';
+            ['game_ui_status', 'game_card', 'app_icon'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🍌 设计工具类
+            templateOptions += '<optgroup label="🍌 设计工具类">';
+            ['text_shape_art', 'pictogram', 'infographic'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🍌 场景/空间类
+            templateOptions += '<optgroup label="🍌 场景/空间类">';
+            ['room_makeover', 'miniature_world'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🍌 人物处理类
+            templateOptions += '<optgroup label="🍌 人物处理类">';
+            ['age_transform', 'inner_child', 'fashion_model'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🍌 周边/衍生品类
+            templateOptions += '<optgroup label="🍌 周边/衍生品类">';
+            ['plush_toy', 'enamel_pin', 'tattoo_design'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 📸 摄影风格
+            templateOptions += '<optgroup label="📸 摄影风格">';
+            ['portrait_photo', 'street_photo', 'film_photo', 'macro_photo'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🎄 节日主题
+            templateOptions += '<optgroup label="🎄 节日主题">';
+            ['christmas', 'spring_festival', 'valentines', 'halloween'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // ✨ 艺术风格
+            templateOptions += '<optgroup label="✨ 艺术风格">';
+            ['impressionism', 'surrealism', 'pop_art', 'ink_wash'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 💅 美甲系列
+            templateOptions += '<optgroup label="💅 美甲系列">';
+            ['fill_nail_1', 'fill_nail_2', 'fill_nail_3', 'fill_nail_4', 'fill_nail_5', 'fill_nail_6', 'fill_nail_7', 'fill_nail_8', 'fill_nail_9', 'fill_nail_10'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🎨 扩展艺术风格
+            templateOptions += '<optgroup label="🎨 扩展艺术风格">';
+            ['ghibli_style', 'pixar_3d', 'cyberpunk_style', 'watercolor_art', 'double_exposure', 'glitch_art', 'hologram', 'ukiyo_e', 'lego_style', 'crystal_emoji'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 📐 教程/图解类
+            templateOptions += '<optgroup label="📐 教程/图解类">';
+            ['step_tutorial', 'anatomy_diagram', 'doc_to_flowchart', 'article_to_ppt', 'toy_exploded'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🎵 封面/海报设计
+            templateOptions += '<optgroup label="🎵 封面/海报设计">';
+            ['album_cover', 'book_cover', 'movie_poster', 'ost_cover'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🐕 趣味创意类
+            templateOptions += '<optgroup label="🐕 趣味创意类">';
+            ['food_art', 'pet_costume', 'reaction_meme', 'fake_screenshot', 'spot_difference', 'maze_puzzle'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 📖 故事/角色创作
+            templateOptions += '<optgroup label="📖 故事/角色创作">';
+            ['story_setting', 'multi_char_comic', 'char_biography', 'fan_art_guide', 'voice_cast', 'universe_timeline', 'character_relationship', 'script_storyboard', 'choices_tree'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🤖 AI/科技类
+            templateOptions += '<optgroup label="🤖 AI/科技类">';
+            ['ai_conversation_art', 'digital_avatar_eco', 'ar_filter_preview', 'nft_artwork', 'data_sculpture', 'brain_wave', 'gene_art', 'sound_wave_print'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 💭 心理/成长类
+            templateOptions += '<optgroup label="💭 心理/成长类">';
+            ['emotion_data_viz', 'dream_journal_art', 'inner_dialogue', 'anxiety_monster', 'gratitude_jar', 'comfort_zone_map', 'emotional_weather', 'self_care_bingo', 'personality_test', 'fortune_card', 'multiverse_self', 'future_letter', 'legacy_blueprint', 'alter_ego', 'energy_distribution', 'goal_vision_board', 'value_hierarchy', 'habit_chain', 'decision_matrix', 'bucket_list'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 📚 教育/学习类
+            templateOptions += '<optgroup label="📚 教育/学习类">';
+            ['memory_palace', 'knowledge_card', 'concept_map_3d', 'formula_story', 'timeline_history', 'language_pictogram', 'mistake_collection'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🎮 游戏化生活
+            templateOptions += '<optgroup label="🎮 游戏化生活">';
+            ['life_rpg_status', 'achievement_badge', 'skill_tree', 'quest_log', 'inventory_grid', 'map_exploration'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 💼 商务/职场类
+            templateOptions += '<optgroup label="💼 商务/职场类">';
+            ['visual_resume', 'pitch_deck_slide', 'swot_diagram', 'user_persona', 'journey_map', 'brand_dna'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🏺 文化/传统类
+            templateOptions += '<optgroup label="🏺 文化/传统类">';
+            ['dialect_poster', 'festival_calendar', 'intangible_heritage', 'tea_ceremony_guide', 'hanfu_database', 'mythology_card'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 📸 社交媒体类
+            templateOptions += '<optgroup label="📸 社交媒体类">';
+            ['nine_grid_story', 'vs_comparison', 'trend_challenge', 'story_sticker_pack'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 📝 生活记录类
+            templateOptions += '<optgroup label="📝 生活记录类">';
+            ['baby_milestone', 'workout_progress', 'recipe_card', 'plant_diary', 'reading_map', 'mood_tracker'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 📅 AI日历卡片
+            templateOptions += '<optgroup label="📅 AI日历卡片">';
+            ['calendar_art_simple', 'calendar_art_creative', 'calendar_art_chinese', 'calendar_art_festival', 'calendar_art_motivational', 'calendar_art_minimal', 'calendar_art_photo', 'calendar_art_cute', 'calendar_birthday', 'calendar_solar_term'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🎬 电影级专业模板
+            templateOptions += '<optgroup label="🎬 电影级专业模板">';
+            ['cinema_portrait', 'cinema_contact_sheet', 'director_storyboard', 'story_storyboard', 'video_keyframes', 'cinematic_lighting', 'camera_movement'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🎬 视频提示词
+            templateOptions += '<optgroup label="🎬 视频提示词">';
+            ['video_cinematic', 'video_vlog', 'video_product', 'video_nature', 'video_food', 'video_portrait', 'video_timelapse', 'video_slowmo', 'video_drone', 'video_tracking', 'video_loop', 'video_transition', 'video_intro', 'video_emotion', 'video_action', 'video_reveal', 'video_tutorial', 'video_story'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const item = document.createElement('div');
+                item.className = 'batch-item';
+                item.id = `batchItem_${i}`;
+                item.innerHTML = `
+                    <span class="batch-item-index">#${i + 1}</span>
+                    <span class="batch-item-status" id="batchStatus_${i}"></span>
+                    <textarea id="batchPrompt_${i}" 
+                        placeholder="${placeholders[i] || '输入主题...'}"
+                        oninput="updateBatchCount()"></textarea>
+                    <div class="batch-item-params">
+                        <select id="batchTemplate_${i}" class="batch-template-select" onchange="updateBatchItemBlanks(${i})">
+                            ${templateOptions}
+                        </select>
+                        <div id="batchBlanks_${i}" class="batch-blanks-container">
+                            <!-- 动态生成的填空输入框 -->
+                        </div>
+                        <div class="batch-item-params-row">
+                            <select id="batchStyle_${i}">
+                                <option value="realistic">📷写实</option>
+                                <option value="artistic">🎨艺术</option>
+                                <option value="anime">🏌动漫</option>
+                                <option value="3d">🔮 3D</option>
+                                <option value="abstract">🌀抽象</option>
+                            </select>
+                            <select id="batchDetail_${i}">
+                                <option value="simple">简洁</option>
+                                <option value="medium">中等</option>
+                                <option value="detailed" selected>精细</option>
+                                <option value="ultra">极致</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(item);
+            }
+
+            updateBatchCount();
+        }
+
+        // 更新已填写数量
+        function updateBatchCount() {
+            let count = 0;
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const textarea = document.getElementById(`batchPrompt_${i}`);
+                if (textarea && textarea.value.trim()) count++;
+            }
+            const countSpan = document.getElementById('batchFilledCount');
+            if (countSpan) countSpan.textContent = count;
+        }
+
+        // 清空批量宫格
+        function clearBatchGrid() {
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const textarea = document.getElementById(`batchPrompt_${i}`);
+                if (textarea) textarea.value = '';
+                const item = document.getElementById(`batchItem_${i}`);
+                if (item) item.classList.remove('generating', 'done', 'error');
+                const status = document.getElementById(`batchStatus_${i}`);
+                if (status) status.textContent = '';
+                const templateSelect = document.getElementById(`batchTemplate_${i}`);
+                if (templateSelect) templateSelect.value = '';
+                const styleSelect = document.getElementById(`batchStyle_${i}`);
+                if (styleSelect) styleSelect.value = 'realistic';
+                const detailSelect = document.getElementById(`batchDetail_${i}`);
+                if (detailSelect) detailSelect.value = 'detailed';
+                // 清空填空容器
+                const blanksContainer = document.getElementById(`batchBlanks_${i}`);
+                if (blanksContainer) {
+                    blanksContainer.innerHTML = '';
+                    blanksContainer.classList.remove('active');
+                }
+            }
+            // 清空全局填空值存储
+            batchBlankValues = {};
+            updateBatchCount();
+            showToast('已清空所有宫格');
+        }
+
+        // 🆕 批量模式填空值存储 { cellIndex: [values...] }
+        let batchBlankValues = {};
+
+        // 🆕 当批量模式中选择模板时，动态生成填空输入框
+        function updateBatchItemBlanks(cellIndex) {
+            const select = document.getElementById(`batchTemplate_${cellIndex}`);
+            const blanksContainer = document.getElementById(`batchBlanks_${cellIndex}`);
+            const key = select.value;
+
+            if (!key || !fillTemplates[key]) {
+                blanksContainer.innerHTML = '';
+                blanksContainer.classList.remove('active');
+                batchBlankValues[cellIndex] = [];
+                return;
+            }
+
+            const tpl = fillTemplates[key];
+            const blanks = parseTemplateBlanks(tpl.template);
+
+            if (blanks.length === 0) {
+                blanksContainer.innerHTML = '<div class="batch-preview">此模板无填空项，直接使用</div>';
+                blanksContainer.classList.add('active');
+                batchBlankValues[cellIndex] = [];
+                return;
+            }
+
+            // 初始化填空值数组
+            batchBlankValues[cellIndex] = new Array(blanks.length).fill('');
+
+            // 生成填空输入框
+            let html = '';
+            blanks.forEach((blank, i) => {
+                const label = blanks.length === 1 ? '✉️ 填写' : `✉️ 填空${i + 1}`;
+                html += `
+                    <div class="batch-blank-row">
+                        <label>${label}</label>
+                        <input type="text" id="batchBlankInput_${cellIndex}_${i}" 
+                            placeholder="${blank.hint}" 
+                            oninput="updateBatchBlankValue(${cellIndex}, ${i}, this.value)">
+                    </div>
+                `;
+            });
+
+            // 添加预览区域
+            html += `<div class="batch-preview" id="batchPreview_${cellIndex}"></div>`;
+
+            blanksContainer.innerHTML = html;
+            blanksContainer.classList.add('active');
+
+            // 初始化预览
+            updateBatchPreview(cellIndex);
+
+            // 🆕 选择模板时立即把模板内容写入textarea（和单任务模式一样）
+            const textarea = document.getElementById(`batchPrompt_${cellIndex}`);
+            if (textarea) {
+                textarea.value = tpl.template;
+                updateBatchCount();
+            }
+        }
+
+        // 🆕 更新批量填空值并刷新预览，同时自动填充textarea
+        function updateBatchBlankValue(cellIndex, blankIndex, value) {
+            if (!batchBlankValues[cellIndex]) {
+                batchBlankValues[cellIndex] = [];
+            }
+            batchBlankValues[cellIndex][blankIndex] = value;
+            updateBatchPreview(cellIndex);
+
+            // 🆕 自动把填充后的完整内容写入到对应格子的textarea（和单任务模式一样）
+            const filledTemplate = getBatchFilledTemplate(cellIndex);
+            if (filledTemplate) {
+                const textarea = document.getElementById(`batchPrompt_${cellIndex}`);
+                if (textarea) {
+                    textarea.value = filledTemplate;
+                    updateBatchCount();
+                }
+            }
+        }
+
+        // 🆕 更新批量模式单个格子的预览
+        function updateBatchPreview(cellIndex) {
+            const select = document.getElementById(`batchTemplate_${cellIndex}`);
+            const preview = document.getElementById(`batchPreview_${cellIndex}`);
+            const key = select?.value;
+
+            if (!preview || !key || !fillTemplates[key]) return;
+
+            const tpl = fillTemplates[key];
+            const values = batchBlankValues[cellIndex] || [];
+            const pattern = /______（[^）]+）|______\uff08[^）]+\uff09|______\([^)]+\)|______/g;
+
+            let blankIndex = 0;
+            const previewHtml = tpl.template.replace(pattern, (match) => {
+                const value = values[blankIndex] || '';
+                blankIndex++;
+                if (value) {
+                    return `<span class="filled">${value}</span>`;
+                } else {
+                    // 截取提示词前10个字符
+                    const hint = match.length > 15 ? match.substring(0, 15) + '...' : match;
+                    return `<span class="unfilled">[${hint}]</span>`;
+                }
+            });
+
+            // 只显示前100个字符
+            const truncated = previewHtml.length > 100 ? previewHtml.substring(0, 100) + '...' : previewHtml;
+            preview.innerHTML = truncated;
+        }
+
+        // 🆕 获取某个格子的完整填充模板内容
+        function getBatchFilledTemplate(cellIndex) {
+            const select = document.getElementById(`batchTemplate_${cellIndex}`);
+            const key = select?.value;
+
+            if (!key || !fillTemplates[key]) return null;
+
+            const tpl = fillTemplates[key];
+            const values = batchBlankValues[cellIndex] || [];
+            const pattern = /______（[^）]+）|______\uff08[^）]+\uff09|______\([^)]+\)|______/g;
+
+            let blankIndex = 0;
+            const filled = tpl.template.replace(pattern, (match) => {
+                const value = values[blankIndex] || '';
+                blankIndex++;
+                return value || match; // 如果没填写，保留原样
+            });
+
+            return filled;
+        }
+
+        // 🆕 更新"添加到批量"按钮显示状态
+        function updateAddToBatchBtn() {
+            const btn = document.getElementById('addToBatchBtn');
+            const preview = document.getElementById('fillPreview');
+            // 只有在批量模式且有填空模板时显示
+            if (isBatchMode && currentFillTemplate) {
+                btn.style.display = 'block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        // 🆕 将填写好的模板添加到批量宫格的第一个空格
+        function addFilledTemplateToBatch() {
+            if (!isBatchMode) {
+                showToast('请先切换到批量模式');
+                return;
+            }
+
+            // 获取填写好的模板内容
+            const input = document.getElementById('conceptInput');
+            const filledContent = input.value.trim();
+
+            if (!filledContent) {
+                showToast('请先填写内容');
+                return;
+            }
+
+            // 找到第一个空格并填入
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const textarea = document.getElementById(`batchPrompt_${i}`);
+                if (textarea && !textarea.value.trim()) {
+                    textarea.value = filledContent;
+                    updateBatchCount();
+                    showToast(`✅ 已添加到第 ${i + 1} 格`);
+                    document.getElementById('conceptInput').value = '';
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    textarea.focus();
+                    return;
+                }
+            }
+
+            showToast('所有宫格已填满，请先清空');
+        }
+
+        // 批量生成入口
+        async function generatePrompt() {
+            if (isBatchMode) {
+                await generateBatchPrompts();
+            } else {
+                await generateSinglePrompt();
+            }
+        }
+
+        // 单个生成 (原有逻辑)
+        async function generateSinglePrompt() {
+            const concept = document.getElementById('conceptInput').value.trim();
+            if (!concept) {
+                showToast('请输入创意概念');
+                return;
+            }
+
+            if (userQuota < PROMPT_COST) {
+                showToast('余额不足，请先充值');
+                return;
+            }
+
+            const style = document.getElementById('styleSelect').value;
+            const detail = document.getElementById('detailSelect').value;
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('resultSection');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            const styleMap = {
+                realistic: '写实摄影风格，高清细节，专业打光',
+                artistic: '艺术绘画风格，油画质感，大师级构图',
+                anime: '日本动漫风格，精致线条，鲜艳色彩',
+                '3d': '3D渲染风格，Octane渲染，体积光',
+                abstract: '抽象艺术风格，几何构成，色彩碰撞'
+            };
+
+            const detailMap = {
+                simple: '',
+                medium: '，细节丰富，画面精致',
+                detailed: '，超高细节，8K分辨率，精雕细琢',
+                ultra: '，极致细节，16K超清，每个元素都精心设计，award winning'
+            };
+
+            try {
+                const response = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'text',
+                        model: 'roll',
+                        prompt: `你是一个专业的AI绘画提示词专家。请将以下创意概念优化成一个专业的英文提示词，用于AI图像生成。
+
+创意概念：${concept}
+风格要求：${styleMap[style]}
+详细程度：${detailMap[detail]}
+
+要求：
+1. 输出纯英文提示词
+2. 包含主体描述、风格、光影、构图等元素
+3. 使用逗号分隔各个描述词
+4. 不要解释，直接输出提示词`,
+                        userId: currentUser?.id
+                    })
+                });
+
+                const data = await response.json();
+                currentPrompt = data.content || data.response || data.text || '';
+
+                if (currentPrompt) {
+                    document.getElementById('resultText').textContent = currentPrompt;
+                    result.style.display = 'block';
+                    showToast('提示词生成成功！');
+                } else {
+                    showToast('生成失败，请重试');
+                }
+            } catch (error) {
+                showToast('生成失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        // 🆕 批量生成提示词：从8宫格收集数据并生成
+        async function generateBatchPrompts() {
+            // 从8宫格收集主题、模板和参数
+            const items = [];
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const textarea = document.getElementById(`batchPrompt_${i}`);
+                const templateSelect = document.getElementById(`batchTemplate_${i}`);
+                const styleSelect = document.getElementById(`batchStyle_${i}`);
+                const detailSelect = document.getElementById(`batchDetail_${i}`);
+                const val = textarea?.value.trim();
+                if (val) {
+                    items.push({
+                        index: i,
+                        concept: val,
+                        templateKey: templateSelect?.value || '',
+                        style: styleSelect?.value || 'realistic',
+                        detail: detailSelect?.value || 'detailed'
+                    });
+                }
+            }
+
+            if (items.length === 0) {
+                showToast('请至少在一个宫格中输入主题');
+                return;
+            }
+
+            const totalCost = items.length * PROMPT_COST;
+            if (userQuota < totalCost) {
+                showToast(`余额不足，需要${totalCost}胶片`);
+                return;
+            }
+
+            const styleMap = {
+                realistic: 'realistic photography, professional lighting, high resolution',
+                artistic: 'artistic painting style, oil painting texture, masterful composition',
+                anime: 'Japanese anime style, vibrant colors, detailed linework',
+                '3d': '3D rendered, Octane render, volumetric lighting',
+                abstract: 'abstract art style, geometric composition, color contrast'
+            };
+            const detailMap = {
+                simple: '',
+                medium: ', detailed, refined',
+                detailed: ', ultra detailed, 8K resolution',
+                ultra: ', extreme detail, 16K ultra HD, award winning'
+            };
+
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.textContent = `⛏️ 正在生成 0/${items.length}...`;
+            batchGenerating = true;
+            batchResults = [];
+            let completed = 0;
+
+            // 重置所有宫格状态
+            for (let i = 0; i < BATCH_GRID_SIZE; i++) {
+                const item = document.getElementById(`batchItem_${i}`);
+                if (item) item.classList.remove('generating', 'done', 'error');
+                const status = document.getElementById(`batchStatus_${i}`);
+                if (status) status.textContent = '';
+            }
+
+            // 标记正在生成的宫格
+            items.forEach(t => {
+                const item = document.getElementById(`batchItem_${t.index}`);
+                if (item) item.classList.add('generating');
+                const status = document.getElementById(`batchStatus_${t.index}`);
+                if (status) status.textContent = '✨';
+            });
+
+            // 并发生成所有概念
+            const promises = items.map(async (itemData) => {
+                const { index, concept, templateKey, style, detail } = itemData;
+                const gridItem = document.getElementById(`batchItem_${index}`);
+                const statusEl = document.getElementById(`batchStatus_${index}`);
+
+                // 构建提示词：优先使用填充后的模板内容
+                let basePrompt = concept;
+                if (templateKey && fillTemplates[templateKey]) {
+                    // 🆕 优先获取用户填写的填空内容
+                    const filledTemplate = getBatchFilledTemplate(index);
+                    if (filledTemplate) {
+                        // 如果用户填写了模板内容，结合textarea的主题
+                        basePrompt = concept ? `${filledTemplate}。主题：${concept}` : filledTemplate;
+                    } else {
+                        const tmpl = fillTemplates[templateKey];
+                        // 回退：将模板中的空白填充主题
+                        basePrompt = tmpl.template.replace(/______（[^）]*）/g, concept).replace(/______/g, concept);
+                    }
+                }
+
+                try {
+                    const response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'text',
+                            model: 'roll',
+                            prompt: `你是一个专业的AI绘画提示词专家。请将以下创意概念优化成一个专业的英文提示词。
+
+创意概念：${basePrompt}
+风格要求：${styleMap[style]}${detailMap[detail]}
+
+要求：
+1. 输出纯英文提示词
+2. 包含主体描述、风格、光影、构图等元素
+3. 使用逗号分隔各个描述词
+4. 不要解释，直接输出提示词`,
+                            userId: currentUser?.id
+                        })
+                    });
+
+                    const data = await response.json();
+                    const prompt = data.content || data.response || data.text || '';
+
+                    // 更新宫格状态
+                    if (gridItem) {
+                        gridItem.classList.remove('generating');
+                        gridItem.classList.add(prompt ? 'done' : 'error');
+                    }
+                    if (statusEl) statusEl.textContent = prompt ? '✅' : '❌';
+
+                    batchResults.push({
+                        index: index,
+                        concept: concept,
+                        prompt: prompt,
+                        error: prompt ? null : '生成失败',
+                        selected: !!prompt
+                    });
+                } catch (error) {
+                    if (gridItem) {
+                        gridItem.classList.remove('generating');
+                        gridItem.classList.add('error');
+                    }
+                    if (statusEl) statusEl.textContent = '❌';
+
+                    batchResults.push({
+                        index: index,
+                        concept: concept,
+                        prompt: '',
+                        error: error.message,
+                        selected: false
+                    });
+                }
+
+                completed++;
+                btn.textContent = `⛏️ 生成中 ${completed}/${items.length}...`;
+            });
+
+            await Promise.all(promises);
+
+            batchResults.sort((a, b) => a.index - b.index);
+            renderBatchResults();
+
+            btn.disabled = false;
+            btn.textContent = '⚡ 批量生成提示词';
+            batchGenerating = false;
+
+            const successCount = batchResults.filter(r => !r.error).length;
+            showToast(`生成完成！成功 ${successCount}/${items.length}`);
+
+            await loadUserQuota();
+        }
+
+        // 渲染批量结果（九宫格显示）
+        function renderBatchResults() {
+            const grid = document.getElementById('batchResultGrid');
+            grid.innerHTML = '';
+
+            batchResults.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'batch-result-item' + (item.error ? ' error' : '') + (item.selected ? ' selected' : '');
+                div.innerHTML = `
+                    <div style="font-size:12px; font-weight:600; margin-bottom:4px; color:#fbbf24;">🎯 ${item.concept.substring(0, 15)}${item.concept.length > 15 ? '...' : ''}</div>
+                    <div style="font-size:11px; color:#ccc; line-height:1.4; max-height:60px; overflow:hidden;">${item.error || item.prompt.substring(0, 100)}...</div>
+                `;
+                div.onclick = () => toggleBatchSelect(idx);
+                grid.appendChild(div);
+            });
+
+            document.getElementById('batchResultSection').style.display = 'block';
+        }
+
+        // 切换选中状态
+        function toggleBatchSelect(idx) {
+            if (batchResults[idx].error) return;
+            batchResults[idx].selected = !batchResults[idx].selected;
+            renderBatchResults();
+        }
+
+        // 复制选中的提示词
+        function copySelectedPrompts() {
+            const selected = batchResults.filter(r => r.selected && !r.error);
+            if (selected.length === 0) {
+                showToast('请先选择要复制的提示词');
+                return;
+            }
+            const text = selected.map(r => r.prompt).join('\n\n---\n\n');
+            navigator.clipboard.writeText(text);
+            showToast(`已复制 ${selected.length} 个提示词`);
+        }
+
+        // 复制全部提示词
+        function copyAllPrompts() {
+            const valid = batchResults.filter(r => !r.error);
+            if (valid.length === 0) {
+                showToast('没有可复制的提示词');
+                return;
+            }
+            const text = valid.map(r => r.prompt).join('\n\n---\n\n');
+            navigator.clipboard.writeText(text);
+            showToast(`已复制 ${valid.length} 个提示词`);
+        }
+
+        // 批量去生图
+        function useSelectedPrompts() {
+            const selected = batchResults.filter(r => r.selected && !r.error);
+            if (selected.length === 0) {
+                showToast('请先选择要生图的提示词');
+                return;
+            }
+            // 存储到 localStorage 供 banana.html 读取
+            localStorage.setItem('knolling_batch_prompts', JSON.stringify(selected.map(r => r.prompt)));
+            location.href = 'banana.html?batch=1';
+        }
+
+        // 🎬 批量去生视频
+        function useSelectedPromptsForVideo() {
+            const selected = batchResults.filter(r => r.selected && !r.error);
+            if (selected.length === 0) {
+                showToast('请先选择要生视频的提示词');
+                return;
+            }
+            // 存储到 localStorage 供 video-continuity.html 读取
+            localStorage.setItem('video_batch_prompts', JSON.stringify(selected.map(r => r.prompt)));
+            // 跳转到分镜工具页面
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            const targetUrl = fromMobile ? 'video-continuity.html?force=mobile&batch=1' : 'video-continuity.html?batch=1';
+            location.href = targetUrl;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 🔧 修复：确保按钮事件正确绑定（支持移动端触摸）
+        document.addEventListener('DOMContentLoaded', async function () {
+            console.log('[knolling] 页面加载完成，开始初始化...');
+
+            // 初始化认证
+            if (typeof NVAuth !== 'undefined') {
+                await checkUser();
+            }
+            authInitialized = true;
+            console.log('[knolling] 认证初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+
+            // 生成按钮事件绑定
+            const generateBtn = document.getElementById('generateBtn');
+            if (generateBtn) {
+                generateBtn.onclick = null;
+                generateBtn.addEventListener('click', function (e) {
+                    console.log('[knolling] 生成按钮被点击 (click)');
+                    generatePrompt();
+                });
+                generateBtn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    console.log('[knolling] 生成按钮被点击 (touchend)');
+                    generatePrompt();
+                });
+            }
+
+            // 🔧 修复：返回按钮支持触摸事件
+            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) {
+                backBtn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    goBack();
+                });
+            }
+
+            // 🔧 修复：模板项支持触摸事件
+            document.querySelectorAll('.template-item').forEach(item => {
+                item.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    const onclick = this.getAttribute('onclick');
+                    if (onclick) eval(onclick);
+                });
+            });
+
+            // 🔧 修复：结果按钮支持触摸事件
+            document.querySelectorAll('.result-btn').forEach(btn => {
+                btn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    const onclick = this.getAttribute('onclick');
+                    if (onclick) eval(onclick);
+                });
+            });
+
+            console.log('[knolling] 初始化完成');
+        });
+
+        async function checkUser() {
+            try {
+                // 等待认证状态就绪
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[knolling] 用户已登录:', currentUser.email);
+                    await loadUserQuota();
+                } else {
+                    console.log('[knolling] 用户未登录');
+                }
+            } catch (e) { console.error('检查用户失败:', e); }
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                console.log('[knolling] 用户胶片:', userQuota);
+            } catch (e) { console.error('加载配额失败:', e); }
+        }
+
+        // 预扣费函数
+        async function preDeduct(cost, description) {
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
+            cost = Math.ceil(cost);
+
+            // 等待认证初始化完成
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+
+            if (!currentUser) { showToast('请先登录'); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+
+                // 🔧 修复：先检查 HTTP 状态码
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('余额不足，请先充值');
+                    }
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
+                }
+
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    console.log(`🎞️ 预扣费成功: -${cost}胶片, 余额=${userQuota}`);
+                    return true;
+                }
+                throw new Error(data.message || data.error || '扣费失败');
+            } catch (e) { showToast('扣费失败: ' + e.message); return false; }
+        }
+
+        // ==================== 页面状态持久化 ====================
+        function saveKnollingState() {
+            try {
+                const state = {
+                    currentTemplateKey: currentFillTemplate ? Object.keys(fillTemplates).find(k => fillTemplates[k] === currentFillTemplate) : '',
+                    blankInputValues: blankInputValues || [],
+                    previewContent: document.getElementById('resultBox')?.textContent || '',
+                    resultSectionVisible: document.getElementById('resultSection')?.style.display === 'block',
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_knolling_state', JSON.stringify(state));
+                console.log('[knolling] 状态已保存');
+            } catch (e) { console.warn('[knolling] 保存状态失败:', e); }
+        }
+
+        function restoreKnollingState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_knolling_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_knolling_state');
+                    return;
+                }
+                console.log('[knolling] 恢复状态...');
+
+                // 恢复模板选择和填空值
+                if (state.currentTemplateKey && fillTemplates[state.currentTemplateKey]) {
+                    blankInputValues = state.blankInputValues || [];
+                    selectTemplate(state.currentTemplateKey);
+                    // 恢复填空输入
+                    setTimeout(() => {
+                        blankInputValues.forEach((val, i) => {
+                            const input = document.getElementById(`blankInput_${i}`);
+                            if (input && val) {
+                                input.value = val;
+                            }
+                        });
+                    }, 100);
+                }
+
+                // 恢复结果
+                if (state.previewContent) {
+                    document.getElementById('resultBox').textContent = state.previewContent;
+                    currentPrompt = state.previewContent;
+                    document.getElementById('resultSection').style.display = 'block';
+                }
+
+                console.log('[knolling] 状态恢复完成');
+            } catch (e) { console.warn('[knolling] 恢复状态失败:', e); }
+        }
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden) saveKnollingState(); });
+        window.addEventListener('beforeunload', saveKnollingState);
+        window.addEventListener('pagehide', saveKnollingState);
+        window.addEventListener('load', () => setTimeout(restoreKnollingState, 300));
+    </script>
+</body>
+
+</html>

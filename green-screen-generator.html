@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绿幕图生成器</title>
+</head>
+<body>
+    <h1>绿幕图生成器</h1>
+    <button onclick="generateGreenScreens()">生成绿幕图</button>
+    <div id="results"></div>
+
+    <script>
+        function generateGreenScreen(width, height) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // 填充纯绿色 #00FF00
+            ctx.fillStyle = '#00FF00';
+            ctx.fillRect(0, 0, width, height);
+            
+            return canvas.toDataURL('image/png');
+        }
+
+        function generateGreenScreens() {
+            const sizes = [
+                { w: 1280, h: 720, name: '720p (16:9)' },
+                { w: 1920, h: 1080, name: '1080p (16:9)' },
+                { w: 720, h: 1280, name: '720p (9:16)' },
+                { w: 1080, h: 1920, name: '1080p (9:16)' },
+                { w: 1024, h: 1024, name: '1:1 正方形' }
+            ];
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            sizes.forEach(size => {
+                const dataUrl = generateGreenScreen(size.w, size.h);
+                
+                const div = document.createElement('div');
+                div.style.margin = '20px 0';
+                div.style.padding = '10px';
+                div.style.border = '1px solid #ccc';
+                
+                const title = document.createElement('h3');
+                title.textContent = `${size.name} (${size.w}x${size.h})`;
+                div.appendChild(title);
+                
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.style.maxWidth = '300px';
+                div.appendChild(img);
+                
+                const textarea = document.createElement('textarea');
+                textarea.value = dataUrl;
+                textarea.style.width = '100%';
+                textarea.style.height = '100px';
+                textarea.readOnly = true;
+                div.appendChild(textarea);
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.textContent = '复制';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(dataUrl);
+                    copyBtn.textContent = '已复制!';
+                    setTimeout(() => copyBtn.textContent = '复制', 2000);
+                };
+                div.appendChild(copyBtn);
+                
+                resultsDiv.appendChild(div);
+            });
+        }
+
+        window.onload = generateGreenScreens;
+    </script>
+</body>
+</html>

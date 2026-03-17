@@ -6,6 +6,8 @@
  * 🎯 功能：图片生成、视频生成、文本生成、角色固定、图片分析
  */
 
+const zlib = require('zlib');
+
 // ========== 计费配置 ==========
 const FILM_COST = {
     'image': 5,              // 图片生成
@@ -77,20 +79,117 @@ const FILM_COST = {
     'tts-gemini-flash': 1,         // Gemini Flash TTS 1胶片/次 (便宜快速)
     'tts-gemini-pro': 3,           // Gemini Pro TTS 3胶片/次 (高质量)
     'tts-kling': 2,                // Kling TTS 2胶片/次
-    'tts-kling-custom-voice': 5    // Kling 自定义音色 5胶片/次
+    'tts-kling-custom-voice': 5,   // Kling 自定义音色 5胶片/次
+    // RunningHub ComfyUI 工作流 - 按GPU时长计费（~120s工作流，70%利润，1胶片=¥0.3）
+    // Default 24G: ¥0.06/秒×120秒=¥7.2 → ceil(7.2×1.7/0.3) = 41
+    // Plus 48G:   ¥0.12/秒×120秒=¥14.4 → ceil(14.4×1.7/0.3) = 82
+    'rh-default': 41,              // RunningHub Default 24G GPU
+    'rh-plus': 82,                 // RunningHub Plus 48G GPU
+    // LTX-Video 视频模型 - Lightricks开源视频生成模型
+    'ltx-video-5s': 4,             // LTX-Video 5秒 (低成本快速生成)
+    'ltx-video-10s': 7,            // LTX-Video 10秒
+    'ltx-video-15s': 10,           // LTX-Video 15秒
+    'ltx-video-custom': 12         // LTX-Video 自定义时长 (默认12胶片)
 };
+
+// ========== Wan2.6 默认绿幕图 (用于文生视频) ==========
+// 生成指定尺寸的纯绿色PNG图片（Base64）
+function generateGreenScreenPng(width, height) {
+    // PNG文件头和IHDR块
+    const pngSignature = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+    
+    // IHDR chunk
+    const ihdr = Buffer.alloc(25);
+    ihdr.writeUInt32BE(13, 0); // length
+    ihdr.write('IHDR', 4);
+    ihdr.writeUInt32BE(width, 8);
+    ihdr.writeUInt32BE(height, 12);
+    ihdr.writeUInt8(8, 16); // bit depth
+    ihdr.writeUInt8(2, 17); // color type (RGB)
+    ihdr.writeUInt8(0, 18); // compression
+    ihdr.writeUInt8(0, 19); // filter
+    ihdr.writeUInt8(0, 20); // interlace
+    const ihdrCrc = crc32(ihdr.slice(4, 21));
+    ihdr.writeUInt32BE(ihdrCrc, 21);
+
+    // IDAT chunk - 纯绿色数据
+    const rawData = Buffer.alloc(height * (1 + width * 3));
+    for (let y = 0; y < height; y++) {
+        rawData[y * (1 + width * 3)] = 0; // filter byte
+        for (let x = 0; x < width; x++) {
+            const offset = y * (1 + width * 3) + 1 + x * 3;
+            rawData[offset] = 0;     // R
+            rawData[offset + 1] = 255; // G
+            rawData[offset + 2] = 0;   // B
+        }
+    }
+    const compressed = zlib.deflateSync(rawData);
+    const idat = Buffer.alloc(12 + compressed.length);
+    idat.writeUInt32BE(compressed.length, 0);
+    idat.write('IDAT', 4);
+    compressed.copy(idat, 8);
+    const idatCrc = crc32(Buffer.concat([Buffer.from('IDAT'), compressed]));
+    idat.writeUInt32BE(idatCrc, 8 + compressed.length);
+
+    // IEND chunk
+    const iend = Buffer.from([0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82]);
+
+    return 'data:image/png;base64,' + Buffer.concat([pngSignature, ihdr, idat, iend]).toString('base64');
+}
+
+// CRC32计算
+function crc32(data) {
+    let crc = 0xFFFFFFFF;
+    const table = [];
+    for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) {
+            c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        }
+        table[i] = c;
+    }
+    for (let i = 0; i < data.length; i++) {
+        crc = table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// 预生成不同比例的绿幕图（720P标准）
+const GREEN_SCREENS = {
+    '1:1': generateGreenScreenPng(720, 720),      // 正方形
+    '9:16': generateGreenScreenPng(720, 1280),    // 竖屏
+    '16:9': generateGreenScreenPng(1280, 720),    // 横屏
+    '4:3': generateGreenScreenPng(960, 720),      // 传统横屏
+    '3:4': generateGreenScreenPng(720, 960)       // 传统竖屏
+};
+
+// 根据分辨率选择合适的绿幕图比例
+function getGreenScreenForResolution(resolution) {
+    const res = String(resolution).toLowerCase();
+    if (res.includes('9:16') || res.includes('portrait') || res.includes('竖屏')) {
+        return GREEN_SCREENS['9:16'];
+    } else if (res.includes('16:9') || res.includes('landscape') || res.includes('横屏')) {
+        return GREEN_SCREENS['16:9'];
+    } else if (res.includes('4:3')) {
+        return GREEN_SCREENS['4:3'];
+    } else if (res.includes('3:4')) {
+        return GREEN_SCREENS['3:4'];
+    }
+    // 默认使用正方形
+    return GREEN_SCREENS['1:1'];
+}
 
 /**
  * 📝 保存生成记录 - 确保用户能找回已生成的内容
  */
 async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, model, cost, metadata) {
     if (!userId) return { success: false, error: 'no userId' };
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -105,13 +204,13 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
                 metadata
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
             console.warn('[yunwu] 保存记录失败:', data.error || data.message);
             return { success: false, error: data.error || data.message };
         }
-        
+
         console.log(`[yunwu] 📝 生成记录已保存: ${data.recordId}`);
         return { success: true, recordId: data.recordId };
     } catch (e) {
@@ -129,19 +228,19 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
  */
 async function __billing(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
-    
+
     // 🔧 确保金额是整数
     const intAmount = Math.ceil(amount);
-    
+
     // 映射 action: consume -> consume, refund -> recharge
     const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
-    
+
     try {
         // 获取当前请求的 host（用于内部调用）
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -152,9 +251,9 @@ async function __billing(billingAction, userId, amount, description) {
                 description: description || (billingAction === 'refund' ? '退款' : '消费')
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
-        
+
         if (!res.ok || !data.success) {
             if (billingAction === 'consume') {
                 throw new Error(data.message || data.error || '扣费失败');
@@ -162,7 +261,7 @@ async function __billing(billingAction, userId, amount, description) {
             console.error(`[yunwu] 退款失败:`, data);
             return { success: false, error: data.message || data.error };
         }
-        
+
         console.log(`[yunwu] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
         return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
     } catch (e) {
@@ -218,42 +317,69 @@ const YUNWU_ENDPOINTS = [
 // 默认使用第一个（国内最快）
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
 
+// ========== Wan2.6 阿里云百炼 API 配置 ==========
+// 优先使用专用的WAN26_API_KEY，否则使用云雾API的key
+const WAN26_API_KEY = process.env.WAN26_API_KEY || YUNWU_API_KEY || '';
+const WAN26_BASE_URL = 'https://dashscope.aliyuncs.com';
+
 /** 🚀 只使用第一个端点（避免创建重复任务） */
-async function _tryAllEndpoints(path, options, timeoutMs) {
-    // 🔧 只使用第一个端点，避免多个端点同时创建任务
-    const endpoint = YUNWU_ENDPOINTS[0];
-    const url = `${endpoint.url}${path}`;
+async function _tryAllEndpoints(path, options, timeoutMs, isMJ = false) {
+    // 🔧 Midjourney 请求尝试所有端点，因为不是所有端点都支持 MJ
+    const endpoints = isMJ ? YUNWU_ENDPOINTS : [YUNWU_ENDPOINTS[0]];
     
-    // 🔑 使用第一个 API Key
-    const apiKey = YUNWU_API_KEYS[0] || YUNWU_API_KEY;
-    const headers = { ...(options.headers || {}) };
-    if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`;
-    }
-    
-    console.log(`[yunwu] 🔄 使用端点: ${endpoint.name}`);
-    
-    try {
-        const response = await fetch(url, {
-            ...options,
-            headers,
-            signal: AbortSignal.timeout(timeoutMs)
-        });
+    for (const endpoint of endpoints) {
+        const url = `${endpoint.url}${path}`;
         
-        if (response.ok) {
-            console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
-            return { response };
-        } else if (response.status === 429) {
-            console.warn(`[yunwu] ${endpoint.name} 限速(429)`);
-            return { error: new Error('RATE_LIMIT'), got429: true };
-        } else {
-            console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}`);
-            return { error: new Error(`请求失败: ${response.status}`), got429: false };
+        // 🔑 使用对应的 API Key
+        const apiKey = YUNWU_API_KEYS[endpoint.keyIdx] || YUNWU_API_KEY;
+        const headers = { ...(options.headers || {}) };
+        if (apiKey) {
+            headers['Authorization'] = `Bearer ${apiKey}`;
         }
-    } catch (err) {
-        console.warn(`[yunwu] ${endpoint.name} 异常:`, err.message);
-        return { error: new Error(err.message), got429: false };
+
+        console.log(`[yunwu] 🔄 ${isMJ ? '[MJ] ' : ''}尝试端点: ${endpoint.name}`);
+
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers,
+                signal: AbortSignal.timeout(timeoutMs)
+            });
+
+            if (response.ok) {
+                console.log(`[yunwu] ✅ ${endpoint.name} 成功 (${response.status})`);
+                return { response };
+            } else if (response.status === 429) {
+                console.warn(`[yunwu] ${endpoint.name} 限速(429)`);
+                if (!isMJ) return { error: new Error('RATE_LIMIT'), got429: true };
+                // MJ 请求继续尝试其他端点
+                continue;
+            } else {
+                // 🔧 获取详细错误信息
+                let errorDetail = '';
+                try {
+                    const errorText = await response.text();
+                    errorDetail = errorText.substring(0, 500);
+                    console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}, 详情: ${errorDetail}`);
+                } catch (e) {
+                    console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}, 无法获取详情`);
+                }
+                if (!isMJ) {
+                    return { error: new Error(`请求失败: ${response.status} - ${errorDetail}`), got429: false };
+                }
+                // MJ 请求继续尝试其他端点
+                continue;
+            }
+        } catch (err) {
+            console.warn(`[yunwu] ${endpoint.name} 异常:`, err.message);
+            if (!isMJ) return { error: new Error(err.message), got429: false };
+            // MJ 请求继续尝试其他端点
+            continue;
+        }
     }
+    
+    // 所有端点都失败了
+    return { error: new Error(isMJ ? '所有端点都不支持Midjourney' : '请求失败'), got429: false };
 }
 
 /**
@@ -263,46 +389,46 @@ async function _tryAllEndpoints(path, options, timeoutMs) {
 async function fetchWithFallback(path, options) {
     const MAX_ROUNDS = 3;
     let lastError = null;
-    
+
     for (let round = 0; round < MAX_ROUNDS; round++) {
         if (round > 0) {
             const delay = 1500 * round;
             console.log(`[yunwu] 全节点限速，等待${delay}ms后第${round + 1}轮重试...`);
             await new Promise(r => setTimeout(r, delay));
         }
-        
+
         const result = await _tryAllEndpoints(path, options, 30000);
         if (result.response) return result.response;
-        
+
         lastError = result.error;
         if (!result.got429) break;  // 非429错误，不用重试
     }
-    
+
     throw lastError || new Error('所有云雾节点均不可用');
 }
 
 /**
  * fetchWithFallback 的可配置超时版本（同样支持429重试）
  */
-async function fetchWithFallbackWithTimeout(path, options, timeoutMs = 30000) {
+async function fetchWithFallbackWithTimeout(path, options, timeoutMs = 30000, isMJ = false) {
     const MAX_ROUNDS = 3;
     let lastError = null;
-    
+
     for (let round = 0; round < MAX_ROUNDS; round++) {
         if (round > 0) {
             const delay = 1500 * round;
             console.log(`[yunwu] 全节点限速，等待${delay}ms后第${round + 1}轮重试...`);
             await new Promise(r => setTimeout(r, delay));
         }
-        
-        const result = await _tryAllEndpoints(path, options, timeoutMs);
+
+        const result = await _tryAllEndpoints(path, options, timeoutMs, isMJ);
         if (result.response) return result.response;
-        
+
         lastError = result.error;
         if (!result.got429) break;
     }
-    
-    throw lastError || new Error('所有云雾节点均不可用');
+
+    throw lastError || new Error(isMJ ? '所有端点都不支持Midjourney' : '所有云雾节点均不可用');
 }
 
 module.exports = async function handler(req, res) {
@@ -311,6 +437,8 @@ module.exports = async function handler(req, res) {
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify(payload));
     };
+
+    console.log('[yunwu] 收到请求:', req.method, req.url);
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -328,6 +456,8 @@ module.exports = async function handler(req, res) {
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        console.log('[yunwu] 请求体:', JSON.stringify(body || {}));
+        
         const { action, userId, skip_billing } = body || {};
         const skipBilling = skip_billing === true;
 
@@ -338,30 +468,66 @@ module.exports = async function handler(req, res) {
 
         // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫒）
         // 豁免某些只读操作（不扣费）
-        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll', 'vc-list', 'wan26-poll'];  // 获取音色列表和轮询不需要登录
+        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll', 'vc-list', 'wan26-poll', 'ltx-poll', 'upload-image'];  // 获取音色列表、轮询、图片上传不需要登录
+        console.log(`[yunwu] 检查权限: action=${action}, userId=${userId}, 豁免=${exemptActions.includes(action)}`);
         if (!userId && !exemptActions.includes(action)) {
             json(401, { error: 'UNAUTHORIZED', message: '请先登录后再使用此功能' });
             return;
         }
 
-        if (!YUNWU_API_KEY) {
-            json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
-            return;
+        // ========== 图片上传（不依赖YUNWU_API_KEY，提前处理） ==========
+        if (action === 'upload-image') {
+            const { base64, filename = 'image.jpg' } = body;
+            if (!base64) {
+                json(400, { success: false, error: 'MISSING_BASE64', message: '缺少 base64 图片数据' });
+                return;
+            }
+            try {
+                const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+                const buffer = Buffer.from(base64Data, 'base64');
+                const boundary = '----FormBoundary' + Date.now().toString(36);
+                const preamble = `--${boundary}\r\nContent-Disposition: form-data; name="reqtype"\r\n\r\nfileupload\r\n--${boundary}\r\nContent-Disposition: form-data; name="fileToUpload"; filename="${filename}"\r\nContent-Type: image/jpeg\r\n\r\n`;
+                const epilogue = `\r\n--${boundary}--\r\n`;
+                const bodyBuffer = Buffer.concat([Buffer.from(preamble, 'utf-8'), buffer, Buffer.from(epilogue, 'utf-8')]);
+                const uploadRes = await fetch('https://catbox.moe/user/api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'Content-Length': bodyBuffer.length.toString() },
+                    body: bodyBuffer
+                });
+                const text = await uploadRes.text();
+                if (uploadRes.ok && text && text.trim().startsWith('http')) {
+                    console.log('[yunwu] 图片上传成功:', text.trim().substring(0, 80));
+                    json(200, { success: true, url: text.trim() });
+                } else {
+                    console.warn('[yunwu] catbox上传失败:', uploadRes.status, text.substring(0, 200));
+                    json(500, { success: false, error: 'UPLOAD_FAILED', message: `catbox上传失败: ${uploadRes.status}` });
+                }
+                return;
+            } catch (err) {
+                console.error('[yunwu] 图片上传异常:', err.message);
+                json(500, { success: false, error: 'UPLOAD_ERROR', message: err.message });
+                return;
+            }
         }
 
         // ========== 图片生成 (Flux / DALL-E 格式) ==========
         if (action === 'image') {
-            const { 
-                prompt, 
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            const {
+                prompt,
                 model = 'flux-1-schnell',  // 默认Flux schnell快速模型
                 size = '1024x1024',
                 width = 1024,
                 height = 1024,
-                n = 1 
+                n = 1
             } = body;
-            
+
             if (!prompt) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT',
                     error_code: 'MISSING_PROMPT',
@@ -373,7 +539,7 @@ module.exports = async function handler(req, res) {
             // 💰 先扣费模式：调用上游API前先扣费
             const filmCost = FILM_COST['image'] || 5;
             let billingSuccess = false;
-            
+
             if (!skipBilling && filmCost > 0 && userId) {
                 try {
                     const billingResult = await __billing('consume', userId, filmCost, `图片生成:${model}`);
@@ -427,7 +593,7 @@ module.exports = async function handler(req, res) {
                             console.error('[yunwu] 退款失败:', refundErr.message);
                         }
                     }
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -439,13 +605,13 @@ module.exports = async function handler(req, res) {
 
                 const data = await response.json();
                 const imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json || data.url;
-                
+
                 // ✅ 生成成功，保存记录
                 await __saveGenerationRecord(userId, 'image', imageUrl, prompt, model, filmCost, { size: finalSize });
-                
+
                 // 返回内容
-                json(200, { 
-                    success: true, 
+                json(200, {
+                    success: true,
                     url: imageUrl,
                     data,
                     billed: billingSuccess ? filmCost : 0
@@ -461,7 +627,7 @@ module.exports = async function handler(req, res) {
                         console.error('[yunwu] 退款失败:', refundErr.message);
                     }
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -479,19 +645,24 @@ module.exports = async function handler(req, res) {
         //   - 多图生图：多张参考图(2-10张) + prompt (image_urls 数组)
         //   - 批量生成：输出多张图片 (n 参数)
         if (action === 'seedream') {
-            const { 
-                prompt, 
-                model = 'doubao-seedream-4-5-251128', 
-                size = '1024x1024', 
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            const {
+                prompt,
+                model = 'doubao-seedream-4-5-251128',
+                size = '1024x1024',
                 image_url,       // 单张参考图 URL
                 image_urls,      // 🆕 多张参考图 URL 数组 (2-10张)
                 n = 1,           // 🆕 输出图片数量 (1-15, 输入图+输出图总数≤ 15)
                 speed = 1,
                 mode             // 🆕 生成模式: 'text2image'|‘image2image’|‘multi-image’|‘batch’
             } = body;
-            
+
             if (!prompt && !image_url && (!image_urls || image_urls.length === 0)) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT_OR_IMAGE',
                     error_code: 'MISSING_PROMPT_OR_IMAGE',
@@ -505,7 +676,7 @@ module.exports = async function handler(req, res) {
             const multiImageMode = image_urls && Array.isArray(image_urls) && image_urls.length >= 2;
             if (multiImageMode) {
                 if (image_urls.length > 10) {
-                    json(400, { 
+                    json(400, {
                         success: false,
                         error: 'TOO_MANY_IMAGES',
                         error_code: 'TOO_MANY_IMAGES',
@@ -516,7 +687,7 @@ module.exports = async function handler(req, res) {
                 }
                 // 输入图数 + 输出图数 ≤ 15
                 if (image_urls.length + parseInt(n) > 15) {
-                    json(400, { 
+                    json(400, {
                         success: false,
                         error: 'IMAGE_COUNT_EXCEEDED',
                         error_code: 'IMAGE_COUNT_EXCEEDED',
@@ -535,10 +706,10 @@ module.exports = async function handler(req, res) {
 
             // 确定生成模式
             const actualMode = multiImageMode ? 'multi-image' : (image_url ? 'image2image' : 'text2image');
-            console.log('[yunwu] 星梦画师:', { 
-                model, size, mode: actualMode, 
+            console.log('[yunwu] 星梦画师:', {
+                model, size, mode: actualMode,
                 refImageCount: multiImageMode ? image_urls.length : (image_url ? 1 : 0),
-                outputCount, speed 
+                outputCount, speed
             });
 
             // 🔒 先扣费
@@ -605,7 +776,7 @@ module.exports = async function handler(req, res) {
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, '星梦画师API失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -616,14 +787,14 @@ module.exports = async function handler(req, res) {
                 }
 
                 const data = await response.json();
-                
+
                 // 🌟 提取图片结果 - /v1/images/generations 返回格式：
                 // { data: [{ url: "https://...", size: "3104x1312" }], created: ..., usage: {...} }
                 let imageUrls = [];
-                
+
                 // 🔧 调试：输出原始返回格式
                 console.log('[yunwu] 星梦画师返回完整数据:', JSON.stringify(data).substring(0, 500));
-                
+
                 // 🔧 URL验证函数：确保是有效的图片URL
                 const isValidImageUrl = (url) => {
                     if (!url || typeof url !== 'string') return false;
@@ -631,7 +802,7 @@ module.exports = async function handler(req, res) {
                     if (url.startsWith('data:image/')) return true;
                     return false;
                 };
-                
+
                 // 🌟 主要提取方式：从 data 数组提取 (标准 images/generations 格式)
                 if (data?.data && Array.isArray(data.data)) {
                     for (const item of data.data) {
@@ -644,13 +815,13 @@ module.exports = async function handler(req, res) {
                     }
                     console.log('[yunwu] 从 data 数组提取到URL数量:', imageUrls.length);
                 }
-                
+
                 // 🔧 备用：直接 data.url (单图简化格式)
                 if (imageUrls.length === 0 && data?.url && isValidImageUrl(data.url)) {
                     imageUrls = [data.url];
                     console.log('[yunwu] 从 data.url 直接提取');
                 }
-                
+
                 // 🔧 兼容旧格式：从 choices[0].message.content 提取
                 if (imageUrls.length === 0) {
                     const content = data?.choices?.[0]?.message?.content;
@@ -678,13 +849,13 @@ module.exports = async function handler(req, res) {
                         }
                     }
                 }
-                
+
                 // 🔧 如果没有有效URL，返回错误并包含完整调试信息
                 // ⚠️ 注意：API返回了数据但无法提取URL，说明上游已消耗，不退款
                 if (imageUrls.length === 0) {
                     const debugInfo = JSON.stringify(data).substring(0, 800);
                     console.error('[yunwu] 星梦画师无有效图片URL, 原始返回:', debugInfo);
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'NO_VALID_IMAGE',
                         error_code: 'NO_VALID_IMAGE',
@@ -694,25 +865,25 @@ module.exports = async function handler(req, res) {
                     });
                     return;
                 }
-                
+
                 // ✅ 生成成功：保存记录并返回（已在开头扣费）
                 const primaryUrl = imageUrls[0] || JSON.stringify(data);
-                await __saveGenerationRecord(userId, 'image', primaryUrl, prompt, model, filmCost, { 
-                    size, 
+                await __saveGenerationRecord(userId, 'image', primaryUrl, prompt, model, filmCost, {
+                    size,
                     mode: actualMode,
                     refImageCount: multiImageMode ? image_urls.length : (image_url ? 1 : 0),
                     outputCount: imageUrls.length
                 });
-                
+
                 // 返回内容
-                json(200, { 
-                    success: true, 
+                json(200, {
+                    success: true,
                     data,
                     url: imageUrls[0] || '',      // 主图 URL
                     urls: imageUrls,               // 🆕 所有图片 URL 数组
                     imageCount: imageUrls.length,  // 🆕 生成图片数量
                     mode: actualMode,              // 🆕 生成模式
-                    billed: billingSuccess ? filmCost : 0 
+                    billed: billingSuccess ? filmCost : 0
                 });
                 return;
             } catch (err) {
@@ -720,7 +891,7 @@ module.exports = async function handler(req, res) {
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, '星梦画师异常退款');
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -733,10 +904,15 @@ module.exports = async function handler(req, res) {
 
         // ========== 图片分析/视觉识别/OCR ==========
         if (action === 'vision') {
-            const { prompt, image_url, model: reqModel = 'grok-4-fast-non-reasoning' } = body;
-            
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            const { prompt, image_url, model: reqModel = 'grok-4.1' } = body;
+
             if (!prompt || !image_url) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT_OR_IMAGE',
                     error_code: 'MISSING_PROMPT_OR_IMAGE',
@@ -748,8 +924,8 @@ module.exports = async function handler(req, res) {
             // 🔧 模型映射：用户友好名 → 实际API模型名
             const VISION_MODEL_MAP = {
                 'deepseek-ocr': 'deepseek-ocr',               // OCR专用：云雾已配置
-                'grok-4-fast-non-reasoning': 'grok-4-fast-non-reasoning',
-                'gemini-2.0-flash': 'gemini-2.0-flash'
+                'grok-4.1': 'grok-4.1',
+                'grok-4-fast-non-reasoning': 'grok-4-fast-non-reasoning'
             };
             const model = VISION_MODEL_MAP[reqModel] || reqModel;
             const isOCR = reqModel === 'deepseek-ocr' || /ocr/i.test(reqModel);
@@ -807,7 +983,7 @@ module.exports = async function handler(req, res) {
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, '图片分析API失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -819,10 +995,10 @@ module.exports = async function handler(req, res) {
 
                 const data = await response.json();
                 const content = data?.choices?.[0]?.message?.content;
-                
+
                 // ✅ 生成成功：保存记录并返回（已在开头扣费）
                 await __saveGenerationRecord(userId, 'text', content?.trim() || '', prompt, model, filmCost, { image_url });
-                
+
                 // 3. 返回内容
                 json(200, { success: true, text: content?.trim() || '', billed: billingSuccess ? filmCost : 0 });
                 return;
@@ -831,7 +1007,7 @@ module.exports = async function handler(req, res) {
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, '图片分析异常退款');
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -844,7 +1020,12 @@ module.exports = async function handler(req, res) {
 
         // ========== AI对话 (按token实际消耗计费) ==========
         if (action === 'chat') {
-            const { 
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            const {
                 messages = [],  // 多轮对话消息数组
                 system = '',    // 系统提示词
                 model = 'gemini-3-flash-preview',  // 默认用最便宜的
@@ -852,7 +1033,7 @@ module.exports = async function handler(req, res) {
                 max_tokens = 4096,
                 enableSearch = false  // 联网搜索
             } = body;
-            
+
             if (!messages || messages.length === 0) {
                 json(400, { success: false, error: 'MISSING_MESSAGES', billed: 0 });
                 return;
@@ -860,17 +1041,19 @@ module.exports = async function handler(req, res) {
 
             // 💰 模型价格配置 (yunwu.ai 价格，每百万tokens)
             const MODEL_PRICING = {
-                'grok-4-fast': { input: 1.5, output: 6.0 },               // 🌟 首选对话模型
+                'grok-4.1': { input: 1.5, output: 6.0 },                   // 🌟 首选对话模型
+                'grok-4-fast': { input: 1.5, output: 6.0 },               // Grok-4 快速版
                 'grok-4-fast-non-reasoning': { input: 1.5, output: 6.0 }, // Grok-4 无推理版
                 'gemini-3-flash-preview': { input: 0.15, output: 0.9 },   // 最便宜
                 'qwen-plus': { input: 0.24, output: 0.6 },                // 中文优化
-                'gemini-3-pro-preview': { input: 0.6, output: 3.6 },      // 多模态
+                'gemini-3-pro-preview': { input: 0.6, output: 3.6 },      // 多模态(旧)
+                'gemini-3.1-pro-preview': { input: 0.6, output: 3.6 },    // 多模态(新)
                 'gemini-3-pro-preview-thinking': { input: 0.6, output: 3.6 }  // 思考模式
             };
-            
+
             // 获取价格，未知模型用flash的价格（最便宜）
             const pricing = MODEL_PRICING[model] || MODEL_PRICING['gemini-3-flash-preview'];
-            
+
             console.log('[yunwu] AI对话:', { model, messagesCount: messages.length, enableSearch });
 
             // 构建请求消息
@@ -879,7 +1062,8 @@ module.exports = async function handler(req, res) {
                 finalMessages.unshift({ role: 'system', content: system });
             }
 
-            const timeoutMs = 120000;  // 2分钟超时
+            // 🔧 修复524超时：Cloudflare限制100秒，设置80秒超时给后处理留余量
+            const timeoutMs = 80000;  // 80秒超时（原来是120秒，超过Cloudflare 100秒限制）
 
             // 🔧 优先尝试 MODELSCOPE（更稳定）
             const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || '';
@@ -899,22 +1083,22 @@ module.exports = async function handler(req, res) {
                             max_tokens,
                             stream: false
                         }),
-                        signal: AbortSignal.timeout(180000)
+                        signal: AbortSignal.timeout(80000)  // 80秒（原来是180秒）
                     });
 
                     if (msResponse.ok) {
                         const msData = await msResponse.json();
                         const msContent = msData?.choices?.[0]?.message?.content;
                         const msUsage = msData?.usage || {};
-                        
+
                         // 📊 计算实际token消耗和费用
                         const promptTokens = msUsage.prompt_tokens || 0;
                         const completionTokens = msUsage.completion_tokens || 0;
                         const totalTokens = promptTokens + completionTokens;
                         const filmCost = Math.max(1, Math.ceil(totalTokens / 4000)); // 简化计费
-                        
+
                         console.log(`[yunwu] 📊 魔塔Token: ${totalTokens} → ${filmCost}胶片`);
-                        
+
                         // 💰 扣费
                         let billingSuccess = false;
                         if (!skipBilling && filmCost > 0 && userId) {
@@ -925,12 +1109,12 @@ module.exports = async function handler(req, res) {
                             }
                             billingSuccess = billingResult.success && !billingResult.skipped;
                         }
-                        
+
                         await __saveGenerationRecord(userId, 'chat', msContent?.trim() || '', messages[messages.length - 1]?.content || '', 'roll', filmCost, { promptTokens, completionTokens, totalTokens });
-                        
-                        json(200, { 
-                            success: true, 
-                            content: msContent?.trim() || '', 
+
+                        json(200, {
+                            success: true,
+                            content: msContent?.trim() || '',
                             usage: { promptTokens, completionTokens, totalTokens },
                             cost: { film: filmCost },
                             billed: billingSuccess ? filmCost : 0,
@@ -952,7 +1136,7 @@ module.exports = async function handler(req, res) {
                     max_tokens,
                     stream: false
                 };
-                
+
                 // 联网搜索模式
                 if (enableSearch) {
                     requestBody.tools = [{ type: 'web_search' }];
@@ -977,22 +1161,22 @@ module.exports = async function handler(req, res) {
                 const data = await response.json();
                 const content = data?.choices?.[0]?.message?.content;
                 const usage = data?.usage || {};
-                
+
                 // 📊 计算实际token消耗和费用
                 const promptTokens = usage.prompt_tokens || 0;
                 const completionTokens = usage.completion_tokens || 0;
                 const totalTokens = promptTokens + completionTokens;
-                
+
                 // 计算成本（元）: (输入tokens × 输入价格 + 输出tokens × 输出价格) / 1000000
                 const inputCost = (promptTokens * pricing.input) / 1000000;
                 const outputCost = (completionTokens * pricing.output) / 1000000;
                 const totalCostYuan = inputCost + outputCost;
-                
+
                 // 转换为胶片（1胶片 = ¥0.3），向上取整，最少1胶片
                 const filmCost = Math.max(1, Math.ceil(totalCostYuan / 0.3));
-                
+
                 console.log(`[yunwu] 📊 Token: 输入${promptTokens}+输出${completionTokens}=${totalTokens}, 成本¥${totalCostYuan.toFixed(4)} → ${filmCost}胶片`);
-                
+
                 // 💰 按实际消耗扣费
                 let billingSuccess = false;
                 if (!skipBilling && filmCost > 0 && userId) {
@@ -1003,16 +1187,16 @@ module.exports = async function handler(req, res) {
                     }
                     billingSuccess = billingResult.success && !billingResult.skipped;
                 }
-                
+
                 // 保存记录
-                await __saveGenerationRecord(userId, 'chat', content?.trim() || '', messages[messages.length - 1]?.content || '', model, filmCost, { 
-                    promptTokens, completionTokens, totalTokens, enableSearch 
+                await __saveGenerationRecord(userId, 'chat', content?.trim() || '', messages[messages.length - 1]?.content || '', model, filmCost, {
+                    promptTokens, completionTokens, totalTokens, enableSearch
                 });
-                
+
                 // 返回结果
-                json(200, { 
-                    success: true, 
-                    content: content?.trim() || '', 
+                json(200, {
+                    success: true,
+                    content: content?.trim() || '',
                     usage: { promptTokens, completionTokens, totalTokens },
                     cost: { yuan: totalCostYuan, film: filmCost },
                     billed: billingSuccess ? filmCost : 0,
@@ -1029,21 +1213,21 @@ module.exports = async function handler(req, res) {
         // ========== 📤 文件上传代理（解决国内网络问题） ==========
         if (action === 'upload-file') {
             const { fileData, fileType = 'video/mp4', fileName = 'file.mp4' } = body;
-            
+
             if (!fileData) {
                 json(400, { success: false, error: 'MISSING_FILE_DATA' });
                 return;
             }
-            
+
             try {
                 // 解析base64
                 const base64Match = fileData.match(/^data:([^;]+);base64,(.+)$/);
                 const mimeType = base64Match ? base64Match[1] : fileType;
                 const b64 = base64Match ? base64Match[2] : fileData.replace(/^data:[^;]+;base64,/, '');
                 const buffer = Buffer.from(b64, 'base64');
-                
+
                 console.log(`[yunwu] 📤 代理上传文件: ${fileName}, 大小: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`);
-                
+
                 // 方案１：尝试 catbox.moe
                 try {
                     const FormData = require('form-data');
@@ -1053,14 +1237,14 @@ module.exports = async function handler(req, res) {
                         filename: fileName,
                         contentType: mimeType
                     });
-                    
+
                     const catboxRes = await fetch('https://catbox.moe/user/api.php', {
                         method: 'POST',
                         body: formData,
                         headers: formData.getHeaders(),
                         signal: AbortSignal.timeout(60000)  // 60秒超时
                     });
-                    
+
                     if (catboxRes.ok) {
                         const url = await catboxRes.text();
                         if (url && url.startsWith('http')) {
@@ -1072,7 +1256,7 @@ module.exports = async function handler(req, res) {
                 } catch (catboxErr) {
                     console.warn('[yunwu] catbox上传失败:', catboxErr.message);
                 }
-                
+
                 // 方案２：尝试 0x0.st（更稳定的备用图床）
                 try {
                     const FormData = require('form-data');
@@ -1081,14 +1265,14 @@ module.exports = async function handler(req, res) {
                         filename: fileName,
                         contentType: mimeType
                     });
-                    
+
                     const nullRes = await fetch('https://0x0.st', {
                         method: 'POST',
                         body: formData,
                         headers: formData.getHeaders(),
                         signal: AbortSignal.timeout(60000)
                     });
-                    
+
                     if (nullRes.ok) {
                         const url = await nullRes.text();
                         if (url && url.startsWith('http')) {
@@ -1100,7 +1284,7 @@ module.exports = async function handler(req, res) {
                 } catch (nullErr) {
                     console.warn('[yunwu] 0x0.st上传失败:', nullErr.message);
                 }
-                
+
                 // 所有方案失败
                 json(500, { success: false, error: '所有上传服务均不可用' });
             } catch (err) {
@@ -1113,9 +1297,9 @@ module.exports = async function handler(req, res) {
         // ========== 文本生成 (优先使用魔塔roll模型节约成本) ==========
         if (action === 'text') {
             const { prompt, model = 'roll', temperature = 0.7, max_tokens = 4096, speed = 1 } = body;
-            
+
             if (!prompt) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT',
                     error_code: 'MISSING_PROMPT',
@@ -1143,8 +1327,8 @@ module.exports = async function handler(req, res) {
 
             // 🆕 优先使用魔塔roll模型（免费节约成本）
             const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || '';
-            const useRoll = (String(model).toLowerCase() === 'roll' || model === 'gemini-3-pro-preview') && MODELSCOPE_API_KEY;
-            
+            const useRoll = (String(model).toLowerCase() === 'roll' || model === 'gemini-3-pro-preview' || model === 'gemini-3.1-pro-preview') && MODELSCOPE_API_KEY;
+
             if (useRoll) {
                 try {
                     const rollResponse = await fetch('https://api-inference.modelscope.cn/v1/chat/completions', {
@@ -1166,7 +1350,7 @@ module.exports = async function handler(req, res) {
                     if (rollResponse.ok) {
                         const rollData = await rollResponse.json();
                         const content = rollData?.choices?.[0]?.message?.content;
-                        
+
                         // ✅ 生成成功：保存记录并返回（已在开头扣费）
                         await __saveGenerationRecord(userId, 'text', content?.trim() || '', prompt, 'roll', filmCost, {});
                         json(200, { success: true, content: content?.trim() || '', billed: billingSuccess ? filmCost : 0, model: 'roll' });
@@ -1189,7 +1373,7 @@ module.exports = async function handler(req, res) {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        model: 'gemini-3-pro-preview',
+                        model: 'gemini-3.1-pro-preview',
                         messages: [{ role: 'user', content: prompt }],
                         temperature,
                         max_tokens,
@@ -1204,7 +1388,7 @@ module.exports = async function handler(req, res) {
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, '文本生成API失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -1216,7 +1400,7 @@ module.exports = async function handler(req, res) {
 
                 const data = await response.json();
                 const content = data?.choices?.[0]?.message?.content;
-                
+
                 // ✅ 生成成功：保存记录并返回（已在开头扣费）
                 await __saveGenerationRecord(userId, 'text', content?.trim() || '', prompt, model, filmCost, {});
                 json(200, { success: true, content: content?.trim() || '', billed: billingSuccess ? filmCost : 0 });
@@ -1226,7 +1410,7 @@ module.exports = async function handler(req, res) {
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, '文本生成异常退款');
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -1239,9 +1423,14 @@ module.exports = async function handler(req, res) {
 
         // ========== 视频生成 (sora-2 系列) ==========
         if (action === 'video') {
-            const { 
-                prompt, 
-                model = 'sora-2', 
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            const {
+                prompt,
+                model = 'sora-2',
                 image_url,
                 aspect_ratio = '16:9',
                 duration = '15',
@@ -1249,9 +1438,9 @@ module.exports = async function handler(req, res) {
                 character_ids = [],
                 speed = 1
             } = body;
-            
+
             if (!prompt && !image_url) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT_OR_IMAGE',
                     error_code: 'MISSING_PROMPT_OR_IMAGE',
@@ -1265,7 +1454,7 @@ module.exports = async function handler(req, res) {
             const modelLc = String(model).toLowerCase();
             if (FILM_COST[model]) {
                 filmCost = FILM_COST[model];
-            } else if (modelLc.startsWith('veo') || modelLc.startsWith('grok-video') || modelLc.startsWith('vidu') || modelLc.startsWith('hailuo') || modelLc.startsWith('kling') || modelLc.startsWith('wan26')) {
+            } else if (modelLc.startsWith('veo') || modelLc.startsWith('grok-video') || modelLc.startsWith('vidu') || modelLc.startsWith('hailuo') || modelLc.startsWith('kling') || modelLc.startsWith('wan26') || modelLc.startsWith('ltx')) {
                 filmCost = FILM_COST[model] || 15;
             } else if (hd) {
                 filmCost = FILM_COST['video-hd'] || 25;
@@ -1280,10 +1469,10 @@ module.exports = async function handler(req, res) {
                 }
             }
 
-            console.log('[yunwu] 视频生成:', { 
-                model: finalModel, 
-                aspect_ratio, 
-                duration, 
+            console.log('[yunwu] 视频生成:', {
+                model: finalModel,
+                aspect_ratio,
+                duration,
                 hd,
                 hasImage: !!image_url,
                 characterCount: character_ids?.length || 0
@@ -1334,7 +1523,7 @@ module.exports = async function handler(req, res) {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('[yunwu] 视频生成错误:', response.status, errorText);
-                    
+
                     let errorDetail = '';
                     try {
                         const errorJson = JSON.parse(errorText);
@@ -1342,12 +1531,12 @@ module.exports = async function handler(req, res) {
                     } catch (e) {
                         errorDetail = errorText.substring(0, 200);
                     }
-                    
+
                     // 🔄 API失败退款（未获得task_id）
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, '视频生成API失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -1358,11 +1547,11 @@ module.exports = async function handler(req, res) {
                 }
 
                 const data = await response.json();
-                
+
                 // ✅ 任务提交成功：保存记录并返回（已在开头扣费，有task_id意味着上游已消耗，不退款）
                 const taskId = data?.task_id || data?.id || '';
                 await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, model, filmCost, { aspect_ratio, duration, hd });
-                
+
                 json(200, { success: true, ...data, billed: billingSuccess ? filmCost : 0 });
                 return;
             } catch (err) {
@@ -1370,7 +1559,7 @@ module.exports = async function handler(req, res) {
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, '视频生成异常退款');
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -1385,10 +1574,15 @@ module.exports = async function handler(req, res) {
         // 支持模型: grok-video-3 (6秒), grok-video-3-10s (10秒), grok-video-3-15s (15秒)
         const bodyModel = body.model || '';
         if (action === 'grok' || (action === 'text-to-video' && bodyModel.startsWith('grok-video')) || (action === 'image-to-video' && bodyModel.startsWith('grok-video'))) {
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
             let { prompt, image_url, model: grokModel = 'grok-video-3', aspect_ratio = '16:9', duration } = body;
-            
+
             if (!prompt && !image_url) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT_OR_IMAGE',
                     error_code: 'MISSING_PROMPT_OR_IMAGE',
@@ -1396,7 +1590,7 @@ module.exports = async function handler(req, res) {
                 });
                 return;
             }
-            
+
             const is10s = grokModel.includes('10s');
             const is15s = grokModel.includes('15s');
             // 🔧 去掉 -text 后缀
@@ -1451,11 +1645,11 @@ module.exports = async function handler(req, res) {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('[yunwu] Grok视频生成错误:', response.status, errorText);
-                    
+
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, 'Grok视频生成API失败退款');
                     }
-                    
+
                     let errorDetail = '';
                     try {
                         const errorJson = JSON.parse(errorText);
@@ -1463,8 +1657,8 @@ module.exports = async function handler(req, res) {
                     } catch (e) {
                         errorDetail = errorText.substring(0, 200);
                     }
-                    
-                    json(500, { 
+
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -1477,14 +1671,14 @@ module.exports = async function handler(req, res) {
                 const data = await response.json();
                 const taskId = data?.task_id || data?.id || '';
                 await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, actualModel, filmCost, { aspect_ratio, duration: is10s ? 10 : 6 });
-                
+
                 json(200, { success: true, ...data, billed: billingSuccess ? filmCost : 0 });
                 return;
             } catch (err) {
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, 'Grok视频生成异常退款');
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -1499,11 +1693,16 @@ module.exports = async function handler(req, res) {
         // 支持模型: veo2, veo2-fast, veo2-pro, veo3, veo3-fast, veo3-pro, veo3.1-components 等
         // 🔧 图生视频必须使用 -frames 后缀模型（如 veo3-fast-frames）
         if (action === 'veo3') {
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
             // 🎬 支持前端传递的模型名，默认使用 veo3.1-components-4k (4K+音频)
             let { prompt, image_url, aspect_ratio = '16:9', model: veoModel = 'veo3.1-components-4k' } = body;
-            
+
             if (!prompt && !image_url) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT_OR_IMAGE',
                     error_code: 'MISSING_PROMPT_OR_IMAGE',
@@ -1511,7 +1710,7 @@ module.exports = async function handler(req, res) {
                 });
                 return;
             }
-            
+
             // 🔧 直接使用前端传来的模型名
             const hasImage = !!image_url;
             let actualModel = veoModel || 'veo3.1-components-4k';
@@ -1535,62 +1734,58 @@ module.exports = async function handler(req, res) {
             }
 
             try {
-                // 🌟 使用官方 /v1/video/create API (JSON 格式)
-                const requestBody = {
-                    model: actualModel,
-                    prompt: prompt || '让图片动起来，平滑过渡',
-                    enhance_prompt: true,  // 必需参数
-                    aspect_ratio: aspect_ratio
-                };
+                // 🌟 使用 OpenAI 格式 /v1/chat/completions API
+                // 构建消息内容
+                const messageContent = [];
                 
-                // 🧲 图生视频一致性增强参数（Veo）
-                if (image_url) {
-                    requestBody.preserve_subject = true;       // 保持主体不变
-                    requestBody.image_weight = (body.image_weight != null) ? Number(body.image_weight) : 0.95;  // 高图片权重
-                    requestBody.motion_intensity = body.motion_intensity || 'medium';  // 中等运动强度
-                    requestBody.style_consistency = true;      // 风格一致性
-                    console.log(`[yunwu] 🧲 Veo图生视频一致性参数: image_weight=${requestBody.image_weight}, preserve_subject=true`);
-                }
+                // 添加文本提示词
+                messageContent.push({
+                    type: 'text',
+                    text: prompt || '让图片动起来，平滑过渡'
+                });
                 
-                // 如果有图片参考，添加 images 数组
+                // 如果有图片参考，添加图片
                 if (image_url) {
-                    // 如果是 base64，需要先上传到图床获取 URL
                     if (image_url.startsWith('data:')) {
-                        // 尝试上传到 catbox 获取 URL
-                        try {
-                            const matches = image_url.match(/^data:([^;]+);base64,(.+)$/);
-                            if (matches) {
-                                const base64Data = matches[2];
-                                const buffer = Buffer.from(base64Data, 'base64');
-                                const FormData = (await import('form-data')).default;
-                                const formData = new FormData();
-                                formData.append('reqtype', 'fileupload');
-                                formData.append('fileToUpload', buffer, { filename: 'image.png', contentType: 'image/png' });
-                                
-                                const uploadRes = await fetch('https://catbox.moe/user/api.php', {
-                                    method: 'POST',
-                                    body: formData
-                                });
-                                if (uploadRes.ok) {
-                                    const uploadUrl = (await uploadRes.text()).trim();
-                                    if (uploadUrl.startsWith('http')) {
-                                        requestBody.images = [uploadUrl];
-                                    }
-                                }
-                            }
-                        } catch (uploadErr) {
-                            console.warn('[yunwu] 图片上传失败:', uploadErr.message);
-                        }
+                        // base64 图片直接传递
+                        messageContent.push({
+                            type: 'image_url',
+                            image_url: { url: image_url }
+                        });
                     } else {
-                        // 直接使用 URL
-                        requestBody.images = [image_url];
+                        // URL 图片
+                        messageContent.push({
+                            type: 'image_url',
+                            image_url: { url: image_url }
+                        });
                     }
                 }
+                
+                // OpenAI 格式请求体
+                const requestBody = {
+                    model: actualModel,
+                    messages: [{
+                        role: 'user',
+                        content: messageContent
+                    }],
+                    // 视频生成特定参数
+                    aspect_ratio: aspect_ratio,
+                    enhance_prompt: true
+                };
+                
+                // 🧲 图生视频一致性增强参数
+                if (image_url) {
+                    requestBody.preserve_subject = true;
+                    requestBody.image_weight = (body.image_weight != null) ? Number(body.image_weight) : 0.95;
+                    requestBody.motion_intensity = body.motion_intensity || 'medium';
+                    requestBody.style_consistency = true;
+                    console.log(`[yunwu] 🧲 Veo图生视频一致性参数: image_weight=${requestBody.image_weight}`);
+                }
 
-                console.log('[yunwu] Veo请求体:', JSON.stringify(requestBody).substring(0, 500));
+                console.log('[yunwu] Veo OpenAI格式请求体:', JSON.stringify(requestBody).substring(0, 500));
 
-                // 使用更长超时，4K视频生成需要更多时间
-                const response = await fetchWithFallbackWithTimeout(`/v1/video/create`, {
+                // 使用 OpenAI 格式端点
+                const response = await fetchWithFallbackWithTimeout(`/v1/chat/completions`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${YUNWU_API_KEY}`,
@@ -1603,7 +1798,7 @@ module.exports = async function handler(req, res) {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('[yunwu] Veo错误:', response.status, errorText);
-                    
+
                     let errorDetail = '';
                     try {
                         const errorJson = JSON.parse(errorText);
@@ -1611,12 +1806,12 @@ module.exports = async function handler(req, res) {
                     } catch (e) {
                         errorDetail = errorText.substring(0, 200);
                     }
-                    
+
                     // 🔄 API失败退款
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, 'VeoAPI失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -1627,11 +1822,11 @@ module.exports = async function handler(req, res) {
                 }
 
                 const data = await response.json();
-                
+
                 // ✅ 任务提交成功：保存记录并返回
                 const taskId = data?.task_id || data?.id || '';
                 await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, veoModel, filmCost, { aspect_ratio });
-                
+
                 json(200, { success: true, ...data, billed: billingSuccess ? filmCost : 0 });
                 return;
             } catch (err) {
@@ -1640,7 +1835,7 @@ module.exports = async function handler(req, res) {
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, 'Veo异常退款');
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -1654,17 +1849,22 @@ module.exports = async function handler(req, res) {
         // ========== Vidu 视频生成 - 使用云雾 API /tencent-vod/v1/aigc-video ==========
         // 支持多图参考 (q2模型支持1-7张图片)
         if (action === 'vidu') {
-            const { 
-                prompt, 
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            const {
+                prompt,
                 image_url,           // 单图（兼容旧版）
                 image_urls,          // 多图数组（最多7张）
                 model_version = 'q2',      // q2, q2-pro, q2-turbo
-                aspect_ratio = '16:9', 
+                aspect_ratio = '16:9',
                 duration = 5,              // 1-10秒
                 resolution = '720P',       // 720P, 1080P
                 last_frame_url             // 尾帧图片（q2-pro/q2-turbo支持）
             } = body;
-            
+
             // 合并 image_url 和 image_urls
             let allImageUrls = [];
             if (image_urls && Array.isArray(image_urls)) {
@@ -1672,9 +1872,9 @@ module.exports = async function handler(req, res) {
             } else if (image_url) {
                 allImageUrls = [image_url];
             }
-            
+
             if (!prompt && allImageUrls.length === 0) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT_OR_IMAGE',
                     error_code: 'MISSING_PROMPT_OR_IMAGE',
@@ -1683,10 +1883,10 @@ module.exports = async function handler(req, res) {
                 });
                 return;
             }
-            
+
             // q2模型最多支持7张图片
             if (allImageUrls.length > 7) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'TOO_MANY_IMAGES',
                     error_code: 'TOO_MANY_IMAGES',
@@ -1732,7 +1932,7 @@ module.exports = async function handler(req, res) {
                         output_compliance_check: 'Enabled'
                     }
                 };
-                
+
                 // 🧲 Vidu图生视频一致性增强参数
                 if (allImageUrls.length > 0) {
                     requestBody.preserve_subject = true;       // 保持主体不变
@@ -1741,14 +1941,14 @@ module.exports = async function handler(req, res) {
                     requestBody.style_consistency = true;
                     console.log(`[yunwu] 🧲 Vidu图生视频一致性参数: image_weight=${requestBody.image_weight}, imageCount=${allImageUrls.length}`);
                 }
-                
+
                 // 🖼️ 处理参考图片（支持多图）
                 if (allImageUrls.length > 0) {
                     const fileInfos = [];
-                    
+
                     for (let i = 0; i < allImageUrls.length; i++) {
                         let imgUrl = allImageUrls[i];
-                        
+
                         // 如果是 base64，需要先上传到图床获取 URL
                         if (imgUrl.startsWith('data:')) {
                             try {
@@ -1760,7 +1960,7 @@ module.exports = async function handler(req, res) {
                                     const formData = new FormData();
                                     formData.append('reqtype', 'fileupload');
                                     formData.append('fileToUpload', buffer, { filename: `image_${i}.png`, contentType: 'image/png' });
-                                    
+
                                     const uploadRes = await fetch('https://catbox.moe/user/api.php', {
                                         method: 'POST',
                                         body: formData
@@ -1776,7 +1976,7 @@ module.exports = async function handler(req, res) {
                                 console.warn(`[yunwu] Vidu图片${i}上传失败:`, uploadErr.message);
                             }
                         }
-                        
+
                         // 添加有效URL到 file_infos
                         if (imgUrl && !imgUrl.startsWith('data:')) {
                             fileInfos.push({
@@ -1785,12 +1985,12 @@ module.exports = async function handler(req, res) {
                             });
                         }
                     }
-                    
+
                     if (fileInfos.length > 0) {
                         requestBody.file_infos = fileInfos;
                     }
                 }
-                
+
                 // 🎬 尾帧图片支持（q2-pro/q2-turbo）
                 if (last_frame_url && (model_version === 'q2-pro' || model_version === 'q2-turbo')) {
                     let finalLastFrameUrl = last_frame_url;
@@ -1834,7 +2034,7 @@ module.exports = async function handler(req, res) {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('[yunwu] Vidu错误:', response.status, errorText);
-                    
+
                     let errorDetail = '';
                     try {
                         const errorJson = JSON.parse(errorText);
@@ -1842,12 +2042,12 @@ module.exports = async function handler(req, res) {
                     } catch (e) {
                         errorDetail = errorText.substring(0, 200);
                     }
-                    
+
                     // 🔄 API失败退款
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, 'ViduAPI失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -1858,21 +2058,21 @@ module.exports = async function handler(req, res) {
                 }
 
                 const data = await response.json();
-                
+
                 // ✅ 任务提交成功：保存记录并返回
                 const taskId = data?.request_id || data?.task_id || data?.id || '';
                 await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, `vidu-${model_version}`, filmCost, { aspect_ratio, duration, resolution, imageCount: allImageUrls.length });
-                
+
                 // 返回结果，兼容前端轮询格式
-                json(200, { 
-                    success: true, 
+                json(200, {
+                    success: true,
                     task_id: taskId,
                     id: taskId,
                     status: data?.status || 'IN_QUEUE',
                     status_url: data?.status_url,
                     response_url: data?.response_url,
-                    ...data, 
-                    billed: billingSuccess ? filmCost : 0 
+                    ...data,
+                    billed: billingSuccess ? filmCost : 0
                 });
                 return;
             } catch (err) {
@@ -1881,7 +2081,7 @@ module.exports = async function handler(req, res) {
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, 'Vidu异常退款');
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -1894,16 +2094,21 @@ module.exports = async function handler(req, res) {
 
         // ========== Hailuo 海螺视频生成 - 使用云雾 API /tencent-vod/v1/aigc-video ==========
         if (action === 'hailuo') {
-            const { 
-                prompt, 
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            const {
+                prompt,
                 image_url,
                 model_version = '02',      // 02, 2.3, 2.3-fast
                 duration = 6,              // 6 或 10 秒
                 resolution = '768P'        // 768P, 1080P
             } = body;
-            
+
             if (!prompt && !image_url) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT_OR_IMAGE',
                     error_code: 'MISSING_PROMPT_OR_IMAGE',
@@ -1950,7 +2155,7 @@ module.exports = async function handler(req, res) {
                         output_compliance_check: 'Enabled'
                     }
                 };
-                
+
                 // 🧲 Hailuo图生视频一致性增强参数
                 if (image_url) {
                     requestBody.preserve_subject = true;       // 保持主体不变
@@ -1959,7 +2164,7 @@ module.exports = async function handler(req, res) {
                     requestBody.style_consistency = true;
                     console.log(`[yunwu] 🧲 Hailuo图生视频一致性参数: image_weight=${requestBody.image_weight}`);
                 }
-                
+
                 // 如果有参考图片
                 if (image_url) {
                     let finalImageUrl = image_url;
@@ -2012,7 +2217,7 @@ module.exports = async function handler(req, res) {
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, 'HailuoAPI失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false, error: 'API_ERROR', error_code: 'API_ERROR',
                         message: `Hailuo生成失败 (${response.status}): ${errorDetail}`, billed: 0
                     });
@@ -2022,13 +2227,13 @@ module.exports = async function handler(req, res) {
                 const data = await response.json();
                 const taskId = data?.request_id || data?.task_id || data?.id || '';
                 await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, `hailuo-${model_version}`, filmCost, { duration, resolution });
-                
-                json(200, { 
-                    success: true, 
+
+                json(200, {
+                    success: true,
                     task_id: taskId, id: taskId,
                     status: data?.status || 'IN_QUEUE',
                     status_url: data?.status_url, response_url: data?.response_url,
-                    ...data, billed: billingSuccess ? filmCost : 0 
+                    ...data, billed: billingSuccess ? filmCost : 0
                 });
                 return;
             } catch (err) {
@@ -2043,8 +2248,13 @@ module.exports = async function handler(req, res) {
 
         // ========== Kling 可灵视频生成 - 使用云雾 API /tencent-vod/v1/aigc-video ==========
         if (action === 'kling') {
-            const { 
-                prompt, 
+            // 🔐 检查云雾API Key
+            if (!YUNWU_API_KEY) {
+                json(500, { error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            const {
+                prompt,
                 image_url,
                 last_frame_url,            // 尾帧图片（2.1版本+1080P支持）
                 model_version = '2.5',     // 1.6, 2.0, 2.1, 2.5, O1
@@ -2052,9 +2262,9 @@ module.exports = async function handler(req, res) {
                 duration = 5,              // 5 或 10 秒
                 resolution = '720P'        // 720P, 1080P
             } = body;
-            
+
             if (!prompt && !image_url) {
-                json(400, { 
+                json(400, {
                     success: false,
                     error: 'MISSING_PROMPT_OR_IMAGE',
                     error_code: 'MISSING_PROMPT_OR_IMAGE',
@@ -2102,7 +2312,7 @@ module.exports = async function handler(req, res) {
                         output_compliance_check: 'Enabled'
                     }
                 };
-                
+
                 // 🧲 Kling图生视频一致性增强参数
                 if (image_url) {
                     requestBody.preserve_subject = true;       // 保持主体不变
@@ -2111,7 +2321,7 @@ module.exports = async function handler(req, res) {
                     requestBody.style_consistency = true;
                     console.log(`[yunwu] 🧲 Kling图生视频一致性参数: image_weight=${requestBody.image_weight}`);
                 }
-                
+
                 // 如果有参考图片
                 if (image_url) {
                     let finalImageUrl = image_url;
@@ -2138,7 +2348,7 @@ module.exports = async function handler(req, res) {
                         requestBody.file_infos = [{ type: 'Url', url: finalImageUrl }];
                     }
                 }
-                
+
                 // 尾帧图片支持（2.1版本 + 1080P）
                 if (last_frame_url && model_version === '2.1' && resolution === '1080P') {
                     let finalLastFrameUrl = last_frame_url;
@@ -2191,7 +2401,7 @@ module.exports = async function handler(req, res) {
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, 'KlingAPI失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false, error: 'API_ERROR', error_code: 'API_ERROR',
                         message: `Kling生成失败 (${response.status}): ${errorDetail}`, billed: 0
                     });
@@ -2201,13 +2411,13 @@ module.exports = async function handler(req, res) {
                 const data = await response.json();
                 const taskId = data?.request_id || data?.task_id || data?.id || '';
                 await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, `kling-${model_version}`, filmCost, { aspect_ratio, duration, resolution });
-                
-                json(200, { 
-                    success: true, 
+
+                json(200, {
+                    success: true,
                     task_id: taskId, id: taskId,
                     status: data?.status || 'IN_QUEUE',
                     status_url: data?.status_url, response_url: data?.response_url,
-                    ...data, billed: billingSuccess ? filmCost : 0 
+                    ...data, billed: billingSuccess ? filmCost : 0
                 });
                 return;
             } catch (err) {
@@ -2223,6 +2433,17 @@ module.exports = async function handler(req, res) {
         // ========== Wan2.6 文生视频/图生视频 (alibailian API) ==========
         // 云雾API支持: wan2.6-i2v, wan2.6-i2v-flash (文生视频和图生视频)
         if (action === 'wan26') {
+            console.log('[yunwu] 🎬 Wan2.6处理开始');
+            console.log('[yunwu] 📦 收到的body:', JSON.stringify(body || {}).substring(0, 500));
+            
+            // 🔐 检查API Key（使用云雾API Key）
+            console.log('[yunwu] 🔐 检查API Key:', YUNWU_API_KEY ? '已配置' : '未配置');
+            if (!YUNWU_API_KEY) {
+                json(500, { success: false, error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置，请联系管理员' });
+                return;
+            }
+            
+            console.log('[yunwu] 📦 解析请求体');
             const {
                 prompt,
                 img_url,
@@ -2235,92 +2456,106 @@ module.exports = async function handler(req, res) {
                 seed
             } = body;
 
+            console.log('[yunwu] 📦 请求参数:', { prompt: prompt?.substring(0, 50), img_url: img_url?.substring(0, 50), resolution, duration, audio });
+
+            const actualWanModel = 'wan2.6-i2v-flash';
+            const basePrompt = prompt || '让图片动起来，平滑过渡';
+            const effectiveImageWeight = Number(image_weight) || 0.3;
+            
+            // 🎬 Wan2.6支持文生视频和图生视频
+            // 文生视频时根据分辨率选择合适的绿幕图
+            const effectiveImgUrl = img_url || getGreenScreenForResolution(resolution);
             const isTextToVideo = !img_url;
+            console.log('[yunwu] 🎬 视频类型:', isTextToVideo ? '文生视频' : '图生视频');
 
             // 根据参数计算费用
             const dur = parseInt(duration) || 5;
             const res720 = String(resolution).includes('720');
             const resKey = res720 ? '720p' : '1080p';
             const durKey = `${dur}s`;
-            const audioSuffix = audio ? '-audio' : '';
+            const audioBool = audio === true || audio === 'true' || audio === 1 || audio === '1';
+            const audioSuffix = audioBool ? '-audio' : '';
             const costKey = `wan26-${resKey}-${durKey}${audioSuffix}`;
             const filmCost = FILM_COST[costKey] || FILM_COST['wan26-720p-5s'] || 3;
             let billingSuccess = false;
 
-            console.log('[yunwu] Wan2.6视频:', { type: isTextToVideo ? '文生视频' : '图生视频', resolution: resKey, duration: dur, audio, image_weight, costKey, filmCost, promptLen: prompt?.length, hasImage: !!img_url });
-
-            // 🔒 先扣费
-            if (!skipBilling && filmCost > 0 && userId) {
-                const billingResult = await __billing('consume', userId, filmCost, `Wan2.6:${resKey}-${durKey}${audioSuffix}`);
-                if (!billingResult.success && !billingResult.skipped) {
-                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
-                    return;
-                }
-                billingSuccess = billingResult.success && !billingResult.skipped;
-            } else if (skipBilling) {
-                console.log(`[yunwu] 💰 Wan2.6跳过扣费: 前端已处理`);
-            }
+            console.log('[yunwu] Wan2.6视频:', {
+                actualType: isTextToVideo ? '文生视频' : '图生视频',
+                actualModel: actualWanModel,
+                resolution: resKey,
+                duration: dur,
+                audio,
+                image_weight: effectiveImageWeight,
+                costKey,
+                filmCost,
+                promptLen: basePrompt?.length,
+                hasImage: !!img_url,
+                useDefaultGreenScreen: isTextToVideo
+            });
 
             try {
-                // 构建 alibailian API 请求体
+                // 🔒 先扣费
+                if (!skipBilling && filmCost > 0 && userId) {
+                    const billingResult = await __billing('consume', userId, filmCost, `Wan2.6:${resKey}-${durKey}${audioSuffix}`);
+                    if (!billingResult.success && !billingResult.skipped) {
+                        json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                        return;
+                    }
+                    billingSuccess = billingResult.success && !billingResult.skipped;
+                } else if (skipBilling) {
+                    console.log(`[yunwu] 💰 Wan2.6跳过扣费: 前端已处理`);
+                }
+                // 构建 alibailian API 请求体 - 严格按照官方示例
                 const requestBody = {
-                    model: 'wan2.6-i2v-flash',
+                    model: actualWanModel,
                     input: {
-                        prompt: prompt || '让图片动起来，平滑过渡'
+                        prompt: basePrompt,
+                        img_url: effectiveImgUrl
                     },
                     parameters: {
                         resolution: res720 ? '720P' : '1080P',
                         duration: dur,
                         prompt_extend: prompt_extend !== false,
-                        watermark: false,
                         audio: !!audio
                     }
                 };
 
-                // 图生视频添加img_url
-                if (!isTextToVideo) {
-                    requestBody.input.img_url = img_url;
-                    requestBody.parameters.image_weight = Number(image_weight) || 0.3;
-                }
-                if (negative_prompt) {
-                    requestBody.input.negative_prompt = negative_prompt;
-                }
-                if (seed) {
-                    requestBody.parameters.seed = seed;
-                }
-
                 console.log('[yunwu] Wan2.6请求体:', JSON.stringify(requestBody).substring(0, 500));
 
-                const response = await fetchWithFallbackWithTimeout(
-                    `/alibailian/api/v1/services/aigc/video-generation/video-synthesis`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${YUNWU_API_KEY}`,
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify(requestBody)
+                // 🎬 使用云雾API调用wan2.6
+                const wan26Url = `${YUNWU_BASE_URL}/alibailian/api/v1/services/aigc/video-generation/video-synthesis`;
+                const response = await fetch(wan26Url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
-                    120000  // 120秒超时
-                );
+                    body: JSON.stringify(requestBody),
+                    signal: AbortSignal.timeout(120000)  // 120秒超时
+                });
 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('[yunwu] Wan2.6错误:', response.status, errorText);
                     let errorDetail = '';
+                    let fullError = errorText;
                     try {
                         const errorJson = JSON.parse(errorText);
-                        errorDetail = errorJson?.error?.message || errorJson?.message || errorText.substring(0, 200);
+                        errorDetail = errorJson?.error?.message || errorJson?.message || errorText.substring(0, 500);
+                        fullError = JSON.stringify(errorJson);
                     } catch (e) {
-                        errorDetail = errorText.substring(0, 200);
+                        errorDetail = errorText.substring(0, 500);
                     }
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, 'Wan2.6API失败退款');
                     }
                     json(500, {
                         success: false, error: 'API_ERROR', error_code: 'API_ERROR',
-                        message: `Wan2.6生成失败 (${response.status}): ${errorDetail}`, billed: 0
+                        message: `Wan2.6生成失败 (${response.status}): ${errorDetail}`,
+                        full_error: fullError,
+                        request_body: requestBody,
+                        billed: 0
                     });
                     return;
                 }
@@ -2329,7 +2564,7 @@ module.exports = async function handler(req, res) {
                 // alibailian 返回格式: { output: { task_id, task_status }, request_id, usage }
                 const taskId = data?.output?.task_id || data?.task_id || data?.request_id || data?.id || '';
                 const taskStatus = data?.output?.task_status || data?.status || 'PENDING';
-                await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, 'wan2.6-i2v-flash', filmCost, { resolution: resKey, duration: dur, audio, image_weight });
+                await __saveGenerationRecord(userId, 'video', `task:${taskId}`, basePrompt, actualWanModel, filmCost, { resolution: resKey, duration: dur, audio, image_weight: effectiveImageWeight });
 
                 json(200, {
                     success: true,
@@ -2353,6 +2588,12 @@ module.exports = async function handler(req, res) {
 
         // ========== Wan2.6 任务轮询 ==========
         if (action === 'wan26-poll') {
+            // 🔐 检查API Key（使用云雾API Key）
+            if (!YUNWU_API_KEY) {
+                json(500, { success: false, error: 'YUNWU_NOT_CONFIGURED', message: '云雾API未配置' });
+                return;
+            }
+            
             const { task_id } = body;
             if (!task_id) {
                 json(400, { success: false, error: 'MISSING_TASK_ID', message: '缺少 task_id' });
@@ -2360,17 +2601,16 @@ module.exports = async function handler(req, res) {
             }
 
             try {
-                const response = await fetchWithFallbackWithTimeout(
-                    `/alibailian/api/v1/tasks/${encodeURIComponent(task_id)}`,
-                    {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${YUNWU_API_KEY}`,
-                            'Accept': 'application/json'
-                        }
+                // 🎬 使用云雾API轮询wan2.6
+                const wan26PollUrl = `${YUNWU_BASE_URL}/alibailian/api/v1/tasks/${encodeURIComponent(task_id)}`;
+                const response = await fetch(wan26PollUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                        'Accept': 'application/json'
                     },
-                    30000
-                );
+                    signal: AbortSignal.timeout(30000)  // 30秒超时
+                });
 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -2412,14 +2652,176 @@ module.exports = async function handler(req, res) {
             }
         }
 
+        // ========== LTX-Video (Lightricks) 视频生成 ==========
+        if (action === 'ltx' || (action === 'text-to-video' && model && model.startsWith('ltx-video'))) {
+            const RUNNINGHUB_API_KEY = process.env.RUNNINGHUB_API_KEY;
+            if (!RUNNINGHUB_API_KEY) {
+                json(500, { success: false, error: 'RUNNINGHUB_NOT_CONFIGURED', message: 'RUNNINGHUB_API_KEY 未配置' });
+                return;
+            }
+
+            const { prompt, aspect_ratio = '16:9', duration = 10 } = body;
+            if (!prompt) {
+                json(400, { success: false, error: 'MISSING_PROMPT', message: '缺少提示词' });
+                return;
+            }
+
+            const modelName = model || 'ltx-video-10s';
+            let filmCost = FILM_COST[modelName] || FILM_COST['ltx-video-10s'] || 7;
+            
+            let billingSuccess = false;
+            
+            console.log('[yunwu] LTX-Video:', { model: modelName, promptLen: prompt?.length, aspect_ratio, duration });
+            
+            if (!skipBilling && filmCost > 0 && userId) {
+                const billingResult = await __billing('consume', userId, filmCost, `LTX-Video:${modelName}`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                    return;
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            } else if (skipBilling) {
+                console.log(`[yunwu] 💰 LTX-Video跳过扣费: 前端已处理`);
+            }
+
+            try {
+                const width = aspect_ratio === '9:16' ? 576 : 1024;
+                const height = aspect_ratio === '9:16' ? 1024 : 576;
+                
+                const nodeInfoList = [
+                    { nodeId: "197", fieldName: "text", fieldValue: prompt },
+                    { nodeId: "198", fieldName: "value", fieldValue: String(width) },
+                    { nodeId: "199", fieldName: "value", fieldValue: String(height) },
+                    { nodeId: "202", fieldName: "value", fieldValue: String(duration) }
+                ];
+
+                const reqBody = { 
+                    nodeInfoList, 
+                    instanceType: 'default',
+                    workflowName: 'ltx-video'
+                };
+
+                // RunningHub LTX-Video AI App
+                const LTX_APP_ID = process.env.RUNNINGHUB_LTX_APP_ID || '2029773138094985218';
+                const response = await fetch(`https://www.runninghub.cn/openapi/v2/run/ai-app/${LTX_APP_ID}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`
+                    },
+                    body: JSON.stringify(reqBody)
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || (data.code !== 0 && data.code !== undefined && !data.taskId)) {
+                    if (billingSuccess) {
+                        await __billing('refund', userId, filmCost, 'LTX-Video提交失败退款');
+                    }
+                    json(response.status || 500, { success: false, error: 'SUBMIT_FAILED', message: data.errorMessage || data.msg || 'LTX-Video提交失败' });
+                    return;
+                }
+
+                console.log(`[yunwu] ✨ LTX-Video任务已提交: ${data.taskId}`);
+                json(200, {
+                    success: true,
+                    task_id: data.taskId,
+                    id: data.taskId,
+                    _source: 'ltx',
+                    _endpoint: 'runninghub',
+                    billed: billingSuccess ? filmCost : 0
+                });
+                return;
+            } catch (err) {
+                if (billingSuccess) {
+                    await __billing('refund', userId, filmCost, 'LTX-Video提交异常退款');
+                }
+                json(500, { success: false, error: 'API_ERROR', error_code: 'API_ERROR', message: err.message, billed: 0 });
+                return;
+            }
+        }
+
+        // ========== LTX-Video/RunningHub 任务轮询 ==========
+        if (action === 'poll') {
+            const { task_id: taskId, source, _source, _endpoint } = body;
+            
+            if (source === 'ltx' || _source === 'ltx' || _endpoint === 'runninghub') {
+                const RUNNINGHUB_API_KEY = process.env.RUNNINGHUB_API_KEY;
+                if (!RUNNINGHUB_API_KEY) {
+                    json(500, { success: false, error: 'RUNNINGHUB_NOT_CONFIGURED', message: 'RUNNINGHUB_API_KEY 未配置' });
+                    return;
+                }
+
+                if (!taskId) {
+                    json(400, { success: false, error: 'MISSING_TASK_ID', message: '缺少taskId' });
+                    return;
+                }
+
+                try {
+                    const response = await fetch('https://www.runninghub.cn/openapi/v2/query', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`
+                        },
+                        body: JSON.stringify({ taskId })
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        json(500, { success: false, error: 'QUERY_FAILED', message: data.errorMessage || data.msg || '查询失败' });
+                        return;
+                    }
+
+                    const results = [];
+                    if (data.results && Array.isArray(data.results)) {
+                        for (const item of data.results) {
+                            results.push({
+                                url: item.url || '',
+                                type: item.outputType || '',
+                                text: item.text || ''
+                            });
+                        }
+                    }
+                    const firstMedia = results.find(r => r.url) || {};
+
+                    let normalizedStatus = 'PENDING';
+                    const status = String(data.status || 'PENDING').toUpperCase();
+                    if (status === 'SUCCEEDED' || status === 'SUCCESS' || status === 'COMPLETED' || status === 'DONE') {
+                        normalizedStatus = 'SUCCESS';
+                    } else if (status === 'FAILED' || status === 'FAILURE' || status === 'ERROR' || status === 'CANCELED') {
+                        normalizedStatus = 'FAILED';
+                    } else if (status === 'RUNNING' || status === 'PROCESSING' || status === 'PENDING' || status === 'QUEUING') {
+                        normalizedStatus = 'PENDING';
+                    }
+
+                    console.log(`[yunwu] LTX-Video轮询: taskId=${taskId}, status=${status} → ${normalizedStatus}, hasVideo=${!!firstMedia.url}`);
+
+                    json(200, {
+                        success: normalizedStatus === 'SUCCESS',
+                        status: normalizedStatus,
+                        task_status: status,
+                        video_url: firstMedia.url || '',
+                        url: firstMedia.url || '',
+                        results: results,
+                        ...data
+                    });
+                    return;
+                } catch (err) {
+                    console.warn('[yunwu] LTX-Video轮询异常:', err.message);
+                    json(200, { success: false, status: 'PENDING', error: `轮询异常: ${err.message}` });
+                    return;
+                }
+            }
+        }
+
         // ========== 创建角色 (sora-2-characters) ==========
         if (action === 'create-character') {
             const { url, from_task, timestamps = '1,3' } = body;
-            
+
             if (!url && !from_task) {
-                json(400, { 
+                json(400, {
                     success: false,
-                    error: 'MISSING_URL_OR_TASK_ID', 
+                    error: 'MISSING_URL_OR_TASK_ID',
                     error_code: 'MISSING_URL_OR_TASK_ID',
                     message: '需要提供视频URL或任务ID',
                     billed: 0
@@ -2465,7 +2867,7 @@ module.exports = async function handler(req, res) {
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, '创建角色API失败退款');
                     }
-                    json(500, { 
+                    json(500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -2476,7 +2878,7 @@ module.exports = async function handler(req, res) {
                 }
 
                 const data = await response.json();
-                
+
                 // ✅ 创建成功：返回角色信息（已在开头扣费）
                 json(200, { success: true, character: data, billed: billingSuccess ? filmCost : 0 });
                 return;
@@ -2485,7 +2887,7 @@ module.exports = async function handler(req, res) {
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, '创建角色异常退款');
                 }
-                json(500, { 
+                json(500, {
                     success: false,
                     error: 'API_ERROR',
                     error_code: 'API_ERROR',
@@ -2563,7 +2965,7 @@ module.exports = async function handler(req, res) {
                 .replace(/\s*--\w+\s*[\d.:]*(?=\s|$)/g, ' ')        // 其他未知参数
                 .replace(/\s{2,}/g, ' ')                             // 多个空格合并
                 .trim();
-            
+
             // 重新添加正确格式的参数
             if (aspect_ratio && aspect_ratio !== '1:1') optimizedPrompt += ` --ar ${aspect_ratio}`;
             // 🔧 修复 niji 版本参数：niji6 需要用 --niji 6 而不是 --v niji6
@@ -2629,7 +3031,7 @@ module.exports = async function handler(req, res) {
                         state: '',
                         mode: speedMode
                     })
-                }, 60000);
+                }, 60000, true);  // 🔧 isMJ = true
 
                 if (!submitResponse.ok) {
                     const errorText = await submitResponse.text();
@@ -2672,14 +3074,14 @@ module.exports = async function handler(req, res) {
                         const pollResponse = await fetchWithFallbackWithTimeout(`/mj-turbo/mj/task/${mjTaskId}/fetch`, {
                             method: 'GET',
                             headers: { 'Authorization': `Bearer ${YUNWU_API_KEY}` }
-                        }, 10000);  // 缩短超时到10秒
+                        }, 10000, true);  // 🔧 isMJ = true
 
                         if (!pollResponse.ok) continue;
 
                         const pollData = await pollResponse.json();
                         const status = pollData.status;
                         const progress = pollData.progress || 0;
-                        
+
                         // 🆕 输出进度日志（每5次或有进度变化时）
                         if (attempt % 5 === 0 || progress > 0) {
                             console.log(`[yunwu] 🔄 MJ轮询 (${attempt + 1}/${maxAttempts}): ${status} ${progress}%`);
@@ -2706,7 +3108,7 @@ module.exports = async function handler(req, res) {
 
                 // 🔪 直接返回网格图 + taskId，由前端切图选择后再调 upscale
                 // 不在这里自动 upscale 4张，避免浪费 API 调用
-                
+
                 // 🔄 把网格图转成 base64，解决前端跨域切图问题
                 let gridBase64 = null;
                 try {
@@ -2721,17 +3123,17 @@ module.exports = async function handler(req, res) {
                 } catch (imgErr) {
                     console.warn('[yunwu] 网格图转 base64 失败:', imgErr.message);
                 }
-                
+
                 // 保存记录（已在开头扣费）
                 await __saveGenerationRecord(userId, 'image', imageUrl, prompt, model, filmCost, { aspect_ratio, version, taskId: mjTaskId });
 
-                json(200, { 
-                    success: true, 
+                json(200, {
+                    success: true,
                     imageUrl,  // 网格图 URL
-                    url: imageUrl, 
+                    url: imageUrl,
                     gridBase64,  // 🆕 base64 网格图，前端用这个切图
                     taskId: mjTaskId,  // 前端需要用这个调 upscale
-                    billed: billingSuccess ? filmCost : 0 
+                    billed: billingSuccess ? filmCost : 0
                 });
                 return;
             } catch (err) {
@@ -2743,23 +3145,23 @@ module.exports = async function handler(req, res) {
                 return;
             }
         }
-        
+
         // ========== Midjourney Upscale 单张放大 ==========
         if (action === 'mj-upscale') {
             const { taskId, index } = body;  // index: 1-4
-            
+
             if (!taskId || !index) {
                 json(400, { success: false, error: 'MISSING_PARAMS', message: '缺少 taskId 或 index' });
                 return;
             }
-            
+
             // 💰 Upscale 扣费 1 胶片
             const upscaleCost = 1;
             let billingSuccess = false;
             let taskIdObtained = false;  // 标记是否获得了任务ID
-            
+
             console.log(`[yunwu] 🔍 Upscale 请求: taskId=${taskId}, index=${index}`);
-            
+
             // 🔒 先扣费
             if (!skipBilling && upscaleCost > 0 && userId) {
                 const billingResult = await __billing('consume', userId, upscaleCost, 'MJ Upscale');
@@ -2771,7 +3173,7 @@ module.exports = async function handler(req, res) {
             } else if (skipBilling) {
                 console.log(`[yunwu] 💰 MJ Upscale跳过扣费: 前端已处理`);
             }
-            
+
             try {
                 // 提交 upscale 任务
                 const upscaleResponse = await fetchWithFallbackWithTimeout('/mj-turbo/mj/submit/upscale', {
@@ -2785,8 +3187,8 @@ module.exports = async function handler(req, res) {
                         index: parseInt(index),
                         mode: 'FAST'
                     })
-                }, 60000);
-                
+                }, 60000, true);  // 🔧 isMJ = true
+
                 if (!upscaleResponse.ok) {
                     const errText = await upscaleResponse.text();
                     // 🔄 提交失败退款
@@ -2796,7 +3198,7 @@ module.exports = async function handler(req, res) {
                     json(500, { success: false, error: 'UPSCALE_SUBMIT_FAILED', message: `Upscale 提交失败: ${upscaleResponse.status}`, billed: 0 });
                     return;
                 }
-                
+
                 const upscaleData = await upscaleResponse.json();
                 if (upscaleData.code !== 1 && upscaleData.code !== 22) {
                     // 🔄 任务提交失败退款
@@ -2806,11 +3208,11 @@ module.exports = async function handler(req, res) {
                     json(500, { success: false, error: 'UPSCALE_FAILED', message: upscaleData.description || 'Upscale 任务提交失败', billed: 0 });
                     return;
                 }
-                
+
                 const upscaleTaskId = upscaleData.result;
                 taskIdObtained = true;  // ✅ 获得了任务ID，上游已消耗资源
                 console.log(`[yunwu] 🎯 Upscale 任务已提交: ${upscaleTaskId}`);
-                
+
                 // 🚀 优化轮询：首次不等待，2秒间隔
                 let upscaleImageUrl = null;
                 const maxUpscaleAttempts = 45;  // 约90秒
@@ -2819,20 +3221,20 @@ module.exports = async function handler(req, res) {
                     if (attempt > 0) {
                         await new Promise(resolve => setTimeout(resolve, 2000));
                     }
-                    
+
                     try {
                         const pollResponse = await fetchWithFallbackWithTimeout(`/mj-turbo/mj/task/${upscaleTaskId}/fetch`, {
                             method: 'GET',
                             headers: { 'Authorization': `Bearer ${YUNWU_API_KEY}` }
-                        }, 8000);  // 缩短超时
-                        
+                        }, 8000, true);  // 🔧 isMJ = true
+
                         if (pollResponse.ok) {
                             const pollData = await pollResponse.json();
                             // 🆕 减少日志刷屏，每5次输出一次
                             if (attempt % 5 === 0) {
                                 console.log(`[yunwu] 🔄 Upscale轮询 (${attempt + 1}/${maxUpscaleAttempts}): ${pollData.status}`);
                             }
-                            
+
                             if (pollData.status === 'SUCCESS') {
                                 upscaleImageUrl = pollData.imageUrl;
                                 break;
@@ -2846,13 +3248,13 @@ module.exports = async function handler(req, res) {
                         console.warn('[yunwu] Upscale轮询异常:', pollErr.message);
                     }
                 }
-                
+
                 if (!upscaleImageUrl) {
                     // ⚠️ 任务已提交但超时，上游已消耗资源，不退款
                     json(500, { success: false, error: 'UPSCALE_TIMEOUT', message: 'Upscale 超时', billed: billingSuccess ? upscaleCost : 0 });
                     return;
                 }
-                
+
                 // ✅ Upscale 成功（已在开头扣费）
                 console.log(`[yunwu] ✅ Upscale 成功:`, upscaleImageUrl);
                 json(200, { success: true, imageUrl: upscaleImageUrl, url: upscaleImageUrl, billed: billingSuccess ? upscaleCost : 0 });
@@ -2880,7 +3282,7 @@ module.exports = async function handler(req, res) {
                 const pollResponse = await fetchWithFallbackWithTimeout(`/mj-turbo/mj/task/${taskId}/fetch`, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${YUNWU_API_KEY}` }
-                }, 15000);
+                }, 15000, true);  // 🔧 isMJ = true
 
                 if (!pollResponse.ok) {
                     json(200, { success: false, status: 'IN_PROGRESS' });
@@ -2906,7 +3308,7 @@ module.exports = async function handler(req, res) {
         // ========== 轮询视频任务状态 (Veo等) ==========
         if (action === 'poll') {
             const { task_id } = body;
-            
+
             if (!task_id) {
                 json(400, { error: 'MISSING_TASK_ID' });
                 return;
@@ -2931,11 +3333,11 @@ module.exports = async function handler(req, res) {
             json(200, { success: true, ...data });
             return;
         }
-        
+
         // ========== 🆕 轮询腾讯VOD视频任务状态 (Vidu/Hailuo/Kling) ==========
         if (action === 'poll-vod') {
             const { task_id } = body;
-            
+
             if (!task_id) {
                 json(400, { error: 'MISSING_TASK_ID' });
                 return;
@@ -2961,22 +3363,22 @@ module.exports = async function handler(req, res) {
 
                 const data = await response.json();
                 console.log('[yunwu] VOD轮询返回:', JSON.stringify(data).substring(0, 500));
-                
+
                 // 解析腾讯VOD的返回结构
                 // Response.Status: FINISH / PROCESSING / FAIL
                 // Response.AigcVideoTask.Output.VideoInfos[0].FileUrl
                 const vodResponse = data?.Response || data;
                 const status = vodResponse?.Status || vodResponse?.AigcVideoTask?.Status || '';
-                
+
                 if (status === 'FINISH') {
                     // 成功完成
                     const videoInfos = vodResponse?.AigcVideoTask?.Output?.VideoInfos || [];
                     const videoUrl = videoInfos[0]?.FileUrl || '';
-                    
+
                     if (videoUrl) {
                         console.log('[yunwu] ✅ VOD视频生成成功:', videoUrl);
-                        json(200, { 
-                            success: true, 
+                        json(200, {
+                            success: true,
                             status: 'COMPLETED',
                             video_url: videoUrl,
                             url: videoUrl,
@@ -3006,18 +3408,18 @@ module.exports = async function handler(req, res) {
         }
 
         // ========== 🎵 TTS 配音功能 ==========
-        
+
         // 获取音色列表
         if (action === 'tts-voices') {
             const { grade, gender, pageIndex, pageSize, keyword } = body;
-            
+
             // 检查TTS API KEY是否配置
             if (!TTS_API_KEY || TTS_API_KEY.length < 20) {
                 console.error('[yunwu] TTS_API_KEY 未配置或无效');
                 json(200, { success: false, error: 'TTS服务未配置，请联系管理员' });
                 return;
             }
-            
+
             try {
                 const requestBody = {
                     pageIndex: pageIndex || 1,
@@ -3026,9 +3428,9 @@ module.exports = async function handler(req, res) {
                 };
                 if (gender !== undefined && gender !== '') requestBody.gender = parseInt(gender);
                 if (keyword) requestBody.keyword = keyword;
-                
+
                 console.log('[yunwu] TTS请求音色列表:', TTS_BASE_URL, JSON.stringify(requestBody));
-                
+
                 const authHeaders = getDubbingXBearerHeaders();
                 const response = await fetch(`${TTS_BASE_URL}/v2/getTTSTimbreList`, {
                     method: 'POST',
@@ -3039,20 +3441,20 @@ module.exports = async function handler(req, res) {
                     body: JSON.stringify(requestBody),
                     signal: AbortSignal.timeout(15000)
                 });
-                
+
                 if (!response.ok) {
                     const errText = await response.text().catch(() => '');
                     console.error(`[yunwu] TTS API返回 ${response.status}:`, errText.substring(0, 200));
                     json(200, { success: false, error: `TTS服务异常(${response.status})` });
                     return;
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.success && data.data?.list) {
                     console.log(`[yunwu] TTS音色列表成功，共${data.data.list.length}个`);
-                    json(200, { 
-                        success: true, 
+                    json(200, {
+                        success: true,
                         voices: data.data.list,
                         total: data.data.total
                     });
@@ -3066,33 +3468,33 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // TTS生成（带队列控制）
         if (action === 'tts-generate') {
             const { voiceId, text, language, audioSpeed, audioPitch, audioVolume, fileFormat, emotion, userId } = body;
-            
+
             if (!voiceId || !text) {
                 json(400, { error: 'MISSING_PARAMS', message: '缺少voiceId或text' });
                 return;
             }
-            
+
             // 检查并发数
             if (ttsCurrentConcurrent >= TTS_MAX_CONCURRENT) {
                 // 返回队列位置
                 const queuePosition = ttsQueue.length + 1;
                 console.log(`[yunwu] TTS队列已满，当前位置: ${queuePosition}`);
-                json(200, { 
-                    success: false, 
+                json(200, {
+                    success: false,
                     queuePosition,
                     message: `当前排队位置: ${queuePosition}，请稍后重试`
                 });
                 return;
             }
-            
+
             ttsCurrentConcurrent++;
             console.log(`[yunwu] TTS并发: ${ttsCurrentConcurrent}/${TTS_MAX_CONCURRENT}`);
             console.log(`[yunwu] TTS请求参数: voiceId=${voiceId}, textLen=${text?.length}, language=${language}`);
-            
+
             try {
                 // DubbingX v2 API 使用 SSML 格式
                 const speed = audioSpeed || 1;
@@ -3100,16 +3502,16 @@ module.exports = async function handler(req, res) {
                 const lang = language || 'zh';
                 // emotion 必须提供，默认使用“常规-日常说话-1”
                 const emo = emotion || '常规-日常说话-1';
-                
+
                 // 构建 SSML 文本
                 const ssmlText = `<speak voiceId="${voiceId}" language="${lang}" emotion="${emo}" audioPitch="${pitch}" audioSpeed="${speed}">${text}</speak>`;
-                
+
                 const requestBody = {
                     text: ssmlText
                 };
-                
+
                 console.log(`[yunwu] TTS v2 SSML请求:`, ssmlText.substring(0, 200));
-                
+
                 const ttsAuthHeaders = getDubbingXBearerHeaders();
                 const response = await fetch(`${TTS_BASE_URL}/v2/addTtsTask`, {
                     method: 'POST',
@@ -3119,10 +3521,10 @@ module.exports = async function handler(req, res) {
                     },
                     body: JSON.stringify(requestBody)
                 });
-                
+
                 const data = await response.json();
                 console.log('[yunwu] DubbingX TTS响应:', JSON.stringify(data).substring(0, 500));
-                
+
                 if (data.success && (data.data?.id || data.data?.taskId)) {
                     const taskId = data.data?.taskId || data.data?.id;
                     // 扣费
@@ -3130,9 +3532,9 @@ module.exports = async function handler(req, res) {
                     if (userId && !skipBilling) {
                         await __billing('consume', userId, cost, 'TTS配音');
                     }
-                    
-                    json(200, { 
-                        success: true, 
+
+                    json(200, {
+                        success: true,
                         taskId: taskId,
                         message: '任务已提交'
                     });
@@ -3141,9 +3543,9 @@ module.exports = async function handler(req, res) {
                     console.error('[yunwu] DubbingX TTS失败:', JSON.stringify(data));
                     const errMsg = data.msg || data.message || data.error || 'TTS任务创建失败';
                     // 返回更详细的错误信息给前端
-                    json(200, { 
-                        success: false, 
-                        error: `${errMsg} (voiceId: ${voiceId})`, 
+                    json(200, {
+                        success: false,
+                        error: `${errMsg} (voiceId: ${voiceId})`,
                         detail: data.data || null,
                         rawResponse: JSON.stringify(data).substring(0, 200)
                     });
@@ -3156,38 +3558,37 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // Gemini TTS生成（实时返回音频）
         // 支持 flash 和 pro 两个版本
         if (action === 'gemini-tts') {
             const { text, voiceName, model, userId } = body;
             // model: 'flash' 或 'pro'，默认 flash
-            
+
             if (!text) {
                 json(400, { error: 'MISSING_TEXT', message: '缺少text参数' });
                 return;
             }
-            
+
             // 检查并发数
             if (ttsCurrentConcurrent >= TTS_MAX_CONCURRENT) {
                 const queuePosition = ttsQueue.length + 1;
-                json(200, { 
-                    success: false, 
+                json(200, {
+                    success: false,
                     queuePosition,
                     message: `当前排队位置: ${queuePosition}，请稍后重试`
                 });
                 return;
             }
-            
+
             ttsCurrentConcurrent++;
-            
-            // 选择模型：flash(便宜快速) 或 pro(高质量)
-            const isProModel = model === 'pro';
-            const ttsModel = isProModel ? 'gemini-2.5-pro-preview-tts' : 'gemini-2.5-flash-preview-tts';
-            const cost = isProModel ? FILM_COST['tts-gemini-pro'] : FILM_COST['tts-gemini-flash'];
-            
+
+            // 选择模型：使用高质量TTS
+            const ttsModel = 'gemini-2.5-pro-preview-tts';
+            const cost = FILM_COST['tts-gemini-pro'];
+
             console.log(`[yunwu] Gemini TTS并发: ${ttsCurrentConcurrent}/${TTS_MAX_CONCURRENT}, 模型: ${ttsModel}`);
-            
+
             try {
                 const requestBody = {
                     contents: [{
@@ -3204,7 +3605,7 @@ module.exports = async function handler(req, res) {
                         }
                     }
                 };
-                
+
                 const response = await fetchWithFallbackWithTimeout(`/v1beta/models/${ttsModel}:generateContent?key=${YUNWU_API_KEY}`, {
                     method: 'POST',
                     headers: {
@@ -3213,19 +3614,19 @@ module.exports = async function handler(req, res) {
                     },
                     body: JSON.stringify(requestBody)
                 }, 60000);
-                
+
                 if (!response.ok) {
                     const errText = await response.text();
                     console.error('[yunwu] Gemini TTS错误:', response.status, errText);
                     throw new Error(`Gemini TTS失败: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
-                
+
                 // 解析音频数据
                 let audioData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
                 let mimeType = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/mp3';
-                
+
                 if (audioData) {
                     // 🔧 PCM → WAV 转换：Gemini 返回的 audio/L16 是原始 PCM 数据，浏览器无法直接播放
                     if (mimeType && (mimeType.includes('L16') || mimeType.includes('pcm') || mimeType.includes('raw'))) {
@@ -3262,9 +3663,9 @@ module.exports = async function handler(req, res) {
                     if (userId && !skipBilling) {
                         await __billing('consume', userId, cost, `Gemini ${isProModel ? 'Pro' : 'Flash'} TTS配音`);
                     }
-                    
-                    json(200, { 
-                        success: true, 
+
+                    json(200, {
+                        success: true,
                         audioData: audioData,  // base64编码的音频（WAV格式）
                         mimeType: mimeType,
                         model: ttsModel,
@@ -3281,16 +3682,16 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // TTS轮询状态
         if (action === 'tts-poll') {
             const { taskId } = body;
-            
+
             if (!taskId) {
                 json(400, { error: 'MISSING_TASK_ID' });
                 return;
             }
-            
+
             try {
                 const response = await fetch(`${TTS_BASE_URL}/v1/getTtsTaskInfo/${taskId}`, {
                     method: 'POST',
@@ -3300,9 +3701,9 @@ module.exports = async function handler(req, res) {
                     },
                     body: JSON.stringify({})
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success && data.data) {
                     const taskInfo = data.data;
                     json(200, {
@@ -3320,9 +3721,9 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // ========== 🎤 VC 变声 ==========
-        
+
         // 获取VC音色列表
         if (action === 'vc-list') {
             const { pageIndex, pageSize, isMyModel, keyword, gender, ageGroup } = body;
@@ -3337,24 +3738,24 @@ module.exports = async function handler(req, res) {
                     ageGroup
                 };
                 console.log('[yunwu] VC音色列表请求:', VC_BASE_URL, JSON.stringify(requestBody));
-                
+
                 const response = await fetch(`${VC_BASE_URL}/v1/getVCTimbreList`, {
                     method: 'POST',
                     headers,
                     body: JSON.stringify(requestBody),
                     signal: AbortSignal.timeout(15000)
                 });
-                
+
                 if (!response.ok) {
                     const errText = await response.text().catch(() => '');
                     console.error(`[yunwu] VC API返回 ${response.status}:`, errText.substring(0, 300));
                     json(200, { success: false, error: `VC服务异常(${response.status}): ${errText.substring(0, 100)}` });
                     return;
                 }
-                
+
                 const data = await response.json();
                 console.log('[yunwu] VC音色列表返回:', JSON.stringify(data).substring(0, 300));
-                
+
                 if (data.success && data.data) {
                     json(200, { success: true, voices: data.data, total: data.data.length || 0 });
                 } else {
@@ -3366,7 +3767,7 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // 创建VC变声任务（上传文件 + 创建任务）
         if (action === 'vc-create') {
             const { audioData, timbreId, pitch, userId } = body;
@@ -3380,17 +3781,17 @@ module.exports = async function handler(req, res) {
                 if (userId) {
                     await __billing('consume', userId, cost, 'VC变声');
                 }
-                
+
                 // 解析base64
                 const match = audioData.match(/^data:(.+);base64,(.+)$/);
                 const mimeType = match ? match[1] : 'audio/wav';
                 const b64 = match ? match[2] : audioData;
                 const buffer = Buffer.from(b64, 'base64');
-                
+
                 // 上传文件
                 const form = new FormData();
                 form.append('file', new Blob([buffer], { type: mimeType }), 'voice.wav');
-                
+
                 const uploadRes = await fetch(`${VC_BASE_URL}/v1/uploadFile`, {
                     method: 'POST',
                     headers: getDubbingXBearerHeaders(),
@@ -3400,7 +3801,7 @@ module.exports = async function handler(req, res) {
                 if (!uploadData.success || !uploadData.data?.key) {
                     throw new Error(uploadData.msg || '上传音频失败');
                 }
-                
+
                 // 创建变声任务
                 const taskRes = await fetch(`${VC_BASE_URL}/v1/addVoiceConvertTask`, {
                     method: 'POST',
@@ -3423,7 +3824,7 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // VC任务查询
         if (action === 'vc-poll') {
             const { taskId } = body;
@@ -3453,30 +3854,30 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // ========== 🎵 可灵 Kling TTS 语音合成 ==========
         if (action === 'kling-tts') {
             const { text, voiceId, voiceLanguage, voiceSpeed, userId } = body;
-            
+
             if (!text || !voiceId) {
                 json(400, { error: 'MISSING_PARAMS', message: '缺少text或voiceId参数' });
                 return;
             }
-            
+
             // 检查并发数
             if (ttsCurrentConcurrent >= TTS_MAX_CONCURRENT) {
                 const queuePosition = ttsQueue.length + 1;
-                json(200, { 
-                    success: false, 
+                json(200, {
+                    success: false,
                     queuePosition,
                     message: `当前排队位置: ${queuePosition}，请稍后重试`
                 });
                 return;
             }
-            
+
             ttsCurrentConcurrent++;
             console.log(`[yunwu] Kling TTS并发: ${ttsCurrentConcurrent}/${TTS_MAX_CONCURRENT}`);
-            
+
             try {
                 const requestBody = {
                     text: text,
@@ -3484,7 +3885,7 @@ module.exports = async function handler(req, res) {
                     voice_language: voiceLanguage || 'zh'
                 };
                 if (voiceSpeed) requestBody.voice_speed = voiceSpeed;
-                
+
                 const response = await fetchWithFallbackWithTimeout(`/kling/v1/audio/tts`, {
                     method: 'POST',
                     headers: {
@@ -3493,50 +3894,50 @@ module.exports = async function handler(req, res) {
                     },
                     body: JSON.stringify(requestBody)
                 }, 60000);
-                
+
                 if (!response.ok) {
                     const errText = await response.text();
                     console.error('[yunwu] Kling TTS错误:', response.status, errText);
                     throw new Error(`Kling TTS失败: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('[yunwu] Kling TTS返回:', JSON.stringify(data).substring(0, 300));
-                
+
                 // 检查返回结果
                 if (data?.data?.task_id || data?.task_id) {
                     const taskId = data?.data?.task_id || data?.task_id;
-                    
+
                     // 扣费
                     const cost = 2;  // Kling TTS 2胶片
                     if (userId && !skipBilling) {
                         await __billing('consume', userId, cost, 'Kling TTS配音');
                     }
-                    
-                    json(200, { 
-                        success: true, 
+
+                    json(200, {
+                        success: true,
                         taskId: taskId,
                         message: '任务已提交'
                     });
                 } else {
                     // 尝试多种路径提取直接返回的音频URL
                     const audioUrl = data?.data?.task_result?.audios?.[0]?.url ||  // ✅ Kling TTS 实际格式
-                                    data?.data?.task_result?.works?.[0]?.resource?.resource ||
-                                    data?.data?.task_result?.works?.[0]?.audio?.resource ||
-                                    data?.data?.works?.[0]?.resource?.resource ||
-                                    data?.data?.works?.[0]?.audio?.resource ||
-                                    data?.data?.audios?.[0]?.url ||
-                                    data?.data?.audio_url ||
-                                    data?.audio_url;
-                    
+                        data?.data?.task_result?.works?.[0]?.resource?.resource ||
+                        data?.data?.task_result?.works?.[0]?.audio?.resource ||
+                        data?.data?.works?.[0]?.resource?.resource ||
+                        data?.data?.works?.[0]?.audio?.resource ||
+                        data?.data?.audios?.[0]?.url ||
+                        data?.data?.audio_url ||
+                        data?.audio_url;
+
                     if (audioUrl) {
                         const cost = 2;
                         if (userId && !skipBilling) {
                             await __billing('consume', userId, cost, 'Kling TTS配音');
                         }
-                        
-                        json(200, { 
-                            success: true, 
+
+                        json(200, {
+                            success: true,
                             audioUrl: audioUrl,
                             message: '生成成功'
                         });
@@ -3553,16 +3954,16 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // 可灵 Kling TTS 轮询任务状态
         if (action === 'kling-tts-poll') {
             const { taskId } = body;
-            
+
             if (!taskId) {
                 json(400, { error: 'MISSING_TASK_ID' });
                 return;
             }
-            
+
             try {
                 const response = await fetchWithFallbackWithTimeout(`/kling/v1/audio/tts/${taskId}`, {
                     method: 'GET',
@@ -3570,13 +3971,13 @@ module.exports = async function handler(req, res) {
                         'Authorization': `Bearer ${YUNWU_API_KEY}`
                     }
                 }, 15000);
-                
+
                 if (!response.ok) {
                     // 读取真实错误
                     let errBody = '';
-                    try { errBody = await response.text(); } catch(e) {}
+                    try { errBody = await response.text(); } catch (e) { }
                     console.warn(`[yunwu] Kling TTS轮询 HTTP ${response.status}:`, errBody.substring(0, 300));
-                    
+
                     // 4xx = 永久性错误（认证/找不到），直接返回failed
                     if (response.status >= 400 && response.status < 500) {
                         json(200, { success: false, status: 'failed', error: `HTTP ${response.status}: ${errBody.substring(0, 100)}` });
@@ -3586,32 +3987,32 @@ module.exports = async function handler(req, res) {
                     }
                     return;
                 }
-                
+
                 const data = await response.json();
                 console.log('[yunwu] Kling TTS轮询返回:', JSON.stringify(data).substring(0, 800));
-                
+
                 const taskStatus = data?.data?.task_status || data?.task_status || data?.status;
                 const taskStatusLower = String(taskStatus || '').toLowerCase();
                 const taskCode = data?.code ?? data?.data?.code;
-                
+
                 // 先尝试从任何位置提取音频URL（即使状态判断失败也能工作）
                 const audioUrl = data?.data?.task_result?.audios?.[0]?.url ||  // ✅ Kling TTS 实际格式
-                                data?.data?.task_result?.works?.[0]?.resource?.resource ||
-                                data?.data?.task_result?.works?.[0]?.audio?.resource ||
-                                data?.data?.task_result?.works?.[0]?.audio?.resource_without_watermark ||
-                                data?.data?.task_result?.works?.[0]?.url ||
-                                data?.data?.works?.[0]?.resource?.resource ||
-                                data?.data?.works?.[0]?.audio?.resource ||
-                                data?.data?.works?.[0]?.audio?.resource_without_watermark ||
-                                data?.data?.works?.[0]?.url ||
-                                data?.data?.task_result?.audios?.[0]?.resource ||  // 备选
-                                data?.data?.audios?.[0]?.url ||  // 备选
-                                data?.data?.audio_url ||
-                                data?.audio_url ||
-                                data?.data?.task_result?.resource ||
-                                data?.data?.resource ||
-                                data?.resource;
-                
+                    data?.data?.task_result?.works?.[0]?.resource?.resource ||
+                    data?.data?.task_result?.works?.[0]?.audio?.resource ||
+                    data?.data?.task_result?.works?.[0]?.audio?.resource_without_watermark ||
+                    data?.data?.task_result?.works?.[0]?.url ||
+                    data?.data?.works?.[0]?.resource?.resource ||
+                    data?.data?.works?.[0]?.audio?.resource ||
+                    data?.data?.works?.[0]?.audio?.resource_without_watermark ||
+                    data?.data?.works?.[0]?.url ||
+                    data?.data?.task_result?.audios?.[0]?.resource ||  // 备选
+                    data?.data?.audios?.[0]?.url ||  // 备选
+                    data?.data?.audio_url ||
+                    data?.audio_url ||
+                    data?.data?.task_result?.resource ||
+                    data?.data?.resource ||
+                    data?.resource;
+
                 // 如果能找到音频URL，无论状态如何都返回成功
                 if (audioUrl) {
                     console.log('[yunwu] ✅ Kling TTS轮询: 找到audioUrl:', audioUrl.substring(0, 100));
@@ -3622,7 +4023,7 @@ module.exports = async function handler(req, res) {
                     });
                     return;
                 }
-                
+
                 if (taskStatusLower === 'succeed' || taskStatusLower === 'completed' || taskStatusLower === 'success' || taskCode === 0) {
                     // 状态显示完成但没有audioUrl，记录详细数据
                     console.error('[yunwu] ⚠️ Kling TTS轮询: 状态完成但未找到audioUrl, 完整数据:', JSON.stringify(data));
@@ -3642,38 +4043,38 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // ========== 🎙️ Whisper 语音识别（Speech-to-Text）==========
         if (action === 'speech-to-text') {
             const { audio, format, userId } = body;
-            
+
             if (!audio) {
                 json(400, { error: 'MISSING_AUDIO', message: '缺少音频数据' });
                 return;
             }
-            
+
             try {
                 console.log('[yunwu] 开始语音识别，音频格式:', format || 'webm');
-                
+
                 // 将 base64 转换为 Buffer
                 const audioBuffer = Buffer.from(audio, 'base64');
                 console.log('[yunwu] 音频大小:', audioBuffer.length, 'bytes');
-                
+
                 // 使用 form-data 构建 multipart/form-data 请求
                 const FormData = require('form-data');
                 const formData = new FormData();
-                
+
                 // 添加音频文件
-                const mimeType = format === 'webm' ? 'audio/webm' : 
-                                 format === 'mp3' ? 'audio/mp3' : 
-                                 format === 'wav' ? 'audio/wav' : 'audio/webm';
+                const mimeType = format === 'webm' ? 'audio/webm' :
+                    format === 'mp3' ? 'audio/mp3' :
+                        format === 'wav' ? 'audio/wav' : 'audio/webm';
                 formData.append('file', audioBuffer, {
                     filename: `audio.${format || 'webm'}`,
                     contentType: mimeType
                 });
                 formData.append('model', 'whisper-1');
                 formData.append('language', 'zh');  // 中文识别
-                
+
                 // 调用云雾 Whisper API
                 const response = await fetchWithFallbackWithTimeout(`/v1/audio/transcriptions`, {
                     method: 'POST',
@@ -3683,34 +4084,34 @@ module.exports = async function handler(req, res) {
                     },
                     body: formData
                 }, 60000);  // 60秒超时
-                
+
                 if (!response.ok) {
                     const errText = await response.text();
                     console.error('[yunwu] Whisper识别错误:', response.status, errText);
                     throw new Error(`语音识别失败: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('[yunwu] Whisper返回:', JSON.stringify(data).substring(0, 200));
-                
+
                 // 提取识别文本
                 const text = data?.text || data?.content || data?.data?.text || '';
-                
+
                 if (text) {
                     // 扣费 - 语音识别 1胶片/次
                     const cost = 1;
                     if (userId) {
                         await __billing('consume', userId, cost, 'Whisper语音识别');
                     }
-                    
-                    json(200, { 
-                        success: true, 
+
+                    json(200, {
+                        success: true,
                         text: text,
                         message: '识别成功'
                     });
                 } else {
-                    json(200, { 
-                        success: false, 
+                    json(200, {
+                        success: false,
                         text: '',
                         message: '未识别到内容'
                     });
@@ -3721,26 +4122,26 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // ========== 🎤 可灵自定义音色 ==========
         if (action === 'kling-custom-voice') {
             const { voiceName, voiceUrl, videoId, userId } = body;
-            
+
             if (!voiceName) {
                 json(400, { error: 'MISSING_VOICE_NAME', message: '缺少音色名称' });
                 return;
             }
-            
+
             if (!voiceUrl && !videoId) {
                 json(400, { error: 'MISSING_SOURCE', message: '需要提供音频URL或视频ID' });
                 return;
             }
-            
+
             try {
                 const requestBody = { voice_name: voiceName };
                 if (voiceUrl) requestBody.voice_url = voiceUrl;
                 if (videoId) requestBody.video_id = videoId;
-                
+
                 const response = await fetchWithFallbackWithTimeout(`/kling/v1/general/custom-voices`, {
                     method: 'POST',
                     headers: {
@@ -3749,16 +4150,16 @@ module.exports = async function handler(req, res) {
                     },
                     body: JSON.stringify(requestBody)
                 }, 60000);
-                
+
                 if (!response.ok) {
                     const errText = await response.text();
                     console.error('[yunwu] Kling自定义音色错误:', response.status, errText);
                     throw new Error(`创建自定义音色失败: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('[yunwu] Kling自定义音色返回:', JSON.stringify(data).substring(0, 300));
-                
+
                 const taskId = data?.data?.task_id || data?.task_id;
                 if (taskId) {
                     // 扣费
@@ -3766,9 +4167,9 @@ module.exports = async function handler(req, res) {
                     if (userId) {
                         await __billing('consume', userId, cost, 'Kling自定义音色');
                     }
-                    
-                    json(200, { 
-                        success: true, 
+
+                    json(200, {
+                        success: true,
                         taskId: taskId,
                         message: '音色创建任务已提交'
                     });
@@ -3781,16 +4182,16 @@ module.exports = async function handler(req, res) {
             }
             return;
         }
-        
+
         // 查询可灵自定义音色状态
         if (action === 'kling-custom-voice-query') {
             const { voiceId } = body;
-            
+
             if (!voiceId) {
                 json(400, { error: 'MISSING_VOICE_ID' });
                 return;
             }
-            
+
             try {
                 const response = await fetchWithFallbackWithTimeout(`/kling/v1/general/custom-voices/${voiceId}`, {
                     method: 'GET',
@@ -3798,18 +4199,18 @@ module.exports = async function handler(req, res) {
                         'Authorization': `Bearer ${YUNWU_API_KEY}`
                     }
                 }, 15000);
-                
+
                 if (!response.ok) {
                     const errText = await response.text();
                     throw new Error(`查询失败: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('[yunwu] Kling音色查询返回:', JSON.stringify(data).substring(0, 300));
-                
+
                 const voiceData = data?.data || data;
                 const status = voiceData?.task_status || voiceData?.status;
-                
+
                 json(200, {
                     success: true,
                     status: status,
@@ -3824,11 +4225,212 @@ module.exports = async function handler(req, res) {
             return;
         }
 
+        // ========== 🏃 RunningHub v2 ComfyUI 工作流 API ==========
+        if (action === 'runninghub-submit' || action === 'runninghub-query' || action === 'runninghub-upload') {
+            const RUNNINGHUB_API_KEY = process.env.RUNNINGHUB_API_KEY;
+            if (!RUNNINGHUB_API_KEY) {
+                json(500, { success: false, error: 'RUNNINGHUB_NOT_CONFIGURED', message: 'RUNNINGHUB_API_KEY 未配置' });
+                return;
+            }
+
+            // ——— 提交 ComfyUI 工作流任务 ———
+            if (action === 'runninghub-submit') {
+                // v2 通用模式：前端直接传 nodeInfoList
+                // 向后兼容：如果传 prompt 而非 nodeInfoList，自动组装为旧版MV工作流
+                let nodeInfoList = body.nodeInfoList;
+                const instanceType = body.instanceType || 'default';
+                const usePersonalQueue = body.usePersonalQueue || false;
+                const webhookUrl = body.webhookUrl || '';
+
+                if (!nodeInfoList && body.prompt) {
+                    // 旧版兼容：prompt → 默认MV工作流
+                    const { prompt, width = 640, height = 480, duration = 10 } = body;
+                    nodeInfoList = [
+                        { nodeId: "197", fieldName: "text", fieldValue: prompt },
+                        { nodeId: "198", fieldName: "value", fieldValue: String(width) },
+                        { nodeId: "199", fieldName: "value", fieldValue: String(height) },
+                        { nodeId: "202", fieldName: "value", fieldValue: String(duration) }
+                    ];
+                }
+
+                if (!nodeInfoList || !Array.isArray(nodeInfoList) || nodeInfoList.length === 0) {
+                    json(400, { success: false, error: 'MISSING_PARAMS', message: '缺少 nodeInfoList 或 prompt' });
+                    return;
+                }
+
+                // 按 instanceType 自动选择费用，前端可通过 filmCost 覆盖
+                const rhCostKey = instanceType === 'plus' ? 'rh-plus' : 'rh-default';
+                const filmCost = body.filmCost || FILM_COST[rhCostKey] || 41;
+                let billingSuccess = false;
+
+                // 🔒 先扣费
+                if (!skipBilling && filmCost > 0 && userId) {
+                    const billingResult = await __billing('consume', userId, filmCost, `RunningHub工作流:${body.workflowName || 'comfyui'}`);
+                    if (!billingResult.success && !billingResult.skipped) {
+                        json(400, { success: false, error: 'BILLING_FAILED', message: billingResult.error || '扣费失败' });
+                        return;
+                    }
+                    billingSuccess = billingResult.success && !billingResult.skipped;
+                }
+
+                try {
+                    const reqBody = { nodeInfoList, instanceType };
+                    if (usePersonalQueue) reqBody.usePersonalQueue = true;
+                    if (webhookUrl) reqBody.webhookUrl = webhookUrl;
+
+                    const response = await fetch('https://www.runninghub.cn/openapi/v2/run', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`
+                        },
+                        body: JSON.stringify(reqBody)
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok || (data.code !== 0 && data.code !== undefined && !data.taskId)) {
+                        if (billingSuccess) {
+                            await __billing('refund', userId, filmCost, 'RunningHub提交失败退款');
+                        }
+                        json(response.status || 500, { success: false, error: 'SUBMIT_FAILED', message: data.errorMessage || data.msg || 'RunningHub提交失败' });
+                        return;
+                    }
+
+                    console.log(`[yunwu] 🏃 RunningHub任务已提交: ${data.taskId}, status=${data.status}`);
+                    json(200, {
+                        success: true,
+                        taskId: data.taskId,
+                        status: data.status || 'RUNNING',
+                        clientId: data.clientId || '',
+                        promptTips: data.promptTips || '',
+                        billed: billingSuccess ? filmCost : 0
+                    });
+                    return;
+                } catch (err) {
+                    if (billingSuccess) {
+                        await __billing('refund', userId, filmCost, 'RunningHub提交异常退款');
+                    }
+                    json(500, { success: false, error: 'SUBMIT_ERROR', message: err.message });
+                    return;
+                }
+            }
+
+            // ——— 查询任务状态（v2 POST /openapi/v2/query）———
+            if (action === 'runninghub-query') {
+                const { taskId } = body;
+                if (!taskId) {
+                    json(400, { success: false, error: 'MISSING_TASK_ID', message: '缺少taskId' });
+                    return;
+                }
+
+                try {
+                    const response = await fetch('https://www.runninghub.cn/openapi/v2/query', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`
+                        },
+                        body: JSON.stringify({ taskId })
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        json(500, { success: false, error: 'QUERY_FAILED', message: data.errorMessage || data.msg || '查询失败' });
+                        return;
+                    }
+
+                    // 提取结果（图片/视频/文本）
+                    const results = [];
+                    if (data.results && Array.isArray(data.results)) {
+                        for (const item of data.results) {
+                            results.push({
+                                url: item.url || '',
+                                type: item.outputType || '',
+                                text: item.text || ''
+                            });
+                        }
+                    }
+                    // 向后兼容：提取第一个视频/图片URL
+                    const firstMedia = results.find(r => r.url) || {};
+
+                    json(200, {
+                        success: data.status === 'SUCCESS',
+                        status: data.status || 'PENDING',
+                        taskId: data.taskId,
+                        results: results,
+                        videoUrl: firstMedia.url || '',
+                        usage: data.usage || {},
+                        errorCode: data.errorCode || '',
+                        errorMessage: data.errorMessage || '',
+                        failedReason: data.failedReason || {}
+                    });
+                    return;
+                } catch (err) {
+                    json(500, { success: false, error: 'QUERY_ERROR', message: err.message });
+                    return;
+                }
+            }
+
+            // ——— 文件上传（v2 /openapi/v2/media/upload/binary）———
+            if (action === 'runninghub-upload') {
+                const { fileBase64, fileName = 'upload.png', mimeType = 'image/png' } = body;
+                if (!fileBase64) {
+                    json(400, { success: false, error: 'MISSING_FILE', message: '缺少 fileBase64' });
+                    return;
+                }
+
+                try {
+                    // base64 → Buffer
+                    const raw = fileBase64.startsWith('data:') ? fileBase64.split(',')[1] : fileBase64;
+                    const buffer = Buffer.from(raw, 'base64');
+
+                    // multipart/form-data 手动构建
+                    const boundary = '----RHUpload' + Date.now();
+                    const bodyParts = [
+                        `--${boundary}\r\n`,
+                        `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n`,
+                        `Content-Type: ${mimeType}\r\n\r\n`
+                    ];
+                    const header = Buffer.from(bodyParts.join(''));
+                    const footer = Buffer.from(`\r\n--${boundary}--\r\n`);
+                    const multipartBody = Buffer.concat([header, buffer, footer]);
+
+                    const response = await fetch('https://www.runninghub.cn/openapi/v2/media/upload/binary', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`,
+                            'Content-Type': `multipart/form-data; boundary=${boundary}`
+                        },
+                        body: multipartBody
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok || data.code !== 0) {
+                        json(500, { success: false, error: 'UPLOAD_FAILED', message: data.message || '上传失败' });
+                        return;
+                    }
+
+                    console.log(`[yunwu] 🏃 RunningHub文件上传成功: ${data.data?.fileName}`);
+                    json(200, {
+                        success: true,
+                        downloadUrl: data.data?.download_url || '',
+                        fileName: data.data?.fileName || '',
+                        fileType: data.data?.type || '',
+                        fileSize: data.data?.size || ''
+                    });
+                    return;
+                } catch (err) {
+                    json(500, { success: false, error: 'UPLOAD_ERROR', message: err.message });
+                    return;
+                }
+            }
+        }
+
         json(400, { error: 'INVALID_ACTION', message: `不支持的操作: ${action}` });
 
     } catch (error) {
-        console.error('[yunwu] 调用失败:', error.message);
-        json(500, { error: 'YUNWU_FAILED', message: error.message });
+        console.error('[yunwu] 调用失败:', error.message, error.stack);
+        json(500, { error: 'YUNWU_FAILED', message: error.message, stack: error.stack });
     }
 };
 

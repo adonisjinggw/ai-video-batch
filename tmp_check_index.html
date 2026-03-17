@@ -1,0 +1,2092 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RollRoll - 璁╁垱鎰忚浆鍔?V8.6.5</title>
+    <!-- 馃摫 鎵嬫満绔嚜鍔ㄨ烦杞?-->
+    <script>
+        (function () {
+            // 濡傛灉URL涓湁 force=pc 鍙傛暟锛屽垯涓嶈烦杞?            if (location.search.includes('force=pc')) return;
+            // 妫€娴嬫槸鍚︽槸绉诲姩璁惧
+            var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            // 妫€娴嬪睆骞曞搴?            var isSmallScreen = window.innerWidth <= 768;
+            // 绉诲姩璁惧鎴栧皬灞忓箷鑷姩璺宠浆鍒版墜鏈虹増
+            if (isMobile || isSmallScreen) {
+                // 馃敡 淇濈暀鐧诲綍鐩稿叧鍙傛暟锛岀‘淇濇墜鏈虹増鑳芥纭烦杩囨杩庨〉
+                var params = new URLSearchParams(location.search);
+                var hasLoginParam = params.has('logged_in') || params.has('skip_welcome');
+                // 馃敡 淇锛氭娴?referrer锛屽鏋滄潵鑷瓙椤甸潰鍒欒烦杩囨杩庨〉
+                var referrer = document.referrer || '';
+                var fromSubPage = referrer && (referrer.includes('.html') && !referrer.includes('mobile.html') && !referrer.includes('index.html'));
+                var shouldSkipWelcome = hasLoginParam || fromSubPage;
+                var targetUrl = shouldSkipWelcome ? 'mobile.html?skip_welcome=1' : 'mobile.html';
+                location.replace(targetUrl);
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="css/style.css?v=8.6.6">
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Supabase SDK 锛堟湰鍦板煙鍚嶄唬鐞嗭紝閬垮厤琚彃浠舵嫤鎴級 -->
+    <script src="/api/supabase-sdk?version=2.45.1&v=7.18.0"></script>
+    <style>
+        .plugin-warning-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 10000;
+        }
+
+        .plugin-warning-card {
+            width: min(520px, 95vw);
+            background: #0d0d1a;
+            border: 1px solid var(--accent-gold, #fbbf24);
+            border-radius: 18px;
+            padding: 26px 28px;
+            color: #f8fafc;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            line-height: 1.6;
+        }
+
+        .plugin-warning-card h3 {
+            margin: 0 0 8px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .plugin-warning-list {
+            margin: 15px 0;
+            padding-left: 18px;
+            color: #fca5a5;
+        }
+
+        .plugin-warning-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #e5e5e5;
+        }
+
+        .plugin-warning-check input {
+            width: 18px;
+            height: 18px;
+        }
+
+        .plugin-warning-actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .plugin-warning-actions button {
+            flex: 1;
+            min-width: 160px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-weight: 600;
+            border: 1px solid var(--accent-gold, #fbbf24);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: transparent;
+            color: var(--accent-gold, #fbbf24);
+        }
+
+        .plugin-warning-actions button.btn-solid {
+            background: linear-gradient(135deg, var(--accent-gold, #fbbf24), #fbbf24);
+            color: #000;
+        }
+
+        .plugin-warning-actions button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .plugin-warning-hint {
+            display: block;
+            margin-top: 12px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        /* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?           馃幀 褰辫寮€鍦哄姩鐢?           鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?*/
+        .cinema-intro {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .cinema-intro.active { display: flex !important; }
+        .cinema-intro.hidden { display: none !important; }
+        .cinema-intro.fade-out { animation: cinemaFadeOut 0.6s ease-out forwards; }
+        @keyframes cinemaFadeOut { to { opacity: 0; visibility: hidden; } }
+
+        /* 鏃朵唬鑳屾櫙 */
+        .era-bg { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; }
+        .era-bg.active { opacity: 1; }
+        .era-silent { background: #1a1a1a; filter: sepia(80%) contrast(1.1); }
+        .era-color { background: linear-gradient(135deg, #1a0808 0%, #081a18 100%); }
+        .era-digital { background: linear-gradient(180deg, #080815 0%, #0f0f20 100%); }
+        .era-ai { background: radial-gradient(ellipse at center, #1a1025 0%, #080810 100%); }
+
+        /* 鑳剁墖杈规 */
+        .film-border { position: absolute; top: 0; bottom: 0; width: 50px; background: repeating-linear-gradient(to bottom, #111 0px, #111 15px, #000 15px, #000 18px, #1a1a1a 18px, #1a1a1a 33px, #000 33px, #000 36px); z-index: 2; }
+        .film-border.left { left: 0; }
+        .film-border.right { right: 0; }
+
+        /* 瀹牸鏁堟灉 - 鏃朵唬鍗＄墖 */
+        .era-card { position: absolute; z-index: 25; text-align: center; opacity: 0; pointer-events: none; }
+        .era-card.show { animation: eraCardShow 1.8s ease-out forwards; }
+        @keyframes eraCardShow {
+            0% { opacity: 0; transform: scale(0.7) translateY(20px); }
+            15% { opacity: 1; transform: scale(1) translateY(0); }
+            75% { opacity: 1; }
+            100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+        }
+        .era-year { font-size: 80px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: -3px; margin-bottom: 8px; }
+        .era-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; letter-spacing: 4px; }
+        .era-desc { font-size: 14px; opacity: 0.7; letter-spacing: 2px; }
+        .era-silent-card .era-year { color: #a0a0a0; }
+        .era-silent-card .era-title { color: #d0d0d0; }
+        .era-color-card .era-year { color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5); }
+        .era-color-card .era-title { color: #ffd93d; }
+        .era-digital-card .era-year { color: #4ecdc4; text-shadow: 0 0 20px rgba(78,205,196,0.5); }
+        .era-digital-card .era-title { color: #45b7d1; }
+        .era-ai-card .era-year { background: linear-gradient(135deg, #fbbf24, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .era-ai-card .era-title { color: #fbbf24; }
+        .era-ai-card .era-desc { color: #a78bfa; }
+
+        /* 鍦鸿鏉?*/
+        .intro-clapperboard { position: absolute; width: 280px; height: 200px; z-index: 10; opacity: 0; }
+        .intro-clapperboard.show { animation: clapperShow 0.5s ease-out forwards; }
+        @keyframes clapperShow {
+            0% { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+            60% { opacity: 1; transform: scale(1.05) rotate(3deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .clapper-top { width: 100%; height: 50px; background: linear-gradient(135deg, #1a1a1a, #333); border-radius: 6px 6px 0 0; position: relative; z-index: 2; }
+        .clapper-top::before { content: ''; position: absolute; inset: 4px; background: repeating-linear-gradient(-45deg, #fbbf24 0px, #fbbf24 14px, #000 14px, #000 28px); border-radius: 3px; }
+        .clapper-body { width: 100%; height: 150px; background: linear-gradient(180deg, #1a1a1a, #0a0a0a); border-radius: 0 0 6px 6px; padding: 16px; display: flex; flex-direction: column; justify-content: center; border: 2px solid #333; border-top: none; }
+        .clapper-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+        .clapper-label { color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .clapper-value { color: #fbbf24; font-weight: 700; font-family: 'Courier New', monospace; }
+        .clapper-title { text-align: center; font-size: 24px; font-weight: 900; color: #fff; margin-top: 10px; text-shadow: 0 0 15px rgba(251,191,36,0.5); }
+
+        /* 鍊掕鏃?*/
+        .intro-countdown { position: absolute; width: 160px; height: 160px; z-index: 20; opacity: 0; }
+        .intro-countdown.show { animation: countdownPulse 0.7s ease-out forwards; }
+        @keyframes countdownPulse {
+            0% { opacity: 0; transform: scale(1.5); }
+            20% { opacity: 1; transform: scale(1); }
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+        .countdown-circle { width: 100%; height: 100%; border: 6px solid transparent; border-top-color: #fbbf24; border-radius: 50%; animation: countdownSpin 0.7s linear; }
+        @keyframes countdownSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .countdown-number { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 72px; font-weight: 900; color: #fbbf24; font-family: 'Courier New', monospace; text-shadow: 0 0 25px rgba(251,191,36,0.8); }
+
+        /* LOGO灞曠ず */
+        .intro-logo { position: absolute; z-index: 30; text-align: center; opacity: 0; }
+        .intro-logo.show { animation: logoReveal 1s ease-out forwards; }
+        @keyframes logoReveal {
+            0% { opacity: 0; transform: scale(0.3); filter: blur(15px); }
+            50% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .intro-logo-icon { width: 120px; height: 120px; margin: 0 auto 20px; background: linear-gradient(135deg, #fbbf24, #a855f7); border-radius: 30px; display: flex; align-items: center; justify-content: center; font-size: 60px; box-shadow: 0 20px 60px rgba(251,191,36,0.4); }
+        .intro-logo-text { font-size: 52px; font-weight: 900; color: #fff; letter-spacing: 8px; text-shadow: 0 0 30px rgba(251,191,36,0.5); margin-bottom: 10px; }
+        .intro-logo-tagline { font-size: 20px; color: rgba(255,255,255,0.8); letter-spacing: 6px; }
+
+        /* 绮掑瓙 */
+        .intro-particles { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+        .intro-particle { position: absolute; width: 4px; height: 4px; background: #fbbf24; border-radius: 50%; box-shadow: 0 0 10px #fbbf24; animation: particleFloat 2.5s ease-in-out infinite; }
+        @keyframes particleFloat {
+            0%, 100% { opacity: 0; transform: translateY(100vh) scale(0); }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-50px) scale(1); }
+        }
+
+        /* 鍏夌嚎鎵繃 */
+        .light-sweep { position: absolute; width: 200%; height: 100%; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.02) 55%, transparent 100%); transform: translateX(-100%) skewX(-20deg); z-index: 50; pointer-events: none; }
+        .light-sweep.animate { animation: sweepLight 1s ease-out forwards; }
+        @keyframes sweepLight { from { transform: translateX(-100%) skewX(-20deg); } to { transform: translateX(100%) skewX(-20deg); } }
+
+        /* 鏁呴殰鏁堟灉 */
+        .glitch-overlay { position: absolute; inset: 0; z-index: 60; pointer-events: none; opacity: 0; }
+        .glitch-overlay.active { animation: glitchFlash 0.15s ease-out; }
+        @keyframes glitchFlash {
+            0%, 100% { opacity: 0; }
+            20% { opacity: 1; background: rgba(255,0,0,0.1); transform: translateX(-3px); }
+            40% { opacity: 1; background: rgba(0,255,255,0.1); transform: translateX(3px); }
+            60% { opacity: 0; }
+        }
+
+        /* 璺宠繃鎸夐挳 */
+        .intro-skip { position: fixed; bottom: 30px; right: 30px; padding: 12px 24px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 25px; color: #fff; font-size: 14px; cursor: pointer; z-index: 100000; transition: all 0.2s; }
+        .intro-skip:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); }
+    </style>
+</head>
+
+<body>
+    <!-- 馃摫 绉诲姩绔晶杈规爮閬僵 -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="鎵撳紑鑿滃崟">鈽?/button>
+
+    <div class="app-container">
+        <!-- 宸︿晶鎺у埗鏍?-->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path
+                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span>RollRoll</span>
+                </div>
+                <!-- 鐢ㄦ埛鐘舵€?-->
+                <div id="userStatusBar" class="user-status-bar">
+                    <a href="auth.html" class="user-login-btn" title="鐧诲綍/娉ㄥ唽">
+                        <span>馃懁</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- 馃幀 浜у搧绫诲瀷鍒囨崲Tab -->
+                <div class="product-type-tabs">
+                    <button class="product-tab active" data-type="video" onclick="switchProductType('video')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span>AI瑙嗛</span>
+                    </button>
+                    <button class="product-tab" data-type="comic" onclick="switchProductType('comic')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="9" y1="21" x2="9" y2="9" />
+                        </svg>
+                        <span>AI婕敾</span>
+                    </button>
+                    <button class="product-tab" data-type="writing" onclick="switchProductType('writing')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                        <span>AI鍐欎綔</span>
+                    </button>
+                    <button class="product-tab" data-type="skills" onclick="switchProductType('skills')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                        </svg>
+                        <span>馃З鎶€鑳?/span>
+                    </button>
+                </div>
+
+                <!-- 妯″紡閫夋嫨 -->
+                <div class="mode-toggle">
+                    <label class="mode-label"
+                        data-tooltip="馃殌 鍏ㄨ嚜鍔ㄦā寮?#10;鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣&#10;鉁?涓€閿惎鍔紝鍏ㄧ▼鏃犻渶骞查&#10;鉁?AI鑷姩瀹屾垚锛氬墽鏈啋瑙掕壊鈫掑垎闀溾啋鎻愮ず璇嶁啋瑙嗛&#10;鉁?閫傚悎鎵归噺鐢熶骇銆佺潯鍓嶆寕鏈?#10;鈿狅笍 鏃犳硶涓€斾慨鏀癸紝闇€绛夊緟瀹屾垚">
+                        <input type="radio" name="autoMode" value="full-auto" checked
+                            onchange="onModeChange(this.value)">
+                        鍏ㄨ嚜鍔?                    </label>
+                    <label class="mode-label"
+                        data-tooltip="鈿?鍗婅嚜鍔ㄦā寮?#10;鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣&#10;鉁?鍏抽敭姝ラ鏆傚仠绛夊緟纭&#10;鉁?鍙湪鍓ф湰銆佽鑹层€佸垎闀滅敓鎴愬悗瀹℃牳淇敼&#10;鉁?纭鍚庤嚜鍔ㄧ户缁笅涓€姝?#10;鉁?閫傚悎闇€瑕佽川閲忔妸鎺х殑鍒涗綔">
+                        <input type="radio" name="autoMode" value="semi-auto" onchange="onModeChange(this.value)">
+                        鍗婅嚜鍔?                    </label>
+                    <label class="mode-label"
+                        data-tooltip="馃帥锔?鎵嬪姩妯″紡&#10;鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣&#10;鉁?姣忎釜姝ラ閮介渶鎵嬪姩瑙﹀彂&#10;鉁?瀹屽叏鎺屾帶姣忎釜鐜妭&#10;鉁?鍙殢鏃剁紪杈戙€侀噸璇曚换鎰忔楠?#10;鉁?閫傚悎绮剧粏璋冩暣銆佸涔犳祦绋?>
+                        <input type="radio" name="autoMode" value="manual" onchange="onModeChange(this.value)">
+                        鎵嬪姩
+                    </label>
+                </div>
+
+                <!-- 骞跺彂鎺у埗 -->
+                <div class="task-limit-control">
+                    <span>骞跺彂浠诲姟鏁?/span>
+                    <div class="limit-input">
+                        <button onclick="adjustTaskCount(-1)" title="鍑忓皯浠诲姟鏁?>-</button>
+                        <span id="taskCountDisplay">3</span>
+                        <button onclick="adjustTaskCount(1)" title="澧炲姞浠诲姟鏁?>+</button>
+                    </div>
+                </div>
+
+                <!-- 蹇€熻緭鍏ュ尯鍩?-->
+                <div class="quick-input-section">
+                    <div class="section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        蹇€熻緭鍏?                    </div>
+
+                    <div class="file-upload-bar" style="margin-bottom: 10px; display: flex; justify-content: flex-end;">
+                        <input type="file" id="quickScriptUpload" accept=".txt,.md,.doc,.docx" style="display: none;"
+                            onchange="handleQuickScriptUpload(this)">
+                        <button onclick="document.getElementById('quickScriptUpload').click()" class="btn-text"
+                            style="font-size: 12px; color: var(--accent-gold); display: flex; align-items: center; gap: 4px; cursor: pointer; border: 1px dashed #444; padding: 4px 8px; border-radius: 4px;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                            涓婁紶鍓ф湰/鏂囨。
+                        </button>
+                    </div>
+
+                    <textarea id="quickIdeaInput" class="quick-textarea" placeholder="杈撳叆鎮ㄧ殑鍒涙剰涓婚..."></textarea>
+                    <div id="continuityModeHint"
+                        style="display:none; margin-top:8px; padding:10px; background:rgba(102,126,234,0.15); border-left:3px solid #667eea; border-radius:4px; font-size:12px; color:#aaa; line-height:1.5;">
+                        馃挕 <b>杩炵画鎬ц棰戞ā寮?/b><br>
+                        鈥?AI灏嗚嚜鍔ㄥ垎闀滐紙3-5涓級<br>
+                        鈥?鍓嶄竴涓垎闀滅殑鏈€鍚庝竴甯р啋涓嬩竴涓垎闀滅殑绗竴甯?br>
+                        鈥?纭繚瑙嗛杩炶疮鎬?br>
+                        鈥?姣忓垎闀?5绉掞紝3鑳剁墖/鍒嗛暅
+                    </div>
+
+                    <!-- 璇煶鍔熻兘鏆傛椂绉婚櫎 (涓浗鍦板尯涓嶅彲鐢? -->
+
+                    <div class="quick-options">
+                        <div class="option-group">
+                            <label for="quickGenMode">妯″紡</label>
+                            <select id="quickGenMode" title="閫夋嫨鐢熸垚妯″紡" onchange="onGenModeChange(this.value)">
+                                <option value="modelscope-video">馃啌 榄斿瑙嗛锛堝厤璐癸級</option>
+                                <option value="sora-2-vip-all">Sora-2 VIP 杩囨浮 (10绉?</option>
+                                <option value="text-to-video">Sora-2 (鏂囩敓瑙嗛)</option>
+                                <option value="image-to-video">Flux + Sora-2 (鍥剧敓瑙嗛)</option>
+                                <option value="banana-image-to-video">Gemini-3 + Sora-2 (鍥剧敓瑙嗛)</option>
+                                <option value="banana-grid-to-video">馃幆 缃戞牸鍥剧渷璐圭増 (1鍥惧垏N鍒嗛暅)</option>
+                                <optgroup label="馃幀 Veo 3.1 绯诲垪">
+                                    <option value="veo3.1-components-4k">Veo 3.1 4K (鎺ㄨ崘)</option>
+                                    <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (蹇€?</option>
+                                    <option value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components</option>
+                                    <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+                                </optgroup>
+                                <optgroup label="馃幀 Vidu 绯诲垪 - 5绉?>
+                                    <option value="vidu-q2-5s-720p">Vidu q2 5绉?720P (25鑳剁墖)</option>
+                                    <option value="vidu-q2-5s-1080p">Vidu q2 5绉?1080P (36鑳剁墖)</option>
+                                    <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5绉?720P (27鑳剁墖)</option>
+                                    <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5绉?1080P (54鑳剁墖)</option>
+                                    <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5绉?720P (19鑳剁墖/鏈€蹇?</option>
+                                    <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5绉?1080P (36鑳剁墖)</option>
+                                    <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5绉?720P (72鑳剁墖/椤剁骇)</option>
+                                    <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5绉?1080P (77鑳剁墖/椤剁骇)</option>
+                                </optgroup>
+                                <optgroup label="馃幀 Vidu 绯诲垪 - 10绉?>
+                                    <option value="vidu-q2-10s-720p">Vidu q2 10绉?720P (50鑳剁墖)</option>
+                                    <option value="vidu-q2-10s-1080p">Vidu q2 10绉?1080P (72鑳剁墖)</option>
+                                    <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10绉?720P (54鑳剁墖)</option>
+                                    <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10绉?1080P (108鑳剁墖)</option>
+                                    <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10绉?720P (38鑳剁墖)</option>
+                                    <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10绉?1080P (72鑳剁墖)</option>
+                                    <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10绉?720P (144鑳剁墖/椤剁骇)</option>
+                                    <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10绉?1080P (154鑳剁墖/椤剁骇)</option>
+                                </optgroup>
+                                <optgroup label="馃悮 娴疯灪 Hailuo - 6绉?>
+                                    <option value="hailuo-02-768p-6s">娴疯灪 02 6绉?768P (7鑳剁墖)</option>
+                                    <option value="hailuo-02-1080p-6s">娴疯灪 02 6绉?1080P (12鑳剁墖)</option>
+                                    <option value="hailuo-fast-768p-6s">娴疯灪 Fast 6绉?768P (5鑳剁墖/鏈€蹇?</option>
+                                    <option value="hailuo-fast-1080p-6s">娴疯灪 Fast 6绉?1080P (8鑳剁墖)</option>
+                                </optgroup>
+                                <optgroup label="馃悮 娴疯灪 Hailuo - 10绉?>
+                                    <option value="hailuo-02-768p-10s">娴疯灪 02 10绉?768P (11鑳剁墖)</option>
+                                    <option value="hailuo-02-1080p-10s">娴疯灪 02 10绉?1080P (20鑳剁墖)</option>
+                                    <option value="hailuo-fast-768p-10s">娴疯灪 Fast 10绉?768P (8鑳剁墖)</option>
+                                    <option value="hailuo-fast-1080p-10s">娴疯灪 Fast 10绉?1080P (13鑳剁墖)</option>
+                                </optgroup>
+                                <optgroup label="鉁?鍙伒 Kling - 5绉?>
+                                    <option value="kling-2.5-720p-5s">鍙伒 2.5 5绉?720P (5鑳剁墖/鎬т环姣?</option>
+                                    <option value="kling-2.5-1080p-5s">鍙伒 2.5 5绉?1080P (9鑳剁墖)</option>
+                                    <option value="kling-2.0-720p-5s">鍙伒 2.0 5绉?720P (7鑳剁墖)</option>
+                                    <option value="kling-2.0-1080p-5s">鍙伒 2.0 5绉?1080P (12鑳剁墖)</option>
+                                    <option value="kling-o1-720p-5s">鍙伒 O1 5绉?720P (15鑳剁墖/椤剁骇)</option>
+                                    <option value="kling-o1-1080p-5s">鍙伒 O1 5绉?1080P (20鑳剁墖)</option>
+                                </optgroup>
+                                <optgroup label="鉁?鍙伒 Kling - 10绉?>
+                                    <option value="kling-2.5-720p-10s">鍙伒 2.5 10绉?720P (10鑳剁墖)</option>
+                                    <option value="kling-2.5-1080p-10s">鍙伒 2.5 10绉?1080P (17鑳剁墖)</option>
+                                    <option value="kling-2.0-720p-10s">鍙伒 2.0 10绉?720P (14鑳剁墖)</option>
+                                    <option value="kling-2.0-1080p-10s">鍙伒 2.0 10绉?1080P (24鑳剁墖)</option>
+                                    <option value="kling-o1-720p-10s">鍙伒 O1 10绉?720P (31鑳剁墖)</option>
+                                    <option value="kling-o1-1080p-10s">鍙伒 O1 10绉?1080P (41鑳剁墖)</option>
+                                </optgroup>
+                                <option value="grok-video-3-text">Grok Video 3 6绉?(鏂囩敓瑙嗛)</option>
+                                <option value="grok-video-3">Grok Video 3 6绉?(鍥剧敓瑙嗛)</option>
+                                <option value="grok-video-3-10s-text">Grok Video 3 10绉?(鏂囩敓瑙嗛)</option>
+                                <option value="grok-video-3-10s">Grok Video 3 10绉?(鍥剧敓瑙嗛)</option>
+                                <option value="grok-video-3-15s-text">Grok Video 3 15绉?(鏂囩敓瑙嗛)</option>
+                                <option value="grok-video-3-15s">Grok Video 3 15绉?(鍥剧敓瑙嗛)</option>
+                                <optgroup label="馃幀 Wan2.6 - 5绉?>
+                                    <option value="wan26-720p-5s">Wan2.6 720p 5绉?(3鑳剁墖)</option>
+                                    <option value="wan26-1080p-5s">Wan2.6 1080p 5绉?(5鑳剁墖)</option>
+                                    <option value="wan26-720p-5s-audio">Wan2.6 720p 5绉?鏈夊０ (4鑳剁墖)</option>
+                                    <option value="wan26-1080p-5s-audio">Wan2.6 1080p 5绉?鏈夊０ (7鑳剁墖)</option>
+                                </optgroup>
+                                <optgroup label="馃幀 Wan2.6 - 10绉?>
+                                    <option value="wan26-720p-10s">Wan2.6 720p 10绉?(5鑳剁墖)</option>
+                                    <option value="wan26-1080p-10s">Wan2.6 1080p 10绉?(9鑳剁墖)</option>
+                                    <option value="wan26-720p-10s-audio">Wan2.6 720p 10绉?鏈夊０ (7鑳剁墖)</option>
+                                    <option value="wan26-1080p-10s-audio">Wan2.6 1080p 10绉?鏈夊０ (14鑳剁墖)</option>
+                                </optgroup>
+                                <optgroup label="馃幀 Wan2.6 - 15绉?>
+                                    <option value="wan26-720p-15s">Wan2.6 720p 15绉?(7鑳剁墖)</option>
+                                    <option value="wan26-1080p-15s">Wan2.6 1080p 15绉?(13鑳剁墖)</option>
+                                    <option value="wan26-720p-15s-audio">Wan2.6 720p 15绉?鏈夊０ (11鑳剁墖)</option>
+                                    <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15绉?鏈夊０ (21鑳剁墖)</option>
+                                </optgroup>
+                                <option value="video-continuity">馃幀 杩炵画鎬ц棰?(閫愬抚琛旀帴)</option>
+                            </select>
+                        </div>
+                        <!-- 馃挵 浠锋牸鎻愮ず鍖哄煙 -->
+                        <div id="priceHintArea" class="option-group" style="margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); display: none;">        
+                            <label style="color: #60a5fa; font-weight: 700; font-size: 12px; margin-bottom: 8px; display: block;">馃挵 鏈鐢熸垚棰勮娑堣€?/label>
+                            <div id="priceHintContent" style="font-size: 14px; line-height: 1.6;"></div>
+                        </div>
+                        <!-- 馃柤锔?瑙掕壊鍥句笂浼犲尯鍩燂紙鍥剧敓瑙嗛妯″紡鏄剧ず锛?-->
+                        <div id="quickRefImageSection" class="option-group" style="display:none; margin-top:10px;">
+                            <label>馃摲 涓婁紶瑙掕壊鍙傝€冨浘 <span style="color:#888;font-size:10px;">(鍙€?</span></label>
+                            <input type="file" id="quickRefImageInput" accept="image/*" style="display:none;" onchange="handleQuickRefImageUpload(this)">
+                            <div id="quickRefImageArea" onclick="document.getElementById('quickRefImageInput').click()" 
+                                style="border:2px dashed #444; border-radius:8px; padding:12px; text-align:center; cursor:pointer; transition:border-color 0.3s; background:rgba(0,0,0,0.2);">
+                                <div style="font-size:20px; margin-bottom:4px;">馃摲</div>
+                                <div id="quickRefImageText" style="color:#888; font-size:12px;">鐐瑰嚮涓婁紶瑙掕壊鍥?/div>
+                                <img id="quickRefImagePreview" src="" alt="棰勮" style="display:none; max-width:100%; max-height:80px; margin-top:8px; border-radius:6px;">
+                            </div>
+                        </div>
+                        <div class="option-row">
+                            <div class="option-group">
+                                <label for="quickDuration">鏃堕暱 (绉?</label>
+                                <input type="number" id="quickDuration" placeholder="鑷姩鍒嗘瀽" min="0" max="60"
+                                    title="0鎴栫暀绌轰负鑷姩鍒嗘瀽">
+                                <div class="hint-text" style="font-size: 10px; color: #666; margin-top: 2px;">0涓鸿嚜鍔ㄥ垎鏋?                                </div>
+                            </div>
+                            <div class="option-group">
+                                <label for="quickScenes">鍒嗛暅鏁?/label>
+                                <input type="number" id="quickScenes" placeholder="鑷姩鍒嗘瀽" min="0" max="20"
+                                    title="0鎴栫暀绌轰负鑷姩鍒嗘瀽">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn-add-task" onclick="quickAddIdea()" style="flex: 1; min-width: 140px;">
+                            娣诲姞浠诲姟鍒伴槦鍒?                        </button>
+                        <button class="btn-add-task" onclick="quickCreateCharactersFromStory()" 
+                            style="flex: 1; min-width: 140px; background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(236,72,153,0.2)); border: 1px solid rgba(139,92,246,0.5);">
+                            馃 鍒涘缓瑙掕壊
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 浠诲姟闃熷垪 -->
+                <div class="tasks-section">
+                    <div class="section-title">
+                        <span>浠诲姟闃熷垪</span>
+                        <button class="btn-icon" onclick="clearHistory()" title="娓呯┖鍘嗗彶">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path
+                                    d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="ideasList" class="ideas-list">
+                        <!-- 浠诲姟鍒楄〃鐢盝S鍔ㄦ€佹覆鏌?-->
+                    </div>
+                    <div id="writingProjectsPanel" style="display:none;">
+                        <!-- 馃搶 灏忚鍙傛暟閰嶇疆 -->
+                        <div
+                            style="padding:12px; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; margin-bottom:12px;">
+                            <div style="font-weight:700; color:#a78bfa; margin-bottom:10px; font-size:13px;">馃搶 灏忚鍙傛暟閰嶇疆
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <input id="sidebarWritingTopic" placeholder="棰樻潗/涓婚锛堝锛氫慨浠欍€侀兘甯傘€佹偓鐤戯級"
+                                    style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                <input id="sidebarWritingGenre" placeholder="绫诲瀷/椋庢牸锛堝锛氱埥鏂囥€佽交鏉俱€侀粦鏆楋級"
+                                    style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                <div style="display:flex; gap:8px;">
+                                    <div style="flex:1;">
+                                        <label style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">绔犺妭鏁?/label>
+                                        <input id="sidebarWritingChapters" type="number" min="1" max="200" value="10"
+                                            style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                    </div>
+                                    <div style="flex:1;">
+                                        <label style="display:block; color:#a78bfa; font-size:11px; margin-bottom:4px;">姣忕珷瀛楁暟</label>
+                                        <input id="sidebarWritingWords" type="number" min="200" max="20000" value="2000"
+                                            style="width:100%; padding:10px; background:#1a1a2e; border:1px solid rgba(168,85,247,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 鉁嶏笍 蹇€熷啓浣滆緭鍏?-->
+                        <div
+                            style="padding:12px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:12px; margin-bottom:12px;">
+                            <div style="font-weight:700; color:#60a5fa; margin-bottom:10px; font-size:13px;">鉁嶏笍 蹇€熷垱浣?/div>
+                            <textarea id="sidebarWritingContent"
+                                placeholder="鍦ㄨ繖閲岃緭鍏ユ偍鐨勫啓浣滃唴瀹规垨澶х翰...&#10;&#10;鏀寔鍔熻兘锛?#10;鈥?缁啓 - AI鏍规嵁宸叉湁鍐呭缁х画鍒涗綔&#10;鈥?娑﹁壊 - 浼樺寲鏂囧瓧琛ㄨ揪&#10;鈥?鎵╁啓 - 澧炲姞缁嗚妭鎻忓啓"
+                                style="width:100%; height:120px; padding:10px; background:#1a1a2e; border:1px solid rgba(59,130,246,0.4); border-radius:10px; color:#fff; font-size:13px; resize:vertical; line-height:1.6;"></textarea>
+                            <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                                <button onclick="sidebarWritingAction('continue')"
+                                    style="flex:1; min-width:60px; background:linear-gradient(135deg, rgba(59,130,246,0.3) 0%, rgba(59,130,246,0.15) 100%); border:1px solid rgba(59,130,246,0.5); color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600;">鉁忥笍
+                                    缁啓</button>
+                                <button onclick="sidebarWritingAction('polish')"
+                                    style="flex:1; min-width:60px; background:linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(168,85,247,0.15) 100%); border:1px solid rgba(168,85,247,0.5); color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600;">鉁?                                    娑﹁壊</button>
+                                <button onclick="sidebarWritingAction('expand')"
+                                    style="flex:1; min-width:60px; background:linear-gradient(135deg, rgba(251,191,36,0.3) 0%, rgba(251,191,36,0.15) 100%); border:1px solid rgba(251,191,36,0.5); color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600;">馃摑
+                                    鎵╁啓</button>
+                            </div>
+                        </div>
+
+                        <!-- 馃摎 椤圭洰绠＄悊 -->
+                        <div style="display:flex; flex-direction:column; gap:8px; padding: 10px 0;">
+                            <button class="btn-text" onclick="sidebarWritingCreateNode()"
+                                style="width:100%; background: linear-gradient(135deg, rgba(34,197,94,0.25) 0%, rgba(34,197,94,0.1) 100%); border: 1px solid rgba(34,197,94,0.5); border-radius: 10px; padding: 12px 10px; cursor: pointer; font-size:13px; font-weight:700; color:#4ade80;">
+                                鉃?娣诲姞鍒颁换鍔￠槦鍒?                            </button>
+                            <!-- 馃幀 杞棰?婕敾鎸夐挳 -->
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn-text" onclick="sidebarWritingToVideo()"
+                                    style="flex:1; background: linear-gradient(135deg, rgba(139,92,246,0.25) 0%, rgba(139,92,246,0.1) 100%); border: 1px solid rgba(139,92,246,0.5); border-radius: 10px; padding: 10px; cursor: pointer; font-size:12px; font-weight:600; color:#a78bfa;">
+                                    馃幀 杞珹I瑙嗛
+                                </button>
+                                <button class="btn-text" onclick="sidebarWritingToComic()"
+                                    style="flex:1; background: linear-gradient(135deg, rgba(236,72,153,0.25) 0%, rgba(236,72,153,0.1) 100%); border: 1px solid rgba(236,72,153,0.5); border-radius: 10px; padding: 10px; cursor: pointer; font-size:12px; font-weight:600; color:#f472b6;">
+                                    馃摎 杞珹I婕敾
+                                </button>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn-text" onclick="createWritingProject()"
+                                    style="flex:1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 10px; cursor: pointer; font-size:12px; color:#ccc;">
+                                    鉁嶏笍 鏂板缓浜戠椤圭洰
+                                </button>
+                                <button class="btn-text" onclick="refreshWritingProjects()"
+                                    style="flex:1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 10px; cursor: pointer; font-size:12px; color:#ccc;">
+                                    馃攧 鍒锋柊椤圭洰鍒楄〃
+                                </button>
+                            </div>
+                        </div>
+                        <div id="writingProjectsList" class="ideas-list"></div>
+                    </div>
+
+                    <!-- 馃З 鎶€鑳介€夋嫨闈㈡澘 -->
+                    <div id="skillsPanel" style="display:none;">
+                        <!-- 鍒嗙被绛涢€?-->
+                        <div class="skill-category-tabs" style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+                            <button class="skill-category-tab active" data-category="all" onclick="SkillUI.setCategory('all')"
+                                style="padding:6px 12px; background:rgba(251,191,36,0.2); border:1px solid rgba(251,191,36,0.5); border-radius:16px; color:var(--accent-gold); font-size:12px; cursor:pointer;">鍏ㄩ儴</button>
+                            <button class="skill-category-tab" data-category="video" onclick="SkillUI.setCategory('video')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">馃幀 瑙嗛</button>
+                            <button class="skill-category-tab" data-category="image" onclick="SkillUI.setCategory('image')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">馃帹 鍥惧儚</button>
+                            <button class="skill-category-tab" data-category="content" onclick="SkillUI.setCategory('content')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">馃摑 鍐呭</button>
+                            <button class="skill-category-tab" data-category="automation" onclick="SkillUI.setCategory('automation')"
+                                style="padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:16px; color:#aaa; font-size:12px; cursor:pointer;">馃 鑷姩鍖?/button>
+                        </div>
+
+                        <!-- 鎼滅储妗?-->
+                        <div style="margin-bottom:12px;">
+                            <input type="text" id="skillSearchInput" placeholder="馃攳 鎼滅储鎶€鑳?.." 
+                                oninput="SkillUI.search(this.value)"
+                                style="width:100%; padding:10px 14px; background:#1a1a2e; border:1px solid rgba(255,255,255,0.15); border-radius:10px; color:#fff; font-size:13px;">
+                        </div>
+
+                        <!-- 鎶€鑳藉崱鐗囩綉鏍?-->
+                        <div id="skillsGrid" class="skills-grid" style="display:grid; grid-template-columns:1fr; gap:10px; max-height:calc(100vh - 480px); overflow-y:auto; padding-right:4px;">
+                            <!-- 鐢?JS 鍔ㄦ€佹覆鏌?-->
+                        </div>
+
+                        <!-- 鎵ц鍘嗗彶 -->
+                        <div style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <span style="color:#888; font-size:12px;">馃搳 鏈€杩戞墽琛?/span>
+                                <button onclick="SkillManager.clearHistory(); renderSkillHistory();" 
+                                    style="background:none; border:none; color:#666; font-size:11px; cursor:pointer;">娓呯┖</button>
+                            </div>
+                            <div id="skillHistoryList" style="max-height:120px; overflow-y:auto;">
+                                <!-- 鐢?JS 鍔ㄦ€佹覆鏌?-->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 搴曢儴鎸夐挳 -->
+            <div class="sidebar-footer">
+                <div id="quotaDisplay" class="quota-info"></div>
+                <button id="startBatchBtn" class="btn-primary-large" onclick="startBatchGeneration()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>寮€濮嬫壒閲忓垱浣?/span>
+                </button>
+                <button class="btn-secondary-large" onclick="clearAllIdeas()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path
+                            d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <span>娓呯┖鍘嗗彶璁板綍</span>
+                </button>
+
+                <div class="footer-links">
+                    <button class="btn-link" onclick="openCharacterPanel()">馃幁 瑙掕壊绠＄悊</button>
+                    <button class="btn-link" onclick="openSettingsModal()">鈿欙笍 璁剧疆</button>
+                    <button class="btn-link" onclick="openMemberModal()">馃憫 浼氬憳</button>
+                    <button class="btn-link" onclick="openHelpModal()">鉂?甯姪</button>
+                </div>
+                
+                <!-- 馃摐 娉曞緥澹版槑閾炬帴 -->
+                <div class="footer-legal" style="margin-top:8px; font-size:11px;">
+                    <a href="terms.html" class="btn-link" style="color:#666;">鏈嶅姟鏉℃</a>
+                    <span style="color:#444; margin:0 6px;">|</span>
+                    <a href="disclaimer.html" class="btn-link" style="color:#666;">鍏嶈矗澹版槑</a>
+                </div>
+
+                <div class="copyright">
+                    漏 2025 RollRoll 鐗堟潈鎵€鏈?br>
+                    瀹樻柟寰俊: jingguangwei
+                </div>
+            </div>
+        </aside>
+
+        <!-- 鍙充晶涓诲唴瀹瑰尯 (鍗曢〉闈㈠竷灞€) -->
+        <main class="content-area">
+            <!-- 椤堕儴鏍?-->
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="btn-back" onclick="openLibrary()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                        </svg>
+                        瑙掕壊搴撳拰璧勪骇搴?                    </button>
+                </div>
+                <div class="top-bar-right">
+                    <div class="status-tag">
+                        <span class="status-dot"></span>
+                        API 灏辩华
+                    </div>
+                    <div class="stats-tag">
+                        宸茬敓浜? <strong id="totalGenerated">0</strong>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 杩涘害缁熻鏍?-->
+            <div class="progress-dashboard">
+                <div class="progress-header">
+                    <h2 class="dashboard-title">
+                        <button class="btn-back-icon" onclick="window.history.back()" title="杩斿洖">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        鐢熸垚鐘舵€?                    </h2>
+                    <div class="dashboard-actions"
+                        style="display:flex; gap:8px; align-items:center; margin-left:auto; margin-right:10px;">
+                        <button id="oneClickRepairBtn"
+                            onclick="window.oneClickRepairCurrentTask && window.oneClickRepairCurrentTask()"
+                            title="鑷姩淇骞剁户缁敓鎴愶紙涓嶄細娓呯┖宸叉垚鍔熺殑缁撴灉锛?
+                            style="background:linear-gradient(135deg,#34d399,#10b981); color:#0b1220; border:none; padding:8px 12px; border-radius:10px; font-weight:900; cursor:pointer; box-shadow:0 6px 18px rgba(16,185,129,0.18);">
+                            馃洜锔?涓€閿慨澶嶆湰浠诲姟
+                        </button>
+                    </div>
+                    <div class="filter-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> 鍏ㄩ€?                        </label>
+                    </div>
+                    <div class="status-filters">
+                        <button class="status-filter success">宸插畬鎴?<span id="successCount">0</span></button>
+                        <button class="status-filter processing">杩涜涓?<span id="processingCount">0</span></button>
+                        <button class="status-filter failed">澶辫触 <span id="failedCount">0</span></button>
+                    </div>
+                </div>
+
+                <div class="progress-track">
+                    <div class="progress-info">
+                        <span>杩涘害: <span id="progressText">0/0</span></span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div id="progressBar" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 缁撴灉灞曠ず鍖?(鏃犻檺鐢诲竷瀹瑰櫒) -->
+            <div class="canvas-container" id="taskCanvasContainer">
+                <!-- 缂╂斁鎺у埗 -->
+                <div class="canvas-controls">
+                    <span class="zoom-level">90%</span>
+                    <button id="panModeBtn" class="pan-mode-btn" onclick="togglePanMode()"
+                        title="鎵嬫帉妯″紡锛氫竴鎸囨嫋鍔ㄧ敾甯?/ 鍏抽棴鍚庢洿鏄撶偣鎸夌獥鍙ｅ唴瀹?>馃枑锔?/button>
+                    <button onclick="zoomIn()" title="鏀惧ぇ">+</button>
+                    <button onclick="zoomOut()" title="缂╁皬">-</button>
+                    <button onclick="resetZoom()" title="閲嶇疆缂╂斁">鈫?/button>
+                    <button onclick="homeToTasks()" title="鎵惧洖浠诲姟绐?(H)">馃幆</button>
+                    <button onclick="toggleMinimap()" title="鍒囨崲灏忓湴鍥?(M)">馃椇锔?/button>
+                    <button onclick="refreshCanvas()" title="鍒锋柊鐢诲竷" style="margin-left:8px;">馃攧</button>
+                    <!-- 馃棏锔?榛樿浠呮竻鑺傜偣/杩炵嚎锛堝畨鍏紝涓嶄細璇垹浠诲姟锛?-->
+                    <button onclick="clearCanvas()" title="娓呯┖鑺傜偣/杩炵嚎锛堜笉鍒犻櫎浠诲姟锛? style="color:#ff6b6b;">馃棏锔?/button>
+                    <!-- 馃Ж 娓呯┖鍏ㄩ儴锛氫换鍔?鑺傜偣+杩炵嚎锛堝己纭锛?-->
+                    <button onclick="clearHistory()" title="娓呯┖鍏ㄩ儴锛堜换鍔?鑺傜偣+杩炵嚎锛? style="color:#ff3b3b;">馃Ж</button>
+                </div>
+
+                <!-- 馃啎 鑺傜偣宸ュ叿鏍?-->
+                <div class="node-toolbar" id="nodeToolbar">
+                    <button class="node-tool-btn" onclick="addBananaNodeAtCenter()" title="鏂板缓 Banana 鐢绘澘">
+                        馃帹
+                    </button>
+                    <button class="node-tool-btn" onclick="addKnollingNodeAtCenter()" title="鎻愮ず璇嶅伐鍧?>
+                        馃摑
+                    </button>
+                    <button class="node-tool-btn" onclick="addStickerNodeAtCenter()" title="琛ㄦ儏鍖呯敓鎴愬櫒">
+                        馃榾
+                    </button>
+                    <button class="node-tool-btn" onclick="addSketchpadNodeAtCenter()" title="鎵嬬粯鐢绘澘">
+                        鉁忥笍
+                    </button>
+                    <button class="node-tool-btn" onclick="addMusicNodeAtCenter()" title="馃幍 Suno闊充箰鐢熸垚"
+                        style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+                        馃幍
+                    </button>
+                    <button class="node-tool-btn" onclick="window.location.href='voice.html'" title="馃帣锔?AI閰嶉煶"
+                        style="background: linear-gradient(135deg, #fbbf24, #f97316);">
+                        馃帣锔?                    </button>
+                    <button class="node-tool-btn" onclick="addChatNodeAtCenter()" title="馃 AI瀵硅瘽"
+                        style="background: linear-gradient(135deg, #10b981, #059669);">
+                        馃
+                    </button>
+                    <button class="node-tool-btn" onclick="autoArrangeCanvas()" title="涓€閿暣鐞嗙敾甯?
+                        style="background:#3b82f6;">
+                        馃Ч
+                    </button>
+                </div>
+
+                <!-- 馃幆 鐢诲竷鍛戒护杈撳叆妗?(Agent妯″紡) -->
+                <div class="canvas-command-bar" id="canvasCommandBar">
+                    <!-- 馃 蹇嵎鎸囦护鍖哄煙 -->
+                    <div class="agent-quick-commands" id="agentQuickCommands">
+                        <span class="quick-label">馃 璇曡瘯:</span>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('鐢熸垚1寮犲彲鐖辩殑鐚挭鍥剧墖')">馃惐 鐚挭</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('鐢?寮犲姩婕鏍肩殑澶村儚')">馃幁 澶村儚</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('鐢熸垚1寮犳按澧ㄩ鏍肩殑灞辨按鐢?)">馃彅锔?灞辨按</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('鍋?寮?:16绔栧睆鐨勯鏅绾?)">馃摫 澹佺焊</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('鐢?寮犺禌鍗氭湅鍏嬮鏍肩殑鍩庡競澶滄櫙')">馃寙 璧涘崥</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('鐢熸垚1寮犳棩绯绘不鎰堥鏍肩殑鎻掔敾')">馃尭 鏃ョ郴</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('鐢?寮犳父鎴忚鑹茬珛缁?)">馃幃 瑙掕壊</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('鐢熸垚1涓煭瑙嗛', 'sora-2-all')">馃幀 瑙嗛</button>
+                        <button class="quick-cmd-btn" onclick="openMVGenerator()" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">馃幍 闊充箰MV</button>
+                    </div>
+                    <!-- 馃搸 鍙傝€冨浘/瑙嗛棰勮鍖?-->
+                    <div class="command-ref-preview" id="commandRefPreview" style="display:none;">
+                        <div class="ref-preview-item" id="refPreviewItem">
+                            <img id="refPreviewImg" src="" alt="鍙傝€冨浘" style="display:none;">
+                            <video id="refPreviewVideo" src="" style="display:none;" muted></video>
+                            <button class="ref-remove-btn" onclick="removeCommandRef()" title="绉婚櫎">脳</button>
+                        </div>
+                        <!-- 馃啎 澶氬浘棰勮瀹瑰櫒 -->
+                        <div id="multiRefPreviewContainer" style="display:none; gap:6px; flex-wrap:wrap; align-items:center;"></div>
+                    </div>
+                    <!-- 馃啎 澶氬浘鍚堝苟閫夐」 -->
+                    <div id="refMergeOptions" style="display:none; padding:8px 12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; margin-bottom:8px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                            <span style="font-size:12px; color:#a78bfa;">馃柤锔?宸查€夋嫨 <span id="refImageCount">0</span> 寮犲弬鑰冨浘</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="refMergeMode" style="padding:4px 8px; background:#1a1a24; border:1px solid #333; border-radius:4px; color:#fff; font-size:11px;">
+                                    <option value="horizontal">鈫旓笍 妯悜</option>
+                                    <option value="vertical">鈫曪笍 绔栧悜</option>
+                                    <option value="grid" selected>猬?缃戞牸</option>
+                                </select>
+                                <button onclick="clearAllRefImages()" style="background:none; border:none; color:#f87171; font-size:11px; cursor:pointer;">娓呯┖</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="command-input-wrapper">
+                        <span class="command-icon">馃</span>
+                        <!-- 馃搸 涓婁紶鍙傝€冨浘/瑙嗛鎸夐挳锛堟敮鎸佸閫夛級-->
+                        <input type="file" id="commandRefUpload" accept="image/*,video/*" multiple style="display:none;"
+                            onchange="handleCommandRefUpload(this)">
+                        <button class="command-upload-btn" onclick="document.getElementById('commandRefUpload').click()"
+                            title="涓婁紶鍙傝€冨浘/瑙嗛锛堝彲澶氶€夛級">
+                            馃搸
+                        </button>
+                        <!-- 馃帹 妯″瀷閫夋嫨鍣?-->
+                        <select id="commandModelSelect" class="command-select" title="閫夋嫨妯″瀷">
+                            <optgroup label="馃摲 鍥剧墖妯″瀷">
+                                <option value="auto">馃 鑷姩</option>
+                                <option value="modelscope">馃啌 鏅鸿兘缁樺浘锛堝厤璐癸級</option>
+                                <option value="banana">馃崒 Banana 鏍囧噯</option>
+                                <option value="banana-2k">馃専 Banana 2K</option>
+                                <option value="banana-4k">馃拵 Banana 4K</option>
+                                <option value="Qwen/Qwen-Image-2512">馃幁 閫氫箟涓囩浉Max</option>
+                                <option value="seedream">鉁?鏄熸ⅵ鐢诲笀</option>
+                                <!-- 鍗虫ⅵ宸插仠鐢?<option value="jimeng">馃帹 鍗虫ⅵ4.5</option> -->
+                                <option value="midjourney-fast">馃専 Midjourney Fast</option>
+                                <option value="midjourney-turbo">馃殌 Midjourney Turbo</option>
+                                <option value="midjourney-relax">馃寵 Midjourney Relax</option>
+                            </optgroup>
+                            <!-- 馃幆 Midjourney 鐗堟湰閫夋嫨鍣?-->
+                            <optgroup label="馃幆 MJ 鐗堟湰">
+                                <option value="7">v7 鏈€鏂?/option>
+                                <option value="6.1" selected>v6.1 绋冲畾</option>
+                                <option value="6">v6.0</option>
+                                <option value="5.2">v5.2</option>
+                                <option value="5.1">v5.1</option>
+                                <option value="5">v5.0</option>
+                                <option value="niji7">Niji 7 鍔ㄦ极锛堟渶鏂帮級</option>
+                                <option value="niji6">Niji 6 鍔ㄦ极</option>
+                            </optgroup>
+                            <optgroup label="馃幀 瑙嗛妯″瀷">
+                                <option value="modelscope-video">馃啌 榄斿瑙嗛锛堝厤璐癸級</option>
+                                <option value="sora-2-all">馃幀 Sora-2</option>
+                                <option value="sora-2-pro-all">猸?Sora-2 Pro</option>
+                                <option value="veo">馃幀 Veo 3.1</option>
+                                <option value="grok">馃殌 Grok Video 3 (6绉?</option>
+                                <option value="grok-10s">馃殌 Grok Video 3 (10绉?</option>
+                                <option value="vidu-q2-turbo-5s-720p">馃幀 Vidu Turbo 5绉?/option>
+                                <option value="vidu-q2-5s-1080p">馃幀 Vidu 5绉?1080P</option>
+                                <option value="vidu-q2-turbo-10s-720p">馃幀 Vidu Turbo 10绉?/option>
+                                <option value="vidu-q2-10s-1080p">馃幀 Vidu 10绉?1080P</option>
+                            </optgroup>
+                        </select>
+                        <!-- 馃搻 灏哄閫夋嫨鍣?-->
+                        <select id="commandSizeSelect" class="command-select" title="閫夋嫨灏哄">
+                            <option value="auto">馃搻 鑷姩</option>
+                            <option value="1:1">1:1 鏂瑰舰</option>
+                            <option value="16:9">16:9 妯睆</option>
+                            <option value="9:16">9:16 绔栧睆</option>
+                            <option value="4:3">4:3 鏍囧噯</option>
+                            <option value="3:4">3:4 绔栫増</option>
+                        </select>
+                        <input type="text" id="canvasCommandInput" placeholder="杈撳叆鍛戒护锛屽锛氱敓鎴?寮犵尗鍜浘鐗囥€佸仛3涓煭瑙嗛..."
+                            onkeydown="if(event.key==='Enter')executeCanvasCommand()" autocomplete="off">
+                        <button class="command-run-btn" onclick="executeCanvasCommand()" title="鎵ц鍛戒护">
+                            鈻讹笍
+                        </button>
+                        <button class="command-help-btn" onclick="showCommandHelp()" title="鍛戒护甯姪">
+                            ?
+                        </button>
+                    </div>
+                    <div class="command-status" id="commandStatus"></div>
+                </div>
+
+                <!-- 鏃犻檺鐢诲竷鍐呭 -->
+                <div class="infinite-canvas" id="taskCanvas">
+                    <!-- 杩炵嚎灞?-->
+                    <svg id="connections"></svg>
+
+                    <!-- 浠诲姟鍗＄墖瀹瑰櫒 -->
+                    <div id="taskCards" class="cards-grid">
+                        <!-- 浠诲姟鍗＄墖鐢?JS 鍔ㄦ€佺敓鎴?-->
+                    </div>
+
+                    <!-- 缁撴灉鍗＄墖瀹瑰櫒 (鍚堝苟鏄剧ず) -->
+                    <div id="resultCards" class="cards-grid" style="display: none;">
+                        <!-- 缁撴灉鍗＄墖鐢?JS 鍔ㄦ€佺敓鎴?-->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 馃幀 褰辫寮€鍦哄姩鐢?-->
+    <div id="cinemaIntro" class="cinema-intro">
+        <!-- 鏃朵唬鑳屾櫙灞?-->
+        <div class="era-bg era-silent" id="eraBgSilent"></div>
+        <div class="era-bg era-color" id="eraBgColor"></div>
+        <div class="era-bg era-digital" id="eraBgDigital"></div>
+        <div class="era-bg era-ai" id="eraBgAi"></div>
+        <!-- 鑳剁墖杈规 -->
+        <div class="film-border left"></div>
+        <div class="film-border right"></div>
+        <!-- 绮掑瓙 -->
+        <div class="intro-particles" id="introParticles"></div>
+        <!-- 鍦鸿鏉?-->
+        <div class="intro-clapperboard" id="introClapperboard">
+            <div class="clapper-top"></div>
+            <div class="clapper-body">
+                <div class="clapper-row"><span class="clapper-label">PROD</span><span class="clapper-value">ROLLROLL</span></div>
+                <div class="clapper-row"><span class="clapper-label">SCENE</span><span class="clapper-value">001</span></div>
+                <div class="clapper-row"><span class="clapper-label">TAKE</span><span class="clapper-value">1</span></div>
+                <div class="clapper-title">ACTION!</div>
+            </div>
+        </div>
+        <!-- 鏃朵唬鍗＄墖 -->
+        <div class="era-card era-silent-card" id="eraCardSilent"><div class="era-year">1895</div><div class="era-title">SILENT FILM ERA</div><div class="era-desc">榛樼墖鏃朵唬 路 鍏夊奖璇炵敓</div></div>
+        <div class="era-card era-color-card" id="eraCardColor"><div class="era-year">1935</div><div class="era-title">TECHNICOLOR ERA</div><div class="era-desc">褰╄壊鏃朵唬 路 鑹插僵闈╁懡</div></div>
+        <div class="era-card era-digital-card" id="eraCardDigital"><div class="era-year">1999</div><div class="era-title">DIGITAL CINEMA</div><div class="era-desc">鏁板瓧鏃朵唬 路 鎶€鏈璺?/div></div>
+        <div class="era-card era-ai-card" id="eraCardAi"><div class="era-year">2026</div><div class="era-title">AI FILMMAKING</div><div class="era-desc">鏅鸿兘鏃朵唬 路 鏃犻檺鍙兘</div></div>
+        <!-- 鍊掕鏃?-->
+        <div class="intro-countdown" id="introCountdown"><div class="countdown-circle"></div><div class="countdown-number" id="countdownNumber">3</div></div>
+        <!-- LOGO -->
+        <div class="intro-logo" id="introLogo">
+            <div class="intro-logo-icon">馃幀</div>
+            <div class="intro-logo-text">ROLLROLL</div>
+            <div class="intro-logo-tagline">浣犲氨鏄婕?/div>
+        </div>
+        <!-- 鍏夌嚎鎵繃 -->
+        <div class="light-sweep" id="lightSweep"></div>
+        <!-- 鏁呴殰鏁堟灉 -->
+        <div class="glitch-overlay" id="glitchOverlay"></div>
+        <!-- 璺宠繃鎸夐挳 -->
+        <button class="intro-skip" onclick="skipIntro()">璺宠繃 鈥?/button>
+    </div>
+
+    <script>
+    // 寮€鍦哄姩鐢?娆㈣繋椤垫樉绀洪€昏緫锛堢櫥褰曞悗鍙互璺宠繃锛屽叾浠栨儏鍐靛己鍒舵樉绀猴級
+    var _showIntro = false;
+    var _introStyleTag = null;
+    (function() {
+        // 馃敀 鍙湁鐧诲綍鍚庤烦杞紙logged_in=1 鎴?skip_welcome=1锛夋墠璺宠繃
+        // 鍏朵粬鎯呭喌寮哄埗鏄剧ず寮€鍦哄姩鐢诲拰娆㈣繋椤?        if(location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1){
+            history.replaceState({}, '', location.pathname);
+            _showIntro = false;
+            return;
+        }
+        // 寮哄埗鏄剧ず寮€鍦哄姩鐢诲拰娆㈣繋椤?        _showIntro = true;
+        var style = document.createElement('style');
+        style.id = 'cinemaIntroInjectedStyle';
+        style.textContent = '#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
+        document.head.appendChild(style);
+        _introStyleTag = style;
+    })();
+    </script>
+    <!-- 娆㈣繋椤碉紙榛樿闅愯棌锛岀敱涓婃柟鑴氭湰鎺у埗鏄剧ず锛?->
+    <div id="welcomeScreen" class="welcome-screen" style="display:none;">
+        <div class="welcome-bg-text">
+            <img src="images/yanbudouyanle.png" alt="婕旈兘涓嶆紨浜? />
+        </div>
+        <!-- 鐢ㄦ埛鐘舵€佸叆鍙?-->
+        <div id="welcomeUserBar" class="welcome-user-bar">
+            <a href="auth.html" class="welcome-login-btn">
+                <span>馃懁</span>
+                <span>鐧诲綍 / 娉ㄥ唽</span>
+            </a>
+        </div>
+        <div class="welcome-content">
+            <div class="welcome-badge">馃殌 AI 椹卞姩鍒涗綔骞冲彴</div>
+            <div class="welcome-promo" style="padding: 24px 28px; font-size: 1.1em;">
+                <div class="welcome-promo-title" style="font-size: 1.5em; margin-bottom: 12px;">馃巵 鏂扮敤鎴锋敞鍐屽嵆璧犻€?0涓囬攣瀹氱Н鍒嗭紝鍙В閿?00绉垎浣撻獙</div>
+                <div class="welcome-promo-desc" style="font-size: 1.1em; line-height: 1.6;">
+                    绗叓浠ｅ叏鑷姩鐢熸垚寮廇I鍐呭鍒涗綔骞冲彴鐖嗚倽鐧诲満锛岀壒鍒福璋㈡湭鏉ヨ偂涓滀滑鐨勫ぇ鍔涙敮鎸併€?                </div>
+            </div>
+            <h1 class="welcome-title">浣犲氨鏄婕?/h1>
+            <h2 class="welcome-subtitle">閲嶆柊瀹氫箟瑙嗛鍒涗綔鐨勬棤闄愬彲鑳?/h2>
+            <p class="welcome-desc">
+                浠庣伒鎰熼棯鐜板埌鎴愮墖鍑虹倝锛岃AI鎴愪负浣犵殑涓撲笟鍒涗綔浼欎即銆?br>
+                鏅鸿兘鍓ф湰鐢熸垚銆佺簿缇庡浘鐗囧垱浣溿€佷笓涓氳棰戝埗浣溾€斺€?br>
+                姣忎釜浜洪兘鑳芥垚涓鸿嚜宸辨晠浜嬬殑瀵兼紨銆?            </p>
+            <div class="welcome-quote-box">
+                <div class="quote-text">姊︽兂鍙互鏀句笅锛屼絾鏄笉瑕佹斁寮?/div>
+                <div class="quote-author">鈥斺€?鑽嗗箍浼?/div>
+            </div>
+            <!-- 馃攼 寮哄埗鐧诲綍锛氬幓鎺変綋楠屽叆鍙ｏ紝闃叉鐧藉珫 -->
+            <a id="welcomeEnterBtn" href="auth.html" class="btn-start-journey" style="text-decoration: none;">馃敀 鐧诲綍 /
+                娉ㄥ唽寮€濮嬪垱浣?/a>
+        </div>
+    </div>
+    <div id="progressScreen" style="display: none;"></div>
+    <div id="resultScreen" style="display: none;"></div>
+
+    <!-- 鍏夊奖鏃跺埢閬僵 -->
+    <div id="creativeOverlay" class="creative-overlay" style="display: none;">
+        <div class="creative-content">
+            <div class="creative-text" id="creativeText">AI姝ｅ湪鍒涗綔...</div>
+            <button onclick="stopCreativeScreen()">鍚庡彴杩愯</button>
+        </div>
+    </div>
+
+    <!-- 妯℃€佹: 璁剧疆 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-backdrop" onclick="closeSettingsModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>鈿欙笍 绯荤粺璁剧疆</h3>
+                <button class="btn-close" onclick="closeSettingsModal()" title="鍏抽棴">脳</button>
+            </div>
+            <div class="modal-body">
+                <!-- 馃攼 API Key 宸插唴缃埌鐜鍙橀噺锛岀敤鎴锋棤闇€閰嶇疆 -->
+                <div id="proModeSettings" style="display: none;">
+                    <!-- 闅愯棌鐨勮緭鍏ユ锛屼繚鎸佸吋瀹规€?-->
+                    <input type="hidden" id="settingZhenzhenKey" value="">
+                    <input type="hidden" id="settingRhKey" value="">
+                    <input type="hidden" id="settingMotaverseKey" value="">
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--accent-gold);">鉁?鏃犻渶閰嶇疆 API Key</label>
+                    <div class="hint-text"
+                        style="background: rgba(74,222,128,0.08); padding: 10px; border-radius: 6px; margin-top: 5px;">
+                        褰撳墠绔欑偣鎵€鏈夋ā鍨嬭皟鐢ㄥ潎鐢卞悗绔唬鐞嗕笌鐜鍙橀噺瀹屾垚锛岀敤鎴蜂晶鏃犻渶濉啓 Key銆?br>
+                        鑻ラ亣鍒扳€滅櫥褰?浼氬憳鐘舵€佸紓甯糕€濓紝璇峰叧闂剼鏈嫤鎴?缈昏瘧/骞垮憡鎻掍欢鎴栦娇鐢ㄦ棤鐥曟ā寮忋€?                    </div>
+                </div>
+
+                <!-- 馃搳 閰嶉淇℃伅灞曠ず -->
+                <div class="form-group" id="quotaInfoDisplay">
+                    <label style="color: var(--accent-gold);">馃搳 鎮ㄧ殑浣跨敤棰濆害</label>
+                    <div class="hint-text"
+                        style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 6px; margin-top: 5px;">
+                        <div id="quotaDetails">鍔犺浇涓?..</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="settingCharacterSheets">
+                        <span>鍚敤瑙掕壊璁惧畾鍥撅紙鑷姩鐢熸垚锛?/span>
+                    </label>
+                    <div class="hint-text">鐢熸垚鍓ф湰鍚庤嚜鍔ㄦ娊鍙栦富瑙掞紝鍥哄畾浜虹墿褰㈣薄锛岃鍒嗛暅涓嶈窇鍋?/div>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <!-- 馃 鍏ㄨ嚜鍔ㄦ墭绠℃ā寮?-->
+                <div class="form-group">
+                    <label class="toggle-label" style="color: var(--accent-gold);">
+                        <input type="checkbox" id="settingAutoHosting" onchange="toggleAutoHostingMode(this.checked)">
+                        <span>馃 鍏ㄨ嚜鍔ㄦ墭绠℃ā寮?/span>
+                    </label>
+                    <div class="hint-text"
+                        style="background: rgba(255,215,0,0.1); padding: 8px; border-radius: 6px; margin-top: 5px;">
+                        <strong>寮€鍚悗锛?/strong>鏂板缓浠诲姟灏嗚嚜鍔ㄥ姞鍏ラ槦鍒楋紝绯荤粺渚濇瀹屾垚鎵€鏈夋祦绋?br>
+                        <span style="color: #aaa;">閫傚悎鎵归噺鐢熶骇锛屾棤闇€鎵嬪姩鐐瑰嚮姣忎竴姝?/span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="saveSettings()">淇濆瓨閰嶇疆</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 妯℃€佹: 浼氬憳 -->
+    <div id="memberModal" class="modal">
+        <div class="modal-backdrop" onclick="closeMemberModal()"></div>
+        <div class="modal-content member-modal-content">
+            <div class="modal-header">
+                <h3>馃憫 浼氬憳涓績</h3>
+                <button class="btn-close" onclick="closeMemberModal()" title="鍏抽棴">脳</button>
+            </div>
+            <div class="modal-body">
+                <div class="member-status-card">
+                    <div class="status-info">
+                        <div class="status-label">褰撳墠韬唤</div>
+                        <div id="memberStatus" class="status-value">鏅€氱敤鎴?/div>
+                        <div id="memberExpiry" class="status-expiry">鏈紑閫氫細鍛樻湇鍔?/div>
+                    </div>
+                </div>
+
+                <div
+                    style="margin-top: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px; font-size: 12px; color: #bbb; line-height: 1.6;">
+                    <strong style="color: var(--accent-gold);">鎻愮ず锛?/strong> 鐧诲綍鐘舵€併€佷細鍛樼姸鎬併€佽兌鐗囦綑棰濅互浜戠涓哄噯銆?br>
+                    AI鍐欎綔鍦ㄥ乏渚?<strong>AI鍐欎綔</strong> 鏍囩杩涘叆锛岀紪杈戝櫒鍐呭凡鎻愪緵 <strong>AI缁啓/娑﹁壊/鎵╁啓</strong> 鎸夐挳銆?                </div>
+
+                <div class="activation-section">
+                    <h4>馃攽 婵€娲荤爜鍏戞崲</h4>
+                    <div class="activation-input-group">
+                        <input type="text" id="activationCode" placeholder="璇疯緭鍏ユ縺娲荤爜...">
+                        <button class="btn-secondary" onclick="redeemCode()">绔嬪嵆婵€娲?/button>
+                    </div>
+                    <div class="buy-link">
+                        <a href="#" onclick="showRecharge(); return false;">娌℃湁婵€娲荤爜锛熺偣鍑昏喘涔?/a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="activation-section" id="giftUnlockSection" style="display:none;">
+        <!-- 馃毇 宸茬鐢細璧犻€佽兌鐗囧湪娉ㄥ唽鏃惰嚜鍔ㄥ彂鏀撅紝涓嶅厑璁哥敤鎴锋墜鍔ㄩ鍙?-->
+        <h4>馃巵 璧犻€佽兌鐗囪В閿侊紙鎬婚10涓囷級</h4>
+        <div
+            style="margin-top: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px;">
+            <div id="giftUnlockSummary" style="color: #ddd; font-size: 13px; line-height: 1.5;">鍔犺浇涓?..</div>
+            <div id="giftUnlockDetails"
+                style="margin-top: 8px; color: #888; font-size: 12px; line-height: 1.5; white-space: pre-line;"></div>
+            <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap;">
+                <button class="btn-secondary" onclick="refreshGiftUnlockStatus()">鍒锋柊鐘舵€?/button>
+                <button class="btn-secondary" id="giftUnlockClaimBtn" onclick="claimGiftUnlock()">棰嗗彇鍙В閿侀搴?/button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 妯℃€佹: 鑳剁墖鍏呭€?-->
+    <div id="paymentModal" class="modal" style="z-index: 10002;">
+        <div class="modal-backdrop" onclick="closePaymentModal()"></div>
+        <div class="modal-content payment-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>馃帪锔?鑳剁墖鍏呭€?/h3>
+                <button class="btn-close" onclick="closePaymentModal()" title="鍏抽棴">脳</button>
+            </div>
+            <div class="modal-body">
+                <!-- 馃敟 鍐呮祴鎻愮ず -->
+                <div
+                    style="background: linear-gradient(135deg, rgba(255,69,0,0.2), rgba(255,140,0,0.15)); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(255,140,0,0.4);">
+                    <div style="color: #ff8c00; font-weight: bold; font-size: 14px; text-align: center;">
+                        馃巵 <strong>鍐呮祴涓撲韩浠?/strong> 路 鎰熻阿鎮ㄥ弬涓庝骇鍝佸唴娴嬶紝褰撳墠涓洪檺鏃朵綋楠屼环鏍硷紝姝ｅ紡鐗堝皢鏍规嵁瀹為檯鎴愭湰璋冩暣瀹氫环
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-bottom: 14px;">
+                    <button id="paymentTabRecharge" class="btn-secondary" onclick="setPaymentTab('recharge')"
+                        style="flex:1; border-radius: 999px;">馃帪锔?鍏呭€艰兌鐗?/button>
+                    <button id="paymentTabMember" class="btn-secondary" onclick="setPaymentTab('member')"
+                        style="flex:1; border-radius: 999px;">馃憫 浼氬憳锛堣В閿佽禒閫佽兌鐗囷級</button>
+                </div>
+
+                <div id="paymentMemberPanel" style="display:none;">
+                    <div
+                        style="background: rgba(138,43,226,0.1); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
+                        <div style="color: #a78bfa; font-weight: bold; margin-bottom: 8px;">馃巵 浼氬憳绛夌骇 鈫?瑙ｉ攣璧犻€佽兌鐗囷紙鎬婚10涓囷級
+                        </div>
+                        <div id="memberLevelGrid"
+                            style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; color: #ccc; text-align: center;">
+                        </div>
+                        <div id="memberLevelNote"
+                            style="margin-top: 8px; font-size: 11px; color: #888; text-align: center;"></div>
+                    </div>
+                    <div
+                        style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px; font-size: 12px; color: #bbb; line-height: 1.6;">
+                        浼氬憳涓嶇洿鎺ラ€佽兌鐗囦綑棰濓紝鑰屾槸鎸夌瓑绾?strong>瑙ｉ攣</strong>璧犻€佽兌鐗囬搴︺€?br>
+                        璇峰埌銆屼細鍛樹腑蹇冦€嶇偣鍑烩€滈鍙栧彲瑙ｉ攣棰濆害鈥濆啓鍏ヤ綑棰濄€?                    </div>
+                    <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap;">
+                        <button class="btn-secondary" onclick="closePaymentModal(); openMemberModal();"
+                            style="flex:1; min-width: 160px;">鎵撳紑浼氬憳涓績</button>
+                        <button class="btn-secondary" onclick="closePaymentModal(); openMemberModal();"
+                            style="flex:1; min-width: 160px;">鍘昏緭鍏ユ縺娲荤爜</button>
+                    </div>
+                </div>
+
+                <div id="paymentRechargePanel">
+
+                    <!-- 璐圭敤璇存槑 -->
+                    <div
+                        style="background: rgba(255,215,0,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13px;">
+                        <div style="color: var(--accent-gold); font-weight: bold; margin-bottom: 8px;">馃挕
+                            鑳剁墖娑堣€楀弬鑰冿紙楼0.3/鑳剁墖锛?/div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: #ccc;">
+                            <span>馃摑 鏂囨湰鐢熸垚锛?.1鑳剁墖 = 楼0.03</span>
+                            <span>馃柤锔?鍥剧墖鐢熸垚锛?.5鑳剁墖 = 楼0.15</span>
+                            <span>馃幀 <strong>15绉掕棰戯細3鑳剁墖 = 楼0.9</strong></span>
+                            <span>馃幁 瑙掕壊鍔ㄦ晥锛?鑳剁墖 = 楼0.9</span>
+                            <span>馃摉 婕敾椤碉細0.5鑳剁墖 = 楼0.15</span>
+                            <span>馃幁 瑙掕壊鍥撅細0.5鑳剁墖 = 楼0.15</span>
+                            <span>馃幀 <strong>1鍒嗛挓瑙嗛锛氱害14鑳剁墖 = 楼4.2</strong></span>
+                            <span>馃摉 <strong>4椤垫极鐢伙細绾?鑳剁墖 = 楼0.9</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="plans-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="plan-card" onclick="selectPlan('starter', this)">
+                            <div class="plan-name">馃幀 浣撻獙鍖?/div>
+                            <div class="plan-price">楼9</div>
+                            <div class="plan-desc">
+                                <strong style="color: var(--accent-gold);">30 鑳剁墖</strong><br>
+                                鈮?60寮犲浘鐗?br>
+                                鎴?2涓?鍒嗛挓瑙嗛
+                            </div>
+                        </div>
+                        <div class="plan-card selected" onclick="selectPlan('basic', this)"
+                            style="border: 1px solid var(--accent-gold); background: rgba(212, 175, 55, 0.1); position: relative;">
+                            <div class="recommend-badge"
+                                style="position: absolute; top: -10px; right: -10px; background: #cd7f32; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">
+                                鎺ㄨ崘</div>
+                            <div class="plan-name">馃 鍩虹鍖?/div>
+                            <div class="plan-price">楼30</div>
+                            <div class="plan-desc">
+                                <strong style="color: var(--accent-gold);">100 鑳剁墖</strong><br>
+                                鈮?7涓?鍒嗛挓瑙嗛<br>
+                                <span style="color:#cd7f32;">鎬т环姣斾箣閫?/span>
+                            </div>
+                        </div>
+                        <div class="plan-card" onclick="selectPlan('standard', this)" style="position: relative;">
+                            <div class="recommend-badge"
+                                style="position: absolute; top: -10px; right: -10px; background: #c0c0c0; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">
+                                鐑棬</div>
+                            <div class="plan-name">馃 杩涢樁鍖?/div>
+                            <div class="plan-price">楼99</div>
+                            <div class="plan-desc">
+                                <strong style="color: var(--accent-gold);">333 鑳剁墖</strong><br>
+                                鈮?24涓?鍒嗛挓瑙嗛<br>
+                                <span style="color:#c0c0c0;">鍒涗綔鑰呴閫?/span>
+                            </div>
+                        </div>
+                        <div class="plan-card" onclick="selectPlan('premium', this)" style="position: relative;">
+                            <div class="recommend-badge"
+                                style="position: absolute; top: -10px; right: -10px; background: #ffd700; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">
+                                瓒呭€?/div>
+                            <div class="plan-name">馃 涓撲笟鍖?/div>
+                            <div class="plan-price">楼299</div>
+                            <div class="plan-desc">
+                                <strong style="color: var(--accent-gold);">1000 鑳剁墖</strong><br>
+                                鈮?71涓?鍒嗛挓瑙嗛<br>
+                                <span style="color:#ffd700;">涓撲笟鍒涗綔鑰?/span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 鍏嶈垂鐢ㄦ埛绂忓埄璇存槑 -->
+                    <div
+                        style="background: rgba(74,222,128,0.1); padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 12px;">
+                        <div style="color: #4ade80; font-weight: bold; margin-bottom: 5px;">馃巵 璧犻€佽兌鐗囩鍒╋紙鎬婚10涓囷級</div>
+                        <div style="color: #aaa;">
+                            鍏嶈垂浣撻獙<span style="color:#4ade80;">500</span>鑳剁墖 鈫?鍗囩骇浼氬憳瑙ｉ攣鏇村<br>
+                            馃柤锔?绾?12寮犲浘 馃幀 绾?66涓棰?馃摑 绾?000娆℃枃妗?                        </div>
+                    </div>
+
+                    <div class="manual-pay-link" style="margin-top: 15px;">
+                        <a href="#" onclick="toggleManualPay(); return false;">鏃犳硶鏀粯锛熺偣鍑绘墜鍔ㄨ浆璐?/a>
+                    </div>
+
+                    <div id="manualPayArea"
+                        style="display: none; margin-top: 15px; text-align: center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                        <p style="font-size: 14px; color: var(--accent-gold); margin-bottom: 10px; font-weight: bold;">
+                            馃洅 闂查奔璐拱锛堟帹鑽愶級</p>
+                        <a href="https://m.tb.cn/h.Sxthj3M?tk=MzLhfM3Id3fCZ005" target="_blank"
+                            rel="noopener noreferrer"
+                            style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #ff6a00, #ee0979); color: #fff; border-radius: 8px; text-decoration: none; font-weight: bold; margin-bottom: 10px;">鐐瑰嚮璺宠浆闂查奔璐拱</a>
+                        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">璐拱鍚庤嚜鍔ㄨ幏寰楁縺娲荤爜锛屾棤闇€绛夊緟</p>
+                        <p
+                            style="font-size: 12px; color: #888; margin-top: 8px; border-top: 1px solid #333; padding-top: 10px;">
+                            馃挰 寰俊瀹㈡湇锛?span style="color: var(--accent-gold); cursor: pointer;"
+                                onclick="copyWeChatId()">jingguangwei</span> (鐐瑰嚮澶嶅埗)
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" style="width: 100%;" onclick="buyCurrentPlan()">绔嬪嵆鍏呭€?/button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 妯℃€佹: 缂栬緫浠诲姟 (JS璋冪敤) -->
+    <div id="ideaModal" class="modal" style="display: none;">
+        <!-- 鍐呭鐢盝S鐢熸垚 -->
+    </div>
+
+    <!-- 妯℃€佹: 鍥剧墖缂栬緫 (JS璋冪敤) -->
+    <div id="imageEditModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeImageEditModal()"></div>
+        <div class="modal-content" style="width: 800px; max-width: 95vw;">
+            <div class="modal-header">
+                <h3>馃獎 AI鍥剧墖淇グ (Gemini Vision)</h3>
+                <button class="btn-close" onclick="closeImageEditModal()" title="鍏抽棴">脳</button>
+            </div>
+            <div class="modal-body" style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <div style="margin-bottom: 8px; color: #888;">鍘熷浘棰勮</div>
+                    <img id="editImagePreview" src="" style="width: 100%; border-radius: 8px; border: 1px solid #333;">
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="form-group">
+                        <label>淇敼鎸囦护 (渚嬪: "鎶婅。鏈嶆敼鎴愮孩鑹?, "澧炲姞涓€浜涚骞诲厓绱?)</label>
+                        <textarea id="editPromptInput"
+                            style="width: 100%; height: 100px; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 4px;"
+                            placeholder="璇锋弿杩版偍鎯冲浣曚慨鏀硅繖寮犲浘鐗?.."></textarea>
+                    </div>
+                    <button class="btn-primary" onclick="executeImageEdit()" style="margin-top: 10px;">鉁?寮€濮婣I淇浘</button>
+
+                    <div id="editResultArea"
+                        style="margin-top: 20px; display: none; border-top: 1px solid #333; padding-top: 20px;">
+                        <!-- 缁撴灉鏄剧ず鍖?-->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 缂栬緫宸ヤ綔瀹ゅ祵鍏?-->
+    <div id="editingStudioFrame"
+        style="display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #111; z-index: 2000;">
+        <button onclick="closeEditingStudio()"
+            style="position: absolute; top: 10px; left: 10px; z-index: 2001; padding: 8px 16px; background: var(--accent-gold); color: #000; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">鈫?            杩斿洖鍒涗綔涓績</button>
+        <iframe src="/app/storyboard-master.html" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
+
+    <div id="writingOverlay" class="library-overlay" style="display: none;">
+        <div class="library-header">
+            <div class="lib-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+                </svg>
+                AI鍐欎綔缂栬緫鍣?            </div>
+            <button class="btn-close-lib" onclick="closeWritingOverlay()">脳</button>
+        </div>
+        <div class="library-content" style="display:flex; gap:14px;">
+            <div style="width:320px; min-width:260px; max-width:360px;">
+                <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <button class="btn-text" onclick="createWritingChapter()"
+                        style="flex:1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">
+                        鉃?鏂扮珷鑺?                    </button>
+                    <button class="btn-text" onclick="createWritingInviteLink()"
+                        style="flex:1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">
+                        馃敆 閭€璇?                </div>
+                <div id="writingChaptersList" class="lib-grid" style="grid-template-columns: 1fr;"></div>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column; min-width: 380px;">
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                    <button class="btn-text" onclick="createWritingChapter()"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">鏂板缓绔犺妭</button>
+                    <button class="btn-text" onclick="createWritingInviteLink()"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">閭€璇峰崗浣?/button>
+                    <button class="btn-text" onclick="exportWriting('md')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">瀵煎嚭MD</button>
+                    <button class="btn-text" onclick="exportWriting('txt')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">瀵煎嚭TXT</button>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                    <button class="btn-text" onclick="runWritingAI('continue')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">AI缁啓</button>
+                    <button class="btn-text" onclick="runWritingAI('polish')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">AI娑﹁壊</button>
+                    <button class="btn-text" onclick="runWritingAI('expand')"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">AI鎵╁啓</button>
+                </div>
+                <input id="writingChapterTitleInput" placeholder="绔犺妭鏍囬"
+                    style="width:100%; background:#111; color:#fff; border: 1px solid #333; padding: 10px; border-radius: 10px; margin-bottom:10px;" />
+                <textarea id="writingChapterContentInput" placeholder="鍦ㄨ繖閲屽啓浣?.."
+                    style="flex:1; width:100%; background:#0b0b0b; color:#fff; border: 1px solid #333; padding: 12px; border-radius: 10px; resize: none;"></textarea>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+                    <button class="btn-text" onclick="reloadWritingCurrentChapter()"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; cursor: pointer;">鍒锋柊</button>
+                    <button class="btn-text" onclick="saveWritingCurrentChapter()"
+                        style="background: var(--accent-gold); color:#000; font-weight:900; border: none; border-radius: 10px; padding: 8px 14px; cursor: pointer;">淇濆瓨</button>
+                </div>
+                <div id="writingStatusBar" style="margin-top:8px; font-size:12px; color:#888;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 瑙掕壊搴撳拰璧勪骇搴撹挋灞?-->
+    <div id="libraryOverlay" class="library-overlay" style="display: none;">
+        <div class="library-header">
+            <div class="lib-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
+                瑙掕壊搴撲笌璧勪骇绠＄悊
+            </div>
+            <button class="btn-close-lib" onclick="closeLibrary()">脳</button>
+        </div>
+        <div class="library-content">
+            <div class="lib-tabs">
+                <button class="lib-tab active" onclick="switchLibTab('tasks')">鎴戠殑浠诲姟 (璧勪骇)</button>
+                <button class="lib-tab" onclick="switchLibTab('chars')">瑙掕壊搴?/button>
+            </div>
+            <div id="libTasksPanel" class="lib-panel active">
+                <div id="libTasksGrid" class="lib-grid"></div>
+            </div>
+            <div id="libCharsPanel" class="lib-panel">
+                <div id="libCharsGrid" class="lib-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 鐢靛奖鎰熺敓鎴愬姩鐢昏挋灞?-->
+    <div id="cinematicOverlay" class="cinematic-overlay" style="display: none;">
+        <div class="cinematic-bg"></div>
+        <div class="cinematic-content">
+            <div class="cine-loader">
+                <svg class="film-reel" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke="var(--accent-gold)" stroke-width="4" fill="none"
+                        stroke-dasharray="10 5" />
+                    <circle cx="50" cy="50" r="30" stroke="#fff" stroke-width="2" fill="none" />
+                    <path d="M50 20 L50 80 M20 50 L80 50" stroke="#333" stroke-width="4" />
+                </svg>
+            </div>
+            <div class="quote-container glass-effect">
+                <div class="quote-text" id="cineQuote">鈥滅數褰辨槸姣忕24鏍肩殑鐪熺悊銆傗€?/div>
+                <div class="quote-author" id="cineAuthor">鈥?璁?鍚曞厠路鎴堣揪灏?/div>
+            </div>
+            <div class="cine-status" id="cineStatus">姝ｅ湪涓烘偍鐨勫垱鎰忔敞鍏ョ伒榄?..</div>
+
+            <!-- 馃啎 澧炲姞鎺у埗鎸夐挳 -->
+            <div class="cine-controls" style="margin-top: 30px; display: flex; gap: 15px; z-index: 10;">
+                <button id="cinePauseBtn" onclick="pauseCurrentExecution()"
+                    style="padding: 8px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    鈴革笍 鏆傚仠
+                </button>
+                <button id="cineCancelBtn" onclick="cancelCurrentExecution()"
+                    style="padding: 8px 20px; background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.4); color: #ff8a80; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    鈴癸笍 鍙栨秷
+                </button>
+                <button id="cineResumeBtn" onclick="resumeCurrentExecution()"
+                    style="display: none; padding: 8px 20px; background: rgba(76,175,80,0.2); border: 1px solid rgba(76,175,80,0.4); color: #a5d6a7; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    鈻讹笍 缁х画
+                </button>
+                <button onclick="hideCinematicOverlay()"
+                    style="padding: 8px 20px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #aaa; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    鈫欙笍 鍚庡彴杩愯
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 妯℃€佹: 甯姪涓嶢PI -->
+    <div id="helpModal" class="modal">
+        <div class="modal-backdrop" onclick="closeHelpModal()"></div>
+        <div class="modal-content" style="width: 700px;">
+            <div class="modal-header">
+                <h3>鉂?浣跨敤甯姪 & 鍔熻兘浠嬬粛</h3>
+                <button class="btn-close" onclick="closeHelpModal()">脳</button>
+            </div>
+            <div class="modal-body help-content" style="max-height: 600px; overflow-y: auto;">
+                <h4>馃巵 璧犻€佽兌鐗囩鍒╋紙鎬婚10涓囷級</h4>
+                <div
+                    style="background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,165,0,0.1)); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="margin: 0 0 8px 0;"><strong>鎸変細鍛樼瓑绾цВ閿佽禒閫佽兌鐗囷細</strong>
+                    </p>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>鍏嶈垂浣撻獙 <strong>500</strong> 鈫?LV10 瑙ｉ攣鍏ㄩ儴 <strong>10涓?/strong></li>
+                        <li>馃柤锔?<strong>1.6鑳剁墖/寮?/strong> 楂樻竻AI鍥剧墖</li>
+                        <li>馃幀 <strong>3鑳剁墖/涓?/strong> Sora2瑙嗛锛?5绉掞級</li>
+                        <li>馃摑 <strong>0.25鑳剁墖/娆?/strong> AI鏂囨/鍓ф湰</li>
+                    </ul>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #aaa;">
+                        馃挕 鑳剁墖鍙伒娲诲垎閰嶏紝鍥剧墖/瑙嗛/鏂囨闅忓績鐢?                    </p>
+                </div>
+
+                <h4>馃殌 鏍稿績鍔熻兘浠嬬粛</h4>
+                <p><strong>1. 鏅鸿兘鎵归噺鐢熸垚锛?/strong> 杈撳叆涓€涓垱鎰忥紝AI 鑷姩瀹屾垚"鍐欏墽鏈?-> 缁樺垎闀?-> 鐢熸垚瑙嗛 -> 鍓緫"鍏ㄦ祦绋嬨€?/p>
+                <p><strong>2. 瑙掕壊涓€鑷存€?(Banana2)锛?/strong> 寮€鍚?瑙掕壊璁惧畾鍥?鍔熻兘锛孉I 浼氬厛璁捐瑙掕壊涓夎鍥撅紝纭繚鍒嗛暅涓汉鐗╅暱鐩哥粺涓€銆?/p>
+                <p><strong>3. 浜や簰寮忕敾鏉?(Sketch)锛?/strong> 鍦ㄧ敾甯冧笂鍙抽敭鍒涘缓"缁樺浘鑺傜偣"锛屾墜缁樿崏鍥炬垨涓婁紶鍙傝€冨浘锛岃繛绾垮埌浠诲姟鍗＄墖锛岀簿鍑嗘帶鍒剁敾闈㈡瀯鍥俱€?/p>
+                <p><strong>4. 鑷姩鍙戝竷 (浼氬憳)锛?/strong> 鏀寔涓€閿皢鐢熸垚鐨勮棰戝彂甯冨埌鎶栭煶銆丅绔欍€佸皬绾功绛夊钩鍙般€?/p>
+
+                <h4>馃柋锔?鐢诲竷鎿嶄綔鎸囧崡</h4>
+                <ul>
+                    <li><strong>骞崇Щ锛?/strong> 绌烘牸+宸﹂敭鎷栨嫿锛屾垨榧犳爣涓敭鎷栨嫿銆?/li>
+                    <li><strong>缂╂斁锛?/strong> 榧犳爣婊氳疆 (Ctrl+婊氳疆)銆?/li>
+                    <li><strong>杩炵嚎锛?/strong> 鎷栨嫿鑺傜偣鍙充晶鐨?杈撳嚭鐐?鍒颁换鍔″崱鐗囷紝鍗冲彲浼犻€掑弬鑰冨浘銆?/li>
+                </ul>
+
+                <h4>馃拵 浠樿垂鐢ㄦ埛鏉冪泭</h4>
+                <ul>
+                    <li>鉁?鏃犻檺浣跨敤 Banana2/Sora2/Gemini3</li>
+                    <li>鉁?鍏ㄨ嚜鍔ㄦā寮忥紙涓€閿嚭鐗囷級</li>
+                    <li>鉁?4K 楂樻竻鐢昏川</li>
+                    <li>鉁?浼樺厛闃熷垪锛屾洿蹇敓鎴?/li>
+                </ul>
+
+                <div class="help-btn-row">
+                    <button class="btn-primary" onclick="closeHelpModal(); openVipModal();">鏌ョ湅鍏呭€煎椁?/button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 妯℃€佹: 鍙戝竷瑙嗛 (Playwright) -->
+    <div id="publishModal" class="modal">
+        <div class="modal-backdrop" onclick="closePublishModal()"></div>
+        <div class="modal-content" style="width: 600px;">
+            <div class="modal-header">
+                <h3>馃殌 涓€閿彂甯?(鑷姩鍒嗗彂)</h3>
+                <button class="btn-close" onclick="closePublishModal()">脳</button>
+            </div>
+            <div class="modal-body">
+                <div class="publish-form">
+                    <div class="form-group">
+                        <label>閫夋嫨鍙戝竷骞冲彴</label>
+                        <div class="platform-grid">
+                            <label class="platform-item">
+                                <input type="checkbox" value="douyin" checked>
+                                <span class="platform-icon">馃幍</span> 鎶栭煶
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="bilibili" checked>
+                                <span class="platform-icon">馃摵</span> B绔?                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="xiaohongshu" checked>
+                                <span class="platform-icon">馃摃</span> 灏忕孩涔?                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="kuaishou">
+                                <span class="platform-icon">鈿?/span> 蹇墜
+                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="weixin">
+                                <span class="platform-icon">馃挰</span> 瑙嗛鍙?                            </label>
+                            <label class="platform-item">
+                                <input type="checkbox" value="weibo">
+                                <span class="platform-icon">馃В</span> 寰崥
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>鏍囬</label>
+                        <input type="text" id="pubTitle" class="form-input" placeholder="璇疯緭鍏ユ爣棰? title="鏍囬"
+                            aria-label="鏍囬">
+                    </div>
+
+                    <div class="form-group">
+                        <label>鎻忚堪</label>
+                        <textarea id="pubDesc" class="form-input" rows="4" placeholder="璇疯緭鍏ユ弿杩? title="鎻忚堪"
+                            aria-label="鎻忚堪"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>鏍囩 (绌烘牸鍒嗛殧)</label>
+                        <input type="text" id="pubTags" class="form-input" placeholder="渚嬪锛氬姩婕?鐢靛奖 鍒嗛暅" title="鏍囩锛堢┖鏍煎垎闅旓級"
+                            aria-label="鏍囩锛堢┖鏍煎垎闅旓級">
+                    </div>
+
+                    <div id="publishLog" class="publish-log" style="display:none;">
+                        <div class="log-title">鎵ц鏃ュ織:</div>
+                        <div id="publishLogContent" class="log-content"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closePublishModal()">鍙栨秷</button>
+                <button class="btn-primary" onclick="startPublishing()">寮€濮嬭嚜鍔ㄥ彂甯?/button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 妯℃€佹: 鍒嗕韩鑾峰彇棰濆害 -->
+    <div id="shareModal" class="share-modal">
+        <div class="share-content">
+            <div class="share-header">
+                <h3>馃巵 鍒嗕韩鑾峰彇棰濆害</h3>
+                <div class="share-desc">
+                    灏?AI 瑙嗛宸ュ潑鍒嗕韩缁欏ソ鍙嬫垨缇よ亰<br>
+                    <span style="color: var(--accent-gold);">鍏嶈垂棰嗗彇浠婃棩 +3 娆＄敓鎴愰搴︼紒</span>
+                </div>
+                <button class="btn-close" onclick="closeShareModal()"
+                    style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: #666; font-size: 24px; cursor: pointer;">脳</button>
+            </div>
+
+            <div class="share-input-group">
+                <label class="share-input-label">鍒嗕韩閾炬帴</label>
+                <div class="share-input-box">
+                    <input type="text" id="shareLinkDisplay" readonly title="鍒嗕韩閾炬帴" aria-label="鍒嗕韩閾炬帴"
+                        placeholder="锛堢郴缁熺敓鎴愶級">
+                    <button id="copyShareLinkBtn" class="btn-copy-share">澶嶅埗閾炬帴</button>
+                </div>
+
+                <label class="share-input-label" style="margin-top: 10px;">鍒嗕韩鏂囨</label>
+                <div class="share-input-box">
+                    <input type="text" id="shareTextDisplay" readonly title="鍒嗕韩鏂囨" aria-label="鍒嗕韩鏂囨"
+                        placeholder="锛堢郴缁熺敓鎴愶級">
+                    <button id="copyShareTextBtn" class="btn-copy-share">澶嶅埗鏂囨</button>
+                </div>
+            </div>
+
+            <div class="share-actions">
+                <div style="color: #666; font-size: 12px; margin-bottom: 5px;">
+                    鈿狅笍 璇峰姟蹇呯湡瀹炲垎浜紝绯荤粺灏嗚繘琛屾櫤鑳芥娴?                </div>
+                <button id="verifyShareBtn" class="btn-verify-share" disabled>
+                    鈴?璇峰厛澶嶅埗鍒嗕韩鍐呭...
+                </button>
+                <button id="claimShareBonusBtn" class="btn-claim-share">
+                    馃巵 鎴戝凡瀹屾垚鍒嗕韩锛岄鍙栧鍔?                </button>
+                <div id="shareCountdown" style="color: #888; font-size: 12px; height: 14px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 馃З Skill 閰嶇疆寮圭獥 -->
+    <div id="skillConfigModal" class="modal" style="display:none;">
+        <div class="modal-backdrop" onclick="SkillUI.closeSkillConfig()"></div>
+        <div class="modal-content" style="width: 500px; max-width: 95vw;">
+            <div class="modal-header">
+                <h3 id="skillConfigTitle">馃З 鎶€鑳介厤缃?/h3>
+                <button class="btn-close" onclick="SkillUI.closeSkillConfig()">脳</button>
+            </div>
+            <div class="modal-body">
+                <div id="skillConfigDesc" style="color: #aaa; font-size: 13px; margin-bottom: 16px; line-height: 1.5;"></div>
+                
+                <!-- 鍔ㄦ€佸弬鏁拌〃鍗?-->
+                <div id="skillConfigForm" class="skill-config-form">
+                    <!-- 鐢?JS 鍔ㄦ€佺敓鎴?-->
+                </div>
+
+                <!-- 鎴愭湰棰勪及 -->
+                <div id="skillCostEstimate" style="margin-top: 16px; padding: 12px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; font-size: 13px;">
+                    <div class="skill-estimate-note" style="color: #888;">鎴愭湰鍙栧喅浜庡疄闄呯敓鎴愬唴瀹?/div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px;">
+                <button class="btn-secondary" onclick="SkillUI.closeSkillConfig()" style="flex: 1;">鍙栨秷</button>
+                <button class="btn-primary" onclick="SkillUI.executeCurrentSkill()" style="flex: 2;">馃殌 寮€濮嬫墽琛?/button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 馃З Skill 鎵ц杩涘害闈㈡澘 -->
+    <div id="skillProgressPanel" class="cinematic-overlay" style="display:none;">
+        <div class="cinematic-bg"></div>
+        <div class="cinematic-content" style="max-width: 500px; width: 90%;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div class="cine-loader" style="margin: 0 auto 15px;">
+                    <svg class="film-reel" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" stroke="var(--accent-gold)" stroke-width="4" fill="none" stroke-dasharray="10 5" />
+                        <circle cx="50" cy="50" r="30" stroke="#fff" stroke-width="2" fill="none" />
+                        <path d="M50 20 L50 80 M20 50 L80 50" stroke="#333" stroke-width="4" />
+                    </svg>
+                </div>
+                <div id="skillProgressText" style="color: #fff; font-size: 16px; font-weight: 600;">鍑嗗涓?..</div>
+            </div>
+
+            <!-- 杩涘害鏉?-->
+            <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; margin-bottom: 20px; overflow: hidden;">
+                <div id="skillProgressBar" style="height: 100%; background: linear-gradient(90deg, var(--accent-gold), #f97316); border-radius: 10px; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+
+            <!-- 姝ラ鍒楄〃 -->
+            <div id="skillProgressSteps" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 15px; max-height: 200px; overflow-y: auto;">
+                <!-- 鐢?JS 鍔ㄦ€佹坊鍔?-->
+            </div>
+
+            <!-- 鎺у埗鎸夐挳 -->
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button onclick="SkillUI.cancelExecution()" 
+                    style="flex: 1; padding: 10px 20px; background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.4); color: #ff8a80; border-radius: 20px; cursor: pointer;">
+                    鈴癸笍 鍙栨秷
+                </button>
+                <button onclick="document.getElementById('skillProgressPanel').style.display='none'" 
+                    style="flex: 1; padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #aaa; border-radius: 20px; cursor: pointer;">
+                    鈫欙笍 鍚庡彴杩愯
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase-config.js?v=1.0.3"></script>
+    <script src="js/free-api.js?v=1.0.0"></script>
+    <script src="js/knolling-node.js"></script>
+    <!-- 馃幀 鏅鸿兘浠诲姟璋冨害鍣?- 浼樺厛绾ч槦鍒椼€佽嚜鍔ㄩ噸璇曘€佹柇鐐圭画浼?-->
+    <script src="js/task-orchestrator.js?v=1.0.0"></script>
+    <!-- 馃洝锔?寮规€?API 缃戝叧 - 璐熻浇鍧囪　銆佺啍鏂檷绾с€佹垚鏈紭鍖?-->
+    <script src="js/resilient-api.js?v=1.0.0"></script>
+    <!-- 馃З Skill 鎶€鑳界郴缁?- 鐢ㄦ埛鍙€夋嫨涓嶅悓鎶€鑳藉畬鎴愪换鍔?-->
+    <script src="js/skill-system.js?v=1.0.0"></script>
+    <script src="js/skill-presets.js?v=1.0.0"></script>
+    <script src="js/batch.js?v=8.6.5&t=202601140058"></script>
+    <script src="js/help_modal.js"></script>
+
+    <!-- 瑙嗛缂栬緫鍣ㄦā鎬佹 -->
+    <div id="videoEditorModal" class="modal" style="display:none;">
+        <div class="modal-backdrop" onclick="closeVideoEditor()"></div>
+        <div class="modal-content"
+            style="width: 95%; max-width: 1200px; height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
+                <h3>馃幀 瑙嗛缂栬緫鍣?/h3>
+                <button class="btn-close" onclick="closeVideoEditor()">脳</button>
+            </div>
+            <div class="modal-body"
+                style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
+                <!-- 棰勮鍖哄煙 -->
+                <div id="editorPreview"
+                    style="flex: 1; background: #000; display: flex; align-items: center; justify-content: center; min-height: 300px;">
+                    <video id="editorVideo" style="max-width: 100%; max-height: 100%;" controls></video>
+                </div>
+
+                <!-- 鏃堕棿绾垮尯鍩?-->
+                <div id="editorTimeline"
+                    style="height: 180px; background: #1a1a2e; border-top: 1px solid #333; padding: 10px; overflow-x: auto;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span style="color: #888; font-size: 12px;">馃搸 鎷栨嫿鎺掑簭 | 鉁傦笍 鍙屽嚮瑁佸壀 | 馃敆 鐐瑰嚮鍚堝苟瀵煎嚭</span>
+                        <div style="margin-left: auto; display: flex; gap: 8px;">
+                            <button onclick="previewAllClips()"
+                                style="padding: 6px 12px; background: #333; border: 1px solid #555; border-radius: 4px; color: #fff; cursor: pointer;">鈻讹笍
+                                棰勮鍏ㄩ儴</button>
+                            <button onclick="mergeAndExport()"
+                                style="padding: 6px 12px; background: linear-gradient(135deg, var(--accent-gold), #f97316); border: none; border-radius: 4px; color: #000; font-weight: bold; cursor: pointer;">馃敆
+                                鍚堝苟瀵煎嚭</button>
+                        </div>
+                    </div>
+
+                    <!-- 鏃堕棿绾胯建閬?-->
+                    <div id="timelineTrack"
+                        style="display: flex; gap: 8px; padding: 10px; background: #0d0d1a; border-radius: 8px; min-height: 100px; align-items: center; overflow-x: auto;">
+                        <!-- 瑙嗛鐗囨灏嗗湪杩欓噷鍔ㄦ€佺敓鎴?-->
+                        <div style="color: #666; font-size: 14px;">鏆傛棤瑙嗛鐗囨锛岃鍏堢敓鎴愯棰?/div>
+                    </div>
+                </div>
+
+                <!-- 瑁佸壀闈㈡澘锛堥殣钘忥紝鍙屽嚮鐗囨鏃舵樉绀猴級 -->
+                <div id="trimPanel"
+                    style="display: none; height: 80px; background: #222; border-top: 1px solid #444; padding: 10px 20px;">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <span style="color: #fff; font-size: 14px;">鉁傦笍 瑁佸壀鐗囨 <span id="trimClipName"
+                                style="color: var(--accent-gold);"></span></span>
+                        <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+                            <span style="color: #888; font-size: 12px;">寮€濮?</span>
+                            <input type="range" id="trimStart" min="0" max="100" value="0" style="flex: 1;">
+                            <span id="trimStartTime" style="color: #fff; font-size: 12px; width: 50px;">0.0s</span>
+                        </div>
+                        <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+                            <span style="color: #888; font-size: 12px;">缁撴潫:</span>
+                            <input type="range" id="trimEnd" min="0" max="100" value="100" style="flex: 1;">
+                            <span id="trimEndTime" style="color: #fff; font-size: 12px; width: 50px;">5.0s</span>
+                        </div>
+                        <button onclick="applyTrim()"
+                            style="padding: 6px 16px; background: var(--accent-gold); border: none; border-radius: 4px; color: #000; font-weight: bold; cursor: pointer;">搴旂敤</button>
+                        <button onclick="closeTrimPanel()"
+                            style="padding: 6px 12px; background: #444; border: none; border-radius: 4px; color: #fff; cursor: pointer;">鍙栨秷</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 鐘舵€佹爮 -->
+            <div id="editorStatus"
+                style="padding: 8px 15px; background: #111; border-top: 1px solid #333; font-size: 12px; color: #888;">
+                灏辩华 | 鎬绘椂闀? <span id="totalDuration">0.0</span>s | 鐗囨鏁? <span id="clipCount">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 馃洝锔?鎻掍欢闃绘柇鎻愮ず -->
+    <div id="pluginWarning" class="plugin-warning-overlay">
+        <div class="plugin-warning-card">
+            <h3>馃洝锔?妫€娴嬪埌娴忚鍣ㄥ彲鑳芥嫤鎴剼鏈?/h3>
+            <p style="margin: 0 0 6px;">
+                椤甸潰妫€娴嬪埌鍏抽敭 SDK 鎴栬剼鏈湭鑳藉姞杞姐€傝鏆傛椂鍏抽棴缈昏瘧銆佽剼鏈敞鍏ャ€佸箍鍛?瀹夊叏绫绘彃浠舵垨涓烘湰椤甸潰娣诲姞鐧藉悕鍗曪紝鐒跺悗鐐瑰嚮閲嶆柊妫€娴嬨€?            </p>
+            <ul id="pluginWarningList" class="plugin-warning-list">
+                <li>姝ｅ湪閲嶆柊妫€娴嬬己澶辩殑鑴氭湰...</li>
+            </ul>
+            <label class="plugin-warning-check">
+                <input type="checkbox" id="pluginConfirmCheckbox" checked>
+                鎴戝凡鍏抽棴鐩稿叧鎻掍欢/浠ｇ悊锛屽苟鍏佽鏈〉鍔犺浇澶栭儴鑴氭湰
+            </label>
+            <div class="plugin-warning-actions">
+                <button type="button" onclick="retryPluginDetection()">閲嶆柊妫€娴?/button>
+                <button type="button" class="btn-solid" onclick="confirmPluginBypass()">鎴戝凡纭锛岀户缁娇鐢?/button>
+            </div>
+            <small class="plugin-warning-hint">
+                甯歌褰卞搷鎻掍欢锛欵dge Copilot銆丅rowserTools MCP銆両mmersive Translate銆佸箍鍛婃嫤鎴?鑴氭湰娉ㄥ叆宸ュ叿绛夈€?            </small>
+        </div>
+    </div>
+
+    <!-- 馃敡 API鏃ュ織绐楀彛 -->
+    <div id="apiLogPanel" style="
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 200px;
+        background: linear-gradient(180deg, #0a0a15 0%, #0d0d1a 100%);
+        border-top: 2px solid var(--accent-gold);
+        z-index: 9999;
+        display: none;
+        flex-direction: column;
+        font-family: 'Consolas', 'Monaco', monospace;
+    ">
+        <div
+            style="display: flex; align-items: center; justify-content: space-between; padding: 8px 15px; background: #111; border-bottom: 1px solid #333;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: var(--accent-gold); font-weight: bold;">馃摗 API 鏃ュ織</span>
+                <span id="apiLogCount" style="color: #888; font-size: 12px;">(0 鏉?</span>
+                <span id="apiLogStatus"
+                    style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #1a1a2e; color: #10b981;">鈼?                    灏辩华</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="clearApiLogs()"
+                    style="padding: 4px 10px; background: #333; border: 1px solid #555; border-radius: 4px; color: #fff; cursor: pointer; font-size: 11px;">馃棏锔?                    娓呯┖</button>
+                <button onclick="copyApiLogs()"
+                    style="padding: 4px 10px; background: #333; border: 1px solid #555; border-radius: 4px; color: #fff; cursor: pointer; font-size: 11px;">馃搵
+                    澶嶅埗</button>
+                <button onclick="toggleApiLogPanel()"
+                    style="padding: 4px 10px; background: #333; border: 1px solid #555; border-radius: 4px; color: #fff; cursor: pointer; font-size: 11px;">鉁?                    鍏抽棴</button>
+            </div>
+        </div>
+        <div id="apiLogContent"
+            style="flex: 1; overflow-y: auto; padding: 10px 15px; font-size: 12px; line-height: 1.6;">
+            <div style="color: #666;">绛夊緟 API 璇锋眰...</div>
+        </div>
+    </div>
+
+    <!-- 鏃ュ織绐楀彛鍒囨崲鎸夐挳 -->
+    <button id="apiLogToggle" onclick="toggleApiLogPanel()" style="
+        position: fixed;
+        bottom: 15px;
+        right: 15px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 2px solid var(--accent-gold);
+        color: var(--accent-gold);
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 9998;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    " title="鎵撳紑/鍏抽棴 API 鏃ュ織">
+        馃摗
+    </button>
+
+    <script>
+        // 椤甸潰鍔犺浇瀹屾垚鍚庡垵濮嬪寲鐢诲竷
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof setupInfiniteCanvas === 'function') {
+                setupInfiniteCanvas('taskCanvasContainer', 'taskCanvas');
+            }
+        });
+
+        // API鏃ュ織鐩稿叧鍑芥暟
+        window.apiLogs = [];
+
+        window.toggleApiLogPanel = function () {
+            const panel = document.getElementById('apiLogPanel');
+            const toggle = document.getElementById('apiLogToggle');
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'flex';
+                toggle.style.bottom = '215px';
+                toggle.innerHTML = '鉁?;
+            } else {
+                panel.style.display = 'none';
+                toggle.style.bottom = '15px';
+                toggle.innerHTML = '馃摗';
+            }
+        };
+
+        window.clearApiLogs = function () {
+            window.apiLogs = [];
+            document.getElementById('apiLogContent').innerHTML = '<div style="color: #666;">鏃ュ織宸叉竻绌?/div>';
+            document.getElementById('apiLogCount').textContent = '(0 鏉?';
+        };
+
+        window.copyApiLogs = function () {
+            const text = window.apiLogs.map(l => `[${l.time}] ${l.type}: ${l.message}`).join('\n');
+            navigator.clipboard.writeText(text).then(() => {
+                alert('鏃ュ織宸插鍒跺埌鍓创鏉?);
+            });
+        };
+
+        window.addApiLog = function (type, message, details) {
+            const time = new Date().toLocaleTimeString();
+            const log = { time, type, message, details };
+            window.apiLogs.push(log);
+
+            // 鏇存柊璁℃暟
+            document.getElementById('apiLogCount').textContent = `(${window.apiLogs.length} 鏉?`;
+
+            // 鏇存柊鐘舵€?            const statusEl = document.getElementById('apiLogStatus');
+            if (type === 'REQUEST') {
+                statusEl.innerHTML = '鈼?璇锋眰涓?..';
+                statusEl.style.color = '#fbbf24';
+            } else if (type === 'SUCCESS') {
+                statusEl.innerHTML = '鈼?鎴愬姛';
+                statusEl.style.color = '#10b981';
+            } else if (type === 'ERROR') {
+                statusEl.innerHTML = '鈼?閿欒';
+                statusEl.style.color = '#ef4444';
+            }
+
+            // 娣诲姞鏃ュ織鏉＄洰
+            const content = document.getElementById('apiLogContent');
+            const colors = {
+                'REQUEST': '#60a5fa',
+                'SUCCESS': '#10b981',
+                'ERROR': '#ef4444',
+                'INFO': '#a78bfa',
+                'WARN': '#fbbf24'
+            };
+
+            const entry = document.createElement('div');
+            entry.style.cssText = 'margin-bottom: 6px; padding: 4px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 3px solid ' + (colors[type] || '#888');
+
+            let html = `<span style="color: #666;">[${time}]</span> <span style="color: ${colors[type] || '#888'}; font-weight: bold;">${type}</span> `;
+            html += `<span style="color: #ddd;">${message}</span>`;
+
+            if (details) {
+                const detailStr = typeof details === 'string' ? details : JSON.stringify(details, null, 2);
+                if (detailStr.length > 200) {
+                    html += `<details style="margin-top: 4px;"><summary style="color: #888; cursor: pointer; font-size: 11px;">鏌ョ湅璇︽儏 (${detailStr.length} 瀛楃)</summary><pre style="color: #888; font-size: 10px; margin: 4px 0; padding: 8px; background: #111; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-break: break-all;">${detailStr.substring(0, 2000)}${detailStr.length > 2000 ? '...(鎴柇)' : ''}</pre></details>`;
+                } else {
+                    html += `<pre style="color: #888; font-size: 10px; margin: 4px 0 0; padding: 4px 8px; background: #111; border-radius: 4px; overflow-x: auto;">${detailStr}</pre>`;
+                }
+            }
+
+            entry.innerHTML = html;
+
+            // 绉婚櫎鍒濆鎻愮ず
+            if (content.querySelector('div[style*="color: #666"]')?.textContent.includes('绛夊緟')) {
+                content.innerHTML = '';
+            }
+
+            content.appendChild(entry);
+            content.scrollTop = content.scrollHeight;
+
+            // 闄愬埗鏃ュ織鏁伴噺
+            if (window.apiLogs.length > 500) {
+                window.apiLogs.shift();
+                content.removeChild(content.firstChild);
+            }
+        };
+    </script>
+
+    <!-- 馃幀 褰辫寮€鍦哄姩鐢昏剼鏈?-->
+    <script>
+    (function() {
+        // 濡傛灉涓嶉渶瑕佹樉绀哄紑鍦哄姩鐢诲垯璺宠繃
+        if (typeof _showIntro === 'undefined' || !_showIntro) return;
+
+        var intro = document.getElementById('cinemaIntro');
+        if (!intro) return;
+
+        var particles = document.getElementById('introParticles');
+        var clapper = document.getElementById('introClapperboard');
+        var countdown = document.getElementById('introCountdown');
+        var countdownNum = document.getElementById('countdownNumber');
+        var logo = document.getElementById('introLogo');
+        var lightSweep = document.getElementById('lightSweep');
+        var glitch = document.getElementById('glitchOverlay');
+        var eraBgs = [document.getElementById('eraBgSilent'), document.getElementById('eraBgColor'), document.getElementById('eraBgDigital'), document.getElementById('eraBgAi')];
+        var eraCards = [document.getElementById('eraCardSilent'), document.getElementById('eraCardColor'), document.getElementById('eraCardDigital'), document.getElementById('eraCardAi')];
+
+        var animationRunning = true;
+
+        // 鍒涘缓绮掑瓙
+        function createParticles() {
+            for (var i = 0; i < 30; i++) {
+                var p = document.createElement('div');
+                p.className = 'intro-particle';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDelay = Math.random() * 2.5 + 's';
+                p.style.animationDuration = (2 + Math.random() * 2) + 's';
+                particles.appendChild(p);
+            }
+        }
+
+        // 閲嶇疆鎵€鏈夊厓绱?        function resetAll() {
+            clapper.classList.remove('show');
+            countdown.classList.remove('show');
+            logo.classList.remove('show');
+            lightSweep.classList.remove('animate');
+            eraBgs.forEach(function(bg) { bg.classList.remove('active'); });
+            eraCards.forEach(function(card) { card.classList.remove('show'); });
+        }
+
+        // 鏄剧ず鍗曚釜鏃朵唬
+        function showEra(i) {
+            // 鍏堥殣钘忔墍鏈夎儗鏅?            eraBgs.forEach(function(bg, j) { bg.classList.toggle('active', j === i); });
+            // 鍏堥殣钘忔墍鏈夊崱鐗?            eraCards.forEach(function(card, j) { card.classList.remove('show'); });
+            // 寮哄埗閲嶇粯纭繚鍔ㄧ敾閲嶇疆
+            void eraCards[i].offsetWidth;
+            // 鏄剧ず褰撳墠鍗＄墖
+            eraCards[i].classList.add('show');
+            lightSweep.classList.remove('animate');
+            void lightSweep.offsetWidth;
+            lightSweep.classList.add('animate');
+        }
+
+        // 鎾斁鍔ㄧ敾
+        function playIntro() {
+            // 娣诲姞 active 绫绘樉绀哄紑鍦哄姩鐢?            intro.classList.add('active');
+            createParticles();
+            resetAll();
+            var t = 0;
+
+            // 鍦鸿鏉?            setTimeout(function() { if (!animationRunning) return; clapper.classList.add('show'); }, t);
+            t += 1200;
+            setTimeout(function() { if (!animationRunning) return; clapper.classList.remove('show'); }, t);
+            t += 300;
+
+            // 鏃朵唬婕斿彉
+            var eras = [0, 1, 2, 3];
+            eras.forEach(function(i) {
+                setTimeout(function() {
+                    if (!animationRunning) return;
+                    showEra(i);
+                }, t);
+                t += 1800;
+                setTimeout(function() {
+                    if (!animationRunning) return;
+                    glitch.classList.add('active');
+                    setTimeout(function() { glitch.classList.remove('active'); }, 150);
+                }, t - 200);
+            });
+
+            // 鍊掕鏃?            [3, 2, 1].forEach(function(n) {
+                setTimeout(function() {
+                    if (!animationRunning) return;
+                    countdownNum.textContent = n;
+                    countdown.classList.remove('show');
+                    void countdown.offsetWidth;
+                    countdown.classList.add('show');
+                }, t);
+                t += 650;
+            });
+            t += 200;
+
+            // LOGO
+            setTimeout(function() {
+                if (!animationRunning) return;
+                eraBgs[3].classList.add('active');
+                logo.classList.add('show');
+            }, t);
+            t += 1800;
+
+            // 缁撴潫
+            setTimeout(function() { finishIntro(); }, t);
+        }
+
+        // 缁撴潫鍔ㄧ敾
+        function finishIntro() {
+            if (!animationRunning) return;
+            animationRunning = false;
+            // 馃敡 涓嶇Щ闄ゆ敞鍏ョ殑CSS锛岄伩鍏嶇櫥褰曞悗椤甸潰闂幇
+            // 鐩存帴閫氳繃CSS鎺у埗鏄剧ず娆㈣繋椤靛拰闅愯棌寮€鍦哄姩鐢?            var welcome = document.getElementById('welcomeScreen');
+            if (welcome) {
+                welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
+            }
+            // 鐭殏寤惰繜纭繚鏍峰紡鐢熸晥
+            setTimeout(function() {
+                // 寮€濮嬫贰鍑篿ntro鍚屾椂娣″叆娆㈣繋椤?                intro.classList.add('fade-out');
+                if (welcome) {
+                    welcome.style.opacity = '1';
+                }
+                // 娣″嚭瀹屾垚鍚庨殣钘廼ntro
+                setTimeout(function() {
+                    intro.classList.add('hidden');
+                }, 600);
+            }, 20);
+        }
+
+        // 璺宠繃鍔ㄧ敾
+        window.skipIntro = function() {
+            finishIntro();
+        };
+
+        // 鍚姩
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', playIntro);
+        } else {
+            playIntro();
+        }
+    })();
+    </script>
+</body>
+
+</html>

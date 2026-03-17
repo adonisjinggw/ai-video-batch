@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>✏️ 手绘画板 - RollRoll</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--bg-dark);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 16px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 14px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            padding: 8px;
+            margin: -8px;
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+        }
+
+        .back-btn:active {
+            opacity: 0.6;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 6px;
+            padding: 10px 12px;
+            background: var(--bg-card);
+            border-bottom: 1px solid #222;
+            overflow-x: auto;
+            flex-shrink: 0;
+            align-items: center;
+        }
+
+        .tool-btn {
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: none;
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            min-height: 40px;
+            min-width: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tool-btn:active {
+            transform: scale(0.95);
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            color: #000;
+        }
+
+        .divider {
+            width: 1px;
+            height: 24px;
+            background: #444;
+            margin: 0 4px;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .color-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .color-btn:active {
+            transform: scale(0.9);
+        }
+
+        .color-btn.active {
+            border-color: var(--accent);
+        }
+
+        .size-slider {
+            width: 60px;
+            accent-color: var(--accent);
+        }
+
+        .canvas-container {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+            background: #fff;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #drawCanvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* 文字输入框 - 画布上的浮动输入 */
+        .text-input-overlay {
+            position: absolute;
+            display: none;
+            z-index: 50;
+        }
+
+        .text-input-overlay input {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid var(--accent);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 16px;
+            min-width: 150px;
+            outline: none;
+        }
+
+        .text-input-overlay .text-actions {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .text-input-overlay .text-actions button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .text-input-overlay .text-actions .confirm-btn {
+            background: var(--accent);
+            color: #000;
+        }
+
+        .text-input-overlay .text-actions .cancel-btn {
+            background: #666;
+            color: #fff;
+        }
+
+        .bottom-bar {
+            padding: 10px 12px;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom));
+            background: var(--bg-dark);
+            border-top: 1px solid #222;
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            min-height: 44px;
+        }
+
+        .action-btn:active {
+            transform: scale(0.96);
+            opacity: 0.8;
+        }
+
+        .action-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        /* 提示词输入区 */
+        .prompt-section {
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border-top: 1px solid #222;
+            flex-shrink: 0;
+        }
+
+        .prompt-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .prompt-input:focus {
+            border-color: var(--accent);
+        }
+
+        .prompt-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        /* 文字设置面板 */
+        .text-settings {
+            display: none;
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border-bottom: 1px solid #222;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .text-settings.show {
+            display: flex;
+        }
+
+        .text-settings label {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .text-settings select,
+        .text-settings input[type="number"] {
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 6px 8px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .text-settings input[type="number"] {
+            width: 60px;
+        }
+
+        /* 隐藏的文件输入 */
+        #imageUpload {
+            display: none;
+        }
+
+        /* 移动端优化 */
+        @media (max-height: 700px) {
+            .header {
+                padding: 8px 12px;
+            }
+            .toolbar {
+                padding: 6px 10px;
+            }
+            .prompt-section {
+                padding: 6px 10px;
+                padding-bottom: calc(6px + env(safe-area-inset-bottom));
+            }
+            .bottom-bar {
+                padding: 6px 10px;
+                padding-bottom: calc(6px + env(safe-area-inset-bottom));
+            }
+            .action-btn {
+                padding: 10px 6px;
+                min-height: 40px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>✏️ 手绘画板</h1>
+        <button class="back-btn" onclick="clearCanvas()">清空</button>
+    </header>
+
+    <div class="toolbar">
+        <button class="tool-btn active" id="penBtn" onclick="setTool('pen')" title="画笔">✏️</button>
+        <button class="tool-btn" id="eraserBtn" onclick="setTool('eraser')" title="橡皮擦">🧹</button>
+        <button class="tool-btn" id="textBtn" onclick="setTool('text')" title="文字">T</button>
+        <div class="divider"></div>
+        <button class="tool-btn" id="uploadBtn" onclick="triggerUpload()" title="上传图片">📷</button>
+        <div class="divider"></div>
+        <div class="color-picker">
+            <button class="color-btn active" style="background:#000" onclick="setColor('#000', this)"></button>
+            <button class="color-btn" style="background:#ff3b3b" onclick="setColor('#ff3b3b', this)"></button>
+            <button class="color-btn" style="background:#fbbf24" onclick="setColor('#fbbf24', this)"></button>
+            <button class="color-btn" style="background:#22c55e" onclick="setColor('#22c55e', this)"></button>
+            <button class="color-btn" style="background:#3b82f6" onclick="setColor('#3b82f6', this)"></button>
+            <button class="color-btn" style="background:#fff;border:1px solid #666;" onclick="setColor('#ffffff', this)"></button>
+        </div>
+        <input type="range" class="size-slider" id="sizeSlider" min="2" max="30" value="5"
+            onchange="setSize(this.value)">
+    </div>
+
+    <!-- 文字设置面板 -->
+    <div class="text-settings" id="textSettings">
+        <label>字号:</label>
+        <input type="number" id="fontSizeInput" value="24" min="12" max="72">
+        <label>字体:</label>
+        <select id="fontFamilySelect">
+            <option value="Arial">Arial</option>
+            <option value="sans-serif">无衬线</option>
+            <option value="serif">衬线</option>
+            <option value="monospace">等宽</option>
+            <option value="cursive">手写</option>
+        </select>
+        <label>粗体:</label>
+        <input type="checkbox" id="fontBoldCheck">
+    </div>
+
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="drawCanvas"></canvas>
+        <!-- 文字输入浮层 -->
+        <div class="text-input-overlay" id="textInputOverlay">
+            <input type="text" id="textInputField" placeholder="输入文字...">
+            <div class="text-actions">
+                <button class="confirm-btn" onclick="confirmText()">✓ 确定</button>
+                <button class="cancel-btn" onclick="cancelText()">✕ 取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 隐藏的图片上传 -->
+    <input type="file" id="imageUpload" accept="image/*" onchange="handleImageUpload(event)">
+
+    <!-- 提示词输入区 -->
+    <div class="prompt-section" style="display:flex;gap:8px;align-items:center;padding-bottom:calc(10px + env(safe-area-inset-bottom));">
+        <input type="text" id="promptInput" class="prompt-input" style="flex:1;" placeholder="输入提示词...（可选）">
+        <button class="action-btn primary" style="flex:none;width:auto;padding:10px 16px;" onclick="generateFromSketch()">生成</button>
+    </div>
+
+    <div class="bottom-bar">
+        <button class="action-btn" onclick="downloadDrawing()">⬇️ 保存</button>
+        <button class="action-btn" onclick="undoLast()">↩️ 撤销</button>
+        <button class="action-btn primary" onclick="generateFromSketch()">🎨 图生图</button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 返回函数 - 直接返回 mobile.html 工作区
+        function goBack() {
+            console.log('[sketchpad] goBack 被调用');
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+        
+        // 🔧 修复：返回按钮和操作按钮支持触摸事件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 返回和清空按钮
+            document.querySelectorAll('.back-btn').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    if (this.textContent.includes('清空')) {
+                        clearCanvas();
+                    } else {
+                        goBack();
+                    }
+                });
+            });
+            
+            // 底部操作按钮
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    const text = this.textContent;
+                    if (text.includes('保存')) {
+                        downloadDrawing();
+                    } else if (text.includes('撤销')) {
+                        undoLast();
+                    } else if (text.includes('图生图') || text.includes('生成')) {
+                        generateFromSketch();
+                    }
+                });
+            });
+            
+            // 工具按钮
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    const id = this.id;
+                    if (id === 'penBtn') setTool('pen');
+                    else if (id === 'eraserBtn') setTool('eraser');
+                    else if (id === 'textBtn') setTool('text');
+                    else if (id === 'uploadBtn') triggerUpload();
+                });
+            });
+            
+            // 颜色按钮
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    const color = this.style.background || this.style.backgroundColor;
+                    setColor(color, this);
+                });
+            });
+        });
+
+        const canvas = document.getElementById('drawCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer');
+        
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#000';
+        let currentSize = 5;
+        let historyStack = [];
+        let lastX, lastY;
+
+        // 文字相关
+        let textX = 0, textY = 0;
+
+        // 初始化画布
+        function initCanvas() {
+            const container = canvas.parentElement;
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            saveState();
+        }
+
+        function saveState() {
+            if (historyStack.length > 30) historyStack.shift();
+            historyStack.push(canvas.toDataURL());
+        }
+
+        function undoLast() {
+            if (historyStack.length > 1) {
+                historyStack.pop();
+                const img = new Image();
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+                };
+                img.src = historyStack[historyStack.length - 1];
+                showToast('已撤销');
+            } else {
+                showToast('没有更多操作可撤销');
+            }
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById(tool + 'Btn');
+            if (btn) btn.classList.add('active');
+
+            // 显示/隐藏文字设置面板
+            const textSettings = document.getElementById('textSettings');
+            if (tool === 'text') {
+                textSettings.classList.add('show');
+                canvas.style.cursor = 'text';
+            } else {
+                textSettings.classList.remove('show');
+                canvas.style.cursor = 'crosshair';
+            }
+
+            // 隐藏文字输入框
+            document.getElementById('textInputOverlay').style.display = 'none';
+        }
+
+        function setColor(color, btn) {
+            currentColor = color;
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        }
+
+        function setSize(size) {
+            currentSize = parseInt(size);
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            return {
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            };
+        }
+
+        function startDraw(e) {
+            if (currentTool === 'text') {
+                // 文字工具：显示输入框
+                e.preventDefault();
+                const pos = getPos(e);
+                showTextInput(pos.x, pos.y);
+                return;
+            }
+
+            e.preventDefault();
+            isDrawing = true;
+            const pos = getPos(e);
+            lastX = pos.x;
+            lastY = pos.y;
+        }
+
+        function draw(e) {
+            if (!isDrawing || currentTool === 'text') return;
+            e.preventDefault();
+            const pos = getPos(e);
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(pos.x, pos.y);
+
+            if (currentTool === 'eraser') {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = currentSize * 3;
+            } else {
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = currentSize;
+            }
+            ctx.stroke();
+
+            lastX = pos.x;
+            lastY = pos.y;
+        }
+
+        function endDraw() {
+            if (isDrawing) {
+                isDrawing = false;
+                saveState();
+            }
+        }
+
+        // ========== 文字功能 ==========
+        function showTextInput(x, y) {
+            console.log('[sketchpad] showTextInput 被调用, x:', x, 'y:', y);
+            textX = x;
+            textY = y;
+            const overlay = document.getElementById('textInputOverlay');
+            const input = document.getElementById('textInputField');
+            
+            // 设置位置 - 确保不超出画布边界，并考虑键盘弹出
+            const containerRect = canvasContainer.getBoundingClientRect();
+            const maxX = containerRect.width - 200;
+            const maxY = containerRect.height - 100;
+            const safeX = Math.min(Math.max(10, x), Math.max(10, maxX));
+            const safeY = Math.min(Math.max(10, y), Math.max(10, maxY));
+            
+            overlay.style.left = safeX + 'px';
+            overlay.style.top = safeY + 'px';
+            overlay.style.display = 'block';
+            
+            // 设置输入框颜色（黑色背景上用白色文字更清晰）
+            input.style.color = '#000';
+            input.value = '';
+            
+            // 延迟聚焦，确保移动端键盘弹出
+            setTimeout(() => {
+                input.focus();
+            }, 150);
+        }
+
+        function confirmText() {
+            const input = document.getElementById('textInputField');
+            const text = input.value.trim();
+            console.log('[sketchpad] confirmText 被调用, text:', text);
+            
+            if (text) {
+                const fontSize = parseInt(document.getElementById('fontSizeInput').value) || 24;
+                const fontFamily = document.getElementById('fontFamilySelect').value;
+                const isBold = document.getElementById('fontBoldCheck').checked;
+                
+                // 直接使用原始坐标和字号（ctx已经被scale过了）
+                ctx.save();
+                ctx.font = `${isBold ? 'bold ' : ''}${fontSize}px ${fontFamily}`;
+                ctx.fillStyle = currentColor === '#ffffff' ? '#000' : currentColor;
+                ctx.textBaseline = 'top';
+                ctx.fillText(text, textX, textY);
+                ctx.restore();
+                
+                saveState();
+                showToast('文字已添加');
+                console.log('[sketchpad] 文字已添加:', text, '位置:', textX, textY, '字号:', fontSize);
+            } else {
+                showToast('请输入文字');
+            }
+            
+            // 隐藏输入框
+            document.getElementById('textInputOverlay').style.display = 'none';
+            document.getElementById('textInputField').value = '';
+        }
+
+        function cancelText() {
+            document.getElementById('textInputOverlay').style.display = 'none';
+            document.getElementById('textInputField').value = '';
+        }
+
+        // 回车确认文字，阻止表单提交
+        document.getElementById('textInputField').addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmText();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelText();
+            }
+        });
+        
+        // 🔧 修复：防止输入框失焦时自动关闭 - 移动端键盘收起时不要关闭
+        document.getElementById('textInputField').addEventListener('blur', (e) => {
+            // 不做任何处理，让用户手动点击确认或取消
+        });
+        
+        // 🔧 修复：确认和取消按钮支持触摸事件
+        document.querySelector('.confirm-btn').addEventListener('touchend', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            confirmText();
+        });
+        document.querySelector('.cancel-btn').addEventListener('touchend', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            cancelText();
+        });
+
+        // ========== 图片上传功能 ==========
+        function triggerUpload() {
+            document.getElementById('imageUpload').click();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    // 计算缩放比例，使图片适应画布
+                    const canvasW = canvas.width / window.devicePixelRatio;
+                    const canvasH = canvas.height / window.devicePixelRatio;
+                    
+                    let drawW = img.width;
+                    let drawH = img.height;
+                    
+                    // 如果图片太大，按比例缩小
+                    if (drawW > canvasW || drawH > canvasH) {
+                        const ratio = Math.min(canvasW / drawW, canvasH / drawH);
+                        drawW *= ratio;
+                        drawH *= ratio;
+                    }
+                    
+                    // 居中绘制
+                    const x = (canvasW - drawW) / 2;
+                    const y = (canvasH - drawH) / 2;
+                    
+                    // 先清空画布
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, canvasW, canvasH);
+                    
+                    // 绘制图片
+                    ctx.drawImage(img, x, y, drawW, drawH);
+                    
+                    saveState();
+                    showToast('图片已加载，可以在上面绘制');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            // 清空input以便重复上传同一文件
+            event.target.value = '';
+        }
+
+        function clearCanvas() {
+            if (!confirm('确定清空画布？')) return;
+            const canvasW = canvas.width / window.devicePixelRatio;
+            const canvasH = canvas.height / window.devicePixelRatio;
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvasW, canvasH);
+            historyStack = [];
+            saveState();
+            showToast('画布已清空');
+        }
+
+        function downloadDrawing() {
+            const link = document.createElement('a');
+            link.download = 'sketch_' + Date.now() + '.png';
+            link.href = canvas.toDataURL();
+            link.click();
+            showToast('已保存到相册');
+        }
+
+        async function generateFromSketch() {
+            const promptText = document.getElementById('promptInput').value.trim();
+            showToast('正在准备手绘...');
+
+            try {
+                const dataUrl = canvas.toDataURL('image/png');
+                localStorage.setItem('sketch_image', dataUrl);
+                if (promptText) {
+                    localStorage.setItem('sketch_prompt', promptText);
+                }
+                showToast('跳转到图生图...');
+                setTimeout(() => {
+                    location.href = 'banana.html?mode=img2img&force=mobile';
+                }, 300);
+            } catch (error) {
+                showToast('出错：' + error.message);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 事件监听
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', endDraw);
+        canvas.addEventListener('mouseleave', endDraw);
+        canvas.addEventListener('touchstart', startDraw, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', endDraw);
+
+        // 初始化
+        window.addEventListener('load', initCanvas);
+        window.addEventListener('resize', initCanvas);
+
+        // ==================== 页面状态持久化 ====================
+        function saveSketchpadState() {
+            try {
+                const state = {
+                    canvasData: canvas.toDataURL(),
+                    promptInput: document.getElementById('promptInput')?.value || '',
+                    currentTool,
+                    currentColor,
+                    currentWidth,
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_sketchpad_state', JSON.stringify(state));
+                console.log('[sketchpad] 状态已保存');
+            } catch (e) { console.warn('[sketchpad] 保存状态失败:', e); }
+        }
+
+        function restoreSketchpadState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_sketchpad_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_sketchpad_state');
+                    return;
+                }
+                console.log('[sketchpad] 恢复状态...');
+
+                if (state.promptInput) document.getElementById('promptInput').value = state.promptInput;
+                if (state.currentTool) setTool(state.currentTool);
+                if (state.currentColor) { currentColor = state.currentColor; document.getElementById('colorPicker').value = state.currentColor; }
+                if (state.currentWidth) { currentWidth = state.currentWidth; document.getElementById('sizeSlider').value = state.currentWidth; }
+                if (state.canvasData) {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvasW = canvas.width / window.devicePixelRatio;
+                        const canvasH = canvas.height / window.devicePixelRatio;
+                        ctx.drawImage(img, 0, 0, canvasW, canvasH);
+                    };
+                    img.src = state.canvasData;
+                }
+
+                console.log('[sketchpad] 状态恢复完成');
+            } catch (e) { console.warn('[sketchpad] 恢复状态失败:', e); }
+        }
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden) saveSketchpadState(); });
+        window.addEventListener('beforeunload', saveSketchpadState);
+        window.addEventListener('pagehide', saveSketchpadState);
+        window.addEventListener('load', () => setTimeout(restoreSketchpadState, 500));
+    </script>
+</body>
+
+</html>

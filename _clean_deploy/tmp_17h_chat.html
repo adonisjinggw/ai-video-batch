@@ -1,0 +1,4914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI对话 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <script src="/js/api-core.js?v=20260225e&t=20260225e"></script>
+    <script src="/js/user-memory.js?v=20260213a"></script>
+    <script src="/js/writing-vault.js?v=20260213a"></script>
+    <script src="/js/billing.js?v=20260213a"></script>
+    <script src="/js/wake-lock.js?v=20260226b"></script>
+    <script src="/js/skill-system.js?v=20260213a&t=20260213a"></script>
+    <script src="/js/skill-presets.js?v=20260225c&t=20260225c"></script>
+    <script src="/js/video-merge.js?v=20260226a"></script>
+    <script src="/js/watermark.js?v=20260213a"></script>
+    <script src="/js/agent-team.js?v=20260225b&t=20260225b"></script>
+    <script src="/js/agent-roles.js?v=20260224b&t=20260224b"></script>
+    <script src="/js/agent-ui.js?v=20260213b&t=20260213b"></script>
+    <script src="/js/role-expert.js?v=20260213a"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .quota-display {
+            font-size: 12px;
+            color: var(--accent);
+            padding: 4px 10px;
+            background: rgba(251, 191, 36, 0.15);
+            border-radius: 12px;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 15px;
+            line-height: 1.5;
+            user-select: text;
+            /* 允许选中复制 */
+            -webkit-user-select: text;
+        }
+
+        .message.user {
+            background: var(--accent);
+            color: #000;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai {
+            background: var(--bg-card);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.ai pre {
+            background: var(--bg-input);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .input-area {
+            padding: 16px 20px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom));
+            background: var(--bg-dark);
+            border-top: 1px solid #222;
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 24px;
+            padding: 12px 20px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            max-height: 120px;
+            font-family: inherit;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .send-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            color: #000;
+            font-size: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .typing {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+        }
+
+        .typing span {
+            width: 8px;
+            height: 8px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .welcome {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .welcome h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .quick-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .quick-q {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .quick-q:active {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        /* 消息复制按钮 */
+        .message {
+            position: relative;
+        }
+
+        .message .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #888;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message:hover .copy-btn {
+            opacity: 1;
+        }
+
+        .message .copy-btn:active {
+            background: rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .cost-hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 4px;
+        }
+
+        /* 上传文件功能样式 */
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .upload-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            background: var(--bg-input);
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+
+        .upload-preview:empty {
+            display: none;
+        }
+
+        .preview-item {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--bg-card);
+        }
+
+        .preview-item img,
+        .preview-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview-item .file-icon {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--accent);
+        }
+
+        .preview-item .file-icon span {
+            font-size: 8px;
+            color: var(--text-dim);
+            margin-top: 2px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0 4px;
+        }
+
+        .preview-item .remove-btn {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 18px;
+            height: 18px;
+            background: #ef4444;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            color: var(--text-dim);
+            font-size: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-btn:active {
+            background: rgba(251, 191, 36, 0.2);
+            color: var(--accent);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        /* 消息中的图片/文件预览 */
+        .message-attachments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .message-attachments img {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .message-attachments video {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 8px;
+        }
+
+        .message-attachments .file-badge {
+            padding: 6px 12px;
+            background: rgba(251, 191, 36, 0.15);
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        /* 上传菜单 */
+        .upload-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid #333;
+            padding: 8px 0;
+            margin-bottom: 8px;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .upload-menu.show {
+            display: block;
+        }
+
+        .upload-menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .upload-menu-item:active {
+            background: rgba(251, 191, 36, 0.15);
+        }
+
+        .upload-menu-item .icon {
+            font-size: 18px;
+        }
+
+        /* 🧩 技能选择弹窗 */
+        .skill-drawer {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+        }
+
+        .skill-drawer.show {
+            display: flex;
+        }
+
+        .skill-drawer-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+        }
+
+        .skill-drawer-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .skill-drawer-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .skill-filters {
+            display: flex;
+            gap: 8px;
+            padding: 12px 20px;
+            overflow-x: auto;
+        }
+
+        .skill-filter-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .skill-filter-btn.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: 600;
+        }
+
+        .skill-filter-btn:not(.active) {
+            background: #333;
+            color: #fff;
+        }
+
+        .skill-search {
+            padding: 0 20px 12px;
+        }
+
+        .skill-search input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border: 2px solid #2a2a35;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .skill-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .skill-card {
+            padding: 16px;
+            background: var(--bg-card);
+            border: 2px solid #222;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .skill-card:active {
+            border-color: var(--accent);
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .skill-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .skill-card-icon {
+            font-size: 32px;
+        }
+
+        .skill-card-category {
+            font-size: 11px;
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            color: #888;
+        }
+
+        .skill-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .skill-card-desc {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 技能配置弹窗 */
+        .skill-config-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1001;
+            display: none;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .skill-config-modal.show {
+            display: block;
+        }
+
+        .skill-config-content {
+            max-width: 500px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .skill-config-header {
+            padding: 16px 20px;
+            background: #1a1a24;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .skill-config-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .skill-config-body {
+            padding: 20px;
+        }
+
+        .skill-config-desc {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .skill-config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .skill-param-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #ccc;
+            font-weight: 600;
+        }
+
+        .skill-param-input {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-input);
+            border: 2px solid #2a2a35;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .skill-param-hint {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .skill-config-footer {
+            padding: 16px 20px;
+            background: #1a1a24;
+            display: flex;
+            gap: 12px;
+        }
+
+        .skill-config-footer button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .skill-config-cancel {
+            background: #333;
+            color: #fff;
+        }
+
+        .skill-config-execute {
+            flex: 2 !important;
+            background: linear-gradient(135deg, var(--accent), #f97316);
+            color: #000;
+            font-weight: 700;
+        }
+
+        /* ========== 技能执行进度 · 精美卡通动画 ========== */
+        @keyframes sp-float {
+            0% {
+                transform: translateY(0) scale(0.5);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: translateY(-100vh) scale(0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes sp-icon-float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes sp-glow-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px rgba(251, 191, 36, 0.3), 0 8px 32px rgba(0, 0, 0, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 35px rgba(251, 191, 36, 0.55), 0 0 60px rgba(251, 191, 36, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4);
+            }
+        }
+
+        @keyframes sp-orbit {
+            0% {
+                transform: rotate(0deg) translateX(54px) rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg) translateX(54px) rotate(-360deg);
+            }
+        }
+
+        @keyframes sp-shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        @keyframes sp-step-in {
+            0% {
+                transform: translateX(-20px) scale(0.95);
+                opacity: 0;
+            }
+
+            60% {
+                transform: translateX(4px) scale(1.02);
+            }
+
+            100% {
+                transform: translateX(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes sp-check-pop {
+            0% {
+                transform: scale(0) rotate(-45deg);
+            }
+
+            60% {
+                transform: scale(1.3) rotate(10deg);
+            }
+
+            100% {
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        @keyframes sp-confetti {
+            0% {
+                transform: translateY(0) translateX(0) rotate(0deg) scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(75vh) translateX(var(--x-drift, 0px)) rotate(720deg) scale(0.2);
+                opacity: 0;
+            }
+        }
+
+        @keyframes sp-success-pop {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.18);
+            }
+
+            70% {
+                transform: scale(0.95);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes sp-error-shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-6px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(6px);
+            }
+        }
+
+        @keyframes sp-sparkle {
+
+            0%,
+            100% {
+                opacity: 0;
+                transform: scale(0) rotate(0deg);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1) rotate(180deg);
+            }
+        }
+
+        @keyframes sp-ring-rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes sp-bg-shift {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        @keyframes sp-shadow-pulse {
+
+            0%,
+            100% {
+                transform: scaleX(1);
+                opacity: 0.3;
+            }
+
+            50% {
+                transform: scaleX(0.7);
+                opacity: 0.15;
+            }
+        }
+
+        .skill-progress-modal {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(10, 10, 18, 0.97), rgba(18, 10, 32, 0.97), rgba(10, 18, 24, 0.97));
+            background-size: 300% 300%;
+            z-index: 1002;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .skill-progress-modal.show {
+            display: flex;
+            animation: sp-bg-shift 8s ease infinite;
+        }
+
+        /* 粒子背景 */
+        .sp-particles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .sp-particle {
+            position: absolute;
+            bottom: -10px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(251, 191, 36, 0.8), rgba(249, 115, 22, 0.3));
+            animation: sp-float linear infinite;
+            pointer-events: none;
+        }
+
+        /* 内容区 */
+        .skill-progress-content {
+            max-width: 380px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 图标区域 */
+        .sp-icon-area {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 8px;
+        }
+
+        .sp-icon {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 46px;
+            background: rgba(25, 25, 38, 0.85);
+            border-radius: 50%;
+            border: 2px solid rgba(251, 191, 36, 0.3);
+            animation: sp-icon-float 2.2s ease-in-out infinite, sp-glow-pulse 2.5s ease-in-out infinite;
+            z-index: 2;
+        }
+
+        /* 图标下方阴影 */
+        .sp-icon-area::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 10px;
+            background: radial-gradient(ellipse, rgba(251, 191, 36, 0.25), transparent 70%);
+            border-radius: 50%;
+            animation: sp-shadow-pulse 2.2s ease-in-out infinite;
+        }
+
+        /* 轨道环 */
+        .sp-orbit-ring {
+            position: absolute;
+            inset: -8px;
+            animation: sp-ring-rotate 6s linear infinite;
+            z-index: 1;
+        }
+
+        .sp-orbit-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            margin: -4px 0 0 -4px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: sp-orbit 3s linear infinite;
+            box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+        }
+
+        .sp-orbit-dot:nth-child(2) {
+            animation-delay: -1s;
+            background: #f97316;
+            box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
+            width: 6px;
+            height: 6px;
+            margin: -3px 0 0 -3px;
+        }
+
+        .sp-orbit-dot:nth-child(3) {
+            animation-delay: -2s;
+            background: #fb923c;
+            box-shadow: 0 0 8px rgba(251, 146, 60, 0.6);
+            width: 5px;
+            height: 5px;
+            margin: -2.5px 0 0 -2.5px;
+        }
+
+        /* 闪烁星星 */
+        .sp-sparkles {
+            position: absolute;
+            inset: -20px;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .sp-sparkle {
+            position: absolute;
+            font-size: 14px;
+            animation: sp-sparkle 1.5s ease-in-out infinite;
+        }
+
+        /* 阶段标签 */
+        .sp-phase {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 6px;
+            opacity: 0.85;
+        }
+
+        /* 进度文字 */
+        .skill-progress-text {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 18px;
+            min-height: 22px;
+        }
+
+        /* 进度条 */
+        .sp-progress-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .sp-progress-track {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .sp-progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), #f97316, var(--accent));
+            background-size: 200% 100%;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: sp-shimmer 2s linear infinite;
+            position: relative;
+        }
+
+        .sp-progress-fill::after {
+            content: '';
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(251, 191, 36, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .skill-progress-modal[data-phase="executing"] .sp-progress-fill::after,
+        .skill-progress-modal[data-phase="complete"] .sp-progress-fill::after {
+            opacity: 0.9;
+        }
+
+        .sp-progress-pct {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+            min-width: 36px;
+            text-align: right;
+        }
+
+        /* 步骤列表 */
+        .skill-progress-steps {
+            text-align: left;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 12px 14px;
+            max-height: 180px;
+            overflow-y: auto;
+            backdrop-filter: blur(4px);
+        }
+
+        .sp-step-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 0;
+            font-size: 13px;
+            color: #a8e6a3;
+            animation: sp-step-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .sp-step-item:last-child {
+            border-bottom: none;
+        }
+
+        .sp-step-item.error {
+            color: #f87171;
+        }
+
+        .sp-step-check {
+            display: inline-block;
+            animation: sp-check-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            animation-delay: 0.2s;
+        }
+
+        .sp-step-name {
+            flex: 1;
+        }
+
+        /* 按钮 */
+        .skill-progress-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .skill-progress-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #aaa;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+
+        .skill-progress-buttons button:first-child {
+            border-color: rgba(244, 67, 54, 0.3);
+            color: #ff8a80;
+        }
+
+        .skill-progress-buttons button:active {
+            transform: scale(0.96);
+        }
+
+        /* 🎊 撒花 */
+        .sp-confetti {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+            overflow: hidden;
+        }
+
+        .sp-confetti-piece {
+            position: absolute;
+            top: 35%;
+            border-radius: 2px;
+            animation: sp-confetti ease-out forwards;
+        }
+
+        /* 阶段状态切换 */
+        .skill-progress-modal[data-phase="complete"] .sp-icon {
+            animation: sp-success-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            border-color: rgba(74, 222, 128, 0.5);
+            box-shadow: 0 0 30px rgba(74, 222, 128, 0.3);
+        }
+
+        .skill-progress-modal[data-phase="complete"] .sp-orbit-ring {
+            animation: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .skill-progress-modal[data-phase="complete"] .sp-phase {
+            color: #4ade80;
+        }
+
+        .skill-progress-modal[data-phase="complete"] .sp-progress-fill {
+            background: linear-gradient(90deg, #4ade80, #22c55e, #4ade80);
+            background-size: 200% 100%;
+        }
+
+        .skill-progress-modal[data-phase="error"] .sp-icon {
+            animation: sp-error-shake 0.6s ease both;
+            border-color: rgba(248, 113, 113, 0.5);
+            box-shadow: 0 0 30px rgba(248, 113, 113, 0.3);
+        }
+
+        .skill-progress-modal[data-phase="error"] .sp-orbit-ring {
+            animation: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .skill-progress-modal[data-phase="error"] .sp-phase {
+            color: #f87171;
+        }
+
+        .skill-progress-modal[data-phase="error"] .sp-progress-fill {
+            background: linear-gradient(90deg, #f87171, #ef4444, #f87171);
+            background-size: 200% 100%;
+        }
+
+        /* 成本预估 */
+        .skill-cost-estimate {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--accent);
+        }
+
+        /* 自定义技能创建弹窗 */
+        .create-skill-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1003;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .create-skill-modal.show {
+            display: flex;
+        }
+
+        .create-skill-content {
+            background: #1a1a1a;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .create-skill-content h3 {
+            margin-bottom: 16px;
+        }
+
+        .cs-field {
+            margin-bottom: 14px;
+        }
+
+        .cs-field label {
+            display: block;
+            font-size: 13px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+
+        .cs-field input,
+        .cs-field textarea,
+        .cs-field select {
+            width: 100%;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #fff;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .cs-field textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .cs-icons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .cs-icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 2px solid #333;
+            background: #222;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cs-icon-btn.selected {
+            border-color: var(--accent);
+            background: rgba(251, 191, 36, 0.15);
+        }
+
+        .cs-params-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .cs-param-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            background: #222;
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .cs-param-row input,
+        .cs-param-row select {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 6px 8px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .cs-param-del {
+            background: none;
+            border: none;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 4px;
+        }
+
+        .cs-footer {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .cs-footer button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .cs-btn-cancel {
+            background: #333;
+            color: #fff;
+        }
+
+        .cs-btn-save {
+            background: linear-gradient(135deg, var(--accent), #f97316);
+            color: #000;
+            font-weight: 700;
+        }
+
+        .cs-btn-import {
+            background: #2a2a2a;
+            color: #aaa;
+            border: 1px solid #444 !important;
+        }
+
+        .cs-btn-help {
+            background: none;
+            border: none;
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 13px;
+            float: right;
+        }
+
+        /* ==================== Agent Team Panel ==================== */
+        #agentTeamPanel {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .at-panel-inner {
+            width: 95%;
+            max-width: 600px;
+            max-height: 90vh;
+            background: #111;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .at-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #222;
+        }
+
+        .at-panel-header h3 {
+            font-size: 18px;
+        }
+
+        .at-panel-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .at-panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        /* Views */
+        #atView_select,
+        #atView_config,
+        #atView_running,
+        #atView_result {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Template grid */
+        #atTemplateGrid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .at-template-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .at-template-card:hover {
+            border-color: var(--accent);
+        }
+
+        .at-template-card.at-custom {
+            border-style: dashed;
+        }
+
+        .at-tpl-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .at-tpl-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .at-tpl-desc {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .at-tpl-roles {
+            font-size: 11px;
+            color: var(--accent);
+        }
+
+        /* Config */
+        .at-config-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .at-config-subtitle {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .at-team-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .at-member {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 6px 12px;
+        }
+
+        .at-member-icon {
+            font-size: 18px;
+        }
+
+        .at-member-name {
+            font-size: 13px;
+        }
+
+        .at-member-tools {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .at-role-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .at-role-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .at-role-check input {
+            accent-color: var(--accent);
+        }
+
+        .at-goal-section {
+            margin-top: 8px;
+        }
+
+        .at-goal-label {
+            font-size: 13px;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+
+        .at-goal-input {
+            width: 100%;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 12px;
+            color: #fff;
+            font-size: 14px;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .at-goal-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .at-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .at-suggest-btn {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 8px;
+            padding: 6px 10px;
+            color: var(--accent);
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .at-suggest-btn:hover {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .at-config-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .at-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .at-btn-primary {
+            background: linear-gradient(135deg, var(--accent), #f97316);
+            color: #000;
+            flex: 1;
+        }
+
+        .at-btn-secondary {
+            background: #333;
+            color: #fff;
+        }
+
+        .at-btn-danger {
+            background: #dc2626;
+            color: #fff;
+            font-size: 12px;
+            padding: 6px 14px;
+        }
+
+        .at-btn-outline {
+            background: transparent;
+            border: 1px dashed #555;
+            color: #aaa;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .at-btn-outline:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .at-role-custom {
+            position: relative;
+        }
+
+        .at-role-delete {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 10px;
+            color: #666;
+            cursor: pointer;
+            line-height: 1;
+            padding: 2px;
+        }
+
+        .at-role-delete:hover {
+            color: #f87171;
+        }
+
+        .at-create-role-form {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 10px;
+        }
+
+        .at-form-row {
+            margin-bottom: 12px;
+        }
+
+        .at-form-row>label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        .at-form-input {
+            width: 100%;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .at-form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        textarea.at-form-input {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .at-emoji-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .at-emoji-opt {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            border: 2px solid #333;
+            cursor: pointer;
+            font-size: 16px;
+            background: #222;
+        }
+
+        .at-emoji-opt:hover {
+            border-color: #555;
+        }
+
+        .at-emoji-opt.selected {
+            border-color: var(--accent);
+            background: rgba(251, 191, 36, 0.12);
+        }
+
+        .at-tool-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .at-tool-check {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #ccc;
+        }
+
+        .at-tool-check input {
+            accent-color: var(--accent);
+        }
+
+        .at-form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Running view */
+        .at-run-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .at-run-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .at-agents-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .at-agent-avatar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            min-width: 56px;
+        }
+
+        .at-agent-icon {
+            font-size: 24px;
+        }
+
+        .at-agent-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .at-status-idle {
+            background: #555;
+        }
+
+        .at-status-working {
+            background: var(--accent);
+            animation: pulse 1s infinite;
+        }
+
+        .at-status-done {
+            background: #22c55e;
+        }
+
+        .at-status-error {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        .at-agent-label {
+            font-size: 10px;
+            color: #888;
+            white-space: nowrap;
+        }
+
+        .at-message-flow {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 200px;
+            max-height: 50vh;
+            padding: 8px 0;
+        }
+
+        .at-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+
+        .at-msg-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .at-msg-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .at-msg-agent {
+            font-weight: 600;
+            margin-right: 6px;
+            color: var(--accent);
+            font-size: 12px;
+        }
+
+        .at-msg-text {
+            color: #ccc;
+            word-break: break-all;
+        }
+
+        .at-msg-time {
+            font-size: 10px;
+            color: #555;
+            flex-shrink: 0;
+        }
+
+        .at-msg-error {
+            border-left: 3px solid #ef4444;
+        }
+
+        .at-msg-result {
+            border-left: 3px solid #22c55e;
+        }
+
+        .at-msg-thinking {
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Result view */
+        .at-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .at-result-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .at-result-stats {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .at-deliverables {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .at-deliverable {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        .at-d-header {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .at-d-img {
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .at-d-video {
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .at-d-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #ccc;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .at-result-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .cs-help-panel {
+            display: none;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+            font-size: 13px;
+            line-height: 1.7;
+            color: #ccc;
+            max-height: 55vh;
+            overflow-y: auto;
+        }
+
+        .cs-help-panel.show {
+            display: block;
+        }
+
+        .cs-help-panel h4 {
+            color: var(--accent);
+            margin: 12px 0 6px;
+            font-size: 14px;
+        }
+
+        .cs-help-panel h4:first-child {
+            margin-top: 0;
+        }
+
+        .cs-help-panel code {
+            background: #222;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #4ade80;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .cs-help-panel .cs-help-example {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin: 6px 0 10px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            color: #a0a0c0;
+            line-height: 1.6;
+        }
+
+        .cs-help-panel .cs-help-tag {
+            display: inline-block;
+            background: rgba(251, 191, 36, 0.15);
+            color: var(--accent);
+            padding: 1px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin: 2px;
+        }
+
+        .skill-card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .skill-card-actions button {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #222;
+            color: #aaa;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">← 返回</button>
+        <h1>🤖 AI对话</h1>
+        <span class="quota-display" id="quotaDisplay">🎞️ --</span>
+    </header>
+
+    <!-- 🎭 角色专家指示器 -->
+    <div id="roleIndicator"
+        style="display:none; padding:8px 20px; background:linear-gradient(90deg, rgba(139,92,246,0.15), rgba(236,72,153,0.1)); border-bottom:1px solid rgba(139,92,246,0.3); cursor:pointer;"
+        onclick="openRoleSelector()">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span id="roleIndicatorIcon" style="font-size:18px;"></span>
+                <div>
+                    <div id="roleIndicatorName" style="font-size:13px; color:#a78bfa; font-weight:600;"></div>
+                    <div id="roleIndicatorDesc" style="font-size:11px; color:#666;"></div>
+                </div>
+            </div>
+            <button onclick="event.stopPropagation(); deactivateRole()"
+                style="background:none; border:none; color:#888; font-size:16px; cursor:pointer; padding:4px 8px;"
+                title="关闭角色">&times;</button>
+        </div>
+    </div>
+
+    <!-- 🧩 快捷按钮区域（始终显示） -->
+    <div class="quick-actions" style="padding:12px 20px; background:var(--bg-dark); border-bottom:1px solid #222;">
+        <div class="quick-questions" style="margin-top:0;">
+            <span class="quick-q" onclick="openRoleSelector()"
+                style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.15)); border:1px solid rgba(139,92,246,0.4); color:#a78bfa;">🎭
+                角色专家</span>
+            <span class="quick-q" onclick="fillInput('帮我写一个短视频剧本，主题是')">📝 写剧本</span>
+            <span class="quick-q" onclick="fillInput('给我一些关于的创意灵感', 5)">💡 找灵感</span>
+            <span class="quick-q" onclick="fillInput('帮我优化这段文案：')">✨ 优化文案</span>
+            <span class="quick-q" onclick="startStoryboardMode()">🎬 分镜设计</span>
+            <span class="quick-q" onclick="openSkillDrawer()">🧩 技能</span>
+            <span class="quick-q" onclick="AgentUI.open()">🤖 智能团队</span>
+            <span class="quick-q" onclick="fillInput('搜索最新')">🌐 联网搜索</span>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="welcome" id="welcome">
+            <h2>👋 你好！</h2>
+            <p>我是你的AI助手，有什么可以帮你的？</p>
+            <p class="cost-hint">按实际token消耗计费，最低1胶片</p>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div style="position:relative;">
+            <button class="upload-btn" id="uploadBtn" onclick="toggleUploadMenu()">➕</button>
+            <div class="upload-menu" id="uploadMenu">
+                <div class="upload-menu-item" onclick="triggerUpload('image')">
+                    <span class="icon">🖼️</span>
+                    <span>上传图片</span>
+                </div>
+                <div class="upload-menu-item" onclick="triggerUpload('video')">
+                    <span class="icon">🎬</span>
+                    <span>上传视频</span>
+                </div>
+                <div class="upload-menu-item" onclick="triggerUpload('file')">
+                    <span class="icon">📄</span>
+                    <span>上传文件</span>
+                </div>
+            </div>
+        </div>
+        <div class="input-wrapper">
+            <div class="upload-preview" id="uploadPreview"></div>
+            <textarea class="input-box" id="inputBox" placeholder="输入消息..." rows="1"
+                onkeydown="handleKeydown(event)"></textarea>
+        </div>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+    </div>
+
+    <!-- 隐藏的文件上传输入框 -->
+    <input type="file" id="imageInput" accept="image/*" multiple style="display:none;"
+        onchange="handleFileSelect(event, 'image')">
+    <input type="file" id="videoInput" accept="video/*" style="display:none;"
+        onchange="handleFileSelect(event, 'video')">
+    <input type="file" id="fileInput" accept=".txt,.pdf,.doc,.docx,.md,.json,.csv,.xml" style="display:none;"
+        onchange="handleFileSelect(event, 'file')">
+
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 🎭 角色专家选择面板 -->
+    <div id="roleSelectPanel" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.7);"
+        onclick="closeRoleSelector()">
+        <div style="position:absolute; bottom:0; left:0; right:0; max-height:75vh; background:#111; border-radius:16px 16px 0 0; overflow:hidden;"
+            onclick="event.stopPropagation()">
+            <div
+                style="padding:16px 20px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:16px; font-weight:600;">🎭 角色专家 <span
+                        style="font-size:12px; color:#888; font-weight:400;">+1胶片/条</span></div>
+                <button onclick="closeRoleSelector()"
+                    style="background:none; border:none; color:#888; font-size:20px; cursor:pointer;">&times;</button>
+            </div>
+            <!-- 分类标签 -->
+            <div id="roleCatTabs"
+                style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; border-bottom:1px solid #1a1a1a;">
+            </div>
+            <!-- 角色网格 -->
+            <div id="roleGrid"
+                style="padding:16px 20px; display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; max-height:50vh; overflow-y:auto;">
+            </div>
+        </div>
+    </div>
+
+    <!-- 🤖 Agent Team 面板 -->
+    <div id="agentTeamPanel">
+        <div class="at-panel-inner">
+            <div class="at-panel-header">
+                <h3>🤖 智能团队</h3>
+                <button class="at-panel-close" onclick="AgentUI.close()">&times;</button>
+            </div>
+            <div class="at-panel-body">
+                <!-- 团队选择 -->
+                <div id="atView_select" style="display:flex; flex-direction:column; gap:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div style="font-size:13px; color:#888;">选择一个团队模板，或自由组队</div>
+                        <button class="at-btn at-btn-secondary" style="padding:6px 12px;font-size:12px;"
+                            onclick="AgentUI.showTeamHistory()">📂 历史</button>
+                    </div>
+                    <div id="atTemplateGrid"></div>
+                </div>
+                <!-- 配置 -->
+                <div id="atView_config" style="display:none; flex-direction:column; gap:12px;">
+                    <div id="atConfigArea"></div>
+                </div>
+                <!-- 运行中 -->
+                <div id="atView_running" style="display:none; flex-direction:column; gap:8px;">
+                    <div id="atRunArea"></div>
+                </div>
+                <!-- 结果 -->
+                <div id="atView_result" style="display:none; flex-direction:column; gap:12px;">
+                    <div id="atResultArea"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧩 技能选择弹窗 -->
+    <div class="skill-drawer" id="skillDrawer">
+        <div class="skill-drawer-header">
+            <h3>🧩 技能库</h3>
+            <button class="skill-drawer-close" onclick="closeSkillDrawer()">&times;</button>
+        </div>
+        <div class="skill-filters" id="skillFilters">
+            <button class="skill-filter-btn active" data-category="all" onclick="filterSkills('all')">全部</button>
+            <button class="skill-filter-btn" data-category="video" onclick="filterSkills('video')">🎬 视频</button>
+            <button class="skill-filter-btn" data-category="image" onclick="filterSkills('image')">🎨 图像</button>
+            <button class="skill-filter-btn" data-category="design" onclick="filterSkills('design')">🎯 设计</button>
+            <button class="skill-filter-btn" data-category="content" onclick="filterSkills('content')">📝 内容</button>
+            <button class="skill-filter-btn" data-category="tool" onclick="filterSkills('tool')">🔍 工具</button>
+            <button class="skill-filter-btn" data-category="automation" onclick="filterSkills('automation')">🤖
+                自动化</button>
+            <button class="skill-filter-btn" data-category="custom" onclick="filterSkills('custom')">🔧 自定义</button>
+        </div>
+        <div class="skill-search">
+            <input type="text" id="skillSearch" placeholder="🔍 搜索技能..." oninput="searchSkills(this.value)">
+        </div>
+        <div class="skill-list" id="skillList">
+            <!-- 由 JS 动态渲染 -->
+        </div>
+        <div style="padding:12px 16px; border-top:1px solid #333;">
+            <button onclick="openCreateSkillModal()"
+                style="width:100%; padding:12px; background:linear-gradient(135deg,#333,#2a2a2a); border:1px dashed #555; border-radius:10px; color:#aaa; font-size:14px; cursor:pointer;">➕
+                创建自定义技能</button>
+        </div>
+    </div>
+
+    <!-- 技能配置弹窗 -->
+    <div class="skill-config-modal" id="skillConfigModal">
+        <div class="skill-config-content">
+            <div class="skill-config-header">
+                <h3 id="skillConfigTitle">🧩 技能配置</h3>
+                <button class="skill-drawer-close" onclick="closeSkillConfig()">&times;</button>
+            </div>
+            <div class="skill-config-body">
+                <div class="skill-config-desc" id="skillConfigDesc"></div>
+                <div class="skill-config-form" id="skillConfigForm">
+                    <!-- 由 JS 动态生成 -->
+                </div>
+                <div class="skill-cost-estimate" id="skillCostEstimate"></div>
+            </div>
+            <div class="skill-config-footer">
+                <button class="skill-config-cancel" onclick="closeSkillConfig()">取消</button>
+                <button class="skill-config-execute" id="skillExecuteBtn" onclick="executeSelectedSkill()">🚀
+                    开始执行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自定义技能创建弹窗 -->
+    <div class="create-skill-modal" id="createSkillModal">
+        <div class="create-skill-content">
+            <h3>🔧 创建自定义技能 <button class="cs-btn-help" onclick="toggleSkillHelp()">❓ 帮助教程</button></h3>
+
+            <!-- 帮助面板 -->
+            <div class="cs-help-panel" id="csHelpPanel">
+                <h4>📖 什么是自定义技能？</h4>
+                自定义技能就是一个<strong>提示词模板</strong>，你可以把常用的AI指令保存为技能，每次使用时只需填入不同的参数即可。
+
+                <h4>📝 核心概念：提示词模板</h4>
+                在模板中用 <code>{{变量名}}</code> 标记需要动态替换的内容。执行时系统会把 <code>{{变量名}}</code> 替换为你输入的实际值。
+                <div class="cs-help-example">模板：请为<span style="color:#fbbf24">{{topic}}</span>写一篇<span
+                        style="color:#fbbf24">{{style}}</span>风格的文案
+                    参数填入：topic=旅行 style=文艺
+                    实际发送：请为旅行写一篇文艺风格的文案</div>
+
+                <h4>⚙️ 参数定义说明</h4>
+                每个 <code>{{变量名}}</code> 都需要在「参数定义」中添加对应条目：
+                <div style="margin:6px 0;">
+                    <span class="cs-help-tag">变量名 (key)</span> 必须和模板中 <code>{{...}}</code> 里的名字一致
+                    <br><span class="cs-help-tag">显示名称</span> 用户看到的中文标签
+                    <br><span class="cs-help-tag">类型</span> 文本 / 多行文本 / 数字 / 选择
+                    <br><span class="cs-help-tag">默认值</span> 可选，预填的初始值
+                </div>
+
+                <h4>🎯 完整示例 1：小红书笔记生成器</h4>
+                <div class="cs-help-example"><strong>技能名称：</strong>小红书笔记生成器
+                    <strong>图标：</strong>📝 <strong>模板类型：</strong>文本生成
+                    <strong>描述：</strong>一键生成小红书爆款笔记
+                    <strong>提示词模板：</strong>
+                    请为「{{topic}}」生成{{count}}条小红书风格的笔记文案。
+                    要求：
+                    1. 标题要有吸引力，善用emoji
+                    2. 风格：{{style}}
+                    3. 每条200-300字
+                    4. 包含3-5个话题标签
+
+                    <strong>参数定义：</strong>
+                    变量名: topic 显示名称: 笔记主题 类型: 文本 默认值: (空)
+                    变量名: count 显示名称: 生成条数 类型: 数字 默认值: 3
+                    变量名: style 显示名称: 写作风格 类型: 文本 默认值: 活泼有趣
+                </div>
+
+                <h4>🎯 完整示例 2：AI绘图提示词翻译</h4>
+                <div class="cs-help-example"><strong>技能名称：</strong>提示词翻译助手
+                    <strong>图标：</strong>🎨 <strong>模板类型：</strong>文本生成
+                    <strong>描述：</strong>把中文画面描述翻译为英文AI绘图提示词
+                    <strong>提示词模板：</strong>
+                    请把以下中文画面描述翻译为专业的AI绘图提示词（英文），
+                    要求用Stable Diffusion / Midjourney 风格的关键词描述，
+                    包含画面内容、光影、构图、风格等维度。
+
+                    中文描述：{{description}}
+                    画风偏好：{{art_style}}
+
+                    <strong>参数定义：</strong>
+                    变量名: description 显示名称: 画面描述 类型: 多行 默认值: (空)
+                    变量名: art_style 显示名称: 画风偏好 类型: 文本 默认值: 电影质感
+                </div>
+
+                <h4>🎯 完整示例 3：视频脚本生成</h4>
+                <div class="cs-help-example"><strong>技能名称：</strong>短视频脚本生成
+                    <strong>图标：</strong>🎬 <strong>模板类型：</strong>文本生成
+                    <strong>描述：</strong>根据主题自动生成带分镜的短视频脚本
+                    <strong>提示词模板：</strong>
+                    请为主题「{{topic}}」生成一个{{duration}}秒的短视频脚本。
+                    目标平台：{{platform}}
+                    要求：
+                    1. 包含画面描述、台词/旁白、背景音乐建议
+                    2. 分镜头设计，标注每个镜头时长
+                    3. 开头3秒必须有hook吸引观众
+
+                    <strong>参数定义：</strong>
+                    变量名: topic 显示名称: 视频主题 类型: 文本 默认值: (空)
+                    变量名: duration 显示名称: 视频时长 类型: 数字 默认值: 60
+                    变量名: platform 显示名称: 目标平台 类型: 文本 默认值: 抖音
+                </div>
+
+                <h4>💡 小技巧</h4>
+                • 提示词写得越<strong>具体</strong>，AI输出效果越好<br>
+                • 可以用 <code>📥 导入</code> 按钮导入别人分享的技能JSON文件<br>
+                • 创建好的技能可以点 <code>📤 导出</code> 分享给朋友<br>
+                • 模板类型选「图片生成」会调用图片API，「文本生成」会调用文本API
+            </div>
+
+            <div class="cs-field">
+                <label>技能名称 *</label>
+                <input type="text" id="csName" placeholder="例如：小红书笔记生成器">
+            </div>
+            <div class="cs-field">
+                <label>图标</label>
+                <div class="cs-icons" id="csIconPicker">
+                    <span class="cs-icon-btn selected" data-icon="🔧" onclick="selectSkillIcon(this)">🔧</span>
+                    <span class="cs-icon-btn" data-icon="✨" onclick="selectSkillIcon(this)">✨</span>
+                    <span class="cs-icon-btn" data-icon="💡" onclick="selectSkillIcon(this)">💡</span>
+                    <span class="cs-icon-btn" data-icon="🎨" onclick="selectSkillIcon(this)">🎨</span>
+                    <span class="cs-icon-btn" data-icon="📸" onclick="selectSkillIcon(this)">📸</span>
+                    <span class="cs-icon-btn" data-icon="🎬" onclick="selectSkillIcon(this)">🎬</span>
+                    <span class="cs-icon-btn" data-icon="📝" onclick="selectSkillIcon(this)">📝</span>
+                    <span class="cs-icon-btn" data-icon="🚀" onclick="selectSkillIcon(this)">🚀</span>
+                    <span class="cs-icon-btn" data-icon="🌟" onclick="selectSkillIcon(this)">🌟</span>
+                    <span class="cs-icon-btn" data-icon="🔥" onclick="selectSkillIcon(this)">🔥</span>
+                    <span class="cs-icon-btn" data-icon="🌿" onclick="selectSkillIcon(this)">🌿</span>
+                    <span class="cs-icon-btn" data-icon="🎯" onclick="selectSkillIcon(this)">🎯</span>
+                </div>
+            </div>
+            <div class="cs-field">
+                <label>模板类型 *</label>
+                <select id="csTemplateType">
+                    <option value="text">📝 文本生成</option>
+                    <option value="image">🎨 图片生成</option>
+                    <option value="video">🎬 视频生成</option>
+                </select>
+            </div>
+            <div class="cs-field">
+                <label>描述</label>
+                <input type="text" id="csDescription" placeholder="简要描述这个技能的功能">
+            </div>
+            <div class="cs-field">
+                <label>提示词模板 * <span style="color:#666; font-size:12px;">(用 {{变量名}} 引用参数)</span></label>
+                <textarea id="csPromptTemplate"
+                    placeholder="例如：请为{{topic}}生成{{count}}条小红书风格的笔记文案，要求吸引眼球、有干货..."></textarea>
+            </div>
+            <div class="cs-field">
+                <label>参数定义 <button onclick="addCustomParam()"
+                        style="float:right;background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;">+
+                        添加参数</button></label>
+                <div class="cs-params-list" id="csParamsList"></div>
+            </div>
+            <div class="cs-footer">
+                <button class="cs-btn-import" onclick="importSkillJSON()">📥 导入</button>
+                <button class="cs-btn-cancel" onclick="closeCreateSkillModal()">取消</button>
+                <button class="cs-btn-save" onclick="saveNewCustomSkill()">保存技能</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 技能执行进度（精美动画版） -->
+    <div class="skill-progress-modal" id="skillProgressModal" data-phase="preparing">
+        <div class="sp-particles" id="spParticles"></div>
+        <div class="skill-progress-content">
+            <div class="sp-icon-area">
+                <div class="sp-orbit-ring">
+                    <div class="sp-orbit-dot"></div>
+                    <div class="sp-orbit-dot"></div>
+                    <div class="sp-orbit-dot"></div>
+                </div>
+                <div class="sp-icon" id="skillProgressIcon">🚀</div>
+                <div class="sp-sparkles" id="spSparkles"></div>
+            </div>
+            <div class="sp-phase" id="spPhase">🚀 准备启动</div>
+            <div class="skill-progress-text" id="skillProgressText">准备中...</div>
+            <div class="sp-progress-wrap">
+                <div class="sp-progress-track">
+                    <div class="sp-progress-fill" id="skillProgressBar"></div>
+                </div>
+                <div class="sp-progress-pct" id="spProgressPct">0%</div>
+            </div>
+            <div class="skill-progress-steps" id="skillProgressSteps"></div>
+            <div class="skill-progress-buttons">
+                <button onclick="cancelSkillExecution()">⏹️ 取消</button>
+                <button onclick="hideSkillProgress()">↙️ 后台运行</button>
+            </div>
+        </div>
+        <div class="sp-confetti" id="spConfetti"></div>
+    </div>
+
+    <script>
+        // 使用 NVAuth 模块
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        let authInitialized = false;
+        // 💰 AI对话费用（后端按token实际消耗计费，1胶片=¥0.3）
+        const MIN_CHAT_COST = 1;  // 最低1胶片（用于余额检查）
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[chat] 页面加载完成，开始初始化...');
+
+            // 🔧 修复：确保发送按钮事件正确绑定（支持移动端触摸）
+            const sendBtn = document.getElementById('sendBtn');
+            if (sendBtn) {
+                sendBtn.onclick = null;
+                sendBtn.addEventListener('click', function (e) {
+                    console.log('[chat] 发送按钮被点击 (click)');
+                    sendMessage();
+                });
+                sendBtn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    console.log('[chat] 发送按钮被点击 (touchend)');
+                    sendMessage();
+                });
+                console.log('[chat] 发送按钮事件已绑定');
+            }
+
+            // 🔧 修复：快捷输入按钮支持触摸事件
+            document.querySelectorAll('.quick-q').forEach(btn => {
+                btn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    const text = this.textContent.replace(/^[^\s]+\s*/, ''); // 移除emoji前缀
+
+                    // 🧩 特殊按钮：调用对应函数而不是发送问题
+                    if (text === '技能') {
+                        console.log('[chat] 技能按钮被点击');
+                        openSkillDrawer();
+                        return;
+                    }
+                    if (text === '分镜设计') {
+                        console.log('[chat] 分镜设计按钮被点击');
+                        startStoryboardMode();
+                        return;
+                    }
+                    if (text === '智能团队') {
+                        console.log('[chat] 智能团队按钮被点击');
+                        if (typeof AgentUI !== 'undefined') AgentUI.open();
+                        return;
+                    }
+                    if (text === '角色专家') {
+                        console.log('[chat] 角色专家按钮被点击');
+                        if (typeof openRoleSelector === 'function') openRoleSelector();
+                        return;
+                    }
+
+                    const fillMap = {
+                        '写剧本': '帮我写一个短视频剧本，主题是',
+                        '找灵感': { text: '给我一些关于的创意灵感', cursor: 5 },
+                        '优化文案': '帮我优化这段文案：',
+                        '联网搜索': '搜索最新'
+                    };
+                    const fillText = fillMap[text];
+                    if (fillText) {
+                        console.log('[chat] 快捷填充:', fillText);
+                        if (typeof fillText === 'object') {
+                            fillInput(fillText.text, fillText.cursor);
+                        } else {
+                            fillInput(fillText);
+                        }
+                    }
+                });
+            });
+
+            // 🔧 修复：返回按钮支持触摸事件
+            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) {
+                backBtn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    goBack();
+                });
+            }
+
+            if (typeof NVAuth !== 'undefined') {
+                await checkUser();
+            }
+            updateQuotaDisplay();
+            // 🎭 初始化角色专家指示器
+            _updateRoleIndicator();
+            console.log('[chat] 初始化完成');
+        });
+
+        async function checkUser() {
+            try {
+                // 等待认证状态就绪
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[chat] 用户已登录:', currentUser.email);
+                    await loadUserQuota();
+                } else {
+                    console.log('[chat] 用户未登录');
+                }
+            } catch (e) { console.error('检查用户失败:', e); }
+
+            // 标记认证初始化完成
+            authInitialized = true;
+            console.log('[chat] 认证初始化完成, currentUser:', currentUser ? currentUser.email : 'null');
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                updateQuotaDisplay();
+                console.log('[chat] 用户胶片:', userQuota);
+            } catch (e) { console.error('加载配额失败:', e); }
+        }
+
+        function updateQuotaDisplay() {
+            const el = document.getElementById('quotaDisplay');
+            if (currentUser) {
+                el.textContent = `🎞️ ${userQuota}`;
+            } else {
+                el.textContent = '🎞️ 未登录';
+            }
+        }
+
+        // 预扣费函数
+        async function preDeduct(cost, description) {
+            // 🔧 修复：确保cost是整数（数据库是INTEGER类型）
+            cost = Math.ceil(cost);
+
+            // 等待认证初始化完成
+            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+
+            if (!currentUser) { showToast('请先登录'); return false; }
+            if (userQuota < cost) { showToast(`胶片不足，需要${cost}胶片`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+
+                // 🔧 修复：先检查 HTTP 状态码
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('余额不足，请先充值');
+                    }
+                    throw new Error(data.message || data.error || `服务器错误: ${res.status}`);
+                }
+
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    updateQuotaDisplay();
+                    console.log(`🎞️ 预扣费成功: -${cost}胶片, 余额=${userQuota}`);
+                    return true;
+                }
+                throw new Error(data.message || data.error || '扣费失败');
+            } catch (e) { showToast('扣费失败: ' + e.message); return false; }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 返回函数 - 直接返回 mobile.html 工作区
+        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        let messages = [];
+        let isGenerating = false;
+
+        // 🧠 智能模型路由：根据用户输入自动选择性价比最高的模型
+        // 🌟 默认首选 grok-4-fast：生成文章、提示词优化、生成提示词
+        // 模型价格参考 (yunwu.ai):
+        // - grok-4-fast: 输入￥1.5/1M, 输出￥6.0/1M (首选对话模型)
+        // - gemini-3-flash-preview: 输入￥0.15/1M, 输出￥0.9/1M (最便宜)
+        // - qwen-plus: 输入￥0.24/1M, 输出￥0.6/1M (中文优化)
+        // - gemini-3.1-pro-preview: 输入￥0.6/1M, 输出￥3.6/1M (多模态)
+        // - gemini-3.1-pro-preview-thinking: 输入￥0.6/1M, 输出￥3.6/1M (思考模式)
+        function selectModelByIntent(text) {
+            const lower = text.toLowerCase();
+
+            // 🎬 分镜/视觉/电影相关 → Gemini-3 Pro Thinking (深度推理)
+            const visualKeywords = ['分镜', '视觉', '电影', '场景', '画面', '镜头', '拍摄', '运镜', '组成', '構图', '光影', '布光', '角度', '景别', '特写', '远景', '中景', '近景', 'storyboard', '策划分镜', '视觉冲击'];
+            if (visualKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'gemini-3.1-pro-preview-thinking', type: 'visual', icon: '🎬', cost: 2 };
+            }
+
+            // 🧠 深度分析/推理 → Gemini-3 Pro Thinking
+            const thinkingKeywords = ['深度分析', '详细分析', '思考', '推理', '论证', '证明', '复杂问题', '多步骤'];
+            if (thinkingKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'gemini-3.1-pro-preview-thinking', type: 'thinking', icon: '🧠', cost: 2 };
+            }
+
+            // 🔍 普通分析/理解/解释 → Qwen Plus (中文优化且便宜)
+            const analysisKeywords = ['分析', '解释', '为什么', '原因', '理解', '比较', '区别', '优劣', '评价', '总结', '归纳'];
+            if (analysisKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'qwen-plus', type: 'analysis', icon: '🔍', cost: 1 };
+            }
+
+            // 💻 编程/代码 → Qwen Plus (代码能力强且便宜)
+            const codeKeywords = ['代码', '编程', '函数', '算法', '报错', 'bug', 'code', 'python', 'javascript', 'java', 'html', 'css', 'sql', '调试', '开发', '程序', '脚本'];
+            if (codeKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'qwen-plus', type: 'code', icon: '💻', cost: 1 };
+            }
+
+            // 🌐 联网搜索/实时信息 → Gemini-3 Flash (快速且便宜)
+            const searchKeywords = ['搜索', '查找', '联网', '上网', '最新', '今天', '新闻', '实时', '现在', '当前', '天气', '股价', '热点', '赛事', '比赛', '哪里', '谁是', '多少钱'];
+            if (searchKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'gemini-3-flash-preview', type: 'search', icon: '🌐', enableSearch: true, cost: 1 };
+            }
+
+            // 🔍 OCR/文字识别 → deepseek-ocr
+            const ocrKeywords = ['ocr', '识别文字', '文字识别', '提取文字', '读取文字', '图片文字', '截图文字', '识别内容', '识别一下', '看看写的什么', '读出来'];
+            if (ocrKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'deepseek-ocr', type: 'ocr', icon: '🔍', cost: 2 };
+            }
+
+            // 🌟 默认：生成文章/提示词优化/创意写作/对话 → Grok-4 Fast (首选)
+            return { model: 'grok-4-fast', type: 'chat', icon: '🌟', cost: 2 };
+        }
+
+        // 📝 模型名称映射
+        const MODEL_NAMES = {
+            'grok-4-fast': 'Grok-4 Fast',
+            'gemini-3-flash-preview': 'Gemini Flash',
+            'gemini-3.1-pro-preview': 'Gemini Pro',
+            'gemini-3.1-pro-preview-thinking': 'Gemini 思考',
+            'qwen-plus': '通义千问',
+            'deepseek-ocr': 'DeepSeek OCR',
+            'gemini-2.0-flash': 'Gemini Vision'
+        };
+
+        // ==================== 🎭 角色专家 UI ====================
+        let _roleCat = 'all';
+
+        function openRoleSelector() {
+            const panel = document.getElementById('roleSelectPanel');
+            if (!panel || typeof RoleExpert === 'undefined') return;
+            panel.style.display = 'block';
+            _renderRoleCatTabs();
+            _renderRoleGrid();
+        }
+
+        function closeRoleSelector() {
+            const panel = document.getElementById('roleSelectPanel');
+            if (panel) panel.style.display = 'none';
+        }
+
+        function _renderRoleCatTabs() {
+            const container = document.getElementById('roleCatTabs');
+            if (!container) return;
+            const cats = RoleExpert.getCategories();
+            container.innerHTML = cats.map(c => `
+                <button onclick="_setRoleCat('${c.id}')" style="padding:6px 14px; border-radius:16px; border:1px solid ${_roleCat === c.id ? 'var(--accent)' : '#333'}; background:${_roleCat === c.id ? 'rgba(251,191,36,0.15)' : '#1a1a1a'}; color:${_roleCat === c.id ? 'var(--accent)' : '#aaa'}; font-size:13px; white-space:nowrap; cursor:pointer;">${c.icon} ${c.name}</button>
+            `).join('');
+        }
+
+        function _setRoleCat(cat) {
+            _roleCat = cat;
+            _renderRoleCatTabs();
+            _renderRoleGrid();
+        }
+
+        function _renderRoleGrid() {
+            const grid = document.getElementById('roleGrid');
+            if (!grid) return;
+            const roles = RoleExpert.getRoles(_roleCat);
+            const activeId = RoleExpert.getActive()?.id;
+            grid.innerHTML = roles.map(r => `
+                <div onclick="selectRole('${r.id}')" style="padding:12px; background:${r.id === activeId ? 'rgba(139,92,246,0.2)' : '#1a1a1a'}; border:1px solid ${r.id === activeId ? 'rgba(139,92,246,0.5)' : '#2a2a2a'}; border-radius:12px; cursor:pointer; transition:all 0.2s;">
+                    <div style="font-size:24px; margin-bottom:6px;">${r.icon}</div>
+                    <div style="font-size:14px; font-weight:600; color:#fff; margin-bottom:2px;">${r.name}</div>
+                    <div style="font-size:11px; color:#888; line-height:1.4;">${r.description}</div>
+                    ${r.id === activeId ? '<div style="margin-top:6px; font-size:10px; color:#a78bfa;">✅ 当前使用中</div>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function selectRole(roleId) {
+            if (typeof RoleExpert === 'undefined') return;
+            const current = RoleExpert.getActive();
+            if (current && current.id === roleId) {
+                // 点击已激活的角色 → 取消
+                RoleExpert.deactivate();
+            } else {
+                RoleExpert.activate(roleId);
+            }
+            _updateRoleIndicator();
+            closeRoleSelector();
+        }
+
+        function deactivateRole() {
+            if (typeof RoleExpert !== 'undefined') {
+                RoleExpert.deactivate();
+                _updateRoleIndicator();
+            }
+        }
+
+        function _updateRoleIndicator() {
+            const indicator = document.getElementById('roleIndicator');
+            if (!indicator) return;
+            const role = typeof RoleExpert !== 'undefined' ? RoleExpert.getActive() : null;
+            if (role) {
+                indicator.style.display = 'block';
+                document.getElementById('roleIndicatorIcon').textContent = role.icon;
+                document.getElementById('roleIndicatorName').textContent = role.name + ' 模式';
+                document.getElementById('roleIndicatorDesc').textContent = role.description + ' · +1胶片/条';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+
+        // 🎬 好莱坎视觉指导系统提示词（简洁版）
+        const HOLLYWOOD_VISUAL_DIRECTOR_PROMPT = `你是专业分镜设计师。直接输出分镜表，不要废话。
+
+格式（每个分镜一行）：
+【镜号】景别 | 画面内容 | 镜头运动 | 时长
+
+示例：
+【1】远景 | 日落海边，人物剑影走来 | 推镜 | 3s
+【2】中景 | 人物正面，表情坚毅 | 固定 | 2s
+
+注意：
+- 只输出分镜表，不要其他内容
+- 每个分镜一行，简洁明了`;
+
+        // 填充输入框（不自动发送，让用户继续编辑）
+        // cursorAt: 可选，光标位置索引；默认末尾
+        function fillInput(text, cursorAt) {
+            const input = document.getElementById('inputBox');
+            input.value = text;
+            input.focus();
+            const pos = typeof cursorAt === 'number' ? cursorAt : text.length;
+            input.setSelectionRange(pos, pos);
+        }
+
+        // 快捷问题（直接发送）
+        function askQuestion(q) {
+            document.getElementById('inputBox').value = q;
+            sendMessage();
+        }
+
+        // 🎬 分镜设计模式：先询问用户
+        let isStoryboardMode = false;
+        function startStoryboardMode() {
+            isStoryboardMode = true;
+            // 隐藏欢迎
+            const welcomeEl = document.getElementById('welcome');
+            if (welcomeEl) welcomeEl.style.display = 'none';
+            // 显示AI询问
+            addMessage('🎬 分镜设计模式\n\n请描述你想要的场景或故事，我来帮你规划分镜。\n\n例如：\n• 一个女孩在海边看日落\n• 美食探店vlog开场\n• 产品广告展示', 'ai');
+            // 设置输入框提示
+            document.getElementById('inputBox').placeholder = '描述你的场景或故事...';
+            document.getElementById('inputBox').focus();
+        }
+
+        function handleKeydown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // ==================== 🧠 对话智能技能调用（LLM意图分析版） ====================
+        // 构建技能清单供LLM识别
+        function _buildSkillCatalog() {
+            if (typeof SkillManager === 'undefined') return '';
+            const skills = SkillManager.getAll();
+            return skills.map(s => `- ${s.id}: ${s.icon}${s.name} (${s.description})`).join('\n');
+        }
+
+        // 🆕 自动生成并注册新技能（当意图分析找不到匹配技能时调用）
+        async function _autoCreateSkill(userText, suggestedId, reason) {
+            if (typeof SkillManager === 'undefined') return null;
+            try {
+                const createPrompt = `/no_think
+用户需要一个不存在的技能，请根据用户意图生成一个技能定义。
+
+用户输入: "${userText}"
+建议技能ID: "${suggestedId}"
+原因: "${reason}"
+
+请生成一个JSON技能定义，严格输出以下格式（一行JSON）：
+{"id":"技能ID","name":"技能名称","icon":"emoji","category":"image|video|content|audio","description":"简短描述","promptTemplate":"给AI的提示词模板，用{input}代替用户输入","type":"text|image|video","estimateFilm":5}
+
+规则：
+- id 用英文小写+下划线，基于 suggestedId
+- type: text=文本生成, image=图片生成, video=视频生成
+- promptTemplate: 英文，专业的提示词，包含{input}占位符
+- estimateFilm: 预估胶片消耗(text=2, image=5-8, video=7-15)
+- 严格只输出一行JSON`;
+
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'chat',
+                        messages: [{ role: 'user', content: createPrompt }],
+                        model: 'gemini-3-flash-preview',
+                        max_tokens: 300,
+                        userId: currentUser ? currentUser.id : undefined
+                    })
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                let raw = (data.content || data.text || '').trim()
+                    .replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+                const jsonMatch = raw.match(/\{[^{}]*"id"[^{}]*"promptTemplate"[^{}]*\}/s) ||
+                    raw.match(/\{[\s\S]*?\}/);
+                if (!jsonMatch) return null;
+
+                const def = JSON.parse(jsonMatch[0]);
+                if (!def.id || !def.name || !def.promptTemplate) return null;
+
+                // 确保ID唯一（已存在则加时间戳）
+                const finalId = SkillManager.getById(def.id) ? `${def.id}_${Date.now()}` : def.id;
+
+                // 根据type构建execute函数
+                const type = def.type || 'text';
+                const tpl = def.promptTemplate;
+                const film = parseInt(def.estimateFilm) || 5;
+
+                const skill = {
+                    id: finalId,
+                    name: def.name,
+                    icon: def.icon || '✨',
+                    category: def.category || 'content',
+                    description: def.description || def.name,
+                    isAutoCreated: true,
+                    parameters: [
+                        { key: 'input', label: '内容', type: 'textarea', required: true, placeholder: '描述你想要生成的内容...' }
+                    ],
+                    estimateCost: () => ({ film, time: type === 'video' ? '约2-5分钟' : type === 'image' ? '约30秒' : '约10秒' }),
+                    execute: async (params, callbacks) => {
+                        const prompt = tpl.replace(/\{input\}/gi, params.input || '');
+                        callbacks.onProgress?.('生成中', 10, `正在执行: ${def.name}...`);
+
+                        if (type === 'video') {
+                            if (typeof callSora2TextToVideoAPI !== 'function') throw new Error('视频生成功能不可用');
+                            const vm = typeof window._selectVideoModel === 'function'
+                                ? window._selectVideoModel({ topic: params.input })
+                                : 'grok-video-3-10s';
+                            callbacks.onProgress?.('生成视频', 30, `使用 ${vm} 生成视频...`);
+                            const videoUrl = await callSora2TextToVideoAPI(prompt, { model: vm, aspectRatio: '16:9' });
+                            callbacks.onProgress?.('完成', 100, '视频生成完成');
+                            callbacks.onStepComplete?.(def.name, { videoUrl });
+                            return { videoUrl };
+                        } else if (type === 'image') {
+                            if (typeof callBanana2ImageAPI !== 'function') throw new Error('图片生成功能不可用');
+                            callbacks.onProgress?.('生成图片', 30, '正在生成图片...');
+                            const imageUrl = await callBanana2ImageAPI(prompt, { model: 'nano-banana-2', aspectRatio: '1:1' });
+                            callbacks.onProgress?.('完成', 100, '图片生成完成');
+                            callbacks.onStepComplete?.(def.name, { imageUrl });
+                            return { imageUrl };
+                        } else {
+                            if (typeof callZhenzhenTextAPI !== 'function') throw new Error('文本生成功能不可用');
+                            callbacks.onProgress?.('生成文本', 30, '正在生成内容...');
+                            const text = await callZhenzhenTextAPI(prompt);
+                            callbacks.onProgress?.('完成', 100, '内容生成完成');
+                            callbacks.onStepComplete?.(def.name, { script: text });
+                            return { text };
+                        }
+                    }
+                };
+
+                SkillManager.register(skill);
+                console.log('[自动技能] ✅ 已注册:', skill.name, '(', finalId, ')');
+                return skill;
+            } catch (e) {
+                console.warn('[自动技能] 生成失败:', e.message);
+                return null;
+            }
+        }
+
+        // 用廉价快速LLM分析用户意图：是普通聊天还是想用某个技能
+        async function _analyzeIntent(text) {
+            if (typeof SkillManager === 'undefined') { console.log('[意图分析] SkillManager未加载'); return null; }
+            const catalog = _buildSkillCatalog();
+            if (!catalog) { console.log('[意图分析] 技能清单为空'); return null; }
+
+            const systemPrompt = `/no_think
+你是意图分类器，只输出JSON。根据用户消息判断是否想让AI帮忙创作/生成内容。
+
+已有技能：
+${catalog}
+
+规则：
+- 想创作/生成/制作/设计内容（图、视频、音乐、3D、配音、漫画、品牌、海报等）→ skill
+- 描述画面/场景暗示想要看到效果 → skill
+- "来一个/弄一个/整一个" + 创作内容 → skill
+- 纯粹提问/闲聊/讨论/分析/翻译/学习 → chat
+
+长篇小说规则（优先级最高）：
+- 用户想写长篇小说/网文/连载/多章节小说 → novel
+- 关键词：写小说、长篇、网文、连载、XX万字、多章节、写一部XX
+- 从用户描述中提取小说主题和推荐题材(玄幻/都市/科幻/武侠/言情/悬疑/历史/奇幻)
+
+视频技能选择指南（重要）：
+- 用户要一个完整连贯的视频（广告/VCR/宣传片/故事/剧情/MV/纪录片/Vlog/教程）→ continuous_story_video
+- 用户要多个独立不同主题的短视频（批量/多条/各种主题）→ batch_short_video
+- 判断关键：如果用户描述的是"一个"视频作品，用 continuous_story_video
+
+重要：如果用户需求在已有技能中找不到完全匹配的，可以输出一个新的英文snake_case技能ID（如 logo_design、recipe_image、travel_video），系统会自动创建该技能。
+
+严格只输出一行JSON：
+{"intent":"novel","theme":"提取的小说主题","genre":"推荐题材","reason":"原因"}
+或
+{"intent":"skill","skillId":"xxx","reason":"原因"}
+或
+{"intent":"chat"}`;
+
+            try {
+                console.log('[意图分析] 开始分析:', text.substring(0, 50));
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'chat',
+                        messages: [{ role: 'user', content: text }],
+                        system: systemPrompt,
+                        model: 'gemini-3-flash-preview',
+                        max_tokens: 150,
+                        userId: currentUser ? currentUser.id : undefined
+                    })
+                });
+                if (!res.ok) { console.warn('[意图分析] API返回', res.status); return null; }
+                const data = await res.json();
+                let raw = (data.content || data.text || '').trim();
+                console.log('[意图分析] LLM原始返回:', raw);
+
+                // 🔧 关键修复：strip Qwen3的<think>思考块
+                raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+                // 提取JSON（支持多种格式）
+                const jsonMatch = raw.match(/\{[^{}]*"intent"[^{}]*\}/);
+                if (!jsonMatch) {
+                    console.warn('[意图分析] 未找到JSON:', raw.substring(0, 200));
+                    return null;
+                }
+                const parsed = JSON.parse(jsonMatch[0]);
+                console.log('[意图分析] 解析结果:', parsed);
+
+                // 📖 长篇小说意图
+                if (parsed.intent === 'novel') {
+                    console.log('[意图分析] ✅ 检测到长篇小说意图:', parsed.theme);
+                    return { type: 'novel', theme: parsed.theme || text, genre: parsed.genre || '玄幻', reason: parsed.reason || '' };
+                }
+
+                if (parsed.intent === 'skill' && parsed.skillId) {
+                    const skill = SkillManager.getById(parsed.skillId);
+                    if (skill) {
+                        console.log('[意图分析] ✅ 匹配技能:', skill.name);
+                        return { skill, reason: parsed.reason || '' };
+                    }
+                    // 🆕 skillId不存在 → 尝试自动生成新技能
+                    console.log('[意图分析] skillId不存在，尝试自动生成技能:', parsed.skillId);
+                    const autoSkill = await _autoCreateSkill(text, parsed.skillId, parsed.reason || '');
+                    if (autoSkill) {
+                        console.log('[意图分析] ✅ 自动生成技能:', autoSkill.name);
+                        return { skill: autoSkill, reason: `🆕 自动创建技能: ${autoSkill.description}` };
+                    }
+                }
+                console.log('[意图分析] → 普通对话');
+                return null;
+            } catch (e) {
+                console.warn('[意图分析] 异常:', e.message);
+                return null;
+            }
+        }
+
+        // 📖 在对话中展示长篇小说配置卡片
+        function _showNovelCardInChat(theme, genre, reason) {
+            const container = document.getElementById('chatContainer');
+            const safeTheme = (theme || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const reasonHtml = reason ? `<div style="font-size:12px;color:#a78bfa;margin-bottom:8px;">💡 ${reason}</div>` : '';
+            const genres = ['玄幻', '都市', '科幻', '武侠', '言情', '悬疑', '历史', '奇幻'];
+            const genreOptions = genres.map(g => `<option value="${g}" ${g === genre ? 'selected' : ''}>${g}</option>`).join('');
+
+            const cardHtml = `<div style="margin-bottom:8px;">📖 我理解你想要 <b>创作一部长篇小说</b></div>
+${reasonHtml}
+<div style="background:linear-gradient(135deg,#1a1a2a,#1a2a1a);border:1px solid rgba(74,222,128,0.3);border-radius:12px;padding:16px;margin:8px 0;">
+    <div style="font-size:15px;font-weight:700;color:#4ade80;margin-bottom:10px;">📖 长篇小说工作台</div>
+    <div style="font-size:12px;color:#888;margin-bottom:12px;">AI自动生成大纲 → 逐章写作 → 支持断点续写、云端保存、导出TXT</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;">
+        <div>
+            <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px;">小说主题</label>
+            <textarea id="novelCardTheme" rows="2" style="width:100%;background:#111;border:1px solid #333;border-radius:8px;padding:8px;color:#fff;font-size:13px;resize:none;font-family:inherit;">${theme || ''}</textarea>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <div style="flex:1;">
+                <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px;">题材</label>
+                <select id="novelCardGenre" style="width:100%;background:#111;border:1px solid #333;border-radius:8px;padding:6px 8px;color:#fff;font-size:13px;">
+                    ${genreOptions}
+                </select>
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px;">章节数</label>
+                <select id="novelCardChapters" style="width:100%;background:#111;border:1px solid #333;border-radius:8px;padding:6px 8px;color:#fff;font-size:13px;">
+                    <option value="10">10章 (~5万字)</option>
+                    <option value="30">30章 (~15万字)</option>
+                    <option value="50" selected>50章 (~25万字)</option>
+                    <option value="100">100章 (~50万字)</option>
+                    <option value="200">200章 (~100万字)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div style="font-size:11px;color:#fbbf24;margin-bottom:10px;">💡 大纲2胶片 + 每章2胶片 · 支持暂停/断点续写 · 自动保存</div>
+    <div style="display:flex;gap:8px;">
+        <button onclick="_launchNovel()" style="flex:2;padding:10px;background:linear-gradient(135deg,#4ade80,#22c55e);border:none;border-radius:8px;color:#000;font-weight:700;font-size:13px;cursor:pointer;">📖 开始写作</button>
+        <button onclick="_launchNovel(true)" style="flex:1;padding:10px;background:#333;border:none;border-radius:8px;color:#ccc;font-size:13px;cursor:pointer;">⚙️ 高级配置</button>
+    </div>
+</div>
+<div style="font-size:11px;color:#666;">点击「开始写作」将跳转到写作工作台自动开始</div>`;
+
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'message ai';
+            aiMsg.innerHTML = cardHtml;
+            container.appendChild(aiMsg);
+            container.scrollTop = container.scrollHeight;
+            messages.push({ role: 'assistant', content: `[检测到长篇小说意图] 主题: ${theme}` });
+        }
+
+        // 📖 跳转到写作页面开始长篇小说
+        function _launchNovel(configOnly) {
+            const theme = (document.getElementById('novelCardTheme')?.value || '').trim();
+            const genre = document.getElementById('novelCardGenre')?.value || '玄幻';
+            const chapters = document.getElementById('novelCardChapters')?.value || '50';
+            if (!theme) { showToast('请输入小说主题'); return; }
+            const params = new URLSearchParams({
+                tab: 'novel',
+                theme: theme,
+                genre: genre,
+                chapters: chapters
+            });
+            if (!configOnly) params.set('autostart', '1');
+            location.href = `writing.html?${params.toString()}`;
+        }
+
+        // 在对话中展示技能推荐卡片
+        function _showSkillSuggestionInChat(text, matched) {
+            const container = document.getElementById('chatContainer');
+            const welcomeEl = document.getElementById('welcome');
+            if (welcomeEl) welcomeEl.style.display = 'none';
+
+            // 添加用户消息
+            addMessage(text, 'user');
+            messages.push({ role: 'user', content: text });
+
+            // 构建推荐卡片
+            const skill = matched.skill;
+            const reason = matched.reason || '';
+            const costInfo = skill.estimateCost ? (() => { try { return skill.estimateCost({}); } catch (e) { return { film: '?', time: '' }; } })() : { film: '?', time: '' };
+            const reasonHtml = reason ? `<div style="font-size:12px;color:#a78bfa;margin-bottom:8px;">💡 ${reason}</div>` : '';
+            const cardHtml = `<div style="margin-bottom:8px;">🧠 我理解你想要 <b>${skill.icon} ${skill.name}</b></div>
+${reasonHtml}
+<div style="background:#1a1a2a;border:1px solid rgba(139,92,246,0.3);border-radius:12px;padding:14px;margin:8px 0;">
+    <div style="font-size:14px;font-weight:600;color:#a78bfa;margin-bottom:6px;">${skill.icon} ${skill.name}</div>
+    <div style="font-size:12px;color:#888;margin-bottom:10px;">${skill.description}</div>
+    <div style="font-size:11px;color:#fbbf24;margin-bottom:10px;">预估: 🎞️ ${costInfo.film || '?'} 胶片${costInfo.time ? ' · ⏱️ ' + costInfo.time : ''}</div>
+    <div style="display:flex;gap:8px;">
+        <button onclick="_executeSkillFromChat('${skill.id}')" style="flex:2;padding:10px;background:linear-gradient(135deg,#fbbf24,#f97316);border:none;border-radius:8px;color:#000;font-weight:700;font-size:13px;cursor:pointer;">⚡ 立即执行</button>
+        <button onclick="openSkillConfig('${skill.id}')" style="flex:1;padding:10px;background:#333;border:none;border-radius:8px;color:#ccc;font-size:13px;cursor:pointer;">⚙️ 配置参数</button>
+    </div>
+</div>
+<div style="font-size:11px;color:#666;">也可以点「⚙️ 配置参数」自定义参数后执行，或继续对话</div>`;
+
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'message ai';
+            aiMsg.innerHTML = cardHtml;
+            container.appendChild(aiMsg);
+            container.scrollTop = container.scrollHeight;
+
+            messages.push({ role: 'assistant', content: `[检测到技能意图: ${skill.name}]` });
+            return true;
+        }
+
+        // 🧠 LLM智能参数填充：从用户描述中提取结构化参数
+        async function _smartFillParams(skill, userText) {
+            try {
+                const paramDefs = (skill.parameters || []).filter(p => p.type !== 'image');
+                if (paramDefs.length === 0) return null;
+
+                let paramDesc = '';
+                for (const p of paramDefs) {
+                    let desc = `- ${p.key} (${p.label}): `;
+                    if (p.options && p.options.length > 0) {
+                        desc += '可选值: ' + p.options.map(o => `${o.value}`).join(', ') + ` [默认: ${p.default || p.options[0].value}]`;
+                    } else if (p.type === 'number') {
+                        desc += `数字, 范围${p.min || 1}-${p.max || 100}, 默认${p.default || ''}`;
+                    } else {
+                        desc += `文本`;
+                    }
+                    paramDesc += desc + '\n';
+                }
+
+                const prompt = `/no_think
+用户想执行"${skill.name}"技能。用户原话："${userText}"
+
+技能参数：
+${paramDesc}
+请根据用户意图智能填充参数值，输出一行JSON。规则：
+- 文本/textarea参数：提取用户描述的核心主题（不要照搬"生成XX"这类指令词）
+- style风格：广告/商业/产品→realistic，动漫→anime，古风→chinese，纪录片→documentary，等等
+- videoModel视频模型：智能选择策略如下
+  语音/对话/旁白/解说→veo_3_1-4K(8s,有声), 电影/大片/高质量/广告片→veo_3_1-4K(8s)
+  音乐/音效/配乐→wan26-720p-5s-audio(5s有声), 长片音乐→wan26-720p-15s-audio(15s有声)
+  短视频/快节奏→grok-video-3(6s), 一般内容→grok-video-3-10s(10s), 长叙事→grok-video-3-15s(15s)
+- count/episodes数量：用户要求的总时长 ÷ 每段时长 = 分段数（向上取整）
+  例：用户要30秒，选6s模型→episodes=5，选10s模型→episodes=3，选15s模型→episodes=2
+- duration时长：与videoModel的每段时长一致（5/6/8/10/15）
+- 如果用户意图是连贯叙事（广告/VCR/故事/剧情），episodes必须足够覆盖用户要求的总时长
+- 严格只输出一行JSON，key与参数key完全一致`;
+
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'chat',
+                        messages: [{ role: 'user', content: prompt }],
+                        model: 'gemini-3-flash-preview',
+                        max_tokens: 300,
+                        userId: currentUser ? currentUser.id : undefined
+                    })
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                let raw = (data.content || data.text || '').trim()
+                    .replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                const jsonMatch = raw.match(/\{[^{}]*\}/);
+                if (!jsonMatch) { console.warn('[智能填参] 未提取到JSON:', raw.substring(0, 200)); return null; }
+                const extracted = JSON.parse(jsonMatch[0]);
+                console.log('[智能填参] ✅ 提取参数:', extracted);
+                return extracted;
+            } catch (e) {
+                console.warn('[智能填参] 失败:', e.message);
+                return null;
+            }
+        }
+
+        // 从对话中直接执行技能：自动填参 + 直接执行 + 进度动画
+        window._executeSkillFromChat = async function (skillId) {
+            if (typeof SkillManager === 'undefined') { showToast('技能系统未加载'); return; }
+            const skill = SkillManager.getById(skillId);
+            if (!skill) { showToast('技能不存在'); return; }
+
+            // 获取用户最近一条消息作为输入
+            const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+            const userText = lastUserMsg ? lastUserMsg.content : '';
+
+            // 检查是否需要上传图片（必须走配置弹窗）
+            const requiredImageParams = (skill.parameters || []).filter(p => p.type === 'image' && p.required);
+            if (requiredImageParams.length > 0) {
+                showToast('此技能需要上传图片，请点击「配置参数」');
+                openSkillConfig(skillId);
+                return;
+            }
+
+            // 🧠 智能参数填充：先用LLM从用户描述中提取参数，失败则降级为默认值
+            const params = {};
+            let mainParamFilled = false;
+            const smartParams = await _smartFillParams(skill, userText);
+            for (const p of skill.parameters || []) {
+                if (smartParams && smartParams[p.key] !== undefined && smartParams[p.key] !== '') {
+                    // LLM提取的参数优先
+                    params[p.key] = smartParams[p.key];
+                    if (p.type === 'text' || p.type === 'textarea') mainParamFilled = true;
+                } else if (!mainParamFilled && (p.type === 'text' || p.type === 'textarea') && userText) {
+                    params[p.key] = userText;
+                    mainParamFilled = true;
+                } else {
+                    params[p.key] = p.default || '';
+                }
+            }
+            console.log('[技能执行] 最终参数:', JSON.stringify(params).substring(0, 500));
+
+            // 💰 计费检查
+            let filmCost = 0;
+            if (skill.estimateCost) {
+                try { filmCost = Math.ceil((skill.estimateCost(params)).film || 0); } catch (e) { filmCost = 1; }
+            }
+            if (!currentUser) { showToast('请先登录'); return; }
+            if (filmCost > 0 && userQuota < filmCost) { showToast(`胶片不足，需要${filmCost}胶片`); return; }
+
+            // 显示进度弹窗
+            const progressModal = document.getElementById('skillProgressModal');
+            const progressBar = document.getElementById('skillProgressBar');
+            const progressText = document.getElementById('skillProgressText');
+            const progressSteps = document.getElementById('skillProgressSteps');
+            const progressIcon = document.getElementById('skillProgressIcon');
+            progressModal.classList.add('show');
+            progressBar.style.width = '0%';
+            progressText.textContent = filmCost > 0 ? `预估消耗 ${filmCost} 胶片，准备中...` : '准备中...';
+            progressSteps.innerHTML = '';
+            progressIcon.textContent = skill.icon || '🚀';
+            initSkillParticles();
+            initSkillSparkles();
+            setSkillAnimPhase('preparing');
+            const _pctEl = document.getElementById('spProgressPct');
+            if (_pctEl) _pctEl.textContent = '0%';
+            let _animExec = false;
+
+            const generatedMedia = [];
+
+            // 防息屏保活
+            if (typeof WakeLockUtil !== 'undefined') WakeLockUtil.acquire();
+
+            try {
+                await SkillManager.execute(skillId, params, {
+                    onProgress: (step, progress, message) => {
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = message || `正在执行: ${step}`;
+                        if (_pctEl) _pctEl.textContent = Math.round(progress) + '%';
+                        if (!_animExec) { setSkillAnimPhase('executing'); _animExec = true; }
+                    },
+                    onStepComplete: (stepName, result) => {
+                        const stepEl = document.createElement('div');
+                        stepEl.className = 'sp-step-item';
+                        stepEl.innerHTML = `<span class="sp-step-check">✅</span><span class="sp-step-name">${stepName}</span>`;
+                        progressSteps.appendChild(stepEl);
+                        if (result) {
+                            const imgUrl = result.imageUrl || null;
+                            const vidUrl = result.videoUrl || null;
+                            const rawUrl = (result.url && typeof result.url === 'string' && result.url.startsWith('http')) ? result.url : null;
+                            if (imgUrl) generatedMedia.push({ type: 'image', url: imgUrl, step: stepName });
+                            else if (rawUrl && !rawUrl.match(/\.(mp4|webm|mov)($|\?)/i)) generatedMedia.push({ type: 'image', url: rawUrl, step: stepName });
+                            if (vidUrl) generatedMedia.push({ type: 'video', url: vidUrl, step: stepName });
+                            else if (rawUrl && rawUrl.match(/\.(mp4|webm|mov)($|\?)/i)) generatedMedia.push({ type: 'video', url: rawUrl, step: stepName });
+                            if (result.script) generatedMedia.push({ type: 'text', content: result.script, step: stepName });
+                        }
+                    },
+                    onComplete: (result) => {
+                        progressText.textContent = '🎉 执行完成！';
+                        progressBar.style.width = '100%';
+                        if (_pctEl) _pctEl.textContent = '100%';
+                        setSkillAnimPhase('complete');
+                        setTimeout(() => {
+                            progressModal.classList.remove('show');
+                            displaySkillResults(skill.name, result, generatedMedia, skillId);
+                            showToast(`✅ ${skill.name}执行完成！`);
+                        }, 2200);
+                    },
+                    onError: (error) => {
+                        progressText.textContent = `❌ 失败: ${error.message}`;
+                        setSkillAnimPhase('error');
+                        addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
+                    }
+                });
+                if (typeof loadUserQuota === 'function') loadUserQuota();
+            } catch (error) {
+                console.error('[chat] 技能直接执行失败:', error);
+                progressModal.classList.remove('show');
+                addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
+            } finally {
+                if (typeof WakeLockUtil !== 'undefined') WakeLockUtil.release();
+            }
+        };
+
+        async function sendMessage() {
+            const input = document.getElementById('inputBox');
+            const text = input.value.trim();
+            if (!text || isGenerating) return;
+
+            // 🧠 LLM智能意图分析：用AI判断用户是否想执行创作技能
+            // 不预先添加DOM，只在后台静默分析，匹配时再展示
+            if (!isStoryboardMode && typeof SkillManager !== 'undefined') {
+                isGenerating = true;
+                document.getElementById('sendBtn').disabled = true;
+                // 🔧 不在分析期间清空input，避免内容消失体验差；分析完成后再清空
+                const _origPlaceholder = input.placeholder;
+                input.placeholder = '🧠 分析中...';
+
+                try {
+                    const matched = await _analyzeIntent(text);
+                    if (matched) {
+                        input.value = '';
+                        input.placeholder = _origPlaceholder;
+                        isGenerating = false;
+                        document.getElementById('sendBtn').disabled = false;
+                        // 展示用户消息
+                        const welcomeEl0 = document.getElementById('welcome');
+                        if (welcomeEl0) welcomeEl0.style.display = 'none';
+                        addMessage(text, 'user');
+                        messages.push({ role: 'user', content: text });
+
+                        // 📖 长篇小说意图 → 展示小说配置卡片
+                        if (matched.type === 'novel') {
+                            _showNovelCardInChat(matched.theme, matched.genre, matched.reason);
+                            return;
+                        }
+
+                        // 🧩 技能意图 → 展示技能推荐卡片
+                        const skill = matched.skill;
+                        const reason = matched.reason || '';
+                        const costInfo = skill.estimateCost ? (() => { try { return skill.estimateCost({}); } catch (e) { return { film: '?', time: '' }; } })() : { film: '?', time: '' };
+                        const reasonHtml = reason ? `<div style="font-size:12px;color:#a78bfa;margin-bottom:8px;">💡 ${reason}</div>` : '';
+                        const cardHtml = `<div style="margin-bottom:8px;">🧠 我理解你想要 <b>${skill.icon} ${skill.name}</b></div>
+${reasonHtml}
+<div style="background:#1a1a2a;border:1px solid rgba(139,92,246,0.3);border-radius:12px;padding:14px;margin:8px 0;">
+    <div style="font-size:14px;font-weight:600;color:#a78bfa;margin-bottom:6px;">${skill.icon} ${skill.name}</div>
+    <div style="font-size:12px;color:#888;margin-bottom:10px;">${skill.description}</div>
+    <div style="font-size:11px;color:#fbbf24;margin-bottom:10px;">预估: 🎞️ ${costInfo.film || '?'} 胶片${costInfo.time ? ' · ⏱️ ' + costInfo.time : ''}</div>
+    <div style="display:flex;gap:8px;">
+        <button onclick="_executeSkillFromChat('${skill.id}')" style="flex:2;padding:10px;background:linear-gradient(135deg,#fbbf24,#f97316);border:none;border-radius:8px;color:#000;font-weight:700;font-size:13px;cursor:pointer;">⚡ 立即执行</button>
+        <button onclick="openSkillConfig('${skill.id}')" style="flex:1;padding:10px;background:#333;border:none;border-radius:8px;color:#ccc;font-size:13px;cursor:pointer;">⚙️ 配置参数</button>
+    </div>
+</div>
+<div style="font-size:11px;color:#666;">也可以继续对话，我同时能帮你解答问题</div>`;
+                        const aiMsg = document.createElement('div');
+                        aiMsg.className = 'message ai';
+                        aiMsg.innerHTML = cardHtml;
+                        document.getElementById('chatContainer').appendChild(aiMsg);
+                        document.getElementById('chatContainer').scrollTop = document.getElementById('chatContainer').scrollHeight;
+                        messages.push({ role: 'assistant', content: `[推荐技能: ${skill.name}] ${reason}` });
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('[意图分析] 异常，降级到普通对话:', e);
+                }
+                // 未匹配或异常 → 恢复placeholder，继续正常对话流程（input.value未清空，保持原内容）
+                input.placeholder = _origPlaceholder;
+                isGenerating = false;
+                document.getElementById('sendBtn').disabled = false;
+            }
+
+            // 🧠 智能模型路由（每次都根据内容重新选择）
+            let routing;
+
+            // 🎬 分镜模式：强制使用视觉指导模型
+            if (isStoryboardMode) {
+                routing = { model: 'gemini-3.1-pro-preview', type: 'storyboard', icon: '🎬', cost: 2 };
+                console.log(`🎬 分镜模式: ${routing.model}`);
+            } else {
+                // 每次都根据内容智能选择模型
+                routing = selectModelByIntent(text);
+                console.log(`🧠 智能路由: ${routing.icon} ${routing.type} → ${routing.model}`);
+            }
+
+            // ✅ 检查余额是否足够（最低1胶片）
+            if (userQuota < MIN_CHAT_COST) {
+                showToast('余额不足，请先充值');
+                return;
+            }
+
+            // 隐藏欢迎
+            const welcomeEl = document.getElementById('welcome');
+            if (welcomeEl) welcomeEl.style.display = 'none';
+
+            // 添加用户消息（含附件预览）
+            let userDisplayText = text;
+            if (uploadedFiles.length > 0) {
+                const fileNames = uploadedFiles.map(f => `📎${f.name}`).join(' ');
+                userDisplayText = `${fileNames}\n${text}`;
+            }
+            addMessage(userDisplayText, 'user');
+            messages.push({ role: 'user', content: text });
+            input.value = '';
+
+            // 保存当前上传的文件（发送后清空）
+            const currentFiles = [...uploadedFiles];
+            uploadedFiles = [];
+            updateUploadPreview();
+
+            // 显示typing + 模型提示
+            const container = document.getElementById('chatContainer');
+            const typingEl = document.createElement('div');
+            typingEl.className = 'message ai';
+            const typeNames = { storyboard: '分镜设计', visual: '视觉指导', writing: '创意写作', thinking: '深度思考', analysis: '智能分析', search: '联网搜索', code: '代码助手', chat: '智能对话', ocr: '文字识别' };
+            const modelName = MODEL_NAMES[routing.model] || routing.model;
+            typingEl.innerHTML = `<div class="typing"><span></span><span></span><span></span></div><div style="font-size:11px;color:#888;margin-top:4px;">${routing.icon} ${typeNames[routing.type] || '对话'} · ${modelName}</div>`;
+            container.appendChild(typingEl);
+            container.scrollTop = container.scrollHeight;
+
+            isGenerating = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                // 📝 构建带上下文记忆的消息列表（最近6轮对话）
+                const contextMessages = messages.slice(-6).map(m => ({
+                    role: m.role === 'user' ? 'user' : 'assistant',
+                    content: m.content
+                }));
+
+                // 🎬 分镜/视觉指导模式：添加系统提示词
+                let systemPrompt = '';
+                let finalPrompt = text;
+                if (routing.type === 'storyboard' || routing.type === 'visual') {
+                    systemPrompt = HOLLYWOOD_VISUAL_DIRECTOR_PROMPT;
+                    // 分镜模式完成后重置
+                    if (isStoryboardMode) {
+                        isStoryboardMode = false;
+                        document.getElementById('inputBox').placeholder = '输入消息...';
+                    }
+                }
+
+                // 🎭 角色专家注入：将角色 system prompt 追加到系统提示词
+                const activeRole = typeof RoleExpert !== 'undefined' ? RoleExpert.getActive() : null;
+                if (activeRole && !systemPrompt) {
+                    systemPrompt = activeRole.systemPrompt;
+                    // 角色可能建议更好的模型
+                    if (activeRole.modelHint && !isStoryboardMode) {
+                        routing.model = activeRole.modelHint;
+                        console.log(`🎭 角色模型建议: ${activeRole.modelHint}`);
+                    }
+                } else if (activeRole && systemPrompt) {
+                    // 分镜模式 + 角色专家叠加
+                    systemPrompt = activeRole.systemPrompt + '\n\n' + systemPrompt;
+                }
+
+                // 🧠 注入用户长期记忆
+                if (typeof getUserMemoryPrompt === 'function') {
+                    const memPrompt = getUserMemoryPrompt();
+                    if (memPrompt) {
+                        systemPrompt = systemPrompt ? (memPrompt + '\n' + systemPrompt) : memPrompt;
+                    }
+                }
+
+                // 🧠 记录模型使用偏好
+                if (typeof UserMemory !== 'undefined') {
+                    UserMemory.recordModel('text', routing.model);
+                }
+
+                // 📎 构建最终消息（支持多模态）
+                let finalMessage;
+                if (currentFiles.length > 0) {
+                    // 有文件时，构建多模态消息
+                    const contentParts = [];
+
+                    // 添加文件内容
+                    for (const file of currentFiles) {
+                        if (file.type === 'image') {
+                            contentParts.push({
+                                type: 'image_url',
+                                image_url: { url: file.data }
+                            });
+                        } else if (file.type === 'file') {
+                            // 文本文件尝试解析内容
+                            if (file.data.startsWith('data:text/') || file.data.startsWith('data:application/json')) {
+                                try {
+                                    const base64Content = file.data.split(',')[1];
+                                    const textContent = atob(base64Content);
+                                    contentParts.push({
+                                        type: 'text',
+                                        text: `[文件: ${file.name}]\n${textContent}`
+                                    });
+                                } catch (e) {
+                                    contentParts.push({
+                                        type: 'text',
+                                        text: `[文件: ${file.name}] (无法解析)`
+                                    });
+                                }
+                            } else {
+                                // 其他文件类型作为附件信息
+                                contentParts.push({
+                                    type: 'text',
+                                    text: `[附件: ${file.name}, 大小: ${(file.size / 1024).toFixed(1)}KB]`
+                                });
+                            }
+                        } else if (file.type === 'video') {
+                            // 视频文件作为附件信息（大部分AI不支持视频）
+                            contentParts.push({
+                                type: 'text',
+                                text: `[视频附件: ${file.name}, 大小: ${(file.size / 1024 / 1024).toFixed(1)}MB]`
+                            });
+                        }
+                    }
+
+                    // 添加文本内容
+                    if (finalPrompt) {
+                        contentParts.push({ type: 'text', text: finalPrompt });
+                    }
+
+                    finalMessage = { role: 'user', content: contentParts };
+
+                    // 有图片时切换到视觉模型（OCR模式保持不变）
+                    const hasImages = currentFiles.some(f => f.type === 'image');
+                    if (hasImages && routing.type !== 'ocr' && !routing.model.includes('vision') && !routing.model.includes('gemini') && !routing.model.includes('gpt-4') && !routing.model.includes('deepseek-ocr')) {
+                        routing.model = 'gemini-2.0-flash';  // 切换到支持视觉的模型
+                        console.log('🖼️ 检测到图片，切换到视觉模型:', routing.model);
+                    }
+                } else {
+                    // 无文件时，普通文本消息
+                    finalMessage = { role: 'user', content: finalPrompt };
+                }
+
+                // 🔍 OCR模式 + 有图片：走 vision action（专属 OCR 通道）
+                let response;
+                const hasUploadedImages = currentFiles.some(f => f.type === 'image');
+                if (routing.type === 'ocr' && hasUploadedImages) {
+                    const imageFile = currentFiles.find(f => f.type === 'image');
+                    response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'vision',
+                            model: 'deepseek-ocr',
+                            prompt: finalPrompt || '请识别并输出图片中的所有文字内容，保持原始格式。',
+                            image_url: imageFile.data,
+                            userId: currentUser.id
+                        })
+                    });
+                } else {
+                    response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'chat',
+                            messages: contextMessages.concat([finalMessage]),
+                            system: systemPrompt,
+                            model: routing.model,
+                            userId: currentUser.id,
+                            enableSearch: routing.enableSearch || false
+                        })
+                    });
+                }
+
+                // 检查响应状态
+                if (!response.ok) {
+                    const errText = await response.text().catch(() => '');
+                    throw new Error(`服务器错误 (${response.status}): ${errText.substring(0, 100) || '请稍后重试'}`);
+                }
+
+                const data = await response.json();
+                typingEl.remove();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                const aiText = data.content || data.text || data.response || '抱歉，我没有理解你的问题。';
+                let actualCost = data.billed || 0;  // 后端返回的实际扣费
+                const usage = data.usage || {};
+
+                // 🎭 角色专家附加费（后端已扣基础费，前端扣角色附加费）
+                let roleSurcharge = 0;
+                if (activeRole && actualCost > 0 && currentUser) {
+                    roleSurcharge = activeRole.filmSurcharge || 1;
+                    try {
+                        const surRes = await fetch('/api/supabase-proxy', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'consume', userId: currentUser.id,
+                                amount: roleSurcharge,
+                                description: `角色专家:${activeRole.name}`
+                            })
+                        });
+                        const surData = await surRes.json().catch(() => ({}));
+                        if (surData.success) {
+                            actualCost += roleSurcharge;
+                            console.log(`🎭 角色附加费: -${roleSurcharge}胶片 (${activeRole.name})`);
+                        }
+                    } catch (e) { console.warn('角色附加费失败:', e); }
+                }
+
+                // 添加模型标识（显示实际消耗）
+                const usedModel = data.model || routing.model;
+                const displayModelName = MODEL_NAMES[usedModel] || usedModel;
+                const tokenInfo = usage.totalTokens ? ` · ${usage.totalTokens}tk` : '';
+                const roleBadge = activeRole ? ` · ${activeRole.icon}${activeRole.name}` : '';
+                const modelBadge = `<div style="font-size:10px;color:#666;margin-bottom:4px;">${routing.icon} ${displayModelName}${tokenInfo}${roleBadge} · -${actualCost}胶片</div>`;
+                addMessageWithBadge(aiText, 'ai', modelBadge);
+                messages.push({ role: 'assistant', content: aiText });
+
+                // 更新余额显示（用后端返回的实际扣费 + 角色附加费）
+                if (actualCost > 0) {
+                    userQuota = Math.max(0, userQuota - actualCost);
+                    updateQuotaDisplay();
+                }
+                // 同步后端余额
+                loadUserQuota();
+
+            } catch (error) {
+                typingEl.remove();
+                addMessage('出错了：' + error.message, 'ai');
+                // ✅ 后端成功才扣费，失败不扣费，无需退款
+            } finally {
+                isGenerating = false;
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+
+        // 添加带标识的消息
+        function addMessageWithBadge(text, type, badge) {
+            const container = document.getElementById('chatContainer');
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            // AI消息添加复制按钮
+            const copyBtn = type === 'ai' ? `<button class="copy-btn" onclick="copyMessageText(this, '${encodeURIComponent(text)}')">📋 复制</button>` : '';
+            msg.innerHTML = copyBtn + badge + formatMessage(text);
+            // 保存原始文本用于复制
+            msg.dataset.rawText = text;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addMessage(text, type) {
+            const container = document.getElementById('chatContainer');
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            // AI消息添加复制按钮
+            const copyBtn = type === 'ai' ? `<button class="copy-btn" onclick="copyMessageText(this)">📋 复制</button>` : '';
+            msg.innerHTML = copyBtn + formatMessage(text);
+            // 保存原始文本用于复制
+            msg.dataset.rawText = text;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 复制消息文本
+        function copyMessageText(btn) {
+            const msg = btn.closest('.message');
+            const text = msg.dataset.rawText || msg.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = '✅ 已复制';
+                setTimeout(() => { btn.textContent = '📋 复制'; }, 1500);
+            }).catch(() => {
+                // 备用方法
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                btn.textContent = '✅ 已复制';
+                setTimeout(() => { btn.textContent = '📋 复制'; }, 1500);
+            });
+        }
+
+        function formatMessage(text) {
+            // 简单的代码块处理
+            return text
+                .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code style="background:#333;padding:2px 6px;border-radius:4px;">$1</code>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // 自动调整输入框高度
+        document.getElementById('inputBox').addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // ==================== 文件上传功能 ====================
+        let uploadedFiles = [];  // 已上传的文件
+
+        function toggleUploadMenu() {
+            const menu = document.getElementById('uploadMenu');
+            menu.classList.toggle('show');
+        }
+
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('uploadMenu');
+            const btn = document.getElementById('uploadBtn');
+            if (menu && !menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        });
+
+        function triggerUpload(type) {
+            document.getElementById('uploadMenu').classList.remove('show');
+            if (type === 'image') {
+                document.getElementById('imageInput').click();
+            } else if (type === 'video') {
+                document.getElementById('videoInput').click();
+            } else if (type === 'file') {
+                document.getElementById('fileInput').click();
+            }
+        }
+
+        async function handleFileSelect(event, type) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            const previewContainer = document.getElementById('uploadPreview');
+
+            for (const file of files) {
+                // 检查文件大小
+                const maxSize = type === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    showToast(`文件过大，最大${maxSize / 1024 / 1024}MB`);
+                    continue;
+                }
+
+                // 读取文件为base64
+                const base64 = await fileToBase64(file);
+
+                const fileObj = {
+                    type: type,
+                    name: file.name,
+                    size: file.size,
+                    data: base64
+                };
+                uploadedFiles.push(fileObj);
+
+                // 显示预览
+                const preview = document.createElement('div');
+                preview.className = 'preview-item';
+                preview.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#333;padding:4px 8px;border-radius:6px;margin:4px;font-size:12px;';
+
+                if (type === 'image') {
+                    preview.innerHTML = `<img src="${base64}" style="width:24px;height:24px;object-fit:cover;border-radius:4px;"><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                } else if (type === 'video') {
+                    preview.innerHTML = `<span>🎬</span><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                } else {
+                    preview.innerHTML = `<span>📄</span><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                }
+
+                previewContainer.appendChild(preview);
+            }
+
+            // 清空 input
+            event.target.value = '';
+        }
+
+        function removeUploadedFile(index) {
+            uploadedFiles.splice(index, 1);
+            updateUploadPreview();
+        }
+
+        function updateUploadPreview() {
+            const previewContainer = document.getElementById('uploadPreview');
+            previewContainer.innerHTML = '';
+
+            uploadedFiles.forEach((file, index) => {
+                const preview = document.createElement('div');
+                preview.className = 'preview-item';
+                preview.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#333;padding:4px 8px;border-radius:6px;margin:4px;font-size:12px;';
+
+                if (file.type === 'image') {
+                    preview.innerHTML = `<img src="${file.data}" style="width:24px;height:24px;object-fit:cover;border-radius:4px;"><span>${file.name.substring(0, 15)}</span><button onclick="removeUploadedFile(${index})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                } else {
+                    const icon = file.type === 'video' ? '🎬' : '📄';
+                    preview.innerHTML = `<span>${icon}</span><span>${file.name.substring(0, 15)}</span><button onclick="removeUploadedFile(${index})" style="background:none;border:none;color:#f00;cursor:pointer;">×</button>`;
+                }
+
+                previewContainer.appendChild(preview);
+            });
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ==================== 页面状态持久化 ====================
+        function saveChatState() {
+            try {
+                const state = {
+                    messages,
+                    inputValue: document.getElementById('inputBox')?.value || '',
+                    welcomeHidden: document.getElementById('welcome')?.style.display === 'none',
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_chat_state', JSON.stringify(state));
+                console.log('[chat] 状态已保存');
+            } catch (e) { console.warn('[chat] 保存状态失败:', e); }
+        }
+
+        function restoreChatState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_chat_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_chat_state');
+                    return;
+                }
+                console.log('[chat] 恢复状态...');
+
+                // 恢复输入框
+                if (state.inputValue) document.getElementById('inputBox').value = state.inputValue;
+
+                // 恢复对话历史
+                if (state.messages && state.messages.length > 0) {
+                    messages = state.messages;
+                    const welcomeEl = document.getElementById('welcome');
+                    if (welcomeEl) welcomeEl.style.display = 'none';
+                    const container = document.getElementById('chatContainer');
+                    // 保留welcome元素，只清除消息
+                    const existingMsgs = container.querySelectorAll('.message');
+                    existingMsgs.forEach(m => m.remove());
+                    messages.forEach(msg => {
+                        addMessage(msg.content, msg.role === 'user' ? 'user' : 'ai');
+                    });
+                }
+
+                console.log('[chat] 状态恢复完成');
+            } catch (e) { console.warn('[chat] 恢复状态失败:', e); }
+        }
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden) saveChatState(); });
+        window.addEventListener('beforeunload', saveChatState);
+        window.addEventListener('pagehide', saveChatState);
+        window.addEventListener('load', () => setTimeout(restoreChatState, 200));
+
+        // ==================== 🧩 技能系统 ====================
+        let currentSkillCategory = 'all';
+        let selectedSkillId = null;
+        // 🖼️ 多图存储：{ paramKey: [base64_1, base64_2, ...] }
+        const skillImageStore = {};
+
+        // 打开技能选择弹窗
+        function openSkillDrawer() {
+            document.getElementById('skillDrawer').classList.add('show');
+            renderSkillList();
+        }
+
+        // 关闭技能选择弹窗
+        function closeSkillDrawer() {
+            document.getElementById('skillDrawer').classList.remove('show');
+        }
+
+        // 渲染技能列表
+        function renderSkillList(searchKeyword = '') {
+            const container = document.getElementById('skillList');
+            if (typeof SkillManager === 'undefined') {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">🧩 技能系统加载中...</div>';
+                return;
+            }
+
+            let skills = [];
+            if (searchKeyword) {
+                skills = SkillManager.search(searchKeyword);
+            } else if (currentSkillCategory === 'all') {
+                skills = SkillManager.getAll();
+            } else {
+                skills = SkillManager.getByCategory(currentSkillCategory);
+            }
+
+            if (skills.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">🔍 未找到匹配的技能</div>';
+                return;
+            }
+
+            const categoryLabels = {
+                video: '🎬 视频',
+                image: '🎨 图像',
+                design: '🎯 设计',
+                content: '📝 内容',
+                tool: '🔍 工具',
+                automation: '🤖 自动化',
+                custom: '🔧 自定义'
+            };
+
+            container.innerHTML = skills.map(skill => {
+                const isCustom = skill.isCustom;
+                const actionsHtml = isCustom ? `
+                    <div class="skill-card-actions">
+                        <button onclick="event.stopPropagation(); editCustomSkill('${skill.id}')">✏️ 编辑</button>
+                        <button onclick="event.stopPropagation(); exportCustomSkill('${skill.id}')">📤 导出</button>
+                        <button onclick="event.stopPropagation(); deleteCustomSkill('${skill.id}')" style="color:#f87171;border-color:#5a2020;">🗑️ 删除</button>
+                    </div>` : '';
+                return `
+                <div class="skill-card" onclick="openSkillConfig('${skill.id}')">
+                    <div class="skill-card-header">
+                        <span class="skill-card-icon">${skill.icon}</span>
+                        <span class="skill-card-category">${categoryLabels[skill.category] || skill.category}</span>
+                    </div>
+                    <div class="skill-card-title">${skill.name}</div>
+                    <div class="skill-card-desc">${skill.description}</div>
+                    ${actionsHtml}
+                </div>`;
+            }).join('');
+        }
+
+        // 筛选技能
+        function filterSkills(category) {
+            currentSkillCategory = category;
+            document.querySelectorAll('.skill-filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === category);
+            });
+            document.getElementById('skillSearch').value = '';
+            renderSkillList();
+        }
+
+        // 搜索技能
+        function searchSkills(keyword) {
+            renderSkillList(keyword);
+        }
+
+        // 打开技能配置弹窗
+        function openSkillConfig(skillId) {
+            if (typeof SkillManager === 'undefined') return;
+            const skill = SkillManager.getById(skillId);
+            if (!skill) return;
+
+            selectedSkillId = skillId;
+            closeSkillDrawer();
+
+            document.getElementById('skillConfigTitle').textContent = `${skill.icon} ${skill.name}`;
+            document.getElementById('skillConfigDesc').textContent = skill.description;
+
+            // 渲染参数表单
+            const formContainer = document.getElementById('skillConfigForm');
+            if (!skill.parameters || skill.parameters.length === 0) {
+                formContainer.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">此技能无需额外配置参数</div>';
+            } else {
+                formContainer.innerHTML = skill.parameters.map(param => {
+                    let inputHtml = '';
+                    switch (param.type) {
+                        case 'textarea':
+                            inputHtml = `<textarea id="skill_param_${param.key}" class="skill-param-input" placeholder="${param.placeholder || ''}" style="min-height:80px; resize:vertical;">${param.default || ''}</textarea>`;
+                            break;
+                        case 'number':
+                            inputHtml = `<input type="number" id="skill_param_${param.key}" class="skill-param-input" value="${param.default || ''}" min="${param.min ?? ''}" max="${param.max ?? ''}">`;
+                            break;
+                        case 'select':
+                            const options = (param.options || []).map(opt => `<option value="${opt.value}" ${opt.value === param.default ? 'selected' : ''}>${opt.label}</option>`).join('');
+                            inputHtml = `<select id="skill_param_${param.key}" class="skill-param-input">${options}</select>`;
+                            break;
+                        case 'checkbox':
+                            inputHtml = `<label style="display:flex; align-items:center; gap:10px; cursor:pointer;"><input type="checkbox" id="skill_param_${param.key}" ${param.default ? 'checked' : ''} style="width:20px; height:20px; accent-color:var(--accent);"><span style="color:#ccc;">${param.checkboxLabel || '启用'}</span></label>`;
+                            break;
+                        case 'image':
+                            skillImageStore[param.key] = [];
+                            inputHtml = `<div style="position:relative;">
+                                <input type="file" id="skill_param_${param.key}" accept="image/*" multiple
+                                    style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1;"
+                                    onchange="handleSkillImageUpload('${param.key}', this)">
+                                <label for="skill_param_${param.key}" id="skill_img_wrap_${param.key}"
+                                    style="display:block;border:2px dashed #444;border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:#888;">
+                                    <div style="font-size:24px;margin-bottom:4px;">📷</div>
+                                    <div class="skill-img-text" style="font-size:13px;">点击上传图片（可多选）</div>
+                                    <div id="skill_img_previews_${param.key}" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
+                                </label>
+                            </div>`;
+                            break;
+                        default:
+                            inputHtml = `<input type="text" id="skill_param_${param.key}" class="skill-param-input" placeholder="${param.placeholder || ''}" value="${param.default || ''}">`;
+                    }
+                    return `
+                        <div>
+                            <label class="skill-param-label">${param.label}${param.required ? '<span style="color:#ef4444; margin-left:2px;">*</span>' : ''}</label>
+                            ${inputHtml}
+                            ${param.hint ? `<div class="skill-param-hint">${param.hint}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 💰 显示成本预估
+            updateSkillCostEstimate(skill);
+
+            document.getElementById('skillConfigModal').classList.add('show');
+        }
+
+        // 更新技能成本预估
+        function updateSkillCostEstimate(skill) {
+            const estimateEl = document.getElementById('skillCostEstimate');
+            const executeBtn = document.getElementById('skillExecuteBtn');
+            if (!estimateEl) return;
+
+            if (skill && skill.estimateCost) {
+                try {
+                    const params = collectSkillParams();
+                    const cost = skill.estimateCost(params);
+                    const film = Math.ceil(cost.film || 0);
+                    estimateEl.innerHTML = `<span>🎞️ 预估: ${film} 胶片</span><span>⏱️ ${cost.time || '未知'}</span>`;
+                    if (executeBtn) executeBtn.textContent = film > 0 ? `🚀 执行 (${film} 胶片)` : '🚀 开始执行';
+                } catch (e) {
+                    estimateEl.innerHTML = '<span>成本取决于参数配置</span>';
+                }
+            } else {
+                estimateEl.innerHTML = '<span>成本取决于实际生成内容</span>';
+                if (executeBtn) executeBtn.textContent = '🚀 开始执行';
+            }
+        }
+
+        // 关闭技能配置弹窗
+        function closeSkillConfig() {
+            document.getElementById('skillConfigModal').classList.remove('show');
+            selectedSkillId = null;
+            // 清空多图存储
+            Object.keys(skillImageStore).forEach(k => { skillImageStore[k] = []; });
+        }
+
+        // 🖼️ 多图上传处理（参考手机版 previewI2VImages 实现）
+        function handleSkillImageUpload(paramKey, input) {
+            if (!input.files || input.files.length === 0) return;
+            const files = Array.from(input.files);
+            if (!skillImageStore[paramKey]) skillImageStore[paramKey] = [];
+
+            const processPromises = files.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            Promise.all(processPromises).then(results => {
+                results.filter(Boolean).forEach(data => skillImageStore[paramKey].push(data));
+                renderSkillImagePreviews(paramKey);
+            });
+            input.value = '';
+        }
+
+        function removeSkillImage(paramKey, index) {
+            if (!skillImageStore[paramKey]) return;
+            skillImageStore[paramKey].splice(index, 1);
+            renderSkillImagePreviews(paramKey);
+            event.stopPropagation();
+        }
+
+        function clearSkillImages(paramKey) {
+            skillImageStore[paramKey] = [];
+            renderSkillImagePreviews(paramKey);
+            event.stopPropagation();
+        }
+
+        function renderSkillImagePreviews(paramKey) {
+            const container = document.getElementById(`skill_img_previews_${paramKey}`);
+            const wrap = document.getElementById(`skill_img_wrap_${paramKey}`);
+            const textEl = wrap?.querySelector('.skill-img-text');
+            const images = skillImageStore[paramKey] || [];
+
+            if (images.length === 0) {
+                container.style.display = 'none';
+                if (textEl) textEl.textContent = '点击上传图片（可多选）';
+                if (wrap) { wrap.style.borderColor = '#444'; wrap.style.background = 'transparent'; }
+                return;
+            }
+
+            container.style.display = 'flex';
+            if (textEl) textEl.textContent = `已选择 ${images.length} 张图片（点击可继续添加）`;
+            if (wrap) { wrap.style.borderColor = 'var(--accent)'; wrap.style.background = 'rgba(251,191,36,0.05)'; }
+
+            container.innerHTML = images.map((data, idx) => `
+                <div style="position:relative;display:inline-block;">
+                    <img src="${data}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #333;">
+                    <button onclick="removeSkillImage('${paramKey}',${idx})" 
+                        style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:#f87171;border:none;border-radius:50%;color:#fff;font-size:12px;cursor:pointer;line-height:1;">×</button>
+                </div>
+            `).join('') + (images.length > 1 ? `<button onclick="clearSkillImages('${paramKey}')" style="background:none;border:1px dashed #666;border-radius:6px;color:#888;font-size:11px;padding:4px 8px;cursor:pointer;align-self:center;">清空</button>` : '');
+        }
+
+        // 收集表单参数
+        function collectSkillParams() {
+            if (!selectedSkillId || typeof SkillManager === 'undefined') return {};
+            const skill = SkillManager.getById(selectedSkillId);
+            if (!skill) return {};
+
+            const params = {};
+            for (const param of skill.parameters || []) {
+                const el = document.getElementById(`skill_param_${param.key}`);
+                if (!el) continue;
+                switch (param.type) {
+                    case 'checkbox':
+                        params[param.key] = el.checked;
+                        break;
+                    case 'number':
+                        params[param.key] = el.value ? Number(el.value) : param.default;
+                        break;
+                    case 'file':
+                    case 'image':
+                        // 🖼️ 多图模式：优先从 skillImageStore 读取 base64 数组
+                        if (skillImageStore[param.key] && skillImageStore[param.key].length > 0) {
+                            params[param.key] = skillImageStore[param.key];
+                        } else if (el.files && el.files.length > 0) {
+                            params[param.key] = el.files;
+                        } else {
+                            params[param.key] = null;
+                        }
+                        break;
+                    default:
+                        params[param.key] = el.value || param.default;
+                }
+            }
+            return params;
+        }
+
+        // 执行选中的技能
+        async function executeSelectedSkill() {
+            if (!selectedSkillId || typeof SkillManager === 'undefined') return;
+
+            // 🔧 先保存 skillId，因为 closeSkillConfig 会清空它
+            const skillIdToExecute = selectedSkillId;
+            const params = collectSkillParams();
+            const skill = SkillManager.getById(skillIdToExecute);
+
+            // 🔒 校验必填参数
+            for (const p of skill?.parameters || []) {
+                if (!p.required) continue;
+                const v = params[p.key];
+                if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
+                    showToast(`请填写：${p.label}`);
+                    return;
+                }
+            }
+
+            // 💰 计费检查
+            let filmCost = 0;
+            if (skill && skill.estimateCost) {
+                try {
+                    const cost = skill.estimateCost(params);
+                    filmCost = Math.ceil(cost.film || 0);
+                } catch (e) { filmCost = 1; }
+            }
+
+            if (filmCost > 0) {
+                // 检查登录状态
+                if (!currentUser) {
+                    showToast('请先登录后再使用技能');
+                    return;
+                }
+                // 检查余额
+                if (userQuota < filmCost) {
+                    showToast(`胶片不足，需要${filmCost}胶片，当前${userQuota}`);
+                    return;
+                }
+            }
+
+            // 关闭配置弹窗（会清空 selectedSkillId）
+            document.getElementById('skillConfigModal').classList.remove('show');
+
+            // 显示进度弹窗
+            const progressModal = document.getElementById('skillProgressModal');
+            const progressBar = document.getElementById('skillProgressBar');
+            const progressText = document.getElementById('skillProgressText');
+            const progressSteps = document.getElementById('skillProgressSteps');
+            const progressIcon = document.getElementById('skillProgressIcon');
+
+            progressModal.classList.add('show');
+            progressBar.style.width = '0%';
+            progressText.textContent = filmCost > 0 ? `预估消耗 ${filmCost} 胶片，准备中...` : '准备中...';
+            progressSteps.innerHTML = '';
+            progressIcon.textContent = skill?.icon || '🚀';
+            // 🎨 初始化精美动画
+            initSkillParticles();
+            initSkillSparkles();
+            setSkillAnimPhase('preparing');
+            const _pctEl = document.getElementById('spProgressPct');
+            if (_pctEl) _pctEl.textContent = '0%';
+            let _animExecuting = false;
+
+            // 添加到对话中
+            const welcomeEl = document.getElementById('welcome');
+            if (welcomeEl) welcomeEl.style.display = 'none';
+            addMessage(`🧩 执行技能: ${skill?.name || selectedSkillId}`, 'user');
+
+            // 🎯 收集所有生成的媒体内容
+            const generatedMedia = [];
+
+            // 💰 包裹执行函数（带计费）
+            const skillApiCall = () => SkillManager.execute(skillIdToExecute, params, {
+                onProgress: (step, progress, message) => {
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = message || `正在执行: ${step}`;
+                    if (_pctEl) _pctEl.textContent = Math.round(progress) + '%';
+                    if (!_animExecuting) { setSkillAnimPhase('executing'); _animExecuting = true; }
+                },
+                onStepComplete: (stepName, result) => {
+                    const stepEl = document.createElement('div');
+                    stepEl.className = 'sp-step-item';
+                    stepEl.innerHTML = `<span class="sp-step-check">✅</span><span class="sp-step-name">${stepName}</span>`;
+                    progressSteps.appendChild(stepEl);
+
+                    // 🎯 收集生成的媒体内容
+                    if (result) {
+                        console.log(`[onStepComplete] ${stepName}:`, JSON.stringify(result).substring(0, 200));
+                        // 检查各种可能的URL格式
+                        const imgUrl = result.imageUrl || null;
+                        const vidUrl = result.videoUrl || null;
+                        // result.url 可能是图片或视频（来自character_design_pack等，可能是 http 或 data:base64）
+                        const rawUrl = (result.url && typeof result.url === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(result.url) : result.url.startsWith('http'))) ? result.url : null;
+
+                        if (imgUrl) {
+                            generatedMedia.push({ type: 'image', url: imgUrl, step: stepName });
+                        } else if (rawUrl && !rawUrl.match(/\.(mp4|webm|mov)($|\?)/i)) {
+                            generatedMedia.push({ type: 'image', url: rawUrl, step: stepName });
+                        }
+
+                        if (vidUrl) {
+                            generatedMedia.push({ type: 'video', url: vidUrl, step: stepName });
+                        } else if (rawUrl && rawUrl.match(/\.(mp4|webm|mov)($|\?)/i)) {
+                            generatedMedia.push({ type: 'video', url: rawUrl, step: stepName });
+                        }
+
+                        if (result.script) generatedMedia.push({ type: 'text', content: result.script, step: stepName });
+                    }
+                },
+                onComplete: (result) => {
+                    progressText.textContent = '🎉 执行完成！';
+                    progressBar.style.width = '100%';
+                    if (_pctEl) _pctEl.textContent = '100%';
+                    setSkillAnimPhase('complete');
+                    setTimeout(() => {
+                        progressModal.classList.remove('show');
+
+                        // 🎯 展示生成结果
+                        displaySkillResults(skill?.name || skillIdToExecute, result, generatedMedia, skillIdToExecute);
+
+                        showToast(`✅ ${skill?.name || '技能'}执行完成！`);
+                    }, 2200);
+                },
+                onError: (error) => {
+                    progressText.textContent = `❌ 执行失败: ${error.message}`;
+                    setSkillAnimPhase('error');
+                    const stepEl = document.createElement('div');
+                    stepEl.className = 'sp-step-item error';
+                    stepEl.innerHTML = `<span class="sp-step-check">❌</span><span class="sp-step-name">${error.message}</span>`;
+                    progressSteps.appendChild(stepEl);
+                    addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
+                }
+            });
+
+            try {
+                // 💰 后端 API 已经按次扣费，前端不再重复扣费
+                // 只做余额检查（已在上面完成），直接执行技能
+                await skillApiCall();
+                // 执行完后同步后端余额
+                if (typeof loadUserQuota === 'function') loadUserQuota();
+            } catch (error) {
+                console.error('[chat] Skill执行失败:', error);
+                progressModal.classList.remove('show');
+                addMessage(`❌ 技能执行失败: ${error.message}`, 'ai');
+            }
+        }
+
+        // 取消技能执行
+        function cancelSkillExecution() {
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.cancel();
+            }
+            setSkillAnimPhase('error');
+            document.getElementById('skillProgressText').textContent = '🛑 已取消';
+            setTimeout(() => {
+                document.getElementById('skillProgressModal').classList.remove('show');
+            }, 800);
+            addMessage('🛑 技能执行已取消', 'ai');
+        }
+
+        // 隐藏进度弹窗（后台运行）
+        function hideSkillProgress() {
+            document.getElementById('skillProgressModal').classList.remove('show');
+            showToast('技能在后台运行中...');
+        }
+
+        // ==================== 🎨 技能执行动画系统 ====================
+        function initSkillParticles() {
+            const c = document.getElementById('spParticles');
+            if (!c) return;
+            c.innerHTML = '';
+            for (let i = 0; i < 22; i++) {
+                const p = document.createElement('div');
+                p.className = 'sp-particle';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDelay = Math.random() * 5 + 's';
+                p.style.animationDuration = (4 + Math.random() * 5) + 's';
+                const sz = 2 + Math.random() * 4;
+                p.style.width = sz + 'px';
+                p.style.height = sz + 'px';
+                c.appendChild(p);
+            }
+        }
+
+        function initSkillSparkles() {
+            const c = document.getElementById('spSparkles');
+            if (!c) return;
+            c.innerHTML = '';
+            const positions = [
+                { top: '5%', left: '8%' }, { top: '12%', right: '3%' },
+                { bottom: '18%', left: '3%' }, { bottom: '8%', right: '12%' },
+                { top: '42%', left: '-8%' }, { top: '28%', right: '-10%' }
+            ];
+            const chars = ['✦', '✨', '⭐', '✦', '✧', '✦'];
+            positions.forEach((pos, i) => {
+                const s = document.createElement('span');
+                s.className = 'sp-sparkle';
+                s.textContent = chars[i];
+                Object.assign(s.style, pos);
+                s.style.animationDelay = (i * 0.35) + 's';
+                s.style.fontSize = (10 + Math.random() * 8) + 'px';
+                s.style.color = i % 2 === 0 ? 'var(--accent)' : '#f97316';
+                c.appendChild(s);
+            });
+        }
+
+        function setSkillAnimPhase(phase) {
+            const modal = document.getElementById('skillProgressModal');
+            const phaseEl = document.getElementById('spPhase');
+            if (!modal) return;
+            modal.dataset.phase = phase;
+            if (!phaseEl) return;
+            switch (phase) {
+                case 'preparing': phaseEl.textContent = '🚀 准备启动'; break;
+                case 'executing': phaseEl.textContent = '⚡ 正在执行'; break;
+                case 'complete': phaseEl.textContent = '🎉 任务完成'; createConfetti(); break;
+                case 'error': phaseEl.textContent = '😢 执行出错'; break;
+            }
+        }
+
+        function createConfetti() {
+            const c = document.getElementById('spConfetti');
+            if (!c) return;
+            c.innerHTML = '';
+            const colors = ['#fbbf24', '#f97316', '#ef4444', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#14b8a6'];
+            for (let i = 0; i < 55; i++) {
+                const p = document.createElement('div');
+                p.className = 'sp-confetti-piece';
+                p.style.left = (30 + Math.random() * 40) + '%';
+                p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.animationDelay = Math.random() * 0.6 + 's';
+                p.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+                const w = 4 + Math.random() * 7;
+                p.style.width = w + 'px';
+                p.style.height = w * (0.3 + Math.random() * 0.7) + 'px';
+                p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                // 随机方向偏移
+                const xOff = (Math.random() - 0.5) * 200;
+                p.style.setProperty('--x-drift', xOff + 'px');
+                c.appendChild(p);
+            }
+            setTimeout(() => { if (c) c.innerHTML = ''; }, 4000);
+        }
+
+        // ==================== 🔧 自定义技能 CRUD ====================
+        let editingSkillId = null; // 编辑中的技能 ID
+
+        function openCreateSkillModal(existingSkillId) {
+            editingSkillId = existingSkillId || null;
+            const modal = document.getElementById('createSkillModal');
+
+            // 重置表单
+            document.getElementById('csName').value = '';
+            document.getElementById('csDescription').value = '';
+            document.getElementById('csPromptTemplate').value = '';
+            document.getElementById('csTemplateType').value = 'text';
+            document.getElementById('csParamsList').innerHTML = '';
+            document.querySelectorAll('.cs-icon-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelector('.cs-icon-btn[data-icon="🔧"]')?.classList.add('selected');
+
+            // 如果是编辑模式，填充现有数据
+            if (existingSkillId && typeof SkillManager !== 'undefined') {
+                const skill = SkillManager.getById(existingSkillId);
+                if (skill) {
+                    document.getElementById('csName').value = skill.name || '';
+                    document.getElementById('csDescription').value = skill.description || '';
+                    document.getElementById('csPromptTemplate').value = skill.promptTemplate || '';
+                    document.getElementById('csTemplateType').value = skill.templateType || 'text';
+                    // 选中图标
+                    document.querySelectorAll('.cs-icon-btn').forEach(b => {
+                        b.classList.toggle('selected', b.dataset.icon === skill.icon);
+                    });
+                    // 填充参数
+                    (skill.parameters || []).forEach(p => addCustomParam(p));
+                }
+            }
+
+            closeSkillDrawer();
+            modal.classList.add('show');
+        }
+
+        function closeCreateSkillModal() {
+            document.getElementById('createSkillModal').classList.remove('show');
+            editingSkillId = null;
+        }
+
+        function selectSkillIcon(el) {
+            document.querySelectorAll('.cs-icon-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function addCustomParam(existing) {
+            const list = document.getElementById('csParamsList');
+            const row = document.createElement('div');
+            row.className = 'cs-param-row';
+            row.innerHTML = `
+                <input type="text" placeholder="变量名 (key)" class="cs-p-key" value="${existing?.key || ''}">
+                <input type="text" placeholder="显示名称" class="cs-p-label" value="${existing?.label || ''}">
+                <select class="cs-p-type">
+                    <option value="text" ${(existing?.type || 'text') === 'text' ? 'selected' : ''}>文本</option>
+                    <option value="textarea" ${existing?.type === 'textarea' ? 'selected' : ''}>多行</option>
+                    <option value="number" ${existing?.type === 'number' ? 'selected' : ''}>数字</option>
+                    <option value="select" ${existing?.type === 'select' ? 'selected' : ''}>选择</option>
+                </select>
+                <input type="text" placeholder="默认值" class="cs-p-default" value="${existing?.default || ''}" style="max-width:80px;">
+                <button class="cs-param-del" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            list.appendChild(row);
+        }
+
+        function saveNewCustomSkill() {
+            const name = document.getElementById('csName').value.trim();
+            const promptTemplate = document.getElementById('csPromptTemplate').value.trim();
+            if (!name) { showToast('请输入技能名称'); return; }
+            if (!promptTemplate) { showToast('请输入提示词模板'); return; }
+
+            const icon = document.querySelector('.cs-icon-btn.selected')?.dataset.icon || '🔧';
+            const templateType = document.getElementById('csTemplateType').value;
+            const description = document.getElementById('csDescription').value.trim() || `自定义${templateType === 'text' ? '文本' : templateType === 'image' ? '图片' : '视频'}技能`;
+
+            // 收集参数
+            const parameters = [];
+            document.querySelectorAll('.cs-param-row').forEach(row => {
+                const key = row.querySelector('.cs-p-key')?.value.trim();
+                const label = row.querySelector('.cs-p-label')?.value.trim();
+                const type = row.querySelector('.cs-p-type')?.value || 'text';
+                const def = row.querySelector('.cs-p-default')?.value || '';
+                if (key && label) {
+                    parameters.push({ key, label, type, required: true, default: def, placeholder: `请输入${label}` });
+                }
+            });
+
+            const skillDef = {
+                id: editingSkillId || undefined,
+                name, icon, description,
+                category: 'custom',
+                templateType, promptTemplate, parameters
+            };
+
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.saveCustomSkill(skillDef);
+                showToast(`✅ 技能「${name}」已保存`);
+                closeCreateSkillModal();
+                // 刷新列表
+                openSkillDrawer();
+                filterSkills('custom');
+            }
+        }
+
+        function editCustomSkill(skillId) {
+            openCreateSkillModal(skillId);
+        }
+
+        function deleteCustomSkill(skillId) {
+            if (!confirm('确定删除这个自定义技能？')) return;
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.deleteCustomSkill(skillId);
+                showToast('已删除');
+                renderSkillList();
+            }
+        }
+
+        function exportCustomSkill(skillId) {
+            if (typeof SkillManager === 'undefined') return;
+            const data = SkillManager.exportSkill(skillId);
+            if (!data) { showToast('导出失败'); return; }
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `skill_${data.skill.name || 'custom'}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('已导出');
+        }
+
+        function toggleSkillHelp() {
+            const panel = document.getElementById('csHelpPanel');
+            panel.classList.toggle('show');
+        }
+
+        function importSkillJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    const text = await file.text();
+                    const json = JSON.parse(text);
+                    if (typeof SkillManager !== 'undefined') {
+                        const skill = SkillManager.importSkill(json);
+                        showToast(`✅ 已导入技能「${skill.name}」`);
+                        closeCreateSkillModal();
+                        openSkillDrawer();
+                        filterSkills('custom');
+                    }
+                } catch (err) {
+                    showToast('导入失败: ' + err.message);
+                }
+            };
+            input.click();
+        }
+
+        // 🎯 展示技能执行结果
+        function displaySkillResults(skillName, result, generatedMedia, skillId) {
+            console.log('[displaySkillResults] result:', JSON.stringify(result, null, 2));
+            console.log('[displaySkillResults] generatedMedia:', generatedMedia);
+
+            // 构建结果消息
+            let messageContent = `✅ 技能「${skillName}」执行完成\n\n`;
+
+            // 💾 统计保存数量
+            let savedImages = 0;
+            let savedVideos = 0;
+            let savedCharacters = 0;
+
+            // 🔧 合并所有媒体到一个统一数组（用于最终展示）
+            const allMedia = [...(generatedMedia || [])];
+
+            // 检查 result 中是否有 videos 数组（批量生成结果）
+            if (result && result.videos && Array.isArray(result.videos)) {
+                const successCount = result.videos.filter(v => v.status === 'success').length;
+                messageContent += `🎉 成功生成 ${successCount}/${result.videos.length} 个视频\n\n`;
+
+                result.videos.forEach((v, idx) => {
+                    if (v.status === 'success' && v.videoUrl && typeof saveVideoToLibrary === 'function') {
+                        saveVideoToLibrary(v.videoUrl, `${skillName} - 视频${idx + 1}`, 'skill');
+                        savedVideos++;
+                        if (!allMedia.some(m => m.url === v.videoUrl)) {
+                            allMedia.push({ type: 'video', url: v.videoUrl, step: `视频${idx + 1}` });
+                        }
+                    }
+                    if (v.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(v.imageUrl, `${skillName} - 封面${idx + 1}`, 'skill');
+                        savedImages++;
+                    }
+                });
+            }
+
+            // 检查 result 中是否有 characterName（角色设定包结果）
+            if (result && result.characterName && result.assets) {
+                const assets = result.assets;
+                const posterUrl = assets.poster || assets.turnaround;
+
+                // 只在有实际图片URL时才保存角色（支持 http 和 data:base64）
+                if (posterUrl && typeof posterUrl === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(posterUrl) : posterUrl.startsWith('http'))) {
+                    if (typeof saveCharacterToLibrary === 'function') {
+                        saveCharacterToLibrary(
+                            result.characterName,
+                            '',
+                            posterUrl,
+                            null,
+                            typeof assets.turnaround === 'string' ? assets.turnaround : null
+                        );
+                        savedCharacters++;
+                    }
+                } else {
+                    console.warn('[displaySkillResults] 角色图片URL无效, 跳过保存角色:', posterUrl);
+                }
+
+                // 保存所有角色图片到素材库，同时加入展示数组
+                Object.entries(result.assets).forEach(([key, url]) => {
+                    if (url && typeof url === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(url) : url.startsWith('http'))) {
+                        if (typeof saveImageToLibrary === 'function') {
+                            saveImageToLibrary(url, `${result.characterName} - ${key}`, 'character');
+                            savedImages++;
+                        }
+                        if (!allMedia.some(m => m.url === url)) {
+                            allMedia.push({ type: 'image', url: url, step: `${result.characterName} - ${key}` });
+                        }
+                    }
+                });
+            }
+
+            // 检查 result 中是否有 images 数组（风格统一出图结果）
+            if (result && result.images && Array.isArray(result.images)) {
+                result.images.forEach((img, idx) => {
+                    if (img.status === 'success' && img.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(img.imageUrl, `${skillName} - ${img.subject || '图片' + (idx + 1)}`, 'skill');
+                        savedImages++;
+                        if (!allMedia.some(m => m.url === img.imageUrl)) {
+                            allMedia.push({ type: 'image', url: img.imageUrl, step: img.subject || `图片${idx + 1}` });
+                        }
+                    }
+                });
+            }
+
+            // 检查 result 中是否有 pages 数组（漫画分镜结果）
+            if (result && result.pages && Array.isArray(result.pages)) {
+                result.pages.forEach((page, idx) => {
+                    if (page.status === 'success' && page.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(page.imageUrl, `${skillName} - 第${page.page}页`, 'comic');
+                        savedImages++;
+                        if (!allMedia.some(m => m.url === page.imageUrl)) {
+                            allMedia.push({ type: 'image', url: page.imageUrl, step: `第${page.page}页` });
+                        }
+                    }
+                });
+            }
+
+            // 📺 连续剧情结果（episodes）
+            if (result && result.episodes && Array.isArray(result.episodes)) {
+                result.episodes.forEach((ep, idx) => {
+                    if (ep.status === 'success') {
+                        if (ep.videoUrl && typeof saveVideoToLibrary === 'function') {
+                            saveVideoToLibrary(ep.videoUrl, `${skillName} - 第${ep.episode}集`, 'skill', ep.imageUrl);
+                            savedVideos++;
+                            if (!allMedia.some(m => m.url === ep.videoUrl)) {
+                                allMedia.push({ type: 'video', url: ep.videoUrl, step: `第${ep.episode}集` });
+                            }
+                        }
+                        if (ep.imageUrl && typeof saveImageToLibrary === 'function') {
+                            saveImageToLibrary(ep.imageUrl, `${skillName} - 第${ep.episode}集封面`, 'skill');
+                            savedImages++;
+                            if (!ep.videoUrl && !allMedia.some(m => m.url === ep.imageUrl)) {
+                                allMedia.push({ type: 'image', url: ep.imageUrl, step: `第${ep.episode}集` });
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 🎨 scenes 结果（全流程自动化分镜图）
+            if (result && result.scenes && Array.isArray(result.scenes)) {
+                result.scenes.forEach((scene, idx) => {
+                    if (scene.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(scene.imageUrl, `${skillName} - 分镜${scene.index || idx + 1}`, 'skill');
+                        savedImages++;
+                        if (!allMedia.some(m => m.url === scene.imageUrl)) {
+                            allMedia.push({ type: 'image', url: scene.imageUrl, step: `分镜${scene.index || idx + 1}` });
+                        }
+                    }
+                    if (scene.videoUrl && typeof saveVideoToLibrary === 'function') {
+                        saveVideoToLibrary(scene.videoUrl, `${skillName} - 分镜${scene.index || idx + 1}视频`, 'skill');
+                        savedVideos++;
+                        if (!allMedia.some(m => m.url === scene.videoUrl)) {
+                            allMedia.push({ type: 'video', url: scene.videoUrl, step: `分镜${scene.index || idx + 1}` });
+                        }
+                    }
+                });
+            }
+
+            // 📖 comics 结果（全流程自动化漫画页）
+            if (result && result.comics && Array.isArray(result.comics)) {
+                result.comics.forEach((comic, idx) => {
+                    if (comic.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(comic.imageUrl, `${skillName} - 漫画第${comic.page || idx + 1}页`, 'comic');
+                        savedImages++;
+                        if (!allMedia.some(m => m.url === comic.imageUrl)) {
+                            allMedia.push({ type: 'image', url: comic.imageUrl, step: `漫画第${comic.page || idx + 1}页` });
+                        }
+                    }
+                });
+            }
+
+            // 👤 charSheet 角色设定图
+            if (result && result.charSheet && typeof result.charSheet === 'string') {
+                const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && u.startsWith('http'));
+                if (_isValid(result.charSheet)) {
+                    if (typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(result.charSheet, `${skillName} - 角色设定表`, 'character');
+                        savedImages++;
+                    }
+                    if (!allMedia.some(m => m.url === result.charSheet)) {
+                        allMedia.push({ type: 'image', url: result.charSheet, step: '角色设定表' });
+                    }
+                }
+            }
+
+            // 💾 从 generatedMedia 中保存（作为补充，跳过已通过 result 保存过的）
+            const _savedUrls = new Set();
+            if (result && result.images) result.images.forEach(img => { if (img.imageUrl) _savedUrls.add(img.imageUrl); });
+            if (result && result.videos) result.videos.forEach(v => { if (v.videoUrl) _savedUrls.add(v.videoUrl); if (v.imageUrl) _savedUrls.add(v.imageUrl); });
+            if (result && result.pages) result.pages.forEach(p => { if (p.imageUrl) _savedUrls.add(p.imageUrl); });
+            if (result && result.assets) Object.values(result.assets).forEach(u => { if (u) _savedUrls.add(u); });
+            if (result && result.episodes) result.episodes.forEach(ep => { if (ep.videoUrl) _savedUrls.add(ep.videoUrl); if (ep.imageUrl) _savedUrls.add(ep.imageUrl); });
+            if (result && result.scenes) result.scenes.forEach(s => { if (s.imageUrl) _savedUrls.add(s.imageUrl); if (s.videoUrl) _savedUrls.add(s.videoUrl); });
+            if (result && result.comics) result.comics.forEach(c => { if (c.imageUrl) _savedUrls.add(c.imageUrl); });
+            if (result && result.charSheet) _savedUrls.add(result.charSheet);
+
+            if (generatedMedia && generatedMedia.length > 0) {
+                generatedMedia.forEach((m, idx) => {
+                    if (_savedUrls.has(m.url)) return; // 已通过 result 保存，跳过
+                    if (m.type === 'image' && m.url && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(m.url, m.step || `${skillName} - 图片${idx + 1}`, 'skill');
+                        savedImages++;
+                    }
+                    if (m.type === 'video' && m.url && typeof saveVideoToLibrary === 'function') {
+                        saveVideoToLibrary(m.url, m.step || `${skillName} - 视频${idx + 1}`, 'skill');
+                        savedVideos++;
+                    }
+                });
+            }
+
+            // 展示所有媒体内容统计
+            const allImages = allMedia.filter(m => m.type === 'image' && m.url);
+            const allVideos = allMedia.filter(m => m.type === 'video' && m.url);
+
+            if (allImages.length > 0 || allVideos.length > 0) {
+                messageContent += `🎨 生成内容：\n`;
+                if (allImages.length > 0) messageContent += `• ${allImages.length} 张图片\n`;
+                if (allVideos.length > 0) messageContent += `• ${allVideos.length} 个视频\n`;
+            }
+
+            // 💾 显示保存结果
+            if (savedImages > 0 || savedVideos > 0 || savedCharacters > 0) {
+                messageContent += `\n💾 已保存到本地：\n`;
+                if (savedCharacters > 0) messageContent += `• ${savedCharacters} 个角色 → 角色库\n`;
+                if (savedImages > 0) messageContent += `• ${savedImages} 张图片 → 素材库\n`;
+                if (savedVideos > 0) messageContent += `• ${savedVideos} 个视频 → 素材库\n`;
+            }
+
+            // 📝 处理文本类结果（文案、分镜脚本等）
+            let hasTextContent = false;
+            if (result && result.copywritings && Array.isArray(result.copywritings) && result.copywritings.length > 0) {
+                hasTextContent = true;
+                messageContent += `📝 生成 ${result.copywritings.length} 条文案\n`;
+            }
+            if (result && result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+                hasTextContent = true;
+                messageContent += `✂️ 拆分为 ${result.segments.length} 个片段\n`;
+            }
+            if (result && result.outline && typeof result.outline === 'string') {
+                hasTextContent = true;
+            }
+            // 新增：ocrText, result(string), copyText, strategy, script
+            if (result && result.ocrText) { hasTextContent = true; messageContent += `🔍 OCR识别完成\n`; }
+            if (result && typeof result.result === 'string') { hasTextContent = true; messageContent += `📝 脚本处理完成\n`; }
+            if (result && result.copyText) { hasTextContent = true; messageContent += `📝 文案生成完成\n`; }
+            if (result && result.strategy) { hasTextContent = true; messageContent += `📊 策略方案生成完成\n`; }
+            if (result && result.script && typeof result.script === 'string') { hasTextContent = true; messageContent += `📝 剧本生成完成\n`; }
+            // generatedMedia 中的文本
+            const textItems = (generatedMedia || []).filter(m => m.type === 'text' && m.content);
+            if (textItems.length > 0) hasTextContent = true;
+
+            // 🧊 3D模型文件统计
+            const model3dFiles = (result && result.model3dFiles) ? result.model3dFiles : [];
+            if (model3dFiles.length > 0) {
+                messageContent += `🧊 生成 ${model3dFiles.length} 个3D模型文件\n`;
+            }
+
+            // 无任何结果时提示
+            if (allImages.length === 0 && allVideos.length === 0 && savedCharacters === 0 && !hasTextContent && model3dFiles.length === 0) {
+                messageContent += `⚠️ 未生成有效内容，可能API调用失败，请检查网络或重试\n`;
+            }
+
+            // 📊 添加存储验证信息（帮助诊断问题）
+            try {
+                const charsCount = JSON.parse(localStorage.getItem('library_chars') || '[]').length;
+                const scenesCount = JSON.parse(localStorage.getItem('library_scenes') || '[]').length;
+                const pcCharsCount = JSON.parse(localStorage.getItem('character_library') || '[]').length;
+                messageContent += `\n📊 当前库存：角色库 ${charsCount} 条 | 素材库 ${scenesCount} 条 | PC角色库 ${pcCharsCount} 条`;
+
+                // 如果result有assets但都不是有效URL，额外提示
+                if (result && result.assets) {
+                    const assetKeys = Object.keys(result.assets);
+                    const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && typeof u === 'string' && u.startsWith('http'));
+                    const validUrls = Object.values(result.assets).filter(v => _isValid(v)).length;
+                    messageContent += `\n📎 result.assets: ${assetKeys.length}项, 有效URL: ${validUrls}个`;
+                }
+                if (generatedMedia) {
+                    messageContent += ` | generatedMedia: ${generatedMedia.length}项`;
+                }
+            } catch (e) { }
+
+            // 添加文本消息
+            addMessage(messageContent, 'ai');
+
+            // 📝 展示文案内容（热点文案等文本类技能）
+            if (result && result.copywritings && Array.isArray(result.copywritings) && result.copywritings.length > 0) {
+                const textMsg = result.copywritings.map((c, i) => `${i + 1}. ${c}`).join('\n');
+                addMessage(textMsg, 'ai');
+            }
+            // 展示脚本拆分结果
+            if (result && result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+                const segMsg = result.segments.map((s, i) => `片段${i + 1}: ${typeof s === 'string' ? s : (s.description || s.content || JSON.stringify(s)).substring(0, 200)}`).join('\n\n');
+                addMessage(segMsg, 'ai');
+            }
+            // 🧊 展示3D模型文件下载链接
+            if (model3dFiles.length > 0) {
+                const d3Div = document.createElement('div');
+                d3Div.className = 'message ai';
+                d3Div.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+                d3Div.innerHTML = `<div style="font-size:13px;color:#a78bfa;font-weight:600;margin-bottom:4px;">🧊 3D模型下载（共 ${model3dFiles.length} 个）</div>` +
+                    model3dFiles.map((f, i) => {
+                        const label = f.type ? f.type.toUpperCase() : `文件${i + 1}`;
+                        const fname = `hunyuan3d_${result.jobId || Date.now()}_${label.toLowerCase()}.${(f.type || 'glb').toLowerCase()}`;
+                        return `<div style="background:#1a1a2e;border:1px solid rgba(99,102,241,0.3);border-radius:10px;padding:12px;">
+                            ${f.previewUrl ? `<img src="${f.previewUrl}" style="width:100%;max-height:160px;object-fit:contain;border-radius:6px;margin-bottom:8px;">` : ''}
+                            <div style="font-size:11px;color:#888;margin-bottom:8px;">${label} 格式</div>
+                            <a href="${f.url}" download="${fname}" target="_blank" style="display:block;padding:10px;background:rgba(99,102,241,0.3);border:1px solid rgba(99,102,241,0.5);border-radius:8px;color:#fff;text-align:center;text-decoration:none;font-size:13px;">⬇️ 下载 ${label} 模型</a>
+                            <a href="${f.url}" target="_blank" style="display:block;margin-top:6px;padding:6px;background:#222;border-radius:6px;color:#aaa;text-align:center;text-decoration:none;font-size:11px;">🔗 打开链接</a>
+                        </div>`;
+                    }).join('');
+                const chatContainer = document.getElementById('chatContainer') || document.querySelector('.chat-messages');
+                if (chatContainer) chatContainer.appendChild(d3Div);
+            }
+
+            // 展示 OCR / 脚本 / 文案 / 策略 / 剧本 等文本结果
+            if (result && result.ocrText) addMessage(`🔍 OCR识别结果：\n${result.ocrText}`, 'ai');
+            if (result && typeof result.result === 'string') addMessage(`📝 处理结果：\n${result.result}`, 'ai');
+            if (result && result.copyText) addMessage(`📝 文案内容：\n${result.copyText}`, 'ai');
+            if (result && result.strategy) addMessage(`📊 策略方案：\n${result.strategy}`, 'ai');
+            if (result && result.script && typeof result.script === 'string') addMessage(`📝 剧本：\n${result.script}`, 'ai');
+
+            // 🎨 展示图片和视频（使用合并后的 allMedia）
+            if (allImages.length > 0 || allVideos.length > 0) {
+                const mediaContainer = document.createElement('div');
+                mediaContainer.className = 'message ai';
+                mediaContainer.style.cssText = 'display:flex; flex-direction:column; gap:12px; max-width:90%;';
+
+                // 展示图片
+                if (allImages.length > 0) {
+                    const imagesGrid = document.createElement('div');
+                    imagesGrid.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px;';
+
+                    allImages.forEach((img, idx) => {
+                        const imgWrapper = document.createElement('div');
+                        imgWrapper.style.cssText = 'position:relative; border-radius:8px; overflow:hidden;';
+
+                        const imgEl = document.createElement('img');
+                        imgEl.src = img.url;
+                        imgEl.alt = img.step || `图片 ${idx + 1}`;
+                        imgEl.style.cssText = 'width:100%; height:auto; display:block; cursor:pointer;';
+                        imgEl.onclick = () => window.open(img.url, '_blank');
+
+                        const label = document.createElement('div');
+                        label.style.cssText = 'padding:4px 8px; background:rgba(0,0,0,0.7); color:#aaa; font-size:11px; text-align:center;';
+                        label.textContent = img.step || `图片 ${idx + 1}`;
+
+                        imgWrapper.appendChild(imgEl);
+                        imgWrapper.appendChild(label);
+                        imagesGrid.appendChild(imgWrapper);
+                    });
+
+                    mediaContainer.appendChild(imagesGrid);
+                }
+
+                // 展示视频
+                if (allVideos.length > 0) {
+                    allVideos.forEach((vid, idx) => {
+                        const videoWrapper = document.createElement('div');
+                        videoWrapper.style.cssText = 'border-radiux; w:hidden; background:#000;';
+
+                        const videoEl = document.createElement('video');
+                        videoEl.src = vid.url;
+                        videoEl.controls = true;
+                        videoEl.style.cssText = 'width:100%; max-height:300px;';
+                        videoEl.setAttribute('playsinline', '');
+
+                        const label = document.createElement('div');
+                        label.style.cssText = 'padding:6px 10px; background:#1a1a1a; color:#888; font-size:12px;';
+                        label.textContent = vid.step || `视频 ${idx + 1}`;
+
+                        videoWrapper.appendChild(videoEl);
+                        videoWrapper.appendChild(label);
+                        mediaContainer.appendChild(videoWrapper);
+                    });
+                }
+
+                // 🎬 多段视频时添加合并按钮
+                if (allVideos.length >= 2 && typeof VideoMerger !== 'undefined' && VideoMerger.isSupported()) {
+                    var _mergeUrls = allVideos.map(function (v) { return v.url; });
+                    VideoMerger.createMergeButton(_mergeUrls, mediaContainer);
+                }
+
+                document.getElementById('chatContainer').appendChild(mediaContainer);
+                mediaContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+
+            // 🔄 追加"再次运行"按钮
+            const rerunBar = document.createElement('div');
+            rerunBar.className = 'message ai';
+            rerunBar.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap;';
+            rerunBar.innerHTML = `
+                <button onclick="openSkillDrawer()" style="padding:6px 14px;background:#1a2a3a;border:1px solid #2a4a6a;border-radius:8px;color:#60a5fa;font-size:12px;cursor:pointer;">🧩 选择其他技能</button>
+                <button onclick="openSkillConfig('${skillId || ''}')" id="rerunSkillBtn" style="padding:6px 14px;background:#1a3a2a;border:1px solid #2a6a4a;border-radius:8px;color:#4ade80;font-size:12px;cursor:pointer;">🔄 再次运行此技能</button>
+            `;
+            document.getElement('cainer').appendChild(rerunBar);
+            rerunBar.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    </script>
+</body>
+
+</html>

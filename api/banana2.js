@@ -15,20 +15,99 @@ const FILM_COST = {
     'qwen-image-max': 8,       // 🌟 通义万相Max（banana.html 使用）
     'Qwen/Qwen-Image-2512': 8, // 通义万相Max（魔塔模型名）
     'doubao-seedream-4-5-251128': 7,  // 星梦画师
-    'jimeng-4.5': 7            // 即梦4.5
+    'jimeng-4.5': 7,           // 即梦4.5
+    'gemini-3.1-flash-image-preview': 4,  // Gemini Flash 图片生成
+    'gemini-3.1-flash-image-preview-2k': 4,  // Gemini Flash 2K
+    'gemini-3.1-flash-image-preview-4k': 7,  // Gemini Flash 4K
+    'openrouter:bytedance-seed/seedream-4.5': 0  // OpenRouter Seedream 4.5（免费）
 };
+
+// ========== Supabase Storage 配置（大图上传，避免base64超过Vercel 4.5MB响应限制） ==========
+const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const IMAGE_BUCKET = 'generated-images';
+
+/**
+ * 📤 将base64图片上传到Supabase Storage，返回公开URL
+ * 解决4K图片base64响应超过Vercel 4.5MB限制的问题
+ */
+async function __uploadBase64ToStorage(base64Data, mimeType, userId) {
+    if (!SUPABASE_SERVICE_KEY) {
+        console.warn('[banana2] 无SUPABASE_SERVICE_KEY，跳过Storage上传');
+        return null;
+    }
+
+    try {
+        const buffer = Buffer.from(base64Data, 'base64');
+        const ext = mimeType.includes('png') ? 'png' : (mimeType.includes('webp') ? 'webp' : 'jpg');
+        const fileName = `${userId || 'anon'}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        // 尝试上传
+        const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${IMAGE_BUCKET}/${fileName}`;
+        let upRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                'Content-Type': mimeType,
+                'x-upsert': 'true'
+            },
+            body: buffer
+        });
+
+        // 如果bucket不存在(404)，尝试自动创建
+        if (!upRes.ok && upRes.status === 404) {
+            console.log(`[banana2] Bucket "${IMAGE_BUCKET}" 不存在，尝试自动创建...`);
+            const createRes = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_SERVICE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: IMAGE_BUCKET, name: IMAGE_BUCKET, public: true })
+            });
+            if (createRes.ok || createRes.status === 409) {
+                // 重试上传
+                upRes = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': mimeType,
+                        'x-upsert': 'true'
+                    },
+                    body: buffer
+                });
+            }
+        }
+
+        if (!upRes.ok) {
+            console.warn('[banana2] Storage上传失败:', upRes.status, await upRes.text().catch(() => ''));
+            return null;
+        }
+
+        // 公开bucket直接用public URL
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${IMAGE_BUCKET}/${fileName}`;
+        console.log(`[banana2] ✅ 大图已上传Storage: ${Math.round(buffer.length / 1024)}KB → ${publicUrl.substring(0, 80)}...`);
+        return publicUrl;
+    } catch (err) {
+        console.warn('[banana2] Storage上传异常:', err.message);
+        return null;
+    }
+}
 
 /**
  * 📝 保存生成记录 - 确保用户能找回已生成的内容
  */
 async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, model, cost, metadata) {
     if (!userId) return { success: false, error: 'no userId' };
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -43,13 +122,13 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
                 metadata
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
             console.warn('[banana2] 保存记录失败:', data.error || data.message);
             return { success: false, error: data.error || data.message };
         }
-        
+
         console.log(`[banana2] 📝 生成记录已保存: ${data.recordId}`);
         return { success: true, recordId: data.recordId };
     } catch (e) {
@@ -63,15 +142,15 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
  */
 async function __billing(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
-    
+
     const intAmount = Math.ceil(amount);
     const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -82,9 +161,9 @@ async function __billing(billingAction, userId, amount, description) {
                 description: description || (billingAction === 'refund' ? '退款' : '消费')
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
-        
+
         if (!res.ok || !data.success) {
             if (billingAction === 'consume') {
                 throw new Error(data.message || data.error || '扣费失败');
@@ -92,7 +171,7 @@ async function __billing(billingAction, userId, amount, description) {
             console.error(`[banana2] 退款失败:`, data);
             return { success: false, error: data.message || data.error };
         }
-        
+
         console.log(`[banana2] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
         return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
     } catch (e) {
@@ -125,6 +204,10 @@ const API_BASE_URL = ZHENZHEN_API_URL;
 const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || process.env.YUNMENG_API_KEY || '';
 const MODELSCOPE_BASE_URL = 'https://api-inference.modelscope.cn';
 
+// 🆕 OpenRouter API 配置
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
 // 🆕 云梦/云雾API配置（主力优先）- 支持多个 API Key
 // ✅ 修复：读取 YUNMENG_API_KEY 系列环境变量
 const YUNMENG_API_KEYS = (() => {
@@ -153,91 +236,184 @@ const API_KEY = '';
 
 /**
  * 🔄 带自动备用的图片生成请求
- * ☁️ 优化：并行请求多个端点，哪个先返回用哪个，大幅提速
+ * ☁️ 串行 fallback：依次尝试端点，第一个成功就返回，失败才试下一个
+ * ⚠️ 修复：原并行模式导致1次请求向云雾发N次（N=端点数），造成重复扣费和重复生成
  */
-async function fetchWithFallback(requestBody, isGemini3Native = false) {
+async function fetchWithFallback(requestBody, isGemini3Native = false, geminiModelName = '') {
     const model = String(requestBody?.model || '');
     const is4k = /4k|2k/i.test(model);
     const isJimeng = model.includes('jimeng');
-    const isSeedream = model.includes('seedream') || model.includes('doubao');
-    const timeoutMs = isGemini3Native ? 90000 : (isJimeng ? 150000 : ((is4k || isSeedream) ? 120000 : 45000));
+    const isSeedream = model.includes('seedream') || model.includes('doubao') || model.includes('openrouter:bytedance-seed/seedream');
+    // 🔧 统一超时设置：与生图页面(banana.html)保持一致
+    // Gemini模型90秒，其他模型根据类型调整
+    const baseTimeoutMs = isGemini3Native ? 90000 : (isJimeng ? 90000 : (isSeedream ? 120000 : 90000));
 
+    // 🔧 全局时间守卫：防止总时间超过 Cloudflare 100s 代理超时
+    // 4K大图需要额外时间上传Supabase Storage，所以留30秒给后处理
+    const GLOBAL_DEADLINE_MS = 70000;  // 70秒硬上限，留30秒给Storage上传+计费+响应
+    const startTime = Date.now();
+
+    // 根据实际模型名构建正确的 API 路径
+    const geminiModel = geminiModelName || 'gemini-3-pro-image-preview';
     const apiPath = isGemini3Native
-        ? '/v1beta/models/gemini-3-pro-image-preview:generateContent'
+        ? `/v1beta/models/${geminiModel}:generateContent`
         : '/v1/images/generations';
-    console.log(`[banana2] 🔧 模型 ${model || 'gemini-3'} 使用端点: ${apiPath}, 超时: ${timeoutMs}ms`);
+    console.log(`[banana2] 🔧 模型 ${model || 'gemini-3'} 使用端点: ${apiPath}, 单端点超时: ${baseTimeoutMs}ms`);
 
     if (YUNMENG_API_KEYS.length === 0) {
         throw new Error('未配置YUNMENG_API_KEY环境变量，无法调用图片生成API');
     }
 
-    // 🚀 并行请求所有端点，第一个成功的就返回（使用 Promise.race 加速）
     const apiKey = YUNMENG_API_KEYS[0];
-    
-    // 🆕 使用 Promise.race + Promise.all 组合：任一成功立即返回，全部失败才报错
-    return new Promise((resolve, reject) => {
-        let settled = false;  // 🔒 防止多次 resolve/reject
-        let successCount = 0;
-        let failCount = 0;
-        const totalRequests = YUNMENG_ENDPOINTS.length;
-        const errors = [];
-        
-        YUNMENG_ENDPOINTS.forEach((endpoint, idx) => {
-            const url = `${endpoint}${apiPath}`;
-            console.log(`[banana2] ☁️ 并行请求 ${idx + 1}/${totalRequests}: ${endpoint}`);
-            
-            fetchWithTimeout(url, {
+
+    // 🔧 只使用第一个（主）端点，更稳定
+    const endpoint = YUNMENG_ENDPOINTS[0];
+    if (!endpoint) {
+        throw new Error('没有可用的API端点');
+    }
+
+    const url = `${endpoint}${apiPath}`;
+    console.log(`[banana2] ☁️ 请求主端点: ${endpoint} (超时60s)`);
+
+    try {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                ...(requestBody?.__idempotencyKey ? { 'Idempotency-Key': String(requestBody.__idempotencyKey) } : {})
+            },
+            body: JSON.stringify(requestBody)
+        }, baseTimeoutMs);
+
+        if (response.ok) {
+            console.log(`[banana2] ☁️ ✅ 主端点成功 (耗时${Math.round((Date.now() - startTime) / 1000)}s)`);
+            return response;
+        }
+
+        // 4xx 客户端错误不重试（参数错误、余额不足等）
+        if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+            console.warn(`[banana2] ☁️ 主端点客户端错误 ${response.status}`);
+            throw new Error(`请求失败: ${response.status}`);
+        }
+
+        // 5xx 或 429 错误
+        console.warn(`[banana2] ☁️ 主端点返回 ${response.status}`);
+        throw new Error(`图片生成失败: ${response.status}`);
+    } catch (err) {
+        // 客户端错误直接抛出
+        if (err.message.startsWith('请求失败:')) throw err;
+
+        console.warn(`[banana2] ☁️ 主端点异常: ${err.message}`);
+        throw new Error(`图片生成超时或节点不可用: ${err.message}`);
+    }
+}
+
+/**
+ * 🆕 云雾API 万象Max 图片生成
+ * @param {string} prompt - 图片描述
+ * @param {object} options - 配置选项
+ * @returns {Promise<string>} - 图片 URL
+ */
+async function callQwenImageMaxViaYunwu(prompt, options = {}) {
+    const {
+        size = '1024x1024',
+        image_url = null
+    } = options;
+
+    // 选择第一个云梦API Key
+    const apiKey = YUNMENG_API_KEYS[0];
+    if (!apiKey) {
+        throw new Error('未配置云梦/云雾API Key');
+    }
+
+    // 🔧 云雾API官方万象模型名
+    const hasRefImage = !!image_url;
+    const modelName = hasRefImage ? 'qwen-image-edit-2509' : 'qwen-image-max';
+
+    // 调用云雾API（使用 yunwu.ai 端点）
+    const yunwuBaseUrl = 'https://yunwu.ai';
+
+    if (hasRefImage) {
+        // 图生图模式：使用 images/generations 端点
+        const imageUrl = Array.isArray(image_url) ? image_url[0] : image_url;
+        console.log(`[banana2] 🎨 云雾万象Edit (图生图)，模型: ${modelName}，参考图: ${imageUrl.substring(0, 50)}...`);
+
+        const response = await fetchWithTimeout(
+            `${yunwuBaseUrl}/v1/images/generations`,
+            {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                    ...(requestBody?.__idempotencyKey ? { 'Idempotency-Key': String(requestBody.__idempotencyKey) } : {})
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(requestBody)
-            }, timeoutMs)
-            .then(response => {
-                if (settled) return;  // 已经有结果了，忽略
-                
-                if (response.ok) {
-                    console.log(`[banana2] ☁️ ✅ ${endpoint} 成功 (第${idx + 1}个)`);
-                    settled = true;
-                    resolve(response);
-                } else {
-                    console.warn(`[banana2] ☁️ ${endpoint} 返回 ${response.status}`);
-                    errors.push({ endpoint, status: response.status });
-                    failCount++;
-                    
-                    // 🆕 所有请求都失败了，才返回错误
-                    if (failCount >= totalRequests && !settled) {
-                        settled = true;
-                        // 检查是否有429
-                        const has429 = errors.some(e => e.status === 429);
-                        if (has429) {
-                            reject(new Error('请求过于频繁，请稍后重试'));
-                        } else {
-                            const clientError = errors.find(e => e.status >= 400 && e.status < 500);
-                            if (clientError) {
-                                reject(new Error(`请求失败: ${clientError.status}`));
-                            } else {
-                                reject(new Error('云梦API节点均不可访问'));
-                            }
-                        }
-                    }
-                }
-            })
-            .catch(err => {
-                if (settled) return;
-                console.warn(`[banana2] ☁️ ${endpoint} 异常:`, err.message);
-                errors.push({ endpoint, error: err.message });
-                failCount++;
-                
-                if (failCount >= totalRequests && !settled) {
-                    settled = true;
-                    reject(new Error(`云梦API节点均不可访问: ${errors.map(e => e.error || e.status).join(', ')}`));
-                }
-            });
-        });
-    });
+                body: JSON.stringify({
+                    model: modelName,
+                    prompt,
+                    image: imageUrl
+                })
+            },
+            120000
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[banana2] 云雾万象Edit 失败: ${response.status}`, errorText);
+            throw new Error(`云雾万象图生图失败: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 提取图片URL
+        if (data?.data?.[0]?.url) {
+            return data.data[0].url;
+        }
+
+        console.error('[banana2] 云雾万象Edit 返回格式异常:', JSON.stringify(data).substring(0, 500));
+        throw new Error('云雾万象图生图未返回有效图片');
+    } else {
+        // 文生图模式：使用 images/generations 端点
+        console.log(`[banana2] 🎨 云雾万象Max (文生图)，模型: ${modelName}`);
+
+        const response = await fetchWithTimeout(
+            `${yunwuBaseUrl}/v1/images/generations`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: modelName,
+                    prompt,
+                    size: size.replace(/[*×]/g, 'x'),
+                    n: 1,
+                    watermark: false,
+                    prompt_extend: true
+                })
+            },
+            120000
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[banana2] 云雾万象Max 失败: ${response.status}`, errorText);
+            console.error(`[banana2] 请求参数: model=${modelName}, size=${size.replace(/[*×]/g, 'x')}`);
+            throw new Error(`云雾万象文生图失败: ${response.status} - ${errorText.substring(0, 200)}`);
+        }
+
+        const data = await response.json();
+
+        // 提取图片URL
+        if (data?.data?.[0]?.url) {
+            return data.data[0].url;
+        } else if (data?.url) {
+            return data.url;
+        }
+
+        console.error('[banana2] 云雾万象Max 返回格式异常:', JSON.stringify(data).substring(0, 500));
+        throw new Error('云雾万象文生图未返回有效图片');
+    }
 }
 
 /**
@@ -276,11 +452,14 @@ async function callQwenImageMax(prompt, options = {}) {
     // - 图生图/编辑：Qwen/Qwen-Image-Edit-2511
     const hasRefImage = !!image_url;
     const modelName = hasRefImage ? 'Qwen/Qwen-Image-Edit-2511' : 'Qwen/Qwen-Image-2512';
-    
+
+    // 🔧 修复：ModelScope API 要求 size 格式为 "WxH"（用x分隔），统一转换
+    const normalizedSize = size.replace(/[*×]/g, 'x');
+
     const requestBody = {
         model: modelName,
         prompt: prompt,
-        size: size  // 🔧 传递尺寸参数
+        size: normalizedSize
     };
 
     // 🎨 图生图模式：传入参考图
@@ -334,16 +513,16 @@ async function callQwenImageMax(prompt, options = {}) {
     console.log(`[banana2] 🎯 qwen-image-max 任务已提交, task_id: ${taskId}`);
 
     // 第二步：轮询任务状态（增强容错）
-    // 🔧 优化：控制在80秒内，避免Cloudflare 524超时（~100秒限制）
-    const maxAttempts = 40;  // 🔧 40次×2秒=80秒，留出缓冲
+    // 🔧 优化：控制在30秒内，失败后降级Gemini还有70秒余量（Cloudflare 524 ~100秒限制）
+    const maxAttempts = 15;  // 🔧 15次×2秒=30秒，给降级留够时间
     let consecutiveFailures = 0;
     let lastStatus = '';
-    
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        // 🔧 动态等待：前20次每2秒，之后每3秒，减少请求压力
-        const waitTime = attempt < 20 ? 2000 : 3000;
+        // 🔧 固定2秒间隔，保证总轮询时间在60秒内
+        const waitTime = 2000;
         await new Promise(resolve => setTimeout(resolve, waitTime));
-        
+
         try {
             const pollResponse = await fetchWithTimeout(
                 `${MODELSCOPE_BASE_URL}/v1/tasks/${taskId}`,
@@ -366,9 +545,9 @@ async function callQwenImageMax(prompt, options = {}) {
                 }
                 continue;
             }
-            
+
             consecutiveFailures = 0;  // 重置连续失败计数
-            
+
             const pollText = await pollResponse.text();
             let pollData;
             try {
@@ -377,7 +556,7 @@ async function callQwenImageMax(prompt, options = {}) {
                 console.warn(`[banana2] 轮询返回非 JSON: ${pollText.substring(0, 100)}`);
                 continue;
             }
-            
+
             // 🔧 只在状态变化时打印日志，减少噪音
             if (pollData.task_status !== lastStatus) {
                 console.log(`[banana2] 🔄 轮询 (${attempt + 1}/${maxAttempts}): ${pollData.task_status}`);
@@ -403,10 +582,10 @@ async function callQwenImageMax(prompt, options = {}) {
                 if (!imageUrl && pollData.result?.url) {
                     imageUrl = pollData.result.url;
                 }
-                
+
                 if (imageUrl) {
                     console.log(`[banana2] ✅ qwen-image-max 生成成功: ${imageUrl.substring(0, 80)}...`);
-                    
+
                     // 🔧 如果是 OSS URL，需要在服务端转换为 base64，避免前端 CORS 问题
                     if (imageUrl.includes('aliyuncs.com') || imageUrl.includes('oss-cn-') || imageUrl.includes('modelscope')) {
                         try {
@@ -451,7 +630,7 @@ async function callQwenImageMax(prompt, options = {}) {
         }
     }
 
-    throw new Error(`万象Max生成超时（已等待约80秒），服务器繁忙请稍后重试`);
+    throw new Error(`万象Max生成超时（已等待约60秒），服务器繁忙请稍后重试`);
 }
 
 module.exports = async function handler(req, res) {
@@ -497,6 +676,8 @@ module.exports = async function handler(req, res) {
             userId: reqUserId       // 🔐 用户ID（计费用）
         } = body || {};
 
+        console.log(`[banana2] 📥 收到请求: model=${model}, prompt=${prompt?.substring(0, 30)}...`);
+
         userId = reqUserId;  // 赋值给外层变量
         const skipBilling = body?.skip_billing === true;
 
@@ -516,31 +697,33 @@ module.exports = async function handler(req, res) {
 
         // 🆕 模型名称映射
         // ✅ modelscope 免费模型使用云梦API (Gemini-3)，不要走ModelScope
-        // ✅ qwen-image-max 才使用 ModelScope API
+        // ✅ qwen-image-max 走云雾API（付费），不是ModelScope
         let mappedModel = model;
         let useModelScopeAPI = false;  // 🆕 明确标记是否使用ModelScope API
-        
+        let useYunwuAPI = false;       // 🆕 标记是否使用云雾API
+
         if (model === 'modelscope') {
             // ✅ modelscope免费模型使用云梦Gemini-3，不需要MODELSCOPE_API_KEY
             mappedModel = 'gemini-3-pro-image-preview';
             useModelScopeAPI = false;
             console.log(`[banana2] 🔄 模型映射: modelscope -> gemini-3-pro-image-preview (云梦API)`);
         } else if (model === 'qwen-image-max' || model === 'Qwen/Qwen-Image-2512') {
-            // 🔧 明确选择 qwen-image-max 时才使用 ModelScope API
+            // 🔧 万象Max走云雾API（付费），不是ModelScope
             mappedModel = 'Qwen/Qwen-Image-2512';
-            useModelScopeAPI = true;
-            console.log(`[banana2] 🔄 模型映射: ${model} -> Qwen/Qwen-Image-2512 (ModelScope API)`);
+            useModelScopeAPI = false;  // 不用ModelScope
+            useYunwuAPI = true;        // 用云雾API
+            console.log(`[banana2] 🔄 模型映射: ${model} -> Qwen/Qwen-Image-2512 (云雾API)`);
         }
 
         // 🆕 只有明确选择 qwen-image-max 时才使用 ModelScope API
         const isQwenModel = useModelScopeAPI;
-        
+
         // 允许云梦/云雾或魔塔任一存在即可
         if (!isQwenModel && YUNMENG_API_KEYS.length === 0) {
             json(500, { error: 'SERVER_CONFIG_ERROR', message: '服务器未配置图像API Key' });
             return;
         }
-        
+
         if (isQwenModel && !MODELSCOPE_API_KEY) {
             console.error('[banana2] ❗ MODELSCOPE_API_KEY 未配置，尝试使用云梦API替代');
             // 改用云梦API的Gemini-3替代
@@ -561,6 +744,12 @@ module.exports = async function handler(req, res) {
         let actualModel = model;
         let resolution = '1K';  // 默认 1K
 
+        // 🆕 OpenRouter 模型处理：去掉前缀
+        if (model.startsWith('openrouter:')) {
+            actualModel = model.replace('openrouter:', '');
+            console.log(`[banana2] 🔄 OpenRouter 模型映射: ${model} -> ${actualModel}`);
+        }
+
         if (model === 'nano-banana-2' || model === 'banana2') {
             actualModel = 'gemini-3-pro-image-preview';  // 云雾 Gemini 图像生成
             resolution = '1K';
@@ -573,21 +762,100 @@ module.exports = async function handler(req, res) {
             actualModel = 'gemini-3-pro-image-preview';  // 云雾 Gemini 图像生成
             resolution = '4K';
             console.log(`[banana2] 🔄 模型映射: ${model} -> ${actualModel} (${resolution})`);
+        } else if (model === 'gemini-3.1-flash-image-preview') {
+            actualModel = 'gemini-3.1-flash-image-preview';  // ✅ 保持3.1模型名
+            resolution = '1K';
+            console.log(`[banana2] 🔄 模型: ${model} (${resolution})`);
+        } else if (model === 'gemini-3.1-flash-image-preview-2k') {
+            actualModel = 'gemini-3.1-flash-image-preview';  // ✅ 保持3.1模型名
+            resolution = '2K';
+            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
+        } else if (model === 'gemini-3.1-flash-image-preview-4k') {
+            actualModel = 'gemini-3.1-flash-image-preview';  // ✅ 保持3.1模型名
+            resolution = '4K';
+            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
         }
 
         // 🔧 模型特殊处理
         const isSeedream = actualModel && (actualModel.includes('seedream') || actualModel.includes('doubao'));
         const isJimeng = actualModel && actualModel.includes('jimeng');
         // ✅ modelscope 映射后会是 gemini-3，所以要用 actualModel 或 mappedModel 判断
-        const isGemini3 = (actualModel && actualModel.includes('gemini-3-pro-image-preview')) || (mappedModel && mappedModel.includes('gemini-3-pro-image-preview'));
+        // ✅ 覆盖 gemini-3.0 和 gemini-3.1 图片模型
+        let isGemini3 = (actualModel && (actualModel.includes('gemini-3-pro-image-preview') || actualModel.includes('gemini-3.1-flash-image-preview'))) || (mappedModel && mappedModel.includes('gemini-3-pro-image-preview'));
         const isNanoBanana = model && (model.includes('nano-banana-2') || model === 'banana2' || model === 'modelscope');
         // 🆕 只有配置了MODELSCOPE_API_KEY且明确使用ModelScope API时才走qwen-image-max分支
-        const isQwenImageMax = useModelScopeAPI && MODELSCOPE_API_KEY;
+        const isQwenImageMax = useYunwuAPI && (model === 'qwen-image-max' || model === 'Qwen/Qwen-Image-2512');
+        // 🆕 OpenRouter 图片模型
+        const isOpenRouterImage = model && model.startsWith('openrouter:');
 
         let response;
 
-        // 🆕 qwen-image-max 使用魔塔 ModelScope API
+        // 🆕 qwen-image-max 使用云雾API（付费）
         if (isQwenImageMax) {
+            // 🔒 先扣费
+            if (!skipBilling && filmCost > 0 && userId) {
+                const billingResult = await __billing('consume', userId, filmCost, `画图生成:万象Max`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                    return;
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            }
+
+            try {
+                // 根据 aspect_ratio 计算 size
+                // 🔧 云雾API qwen-image-max 支持的尺寸: 1024x1024, 1328x1328 等
+                let size = '1328x1328';  // 默认正方形
+                if (aspect_ratio === '16:9') {
+                    size = '1328x768';   // 横屏：宽1328 x 高768
+                } else if (aspect_ratio === '9:16') {
+                    size = '768x1328';   // 竖屏：宽768 x 高1328
+                } else if (aspect_ratio === '4:3') {
+                    size = '1328x1024';  // 横屏标准：宽1328 x 高1024
+                } else if (aspect_ratio === '3:4') {
+                    size = '1024x1328';  // 竖屏标准：宽1024 x 高1328
+                } else if (aspect_ratio === '1:1') {
+                    size = '1328x1328';  // 正方形
+                }
+                console.log(`[banana2] 🎨 云雾万象Max size: ${size} (aspect_ratio=${aspect_ratio})`);
+
+                // 🎨 万象Max 支持画面控制（用文字改图），直接传参考图
+                const refImage = (image_urls && Array.isArray(image_urls) && image_urls.length > 0) ? image_urls : (image_url || null);
+                const imageUrl = await callQwenImageMaxViaYunwu(prompt, { size, image_url: refImage });
+
+                // ✅ 生成成功：保存记录并返回（已在开头扣费）
+                await __saveGenerationRecord(userId, 'image', imageUrl, prompt, 'qwen-image-max', filmCost, { aspect_ratio, size });
+
+                console.log(`[banana2] ✅ 云雾万象Max 生成成功, 计费=${billingSuccess ? filmCost + '胶片' : '无'}`);
+                json(200, {
+                    success: true,
+                    url: imageUrl,
+                    data: [{ url: imageUrl }],
+                    billed: billingSuccess ? filmCost : 0
+                });
+                return;
+            } catch (err) {
+                console.error('[banana2] 云雾万象Max 失败:', err.message);
+                // 💰 生成失败，退款
+                if (billingSuccess) {
+                    await __billing('refund', userId, filmCost, '云雾万象Max失败退款');
+                }
+                // ❌ 不降级，直接返回错误
+                json(500, {
+                    success: false,
+                    error: 'API_ERROR',
+                    error_code: 'API_ERROR',
+                    message: `万象Max生成失败: ${err.message}`,
+                    billed: 0
+                });
+                return;
+            }
+        }
+
+        // 🆕 OpenRouter 图片模型处理
+        if (isOpenRouterImage && OPENROUTER_API_KEY) {
+            console.log(`[banana2] 🔄 检测到 OpenRouter 模型: ${model}，使用 OpenRouter API`);
+            
             // 🔒 先扣费
             if (!skipBilling && filmCost > 0 && userId) {
                 const billingResult = await __billing('consume', userId, filmCost, `画图生成:${model}`);
@@ -599,44 +867,73 @@ module.exports = async function handler(req, res) {
             }
 
             try {
-                // 根据 aspect_ratio 计算 size
-                // 🔧 修复比例反转：ModelScope/万象Max API 的 size 格式是 "宽*高"
-                let size = '1024*1024';  // 默认正方形
-                if (aspect_ratio === '16:9') {
-                    size = '1328*768';   // 横屏：宽1328 x 高768
-                } else if (aspect_ratio === '9:16') {
-                    size = '768*1328';   // 竖屏：宽768 x 高1328
-                } else if (aspect_ratio === '4:3') {
-                    size = '1328*1024';  // 横屏标准：宽1328 x 高1024
-                } else if (aspect_ratio === '3:4') {
-                    size = '1024*1328';  // 竖屏标准：宽1024 x 高1328
+                // 计算图片尺寸
+                let width, height;
+                if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
+                    width = 1920;
+                    height = 1080;
+                } else if (aspect_ratio === '9:16' || aspect_ratio === '10:16') {
+                    width = 1080;
+                    height = 1920;
+                } else { // 1:1
+                    width = 1024;
+                    height = 1024;
                 }
-                console.log(`[banana2] 🎨 万象Max size: ${size} (aspect_ratio=${aspect_ratio})`);
 
-                // 🎨 万象Max 2512 本身支持画面控制（用文字改图），直接传参考图
-                const refImage = (image_urls && Array.isArray(image_urls) && image_urls.length > 0) ? image_urls : (image_url || null);
-                const imageUrl = await callQwenImageMax(prompt, { size, image_url: refImage });
-                
-                // ✅ 生成成功：保存记录并返回（已在开头扣费）
-                await __saveGenerationRecord(userId, 'image', imageUrl, prompt, model, filmCost, { aspect_ratio, size });
-                
-                console.log(`[banana2] ✅ qwen-image-max 生成成功, 计费=${billingSuccess ? filmCost + '胶片' : '无'}`);
+                const requestBody = {
+                    prompt,
+                    model: actualModel,
+                    size: `${width}x${height}`
+                };
+
+                console.log(`[banana2] ☁️ 请求 OpenRouter API: ${OPENROUTER_BASE_URL}/images/generations`);
+                const response = await fetchWithTimeout(`${OPENROUTER_BASE_URL}/images/generations`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                        'HTTP-Referer': 'https://www.rollroll.art',
+                        'X-Title': 'RollRoll AI'
+                    },
+                    body: JSON.stringify(requestBody)
+                }, 120000);
+
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => '未知错误');
+                    console.error('[banana2] ❌ OpenRouter API错误:', response.status, errorText);
+                    throw new Error(`OpenRouter图片生成失败 (${response.status}): ${errorText}`);
+                }
+
+                const data = await response.json();
+                const imageUrl = data.data?.[0]?.url;
+
+                if (!imageUrl) {
+                    console.error('[banana2] ❌ 响应中未找到图片URL:', data);
+                    throw new Error('OpenRouter响应中未找到图片URL');
+                }
+
+                // ✅ 生成成功：保存记录并返回
+                await __saveGenerationRecord(userId, 'image', imageUrl, prompt, model, filmCost, { size: `${width}x${height}` });
+
+                console.log(`[banana2] ✅ OpenRouter 图片生成成功, 计费=${billingSuccess ? filmCost + '胶片' : '无'}`);
                 json(200, {
                     success: true,
                     url: imageUrl,
-                    data: [{ url: imageUrl }],
+                    data,
                     billed: billingSuccess ? filmCost : 0
                 });
                 return;
             } catch (err) {
-                console.error('[banana2] qwen-image-max 失败:', err.message);
+                console.error('[banana2] OpenRouter 失败:', err.message);
                 // 🔄 生成失败退款
                 if (billingSuccess) {
-                    await __billing('refund', userId, filmCost, 'qwen-image-max失败退款');
+                    await __billing('refund', userId, filmCost, 'OpenRouter图片生成失败退款');
+                    billingSuccess = false;
                 }
-                json(500, { 
+                // 不降级，直接返回错误
+                json(500, {
                     success: false,
-                    error: 'API_ERROR', 
+                    error: 'API_ERROR',
                     error_code: 'API_ERROR',
                     message: err.message,
                     billed: 0
@@ -647,7 +944,9 @@ module.exports = async function handler(req, res) {
 
         // 🔒 Gemini/其他模型先扣费
         if (!skipBilling && filmCost > 0 && userId && !billingSuccess) {
-            const billingResult = await __billing('consume', userId, filmCost, `画图生成:${model}`);
+            // 🔧 修复：使用 actualModel 而非 model，确保降级后显示正确的模型名
+            const billingModel = actualModel || model;
+            const billingResult = await __billing('consume', userId, filmCost, `画图生成:${billingModel}`);
             if (!billingResult.success && !billingResult.skipped) {
                 json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
                 return;
@@ -666,7 +965,7 @@ module.exports = async function handler(req, res) {
                 orientationHint = ' [IMPORTANT: Generate a HORIZONTAL/LANDSCAPE image, wider than tall, aspect ratio ' + aspect_ratio + ']';
             }
             const enhancedPrompt = prompt + orientationHint;
-            
+
             // 构建原生 Gemini 请求体
             const parts = [{ text: enhancedPrompt }];
 
@@ -700,7 +999,7 @@ module.exports = async function handler(req, res) {
                                     data: base64Data
                                 }
                             });
-                            console.log(`[banana2] 参考图转换成功: ${contentType}, ${Math.round(base64Data.length/1024)}KB`);
+                            console.log(`[banana2] 参考图转换成功: ${contentType}, ${Math.round(base64Data.length / 1024)}KB`);
                         } else {
                             console.warn(`[banana2] 下载参考图失败: ${imgRes.status}`);
                         }
@@ -746,6 +1045,18 @@ module.exports = async function handler(req, res) {
             geminiAspectRatio = aspectMap[aspect_ratio] || '1:1';
             console.log(`[banana2] 🎯 Gemini aspect_ratio: 前端=${aspect_ratio}, 实际=${geminiAspectRatio}`);
 
+            let width, height;
+            if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
+                width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
+                height = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
+            } else if (aspect_ratio === '9:16' || aspect_ratio === '10:16') {
+                width = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
+                height = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
+            } else {
+                width = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
+                height = width;
+            }
+
             const geminiRequestBody = {
                 contents: [{
                     role: 'user',
@@ -754,16 +1065,18 @@ module.exports = async function handler(req, res) {
                 generationConfig: {
                     responseModalities: ['TEXT', 'IMAGE'],
                     image_config: {
-                        aspect_ratio: geminiAspectRatio
+                        aspect_ratio: geminiAspectRatio,
+                        size: `${width}x${height}`
                     }
                 }
             };
+            console.log(`[banana2] Gemini图像模型使用size: ${width}x${height} (${resolution}, ${aspect_ratio})`);
 
             // 🔧 清晰度配置：云梦/云雾 API 不支持 image_size，改用在 prompt 中强调高分辨率
             // Gemini 3 Pro 本身支持生成高分辨率图像，通过提示词引导
             if (resolution === '4K' || resolution === '2K') {
                 // 在提示词中添加高清指令（如果还没有）
-                const resHint = resolution === '4K' 
+                const resHint = resolution === '4K'
                     ? '[Generate in ultra-high resolution 4K quality, extremely detailed and sharp]'
                     : '[Generate in high resolution 2K quality, detailed and crisp]';
                 if (parts[0]?.text && !parts[0].text.includes('resolution')) {
@@ -772,8 +1085,8 @@ module.exports = async function handler(req, res) {
                 }
             }
 
-            console.log(`[banana2] Gemini原生格式请求, aspectRatio: ${aspect_ratio}, resolution: ${resolution}`);
-            response = await fetchWithFallback(geminiRequestBody, true);
+            console.log(`[banana2] Gemini原生格式请求, model: ${actualModel}, aspectRatio: ${aspect_ratio}, resolution: ${resolution}`);
+            response = await fetchWithFallback(geminiRequestBody, true, actualModel);
         } else {
             // 其他模型使用 OpenAI 兼容格式
             const requestBody = {
@@ -802,6 +1115,23 @@ module.exports = async function handler(req, res) {
                 // ✅ 即梦使用 aspect_ratio 参数
                 requestBody.aspect_ratio = aspect_ratio;
                 console.log(`[banana2] 即梦使用aspect_ratio: ${aspect_ratio}`);
+            } else if (isGemini3) {
+                // ✅ Gemini图像模型根据resolution设置size
+                let width, height;
+                if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
+                    // 横屏：宽 > 高
+                    width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
+                    height = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
+                } else if (aspect_ratio === '9:16' || aspect_ratio === '10:16') {
+                    // 竖屏：高 > 宽
+                    width = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
+                    height = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
+                } else { // 1:1
+                    width = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
+                    height = width;
+                }
+                requestBody.size = `${width}x${height}`;
+                console.log(`[banana2] Gemini图像模型使用size: ${requestBody.size} (${resolution}, ${aspect_ratio})`);
             } else {
                 // 其他模型默认使用 size
                 requestBody.size = '1024x1024';
@@ -863,8 +1193,12 @@ module.exports = async function handler(req, res) {
             throw new Error(`图片生成失败 (${response.status}): ${errorDetail || '未知错误'}`);
         }
 
-        const data = await response.json();
-        
+        // 🔧 body读取超时：4K大图base64可能很大，设35s上限（原来20s不够）
+        const data = await Promise.race([
+            response.json(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('响应体读取超时(35s)，图片数据过大或网络慢')), 35000))
+        ]);
+
         // 🔧 调试：输出原始返回格式
         console.log('[banana2] 返回数据:', JSON.stringify(data).substring(0, 500));
 
@@ -896,7 +1230,7 @@ module.exports = async function handler(req, res) {
                 if (inlineData?.data) {
                     const mimeType = inlineData.mime_type || inlineData.mimeType || 'image/png';
                     let base64Data = inlineData.data;
-                    
+
                     // 🔧 修复黑图问题：检查data是否已经包含base64前缀，避免重复拼接
                     if (base64Data.startsWith('data:')) {
                         // 已经是完整的 data URL，直接使用
@@ -979,30 +1313,50 @@ module.exports = async function handler(req, res) {
             throw new Error('API 未返回图片，可能内容审核未通过');
         }
 
+        // 📤 大图上传到Supabase Storage：base64超3MB自动上传，避免超Vercel 4.5MB响应限制
+        for (let i = 0; i < imageUrls.length; i++) {
+            const imgData = imageUrls[i];
+            if (imgData && imgData.startsWith('data:') && imgData.length > 3 * 1024 * 1024) {
+                const match = imgData.match(/^data:([^;]+);base64,(.+)$/);
+                if (match) {
+                    console.log(`[banana2] 📤 图片${i}过大(${Math.round(imgData.length / 1024 / 1024)}MB)，上传到Storage...`);
+                    const storageUrl = await __uploadBase64ToStorage(match[2], match[1], userId);
+                    if (storageUrl) {
+                        imageUrls[i] = storageUrl;
+                    } else {
+                        console.warn(`[banana2] ⚠️ Storage上传失败，尝试截断base64返回`);
+                    }
+                }
+            }
+        }
+        imageUrl = imageUrls[0] || null;
+
         // ✅ 生成成功：保存记录并返回（已在开头扣费）
         await __saveGenerationRecord(userId, 'image', imageUrl, prompt, model, filmCost, { aspect_ratio, resolution, imageCount: imageUrls.length });
 
         console.log(`[banana2] ✅ 图片生成成功, 图片数=${imageUrls.length}, 计费=${billingSuccess ? filmCost + '胶片' : '无'}`);
 
-        json(200, {
+        // 🔧 安全检查：确保响应体不超过Vercel限制
+        const responseData = {
             success: true,
             url: imageUrl,
-            urls: imageUrls,              // 🆕 所有图片 URL 数组
-            imageCount: imageUrls.length, // 🆕 生成图片数量
-            data: data.data || data.candidates,
+            urls: imageUrls,
+            imageCount: imageUrls.length,
             billed: billingSuccess ? filmCost : 0
-        });
+        };
+        // 不再返回原始candidates/data，节省响应体积
+        json(200, responseData);
 
     } catch (error) {
         console.error('[image-api] 失败:', error.message);
-        
+
         // 🔄 异常退款
         if (billingSuccess) {
             await __billing('refund', userId, filmCost, '图片生成异常退款');
         }
-        json(500, { 
+        json(500, {
             success: false,
-            error: 'API_ERROR', 
+            error: 'API_ERROR',
             error_code: 'API_ERROR',
             message: error.message,
             billed: 0

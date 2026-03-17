@@ -137,7 +137,60 @@
         }
 
         .generate-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* 按钮状态动画 */
+        .generate-btn {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .generate-btn.btn-loading {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+        }
+
+        .generate-btn.btn-loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: btn-shimmer 1.5s infinite;
+        }
+
+        @keyframes btn-shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* 进度渐变状态 */
+        .generate-btn.progress-0 {
+            background: linear-gradient(90deg, #6366f1 0%, #4b5563 0%);
+        }
+        .generate-btn.progress-25 {
+            background: linear-gradient(90deg, #6366f1 25%, #4b5563 25%);
+        }
+        .generate-btn.progress-50 {
+            background: linear-gradient(90deg, #6366f1 50%, #4b5563 50%);
+        }
+        .generate-btn.progress-75 {
+            background: linear-gradient(90deg, #6366f1 75%, #4b5563 75%);
+        }
+
+        .generate-btn.btn-success {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: #fff;
+        }
+
+        .generate-btn.btn-error {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+            color: #fff;
         }
 
         .result-section {
@@ -261,6 +314,7 @@
             gap: 8px;
             margin-bottom: 16px;
         }
+
         .batch-toggle-btn {
             flex: 1;
             padding: 10px 16px;
@@ -273,17 +327,20 @@
             text-align: center;
             transition: all 0.2s;
         }
+
         .batch-toggle-btn.active {
             background: var(--accent);
             border-color: var(--accent);
             color: #000;
         }
+
         .batch-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             margin-bottom: 16px;
         }
+
         .batch-item {
             position: relative;
             background: var(--bg-input);
@@ -292,10 +349,12 @@
             overflow: hidden;
             min-height: 140px;
         }
+
         .batch-item {
             display: flex;
             flex-direction: column;
         }
+
         .batch-item textarea {
             flex: 1;
             width: 100%;
@@ -306,16 +365,19 @@
             padding: 8px;
             resize: none;
         }
+
         .batch-item textarea:focus {
             outline: none;
         }
+
         .batch-item-config {
             display: flex;
             gap: 2px;
             padding: 4px;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0, 0, 0, 0.3);
             border-top: 1px solid #333;
         }
+
         .batch-item-config select {
             flex: 1;
             background: var(--bg-input);
@@ -326,6 +388,7 @@
             padding: 3px 2px;
             min-width: 0;
         }
+
         .batch-item-ref {
             position: absolute;
             top: 2px;
@@ -342,17 +405,21 @@
             justify-content: center;
             font-size: 10px;
         }
+
         .batch-item-ref img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
+
         .batch-item-ref:hover {
             border-color: var(--accent);
         }
+
         .batch-item.generating {
             border-color: var(--accent);
         }
+
         .batch-item.generating::after {
             content: '⚙️';
             position: absolute;
@@ -362,12 +429,15 @@
             font-size: 24px;
             animation: spin 1s linear infinite;
         }
+
         .batch-item.has-result {
             border-color: #22c55e;
         }
+
         .batch-item.error {
             border-color: #ef4444;
         }
+
         .batch-item.error::after {
             content: '❌ 生成失败';
             position: absolute;
@@ -376,17 +446,18 @@
             transform: translate(-50%, -50%);
             font-size: 14px;
             color: #ef4444;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.8);
             padding: 8px 12px;
             border-radius: 6px;
             z-index: 5;
         }
+
         .batch-item-edit-btn {
             position: absolute;
             bottom: 30px;
             right: 4px;
             padding: 4px 8px;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.7);
             color: var(--accent);
             border: 1px solid var(--accent);
             border-radius: 6px;
@@ -395,10 +466,12 @@
             z-index: 4;
             transition: all 0.2s;
         }
+
         .batch-item-edit-btn:hover {
             background: var(--accent);
             color: #000;
         }
+
         .batch-result-section {
             display: none;
             margin-top: 16px;
@@ -407,6 +480,7 @@
             border-radius: 12px;
             border: 1px solid #333;
         }
+
         .batch-result-header {
             display: flex;
             justify-content: space-between;
@@ -415,16 +489,19 @@
             flex-wrap: wrap;
             gap: 8px;
         }
+
         .batch-result-header h3 {
             margin: 0;
             font-size: 16px;
             color: var(--accent);
         }
+
         .batch-result-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
         }
+
         .batch-action-btn {
             padding: 8px 12px;
             border-radius: 8px;
@@ -435,20 +512,24 @@
             cursor: pointer;
             transition: all 0.2s;
         }
+
         .batch-action-btn:hover {
             border-color: var(--accent);
         }
+
         .batch-action-btn.primary {
             background: var(--accent);
             border-color: var(--accent);
             color: #000;
         }
+
         .batch-result-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 10px;
             margin-bottom: 16px;
         }
+
         .batch-result-item {
             position: relative;
             border-radius: 10px;
@@ -458,14 +539,17 @@
             background: var(--bg-card);
             min-height: 80px;
         }
+
         .batch-result-item img {
             width: 100%;
             height: auto;
             display: block;
         }
+
         .batch-result-item.selected {
             border-color: #22c55e;
         }
+
         .batch-result-item.error {
             background: rgba(239, 68, 68, 0.2);
             display: flex;
@@ -476,21 +560,24 @@
             text-align: center;
             padding: 8px;
         }
+
         .batch-result-item .batch-item-index {
             position: absolute;
             top: 4px;
             left: 4px;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.7);
             color: #fff;
             font-size: 10px;
             padding: 2px 6px;
             border-radius: 4px;
         }
+
         .batch-actions {
             display: flex;
             gap: 8px;
             margin-top: 12px;
         }
+
         .batch-actions button {
             flex: 1;
             padding: 12px;
@@ -563,9 +650,11 @@
             margin-bottom: 16px;
             display: none;
         }
+
         .multi-ref-section.show {
             display: block;
         }
+
         .multi-ref-btn {
             width: 100%;
             background: var(--bg-card);
@@ -577,10 +666,12 @@
             cursor: pointer;
             transition: all 0.2s;
         }
+
         .multi-ref-btn:hover {
             border-color: #a78bfa;
             color: #c4b5fd;
         }
+
         .multi-ref-preview {
             margin-top: 12px;
             padding: 12px;
@@ -589,15 +680,18 @@
             border: 1px solid #333;
             display: none;
         }
+
         .multi-ref-preview.show {
             display: block;
         }
+
         .multi-ref-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 8px;
             margin-bottom: 8px;
         }
+
         .multi-ref-item {
             position: relative;
             aspect-ratio: 1;
@@ -605,11 +699,13 @@
             overflow: hidden;
             border: 2px solid #333;
         }
+
         .multi-ref-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
+
         .multi-ref-item-remove {
             position: absolute;
             top: 2px;
@@ -626,6 +722,7 @@
             align-items: center;
             justify-content: center;
         }
+
         .multi-ref-info {
             font-size: 12px;
             color: var(--text-dim);
@@ -633,6 +730,7 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .multi-ref-clear {
             background: transparent;
             border: 1px solid #666;
@@ -642,6 +740,7 @@
             font-size: 12px;
             cursor: pointer;
         }
+
         .multi-ref-clear:hover {
             border-color: #ef4444;
             color: #ef4444;
@@ -660,31 +759,36 @@
             padding-bottom: env(safe-area-inset-bottom, 16px);
             backdrop-filter: blur(10px);
         }
+
         .mj-image-picker.show {
             display: flex;
         }
+
         .mj-picker-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             padding: 12px 16px;
-            background: linear-gradient(135deg, rgba(255,182,193,0.15) 0%, rgba(255,218,233,0.1) 100%);
+            background: linear-gradient(135deg, rgba(255, 182, 193, 0.15) 0%, rgba(255, 218, 233, 0.1) 100%);
             border-radius: 16px;
             margin-bottom: 12px;
         }
+
         .mj-picker-title {
             font-size: 16px;
             font-weight: 600;
             color: #ffb6c1;
-            text-shadow: 0 0 20px rgba(255,182,193,0.5);
+            text-shadow: 0 0 20px rgba(255, 182, 193, 0.5);
         }
+
         .mj-picker-subtitle {
             font-size: 11px;
-            color: rgba(255,182,193,0.6);
+            color: rgba(255, 182, 193, 0.6);
             margin-top: 4px;
         }
+
         .mj-picker-close {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             border: none;
             color: #ffb6c1;
             font-size: 20px;
@@ -694,10 +798,12 @@
             border-radius: 50%;
             transition: all 0.2s;
         }
+
         .mj-picker-close:hover {
-            background: rgba(255,182,193,0.3);
+            background: rgba(255, 182, 193, 0.3);
             transform: rotate(90deg);
         }
+
         .mj-picker-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -705,29 +811,33 @@
             flex: 1;
             overflow-y: auto;
             padding: 8px;
-            background: rgba(0,0,0,0.2);
+            background: rgba(0, 0, 0, 0.2);
             border-radius: 20px;
         }
+
         .mj-picker-item {
             position: relative;
             border-radius: 16px;
             overflow: hidden;
-            border: 3px solid rgba(255,255,255,0.1);
+            border: 3px solid rgba(255, 255, 255, 0.1);
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             aspect-ratio: 1;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
+
         .mj-picker-item:hover {
-            border-color: rgba(255,182,193,0.6);
+            border-color: rgba(255, 182, 193, 0.6);
             transform: scale(1.02);
-            box-shadow: 0 8px 25px rgba(255,182,193,0.25);
+            box-shadow: 0 8px 25px rgba(255, 182, 193, 0.25);
         }
+
         .mj-picker-item.selected {
             border-color: #ff69b4;
-            box-shadow: 0 0 0 3px rgba(255,105,180,0.3), 0 8px 30px rgba(255,105,180,0.4);
+            box-shadow: 0 0 0 3px rgba(255, 105, 180, 0.3), 0 8px 30px rgba(255, 105, 180, 0.4);
             transform: scale(1.02);
         }
+
         .mj-picker-item.selected::after {
             content: '✔';
             position: absolute;
@@ -736,29 +846,43 @@
             transform: translate(-50%, -50%);
             font-size: 48px;
             color: #fff;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8), 0 0 30px rgba(255,105,180,0.8);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 105, 180, 0.8);
             animation: checkPop 0.3s ease-out;
             z-index: 2;
         }
+
         @keyframes checkPop {
-            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-            50% { transform: translate(-50%, -50%) scale(1.2); }
-            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
         }
+
         .mj-picker-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transition: all 0.3s;
         }
+
         .mj-picker-item.selected img {
             filter: brightness(0.7);
         }
+
         .mj-picker-item-index {
             position: absolute;
             top: 8px;
             left: 8px;
-            background: linear-gradient(135deg, rgba(255,182,193,0.9) 0%, rgba(255,105,180,0.9) 100%);
+            background: linear-gradient(135deg, rgba(255, 182, 193, 0.9) 0%, rgba(255, 105, 180, 0.9) 100%);
             color: #fff;
             width: 26px;
             height: 26px;
@@ -768,19 +892,21 @@
             justify-content: center;
             font-size: 13px;
             font-weight: 600;
-            box-shadow: 0 2px 8px rgba(255,105,180,0.5);
+            box-shadow: 0 2px 8px rgba(255, 105, 180, 0.5);
             z-index: 1;
         }
+
         .mj-picker-item.selected .mj-picker-item-index {
             background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
-            box-shadow: 0 0 15px rgba(255,105,180,0.8);
+            box-shadow: 0 0 15px rgba(255, 105, 180, 0.8);
         }
+
         /* 🆕 下载按钮 */
         .mj-picker-item-download {
             position: absolute;
             bottom: 8px;
             right: 8px;
-            background: rgba(255,182,193,0.8);
+            background: rgba(255, 182, 193, 0.8);
             border: none;
             color: #fff;
             width: 32px;
@@ -795,16 +921,19 @@
             transition: all 0.2s;
             z-index: 1;
         }
+
         .mj-picker-item-download:hover {
             opacity: 1;
             background: #ff69b4;
             transform: scale(1.1);
         }
+
         .mj-picker-actions {
             display: flex;
             gap: 10px;
             padding: 16px 8px 8px;
         }
+
         .mj-picker-confirm {
             flex: 2;
             padding: 14px 16px;
@@ -815,18 +944,20 @@
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(255,105,180,0.4);
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.4);
             transition: all 0.2s;
         }
+
         .mj-picker-confirm:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255,105,180,0.5);
+            box-shadow: 0 6px 20px rgba(255, 105, 180, 0.5);
         }
+
         .mj-picker-download-all {
             flex: 1;
             padding: 14px 16px;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,182,193,0.3);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 182, 193, 0.3);
             border-radius: 14px;
             color: #ffb6c1;
             font-size: 13px;
@@ -834,16 +965,19 @@
             cursor: pointer;
             transition: all 0.2s;
         }
+
         .mj-picker-download-all:hover {
-            background: rgba(255,182,193,0.15);
-            border-color: rgba(255,182,193,0.5);
+            background: rgba(255, 182, 193, 0.15);
+            border-color: rgba(255, 182, 193, 0.5);
         }
+
         .mj-picker-confirm:disabled {
             opacity: 0.5;
-            background: rgba(255,255,255,0.1);
-            color: rgba(255,182,193,0.5);
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 182, 193, 0.5);
             box-shadow: none;
         }
+
         /* 🎨 参考图编辑器样式 */
         .ref-editor-overlay {
             position: fixed;
@@ -851,14 +985,16 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.95);
+            background: rgba(0, 0, 0, 0.95);
             z-index: 2000;
             display: none;
             flex-direction: column;
         }
+
         .ref-editor-overlay.show {
             display: flex;
         }
+
         .ref-editor-header {
             display: flex;
             justify-content: space-between;
@@ -867,11 +1003,13 @@
             background: #1a1a1a;
             border-bottom: 1px solid #333;
         }
+
         .ref-editor-title {
             font-size: 16px;
             font-weight: 600;
             color: #fff;
         }
+
         .ref-editor-close {
             background: none;
             border: none;
@@ -880,6 +1018,7 @@
             cursor: pointer;
             padding: 0 8px;
         }
+
         .ref-editor-canvas-wrap {
             flex: 1;
             display: flex;
@@ -889,6 +1028,7 @@
             padding: 10px;
             touch-action: none;
         }
+
         .ref-editor-canvas {
             max-width: 100%;
             max-height: 100%;
@@ -896,6 +1036,7 @@
             background: #222;
             touch-action: none;
         }
+
         .ref-editor-toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -906,6 +1047,7 @@
             align-items: center;
             justify-content: center;
         }
+
         .ref-editor-tool {
             width: 44px;
             height: 44px;
@@ -920,13 +1062,16 @@
             justify-content: center;
             transition: all 0.2s;
         }
+
         .ref-editor-tool.active {
             border-color: var(--accent);
-            background: rgba(251,191,36,0.2);
+            background: rgba(251, 191, 36, 0.2);
         }
+
         .ref-editor-tool:hover {
             border-color: #666;
         }
+
         .ref-editor-color {
             width: 36px;
             height: 36px;
@@ -935,10 +1080,12 @@
             cursor: pointer;
             padding: 0;
         }
+
         .ref-editor-color.active {
             border-color: #fff;
-            box-shadow: 0 0 8px rgba(255,255,255,0.5);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
         }
+
         .ref-editor-size {
             width: 80px;
             height: 36px;
@@ -949,6 +1096,7 @@
             padding: 0 8px;
             font-size: 13px;
         }
+
         .ref-editor-actions {
             display: flex;
             gap: 10px;
@@ -956,6 +1104,7 @@
             background: #1a1a1a;
             border-top: 1px solid #333;
         }
+
         .ref-editor-btn {
             flex: 1;
             padding: 14px;
@@ -965,20 +1114,23 @@
             font-weight: 600;
             cursor: pointer;
         }
+
         .ref-editor-btn.cancel {
             background: #333;
             color: #999;
         }
+
         .ref-editor-btn.confirm {
             background: linear-gradient(135deg, var(--accent), #f59e0b);
             color: #000;
         }
+
         /* 多图参考编辑按钮 */
         .multi-ref-item-edit {
             position: absolute;
             bottom: 4px;
             left: 4px;
-            background: rgba(251,191,36,0.9);
+            background: rgba(251, 191, 36, 0.9);
             border: none;
             color: #000;
             width: 26px;
@@ -990,6 +1142,7 @@
             align-items: center;
             justify-content: center;
         }
+
         .multi-ref-item-edit:hover {
             background: var(--accent);
             transform: scale(1.1);
@@ -1007,30 +1160,35 @@
             padding-top: env(safe-area-inset-top, 16px);
             padding-bottom: env(safe-area-inset-bottom, 16px);
         }
+
         .batch-cell-picker.show {
             display: flex;
         }
+
         .batch-cell-picker-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 12px 16px;
-            background: linear-gradient(135deg, rgba(147,112,219,0.2) 0%, rgba(138,43,226,0.15) 100%);
+            background: linear-gradient(135deg, rgba(147, 112, 219, 0.2) 0%, rgba(138, 43, 226, 0.15) 100%);
             border-radius: 16px;
             margin-bottom: 12px;
         }
+
         .batch-cell-picker-title {
             font-size: 15px;
             font-weight: 600;
             color: #b19cd9;
         }
+
         .batch-cell-picker-subtitle {
             font-size: 11px;
-            color: rgba(177,156,217,0.6);
+            color: rgba(177, 156, 217, 0.6);
             margin-top: 4px;
         }
+
         .batch-cell-picker-close {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             border: none;
             color: #b19cd9;
             font-size: 20px;
@@ -1040,9 +1198,11 @@
             border-radius: 50%;
             transition: all 0.2s;
         }
+
         .batch-cell-picker-close:hover {
-            background: rgba(177,156,217,0.3);
+            background: rgba(177, 156, 217, 0.3);
         }
+
         .batch-cell-picker-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -1050,27 +1210,31 @@
             flex: 1;
             overflow-y: auto;
             padding: 12px;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0, 0, 0, 0.3);
             border-radius: 20px;
         }
+
         .batch-cell-picker-item {
             position: relative;
             border-radius: 14px;
             overflow: hidden;
-            border: 3px solid rgba(255,255,255,0.1);
+            border: 3px solid rgba(255, 255, 255, 0.1);
             cursor: pointer;
             transition: all 0.25s;
             aspect-ratio: 1;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
+
         .batch-cell-picker-item:hover {
-            border-color: rgba(177,156,217,0.5);
+            border-color: rgba(177, 156, 217, 0.5);
             transform: scale(1.02);
         }
+
         .batch-cell-picker-item.selected {
             border-color: #9370db;
-            box-shadow: 0 0 0 3px rgba(147,112,219,0.4), 0 8px 25px rgba(147,112,219,0.3);
+            box-shadow: 0 0 0 3px rgba(147, 112, 219, 0.4), 0 8px 25px rgba(147, 112, 219, 0.3);
         }
+
         .batch-cell-picker-item.selected::after {
             content: '✓';
             position: absolute;
@@ -1079,22 +1243,25 @@
             transform: translate(-50%, -50%);
             font-size: 40px;
             color: #fff;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
             z-index: 2;
         }
+
         .batch-cell-picker-item.selected img {
             filter: brightness(0.6);
         }
+
         .batch-cell-picker-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
+
         .batch-cell-picker-item-idx {
             position: absolute;
             top: 8px;
             left: 8px;
-            background: linear-gradient(135deg, rgba(147,112,219,0.9) 0%, rgba(138,43,226,0.9) 100%);
+            background: linear-gradient(135deg, rgba(147, 112, 219, 0.9) 0%, rgba(138, 43, 226, 0.9) 100%);
             color: #fff;
             width: 24px;
             height: 24px;
@@ -1106,11 +1273,13 @@
             font-weight: 600;
             z-index: 1;
         }
+
         .batch-cell-picker-actions {
             display: flex;
             gap: 10px;
             padding: 14px 8px 8px;
         }
+
         .batch-cell-picker-confirm {
             flex: 1;
             padding: 14px 16px;
@@ -1121,31 +1290,70 @@
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(147,112,219,0.4);
+            box-shadow: 0 4px 15px rgba(147, 112, 219, 0.4);
             transition: all 0.2s;
         }
+
         .batch-cell-picker-confirm:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(147,112,219,0.5);
+            box-shadow: 0 6px 20px rgba(147, 112, 219, 0.5);
         }
+
         .batch-cell-picker-confirm:disabled {
             opacity: 0.5;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             box-shadow: none;
         }
+
         /* 批量结果项上的MJ多图标记 */
         .batch-result-item .mj-multi-badge {
             position: absolute;
             bottom: 6px;
             right: 6px;
-            background: linear-gradient(135deg, rgba(147,112,219,0.9) 0%, rgba(138,43,226,0.9) 100%);
+            background: linear-gradient(135deg, rgba(147, 112, 219, 0.9) 0%, rgba(138, 43, 226, 0.9) 100%);
             color: #fff;
             padding: 3px 8px;
             border-radius: 10px;
             font-size: 10px;
             font-weight: 600;
             z-index: 5;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+        /* 🎨 多角度出图响应式样式 */
+        @media (max-width: 768px) {
+            .multi-angle-section {
+                padding: 15px !important;
+                margin: 15px 0 !important;
+            }
+            .multi-angle-section .angle-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+            .multi-angle-section .mode-btn {
+                font-size: 12px !important;
+                padding: 6px 12px !important;
+            }
+            .multi-angle-section h3 {
+                font-size: 16px !important;
+            }
+        }
+        
+        /* 切换开关样式 */
+        .toggle-switch input:checked + .toggle-slider {
+            background: #6366f1 !important;
+        }
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+        .toggle-slider:before {
+            content: "";
+            position: absolute;
+            height: 24px;
+            width: 24px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
         }
     </style>
 </head>
@@ -1177,7 +1385,9 @@
         <div class="input-section" id="batchInputSection" style="display:none;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                 <label class="input-label" style="margin:0;">✨ 批量生图 (每格独立配置，点击🖼️可设置参考图)</label>
-                <button onclick="applyGlobalConfigToBatch()" style="padding:4px 8px;background:var(--bg-card);border:1px solid #444;border-radius:4px;color:var(--text-dim);font-size:10px;cursor:pointer;">📋 应用全局配置</button>
+                <button onclick="applyGlobalConfigToBatch()"
+                    style="padding:4px 8px;background:var(--bg-card);border:1px solid #444;border-radius:4px;color:var(--text-dim);font-size:10px;cursor:pointer;">📋
+                    应用全局配置</button>
             </div>
             <div class="batch-grid" id="batchGrid"></div>
             <!-- 🆕 批量结果区域（在批量输入区内部） -->
@@ -1193,15 +1403,16 @@
                 <div class="batch-result-grid" id="batchResultGrid"></div>
             </div>
         </div>
-        
+
         <!-- 图生图上传区 -->
         <div class="upload-section">
-            <input type="file" id="refImageInput" accept="image/*" style="display:none;" onchange="handleRefImageUpload(event)">
+            <input type="file" id="refImageInput" accept="image/*" style="display:none;"
+                onchange="handleRefImageUpload(event)">
             <button class="upload-btn" onclick="document.getElementById('refImageInput').click()">
                 🖼️ 上传参考图（图生图）
             </button>
         </div>
-        
+
         <!-- 参考图预览区 -->
         <div class="ref-section" id="refSection" style="display:none;">
             <label class="input-label">🖼️ 参考图（图生图）</label>
@@ -1211,7 +1422,8 @@
 
         <!-- 多图参考上传区（星梦画师 + 通义万象MAX） -->
         <div class="multi-ref-section" id="multiRefSection">
-            <input type="file" id="multiRefInput" accept="image/*" multiple style="display:none;" onchange="handleMultiRefUpload(event)">
+            <input type="file" id="multiRefInput" accept="image/*" multiple style="display:none;"
+                onchange="handleMultiRefUpload(event)">
             <button class="multi-ref-btn" onclick="document.getElementById('multiRefInput').click()">
                 🎨 上传多张参考图（Banana/星梦/万象）
             </button>
@@ -1233,7 +1445,14 @@
                     <option value="nano-banana-2-2k">🌟 Banana 2K高清 (6胶片)</option>
                     <option value="nano-banana-2-4k">💎 Banana 4K超清 (10胶片)</option>
                     <option value="Qwen/Qwen-Image-2512">🎭 通义万象Max (8胶片)</option>
-                    <option value="doubao-seedream-4-5-251128">✨ 星梦画师 (7胶片)</option>
+                    <option value="doubao-seedream-5-0-260128">🌟 星梦画师5.0 生图/改图 (7胶片)</option>
+                    <option value="doubao-seedream-4-5-251128">✨ 星梦画师4.5 (7胶片)</option>
+                    <optgroup label="🆓 OpenRouter 免费">
+                        <option value="openrouter:bytedance-seed/seedream-4.5">🆓 Seedream 4.5</option>
+                    </optgroup>
+                    <option value="gemini-3.1-flash-image-preview">⚡ Gemini Flash (4胶片)</option>
+                    <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K (4胶片)</option>
+                    <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片)</option>
                     <!-- 即梦已停用 <option value="jimeng-4.5">🎨 即梦4.5 (7胶片)</option> -->
                     <option value="midjourney-fast">🌟 Midjourney Fast (2胶片)</option>
                     <option value="midjourney-turbo">🚀 Midjourney Turbo (2胶片)</option>
@@ -1243,7 +1462,8 @@
                 <!-- 🎯 MJ版本选择器 -->
                 <div id="mjVersionGroup" style="display:none; margin-top:8px;">
                     <label class="input-label">🎯 MJ版本</label>
-                    <select id="mjVersion" style="width:100%; padding:10px; background:var(--bg-card); border:1px solid #333; border-radius:8px; color:#fff;">
+                    <select id="mjVersion"
+                        style="width:100%; padding:10px; background:var(--bg-card); border:1px solid #333; border-radius:8px; color:#fff;">
                         <option value="7">v7 最新</option>
                         <option value="6.1" selected>v6.1 稳定</option>
                         <option value="6">v6.0</option>
@@ -1313,6 +1533,171 @@
                 </select>
             </div>
         </div>
+
+        <!-- 🎨 多角度出图功能区域（滑动交互版） -->
+        <div class="multi-angle-section" id="multiAngleSection" style="margin:20px 0;padding:20px;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(168,85,247,0.1));border-radius:16px;border:1px solid rgba(99,102,241,0.3);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">
+                <h3 style="margin:0;color:#fff;font-size:18px;">🎨 多角度出图</h3>
+                <label class="toggle-switch" style="position:relative;display:inline-block;width:60px;height:30px;">
+                    <input type="checkbox" id="multiAngleToggle" onchange="toggleMultiAngleMode()" style="opacity:0;width:0;height:0;">
+                    <span class="toggle-slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#333;border-radius:30px;transition:0.3s;"></span>
+                </label>
+            </div>
+            
+            <!-- 模式选择 -->
+            <div id="multiAngleControls" style="display:none;">
+                <div style="margin-bottom:15px;">
+                    <label style="color:#aaa;font-size:14px;display:block;margin-bottom:8px;">操作模式</label>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button type="button" class="mode-btn active" data-mode="subject" onclick="selectMultiAngleMode('subject')" style="padding:8px 16px;background:rgba(99,102,241,0.3);border:2px solid #6366f1;border-radius:20px;color:#fff;cursor:pointer;transition:0.3s;">🔄 主体模式</button>
+                        <button type="button" class="mode-btn" data-mode="camera" onclick="selectMultiAngleMode('camera')" style="padding:8px 16px;background:rgba(255,255,255,0.1);border:2px solid transparent;border-radius:20px;color:#aaa;cursor:pointer;transition:0.3s;">📷 摄像头模式</button>
+                        <button type="button" class="mode-btn" data-mode="wide-extend" onclick="selectMultiAngleMode('wide-extend')" style="padding:8px 16px;background:rgba(255,255,255,0.1);border:2px solid transparent;border-radius:20px;color:#aaa;cursor:pointer;transition:0.3s;">🔭 广角扩展</button>
+                    </div>
+                </div>
+
+                <!-- 🔄 主体模式 - 滑动控制区域 -->
+                <div id="subjectSwipeArea" style="display:block;margin-bottom:20px;">
+                    <div style="background:rgba(0,0,0,0.3);border-radius:16px;padding:20px;position:relative;overflow:hidden;user-select:none;" 
+                         id="subjectControlPad"
+                         onmousedown="startSubjectDrag(event)" 
+                         onmousemove="dragSubject(event)" 
+                         onmouseup="endSubjectDrag()"
+                         onmouseleave="endSubjectDrag()"
+                         ontouchstart="startSubjectDrag(event)" 
+                         ontouchmove="dragSubject(event)" 
+                         ontouchend="endSubjectDrag()">
+                        
+                        <!-- 中心产品图标 -->
+                        <div style="position:relative;width:150px;height:150px;margin:0 auto;">
+                            <div id="subjectRotator" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px;transition:transform 0.1s;cursor:grab;">📦</div>
+                            <!-- 旋转指示器 -->
+                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;border:2px dashed rgba(99,102,241,0.3);border-radius:50%;pointer-events:none;"></div>
+                        </div>
+                        
+                        <!-- 滑动提示 -->
+                        <div style="text-align:center;margin-top:15px;color:#888;font-size:13px;">
+                            <span style="display:block;margin-bottom:5px;">👆 拖动旋转产品</span>
+                            <span style="font-size:11px;">左右滑动 = 水平旋转 | 上下滑动 = 垂直旋转</span>
+                        </div>
+                        
+                        <!-- 当前角度显示 -->
+                        <div style="position:absolute;top:10px;right:10px;text-align:right;">
+                            <div id="subjectAngleDisplay" style="background:rgba(99,102,241,0.3);padding:6px 12px;border-radius:20px;font-size:12px;color:#fff;margin-bottom:4px;">
+                                正视图
+                            </div>
+                            <div id="subjectAngleValues" style="background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:12px;font-size:10px;color:#888;font-family:monospace;">
+                                Y:0°
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 快捷角度按钮 -->
+                    <div style="display:flex;gap:8px;justify-content:center;margin-top:15px;flex-wrap:wrap;">
+                        <button onclick="quickSetSubjectAngle('front')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">👤 正视</button>
+                        <button onclick="quickSetSubjectAngle('back')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">🔙 后视</button>
+                        <button onclick="quickSetSubjectAngle('left')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">⬅️ 左视</button>
+                        <button onclick="quickSetSubjectAngle('right')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">➡️ 右视</button>
+                        <button onclick="quickSetSubjectAngle('top')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">⬆️ 俯视</button>
+                        <button onclick="quickSetSubjectAngle('bottom')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">⬇️ 仰视</button>
+                    </div>
+                </div>
+
+                <!-- 📷 摄像头模式 - 滑动控制区域 -->
+                <div id="cameraSwipeArea" style="display:none;margin-bottom:20px;">
+                    <div style="background:rgba(0,0,0,0.3);border-radius:16px;padding:20px;position:relative;overflow:hidden;user-select:none;"
+                         id="cameraControlPad"
+                         onmousedown="startCameraDrag(event)"
+                         onmousemove="dragCamera(event)"
+                         onmouseup="endCameraDrag()"
+                         onmouseleave="endCameraDrag()"
+                         ontouchstart="startCameraDrag(event)"
+                         ontouchmove="dragCamera(event)"
+                         ontouchend="endCameraDrag()">
+                        
+                        <!-- 摄像头视角网格 -->
+                        <div style="position:relative;width:200px;height:150px;margin:0 auto;background:rgba(255,255,255,0.05);border-radius:12px;overflow:hidden;">
+                            <!-- 网格线 -->
+                            <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(99,102,241,0.3);"></div>
+                            <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(99,102,241,0.3);"></div>
+                            
+                            <!-- 摄像头位置指示器 -->
+                            <div id="cameraIndicator" style="position:absolute;width:40px;height:40px;background:rgba(99,102,241,0.5);border:2px solid #6366f1;border-radius:50%;transform:translate(-50%,-50%);left:50%;top:50%;transition:all 0.1s;cursor:grab;display:flex;align-items:center;justify-content:center;font-size:20px;">📷</div>
+                            
+                            <!-- 距离环 -->
+                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100px;height:100px;border:1px dashed rgba(99,102,241,0.3);border-radius:50%;"></div>
+                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px;border:1px dashed rgba(99,102,241,0.3);border-radius:50%;"></div>
+                        </div>
+                        
+                        <!-- 滑动提示 -->
+                        <div style="text-align:center;margin-top:15px;color:#888;font-size:13px;">
+                            <span style="display:block;margin-bottom:5px;">👆 拖动调整摄像头</span>
+                            <span style="font-size:11px;">上下 = 俯仰角 | 左右 = 方位角 | 距离 = 镜头焦距</span>
+                        </div>
+                        
+                        <!-- 当前镜头显示 -->
+                        <div style="position:absolute;top:10px;right:10px;text-align:right;">
+                            <div id="cameraLensDisplay" style="background:rgba(99,102,241,0.3);padding:6px 12px;border-radius:20px;font-size:12px;color:#fff;margin-bottom:4px;">
+                                标准镜头
+                            </div>
+                            <div id="cameraAngleValues" style="background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:12px;font-size:10px;color:#888;font-family:monospace;">
+                                P:0° Y:0° Z:1x
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 快捷镜头按钮 -->
+                    <div style="display:flex;gap:8px;justify-content:center;margin-top:15px;flex-wrap:wrap;">
+                        <button onclick="quickSetCameraLens('close-up')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">🔍 特写</button>
+                        <button onclick="quickSetCameraLens('wide')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">🔭 广角</button>
+                        <button onclick="quickSetCameraLens('macro')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">🔬 微距</button>
+                        <button onclick="quickSetCameraLens('telephoto')" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:20px;color:#aaa;font-size:12px;cursor:pointer;">📸 长焦</button>
+                    </div>
+                </div>
+
+                <!-- 已选角度预览 -->
+                <div id="selectedAnglesPreview" style="margin-bottom:15px;padding:15px;background:rgba(0,0,0,0.2);border-radius:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <label style="color:#aaa;font-size:14px;">已选视角 (<span id="selectedCount">0</span>)</label>
+                        <button onclick="clearAllAngles()" style="padding:4px 10px;background:rgba(255,0,0,0.2);border:1px solid rgba(255,0,0,0.3);border-radius:12px;color:#ff6b6b;font-size:11px;cursor:pointer;">清空</button>
+                    </div>
+                    <div id="selectedAnglesList" style="display:flex;gap:8px;flex-wrap:wrap;min-height:30px;">
+                        <span style="color:#666;font-size:12px;">拖动上方控制盘添加视角...</span>
+                    </div>
+                </div>
+
+                <!-- 高级选项 -->
+                <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:15px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#aaa;font-size:14px;">
+                        <input type="checkbox" id="layerEditToggle" onchange="toggleLayerEdit()" style="width:18px;height:18px;accent-color:#6366f1;">
+                        <span>🔧 智能分层编辑</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#aaa;font-size:14px;">
+                        <input type="checkbox" id="vectorModeToggle" style="width:18px;height:18px;accent-color:#6366f1;">
+                        <span>📐 矢量转换</span>
+                    </label>
+                </div>
+
+                <!-- 分层编辑选项 -->
+                <div id="layerEditOptions" style="display:none;margin-bottom:15px;padding:15px;background:rgba(0,0,0,0.2);border-radius:12px;">
+                    <label style="color:#aaa;font-size:14px;display:block;margin-bottom:8px;">分层操作</label>
+                    <select id="layerEditType" style="width:100%;padding:10px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:8px;color:#fff;">
+                        <option value="extract">🎯 主体提取（去背景）</option>
+                        <option value="background">🖼️ 背景替换</option>
+                        <option value="shadow">🌑 添加阴影</option>
+                        <option value="reflection">💧 添加倒影</option>
+                        <option value="lighting">💡 调整光照</option>
+                    </select>
+                    <input type="text" id="layerEditStyle" placeholder="背景风格描述（如：白色背景、森林场景等）" style="width:100%;margin-top:10px;padding:10px;background:rgba(255,255,255,0.1);border:1px solid #444;border-radius:8px;color:#fff;display:none;">
+                </div>
+
+                <!-- 费用显示 -->
+                <div style="padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;color:#aaa;font-size:13px;">
+                    💰 预计消耗: <span id="multiAngleCost" style="color:#6366f1;font-weight:bold;">0</span> 胶片
+                    <span id="costBreakdown" style="margin-left:10px;color:#666;"></span>
+                </div>
+            </div>
+        </div>
+
         <button class="generate-btn" id="generateBtn" onclick="generateImage()">⚡ 开始生成</button>
         <div class="loading" id="loading">
             <div class="spinner"></div>
@@ -1327,7 +1712,7 @@
                 <button class="result-btn primary" onclick="regenerate()">🔄 重新生成</button>
             </div>
         </div>
-        
+
         <div class="history-section">
             <div class="history-title">📋 生成历史</div>
             <div class="history-grid" id="historyGrid"></div>
@@ -1345,7 +1730,8 @@
         </div>
         <div class="mj-picker-grid" id="mjPickerGrid"></div>
         <div class="mj-picker-actions">
-            <button class="mj-picker-confirm" id="mjPickerConfirm" onclick="confirmMjSelection()" disabled>请先选择一张图片</button>
+            <button class="mj-picker-confirm" id="mjPickerConfirm" onclick="confirmMjSelection()"
+                disabled>请先选择一张图片</button>
             <button class="mj-picker-download-all" onclick="downloadAllMjImages()">📥 全部下载</button>
         </div>
     </div>
@@ -1363,7 +1749,8 @@
         </div>
         <div class="batch-cell-picker-grid" id="batchCellPickerGrid"></div>
         <div class="batch-cell-picker-actions">
-            <button class="batch-cell-picker-confirm" id="batchCellPickerConfirm" onclick="confirmBatchCellSelection()" disabled>请先选择一张图片</button>
+            <button class="batch-cell-picker-confirm" id="batchCellPickerConfirm" onclick="confirmBatchCellSelection()"
+                disabled>请先选择一张图片</button>
         </div>
     </div>
 
@@ -1377,7 +1764,8 @@
             <canvas class="ref-editor-canvas" id="refEditorCanvas"></canvas>
         </div>
         <div class="ref-editor-toolbar">
-            <button class="ref-editor-tool active" data-tool="brush" onclick="setEditorTool('brush')" title="画笔">🖌️</button>
+            <button class="ref-editor-tool active" data-tool="brush" onclick="setEditorTool('brush')"
+                title="画笔">🖌️</button>
             <button class="ref-editor-tool" data-tool="text" onclick="setEditorTool('text')" title="文字">📝</button>
             <button class="ref-editor-tool" data-tool="eraser" onclick="setEditorTool('eraser')" title="橡皮擦">🧽</button>
             <button class="ref-editor-tool" data-tool="undo" onclick="editorUndo()" title="撤销">↩️</button>
@@ -1396,6 +1784,430 @@
     </div>
 
     <script>
+        // ========== 🎨 多角度出图功能（滑动交互版） ==========
+        let multiAngleMode = {
+            enabled: false,
+            mode: 'subject', // subject, camera, wide-extend
+            selectedAngles: [],
+            layerEdit: { enabled: false, type: 'extract', style: '' },
+            vectorMode: false,
+            // 滑动状态
+            subjectRotation: { x: 0, y: 0 },
+            cameraPosition: { x: 50, y: 50, zoom: 50 },
+            isDragging: false,
+            dragStart: { x: 0, y: 0 },
+            lastDrag: { x: 0, y: 0 }
+        };
+
+        // 切换多角度出图模式
+        function toggleMultiAngleMode() {
+            const toggle = document.getElementById('multiAngleToggle');
+            const controls = document.getElementById('multiAngleControls');
+            const slider = document.querySelector('.toggle-slider');
+            
+            multiAngleMode.enabled = toggle.checked;
+            controls.style.display = toggle.checked ? 'block' : 'none';
+            
+            if (slider) {
+                slider.style.background = toggle.checked ? '#6366f1' : '#333';
+            }
+            
+            updateMultiAngleCost();
+            console.log('[banana] 多角度出图模式:', toggle.checked ? '开启' : '关闭');
+        }
+
+        // 选择操作模式
+        function selectMultiAngleMode(mode) {
+            multiAngleMode.mode = mode;
+            
+            // 更新按钮样式
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                if (btn.dataset.mode === mode) {
+                    btn.classList.add('active');
+                    btn.style.background = 'rgba(99,102,241,0.3)';
+                    btn.style.borderColor = '#6366f1';
+                    btn.style.color = '#fff';
+                } else {
+                    btn.classList.remove('active');
+                    btn.style.background = 'rgba(255,255,255,0.1)';
+                    btn.style.borderColor = 'transparent';
+                    btn.style.color = '#aaa';
+                }
+            });
+            
+            // 切换控制区域显示
+            const subjectArea = document.getElementById('subjectSwipeArea');
+            const cameraArea = document.getElementById('cameraSwipeArea');
+            
+            if (mode === 'subject') {
+                if (subjectArea) subjectArea.style.display = 'block';
+                if (cameraArea) cameraArea.style.display = 'none';
+            } else if (mode === 'camera') {
+                if (subjectArea) subjectArea.style.display = 'none';
+                if (cameraArea) cameraArea.style.display = 'block';
+            } else if (mode === 'wide-extend') {
+                if (subjectArea) subjectArea.style.display = 'none';
+                if (cameraArea) cameraArea.style.display = 'none';
+                // 自动选择广角
+                if (!multiAngleMode.selectedAngles.includes('wide-extend')) {
+                    multiAngleMode.selectedAngles.push('wide-extend');
+                    updateSelectedAnglesDisplay();
+                }
+            }
+            
+            updateMultiAngleCost();
+        }
+
+        // ==================== 🔄 主体模式滑动控制 ====================
+        
+        function startSubjectDrag(e) {
+            multiAngleMode.isDragging = true;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            multiAngleMode.dragStart = { x: clientX, y: clientY };
+            multiAngleMode.lastDrag = { x: clientX, y: clientY };
+            
+            const rotator = document.getElementById('subjectRotator');
+            if (rotator) rotator.style.cursor = 'grabbing';
+            
+            e.preventDefault();
+        }
+        
+        function dragSubject(e) {
+            if (!multiAngleMode.isDragging) return;
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const deltaX = clientX - multiAngleMode.lastDrag.x;
+            const deltaY = clientY - multiAngleMode.lastDrag.y;
+            
+            multiAngleMode.subjectRotation.y += deltaX * 0.5;
+            multiAngleMode.subjectRotation.x -= deltaY * 0.5;
+            multiAngleMode.subjectRotation.x = Math.max(-45, Math.min(45, multiAngleMode.subjectRotation.x));
+            
+            multiAngleMode.lastDrag = { x: clientX, y: clientY };
+            updateSubjectVisual();
+            
+            e.preventDefault();
+        }
+        
+        function endSubjectDrag() {
+            if (!multiAngleMode.isDragging) return;
+            multiAngleMode.isDragging = false;
+            
+            const rotator = document.getElementById('subjectRotator');
+            if (rotator) rotator.style.cursor = 'grab';
+            
+            // 吸附到最近角度并添加，但不重置视觉位置
+            snapToNearestSubjectAngle(false);
+        }
+        
+        function updateSubjectVisual() {
+            const rotator = document.getElementById('subjectRotator');
+            const display = document.getElementById('subjectAngleDisplay');
+            const values = document.getElementById('subjectAngleValues');
+            
+            if (rotator) {
+                rotator.style.transform = `rotateX(${multiAngleMode.subjectRotation.x}deg) rotateY(${multiAngleMode.subjectRotation.y}deg)`;
+            }
+            
+            if (display) {
+                display.textContent = getSubjectAngleName(multiAngleMode.subjectRotation.x, multiAngleMode.subjectRotation.y);
+            }
+            
+            // 显示具体数值
+            if (values) {
+                const x = Math.round(multiAngleMode.subjectRotation.x);
+                const y = Math.round(multiAngleMode.subjectRotation.y);
+                values.textContent = `X:${x}° Y:${y}°`;
+            }
+        }
+        
+        function getSubjectAngleName(x, y) {
+            const normalizedY = ((y % 360) + 360) % 360;
+            
+            if (Math.abs(x) > 30) {
+                return x > 0 ? '⬇️ 仰视' : '⬆️ 俯视';
+            }
+            
+            if (normalizedY >= 315 || normalizedY < 45) return '👤 正视图';
+            if (normalizedY >= 45 && normalizedY < 135) return '➡️ 右视图';
+            if (normalizedY >= 135 && normalizedY < 225) return '🔙 后视图';
+            return '⬅️ 左视图';
+        }
+        
+        function snapToNearestSubjectAngle(shouldReset = true) {
+            const x = multiAngleMode.subjectRotation.x;
+            const y = multiAngleMode.subjectRotation.y;
+            const normalizedY = ((y % 360) + 360) % 360;
+            
+            let angleKey = '';
+            
+            if (Math.abs(x) > 30) {
+                angleKey = x > 0 ? 'bottom' : 'top';
+            } else if (normalizedY >= 315 || normalizedY < 45) {
+                angleKey = 'front';
+            } else if (normalizedY >= 45 && normalizedY < 135) {
+                angleKey = 'right';
+            } else if (normalizedY >= 135 && normalizedY < 225) {
+                angleKey = 'back';
+            } else {
+                angleKey = 'left';
+            }
+            
+            if (!multiAngleMode.selectedAngles.includes(angleKey)) {
+                multiAngleMode.selectedAngles.push(angleKey);
+                updateSelectedAnglesDisplay();
+                updateMultiAngleCost();
+                showToast(`已添加: ${getAngleDisplayName(angleKey)}`);
+            }
+            
+            // 只在需要时重置视觉位置
+            if (shouldReset) {
+                multiAngleMode.subjectRotation = { x: 0, y: 0 };
+                updateSubjectVisual();
+            }
+        }
+        
+        function quickSetSubjectAngle(angle) {
+            if (!multiAngleMode.selectedAngles.includes(angle)) {
+                multiAngleMode.selectedAngles.push(angle);
+                updateSelectedAnglesDisplay();
+                updateMultiAngleCost();
+                showToast(`已添加: ${getAngleDisplayName(angle)}`);
+            }
+        }
+        
+        // ==================== 📷 摄像头模式滑动控制 ====================
+        
+        function startCameraDrag(e) {
+            multiAngleMode.isDragging = true;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            multiAngleMode.dragStart = { x: clientX, y: clientY };
+            multiAngleMode.lastDrag = { x: clientX, y: clientY };
+            
+            const indicator = document.getElementById('cameraIndicator');
+            if (indicator) indicator.style.cursor = 'grabbing';
+            
+            e.preventDefault();
+        }
+        
+        function dragCamera(e) {
+            if (!multiAngleMode.isDragging) return;
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const deltaX = clientX - multiAngleMode.lastDrag.x;
+            const deltaY = clientY - multiAngleMode.lastDrag.y;
+            
+            multiAngleMode.cameraPosition.x += deltaX * 0.3;
+            multiAngleMode.cameraPosition.y += deltaY * 0.3;
+            multiAngleMode.cameraPosition.x = Math.max(10, Math.min(90, multiAngleMode.cameraPosition.x));
+            multiAngleMode.cameraPosition.y = Math.max(10, Math.min(90, multiAngleMode.cameraPosition.y));
+            
+            multiAngleMode.lastDrag = { x: clientX, y: clientY };
+            updateCameraVisual();
+            
+            e.preventDefault();
+        }
+        
+        function endCameraDrag() {
+            if (!multiAngleMode.isDragging) return;
+            multiAngleMode.isDragging = false;
+            
+            const indicator = document.getElementById('cameraIndicator');
+            if (indicator) indicator.style.cursor = 'grab';
+            
+            // 吸附到最近镜头并添加，但不重置视觉位置
+            snapToNearestCameraLens(false);
+        }
+        
+        function updateCameraVisual() {
+            const indicator = document.getElementById('cameraIndicator');
+            const display = document.getElementById('cameraLensDisplay');
+            const values = document.getElementById('cameraAngleValues');
+            
+            if (indicator) {
+                indicator.style.left = multiAngleMode.cameraPosition.x + '%';
+                indicator.style.top = multiAngleMode.cameraPosition.y + '%';
+                const size = 30 + (multiAngleMode.cameraPosition.y / 100) * 30;
+                indicator.style.width = size + 'px';
+                indicator.style.height = size + 'px';
+            }
+            
+            if (display) {
+                display.textContent = getCameraLensName(multiAngleMode.cameraPosition.x, multiAngleMode.cameraPosition.y);
+            }
+            
+            // 显示具体数值
+            if (values) {
+                const pitch = Math.round(multiAngleMode.cameraPosition.y);
+                const yaw = Math.round(multiAngleMode.cameraPosition.x);
+                const zoom = (0.5 + (pitch / 200)).toFixed(2);
+                values.textContent = `P:${pitch}° Y:${yaw}° Z:${zoom}x`;
+            }
+        }
+        
+        function getCameraLensName(x, y) {
+            if (y < 30) return '🔍 特写镜头';
+            if (y > 70) return '🔭 广角镜头';
+            if (x < 30) return '🔬 微距镜头';
+            if (x > 70) return '📸 长焦镜头';
+            return '📷 标准镜头';
+        }
+        
+        function snapToNearestCameraLens(shouldReset = true) {
+            const x = multiAngleMode.cameraPosition.x;
+            const y = multiAngleMode.cameraPosition.y;
+            
+            let lensKey = '';
+            
+            if (y < 30) lensKey = 'close-up';
+            else if (y > 70) lensKey = 'wide';
+            else if (x < 30) lensKey = 'macro';
+            else if (x > 70) lensKey = 'telephoto';
+            else lensKey = 'standard';
+            
+            if (!multiAngleMode.selectedAngles.includes(lensKey)) {
+                multiAngleMode.selectedAngles.push(lensKey);
+                updateSelectedAnglesDisplay();
+                updateMultiAngleCost();
+                showToast(`已添加: ${getAngleDisplayName(lensKey)}`);
+            }
+            
+            // 只在需要时重置视觉位置
+            if (shouldReset) {
+                multiAngleMode.cameraPosition = { x: 50, y: 50, zoom: 50 };
+                updateCameraVisual();
+            }
+        }
+        
+        function quickSetCameraLens(lens) {
+            if (!multiAngleMode.selectedAngles.includes(lens)) {
+                multiAngleMode.selectedAngles.push(lens);
+                updateSelectedAnglesDisplay();
+                updateMultiAngleCost();
+                showToast(`已添加: ${getAngleDisplayName(lens)}`);
+            }
+        }
+        
+        // ==================== 通用功能 ====================
+        
+        function getAngleDisplayName(key) {
+            const names = {
+                'front': '正视图', 'back': '后视图', 'left': '左视图', 'right': '右视图',
+                'top': '俯视图', 'bottom': '仰视图', 'iso-left': '左等轴测', 'iso-right': '右等轴测',
+                'close-up': '特写镜头', 'wide': '广角镜头', 'macro': '微距镜头',
+                'fisheye': '鱼眼镜头', 'telephoto': '长焦镜头', 'tilt-shift': '移轴镜头',
+                'standard': '标准镜头', 'wide-extend': '广角扩展'
+            };
+            return names[key] || key;
+        }
+        
+        function updateSelectedAnglesDisplay() {
+            const list = document.getElementById('selectedAnglesList');
+            const count = document.getElementById('selectedCount');
+            
+            if (count) count.textContent = multiAngleMode.selectedAngles.length;
+            
+            if (list) {
+                if (multiAngleMode.selectedAngles.length === 0) {
+                    list.innerHTML = '<span style="color:#666;font-size:12px;">拖动上方控制盘添加视角...</span>';
+                } else {
+                    list.innerHTML = multiAngleMode.selectedAngles.map(angle => `
+                        <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(99,102,241,0.3);border-radius:15px;font-size:12px;color:#fff;">
+                            ${getAngleDisplayName(angle)}
+                            <button onclick="removeAngle('${angle}')" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:0;line-height:1;">×</button>
+                        </span>
+                    `).join('');
+                }
+            }
+        }
+        
+        function removeAngle(angle) {
+            const index = multiAngleMode.selectedAngles.indexOf(angle);
+            if (index > -1) {
+                multiAngleMode.selectedAngles.splice(index, 1);
+                updateSelectedAnglesDisplay();
+                updateMultiAngleCost();
+            }
+        }
+        
+        function clearAllAngles() {
+            multiAngleMode.selectedAngles = [];
+            updateSelectedAnglesDisplay();
+            updateMultiAngleCost();
+        }
+
+        // 切换分层编辑
+        function toggleLayerEdit() {
+            const toggle = document.getElementById('layerEditToggle');
+            const options = document.getElementById('layerEditOptions');
+            
+            multiAngleMode.layerEdit.enabled = toggle.checked;
+            options.style.display = toggle.checked ? 'block' : 'none';
+            
+            updateMultiAngleCost();
+        }
+
+        // 监听分层编辑类型变化
+        document.addEventListener('DOMContentLoaded', () => {
+            const layerEditType = document.getElementById('layerEditType');
+            const layerEditStyle = document.getElementById('layerEditStyle');
+            
+            if (layerEditType) {
+                layerEditType.addEventListener('change', (e) => {
+                    multiAngleMode.layerEdit.type = e.target.value;
+                    if (layerEditStyle) {
+                        layerEditStyle.style.display = e.target.value === 'background' ? 'block' : 'none';
+                    }
+                });
+            }
+            
+            if (layerEditStyle) {
+                layerEditStyle.addEventListener('input', (e) => {
+                    multiAngleMode.layerEdit.style = e.target.value;
+                });
+            }
+            
+            const vectorToggle = document.getElementById('vectorModeToggle');
+            if (vectorToggle) {
+                vectorToggle.addEventListener('change', (e) => {
+                    multiAngleMode.vectorMode = e.target.checked;
+                    updateMultiAngleCost();
+                });
+            }
+        });
+
+        // 更新费用显示
+        function updateMultiAngleCost() {
+            const costPerImage = 4;
+            const angleCount = multiAngleMode.selectedAngles.length;
+            let totalCost = angleCount * costPerImage;
+            
+            if (multiAngleMode.layerEdit.enabled) {
+                totalCost += 2;
+            }
+            if (multiAngleMode.vectorMode) {
+                totalCost += 3;
+            }
+            
+            const costEl = document.getElementById('multiAngleCost');
+            const breakdownEl = document.getElementById('costBreakdown');
+            
+            if (costEl) costEl.textContent = totalCost;
+            if (breakdownEl) {
+                const parts = [];
+                if (angleCount > 0) parts.push(`${angleCount}张×${costPerImage}胶片`);
+                if (multiAngleMode.layerEdit.enabled) parts.push('分层+2');
+                if (multiAngleMode.vectorMode) parts.push('矢量+3');
+                breakdownEl.textContent = parts.length > 0 ? `(${parts.join(', ')})` : '';
+            }
+        }
+
         // 🎨 参考图编辑器状态
         let __editorCanvas = null;
         let __editorCtx = null;
@@ -1412,12 +2224,12 @@
             __editorMultiIndex = multiIndex;
             __editorHistory = [];
             __editorTool = 'brush';
-            
+
             const overlay = document.getElementById('refEditorOverlay');
             const canvas = document.getElementById('refEditorCanvas');
             __editorCanvas = canvas;
             __editorCtx = canvas.getContext('2d');
-            
+
             // 加载图片到Canvas
             const img = new Image();
             img.onload = () => {
@@ -1427,19 +2239,19 @@
                 let w = img.width, h = img.height;
                 if (w > maxW) { h = h * maxW / w; w = maxW; }
                 if (h > maxH) { w = w * maxH / h; h = maxH; }
-                
+
                 canvas.width = w;
                 canvas.height = h;
                 __editorCtx.drawImage(img, 0, 0, w, h);
                 __editorOriginalImage = img;
-                
+
                 // 保存初始状态到历史
                 saveEditorState();
-                
+
                 overlay.classList.add('show');
             };
             img.src = imageBase64;
-            
+
             // 绑定事件
             canvas.onmousedown = startEditorDraw;
             canvas.onmousemove = doEditorDraw;
@@ -1448,26 +2260,26 @@
             canvas.ontouchstart = startEditorDraw;
             canvas.ontouchmove = doEditorDraw;
             canvas.ontouchend = endEditorDraw;
-            
+
             // 重置工具按钮状态
             document.querySelectorAll('.ref-editor-tool').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.tool === 'brush');
             });
         }
-        
+
         // 切换工具
         function setEditorTool(tool) {
             __editorTool = tool;
             document.querySelectorAll('.ref-editor-tool').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.tool === tool);
             });
-            
+
             // 文字工具提示
             if (tool === 'text') {
                 showToast('点击画布添加文字');
             }
         }
-        
+
         // 保存状态到历史
         function saveEditorState() {
             if (!__editorCanvas) return;
@@ -1475,7 +2287,7 @@
             // 最多保存20步
             if (__editorHistory.length > 20) __editorHistory.shift();
         }
-        
+
         // 撤销
         function editorUndo() {
             if (__editorHistory.length <= 1) {
@@ -1491,7 +2303,7 @@
             };
             img.src = prevState;
         }
-        
+
         // 获取触摸/鼠标坐标
         function getEditorPos(e) {
             const rect = __editorCanvas.getBoundingClientRect();
@@ -1503,12 +2315,12 @@
             }
             return { x: e.clientX - rect.left, y: e.clientY - rect.top };
         }
-        
+
         // 开始绘制
         function startEditorDraw(e) {
             e.preventDefault();
             const pos = getEditorPos(e);
-            
+
             if (__editorTool === 'text') {
                 // 文字工具：弹出输入框
                 const text = prompt('输入要添加的文字:');
@@ -1522,14 +2334,14 @@
                 }
                 return;
             }
-            
+
             __editorDrawing = true;
             __editorCtx.beginPath();
             __editorCtx.moveTo(pos.x, pos.y);
-            
+
             const color = document.getElementById('editorColor').value;
             const size = parseInt(document.getElementById('editorSize').value);
-            
+
             if (__editorTool === 'eraser') {
                 __editorCtx.globalCompositeOperation = 'destination-out';
                 __editorCtx.lineWidth = size * 3;
@@ -1541,7 +2353,7 @@
             __editorCtx.lineCap = 'round';
             __editorCtx.lineJoin = 'round';
         }
-        
+
         // 绘制中
         function doEditorDraw(e) {
             if (!__editorDrawing) return;
@@ -1550,7 +2362,7 @@
             __editorCtx.lineTo(pos.x, pos.y);
             __editorCtx.stroke();
         }
-        
+
         // 结束绘制
         function endEditorDraw(e) {
             if (!__editorDrawing) return;
@@ -1558,18 +2370,18 @@
             __editorCtx.globalCompositeOperation = 'source-over';
             saveEditorState();
         }
-        
+
         // 关闭编辑器
         function closeRefEditor() {
             document.getElementById('refEditorOverlay').classList.remove('show');
             __editorCallback = null;
         }
-        
+
         // 确认编辑并保存
         function confirmRefEditor() {
             if (!__editorCanvas) return;
             const editedBase64 = __editorCanvas.toDataURL('image/jpeg', 0.9);
-            
+
             if (__editorMultiIndex >= 0) {
                 // 多图编辑模式
                 window.multiRefImages[__editorMultiIndex] = editedBase64;
@@ -1579,7 +2391,7 @@
                 // 单图编辑模式
                 __editorCallback(editedBase64);
             }
-            
+
             closeRefEditor();
         }
 
@@ -1603,8 +2415,11 @@
             return new Promise((resolve, reject) => {
                 const img = new Image();
                 img.onload = () => {
-                    const w = img.width / 2;
-                    const h = img.height / 2;
+                    // 限制最大尺寸以适应屏幕
+                    const maxW = window.innerWidth - 40;
+                    const maxH = window.innerHeight - 280;
+                    let w = img.width / 2;
+                    let h = img.height / 2;
                     const results = [];
                     const positions = [[0, 0], [w, 0], [0, h], [w, h]];  // 左上、右上、左下、右下
                     for (const [x, y] of positions) {
@@ -1661,7 +2476,7 @@
 
             document.getElementById('mjImagePicker').classList.add('show');
         }
-        
+
         // 🆕 下载单张 MJ 图片（支持 base64 和普通 URL）
         function downloadMjSingleImage(index, event) {
             if (event) {
@@ -1669,10 +2484,10 @@
                 event.preventDefault();
             }
             if (!__mjPickerImages || !__mjPickerImages[index]) return;
-            
+
             const imgUrl = __mjPickerImages[index];
             const filename = `mj_image_${index + 1}_${Date.now()}.png`;
-            
+
             // 🔧 修复：base64 图片需要转换为 Blob 才能正确下载
             if (imgUrl.startsWith('data:')) {
                 try {
@@ -1685,7 +2500,7 @@
                     for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
                     const blob = new Blob([u8arr], { type: mime });
                     const blobUrl = URL.createObjectURL(blob);
-                    
+
                     const a = document.createElement('a');
                     a.href = blobUrl;
                     a.download = filename;
@@ -1710,24 +2525,24 @@
             }
             showToast(`已下载第 ${index + 1} 张图片`);
         }
-        
+
         // 🆕 下载全部 MJ 图片（支持 base64）
         async function downloadAllMjImages() {
             if (!__mjPickerImages || __mjPickerImages.length === 0) {
                 showToast('没有可下载的图片');
                 return;
             }
-            
+
             const count = __mjPickerImages.length;
             showToast(`正在下载 ${count} 张图片...`);
-            
+
             const timestamp = Date.now();
             let successCount = 0;
-            
+
             for (let i = 0; i < count; i++) {
                 const imgUrl = __mjPickerImages[i];
                 const filename = `mj_image_${i + 1}_${timestamp}.png`;
-                
+
                 try {
                     // 🔧 修复：base64 图片需要转换为 Blob 才能正确下载
                     if (imgUrl.startsWith('data:')) {
@@ -1739,7 +2554,7 @@
                         for (let j = 0; j < n; j++) u8arr[j] = bstr.charCodeAt(j);
                         const blob = new Blob([u8arr], { type: mime });
                         const blobUrl = URL.createObjectURL(blob);
-                        
+
                         const a = document.createElement('a');
                         a.href = blobUrl;
                         a.download = filename;
@@ -1760,11 +2575,11 @@
                 } catch (e) {
                     console.error(`下载第 ${i + 1} 张失败:`, e);
                 }
-                
+
                 // 延迟一下避免浏览器拦截
                 await new Promise(r => setTimeout(r, 500));
             }
-            
+
             if (successCount === count) {
                 showToast(`✅ 全部 ${count} 张图片已下载！`);
             } else {
@@ -1787,13 +2602,13 @@
         // 确认选择
         async function confirmMjSelection() {
             if (__mjPickerSelectedIndex < 0) return;
-            
+
             const selectedIndex = __mjPickerSelectedIndex + 1;  // 1-4
             const previewImage = __mjPickerImages[__mjPickerSelectedIndex];
             // 🔧 修复：在关闭选择器前保存callback引用，防止被清空
             const callback = __mjPickerCallback;
             const taskId = __mjTaskId;
-            
+
             // 🎯 优化：先获取 userId，如果没有则直接用预览图（避免 401 报错）
             let userId = currentUser?.id;
             if (!userId && typeof NVAuth !== 'undefined') {
@@ -1802,7 +2617,7 @@
                     userId = user?.id;
                 } catch (e) { console.warn('[MJ] 获取用户失败'); }
             }
-            
+
             // 🎯 优化：没有 userId 或没有 taskId，直接用预览图（已经是高清切图，够用了）
             if (!taskId || !userId) {
                 console.log(`🎨 [MJ] 直接使用预览图 (taskId=${!!taskId}, userId=${!!userId})`);
@@ -1812,13 +2627,13 @@
                 }
                 return;
             }
-            
+
             console.log(`🔍 [MJ] 开始 upscale 第 ${selectedIndex} 张图片, taskId=${taskId}`);
-            
+
             // 先关闭选择器，显示 loading
             closeMjPicker();
             showToast('正在放大选中的图片...');
-            
+
             try {
                 const upscaleRes = await fetch('/api/yunwu', {
                     method: 'POST',
@@ -1830,9 +2645,9 @@
                         userId: userId
                     })
                 });
-                
+
                 const upscaleData = await upscaleRes.json();
-                
+
                 if (upscaleData.success && upscaleData.imageUrl) {
                     console.log('✅ [MJ] Upscale 成功:', upscaleData.imageUrl);
                     if (callback) {
@@ -1867,7 +2682,7 @@
             console.log('[banana] goBack 被调用');
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
-            
+
             if (fromMobile) {
                 location.href = 'mobile.html?skip_welcome=1';
             } else {
@@ -1880,27 +2695,32 @@
         let authInitialized = false;
 
         // 扣费标准（成本×2确保50%利润，1胶片=¥0.1）
-        const FILM_COST = { 
+        const FILM_COST = {
             'modelscope': 0,
             'nano-banana-2': 6,
             'nano-banana-2-2k': 6,
             'nano-banana-2-4k': 10,
             'Qwen/Qwen-Image-2512': 8,
             'doubao-seedream-4-5-251128': 7,
+            'doubao-seedream-5-0-260128': 7,
             'jimeng-4.5': 7,
+            'gemini-3.1-flash-image-preview': 4,
+            'gemini-3.1-flash-image-preview-2k': 4,
+            'gemini-3.1-flash-image-preview-4k': 7,
             'midjourney-fast': 2,
             'midjourney-turbo': 2,
-            'midjourney-relax': 2
+            'midjourney-relax': 2,
+            'openrouter:bytedance-seed/seedream-4.5': 0
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('[banana] 页面加载完成，开始初始化...');
-            
+
             // 🔧 修复：绑定生成按钮事件（移除 touchend 避免重复触发）
             const generateBtn = document.getElementById('generateBtn');
             if (generateBtn) {
                 // 只使用 click 事件，移动端会自动转换
-                generateBtn.onclick = function(e) {
+                generateBtn.onclick = function (e) {
                     console.log('[banana] 生成按钮被点击');
                     if (this.disabled) {
                         console.log('[banana] 按钮已禁用，忽略');
@@ -1909,34 +2729,34 @@
                     generateImage();
                 };
             }
-            
+
             // 🔧 修复：返回按钮支持触摸事件
             const backBtn = document.querySelector('.back-btn');
             if (backBtn) {
-                backBtn.addEventListener('touchend', function(e) {
+                backBtn.addEventListener('touchend', function (e) {
                     e.preventDefault();
                     goBack();
                 });
             }
-            
+
             // 🔧 修复：结果区域按钮支持触摸事件（移动端点击无响应问题）
             document.querySelectorAll('.result-btn').forEach(btn => {
-                btn.addEventListener('touchend', function(e) {
+                btn.addEventListener('touchend', function (e) {
                     e.preventDefault();
                     console.log('[banana] 结果按钮被触摸:', this.textContent.trim());
                     this.click();
                 });
             });
-            
+
             // 🔧 修复：批量结果按钮支持触摸事件
             document.querySelectorAll('.batch-action-btn').forEach(btn => {
-                btn.addEventListener('touchend', function(e) {
+                btn.addEventListener('touchend', function (e) {
                     e.preventDefault();
                     console.log('[banana] 批量操作按钮被触摸:', this.textContent.trim());
                     this.click();
                 });
             });
-            
+
             // 🔧 修复：与 music.html 保持一致的认证逻辑
             if (typeof NVAuth !== 'undefined') {
                 await checkUser();
@@ -1946,14 +2766,14 @@
                 document.getElementById('quotaBadge').textContent = '🎞️ 未登录';
             }
             authInitialized = true;
-            
+
             // 处理从其他页面传来的数据
             const knollingPrompt = localStorage.getItem('knolling_prompt');
             if (knollingPrompt) {
                 document.getElementById('promptInput').value = knollingPrompt;
                 localStorage.removeItem('knolling_prompt');
             }
-            
+
             const sketchImage = localStorage.getItem('sketch_image');
             const sketchPrompt = localStorage.getItem('sketch_prompt');
             if (sketchImage) {
@@ -1970,10 +2790,10 @@
                 document.getElementById('promptInput').value = sketchPrompt;
                 localStorage.removeItem('sketch_prompt');
             }
-            
+
             loadHistory();
             updateModelInfo();
-            
+
             // 🎬 从 localStorage 读取批量提示词（从 prompt-fill.html 或 writing.html 跳转过来）
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('batch') === '1') {
@@ -1984,15 +2804,15 @@
                         if (prompts && prompts.length > 0) {
                             // 切换到批量模式
                             setBatchMode(true);
-                            
+
                             // 填充到九宫格输入框
                             prompts.slice(0, 9).forEach((prompt, i) => {
                                 const input = document.getElementById(`batchInput${i}`);
                                 if (input) input.value = prompt;
                             });
-                            
+
                             localStorage.removeItem('knolling_batch_prompts');
-                            
+
                             // 🆕 如果是从writing页面来的，显示特殊提示
                             if (urlParams.get('from_writing') === '1') {
                                 showToast(`已加载 ${Math.min(prompts.length, 9)} 个AI写作内容，点击批量生成`);
@@ -2006,7 +2826,7 @@
                     }
                 }
             }
-            
+
             // 🆕 从 writing.html 单篇模式跳转过来
             if (urlParams.get('from_writing') === '1' && urlParams.get('batch') !== '1') {
                 const writingData = localStorage.getItem('writing_to_image');
@@ -2028,7 +2848,7 @@
                     }
                 }
             }
-            
+
             console.log('[banana] 初始化完成, 用户:', currentUser?.email, '胶片:', userQuota);
         });
 
@@ -2040,12 +2860,12 @@
                     typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
                     new Promise(resolve => setTimeout(resolve, 3000))
                 ]);
-                
+
                 // 使用 NVAuth 获取用户（与 music.html 完全一致）
                 if (typeof NVAuth !== 'undefined') {
                     currentUser = await NVAuth.getCurrentUser();
                 }
-                
+
                 // 更新 UI
                 if (currentUser) {
                     document.getElementById('loginTip').style.display = 'none';
@@ -2091,7 +2911,7 @@
                 mjVersionGroup.style.display = isMidjourney ? 'block' : 'none';
             }
             // 🎨 多图参考支持：星梦画师 + 通义万象MAX + Banana系列
-            const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream'));
+            const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream') || model.includes('openrouter:bytedance-seed/seedream'));
             const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
             const isBanana = model && model.startsWith('nano-banana-');
             const multiRefSection = document.getElementById('multiRefSection');
@@ -2110,10 +2930,10 @@
 
         async function generateSingleImage() {
             console.log('[banana] generateSingleImage 被调用');
-            
+
             let prompt = document.getElementById('promptInput').value.trim();
             if (!prompt) { showToast('请输入描述内容'); return; }
-            
+
             // 📷 添加摄影角度到 prompt
             const cameraAngle = document.getElementById('cameraAngleSelect')?.value;
             if (cameraAngle) {
@@ -2138,14 +2958,14 @@
             } catch (e) {
                 console.error('[banana] 认证检查异常:', e);
             }
-            
+
             // 必须登录
-            if (!currentUser) { 
-                showToast('请先登录后使用'); 
+            if (!currentUser) {
+                showToast('请先登录后使用');
                 setTimeout(() => { window.location.href = 'auth.html'; }, 1000);
-                return; 
+                return;
             }
-            
+
             // 📱 移动端安全检查：确保 currentUser.id 存在
             if (!currentUser.id) {
                 console.error('[banana] currentUser.id 为空:', currentUser);
@@ -2153,7 +2973,7 @@
                 setTimeout(() => { window.location.href = 'auth.html'; }, 1000);
                 return;
             }
-            
+
             const userId = currentUser.id;  // 🔒 缓存用户ID，避免后续可能的空引用
             console.log('[banana] 用户ID:', userId);
 
@@ -2162,15 +2982,19 @@
             const filmCost = FILM_COST[model] || 0;
 
             // 配额检查（使用刷新后的余额）
-            if (filmCost > 0 && userQuota < filmCost) { 
-                showToast(`胶片不足，需要${filmCost}胶片`); 
-                return; 
+            if (filmCost > 0 && userQuota < filmCost) {
+                showToast(`胶片不足，需要${filmCost}胶片`);
+                return;
             }
 
-            const btn = document.getElementById('generateBtn');
+            // 🔧 在函数开头声明变量，避免 finally 块中未定义
+            let progressInterval = null;
+
             const loading = document.getElementById('loading');
             const resultSection = document.getElementById('resultSection');
-            btn.disabled = true;
+            
+            // 使用全局按钮状态管理
+            ButtonState.setLoading('generateBtn');
             loading.style.display = 'block';
             resultSection.style.display = 'none';
 
@@ -2178,7 +3002,7 @@
             const loadingText = document.getElementById('loadingText');
             const isMidjourney = model && model.startsWith('midjourney-');
             const isQwenModel = model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image');
-            
+
             if (isMidjourney) {
                 loadingText.textContent = 'MJ生成中，预计1-3分钟，请勿离开页面...';
             } else if (isQwenModel) {
@@ -2186,27 +3010,35 @@
             } else {
                 loadingText.textContent = '正在生成...';
             }
-            
+
             try {
                 // 🔐 计费已移至后端 API，前端只需传递 userId
                 let response;
-                
+
                 // 📱 移动端修复：不使用 AbortController，避免误中断
                 // 移动端浏览器可能会自己中断请求，不需要我们手动设置超时
                 const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 console.log(`[banana] 移动端=${isMobileDevice}, 不设置前端超时`);
-                
+
                 const fetchOptions = {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                     // 🔧 移除 signal，让请求自然完成
                 };
-                
+
+                // 🎬 模拟进度更新
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 15;
+                    if (progress > 95) progress = 95;
+                    ButtonState.setProgress('generateBtn', Math.floor(progress));
+                }, 2000);
+
                 if (isQwenModel) {
                     // 🎨 通义万象Max系列，使用 banana2 API（支持异步轮询，避免 Vercel 超时）
                     const hasMultiRef = window.multiRefImages && window.multiRefImages.length >= 2;
                     const hasReferenceImage = !!window.referenceImageUrl;
-                    
+
                     // 构建请求体
                     const requestBody = {
                         prompt,
@@ -2214,7 +3046,7 @@
                         model: 'qwen-image-max',  // 🔧 使用 banana2 支持的模型名
                         userId: userId  // 🔒 使用缓存的userId
                     };
-                    
+
                     // 🎨 多图参考模式
                     if (hasMultiRef) {
                         const limitedImages = window.multiRefImages.slice(0, 3);
@@ -2226,7 +3058,7 @@
                         requestBody.image_url = window.referenceImageUrl;
                         console.log(`🎨 [万相Max] 单图参考模式`);
                     }
-                    
+
                     // 🔧 使用 banana2 API（内置异步轮询，不会超时）
                     fetchOptions.body = JSON.stringify(requestBody);
                     response = await fetch('/api/banana2', fetchOptions);
@@ -2236,22 +3068,23 @@
                     response = await fetch('/api/modelscope', fetchOptions);
                 } else {
                     const isMidjourney = model && model.startsWith('midjourney-');
-                    const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream'));
-                    // 🎨 星梦画师路由到 yunwu API
-                    const apiEndpoint = isMidjourney ? '/api/yunwu' : (isSeedream ? '/api/yunwu' : '/api/banana2');
+                    const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream') || model.includes('openrouter:bytedance-seed/seedream'));
+                    const isOpenRouterImage = model && model.startsWith('openrouter:');
+                    // 🎨 星梦画师路由到 yunwu API，OpenRouter 图片模型路由到 /api/banana2
+                    const apiEndpoint = isMidjourney ? '/api/yunwu' : (isSeedream ? '/api/yunwu' : (isOpenRouterImage ? '/api/banana2' : '/api/banana2'));
                     const requestBody = { prompt, model, aspect_ratio: ratio, userId: userId };  // 🔒 使用缓存的userId
-                    
+
                     // 🎨 星梦画师特殊处理
                     if (isSeedream) {
                         requestBody.action = 'seedream';
-                        
+
                         // 多图参考模式 (2-10张)
                         if (window.multiRefImages && window.multiRefImages.length >= 2) {
                             // 检查多图总大小，避免请求体过大
                             const totalSize = window.multiRefImages.reduce((sum, img) => sum + img.length, 0);
                             if (totalSize > 20 * 1024 * 1024) {  // 20MB限制
                                 showToast('多张参考图总大小超过20MB，请减少图片或使用较小的图片');
-                                btn.disabled = false;
+                                ButtonState.reset('generateBtn');
                                 loading.style.display = 'none';
                                 return;
                             }
@@ -2263,7 +3096,7 @@
                         else if (window.referenceImageUrl) {
                             if (window.referenceImageUrl.length > 5 * 1024 * 1024) {
                                 showToast('参考图过大，请选择较小的图片');
-                                btn.disabled = false;
+                                ButtonState.reset('generateBtn');
                                 loading.style.display = 'none';
                                 return;
                             }
@@ -2279,7 +3112,7 @@
                             const totalSize = window.multiRefImages.reduce((sum, img) => sum + img.length, 0);
                             if (totalSize > 20 * 1024 * 1024) {
                                 showToast('多张参考图总大小超过20MB，请减少图片或使用较小的图片');
-                                btn.disabled = false;
+                                ButtonState.reset('generateBtn');
                                 loading.style.display = 'none';
                                 return;
                             }
@@ -2291,14 +3124,14 @@
                             // 检查参考图大小，避免请求体过大导致413错误
                             if (window.referenceImageUrl.length > 5 * 1024 * 1024) {  // 5MB限制
                                 showToast('参考图过大，请选择较小的图片');
-                                btn.disabled = false;
+                                ButtonState.reset('generateBtn');
                                 loading.style.display = 'none';
                                 return;
                             }
                             requestBody.image_url = window.referenceImageUrl;
                         }
                     }
-                    
+
                     // Midjourney 特有参数
                     if (isMidjourney) {
                         requestBody.action = 'midjourney';
@@ -2309,7 +3142,7 @@
                     fetchOptions.body = JSON.stringify(requestBody);
                     response = await fetch(apiEndpoint, fetchOptions);
                 }
-                
+
                 // 🔧 修复：先检查响应状态，再解析JSON
                 if (!response.ok) {
                     let errMsg = `HTTP ${response.status}`;
@@ -2329,7 +3162,7 @@
                                 if (m && m[1]) errMsg = m[1];
                             }
                             console.error('[banana] API错误详情(TEXT):', debugInfo);
-                        } catch (e2) {}
+                        } catch (e2) { }
                     }
                     // 如果有debug信息，输出到控制台
                     if (debugInfo) {
@@ -2337,7 +3170,7 @@
                     }
                     throw new Error(errMsg);
                 }
-                
+
                 const data = await response.json();
                 if (data.error) throw new Error(data.message || data.error);
 
@@ -2356,16 +3189,16 @@
                 // 🆕 MJ 网格图 + taskId：前端切图 + 用户选择 + upscale
                 if (hasMjGrid) {
                     console.log('🎨 [MJ] 收到网格图，开始前端切图选择流程');
-                    btn.disabled = false;
+                    ButtonState.reset('generateBtn');
                     loading.style.display = 'none';
-                    
+
                     try {
                         // 前端切图
                         const splitImages = await splitMjGridImage(data.gridBase64);
                         console.log(`🔪 [MJ] 切图完成，得到 ${splitImages.length} 张图片`);
-                        
+
                         showToast('生成成功！请选择一张图片进行放大');
-                        
+
                         // 弹出选择器，传入 taskId
                         showMjImagePicker(splitImages, (selectedUrl) => {
                             if (selectedUrl) {
@@ -2394,10 +3227,10 @@
                 // 🎨 兼容旧版：MJ 返回多张图片
                 if (hasMjImages) {
                     // 🎨 MJ 返回多张图片，弹出选择器让用户选择
-                    btn.disabled = false;
+                    ButtonState.reset('generateBtn');
                     loading.style.display = 'none';
                     showToast('生成成功！请选择一张图片');
-                    
+
                     showMjImagePicker(data.images, (selectedUrl) => {
                         if (selectedUrl) {
                             currentImageUrl = selectedUrl;
@@ -2419,7 +3252,7 @@
                 console.log('[banana] 后端返回数据:', JSON.stringify(data).substring(0, 500));
                 console.log('[banana] data.url:', data.url?.substring(0, 100));
                 console.log('[banana] data.urls:', data.urls);
-                
+
                 // 🔧 优先从多个字段提取URL
                 let imageUrl = data.url || data.image_url || '';
                 // 备用：urls数组的第一项
@@ -2432,16 +3265,23 @@
                     imageUrl = data.data?.url || data.data?.image_url || '';
                 }
                 const finalUrl = imageUrl || (data.images && data.images.length > 0 ? (data.images[0].url || data.images[0]) : '');
-                
+
                 console.log('[banana] 最终URL:', finalUrl?.substring(0, 100));
                 if (!finalUrl) throw new Error('未获取到图片地址，后端返回: ' + JSON.stringify(data).substring(0, 200));
+
 
                 // ✅ 只有成功获取到图片URL才更新状态
                 currentImageUrl = finalUrl;
 
+                // 设置进度为100%
+                clearInterval(progressInterval);
+                ButtonState.setProgress('generateBtn', 100);
+
                 document.getElementById('resultImage').src = currentImageUrl;
                 resultSection.style.display = 'block';
                 showToast('生成成功！');
+                // 🔧 修复：延长持续时间到 5 秒，避免快速恢复到原始状态
+                ButtonState.setSuccess('generateBtn', '✅ 生成成功', 5000);
 
                 // 🔧 历史记录保存独立处理，不影响主流程
                 try {
@@ -2454,11 +3294,13 @@
                 console.error('[banana] 错误堆栈:', error.stack);
                 // 🔧 修复：失败时隐藏结果区域，避免显示旧图片
                 resultSection.style.display = 'none';
-                
+                ButtonState.setProgress('generateBtn', 100);
+                ButtonState.setError('generateBtn', '❌ 生成失败');
+
                 // 📱 移动端修复：优化超时错误提示
                 let errMsg = error.message || '未知错误';
                 let fullError = errMsg;  // 保存完整错误用于调试
-                
+
                 if (error.name === 'AbortError' || errMsg.includes('abort')) {
                     if (isMidjourney) {
                         errMsg = 'MJ生成超时（网络不稳定），请重试或使用Wi-Fi';
@@ -2472,7 +3314,7 @@
                 } else if (errMsg.includes('TypeError') || errMsg.includes('undefined')) {
                     errMsg = '数据解析错误: ' + errMsg.substring(0, 50);
                 }
-                
+
                 // 📱 移动端：显示详细错误弹窗（方便用户截图反馈）
                 const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 if (isMobileDevice && fullError.length > 20) {
@@ -2483,21 +3325,25 @@
                     showToast('生成失败: ' + errMsg);
                 }
             } finally {
-                btn.disabled = false;
                 loading.style.display = 'none';
+                // 清除进度更新
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
             }
         }
 
         function regenerate() { generateImage(); }
         function downloadImage() { if (!currentImageUrl) { showToast('没有可下载的图片'); return; } const a = document.createElement('a'); a.href = currentImageUrl; a.download = 'rollroll_' + Date.now() + '.png'; a.click(); showToast('开始下载'); }
         function shareImage() { if (!currentImageUrl) { showToast('没有可分享的图片'); return; } if (navigator.share) { navigator.share({ title: 'RollRoll AI画图', text: '看看我用AI画的图！', url: currentImageUrl }); } else { navigator.clipboard.writeText(currentImageUrl); showToast('链接已复制'); } }
-        
+
         // 🔧 IndexedDB 存储工具（解决 localStorage 5MB 限制问题）
         const imageTransferDB = {
             dbName: 'RollRollImageTransfer',
             storeName: 'images',
             db: null,
-            
+
             async init() {
                 if (this.db) return this.db;
                 return new Promise((resolve, reject) => {
@@ -2515,7 +3361,7 @@
                     };
                 });
             },
-            
+
             async set(key, data) {
                 const db = await this.init();
                 return new Promise((resolve, reject) => {
@@ -2526,7 +3372,7 @@
                     request.onerror = () => reject(request.error);
                 });
             },
-            
+
             async get(key) {
                 const db = await this.init();
                 return new Promise((resolve, reject) => {
@@ -2537,7 +3383,7 @@
                     request.onerror = () => reject(request.error);
                 });
             },
-            
+
             async remove(key) {
                 const db = await this.init();
                 return new Promise((resolve, reject) => {
@@ -2549,17 +3395,17 @@
                 });
             }
         };
-        
+
         // 🎬 单个模式：推送到视频工具
         async function pushToVideoTool() {
             console.log('[banana] pushToVideoTool 被调用, currentImageUrl:', currentImageUrl ? currentImageUrl.substring(0, 50) + '...' : 'null');
-            
+
             if (!currentImageUrl) {
                 showToast('没有可推送的图片');
                 console.warn('[banana] currentImageUrl 为空，无法跳转');
                 return;
             }
-            
+
             try {
                 // 🔧 使用 IndexedDB 存储大数据（解决 localStorage 5MB 限制）
                 const transferData = {
@@ -2569,12 +3415,12 @@
                     timestamp: Date.now()
                 };
                 await imageTransferDB.set('banana_to_video', transferData);
-                
+
                 // 同时设置一个标记到 localStorage（用于检测是否有数据）
                 localStorage.setItem('banana_to_video_flag', '1');
-                
+
                 console.log('[banana] 已保存数据到 IndexedDB, 准备跳转');
-                
+
                 showToast('正在跳转到视频工具...');
                 setTimeout(() => {
                     const targetUrl = 'video-tools.html?from_banana=1&force=mobile';
@@ -2586,18 +3432,18 @@
                 showToast('保存图片失败，请重试');
             }
         }
-        
+
         // 🎬 批量模式：推送选中的图片到视频工具
         async function useSelectedImages() {
             console.log('[banana] useSelectedImages 被调用, batchResults:', batchResults.length);
             const selected = batchResults.filter(r => r.selected && r.imageUrl && !r.error);
             console.log('[banana] 选中的图片数量:', selected.length);
-            
+
             if (selected.length === 0) {
                 showToast('请先选择要生视频的图片');
                 return;
             }
-            
+
             try {
                 // 🔧 使用 IndexedDB 存储大数据
                 const transferData = {
@@ -2610,9 +3456,9 @@
                 };
                 await imageTransferDB.set('banana_batch_to_video', transferData);
                 localStorage.setItem('banana_batch_to_video_flag', '1');
-                
+
                 console.log('[banana] 已保存批量数据到 IndexedDB, 图片数:', selected.length);
-                
+
                 showToast(`正在推送 ${selected.length} 张图片到视频工具...`);
                 setTimeout(() => {
                     const targetUrl = 'video-tools.html?from_banana=1&batch=1&force=mobile';
@@ -2645,7 +3491,7 @@
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        
+
                         // 🔧 递进压缩：如果还是太大，降低质量再试
                         let compressed = canvas.toDataURL('image/jpeg', quality);
                         if (compressed.length > 80000 && quality > 0.3) {
@@ -2659,8 +3505,8 @@
                             smallCanvas.getContext('2d').drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
                             compressed = smallCanvas.toDataURL('image/jpeg', 0.5);
                         }
-                        
-                        console.log(`🖼️ 历史缩略图: ${Math.round(base64Url.length/1024)}KB -> ${Math.round(compressed.length/1024)}KB`);
+
+                        console.log(`🖼️ 历史缩略图: ${Math.round(base64Url.length / 1024)}KB -> ${Math.round(compressed.length / 1024)}KB`);
                         resolve(compressed);
                     };
                     img.onerror = () => {
@@ -2674,83 +3520,93 @@
                 }
             });
         }
-        
-        async function saveToHistory(prompt, url) { 
-            // 🔧 优化：处理大体积base64图片，压缩为缩略图而非黑白占位图
-            let saveUrl = url;
-            let isOversized = false;
-            let originalUrl = url;  // 🆕 保存原始大图URL
-            
-            // 如果是base64且超过100KB，压缩为高质量缩略图
+
+        async function saveToHistory(prompt, url) {
+            // 🖼️ 和小说模块同样方式：原图独立存到单独 localStorage key
+            const time = Date.now();
+            let hasImgStore = false;
+
+            // base64 图片独立存储（完整原图不压缩）
             if (url && url.startsWith('data:') && url.length > 100000) {
-                console.log('[banana] 图片数据过大（' + Math.round(url.length/1024) + 'KB），压缩为高质量缩略图');
-                isOversized = true;
-                
-                // 🔧 压缩为高质量缩略图（始终显示实际内容，不用占位图）
-                const thumbnail = await compressImageForHistory(url, 150, 0.7);
-                if (thumbnail) {
-                    saveUrl = thumbnail;
-                    console.log('[banana] 高质量缩略图压缩成功:', Math.round(thumbnail.length/1024) + 'KB');
-                } else {
-                    // 压缩失败，使用原图URL（可能是网络URL）
-                    console.warn('[banana] 缩略图压缩失败，保留原图');
-                    // 如果原图太大导致无法存储，后续的try-catch会处理
-                }
-            }
-            
-            imageHistory.unshift({ 
-                prompt, 
-                url: saveUrl, 
-                originalUrl: isOversized ? originalUrl : null,  // 🆕 保存原始URL以便查看
-                time: Date.now(), 
-                oversized: isOversized 
-            }); 
-            if (imageHistory.length > 20) imageHistory.pop(); 
-            try {
-                // 🔧 存储时移除originalUrl避免超限
-                const storageData = imageHistory.map(item => ({
-                    ...item,
-                    originalUrl: undefined  // 不存储原始大图
-                }));
-                localStorage.setItem('banana_history', JSON.stringify(storageData)); 
-                if (isOversized) {
-                    showToast('大图已生成，请立即下载！\n（历史中显示缩略图）');
-                }
-            } catch (storageErr) {
-                console.warn('[banana] 存储失败，尝试清理旧数据:', storageErr);
-                // 存储失败，移除旧的base64图片后重试
-                imageHistory = imageHistory.filter(item => !item.url?.startsWith('data:image/png') && !item.url?.startsWith('data:image/jpeg') || item.url.length < 50000).slice(0, 10);
                 try {
-                    localStorage.setItem('banana_history', JSON.stringify(imageHistory));
-                } catch (e2) {
-                    console.error('[banana] 压缩后仍然失败:', e2);
+                    localStorage.setItem('banana_img_' + time, url);
+                    hasImgStore = true;
+                    console.log('[banana] 原图独立存储成功:', Math.round(url.length / 1024) + 'KB');
+                } catch (imgErr) {
+                    console.warn('[banana] 原图独立存储失败:', imgErr.message);
+                    try {
+                        _cleanOldBananaImgKeys(10);
+                        localStorage.setItem('banana_img_' + time, url);
+                        hasImgStore = true;
+                    } catch (e2) {
+                        console.warn('[banana] 清理后仍失败，降级为缩略图');
+                        const thumbnail = await compressImageForHistory(url, 400, 0.7);
+                        if (thumbnail) url = thumbnail;
+                    }
                 }
             }
-            renderHistory(); 
+
+            imageHistory.unshift({
+                prompt,
+                url: hasImgStore ? '' : url,
+                time: time,
+                _hasImgStore: hasImgStore
+            });
+            if (imageHistory.length > 20) imageHistory.pop();
+            try {
+                localStorage.setItem('banana_history', JSON.stringify(imageHistory));
+            } catch (storageErr) {
+                console.warn('[banana] 存储失败，清理旧数据:', storageErr);
+                _cleanOldBananaImgKeys(10);
+                imageHistory = imageHistory.slice(0, 10);
+                try { localStorage.setItem('banana_history', JSON.stringify(imageHistory)); } catch (e2) { }
+            }
+            renderHistory();
         }
-        function loadHistory() { 
-            try { 
-                imageHistory = JSON.parse(localStorage.getItem('banana_history') || '[]'); 
-                // 🔧 过滤无效的历史记录
-                imageHistory = imageHistory.filter(item => {
-                    if (!item || !item.url) return false;
-                    // URL必须是有效的图片URL
-                    return item.url.startsWith('http') || item.url.startsWith('data:image/');
+
+        // 清理旧的 banana_img_ key，只保留最近 keepCount 条
+        function _cleanOldBananaImgKeys(keepCount) {
+            var times = imageHistory.slice(0, keepCount).map(function (i) { return String(i.time); });
+            var keepSet = new Set(times);
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (k && k.startsWith('banana_img_')) {
+                    var t = k.replace('banana_img_', '');
+                    if (!keepSet.has(t)) { localStorage.removeItem(k); i--; }
+                }
+            }
+        }
+
+        function loadHistory() {
+            try {
+                imageHistory = JSON.parse(localStorage.getItem('banana_history') || '[]');
+                // 🖼️ 从独立 key 恢复原始图片（和小说模块同样方式）
+                imageHistory = imageHistory.filter(function (item) { return item; }).map(function (item) {
+                    // 兼容旧数据：旧记录没有 _hasImgStore，直接保留原 url
+                    if (item._hasImgStore && item.time) {
+                        try {
+                            var imgData = localStorage.getItem('banana_img_' + item.time);
+                            if (imgData) item.url = imgData;
+                        } catch (e) { }
+                    }
+                    return item;
+                }).filter(function (item) {
+                    return item.url && (item.url.startsWith('http') || item.url.startsWith('data:image/'));
                 });
-                renderHistory(); 
-            } catch (e) { 
-                imageHistory = []; 
-            } 
+                renderHistory();
+            } catch (e) {
+                imageHistory = [];
+            }
         }
-        function renderHistory() { 
-            const grid = document.getElementById('historyGrid'); 
+        function renderHistory() {
+            const grid = document.getElementById('historyGrid');
             // 🔧 只渲染有效URL的历史记录
-            const validHistory = imageHistory.filter(item => 
+            const validHistory = imageHistory.filter(item =>
                 item && item.url && (item.url.startsWith('http') || item.url.startsWith('data:image/'))
             );
-            grid.innerHTML = validHistory.map(item => 
+            grid.innerHTML = validHistory.map(item =>
                 `<div class="history-item" onclick="useHistory('${item.url.replace(/'/g, "\\'")}')"><img src="${item.url}" alt="历史图片" onerror="this.style.display='none'"></div>`
-            ).join(''); 
+            ).join('');
         }
         function useHistory(url) { currentImageUrl = url; document.getElementById('resultImage').src = url; document.getElementById('resultSection').style.display = 'block'; }
         function clearRefImage() {
@@ -2763,27 +3619,27 @@
         async function handleMultiRefUpload(event) {
             const files = Array.from(event.target.files);
             if (!files.length) return;
-            
+
             const currentCount = window.multiRefImages.length;
             const maxImages = 10;
             const remainingSlots = maxImages - currentCount;
-            
+
             if (remainingSlots <= 0) {
                 showToast('最多只能上传10张参考图');
                 event.target.value = '';
                 return;
             }
-            
+
             const filesToProcess = files.slice(0, remainingSlots);
             showToast(`正在压缩 ${filesToProcess.length} 张图片...`);
-            
+
             for (const file of filesToProcess) {
                 if (!file.type.startsWith('image/')) continue;
                 if (file.size > 10 * 1024 * 1024) {
                     showToast('图片超过10MB，已跳过');
                     continue;
                 }
-                
+
                 try {
                     // 压缩图片到约300KB
                     const compressed = await compressImage(file, 800, 0.7);
@@ -2792,23 +3648,23 @@
                     console.error('图片压缩失败:', err);
                 }
             }
-            
+
             renderMultiRefGrid();
             showToast(`已添加 ${window.multiRefImages.length} 张参考图`);
             event.target.value = '';
         }
-        
+
         // 🖼️ 图片压缩函数（避免请求体超过Vercel 4.5MB限制）
         function compressImage(file, maxSize = 800, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     const img = new Image();
-                    img.onload = function() {
+                    img.onload = function () {
                         // 计算缩放比例
                         let width = img.width;
                         let height = img.height;
-                        
+
                         if (width > height && width > maxSize) {
                             height = Math.round(height * maxSize / width);
                             width = maxSize;
@@ -2816,17 +3672,17 @@
                             width = Math.round(width * maxSize / height);
                             height = maxSize;
                         }
-                        
+
                         // 创建canvas压缩
                         const canvas = document.createElement('canvas');
                         canvas.width = width;
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        
+
                         // 输出压缩后的base64
                         const compressed = canvas.toDataURL('image/jpeg', quality);
-                        console.log(`🖼️ 压缩: ${Math.round(e.target.result.length/1024)}KB -> ${Math.round(compressed.length/1024)}KB`);
+                        console.log(`🖼️ 压缩: ${Math.round(e.target.result.length / 1024)}KB -> ${Math.round(compressed.length / 1024)}KB`);
                         resolve(compressed);
                     };
                     img.onerror = reject;
@@ -2841,17 +3697,17 @@
             const grid = document.getElementById('multiRefGrid');
             const preview = document.getElementById('multiRefPreview');
             const countEl = document.getElementById('multiRefCount');
-            
+
             if (window.multiRefImages.length === 0) {
                 preview.classList.remove('show');
                 grid.innerHTML = '';
                 countEl.textContent = '已选 0/10 张';
                 return;
             }
-            
+
             preview.classList.add('show');
             countEl.textContent = `已选 ${window.multiRefImages.length}/10 张`;
-            
+
             grid.innerHTML = window.multiRefImages.map((img, idx) => `
                 <div class="multi-ref-item">
                     <img src="${img}" alt="参考图 ${idx + 1}">
@@ -2884,7 +3740,7 @@
                 return;
             }
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 const base64 = e.target.result;
                 // 🎨 打开编辑器让用户编辑
                 openRefEditor(base64, (editedBase64) => {
@@ -2896,13 +3752,120 @@
                     showToast('参考图已加载，点击可再次编辑');
                 }, -1);
             };
-            reader.onerror = function() {
+            reader.onerror = function () {
                 showToast('图片读取失败');
             };
             reader.readAsDataURL(file);
             event.target.value = '';
         }
         function showToast(msg) { const toast = document.getElementById('toast'); toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500); }
+
+        // ==================== 全局按钮状态管理 ====================
+        const ButtonState = {
+            // 设置按钮为加载状态
+            setLoading(btnId, loadingText = '⏳ 处理中...') {
+                const btn = typeof btnId === 'string' ? document.getElementById(btnId) : btnId;
+                if (!btn) return null;
+                
+                // 保存原始状态
+                if (!btn.dataset.originalText) {
+                    btn.dataset.originalText = btn.textContent;
+                }
+                if (!btn.dataset.originalDisabled) {
+                    btn.dataset.originalDisabled = btn.disabled;
+                }
+                
+                btn.disabled = true;
+                btn.textContent = loadingText;
+                btn.classList.add('btn-loading');
+                
+                return btn;
+            },
+            
+            // 恢复按钮原始状态
+            reset(btnId) {
+                const btn = typeof btnId === 'string' ? document.getElementById(btnId) : btnId;
+                if (!btn) return;
+                
+                btn.disabled = btn.dataset.originalDisabled === 'true';
+                btn.textContent = btn.dataset.originalText || btn.textContent;
+                btn.classList.remove('btn-loading', 'progress-0', 'progress-25', 'progress-50', 'progress-75');
+            },
+            
+            // 更新按钮进度
+            setProgress(btnId, progress) {
+                const btn = typeof btnId === 'string' ? document.getElementById(btnId) : btnId;
+                if (!btn) return;
+                
+                // 移除旧的进度类
+                btn.classList.remove('progress-0', 'progress-25', 'progress-50', 'progress-75');
+                
+                // 添加对应的进度类
+                if (progress < 25) {
+                    btn.classList.add('progress-0');
+                } else if (progress < 50) {
+                    btn.classList.add('progress-25');
+                } else if (progress < 75) {
+                    btn.classList.add('progress-50');
+                } else {
+                    btn.classList.add('progress-75');
+                }
+                
+                // 更新按钮文本
+                btn.textContent = `⏳ 生成中 ${progress}%`;
+            },
+            
+            // 设置按钮为成功状态（临时）
+            setSuccess(btnId, successText = '✅ 完成', duration = 2000) {
+                const btn = typeof btnId === 'string' ? document.getElementById(btnId) : btnId;
+                if (!btn) return;
+                
+                const originalText = btn.dataset.originalText || btn.textContent;
+                
+                btn.textContent = successText;
+                btn.classList.remove('btn-loading', 'progress-0', 'progress-25', 'progress-50', 'progress-75');
+                btn.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    this.reset(btn);
+                    btn.classList.remove('btn-success');
+                }, duration);
+            },
+            
+            // 设置按钮为错误状态（临时）
+            setError(btnId, errorText = '❌ 失败', duration = 2000) {
+                const btn = typeof btnId === 'string' ? document.getElementById(btnId) : btnId;
+                if (!btn) return;
+                
+                btn.disabled = false;
+                btn.textContent = errorText;
+                btn.classList.remove('btn-loading', 'progress-0', 'progress-25', 'progress-50', 'progress-75');
+                btn.classList.add('btn-error');
+                
+                setTimeout(() => {
+                    this.reset(btn);
+                    btn.classList.remove('btn-error');
+                }, duration);
+            },
+            
+            // 包装异步函数，自动处理按钮状态
+            async wrap(btnId, asyncFn, loadingText = '⏳ 处理中...') {
+                const btn = this.setLoading(btnId, loadingText);
+                if (!btn) {
+                    console.warn(`[ButtonState] 按钮 ${btnId} 未找到`);
+                    return await asyncFn();
+                }
+                
+                try {
+                    const result = await asyncFn();
+                    this.setSuccess(btn);
+                    return result;
+                } catch (error) {
+                    this.setError(btn, '❌ 失败');
+                    throw error;
+                }
+            }
+        };
 
         // ==================== 页面状态持久化 ====================
         function saveBananaState() {
@@ -2976,7 +3939,7 @@
         window.addEventListener('load', () => setTimeout(restoreBananaState, 200));
 
         // ==================== 批量模式功能 ====================
-        
+
         // 🆕 批量格子配置数据
         const batchCellConfigs = [];
         for (let i = 0; i < 8; i++) {
@@ -2987,19 +3950,23 @@
                 refImage: null  // 每个格子独立的参考图
             });
         }
-        
+
         // 🆕 初始化批量格子
         function initBatchGrid() {
             const grid = document.getElementById('batchGrid');
             if (!grid) return;
             grid.innerHTML = '';
-            
+
             const modelOptions = `
                 <option value="nano-banana-2">🍌 Banana</option>
                 <option value="nano-banana-2-2k">🌟 2K</option>
                 <option value="nano-banana-2-4k">💎 4K</option>
-                <option value="doubao-seedream-4-5-251128">✨ 星梦</option>
-                <option value="Qwen/Qwen-Image-2512">🎭 万象</option>
+                <option value="doubao-seedream-5-0-260128">🌟 星梦5.0</option>
+                <option value="doubao-seedream-4-5-251128">✨ 星梦4.5</option>
+                <option value="gemini-3.1-flash-image-preview">⚡ Gemini</option>
+                <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini 2K</option>
+                <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片)</option>
+                <option value="Qwen/Qwen-Image-2512">🎭 通义万象Max (8胶片)</option>
                 <option value="midjourney-fast">🌟 MJ Fast</option>
                 <option value="midjourney-turbo">🚀 MJ Turbo</option>
                 <option value="midjourney-relax">🌙 MJ Relax</option>
@@ -3020,12 +3987,12 @@
                 <option value="niji7">Niji7</option>
                 <option value="niji6">Niji6</option>
             `;
-            
+
             for (let i = 0; i < 8; i++) {
                 const div = document.createElement('div');
                 div.className = 'batch-item';
                 div.innerHTML = `
-                    <textarea id="batchInput${i}" placeholder="${i+1}️⃣"></textarea>
+                    <textarea id="batchInput${i}" placeholder="${i + 1}️⃣"></textarea>
                     <div class="batch-item-ref" onclick="setBatchCellRef(${i})" id="batchRef${i}" title="点击设置参考图">🖼️</div>
                     <div class="batch-item-config">
                         <select id="batchModel${i}" onchange="updateBatchCellConfig(${i})">${modelOptions}</select>
@@ -3040,7 +4007,7 @@
                 updateBatchMjVersionVisibility(i);
             }
         }
-        
+
         // 🆕 更新格子配置
         function updateBatchCellConfig(idx) {
             const model = document.getElementById(`batchModel${idx}`)?.value || 'nano-banana-2';
@@ -3052,7 +4019,7 @@
             // 更新 MJ 版本选择器显示状态
             updateBatchMjVersionVisibility(idx);
         }
-        
+
         // 🆕 更新 MJ 版本选择器显示/隐藏
         function updateBatchMjVersionVisibility(idx) {
             const model = document.getElementById(`batchModel${idx}`)?.value || '';
@@ -3061,7 +4028,7 @@
                 mjVersionSel.style.display = model.startsWith('midjourney-') ? 'block' : 'none';
             }
         }
-        
+
         // 🆕 设置格子参考图（支持同一图片多次使用）
         function setBatchCellRef(idx) {
             // 创建选择弹窗
@@ -3069,7 +4036,7 @@
             picker.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:2000;display:flex;flex-direction:column;padding:20px;';
             picker.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <h3 style="color:#fff;margin:0;">🖼️ 选择格子 ${idx+1} 的参考图</h3>
+                    <h3 style="color:#fff;margin:0;">🖼️ 选择格子 ${idx + 1} 的参考图</h3>
                     <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;">×</button>
                 </div>
                 <div style="display:flex;gap:8px;margin-bottom:16px;">
@@ -3080,7 +4047,7 @@
                 <div id="batchRefPickerGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;overflow-y:auto;flex:1;"></div>
             `;
             document.body.appendChild(picker);
-            
+
             // 填充已有的参考图
             const pickerGrid = picker.querySelector('#batchRefPickerGrid');
             const allRefs = getAllBatchRefImages();
@@ -3092,16 +4059,16 @@
                     batchCellConfigs[idx].refImage = img;
                     renderBatchCellRef(idx);
                     picker.remove();
-                    showToast(`格子 ${idx+1} 已设置参考图`);
+                    showToast(`格子 ${idx + 1} 已设置参考图`);
                 };
                 pickerGrid.appendChild(item);
             });
-            
+
             if (allRefs.length === 0) {
                 pickerGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">还没有上传参考图，请先上传</div>';
             }
         }
-        
+
         // 🆕 上传格子参考图
         function uploadBatchCellRef(idx, picker) {
             const input = document.createElement('input');
@@ -3115,20 +4082,20 @@
                     batchCellConfigs[idx].refImage = ev.target.result;
                     renderBatchCellRef(idx);
                     if (picker) picker.remove();
-                    showToast(`格子 ${idx+1} 参考图已设置`);
+                    showToast(`格子 ${idx + 1} 参考图已设置`);
                 };
                 reader.readAsDataURL(file);
             };
             input.click();
         }
-        
+
         // 🆕 清除格子参考图
         function clearBatchCellRef(idx) {
             batchCellConfigs[idx].refImage = null;
             renderBatchCellRef(idx);
-            showToast(`格子 ${idx+1} 参考图已清除`);
+            showToast(`格子 ${idx + 1} 参考图已清除`);
         }
-        
+
         // 🆕 渲染格子参考图显示
         function renderBatchCellRef(idx) {
             const refDiv = document.getElementById(`batchRef${idx}`);
@@ -3141,7 +4108,7 @@
                 refDiv.title = '点击设置参考图';
             }
         }
-        
+
         // 🆕 获取所有已设置的参考图（去重）
         function getAllBatchRefImages() {
             const refs = new Set();
@@ -3153,7 +4120,7 @@
             if (window.multiRefImages) window.multiRefImages.forEach(r => refs.add(r));
             return Array.from(refs);
         }
-        
+
         // 🆕 应用全局配置到所有格子
         function applyGlobalConfigToBatch() {
             const globalModel = document.getElementById('modelSelect').value;
@@ -3174,7 +4141,7 @@
             }
             showToast('已应用全局配置到所有格子');
         }
-        
+
         // 切换批量/单个模式
         function setBatchMode(isBatch) {
             batchMode = isBatch;
@@ -3182,7 +4149,7 @@
             const batchInput = document.getElementById('batchInputSection');
             const singleBtn = document.getElementById('singleModeBtn');
             const batchBtn = document.getElementById('batchModeBtn');
-            
+
             if (isBatch) {
                 singleInput.style.display = 'none';
                 batchInput.style.display = 'block';
@@ -3201,17 +4168,282 @@
             document.getElementById('resultSection').style.display = 'none';
             document.getElementById('batchResultSection').style.display = 'none';
         }
-        
+
         // 生成图片入口（根据模式分发）
         async function generateImage() {
-            console.log('[banana] generateImage 被调用, batchMode=', batchMode);
+            console.log('[banana] generateImage 被调用, batchMode=', batchMode, 'multiAngle=', multiAngleMode.enabled);
+            
+            // 🎨 多角度出图模式
+            if (multiAngleMode.enabled) {
+                await generateMultiAngleImages();
+                return;
+            }
+            
             if (batchMode) {
                 await generateBatchImages();
             } else {
                 await generateSingleImage();
             }
         }
+
+        // 🎨 多角度出图生成
+        async function generateMultiAngleImages() {
+            console.log('[banana] 🎨 开始多角度出图');
+            
+            // 验证
+            if (multiAngleMode.selectedAngles.length === 0) {
+                showToast('请至少选择一个视角');
+                return;
+            }
+            
+            let prompt = document.getElementById('promptInput').value.trim();
+            
+            // 📷 添加摄影角度到 prompt
+            const cameraAngle = document.getElementById('cameraAngleSelect')?.value;
+            if (cameraAngle && prompt) {
+                prompt = `${prompt}, ${cameraAngle}`;
+                console.log('[banana] 🎨 多角度模式添加摄影角度:', cameraAngle);
+            }
+            
+            // 获取参考图（支持单图、多图参考）
+            let referenceImage = window.referenceImageUrl || null;
+            if (!referenceImage && window.multiRefImages && window.multiRefImages.length > 0) {
+                referenceImage = window.multiRefImages[0];
+            }
+            
+            // 验证：必须有提示词或参考图
+            if (!prompt && !referenceImage) {
+                showToast('请输入描述或上传参考图');
+                return;
+            }
+            
+            // 显示加载
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            
+            loading.style.display = 'block';
+            loadingText.textContent = `正在生成 ${multiAngleMode.selectedAngles.length} 个视角...`;
+            
+            // 使用全局按钮状态管理
+            ButtonState.setLoading('generateBtn', '⏳ 生成中...');
+            
+            // 🎬 改进进度更新：更平滑且持续更长时间
+            let progress = 0;
+            let waitingTime = 0;  // 跟踪等待时间
+            const totalAngles = multiAngleMode.selectedAngles.length;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 5 + 2;  // 每次增加 2-7%
+                waitingTime += 1.5;  // 每次间隔 1.5 秒
+                
+                // 🔧 改进：超过 30 秒后显示"后台处理中"提示
+                if (waitingTime > 20) {  // 约 30 秒
+                    ButtonState.setProgress('generateBtn', 95);
+                    const btn = document.getElementById('generateBtn');
+                    if (btn) btn.textContent = '⏳ 后台处理中...';
+                    loadingText.textContent = '后台正在生成，请耐心等待...';
+                } else if (progress > 90) {
+                    progress = 90;  // 保持在 90%，等真正完成再显示 100%
+                    ButtonState.setProgress('generateBtn', Math.floor(progress));
+                } else {
+                    ButtonState.setProgress('generateBtn', Math.floor(progress));
+                }
+            }, 1500);
+            
+            try {
+                // 🔐 检查登录
+                if (!currentUser) {
+                    showToast('请先登录');
+                    loading.style.display = 'none';
+                    ButtonState.reset('generateBtn');
+                    return;
+                }
+                
+                // 获取用户选择的模型
+                const selectedModel = document.getElementById('modelSelect')?.value;
+                
+                // 调用API
+                const requestBody = {
+                    action: 'multi-angle',
+                    userId: currentUser.id,
+                    angles: multiAngleMode.selectedAngles,
+                    mode: multiAngleMode.mode,
+                    originalPrompt: prompt || 'generate multiple angles'
+                };
+                
+                // 只添加有值的参数
+                if (referenceImage) {
+                    requestBody.referenceImage = referenceImage;
+                }
+                if (multiAngleMode.layerEdit && multiAngleMode.layerEdit.enabled) {
+                    requestBody.layerEdit = multiAngleMode.layerEdit;
+                }
+                if (multiAngleMode.vectorMode) {
+                    requestBody.vectorMode = multiAngleMode.vectorMode;
+                }
+                // 添加用户选择的模型（排除免费模型modelscope）
+                if (selectedModel && selectedModel !== 'modelscope') {
+                    requestBody.selectedModel = selectedModel;
+                }
+                
+                console.log('[banana] 🎨 发送请求:', requestBody);
+                
+                const response = await fetch('/api/modelscope', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                console.log('[banana] 🎨 API响应:', data);
+                console.log('[banana] 🎨 data.success:', data.success);
+                console.log('[banana] 🎨 data.results:', JSON.stringify(data.results, null, 2));
+                console.log('[banana] 🎨 data.totalGenerated:', data.totalGenerated);
+                
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || `请求失败(${response.status})`);
+                }
+                
+                // 处理部分失败的情况
+                if (data.totalFailed > 0) {
+                    console.warn(`[banana] 🎨 部分视角生成失败: ${data.totalFailed}/${data.totalGenerated + data.totalFailed}`);
+                    if (data.failed && data.failed.length > 0) {
+                        console.warn('[banana] 🎨 失败详情:', data.failed);
+                    }
+                }
+                
+                // 如果全部失败
+                if (!data.success || data.totalGenerated === 0) {
+                    const failReason = data.failed?.map(f => f.name || f.angle).join(', ') || '未知原因';
+                    throw new Error(`生成失败: ${failReason}`);
+                }
+                
+                // 显示结果
+                console.log('[banana] 🎨 准备显示结果, results数量:', data.results?.length);
+                displayMultiAngleResults(data.results);
+                
+                // 更新余额
+                if (data.billed > 0) {
+                    await loadUserQuota();
+                }
+                
+                // 设置进度为100%
+                clearInterval(progressInterval);
+                ButtonState.setProgress('generateBtn', 100);
+                
+                showToast(`✅ 成功生成 ${data.totalGenerated} 个视角`);
+                
+                // 🔧 修复：使用 setSuccess 但延长持续时间到 5 秒，避免快速恢复
+                ButtonState.setSuccess('generateBtn', `✅ 成功 ${data.totalGenerated} 张`, 5000);
+                
+            } catch (error) {
+                console.error('[banana] 🎨 多角度出图失败:', error);
+                clearInterval(progressInterval);
+                ButtonState.setProgress('generateBtn', 100);
+                showToast('生成失败: ' + error.message);
+                ButtonState.setError('generateBtn', '❌ 生成失败');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
         
+        // 🎨 显示多角度出图结果
+        function displayMultiAngleResults(results) {
+            console.log('[banana] 🎨 displayMultiAngleResults 收到:', results);
+            
+            const resultSection = document.getElementById('resultSection');
+            const resultImage = document.getElementById('resultImage');
+            
+            if (!results || results.length === 0) {
+                showToast('没有生成结果');
+                return;
+            }
+            
+            // 创建多角度结果展示
+            let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px;margin-top:20px;">';
+            
+            let validCount = 0;
+            results.forEach((result, index) => {
+                console.log(`[banana] 🎨 结果[${index}]:`, result.name, 'success:', result.success, 'images:', result.images);
+                
+                if (result.success && result.images && result.images.length > 0) {
+                    validCount++;
+                    const modeText = result.mode === 'subject' ? '主体' : 
+                                    result.mode === 'camera' ? '摄像头' : 
+                                    result.mode === 'wide-extend' ? '广角扩展' : result.mode;
+                    
+                    html += `
+                        <div style="background:rgba(255,255,255,0.05);border-radius:12px;overflow:hidden;">
+                            <div style="padding:10px;background:rgba(99,102,241,0.2);color:#fff;font-size:14px;">
+                                ${result.name} (${modeText})
+                            </div>
+                            <img src="${result.images[0]}" style="width:100%;height:200px;object-fit:cover;cursor:pointer;" 
+                                 onclick="showMultiAngleDetail(${index})" alt="${result.name}"
+                                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23333%22 width=%22200%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 fill=%22%23999%22 text-anchor=%22middle%22 dy=%22.3em%22>加载失败</text></svg>'">
+                            <div style="padding:10px;display:flex;gap:8px;">
+                                <button onclick="downloadMultiAngleImage('${result.images[0]}')" style="flex:1;padding:6px;background:rgba(99,102,241,0.3);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:12px;">💾 下载</button>
+                                <button onclick="useForVideo('${result.images[0]}')" style="flex:1;padding:6px;background:rgba(168,85,247,0.3);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:12px;">🎬 生视频</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            html += '</div>';
+            
+            if (validCount === 0) {
+                showToast('没有有效的生成结果');
+                console.error('[banana] 🎨 没有有效结果，原始数据:', results);
+                return;
+            }
+            
+            // 更新结果区域
+            resultImage.style.display = 'none';
+            const existingGrid = document.getElementById('multiAngleResultGrid');
+            if (existingGrid) {
+                existingGrid.remove();
+            }
+            
+            const gridDiv = document.createElement('div');
+            gridDiv.id = 'multiAngleResultGrid';
+            gridDiv.innerHTML = html;
+            resultSection.insertBefore(gridDiv, resultImage);
+            
+            resultSection.style.display = 'block';
+            
+            // 添加到历史
+            results.forEach(result => {
+                if (result.success && result.images && result.images.length > 0) {
+                    addToHistory(result.images[0], `[多角度] ${result.name}`);
+                }
+            });
+            
+            console.log(`[banana] 🎨 显示了 ${validCount} 个结果`);
+        }
+        
+        // 下载多角度图片
+        function downloadMultiAngleImage(url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `multiangle_${Date.now()}.png`;
+            a.click();
+            showToast('开始下载');
+        }
+        
+        // 显示多角度图片详情
+        function showMultiAngleDetail(index) {
+            console.log('[banana] 查看多角度详情:', index);
+            // 可以在这里添加放大查看功能
+        }
+        
+        // 使用图片生成视频
+        function useForVideo(imageUrl) {
+            console.log('[banana] 使用图片生视频:', imageUrl);
+            // 存储到localStorage并跳转
+            localStorage.setItem('temp_image_for_video', imageUrl);
+            window.location.href = 'video-tools.html?from_multiangle=1';
+        }
+
         // 🆕 批量生成图片
         async function generateBatchImages() {
             // 🔐 使用 NVAuth.checkAuthStatus 进行可靠的登录状态检查（带自动刷新胶片余额）
@@ -3225,7 +4457,7 @@
             } catch (e) {
                 console.error('[banana] 批量模式认证检查异常:', e);
             }
-            
+
             // 🔄 同步更新登录状态和胶片余额
             if (authResult.valid && authResult.user) {
                 currentUser = authResult.user;
@@ -3234,14 +4466,14 @@
                     document.getElementById('quotaBadge').textContent = `🎞️ ${userQuota}`;
                 }
             }
-            
+
             // 必须登录
             if (!authResult.valid || !currentUser) {
                 showToast('请先登录后使用');
                 setTimeout(() => { window.location.href = 'auth.html'; }, 1000);
                 return;
             }
-            
+
             // 🆕 收集非空输入，并读取每个格子的独立配置
             const inputs = [];
             let totalCost = 0;
@@ -3258,8 +4490,8 @@
                     const cellRatio = batchCellConfigs[i].ratio || '1:1';
                     const cellRef = batchCellConfigs[i].refImage || null;
                     const cellCost = FILM_COST[cellModel] || 0;
-                    inputs.push({ 
-                        index: i, 
+                    inputs.push({
+                        index: i,
                         prompt: val,
                         model: cellModel,
                         ratio: cellRatio,
@@ -3268,67 +4500,67 @@
                     totalCost += cellCost;
                 }
             }
-            
+
             if (inputs.length === 0) {
                 showToast('请至少输入一个描述');
                 return;
             }
-            
+
             // 配额检查
             if (totalCost > 0 && userQuota < totalCost) {
                 showToast(`胶片不足，需要${totalCost}胶片`);
                 return;
             }
-            
+
             const btn = document.getElementById('generateBtn');
             const loading = document.getElementById('loading');
             const loadingText = document.getElementById('loadingText');
-            
+
             btn.disabled = true;
             batchGenerating = true;
             loading.style.display = 'block';
             loadingText.textContent = `正在批量生成 0/${inputs.length}...`;
-            
+
             // 隐藏单图结果，显示批量结果区域
             document.getElementById('resultSection').style.display = 'none';
-            
+
             batchResults = [];
             let completed = 0;
-            
+
             // 并发生成（每个格子使用独立配置）
             try {
                 const promises = inputs.map(async (item) => {
                     const gridItem = document.querySelector(`#batchGrid .batch-item:nth-child(${item.index + 1})`);
                     if (gridItem) gridItem.classList.add('generating');
-                    
+
                     // 🆕 使用每个格子的独立配置
                     const cellModel = item.model;
                     const cellRatio = item.ratio;
                     const cellRef = item.refImage;  // 格子独立参考图
-                    
+
                     // 全局参考图作为备用
                     const globalMultiRef = window.multiRefImages && window.multiRefImages.length > 0 ? window.multiRefImages : null;
                     const globalSingleRef = window.referenceImageUrl || null;
-                    
+
                     // 优先使用格子独立参考图，否则使用全局参考图
                     const finalRef = cellRef || globalSingleRef;
-                    
+
                     try {
                         const result = await generateSingleImageAPI(item.prompt, cellModel, cellRatio, globalMultiRef, finalRef);
                         if (gridItem) {
                             gridItem.classList.remove('generating');
                             gridItem.classList.add('has-result');
-                            
+
                             // 🎨 直接在宫格内显示结果图片
                             const textarea = gridItem.querySelector('textarea');
                             if (textarea) textarea.style.display = 'none';
-                            
+
                             // 删除旧的结果图片（如果有）
                             const oldImg = gridItem.querySelector('.batch-result-img');
                             if (oldImg) oldImg.remove();
                             const oldEditBtn = gridItem.querySelector('.batch-item-edit-btn');
                             if (oldEditBtn) oldEditBtn.remove();
-                            
+
                             // 创建结果图片
                             const imgUrl = (result && typeof result === 'object' && result.urls) ? result.urls[0] : result;
                             if (imgUrl) {
@@ -3342,7 +4574,7 @@
                                 };
                                 gridItem.style.position = 'relative';
                                 gridItem.insertBefore(img, gridItem.firstChild);
-                                
+
                                 // 添加重新编辑按钮
                                 const editBtn = document.createElement('button');
                                 editBtn.className = 'batch-item-edit-btn';
@@ -3357,7 +4589,7 @@
                                     gridItem.classList.remove('error');
                                 };
                                 gridItem.appendChild(editBtn);
-                                
+
                                 // 调整配置区域的 z-index，确保在图片之上
                                 const configDiv = gridItem.querySelector('.batch-item-config');
                                 if (configDiv) configDiv.style.zIndex = '2';
@@ -3365,7 +4597,7 @@
                                 if (refDiv) refDiv.style.zIndex = '3';
                             }
                         }
-                        
+
                         // 🎨 处理 MJ 网格图切图结果（返回多张图）
                         if (result && typeof result === 'object' && result.isMjGrid && result.urls) {
                             // MJ 返回 4 张切图，每张独立显示，用户可按需选择
@@ -3396,11 +4628,11 @@
                         if (gridItem) {
                             gridItem.classList.remove('generating');
                             gridItem.classList.add('error');
-                            
+
                             // 添加重新编辑按钮（错误情况）
                             const oldEditBtn = gridItem.querySelector('.batch-item-edit-btn');
                             if (oldEditBtn) oldEditBtn.remove();
-                            
+
                             const editBtn = document.createElement('button');
                             editBtn.className = 'batch-item-edit-btn';
                             editBtn.textContent = '✏️ 重试';
@@ -3426,25 +4658,25 @@
                             selected: false
                         });
                     }
-                    
+
                     completed++;
                     loadingText.textContent = `正在批量生成 ${completed}/${inputs.length}...`;
                 });
-                
+
                 await Promise.all(promises);
-                
+
                 // 按格子索引排序，MJ的多张切图按 subIndex 排序
                 batchResults.sort((a, b) => {
                     if (a.index !== b.index) return a.index - b.index;
                     return (a.subIndex || 0) - (b.subIndex || 0);
                 });
-                
+
                 // 显示结果
                 renderBatchResults();
-                
+
                 const successCount = batchResults.filter(r => !r.error).length;
                 showToast(`批量生成完成！成功 ${successCount} 张`);
-                
+
                 // 更新余额显示
                 await loadUserQuota();
             } finally {
@@ -3454,7 +4686,7 @@
                 loading.style.display = 'none';
             }
         }
-        
+
         // 🔧 带超时的 fetch 函数
         async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
             const controller = new AbortController();
@@ -3466,26 +4698,27 @@
             } catch (err) {
                 clearTimeout(timeoutId);
                 if (err.name === 'AbortError') {
-                    throw new Error(`请求超时（${Math.round(timeoutMs/1000)}秒）`);
+                    throw new Error(`请求超时（${Math.round(timeoutMs / 1000)}秒）`);
                 }
                 throw err;
             }
         }
-        
+
         // 单图生成 API 调用（供批量模式复用）
         // 🎨 新增参考图参数支持
         // 返回: string (url) 或 object { urls: string[], isMjGrid: true }
         async function generateSingleImageAPI(prompt, model, ratio, multiRefImages = null, singleRefImage = null) {
             let response;
             const isMidjourney = model && model.startsWith('midjourney-');
-            const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream'));
+            const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream') || model.includes('openrouter:bytedance-seed/seedream'));
             const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
             const isBanana = model && model.startsWith('nano-banana-');
-            
+            const isOpenRouterImage = model && model.startsWith('openrouter:');
+
             // 🔧 根据模型类型设置不同的超时时间
             // 万象Max 需要较长时间（异步任务轮询）
             const timeoutMs = isQwenImage ? 180000 : (isMidjourney ? 180000 : (isSeedream ? 120000 : 90000));
-            
+
             if (isQwenImage) {
                 // 通义万象Max - 🔧 使用180秒超时
                 response = await fetchWithTimeout('/api/banana2', {
@@ -3505,9 +4738,9 @@
                     body: JSON.stringify({ action: 'image', prompt, aspect_ratio: ratio, userId: currentUser.id })
                 });
             } else {
-                const apiEndpoint = isMidjourney ? '/api/yunwu' : (isSeedream ? '/api/yunwu' : '/api/banana2');
+                const apiEndpoint = isMidjourney ? '/api/yunwu' : (isSeedream ? '/api/yunwu' : (isOpenRouterImage ? '/api/openrouter' : '/api/banana2'));
                 const requestBody = { prompt, model, aspect_ratio: ratio, userId: currentUser.id };
-                
+
                 // 🎨 星梦画师参考图处理
                 if (isSeedream) {
                     requestBody.action = 'seedream';
@@ -3539,7 +4772,7 @@
                     requestBody.image_url = singleRefImage;
                     console.log('🖼️ [批量] 单图参考模式');
                 }
-                
+
                 if (isMidjourney) {
                     requestBody.action = 'midjourney';
                     const mjVersionSelect = document.getElementById('mjVersion');
@@ -3550,7 +4783,7 @@
                         console.log('🎨 [批量-MJ] 图生图模式');
                     }
                 }
-                
+
                 // 🔧 使用带超时的 fetch
                 response = await fetchWithTimeout(apiEndpoint, {
                     method: 'POST',
@@ -3558,19 +4791,19 @@
                     body: JSON.stringify(requestBody)
                 }, timeoutMs);
             }
-            
+
             if (!response.ok) {
                 let errMsg = `HTTP ${response.status}`;
                 try {
                     const errData = await response.json();
                     errMsg = errData.message || errData.error || errMsg;
-                } catch (e) {}
+                } catch (e) { }
                 throw new Error(errMsg);
             }
-            
+
             const data = await response.json();
             if (data.error) throw new Error(data.message || data.error);
-            
+
             // 提取图片URL
             let imageUrl = data.url || data.image_url || '';
             if (!imageUrl && data.urls && data.urls.length > 0) {
@@ -3601,21 +4834,21 @@
             if (!imageUrl && data.images && data.images.length > 0) {
                 imageUrl = data.images[0].url || data.images[0];
             }
-            
+
             if (!imageUrl) throw new Error('未获取到图片地址');
-            
+
             return imageUrl;
         }
-        
+
         // 渲染批量结果
         function renderBatchResults() {
             const grid = document.getElementById('batchResultGrid');
             grid.innerHTML = '';
-            
+
             batchResults.forEach((item, idx) => {
                 const div = document.createElement('div');
                 div.className = 'batch-result-item' + (item.error ? ' error' : '') + (item.selected ? ' selected' : '');
-                
+
                 if (item.error) {
                     div.innerHTML = `<div class="batch-result-error">❌ ${item.error}</div>`;
                 } else {
@@ -3626,14 +4859,14 @@
                     }
                     div.innerHTML = html;
                 }
-                
+
                 div.onclick = () => toggleBatchImageSelect(idx);
                 grid.appendChild(div);
             });
-            
+
             document.getElementById('batchResultSection').style.display = 'block';
         }
-        
+
         // 切换选中状态
         function toggleBatchImageSelect(idx) {
             // 🔧 防御性检查：确保数组和索引有效
@@ -3642,7 +4875,7 @@
             batchResults[idx].selected = !batchResults[idx].selected;
             renderBatchResults();
         }
-        
+
         // 全选图片
         function selectAllBatchImages() {
             batchResults.forEach(r => {
@@ -3651,7 +4884,7 @@
             renderBatchResults();
             showToast('已全选');
         }
-        
+
         // 下载选中图片
         async function downloadSelectedImages() {
             const selected = batchResults.filter(r => r.selected && !r.error);
@@ -3659,9 +4892,9 @@
                 showToast('请先选择要下载的图片');
                 return;
             }
-            
+
             showToast(`开始下载 ${selected.length} 张图片...`);
-            
+
             for (let i = 0; i < selected.length; i++) {
                 const item = selected[i];
                 const a = document.createElement('a');
@@ -3671,7 +4904,7 @@
                 await new Promise(r => setTimeout(r, 300));  // 间隔下载
             }
         }
-        
+
         // 批量去生视频
         function useSelectedImages() {
             const selected = batchResults.filter(r => r.selected && !r.error);
@@ -3683,11 +4916,11 @@
             localStorage.setItem('banana_batch_images', JSON.stringify(selected.map(r => r.imageUrl)));
             location.href = 'video-tools.html?batch=1';
         }
-        
+
         // ==================== 批量格子二级选择器（MJ 4图选择） ====================
         let __batchCellPickerIdx = -1;  // 当前打开的格子索引
         let __batchCellPickerSelected = -1;  // 当前选中的图片索引
-        
+
         // 打开二级选择器
         function openBatchCellPicker(batchIdx) {
             const item = batchResults[batchIdx];
@@ -3695,10 +4928,10 @@
                 showToast('此项不支持多图选择');
                 return;
             }
-            
+
             __batchCellPickerIdx = batchIdx;
             __batchCellPickerSelected = item.selectedImageIndex || 0;
-            
+
             const grid = document.getElementById('batchCellPickerGrid');
             grid.innerHTML = item.allImages.map((url, i) => `
                 <div class="batch-cell-picker-item ${i === __batchCellPickerSelected ? 'selected' : ''}" onclick="selectBatchCellImage(${i})">
@@ -3706,29 +4939,29 @@
                     <img src="${url}" alt="图片 ${i + 1}">
                 </div>
             `).join('');
-            
+
             // 更新副标题
             document.getElementById('batchCellPickerSubtitle').textContent = `第 ${item.index + 1} 格 - 点击选择您喜欢的一张`;
-            
+
             // 更新确认按钮状态
             updateBatchCellPickerConfirmBtn();
-            
+
             document.getElementById('batchCellPicker').classList.add('show');
         }
-        
+
         // 选择图片
         function selectBatchCellImage(imgIdx) {
             __batchCellPickerSelected = imgIdx;
-            
+
             // 更新选中状态
             const items = document.querySelectorAll('.batch-cell-picker-item');
             items.forEach((el, i) => {
                 el.classList.toggle('selected', i === imgIdx);
             });
-            
+
             updateBatchCellPickerConfirmBtn();
         }
-        
+
         // 更新确认按钮
         function updateBatchCellPickerConfirmBtn() {
             const btn = document.getElementById('batchCellPickerConfirm');
@@ -3740,23 +4973,23 @@
                 btn.textContent = '请先选择一张图片';
             }
         }
-        
+
         // 确认选择
         function confirmBatchCellSelection() {
             if (__batchCellPickerIdx < 0 || __batchCellPickerSelected < 0) return;
-            
+
             const item = batchResults[__batchCellPickerIdx];
             if (!item || !item.allImages) return;
-            
+
             // 更新该格子的选中图片
             item.selectedImageIndex = __batchCellPickerSelected;
             item.imageUrl = item.allImages[__batchCellPickerSelected];
-            
+
             closeBatchCellPicker();
             renderBatchResults();
             showToast(`已选择第 ${__batchCellPickerSelected + 1} 张图片`);
         }
-        
+
         // 关闭选择器
         function closeBatchCellPicker() {
             document.getElementById('batchCellPicker').classList.remove('show');

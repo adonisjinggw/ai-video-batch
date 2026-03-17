@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 本地管理员 - RollRoll</title>
+    <!-- 不需要外部依赖 -->
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #141414;
+            --accent-gold: #fbbf24;
+            --accent-cyan: #4ECDC4;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --border-color: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: var(--accent-gold);
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .warning {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: #f87171;
+        }
+
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent-gold);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, var(--accent-gold), #f97316);
+            color: #000;
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(251, 191, 36, 0.3);
+        }
+
+        .btn-cyan {
+            background: linear-gradient(135deg, var(--accent-cyan), #06b6d4);
+            color: #000;
+        }
+
+        .btn-cyan:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(78, 205, 196, 0.3);
+        }
+
+        .result-area {
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+
+        .result-area.show {
+            display: block;
+        }
+
+        .code-list {
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            color: var(--accent-gold);
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.8;
+        }
+
+        .copy-btn {
+            margin-top: 12px;
+            padding: 8px 16px;
+            background: var(--border-color);
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-btn:hover {
+            background: #444;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: var(--accent-gold);
+            color: #000;
+            border-color: var(--accent-gold);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .preset-btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .preset-btn {
+            padding: 8px 16px;
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 6px;
+            color: var(--accent-gold);
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .info-box {
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: var(--accent-cyan);
+            margin-top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 RollRoll 本地管理员</h1>
+            <p>VIP会员 + 胶片充值 激活码生成器</p>
+        </div>
+
+        <div class="warning">
+            ⚠️ 此页面仅限本地使用，请勿部署到线上！生成的激活码可直接在应用中使用。
+        </div>
+
+        <!-- 功能选项卡 -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('film')">🎞️ 胶片充值码</div>
+            <div class="tab" onclick="switchTab('vip')">👑 VIP会员码</div>
+            <div class="tab" onclick="switchTab('combo')">🎁 组合套餐码</div>
+        </div>
+
+        <!-- 胶片充值码 -->
+        <div id="tab-film" class="tab-content active">
+            <div class="section">
+                <div class="section-title">🎞️ 生成胶片充值码</div>
+
+                <div class="preset-btns">
+                    <button class="preset-btn" onclick="setFilmPreset(100, 9.9)">体验包 100胶片/¥9.9</button>
+                    <button class="preset-btn" onclick="setFilmPreset(500, 39)">基础包 500胶片/¥39</button>
+                    <button class="preset-btn" onclick="setFilmPreset(1500, 99)">进阶包 1500胶片/¥99</button>
+                    <button class="preset-btn" onclick="setFilmPreset(5000, 299)">专业包 5000胶片/¥299</button>
+                    <button class="preset-btn" onclick="setFilmPreset(20000, 999)">工作室 20000胶片/¥999</button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>胶片数量</label>
+                        <input type="number" id="filmAmount" value="1000" min="1" title="胶片数量" placeholder="1000">
+                    </div>
+                    <div class="form-group">
+                        <label>对应价格 (¥)</label>
+                        <input type="number" id="filmPrice" value="59" min="0" step="0.1" title="对应价格" placeholder="59">
+                    </div>
+                    <div class="form-group">
+                        <label>生成数量</label>
+                        <input type="number" id="filmCount" value="1" min="1" max="50" title="生成数量" placeholder="1">
+                    </div>
+                </div>
+
+                <button class="btn btn-gold" onclick="generateFilmCodes()">🎲 生成胶片充值码</button>
+
+                <div class="result-area" id="filmResult">
+                    <div class="code-list" id="filmCodes"></div>
+                    <button class="copy-btn" onclick="copyFilmCodes()">📋 复制全部</button>
+                </div>
+
+                <div class="info-box">
+                    💡 用户在应用中输入激活码后，胶片将直接充值到账户。激活码格式：FILM-XXXX-XXXX-数量
+                </div>
+            </div>
+        </div>
+
+        <!-- VIP会员码 -->
+        <div id="tab-vip" class="tab-content">
+            <div class="section">
+                <div class="section-title">👑 生成VIP会员码</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>会员等级 (LV1-LV10)</label>
+                        <select id="vipLevel" title="选择会员等级">
+                            <option value="1">LV1 入门会员 (解锁3000胶片)</option>
+                            <option value="2">LV2 初级会员 (解锁6000胶片)</option>
+                            <option value="3">LV3 中级会员 (解锁12000胶片)</option>
+                            <option value="4">LV4 高级会员 (解锁22000胶片)</option>
+                            <option value="5" selected>LV5 专业会员 (解锁35000胶片)</option>
+                            <option value="6">LV6 资深会员 (解锁50000胶片)</option>
+                            <option value="7">LV7 精英会员 (解锁68000胶片)</option>
+                            <option value="8">LV8 大师会员 (解锁82000胶片)</option>
+                            <option value="9">LV9 至尊会员 (解锁93000胶片)</option>
+                            <option value="10">LV10 传奇会员 (解锁100000胶片)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>有效期</label>
+                        <select id="vipType" title="选择有效期">
+                            <option value="month">月卡 (30天)</option>
+                            <option value="quarter">季卡 (90天)</option>
+                            <option value="year" selected>年卡 (365天)</option>
+                            <option value="permanent">永久会员</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>生成数量</label>
+                        <input type="number" id="vipCount" value="1" min="1" max="50" title="生成数量" placeholder="1">
+                    </div>
+                </div>
+
+                <button class="btn btn-cyan" onclick="generateVipCodes()">🎲 生成VIP会员码</button>
+
+                <div class="result-area" id="vipResult">
+                    <div class="code-list" id="vipCodes"></div>
+                    <button class="copy-btn" onclick="copyVipCodes()">📋 复制全部</button>
+                </div>
+
+                <div class="info-box">
+                    💡 VIP会员享受消费折扣和优先队列。激活码格式：VIP-等级-类型-XXXX
+                </div>
+            </div>
+        </div>
+
+        <!-- 组合套餐码 -->
+        <div id="tab-combo" class="tab-content">
+            <div class="section">
+                <div class="section-title">🎁 生成组合套餐码 (VIP + 胶片)</div>
+
+                <div class="preset-btns">
+                    <button class="preset-btn" onclick="setComboPreset(3, 'month', 3000)">LV3月卡 (解锁3000胶片)</button>
+                    <button class="preset-btn" onclick="setComboPreset(5, 'quarter', 35000)">LV5季卡 (解锁35000胶片)</button>
+                    <button class="preset-btn" onclick="setComboPreset(7, 'year', 68000)">LV7年卡 (解锁68000胶片)</button>
+                    <button class="preset-btn" onclick="setComboPreset(10, 'permanent', 100000)">LV10永久 (解锁100000胶片)</button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>会员等级 (LV1-LV10)</label>
+                        <select id="comboLevel" title="选择会员等级" onchange="updateComboFilm()">
+                            <option value="1">LV1 入门会员 (解锁3000胶片)</option>
+                            <option value="2">LV2 初级会员 (解锁6000胶片)</option>
+                            <option value="3">LV3 中级会员 (解锁12000胶片)</option>
+                            <option value="4">LV4 高级会员 (解锁22000胶片)</option>
+                            <option value="5" selected>LV5 专业会员 (解锁35000胶片)</option>
+                            <option value="6">LV6 资深会员 (解锁50000胶片)</option>
+                            <option value="7">LV7 精英会员 (解锁68000胶片)</option>
+                            <option value="8">LV8 大师会员 (解锁82000胶片)</option>
+                            <option value="9">LV9 至尊会员 (解锁93000胶片)</option>
+                            <option value="10">LV10 传奇会员 (解锁100000胶片)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>有效期</label>
+                        <select id="comboType" title="选择有效期">
+                            <option value="month">月卡 (30天)</option>
+                            <option value="quarter">季卡 (90天)</option>
+                            <option value="year" selected>年卡 (365天)</option>
+                            <option value="permanent">永久</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>解锁胶片</label>
+                        <input type="number" id="comboFilm" value="35000" min="0" title="解锁胶片数量" placeholder="35000" readonly style="background: #333; cursor: not-allowed;">
+                    </div>
+                </div>
+
+                <button class="btn btn-gold" onclick="generateComboCodes()">🎲 生成组合套餐码</button>
+
+                <div class="result-area" id="comboResult">
+                    <div class="code-list" id="comboCodes"></div>
+                    <button class="copy-btn" onclick="copyComboCodes()">📋 复制全部</button>
+                </div>
+
+                <div class="info-box">
+                    💡 组合套餐一次性激活VIP会员身份+解锁对应等级胶片额度。激活码格式：COMBO-LV等级-类型-胶片-XXXX
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 管理员密钥（与前端验证一致）
+        const ADMIN_SECRET = 'ROLLROLL-2025-ADMIN';
+
+        // 等级对应的解锁胶片数量
+        const LEVEL_FILM_MAP = {
+            1: 3000,
+            2: 6000,
+            3: 12000,
+            4: 22000,
+            5: 35000,
+            6: 50000,
+            7: 68000,
+            8: 82000,
+            9: 93000,
+            10: 100000
+        };
+
+        let generatedFilmCodes = [];
+        let generatedVipCodes = [];
+        let generatedComboCodes = [];
+
+        // 切换标签页
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
+
+        // 预设胶片套餐
+        function setFilmPreset(amount, price) {
+            document.getElementById('filmAmount').value = amount;
+            document.getElementById('filmPrice').value = price;
+        }
+
+        // 预设组合套餐（自动根据等级设置胶片）
+        function setComboPreset(level, type, film) {
+            document.getElementById('comboLevel').value = level;
+            document.getElementById('comboType').value = type;
+            document.getElementById('comboFilm').value = LEVEL_FILM_MAP[level] || film;
+        }
+
+        // 当选择等级时自动更新胶片数量
+        function updateComboFilm() {
+            const level = parseInt(document.getElementById('comboLevel').value) || 5;
+            document.getElementById('comboFilm').value = LEVEL_FILM_MAP[level] || 35000;
+        }
+
+        // 生成随机字符串
+        function randomStr(len) {
+            return Math.random().toString(36).substring(2, 2 + len).toUpperCase();
+        }
+
+        // 生成签名（简化版，不依赖外部库）
+        function sign(data) {
+            // 简单哈希：将字符串转为数字再取模
+            let hash = 0;
+            const str = data + ADMIN_SECRET;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(16).toUpperCase().padStart(8, '0').substring(0, 8);
+        }
+
+        // 生成胶片充值码
+        function generateFilmCodes() {
+            try {
+                const amount = parseInt(document.getElementById('filmAmount').value) || 1000;
+                const count = parseInt(document.getElementById('filmCount').value) || 1;
+
+                console.log('生成胶片码:', amount, count);
+
+                generatedFilmCodes = [];
+                for (let i = 0; i < count; i++) {
+                    const rand = randomStr(4) + '-' + randomStr(4);
+                    const data = `FILM-${rand}-${amount}`;
+                    const sig = sign(data);
+                    const code = `${data}-${sig}`;
+                    generatedFilmCodes.push(code);
+                }
+
+                document.getElementById('filmCodes').textContent = generatedFilmCodes.join('\n');
+                document.getElementById('filmResult').classList.add('show');
+
+                console.log('生成成功:', generatedFilmCodes);
+            } catch (e) {
+                console.error('生成失败:', e);
+                alert('生成失败: ' + e.message);
+            }
+        }
+
+        // 生成VIP会员码 (LV1-LV10)
+        function generateVipCodes() {
+            try {
+                const type = document.getElementById('vipType').value;
+                const level = parseInt(document.getElementById('vipLevel').value) || 5;
+                const count = parseInt(document.getElementById('vipCount').value) || 1;
+
+                const typeMap = { month: 'M', quarter: 'Q', year: 'Y', permanent: 'P' };
+
+                console.log('生成VIP码: LV' + level, type, count);
+
+                generatedVipCodes = [];
+                for (let i = 0; i < count; i++) {
+                    const rand = randomStr(8);
+                    // 新格式：VIP-LV等级-有效期类型-随机码-签名
+                    const data = `VIP-LV${level}-${typeMap[type]}-${rand}`;
+                    const sig = sign(data);
+                    const code = `${data}-${sig}`;
+                    generatedVipCodes.push(code);
+                }
+
+                document.getElementById('vipCodes').textContent = generatedVipCodes.join('\n');
+                document.getElementById('vipResult').classList.add('show');
+
+                console.log('生成成功:', generatedVipCodes);
+            } catch (e) {
+                console.error('生成失败:', e);
+                alert('生成失败: ' + e.message);
+            }
+        }
+
+        // 生成组合套餐码
+        function generateComboCodes() {
+            try {
+                const level = parseInt(document.getElementById('comboLevel').value) || 5;
+                const type = document.getElementById('comboType').value;
+                const film = parseInt(document.getElementById('comboFilm').value) || 5000;
+
+                const typeMap = { month: 'M', quarter: 'Q', year: 'Y', permanent: 'P' };
+
+                console.log('生成组合码: LV' + level, type, film);
+
+                generatedComboCodes = [];
+                const rand = randomStr(6);
+                // 新格式：COMBO-LV等级-有效期类型-胶片数量-随机码-签名
+                const data = `COMBO-LV${level}-${typeMap[type]}-${film}-${rand}`;
+                const sig = sign(data);
+                const code = `${data}-${sig}`;
+                generatedComboCodes.push(code);
+
+                document.getElementById('comboCodes').textContent = generatedComboCodes.join('\n');
+                document.getElementById('comboResult').classList.add('show');
+
+                console.log('生成成功:', generatedComboCodes);
+            } catch (e) {
+                console.error('生成失败:', e);
+                alert('生成失败: ' + e.message);
+            }
+        }
+
+        // 复制功能
+        function copyFilmCodes() {
+            navigator.clipboard.writeText(generatedFilmCodes.join('\n')).then(() => alert('✅ 已复制！'));
+        }
+        function copyVipCodes() {
+            navigator.clipboard.writeText(generatedVipCodes.join('\n')).then(() => alert('✅ 已复制！'));
+        }
+        function copyComboCodes() {
+            navigator.clipboard.writeText(generatedComboCodes.join('\n')).then(() => alert('✅ 已复制！'));
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1608 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鉁嶏笍 AI鍐欎綔 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .main {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .type-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .type-tab {
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 20px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .type-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            min-height: 120px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .setting-item {
+            flex: 1;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f59e0b);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-text {
+            font-size: 15px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            color: var(--text);
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-dark);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .result-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        /* 馃幀 杞棰?婕敾寮圭獥鏍峰紡 */
+        .convert-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .convert-modal {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 360px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .convert-modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--accent);
+        }
+
+        .convert-option-group {
+            margin-bottom: 16px;
+        }
+
+        .convert-option-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .convert-option-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .convert-option-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border-radius: 10px;
+            border: 2px solid #333;
+            background: var(--bg-dark);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .convert-option-btn.active {
+            border-color: var(--accent);
+            background: rgba(250,204,21,0.15);
+            color: var(--accent);
+        }
+
+        .convert-option-btn:hover {
+            border-color: #555;
+        }
+
+        .convert-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .convert-modal-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .convert-modal-btn.cancel {
+            background: #333;
+            color: #999;
+        }
+
+        .convert-modal-btn.confirm {
+            background: linear-gradient(135deg, #facc15, #eab308);
+            color: #000;
+        }
+
+        .convert-modal-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .history-section {
+            margin-top: 32px;
+            border-top: 1px solid #222;
+            padding-top: 20px;
+        }
+
+        .history-item {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+        }
+
+        .history-item-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--accent);
+        }
+
+        .history-item-preview {
+            font-size: 13px;
+            color: var(--text-dim);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 馃啎 鎵归噺妯″紡鏍峰紡 */
+        .batch-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .batch-toggle-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .batch-toggle-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .batch-item {
+            position: relative;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+        }
+        .batch-item textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 100px;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 13px;
+            padding: 10px;
+            resize: none;
+            line-height: 1.5;
+        }
+        .batch-item textarea:focus {
+            outline: none;
+        }
+        .batch-item-params {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            padding: 4px 5px;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid #222;
+        }
+        .batch-item-params select {
+            flex: 1;
+            min-width: 45%;
+            padding: 3px 2px;
+            font-size: 9px;
+            background: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .batch-item.generating {
+            border-color: var(--accent);
+        }
+        .batch-item.generating::before {
+            content: '鉁嶏笍';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 16px;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .batch-item.done {
+            border-color: #22c55e;
+        }
+        .batch-item.error {
+            border-color: #ef4444;
+        }
+        .batch-result-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+        .batch-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .batch-result-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: var(--accent);
+        }
+        .batch-result-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .batch-action-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .batch-action-btn:hover {
+            border-color: var(--accent);
+        }
+        .batch-action-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
+        .batch-result-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .batch-result-item {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #333;
+        }
+        .batch-result-item.selected {
+            border-color: #22c55e;
+        }
+        .batch-result-item.error {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .batch-result-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .batch-result-item-index {
+            background: var(--accent);
+            color: #000;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .batch-result-item-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .batch-result-item-actions button {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            cursor: pointer;
+        }
+        .batch-result-item-text {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre-wrap;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">鈫?杩斿洖</button>
+        <h1>鉁嶏笍 AI鍐欎綔</h1>
+        <div style="width: 50px;"></div>
+    </header>
+
+    <main class="main">
+        <div class="type-tabs">
+            <button class="type-tab active" data-type="story" onclick="switchType('story')">馃摉 鏁呬簨</button>
+            <button class="type-tab" data-type="article" onclick="switchType('article')">馃摑 鏂囩珷</button>
+            <button class="type-tab" data-type="script" onclick="switchType('script')">馃幀 鍓ф湰</button>
+            <button class="type-tab" data-type="poem" onclick="switchType('poem')">馃尭 璇楄瘝</button>
+            <button class="type-tab" data-type="copy" onclick="switchType('copy')">馃摙 鏂囨</button>
+            <button class="type-tab" data-type="continue" onclick="switchType('continue')">鉁?缁啓</button>
+        </div>
+
+        <!-- 馃啎 鍗曠瘒/鎵归噺妯″紡鍒囨崲 -->
+        <div class="batch-toggle">
+            <button class="batch-toggle-btn active" onclick="setBatchMode(false)" id="singleModeBtn">馃摑 鍗曠瘒妯″紡</button>
+            <button class="batch-toggle-btn" onclick="setBatchMode(true)" id="batchModeBtn">馃摎 鎵归噺妯″紡 (8鏍?</button>
+        </div>
+
+        <!-- 鍗曠瘒妯″紡杈撳叆鍖?-->
+        <div class="input-section" id="singleInputSection">
+            <label class="input-label" id="inputLabel">鉁?杈撳叆鏁呬簨涓婚鎴栧ぇ绾?/label>
+            <textarea class="input-box" id="contentInput" placeholder="渚嬪锛氫竴涓▼搴忓憳绌胯秺鍒板彜浠ｏ紝鐢ㄧ幇浠ｇ煡璇嗘敼鍙樺巻鍙?.."></textarea>
+        </div>
+
+        <!-- 馃啎 鎵归噺妯″紡杈撳叆鍖?(9瀹牸锛屾瘡涓彲鐙珛閰嶇疆) -->
+        <div class="input-section" id="batchInputSection" style="display:none;">
+            <label class="input-label">鉁?鎵归噺杈撳叆涓婚 (姣忎釜鍙崟鐙厤缃鏍?闀垮害)</label>
+            <div class="batch-grid" id="batchGrid"></div>
+        </div>
+
+        <div class="settings-row">
+            <div class="setting-item">
+                <label>鍐欎綔椋庢牸</label>
+                <select id="styleSelect">
+                    <option value="normal">馃摑 姝ｅ父</option>
+                    <option value="humorous">馃槀 骞介粯</option>
+                    <option value="literary">馃摎 鏂囪壓</option>
+                    <option value="professional">馃捈 涓撲笟</option>
+                    <option value="simple">馃幆 绠€娲?/option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>鍐呭闀垮害</label>
+                <select id="lengthSelect">
+                    <option value="short">鐭瘒 (~300瀛?</option>
+                    <option value="medium" selected>涓瘒 (~800瀛?</option>
+                    <option value="long">闀跨瘒 (~1500瀛?</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>鍐欎綔妯″瀷</label>
+                <select id="writerModelSelect">
+                    <option value="yunwu:grok-4-fast" selected>馃専 Grok-4 Fast锛堥閫夛級</option>
+                    <option value="mimo">鈿?MIMO</option>
+                    <option value="yunwu:qwen-plus">鈽侊笍 浜戦浘 qwen-plus</option>
+                    <option value="roll">馃啌 榄斿 roll锛堥渶閰嶇疆锛?/option>
+                </select>
+            </div>
+        </div>
+
+        <button class="generate-btn" id="generateBtn" onclick="handleGenerate()">
+            鈿?寮€濮嬪垱浣?        </button>
+
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <div>AI姝ｅ湪鍒涗綔涓?..</div>
+        </div>
+
+        <!-- 鍗曠瘒缁撴灉鍖哄煙 -->
+        <div class="result-section" id="resultSection" style="display:none;">
+            <div class="result-title">
+                <span>馃搫 鍒涗綔缁撴灉</span>
+                <span id="wordCount" style="font-size:12px;"></span>
+            </div>
+            <div class="result-text" id="resultText"></div>
+            <div class="result-actions">
+                <button class="result-btn" onclick="copyResult()">馃搵 澶嶅埗</button>
+                <button class="result-btn" onclick="shareResult()">馃摛 鍒嗕韩</button>
+                <button class="result-btn primary" onclick="regenerate()">馃攧 閲嶆柊鐢熸垚</button>
+            </div>
+            <!-- 馃幀 杞棰?婕敾/鐢熷浘鎸夐挳 -->
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #333;">
+                <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px;">馃摛 瀵煎嚭鍒?/div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="result-btn" onclick="pushToImageGen()" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); border-color: rgba(34,197,94,0.5);">
+                        馃柤锔?鐢熸垚AI鍥剧墖
+                    </button>
+                    <button class="result-btn" onclick="showConvertModal('video')" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.5);">
+                        馃幀 鐢熸垚AI瑙嗛
+                    </button>
+                    <button class="result-btn" onclick="showConvertModal('comic')" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5);">
+                        馃摎 鐢熸垚AI婕敾
+                    </button>
+                    <button class="result-btn" onclick="pushToVoice()" style="flex:1; min-width: 100px; background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1)); border-color: rgba(251,191,36,0.5);">
+                        馃帳 鍘荤敓鎴愰厤闊?                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 馃啎 鎵归噺缁撴灉鍖哄煙 -->
+        <div class="batch-result-section" id="batchResultSection" style="display:none;">
+            <div class="batch-result-header">
+                <h3>馃摎 鎵归噺鍒涗綔缁撴灉</h3>
+                <div class="batch-result-actions">
+                    <button class="batch-action-btn" onclick="copyAllBatchResults()">馃搵 澶嶅埗</button>
+                    <button class="batch-action-btn" onclick="selectAllBatch()">鉁?鍏ㄩ€?/button>
+                </div>
+            </div>
+            <div class="batch-result-list" id="batchResultList"></div>
+            <!-- 馃摛 鎵归噺鎺ㄩ€佹寜閽?-->
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #333;">
+                <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">馃摛 鎵归噺鎺ㄩ€侀€変腑鍐呭鍒?/div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                    <button class="batch-action-btn" onclick="pushBatchToImageGen()" style="background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); border-color: rgba(34,197,94,0.5); padding: 12px;">
+                        馃柤锔?鎵归噺鐢熷浘
+                    </button>
+                    <button class="batch-action-btn" onclick="pushBatchToVideo()" style="background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.5); padding: 12px;">
+                        馃幀 鎵归噺瑙嗛
+                    </button>
+                    <button class="batch-action-btn" onclick="pushBatchToComic()" style="background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(236,72,153,0.1)); border-color: rgba(236,72,153,0.5); padding: 12px;">
+                        馃摎 鎵归噺婕敾
+                    </button>
+                    <button class="batch-action-btn" onclick="pushBatchToVoice()" style="background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1)); border-color: rgba(251,191,36,0.5); padding: 12px;">
+                        馃帳 鎵归噺閰嶉煶
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="history-section" id="historySection">
+            <div class="result-title">馃摎 鍘嗗彶璁板綍</div>
+            <div id="historyList"></div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 馃幀 杞棰?婕敾寮圭獥 -->
+    <div class="convert-modal-overlay" id="convertModal" style="display:none;" onclick="hideConvertModal(event)">
+        <div class="convert-modal" onclick="event.stopPropagation()">
+            <div class="convert-modal-title" id="convertModalTitle">馃幀 鐢熸垚AI瑙嗛</div>
+            
+            <!-- 鐩爣浜у搧閫夋嫨 -->
+            <div class="convert-option-group">
+                <span class="convert-option-label">閫夋嫨鐩爣浜у搧</span>
+                <div class="convert-option-row">
+                    <button class="convert-option-btn active" data-target="video" onclick="selectConvertTarget('video')">
+                        馃幀 AI瑙嗛
+                    </button>
+                    <button class="convert-option-btn" data-target="comic" onclick="selectConvertTarget('comic')">
+                        馃摎 AI婕敾
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 鎿嶄綔妯″紡閫夋嫨 -->
+            <div class="convert-option-group">
+                <span class="convert-option-label">閫夋嫨鎿嶄綔妯″紡</span>
+                <div class="convert-option-row">
+                    <button class="convert-option-btn active" data-mode="full-auto" onclick="selectConvertMode('full-auto')">
+                        馃殌 鍏ㄨ嚜鍔?                    </button>
+                    <button class="convert-option-btn" data-mode="semi-auto" onclick="selectConvertMode('semi-auto')">
+                        鈿?鍗婅嚜鍔?                    </button>
+                    <button class="convert-option-btn" data-mode="manual" onclick="selectConvertMode('manual')">
+                        馃帥锔?鎵嬪姩
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 妯″紡璇存槑 -->
+            <div id="convertModeDesc" style="font-size: 11px; color: var(--text-dim); padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 8px; line-height: 1.5;">
+                馃殌 <b>鍏ㄨ嚜鍔?/b>锛氫竴閿惎鍔紝AI鑷姩瀹屾垚鍏ㄩ儴娴佺▼
+            </div>
+            
+            <!-- 鎿嶄綔鎸夐挳 -->
+            <div class="convert-modal-actions">
+                <button class="convert-modal-btn cancel" onclick="hideConvertModal()">鍙栨秷</button>
+                <button class="convert-modal-btn confirm" onclick="confirmConvert()">纭鐢熸垚</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 璁¤垂閰嶇疆锛堜娇鐢?NVAuth 妯″潡锛?        var _sbClient = null, currentUser = null, userQuota = 0;
+        const WRITING_COST = 1;
+
+        // 杩斿洖鍑芥暟 - 鐩存帴杩斿洖宸ヤ綔鍖猴紙甯﹀弬鏁拌烦杩囨杩庨〉锛?        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                // 浠巑obile.html璺宠浆鏉ョ殑锛岀洿鎺ヨ繑鍥瀖obile.html
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                // 榛樿杩斿洖index.html锛堝甫鍙傛暟璺宠繃娆㈣繋椤碉級
+                location.href = 'index.html?skip_welcome=1';
+            }
+        }
+
+        let currentType = 'story';
+        let currentResult = '';
+        let history = [];
+        
+        // 馃啎 鎵归噺妯″紡鐘舵€?        let batchMode = false;
+        let batchResults = [];  // { index, input, result, error, selected }
+
+        const typeConfig = {
+            story: { label: '鉁?杈撳叆鏁呬簨涓婚鎴栧ぇ绾?, placeholder: '渚嬪锛氫竴涓▼搴忓憳绌胯秺鍒板彜浠ｏ紝鐢ㄧ幇浠ｇ煡璇嗘敼鍙樺巻鍙?..' },
+            article: { label: '鉁?杈撳叆鏂囩珷涓婚', placeholder: '渚嬪锛氫汉宸ユ櫤鑳藉浣曟敼鍙樻垜浠殑鐢熸椿...' },
+            script: { label: '鉁?杈撳叆鍓ф湰鍦烘櫙鎴栧ぇ绾?, placeholder: '渚嬪锛氫竴瀵规儏渚ｅ湪鍜栧暋鍘呴噸閫紝姘旀皼寰...' },
+            poem: { label: '鉁?杈撳叆璇楄瘝涓婚鎴栨剰澧?, placeholder: '渚嬪锛氭槬澶╃殑姹熷崡锛岀儫闆ㄦ湨鑳?..' },
+            copy: { label: '鉁?杈撳叆浜у搧鎴栨椿鍔ㄤ俊鎭?, placeholder: '渚嬪锛氭柊鍝佸挅鍟′笂甯傦紝涓绘墦鍋ュ悍浣庣硸...' },
+            continue: { label: '鉁?绮樿创闇€瑕佺画鍐欑殑鍐呭', placeholder: '绮樿创浣犵殑鏂囩珷寮€澶达紝AI灏嗗府浣犵画鍐?..' }
+        };
+
+        function switchType(type) {
+            currentType = type;
+            document.querySelectorAll('.type-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.type === type);
+            });
+            const config = typeConfig[type];
+            document.getElementById('inputLabel').textContent = config.label;
+            document.getElementById('contentInput').placeholder = config.placeholder;
+            // 馃啎 鏇存柊鎵归噺妯″紡鐨勫崰浣嶇
+            for (let i = 0; i < 8; i++) {
+                const input = document.getElementById(`batchInput${i}`);
+                if (input) {
+                    input.placeholder = `${['1锔忊儯','2锔忊儯','3锔忊儯','4锔忊儯','5锔忊儯','6锔忊儯','7锔忊儯','8锔忊儯'][i]} ${config.placeholder.substring(0, 20)}...`;
+                }
+            }
+        }
+
+        // 馃啎 鍒濆鍖栨壒閲忚緭鍏ユ锛堝甫鐙珛鍙傛暟锛氱被鍨嬨€侀鏍笺€侀暱搴︺€佹ā鍨嬶級
+        function initBatchGrid() {
+            const grid = document.getElementById('batchGrid');
+            const emojis = ['1锔忊儯','2锔忊儯','3锔忊儯','4锔忊儯','5锔忊儯','6锔忊儯','7锔忊儯','8锔忊儯'];
+            grid.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                grid.innerHTML += `
+                    <div class="batch-item" id="batchItem${i}">
+                        <textarea id="batchInput${i}" placeholder="${emojis[i]} 涓婚..."></textarea>
+                        <div class="batch-item-params">
+                            <select id="batchType${i}">
+                                <option value="">--绫诲瀷--</option>
+                                <option value="story">馃摉鏁呬簨</option>
+                                <option value="article">馃摑鏂囩珷</option>
+                                <option value="script">馃幀鍓ф湰</option>
+                                <option value="poem">馃尭璇楄瘝</option>
+                                <option value="copy">馃摙鏂囨</option>
+                                <option value="continue">鉁ㄧ画鍐?/option>
+                            </select>
+                            <select id="batchStyle${i}">
+                                <option value="">--椋庢牸--</option>
+                                <option value="normal">馃摑姝ｅ父</option>
+                                <option value="humorous">馃槀骞介粯</option>
+                                <option value="literary">馃摎鏂囪壓</option>
+                                <option value="professional">馃捈涓撲笟</option>
+                                <option value="simple">馃幆绠€娲?/option>
+                            </select>
+                            <select id="batchLength${i}">
+                                <option value="">--闀垮害--</option>
+                                <option value="short">鐭瓇300</option>
+                                <option value="medium">涓瓇800</option>
+                                <option value="long">闀縹1500</option>
+                            </select>
+                            <select id="batchModel${i}">
+                                <option value="">--妯″瀷--</option>
+                                <option value="mimo">鈿IMO</option>
+                                <option value="yunwu:qwen-plus">鈽侊笍浜戦浘</option>
+                                <option value="roll">馃啌榄斿</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // 馃啎 鍒囨崲鍗曠瘒/鎵归噺妯″紡
+        function setBatchMode(isBatch) {
+            batchMode = isBatch;
+            const singleInput = document.getElementById('singleInputSection');
+            const batchInput = document.getElementById('batchInputSection');
+            const singleBtn = document.getElementById('singleModeBtn');
+            const batchBtn = document.getElementById('batchModeBtn');
+            const resultSection = document.getElementById('resultSection');
+            const batchResultSection = document.getElementById('batchResultSection');
+            
+            if (isBatch) {
+                singleInput.style.display = 'none';
+                batchInput.style.display = 'block';
+                singleBtn.classList.remove('active');
+                batchBtn.classList.add('active');
+                resultSection.style.display = 'none';
+                document.getElementById('generateBtn').textContent = '鈿?鎵归噺鍒涗綔';
+                initBatchGrid();  // 鍒濆鍖栨壒閲忚緭鍏ユ
+            } else {
+                singleInput.style.display = 'block';
+                batchInput.style.display = 'none';
+                singleBtn.classList.add('active');
+                batchBtn.classList.remove('active');
+                batchResultSection.style.display = 'none';
+                document.getElementById('generateBtn').textContent = '鈿?寮€濮嬪垱浣?;
+            }
+        }
+
+        // 馃啎 鐢熸垚鍏ュ彛锛堟牴鎹ā寮忓垎鍙戯級
+        function handleGenerate() {
+            if (batchMode) {
+                generateBatchContent();
+            } else {
+                generateContent();
+            }
+        }
+
+        function loadHistory() {
+            try {
+                history = JSON.parse(localStorage.getItem('writing_history') || '[]');
+                renderHistory();
+            } catch (e) { }
+        }
+
+        function saveHistory() {
+            localStorage.setItem('writing_history', JSON.stringify(history.slice(0, 20)));
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (history.length === 0) {
+                list.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;">鏆傛棤鍘嗗彶璁板綍</div>';
+                return;
+            }
+            list.innerHTML = history.map((item, i) => `
+                <div class="history-item" onclick="viewHistory(${i})">
+                    <div class="history-item-title">${item.type === 'story' ? '馃摉' : item.type === 'article' ? '馃摑' : item.type === 'script' ? '馃幀' : item.type === 'poem' ? '馃尭' : item.type === 'copy' ? '馃摙' : '鉁?} ${item.input.slice(0, 20)}...</div>
+                    <div class="history-item-preview">${item.result.slice(0, 50)}...</div>
+                </div>
+            `).join('');
+        }
+
+        function viewHistory(index) {
+            const item = history[index];
+            currentType = item.type;
+            switchType(item.type);
+            document.getElementById('contentInput').value = item.input;
+            currentResult = item.result;
+            document.getElementById('resultText').textContent = item.result;
+            document.getElementById('wordCount').textContent = `${item.result.length}瀛梎;
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        async function generateContent() {
+            // 鉁?妫€鏌ョ櫥褰曠姸鎬?            if (!currentUser) {
+                showToast('璇峰厛鐧诲綍鍚庡啀浣跨敤姝ゅ姛鑳?);
+                return;
+            }
+
+            const input = document.getElementById('contentInput').value.trim();
+            if (!input) {
+                showToast('璇疯緭鍏ュ唴瀹?);
+                return;
+            }
+
+            // 鉁?妫€鏌ヤ綑棰濇槸鍚﹁冻澶燂紙涓嶉鎵ｈ垂锛屽悗绔垚鍔熷悗鎵ｈ垂锛?            if (userQuota < WRITING_COST) {
+                showToast('浣欓涓嶈冻锛岃鍏堝厖鍊?);
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('resultSection');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            const style = document.getElementById('styleSelect').value;
+            const length = document.getElementById('lengthSelect').value;
+
+            const styleMap = {
+                normal: '姝ｅ父椋庢牸',
+                humorous: '骞介粯椋庤叮',
+                literary: '鏂囪壓浼樼編',
+                professional: '涓撲笟涓ヨ皑',
+                simple: '绠€娲佹槑浜?
+            };
+
+            const lengthMap = {
+                short: '绾?00瀛?,
+                medium: '绾?00瀛?,
+                long: '绾?500瀛?
+            };
+
+            // 馃敡 浼樺寲鍚庣殑鎻愮ず璇嶏細瑕佹眰绠€娲併€佹棤鍐椾綑銆佺鍚堜汉绫婚槄璇讳範鎯?            const typePromptMap = {
+                story: `璇锋牴鎹互涓嬩富棰樺垱浣滀竴涓晠浜嬶細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛?{lengthMap[length]}\n2. 鐩存帴杈撳嚭鏁呬簨姝ｆ枃锛屼笉瑕佷换浣曟爣棰樸€侀€夐」銆佹柟妗堣鏄嶾n3. 璇█绠€娲佹祦鐣咃紝閬垮厤鍐椾綑淇グ\n4. 涓嶈鍒嗗涓増鏈垨閫夐」`,
+                article: `璇锋牴鎹互涓嬩富棰樺啓涓€绡囨枃绔狅細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛?{lengthMap[length]}\n2. 鐩存帴杈撳嚭鏂囩珷姝ｆ枃锛屼笉瑕佸垎鏋愯鏄庢垨澶氫釜鐗堟湰\n3. 缁撴瀯娓呮櫚锛屾钀藉垎鏄庯紝鏄撲簬闃呰`,
+                script: `璇锋牴鎹互涓嬪満鏅啓涓€娈靛墽鏈璇濓細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛?{lengthMap[length]}\n2. 鐩存帴杈撳嚭鍓ф湰锛屽寘鍚鑹插璇濆拰绠€娲佺殑鍦烘櫙鎻忚堪\n3. 涓嶈鍐欏垱鎰忓垎鏋愭垨澶氫釜鐗堟湰`,
+                poem: `璇锋牴鎹互涓嬫剰澧冨垱浣滆瘲璇嶏細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛屽彲浠ユ槸鐜颁唬璇楁垨鍙よ瘲璇峔n2. 鐩存帴杈撳嚭璇楄瘝姝ｆ枃\n3. 涓嶈鍐欒В鏋愭垨澶氫釜鐗堟湰`,
+                copy: `璇锋牴鎹互涓嬩俊鎭啓钀ラ攢鏂囨锛歕n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛屽惛寮曚汉锛屾湁鍒涙剰\n2. 鐩存帴杈撳嚭涓€涓簿鐐肩殑鏂囨锛屼笉瑕佸涓増鏈垨閫夐」\n3. 绠€娲佹湁鍔涳紝閬垮厤鍐楅暱`,
+                continue: `璇风画鍐欎互涓嬪唴瀹癸細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛?{lengthMap[length]}\n2. 鐩存帴缁啓锛屼繚鎸侀鏍间竴鑷碶n3. 涓嶈閲嶅鍘熸枃鎴栧啓璇存槑`
+            };
+
+            try {
+                const selectedModel = document.getElementById('writerModelSelect').value;
+                const response = await fetch('/api/writer-llm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        prompt: typePromptMap[currentType],
+                        userId: currentUser.id
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.message || data?.error || '鏈嶅姟璋冪敤澶辫触');
+                }
+                currentResult = data.content || data.response || data.text || '';
+
+                if (currentResult) {
+                    document.getElementById('resultText').textContent = currentResult;
+                    document.getElementById('wordCount').textContent = `${currentResult.length}瀛梎;
+                    result.style.display = 'block';
+
+                    history.unshift({ type: currentType, input, result: currentResult, time: Date.now() });
+                    saveHistory();
+                    renderHistory();
+
+                    showToast('鍒涗綔瀹屾垚锛?);
+                } else {
+                    // 鉁?鍚庣鎴愬姛鎵嶆墸璐癸紝澶辫触涓嶆墸璐癸紝鏃犻渶閫€娆?                    showToast('鍒涗綔澶辫触锛岃閲嶈瘯');
+                }
+            } catch (error) {
+                // 鉁?鍚庣鎴愬姛鎵嶆墸璐癸紝澶辫触涓嶆墸璐癸紝鏃犻渶閫€娆?                showToast('鍒涗綔澶辫触锛? + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function regenerate() {
+            handleGenerate();
+        }
+
+        // 馃啎 鎵归噺鐢熸垚鍐呭
+        async function generateBatchContent() {
+            if (!currentUser) {
+                showToast('璇峰厛鐧诲綍鍚庡啀浣跨敤姝ゅ姛鑳?);
+                return;
+            }
+
+            // 鏀堕泦闈炵┖杈撳叆锛堝寘鎷嫭绔嬪弬鏁帮細绫诲瀷銆侀鏍笺€侀暱搴︺€佹ā鍨嬶級
+            const inputs = [];
+            const globalType = currentType;
+            const globalStyle = document.getElementById('styleSelect').value;
+            const globalLength = document.getElementById('lengthSelect').value;
+            const globalModel = document.getElementById('writerModelSelect').value;
+            
+            for (let i = 0; i < 8; i++) {
+                const val = document.getElementById(`batchInput${i}`)?.value.trim();
+                if (val) {
+                    // 鑾峰彇鐙珛鍙傛暟锛屽鏈缃垯浣跨敤鍏ㄥ眬鍙傛暟
+                    const itemType = document.getElementById(`batchType${i}`)?.value || globalType;
+                    const itemStyle = document.getElementById(`batchStyle${i}`)?.value || globalStyle;
+                    const itemLength = document.getElementById(`batchLength${i}`)?.value || globalLength;
+                    const itemModel = document.getElementById(`batchModel${i}`)?.value || globalModel;
+                    inputs.push({ index: i, input: val, type: itemType, style: itemStyle, length: itemLength, model: itemModel });
+                }
+            }
+            
+            if (inputs.length === 0) {
+                showToast('璇疯嚦灏戣緭鍏ヤ竴涓富棰?);
+                return;
+            }
+
+            const totalCost = inputs.length * WRITING_COST;
+            if (userQuota < totalCost) {
+                showToast(`鑳剁墖涓嶈冻锛岄渶瑕?{totalCost}鑳剁墖`);
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            
+            btn.disabled = true;
+            loading.style.display = 'block';
+            document.getElementById('resultSection').style.display = 'none';
+            
+            // 閲嶇疆鐘舵€?            batchResults = [];
+            let completed = 0;
+            
+            // 鏇存柊鍔犺浇鎻愮ず
+            const updateLoading = () => {
+                document.querySelector('#loading div:last-child').textContent = `AI姝ｅ湪鎵归噺鍒涗綔 ${completed}/${inputs.length}...`;
+            };
+            updateLoading();
+
+            // 閲嶇疆鏍煎瓙鐘舵€?            for (let i = 0; i < 8; i++) {
+                const item = document.getElementById(`batchItem${i}`);
+                if (item) item.classList.remove('generating', 'done', 'error');
+            }
+            
+            // 鏍囪姝ｅ湪鐢熸垚鐨勬牸瀛?            inputs.forEach(item => {
+                document.getElementById(`batchItem${item.index}`).classList.add('generating');
+            });
+
+            const styleMap = {
+                normal: '姝ｅ父椋庢牸',
+                humorous: '骞介粯椋庤叮',
+                literary: '鏂囪壓浼樼編',
+                professional: '涓撲笟涓ヨ皑',
+                simple: '绠€娲佹槑浜?
+            };
+
+            const lengthMap = {
+                short: '绾?00瀛?,
+                medium: '绾?00瀛?,
+                long: '绾?500瀛?
+            };
+
+            // 馃敡 浼樺寲鍚庣殑鎻愮ず璇嶇敓鎴愬嚱鏁帮紙鏀寔鐙珛鍙傛暟锛氱被鍨嬨€侀鏍笺€侀暱搴︼級
+            const buildPrompt = (input, type, style, length) => {
+                const basePrompts = {
+                    story: `璇锋牴鎹互涓嬩富棰樺垱浣滀竴涓晠浜嬶細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛?{lengthMap[length]}\n2. 鐩存帴杈撳嚭鏁呬簨姝ｆ枃锛屼笉瑕佷换浣曟爣棰樸€侀€夐」銆佹柟妗堣鏄嶾n3. 璇█绠€娲佹祦鐣咃紝閬垮厤鍐椾綑淇グ\n4. 涓嶈鍒嗗涓増鏈垨閫夐」`,
+                    article: `璇锋牴鎹互涓嬩富棰樺啓涓€绡囨枃绔狅細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛?{lengthMap[length]}\n2. 鐩存帴杈撳嚭鏂囩珷姝ｆ枃锛屼笉瑕佸垎鏋愯鏄庢垨澶氫釜鐗堟湰\n3. 缁撴瀯娓呮櫚锛屾钀藉垎鏄庯紝鏄撲簬闃呰`,
+                    script: `璇锋牴鎹互涓嬪満鏅啓涓€娈靛墽鏈璇濓細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛?{lengthMap[length]}\n2. 鐩存帴杈撳嚭鍓ф湰锛屽寘鍚鑹插璇濆拰绠€娲佺殑鍦烘櫙鎻忚堪\n3. 涓嶈鍐欏垱鎰忓垎鏋愭垨澶氫釜鐗堟湰`,
+                    poem: `璇锋牴鎹互涓嬫剰澧冨垱浣滆瘲璇嶏細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛屽彲浠ユ槸鐜颁唬璇楁垨鍙よ瘲璇峔n2. 鐩存帴杈撳嚭璇楄瘝姝ｆ枃\n3. 涓嶈鍐欒В鏋愭垨澶氫釜鐗堟湰`,
+                    copy: `璇锋牴鎹互涓嬩俊鎭啓钀ラ攢鏂囨锛歕n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛屽惛寮曚汉锛屾湁鍒涙剰\n2. 鐩存帴杈撳嚭涓€涓簿鐐肩殑鏂囨锛屼笉瑕佸涓増鏈垨閫夐」\n3. 绠€娲佹湁鍔涳紝閬垮厤鍐楅暱`,
+                    continue: `璇风画鍐欎互涓嬪唴瀹癸細\n\n${input}\n\n瑕佹眰锛歕n1. ${styleMap[style]}锛?{lengthMap[length]}\n2. 鐩存帴缁啓锛屼繚鎸侀鏍间竴鑷碶n3. 涓嶈閲嶅鍘熸枃鎴栧啓璇存槑`
+                };
+                return basePrompts[type] || basePrompts.story;
+            };
+
+            // 馃殌 骞跺彂鐢熸垚锛堟瘡涓牸瀛愬彲鐢ㄧ嫭绔嬫ā鍨嬶級
+            const promises = inputs.map(async (item) => {
+                const gridItem = document.getElementById(`batchItem${item.index}`);
+                
+                try {
+                    const response = await fetch('/api/writer-llm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: item.model,
+                            prompt: buildPrompt(item.input, item.type, item.style, item.length),
+                            userId: currentUser.id
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data?.message || data?.error || '鏈嶅姟璋冪敤澶辫触');
+                    }
+                    
+                    const result = data.content || data.response || data.text || '';
+                    
+                    gridItem.classList.remove('generating');
+                    gridItem.classList.add('done');
+                    
+                    batchResults.push({
+                        index: item.index,
+                        input: item.input,
+                        result: result,
+                        error: null,
+                        selected: true
+                    });
+                } catch (error) {
+                    gridItem.classList.remove('generating');
+                    gridItem.classList.add('error');
+                    
+                    batchResults.push({
+                        index: item.index,
+                        input: item.input,
+                        result: '',
+                        error: error.message,
+                        selected: false
+                    });
+                }
+                
+                completed++;
+                updateLoading();
+            });
+
+            await Promise.all(promises);
+            
+            // 鎸塱ndex鎺掑簭
+            batchResults.sort((a, b) => a.index - b.index);
+            
+            // 鏄剧ず缁撴灉
+            renderBatchResults();
+            
+            btn.disabled = false;
+            loading.style.display = 'none';
+            
+            const successCount = batchResults.filter(r => !r.error).length;
+            showToast(`鎵归噺鍒涗綔瀹屾垚锛佹垚鍔?${successCount}/${inputs.length}`);
+            
+            // 淇濆瓨鍒板巻鍙?            batchResults.filter(r => !r.error).forEach(r => {
+                history.unshift({ type: currentType, input: r.input, result: r.result, time: Date.now() });
+            });
+            saveHistory();
+            renderHistory();
+        }
+
+        // 馃啎 娓叉煋鎵归噺缁撴灉
+        function renderBatchResults() {
+            const container = document.getElementById('batchResultList');
+            container.innerHTML = batchResults.map((item, idx) => `
+                <div class="batch-result-item ${item.error ? 'error' : ''} ${item.selected ? 'selected' : ''}" data-index="${item.index}">
+                    <div class="batch-result-item-header">
+                        <span class="batch-result-item-index">#${item.index + 1} ${item.input.substring(0, 15)}...</span>
+                        <div class="batch-result-item-actions">
+                            ${!item.error ? `
+                                <button onclick="toggleBatchSelect(${idx})">${item.selected ? '鉁? : '猬?}</button>
+                                <button onclick="copyBatchItem(${idx})">馃搵</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="batch-result-item-text">${item.error ? '鉂?' + item.error : item.result}</div>
+                </div>
+            `).join('');
+            
+            document.getElementById('batchResultSection').style.display = 'block';
+        }
+
+        // 馃啎 鍒囨崲閫変腑鐘舵€?        function toggleBatchSelect(idx) {
+            batchResults[idx].selected = !batchResults[idx].selected;
+            renderBatchResults();
+        }
+
+        // 馃啎 鍏ㄩ€?        function selectAllBatch() {
+            const allSelected = batchResults.filter(r => !r.error).every(r => r.selected);
+            batchResults.forEach(r => {
+                if (!r.error) r.selected = !allSelected;
+            });
+            renderBatchResults();
+        }
+
+        // 馃啎 澶嶅埗鍗曚釜缁撴灉
+        function copyBatchItem(idx) {
+            if (batchResults[idx] && batchResults[idx].result) {
+                navigator.clipboard.writeText(batchResults[idx].result);
+                showToast('宸插鍒?);
+            }
+        }
+
+        // 馃啎 澶嶅埗鍏ㄩ儴缁撴灉
+        function copyAllBatchResults() {
+            const text = batchResults
+                .filter(r => !r.error && r.selected)
+                .map((r, i) => `銆?{i + 1}銆?{r.input}\n${r.result}`)
+                .join('\n\n---\n\n');
+            if (text) {
+                navigator.clipboard.writeText(text);
+                showToast('宸插鍒堕€変腑鐨勭粨鏋?);
+            } else {
+                showToast('娌℃湁閫変腑鐨勫唴瀹?);
+            }
+        }
+
+        // 馃啎 鎵归噺鎺ㄩ€侀€氱敤鍑芥暟
+        function getSelectedBatchResults() {
+            const selected = batchResults.filter(r => !r.error && r.selected);
+            if (selected.length === 0) {
+                showToast('璇峰厛閫夋嫨瑕佹帹閫佺殑鍐呭');
+                return null;
+            }
+            return selected;
+        }
+        
+        // 馃柤锔?鎵归噺鎺ㄩ€佸埌鐢熷浘
+        function pushBatchToImageGen() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                prompts: selected.map(r => r.result),  // 瀹屾暣鍐呭
+                scenes: selected.map(r => r.result),   // 瀹屾暣鍐呭
+                target: 'batch-image',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_image', JSON.stringify(transferData));
+            localStorage.setItem('knolling_batch_prompts', JSON.stringify(selected.map(r => r.result)));  // 瀹屾暣鍐呭
+            
+            showToast('姝ｅ湪璺宠浆鍒版壒閲忕敓鍥?..');
+            setTimeout(() => {
+                location.href = `banana.html?batch=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+        
+        // 馃幀 鎵归噺鎺ㄩ€佸埌瑙嗛
+        function pushBatchToVideo() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                scripts: selected.map(r => ({ content: r.result, input: r.input })),
+                mode: 'batch-video',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_video', JSON.stringify(transferData));
+            // 鍚屾椂瀛樺偍涓?video_batch_prompts 鏍煎紡渚?video-tools.html 浣跨敤
+            localStorage.setItem('video_batch_prompts', JSON.stringify(selected.map(r => r.result)));
+            
+            showToast('姝ｅ湪璺宠浆鍒版壒閲忚棰?..');
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            setTimeout(() => {
+                location.href = fromMobile 
+                    ? `video-tools.html?force=mobile&batch=1&from_writing=1&skip_welcome=1`
+                    : `video-tools.html?batch=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+        
+        // 馃摎 鎵归噺鎺ㄩ€佸埌婕敾
+        function pushBatchToComic() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                scripts: selected.map(r => ({ content: r.result, input: r.input })),
+                mode: 'batch-comic',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_comic', JSON.stringify(transferData));
+            
+            showToast('姝ｅ湪璺宠浆鍒版壒閲忔极鐢?..');
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            setTimeout(() => {
+                // 鎵归噺婕敾璺宠浆鍒?mobile.html
+                location.href = `mobile.html?batch_comic=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+        
+        // 馃帳 鎺ㄩ€佸埌閰嶉煶鍔熻兘
+        function pushToVoice() {
+            if (!currentResult) {
+                showToast('璇峰厛鐢熸垚鍐欎綔鍐呭');
+                return;
+            }
+            
+            // 淇濆瓨鏁版嵁鍒?localStorage
+            const transferData = {
+                content: currentResult,
+                target: 'voice',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_to_voice', JSON.stringify(transferData));
+            
+            // 妫€鏌ユ槸鍚︿粠鎵嬫満鐗堟潵鐨?            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            showToast('姝ｅ湪璺宠浆鍒癆I閰嶉煶椤甸潰...');
+            setTimeout(() => {
+                location.href = fromMobile 
+                    ? `voice.html?force=mobile&from_writing=1&skip_welcome=1`
+                    : `voice.html?from_writing=1&skip_welcome=1`;
+            }, 500);
+        }
+        
+        // 馃帳 鎵归噺鎺ㄩ€佸埌閰嶉煶
+        function pushBatchToVoice() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                scripts: selected.map(r => ({ content: r.result, input: r.input })),
+                mode: 'batch-voice',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_voice', JSON.stringify(transferData));
+            // 鍚屾椂瀛樺偍涓?voice_batch_scripts 鏍煎紡渚?voice.html 浣跨敤
+            localStorage.setItem('voice_batch_scripts', JSON.stringify(selected.map(r => r.result)));
+            
+            showToast('姝ｅ湪璺宠浆鍒版壒閲忛厤闊?..');
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            setTimeout(() => {
+                location.href = fromMobile 
+                    ? `voice.html?force=mobile&batch=1&from_writing=1&skip_welcome=1`
+                    : `voice.html?batch=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+        
+        // 馃専 鎵归噺鎺ㄩ€佸埌琛ㄦ儏鍖?        function pushBatchToSticker() {
+            const selected = getSelectedBatchResults();
+            if (!selected) return;
+            
+            const transferData = {
+                prompts: selected.map(r => r.result),  // 瀹屾暣鍐呭
+                mode: 'batch-sticker',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_batch_to_sticker', JSON.stringify(transferData));
+            localStorage.setItem('sticker_batch_prompts', JSON.stringify(selected.map(r => r.result)));  // 瀹屾暣鍐呭
+            
+            showToast('姝ｅ湪璺宠浆鍒版壒閲忚〃鎯呭寘...');
+            setTimeout(() => {
+                location.href = `sticker.html?batch=1&from_writing=1&skip_welcome=1`;
+            }, 300);
+        }
+
+        function copyResult() {
+            if (!currentResult) return;
+            navigator.clipboard.writeText(currentResult);
+            showToast('宸插鍒跺埌鍓创鏉?);
+        }
+
+        function shareResult() {
+            if (!currentResult) return;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'AI鍐欎綔',
+                    text: currentResult
+                });
+            } else {
+                copyResult();
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ============ 馃幀 杞棰?婕敾鍔熻兘 ============
+        let convertTarget = 'video';  // 'video' | 'comic'
+        let convertMode = 'full-auto'; // 'full-auto' | 'semi-auto' | 'manual'
+
+        const modeDescriptions = {
+            'full-auto': '馃殌 <b>鍏ㄨ嚜鍔?/b>锛氫竴閿惎鍔紝AI鑷姩瀹屾垚鍏ㄩ儴娴佺▼锛堝墽鏈啋瑙掕壊鈫掑垎闀溾啋鎻愮ず璇嶁啋鐢熸垚锛?,
+            'semi-auto': '鈿?<b>鍗婅嚜鍔?/b>锛氬叧閿楠ゆ殏鍋滅瓑寰呯‘璁わ紝鍙鏍镐慨鏀瑰悗鍐嶇户缁?,
+            'manual': '馃帥锔?<b>鎵嬪姩</b>锛氭瘡涓楠ら兘闇€鎵嬪姩瑙﹀彂锛屽畬鍏ㄦ帉鎺ф瘡涓幆鑺?
+        };
+
+        function showConvertModal(target = 'video') {
+            if (!currentResult) {
+                showToast('璇峰厛鐢熸垚鍐欎綔鍐呭');
+                return;
+            }
+            convertTarget = target;
+            selectConvertTarget(target);
+            document.getElementById('convertModal').style.display = 'flex';
+        }
+
+        function hideConvertModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('convertModal').style.display = 'none';
+        }
+
+        function selectConvertTarget(target) {
+            convertTarget = target;
+            // 鏇存柊鎸夐挳鐘舵€?            document.querySelectorAll('.convert-option-btn[data-target]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.target === target);
+            });
+            // 鏇存柊鏍囬
+            const titleEl = document.getElementById('convertModalTitle');
+            titleEl.textContent = target === 'video' ? '馃幀 鐢熸垚AI瑙嗛' : '馃摎 鐢熸垚AI婕敾';
+        }
+
+        function selectConvertMode(mode) {
+            convertMode = mode;
+            // 鏇存柊鎸夐挳鐘舵€?            document.querySelectorAll('.convert-option-btn[data-mode]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            // 鏇存柊妯″紡璇存槑
+            const descEl = document.getElementById('convertModeDesc');
+            descEl.innerHTML = modeDescriptions[mode];
+        }
+
+        // 馃柤锔?鎺ㄩ€佸埌鐢熷浘鍔熻兘
+        function pushToImageGen() {
+            if (!currentResult) {
+                showToast('璇峰厛鐢熸垚鍐欎綔鍐呭');
+                return;
+            }
+            
+            // 浠庢枃鏈腑鎻愬彇鍦烘櫙鎻忚堪锛堟寜娈佃惤鍒嗗壊锛?            const paragraphs = currentResult.split(/\n+/).filter(p => p.trim().length > 10);
+            
+            // 淇濆瓨鏁版嵁鍒?localStorage
+            const transferData = {
+                content: currentResult,
+                scenes: paragraphs.slice(0, 8),  // 鏈€澶?涓満鏅?                target: 'image',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_to_image', JSON.stringify(transferData));
+            
+            // 妫€鏌ユ槸鍚︿粠鎵嬫満鐗堟潵鐨?            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            showToast('姝ｅ湪璺宠浆鍒癆I鐢熷浘椤甸潰...');
+            setTimeout(() => {
+                if (fromMobile) {
+                    location.href = `banana.html?from_writing=1&skip_welcome=1`;
+                } else {
+                    location.href = `banana.html?from_writing=1&skip_welcome=1`;
+                }
+            }, 500);
+        }
+
+        function confirmConvert() {
+            if (!currentResult) {
+                showToast('璇峰厛鐢熸垚鍐欎綔鍐呭');
+                return;
+            }
+
+            // 灏嗗啓浣滃唴瀹瑰拰璁剧疆淇濆瓨鍒?localStorage锛屼緵鐩爣椤甸潰璇诲彇
+            const transferData = {
+                content: currentResult,
+                target: convertTarget,  // 'video' | 'comic'
+                mode: convertMode,      // 'full-auto' | 'semi-auto' | 'manual'
+                timestamp: Date.now()
+            };
+            localStorage.setItem('writing_to_generation', JSON.stringify(transferData));
+
+            hideConvertModal();
+            
+            // 妫€鏌ユ槸鍚︿粠鎵嬫満鐗堟潵鐨?            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            showToast(`姝ｅ湪璺宠浆鍒癆I${convertTarget === 'video' ? '瑙嗛' : '婕敾'}宸ヤ綔鍙?..`);
+            setTimeout(() => {
+                if (fromMobile) {
+                    // 鎵嬫満鐢ㄦ埛璺宠浆鍒?mobile.html
+                    location.href = `mobile.html?from_writing=1&target=${convertTarget}&mode=${convertMode}&skip_welcome=1`;
+                } else {
+                    // 妗岄潰鐢ㄦ埛璺宠浆鍒?index.html
+                    location.href = `index.html?from_writing=1&target=${convertTarget}&mode=${convertMode}&skip_welcome=1`;
+                }
+            }, 500);
+        }
+
+        // 棰勬墸璐瑰嚱鏁?        async function preDeduct(cost, description) {
+            // 馃敡 淇锛氱‘淇漜ost鏄暣鏁帮紙鏁版嵁搴撴槸INTEGER绫诲瀷锛?            cost = Math.ceil(cost);
+            
+            // 绛夊緟璁よ瘉鍒濆鍖栧畬鎴?            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) { showToast('璇峰厛鐧诲綍'); return false; }
+            if (userQuota < cost) { showToast(`鑳剁墖涓嶈冻锛岄渶瑕?{cost}鑳剁墖`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+                
+                // 馃敡 淇锛氬厛妫€鏌?HTTP 鐘舵€佺爜
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('浣欓涓嶈冻锛岃鍏堝厖鍊?);
+                    }
+                    throw new Error(data.message || data.error || `鏈嶅姟鍣ㄩ敊璇? ${res.status}`);
+                }
+                
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    return true;
+                }
+                throw new Error(data.message || data.error || '鎵ｈ垂澶辫触');
+            } catch (e) { showToast('鎵ｈ垂澶辫触: ' + e.message); return false; }
+        }
+
+        // 鉁?宸茬Щ闄ら€€娆惧嚱鏁?- 鍚庣鎴愬姛鎵ｈ垂鍚庝笉鍐嶉€€娆撅紝閬垮厤鎴愭湰鎹熻€?
+        // 鍒濆鍖栵紙浣跨敤 NVAuth 妯″潡锛?        let authInitialized = false;
+        
+        async function initAuth() {
+            console.log('[writing] 寮€濮嬪垵濮嬪寲璁よ瘉...');
+            
+            // 绛夊緟 NVAuth 妯″潡鍔犺浇
+            const authTimeout = 5000;
+            const startTime = Date.now();
+            while (typeof NVAuth === 'undefined' && (Date.now() - startTime) < authTimeout) {
+                await new Promise(r => setTimeout(r, 200));
+            }
+            
+            if (typeof NVAuth === 'undefined') {
+                console.error('[writing] NVAuth 妯″潡鍔犺浇瓒呮椂');
+                return;
+            }
+            
+            console.log('[writing] NVAuth 妯″潡宸插姞杞?);
+            
+            // 绛夊緟璁よ瘉鐘舵€佸氨缁?            try {
+                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+                console.log('[writing] 璁よ瘉鐘舵€佸凡灏辩华');
+            } catch (e) { 
+                console.warn('[writing] 绛夊緟璁よ瘉鐘舵€佽秴鏃?);
+            }
+            
+            // 鑾峰彇褰撳墠鐢ㄦ埛
+            try {
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[writing] 鐢ㄦ埛宸茬櫥褰?', currentUser.email);
+                    // 鑾峰彇鐢ㄦ埛閰嶇疆
+                    const profile = await NVAuth.getUserProfile(currentUser.id);
+                    userQuota = profile?.quota_balance || 0;
+                    console.log('[writing] 鐢ㄦ埛鑳剁墖:', userQuota);
+                } else {
+                    console.log('[writing] 鐢ㄦ埛鏈櫥褰?);
+                }
+            } catch (e) {
+                console.error('[writing] 鑾峰彇鐢ㄦ埛淇℃伅澶辫触:', e);
+            }
+            
+            authInitialized = true;
+            console.log('[writing] 璁よ瘉鍒濆鍖栧畬鎴? currentUser:', currentUser ? currentUser.email : 'null');
+        }
+
+        // 椤甸潰鍔犺浇瀹屾垚鍚庡垵濮嬪寲
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadHistory();
+            await initAuth();
+        });
+    </script>
+</body>
+
+</html>

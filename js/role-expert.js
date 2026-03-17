@@ -27,7 +27,7 @@
             systemPrompt: `你是资深影视导演，精通剧本结构、镜头语言和视觉叙事。
 回答要求：用专业导演视角，包含具体的镜头设计（景别、运镜、光影）、叙事节奏建议。
 输出简洁有力，像片场指令一样清晰。中文回复。`,
-            modelHint: 'gemini-3-pro-preview',
+            modelHint: 'gemini-3.1-pro-preview',
             tags: ['分镜', '剧本', '镜头', '视频', '叙事']
         },
         {
@@ -212,7 +212,7 @@
             const role = this.getById(roleId);
             if (!role) return false;
             this._activeRoleId = roleId;
-            try { localStorage.setItem('roleExpert_active', roleId); } catch(e) {}
+            try { localStorage.setItem('roleExpert_active', roleId); } catch (e) { }
             this._emit('activated', role);
             console.log(`🎭 [RoleExpert] 激活角色: ${role.icon} ${role.name}`);
             return true;
@@ -221,7 +221,7 @@
         /** 取消激活 */
         deactivate() {
             this._activeRoleId = null;
-            try { localStorage.removeItem('roleExpert_active'); } catch(e) {}
+            try { localStorage.removeItem('roleExpert_active'); } catch (e) { }
             this._emit('deactivated', null);
             console.log('🎭 [RoleExpert] 角色已关闭');
         },
@@ -258,7 +258,7 @@
                     this._activeRoleId = saved;
                     console.log(`🎭 [RoleExpert] 恢复角色: ${this.getActive().name}`);
                 }
-            } catch(e) {}
+            } catch (e) { }
         },
 
         // 事件系统
@@ -267,7 +267,7 @@
         _emit(event, data) {
             for (const l of this._listeners) {
                 if (l.event === event) {
-                    try { l.callback(data); } catch(e) { console.error('[RoleExpert] 事件错误:', e); }
+                    try { l.callback(data); } catch (e) { console.error('[RoleExpert] 事件错误:', e); }
                 }
             }
         }

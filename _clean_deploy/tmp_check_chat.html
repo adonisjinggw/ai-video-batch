@@ -1,0 +1,3258 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>馃 AI瀵硅瘽 - RollRoll</title>
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js"></script>
+    <script src="/js/api-core.js?v=20260213a&t=20260213a"></script>
+    <script src="/js/user-memory.js?v=20260213a"></script>
+    <script src="/js/writing-vault.js?v=20260213a"></script>
+    <script src="/js/billing.js?v=20260213a"></script>
+    <script src="/js/skill-system.js?v=20260213a&t=20260213a"></script>
+    <script src="/js/skill-presets.js?v=20260213a&t=20260213a"></script>
+    <script src="/js/watermark.js?v=20260213a"></script>
+    <script src="/js/agent-team.js?v=20260213a&t=20260213a"></script>
+    <script src="/js/agent-roles.js?v=20260213a&t=20260213a"></script>
+    <script src="/js/agent-ui.js?v=20260213b&t=20260213b"></script>
+    <script src="/js/role-expert.js?v=20260213a"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-input: #222;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 18px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .quota-display {
+            font-size: 12px;
+            color: var(--accent);
+            padding: 4px 10px;
+            background: rgba(251, 191, 36, 0.15);
+            border-radius: 12px;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 15px;
+            line-height: 1.5;
+            user-select: text;  /* 鍏佽閫変腑澶嶅埗 */
+            -webkit-user-select: text;
+        }
+
+        .message.user {
+            background: var(--accent);
+            color: #000;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai {
+            background: var(--bg-card);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.ai pre {
+            background: var(--bg-input);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .input-area {
+            padding: 16px 20px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom));
+            background: var(--bg-dark);
+            border-top: 1px solid #222;
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .input-box {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            border-radius: 24px;
+            padding: 12px 20px;
+            color: var(--text);
+            font-size: 16px;
+            resize: none;
+            max-height: 120px;
+            font-family: inherit;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .send-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            color: #000;
+            font-size: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+        }
+
+        .typing {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+        }
+
+        .typing span {
+            width: 8px;
+            height: 8px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .welcome {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .welcome h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .quick-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .quick-q {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .quick-q:active {
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        /* 娑堟伅澶嶅埗鎸夐挳 */
+        .message {
+            position: relative;
+        }
+        .message .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #888;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .message:hover .copy-btn {
+            opacity: 1;
+        }
+        .message .copy-btn:active {
+            background: rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+        .toast.show { display: block; }
+
+        .cost-hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 4px;
+        }
+
+        /* 涓婁紶鏂囦欢鍔熻兘鏍峰紡 */
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .upload-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            background: var(--bg-input);
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+        .upload-preview:empty {
+            display: none;
+        }
+        .preview-item {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--bg-card);
+        }
+        .preview-item img,
+        .preview-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .preview-item .file-icon {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--accent);
+        }
+        .preview-item .file-icon span {
+            font-size: 8px;
+            color: var(--text-dim);
+            margin-top: 2px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0 4px;
+        }
+        .preview-item .remove-btn {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 18px;
+            height: 18px;
+            background: #ef4444;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .upload-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-input);
+            border: 1px solid #333;
+            color: var(--text-dim);
+            font-size: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .upload-btn:active {
+            background: rgba(251, 191, 36, 0.2);
+            color: var(--accent);
+        }
+        .input-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        /* 娑堟伅涓殑鍥剧墖/鏂囦欢棰勮 */
+        .message-attachments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .message-attachments img {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .message-attachments video {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 8px;
+        }
+        .message-attachments .file-badge {
+            padding: 6px 12px;
+            background: rgba(251, 191, 36, 0.15);
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        /* 涓婁紶鑿滃崟 */
+        .upload-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid #333;
+            padding: 8px 0;
+            margin-bottom: 8px;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+        }
+        .upload-menu.show {
+            display: block;
+        }
+        .upload-menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .upload-menu-item:active {
+            background: rgba(251, 191, 36, 0.15);
+        }
+        .upload-menu-item .icon {
+            font-size: 18px;
+        }
+        
+        /* 馃З 鎶€鑳介€夋嫨寮圭獥 */
+        .skill-drawer {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+        }
+        .skill-drawer.show {
+            display: flex;
+        }
+        .skill-drawer-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+        }
+        .skill-drawer-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .skill-drawer-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .skill-filters {
+            display: flex;
+            gap: 8px;
+            padding: 12px 20px;
+            overflow-x: auto;
+        }
+        .skill-filter-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .skill-filter-btn.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: 600;
+        }
+        .skill-filter-btn:not(.active) {
+            background: #333;
+            color: #fff;
+        }
+        .skill-search {
+            padding: 0 20px 12px;
+        }
+        .skill-search input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border: 2px solid #2a2a35;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .skill-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .skill-card {
+            padding: 16px;
+            background: var(--bg-card);
+            border: 2px solid #222;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .skill-card:active {
+            border-color: var(--accent);
+            background: rgba(251,191,36,0.1);
+        }
+        .skill-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .skill-card-icon {
+            font-size: 32px;
+        }
+        .skill-card-category {
+            font-size: 11px;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 8px;
+            color: #888;
+        }
+        .skill-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .skill-card-desc {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* 鎶€鑳介厤缃脊绐?*/
+        .skill-config-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1001;
+            display: none;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .skill-config-modal.show {
+            display: block;
+        }
+        .skill-config-content {
+            max-width: 500px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .skill-config-header {
+            padding: 16px 20px;
+            background: #1a1a24;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .skill-config-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .skill-config-body {
+            padding: 20px;
+        }
+        .skill-config-desc {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .skill-config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .skill-param-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #ccc;
+            font-weight: 600;
+        }
+        .skill-param-input {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-input);
+            border: 2px solid #2a2a35;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .skill-param-hint {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #666;
+        }
+        .skill-config-footer {
+            padding: 16px 20px;
+            background: #1a1a24;
+            display: flex;
+            gap: 12px;
+        }
+        .skill-config-footer button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .skill-config-cancel {
+            background: #333;
+            color: #fff;
+        }
+        .skill-config-execute {
+            flex: 2 !important;
+            background: linear-gradient(135deg, var(--accent), #f97316);
+            color: #000;
+            font-weight: 700;
+        }
+        
+        /* ========== 鎶€鑳芥墽琛岃繘搴?路 绮剧編鍗￠€氬姩鐢?========== */
+        @keyframes sp-float {
+            0% { transform: translateY(0) scale(0.5); opacity:0; }
+            10% { opacity:0.7; }
+            100% { transform: translateY(-100vh) scale(0); opacity:0; }
+        }
+        @keyframes sp-icon-float {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes sp-glow-pulse {
+            0%,100% { box-shadow: 0 0 15px rgba(251,191,36,0.3), 0 8px 32px rgba(0,0,0,0.4); }
+            50% { box-shadow: 0 0 35px rgba(251,191,36,0.55), 0 0 60px rgba(251,191,36,0.15), 0 8px 32px rgba(0,0,0,0.4); }
+        }
+        @keyframes sp-orbit {
+            0% { transform: rotate(0deg) translateX(54px) rotate(0deg); }
+            100% { transform: rotate(360deg) translateX(54px) rotate(-360deg); }
+        }
+        @keyframes sp-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes sp-step-in {
+            0% { transform: translateX(-20px) scale(0.95); opacity:0; }
+            60% { transform: translateX(4px) scale(1.02); }
+            100% { transform: translateX(0) scale(1); opacity:1; }
+        }
+        @keyframes sp-check-pop {
+            0% { transform: scale(0) rotate(-45deg); }
+            60% { transform: scale(1.3) rotate(10deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes sp-confetti {
+            0% { transform: translateY(0) translateX(0) rotate(0deg) scale(1); opacity:1; }
+            100% { transform: translateY(75vh) translateX(var(--x-drift, 0px)) rotate(720deg) scale(0.2); opacity:0; }
+        }
+        @keyframes sp-success-pop {
+            0% { transform: scale(0.3); opacity:0; }
+            50% { transform: scale(1.18); }
+            70% { transform: scale(0.95); }
+            100% { transform: scale(1); opacity:1; }
+        }
+        @keyframes sp-error-shake {
+            0%,100% { transform: translateX(0); }
+            10%,30%,50%,70%,90% { transform: translateX(-6px); }
+            20%,40%,60%,80% { transform: translateX(6px); }
+        }
+        @keyframes sp-sparkle {
+            0%,100% { opacity:0; transform: scale(0) rotate(0deg); }
+            50% { opacity:1; transform: scale(1) rotate(180deg); }
+        }
+        @keyframes sp-ring-rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes sp-bg-shift {
+            0%,100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        @keyframes sp-shadow-pulse {
+            0%,100% { transform: scaleX(1); opacity:0.3; }
+            50% { transform: scaleX(0.7); opacity:0.15; }
+        }
+        .skill-progress-modal {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, rgba(10,10,18,0.97), rgba(18,10,32,0.97), rgba(10,18,24,0.97));
+            background-size: 300% 300%;
+            z-index: 1002; display: none;
+            align-items: center; justify-content: center; padding: 20px;
+            overflow: hidden;
+        }
+        .skill-progress-modal.show {
+            display: flex;
+            animation: sp-bg-shift 8s ease infinite;
+        }
+        /* 绮掑瓙鑳屾櫙 */
+        .sp-particles { position: absolute; inset:0; pointer-events:none; overflow:hidden; }
+        .sp-particle {
+            position: absolute; bottom: -10px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(251,191,36,0.8), rgba(249,115,22,0.3));
+            animation: sp-float linear infinite; pointer-events: none;
+        }
+        /* 鍐呭鍖?*/
+        .skill-progress-content {
+            max-width: 380px; width: 100%; text-align: center;
+            position: relative; z-index: 1;
+        }
+        /* 鍥炬爣鍖哄煙 */
+        .sp-icon-area {
+            position: relative; width: 120px; height: 120px;
+            margin: 0 auto 8px;
+        }
+        .sp-icon {
+            position: absolute; inset: 0; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 46px; background: rgba(25,25,38,0.85);
+            border-radius: 50%; border: 2px solid rgba(251,191,36,0.3);
+            animation: sp-icon-float 2.2s ease-in-out infinite, sp-glow-pulse 2.5s ease-in-out infinite;
+            z-index: 2;
+        }
+        /* 鍥炬爣涓嬫柟闃村奖 */
+        .sp-icon-area::after {
+            content: ''; position: absolute; bottom: -8px; left: 50%;
+            transform: translateX(-50%); width: 50px; height: 10px;
+            background: radial-gradient(ellipse, rgba(251,191,36,0.25), transparent 70%);
+            border-radius: 50%;
+            animation: sp-shadow-pulse 2.2s ease-in-out infinite;
+        }
+        /* 杞ㄩ亾鐜?*/
+        .sp-orbit-ring {
+            position: absolute; inset: -8px;
+            animation: sp-ring-rotate 6s linear infinite; z-index: 1;
+        }
+        .sp-orbit-dot {
+            position: absolute; top:50%; left:50%;
+            width: 8px; height: 8px; margin: -4px 0 0 -4px;
+            border-radius: 50%; background: var(--accent);
+            animation: sp-orbit 3s linear infinite;
+            box-shadow: 0 0 8px rgba(251,191,36,0.6);
+        }
+        .sp-orbit-dot:nth-child(2) {
+            animation-delay: -1s; background: #f97316;
+            box-shadow: 0 0 8px rgba(249,115,22,0.6);
+            width:6px; height:6px; margin:-3px 0 0 -3px;
+        }
+        .sp-orbit-dot:nth-child(3) {
+            animation-delay: -2s; background: #fb923c;
+            box-shadow: 0 0 8px rgba(251,146,60,0.6);
+            width:5px; height:5px; margin:-2.5px 0 0 -2.5px;
+        }
+        /* 闂儊鏄熸槦 */
+        .sp-sparkles { position: absolute; inset: -20px; pointer-events:none; z-index:3; }
+        .sp-sparkle {
+            position: absolute; font-size: 14px;
+            animation: sp-sparkle 1.5s ease-in-out infinite;
+        }
+        /* 闃舵鏍囩 */
+        .sp-phase {
+            font-size: 11px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--accent);
+            margin-bottom: 6px; opacity: 0.85;
+        }
+        /* 杩涘害鏂囧瓧 */
+        .skill-progress-text {
+            color: #fff; font-size: 15px; font-weight: 600;
+            margin-bottom: 18px; min-height: 22px;
+        }
+        /* 杩涘害鏉?*/
+        .sp-progress-wrap {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+        }
+        .sp-progress-track {
+            flex: 1; background: rgba(255,255,255,0.08);
+            border-radius: 10px; height: 8px; overflow: hidden; position: relative;
+        }
+        .sp-progress-fill {
+            height: 100%; border-radius: 10px; width: 0%;
+            background: linear-gradient(90deg, var(--accent), #f97316, var(--accent));
+            background-size: 200% 100%;
+            transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+            animation: sp-shimmer 2s linear infinite;
+            position: relative;
+        }
+        .sp-progress-fill::after {
+            content: ''; position: absolute; right: -5px; top: 50%;
+            transform: translateY(-50%); width: 14px; height: 14px;
+            background: #fff; border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(251,191,36,0.3);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .skill-progress-modal[data-phase="executing"] .sp-progress-fill::after,
+        .skill-progress-modal[data-phase="complete"] .sp-progress-fill::after {
+            opacity: 0.9;
+        }
+        .sp-progress-pct {
+            font-size: 13px; font-weight: 700; color: var(--accent);
+            min-width: 36px; text-align: right;
+        }
+        /* 姝ラ鍒楄〃 */
+        .skill-progress-steps {
+            text-align: left; background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px; padding: 12px 14px;
+            max-height: 180px; overflow-y: auto;
+            backdrop-filter: blur(4px);
+        }
+        .sp-step-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 7px 0; font-size: 13px; color: #a8e6a3;
+            animation: sp-step-in 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .sp-step-item:last-child { border-bottom: none; }
+        .sp-step-item.error { color: #f87171; }
+        .sp-step-check {
+            display: inline-block;
+            animation: sp-check-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+            animation-delay: 0.2s;
+        }
+        .sp-step-name { flex: 1; }
+        /* 鎸夐挳 */
+        .skill-progress-buttons {
+            display: flex; gap: 12px; margin-top: 18px;
+        }
+        .skill-progress-buttons button {
+            flex: 1; padding: 12px; border-radius: 12px;
+            cursor: pointer; font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05); color: #aaa;
+            backdrop-filter: blur(4px); transition: all 0.2s;
+        }
+        .skill-progress-buttons button:first-child {
+            border-color: rgba(244,67,54,0.3); color: #ff8a80;
+        }
+        .skill-progress-buttons button:active { transform: scale(0.96); }
+        /* 馃帄 鎾掕姳 */
+        .sp-confetti { position: absolute; inset:0; pointer-events:none; z-index:10; overflow:hidden; }
+        .sp-confetti-piece {
+            position: absolute; top: 35%; border-radius: 2px;
+            animation: sp-confetti ease-out forwards;
+        }
+        /* 闃舵鐘舵€佸垏鎹?*/
+        .skill-progress-modal[data-phase="complete"] .sp-icon {
+            animation: sp-success-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+            border-color: rgba(74,222,128,0.5);
+            box-shadow: 0 0 30px rgba(74,222,128,0.3);
+        }
+        .skill-progress-modal[data-phase="complete"] .sp-orbit-ring {
+            animation: none; opacity:0; transition: opacity 0.5s;
+        }
+        .skill-progress-modal[data-phase="complete"] .sp-phase { color: #4ade80; }
+        .skill-progress-modal[data-phase="complete"] .sp-progress-fill {
+            background: linear-gradient(90deg, #4ade80, #22c55e, #4ade80);
+            background-size: 200% 100%;
+        }
+        .skill-progress-modal[data-phase="error"] .sp-icon {
+            animation: sp-error-shake 0.6s ease both;
+            border-color: rgba(248,113,113,0.5);
+            box-shadow: 0 0 30px rgba(248,113,113,0.3);
+        }
+        .skill-progress-modal[data-phase="error"] .sp-orbit-ring {
+            animation: none; opacity:0; transition: opacity 0.5s;
+        }
+        .skill-progress-modal[data-phase="error"] .sp-phase { color: #f87171; }
+        .skill-progress-modal[data-phase="error"] .sp-progress-fill {
+            background: linear-gradient(90deg, #f87171, #ef4444, #f87171);
+            background-size: 200% 100%;
+        }
+        /* 鎴愭湰棰勪及 */
+        .skill-cost-estimate {
+            background: rgba(251,191,36,0.1);
+            border: 1px solid rgba(251,191,36,0.25);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--accent);
+        }
+        /* 鑷畾涔夋妧鑳藉垱寤哄脊绐?*/
+        .create-skill-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1003;
+            display: none; align-items: center; justify-content: center; padding: 16px;
+        }
+        .create-skill-modal.show { display: flex; }
+        .create-skill-content {
+            background: #1a1a1a; border-radius: 16px; width: 100%; max-width: 500px;
+            max-height: 90vh; overflow-y: auto; padding: 20px;
+        }
+        .create-skill-content h3 { margin-bottom: 16px; }
+        .cs-field { margin-bottom: 14px; }
+        .cs-field label { display: block; font-size: 13px; color: #aaa; margin-bottom: 4px; }
+        .cs-field input, .cs-field textarea, .cs-field select {
+            width: 100%; background: #222; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 12px; color: #fff; font-size: 14px; font-family: inherit;
+        }
+        .cs-field textarea { min-height: 80px; resize: vertical; }
+        .cs-icons { display: flex; flex-wrap: wrap; gap: 8px; }
+        .cs-icon-btn {
+            width: 40px; height: 40px; border-radius: 10px; border: 2px solid #333;
+            background: #222; font-size: 20px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .cs-icon-btn.selected { border-color: var(--accent); background: rgba(251,191,36,0.15); }
+        .cs-params-list { display: flex; flex-direction: column; gap: 8px; }
+        .cs-param-row {
+            display: flex; gap: 6px; align-items: center; background: #222;
+            border-radius: 8px; padding: 8px;
+        }
+        .cs-param-row input, .cs-param-row select {
+            flex: 1; background: #1a1a1a; border: 1px solid #333; border-radius: 6px;
+            padding: 6px 8px; color: #fff; font-size: 13px;
+        }
+        .cs-param-del {
+            background: none; border: none; color: #f87171; cursor: pointer;
+            font-size: 18px; padding: 0 4px;
+        }
+        .cs-footer { display: flex; gap: 10px; margin-top: 16px; }
+        .cs-footer button {
+            flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 14px; cursor: pointer;
+        }
+        .cs-btn-cancel { background: #333; color: #fff; }
+        .cs-btn-save { background: linear-gradient(135deg, var(--accent), #f97316); color: #000; font-weight: 700; }
+        .cs-btn-import { background: #2a2a2a; color: #aaa; border: 1px solid #444 !important; }
+        .cs-btn-help { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 13px; float: right; }
+
+        /* ==================== Agent Team Panel ==================== */
+        #agentTeamPanel {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); z-index: 2000;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .at-panel-inner {
+            width: 95%; max-width: 600px; max-height: 90vh; background: #111;
+            border-radius: 16px; overflow: hidden; display: flex; flex-direction: column;
+        }
+        .at-panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; border-bottom: 1px solid #222;
+        }
+        .at-panel-header h3 { font-size: 18px; }
+        .at-panel-close { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; }
+        .at-panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+        /* Views */
+        #atView_select, #atView_config, #atView_running, #atView_result {
+            flex-direction: column; gap: 12px;
+        }
+
+        /* Template grid */
+        #atTemplateGrid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+        }
+        .at-template-card {
+            background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+            padding: 16px; cursor: pointer; transition: border-color 0.2s;
+        }
+        .at-template-card:hover { border-color: var(--accent); }
+        .at-template-card.at-custom { border-style: dashed; }
+        .at-tpl-icon { font-size: 28px; margin-bottom: 8px; }
+        .at-tpl-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .at-tpl-desc { font-size: 12px; color: #888; margin-bottom: 6px; line-height: 1.4; }
+        .at-tpl-roles { font-size: 11px; color: var(--accent); }
+
+        /* Config */
+        .at-config-title { font-size: 18px; font-weight: 700; }
+        .at-config-subtitle { font-size: 13px; color: #888; margin-bottom: 8px; }
+        .at-team-members { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .at-member {
+            display: flex; align-items: center; gap: 6px;
+            background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 6px 12px;
+        }
+        .at-member-icon { font-size: 18px; }
+        .at-member-name { font-size: 13px; }
+        .at-member-tools { font-size: 11px; color: #888; }
+        .at-role-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .at-role-check {
+            display: flex; align-items: center; gap: 6px; background: #1a1a1a;
+            border: 1px solid #333; border-radius: 8px; padding: 8px 12px; cursor: pointer;
+        }
+        .at-role-check input { accent-color: var(--accent); }
+        .at-goal-section { margin-top: 8px; }
+        .at-goal-label { font-size: 13px; color: #aaa; margin-bottom: 6px; }
+        .at-goal-input {
+            width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 10px;
+            padding: 12px; color: #fff; font-size: 14px; resize: none; font-family: inherit;
+        }
+        .at-goal-input:focus { outline: none; border-color: var(--accent); }
+        .at-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .at-suggest-btn {
+            background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3);
+            border-radius: 8px; padding: 6px 10px; color: var(--accent);
+            font-size: 12px; cursor: pointer;
+        }
+        .at-suggest-btn:hover { background: rgba(251,191,36,0.2); }
+        .at-config-actions { display: flex; gap: 10px; margin-top: 16px; }
+        .at-btn {
+            padding: 10px 20px; border: none; border-radius: 10px;
+            font-size: 14px; cursor: pointer; font-weight: 600;
+        }
+        .at-btn-primary { background: linear-gradient(135deg, var(--accent), #f97316); color: #000; flex: 1; }
+        .at-btn-secondary { background: #333; color: #fff; }
+        .at-btn-danger { background: #dc2626; color: #fff; font-size: 12px; padding: 6px 14px; }
+        .at-btn-outline {
+            background: transparent; border: 1px dashed #555; color: #aaa;
+            padding: 10px; border-radius: 10px; font-size: 13px; cursor: pointer;
+        }
+        .at-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .at-role-custom { position: relative; }
+        .at-role-delete {
+            position: absolute; top: 2px; right: 4px; font-size: 10px; color: #666;
+            cursor: pointer; line-height: 1; padding: 2px;
+        }
+        .at-role-delete:hover { color: #f87171; }
+        .at-create-role-form {
+            background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+            padding: 16px; margin-top: 10px;
+        }
+        .at-form-row { margin-bottom: 12px; }
+        .at-form-row > label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
+        .at-form-input {
+            width: 100%; background: #222; border: 1px solid #333; border-radius: 8px;
+            padding: 8px 12px; color: #fff; font-size: 13px; font-family: inherit;
+        }
+        .at-form-input:focus { outline: none; border-color: var(--accent); }
+        textarea.at-form-input { resize: vertical; min-height: 60px; }
+        .at-emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+        .at-emoji-opt {
+            width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+            border-radius: 8px; border: 2px solid #333; cursor: pointer; font-size: 16px;
+            background: #222;
+        }
+        .at-emoji-opt:hover { border-color: #555; }
+        .at-emoji-opt.selected { border-color: var(--accent); background: rgba(251,191,36,0.12); }
+        .at-tool-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+        .at-tool-check {
+            display: flex; align-items: center; gap: 4px; background: #222;
+            border: 1px solid #333; border-radius: 6px; padding: 5px 8px;
+            font-size: 12px; cursor: pointer; color: #ccc;
+        }
+        .at-tool-check input { accent-color: var(--accent); }
+        .at-form-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+        /* Running view */
+        .at-run-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .at-run-title { font-size: 16px; font-weight: 600; }
+        .at-agents-bar { display: flex; gap: 12px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
+        .at-agent-avatar {
+            display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 56px;
+        }
+        .at-agent-icon { font-size: 24px; }
+        .at-agent-status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+        }
+        .at-status-idle { background: #555; }
+        .at-status-working { background: var(--accent); animation: pulse 1s infinite; }
+        .at-status-done { background: #22c55e; }
+        .at-status-error { background: #ef4444; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .at-agent-label { font-size: 10px; color: #888; white-space: nowrap; }
+        .at-message-flow {
+            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+            min-height: 200px; max-height: 50vh; padding: 8px 0;
+        }
+        .at-msg {
+            display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
+            background: #1a1a1a; border-radius: 10px; font-size: 13px;
+        }
+        .at-msg-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+        .at-msg-body { flex: 1; min-width: 0; }
+        .at-msg-agent { font-weight: 600; margin-right: 6px; color: var(--accent); font-size: 12px; }
+        .at-msg-text { color: #ccc; word-break: break-all; }
+        .at-msg-time { font-size: 10px; color: #555; flex-shrink: 0; }
+        .at-msg-error { border-left: 3px solid #ef4444; }
+        .at-msg-result { border-left: 3px solid #22c55e; }
+        .at-msg-thinking { border-left: 3px solid var(--accent); }
+
+        /* Result view */
+        .at-result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .at-result-title { font-size: 18px; font-weight: 700; }
+        .at-result-stats { font-size: 13px; color: #888; }
+        .at-deliverables { display: flex; flex-direction: column; gap: 12px; }
+        .at-deliverable {
+            background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 12px; overflow: hidden;
+        }
+        .at-d-header { font-size: 12px; color: #888; margin-bottom: 8px; }
+        .at-d-img { width: 100%; border-radius: 8px; cursor: pointer; }
+        .at-d-video { width: 100%; border-radius: 8px; }
+        .at-d-text { font-size: 14px; line-height: 1.6; color: #ccc; max-height: 200px; overflow-y: auto; }
+        .at-result-actions { display: flex; gap: 10px; margin-top: 16px; }
+        .cs-help-panel {
+            display: none; background: #111; border: 1px solid #333; border-radius: 12px;
+            padding: 16px; margin-bottom: 14px; font-size: 13px; line-height: 1.7; color: #ccc;
+            max-height: 55vh; overflow-y: auto;
+        }
+        .cs-help-panel.show { display: block; }
+        .cs-help-panel h4 { color: var(--accent); margin: 12px 0 6px; font-size: 14px; }
+        .cs-help-panel h4:first-child { margin-top: 0; }
+        .cs-help-panel code {
+            background: #222; padding: 2px 6px; border-radius: 4px; color: #4ade80;
+            font-family: monospace; font-size: 12px;
+        }
+        .cs-help-panel .cs-help-example {
+            background: #1a1a2e; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 12px; margin: 6px 0 10px; font-size: 12px; white-space: pre-wrap;
+            color: #a0a0c0; line-height: 1.6;
+        }
+        .cs-help-panel .cs-help-tag {
+            display: inline-block; background: rgba(251,191,36,0.15); color: var(--accent);
+            padding: 1px 8px; border-radius: 4px; font-size: 11px; margin: 2px;
+        }
+        .skill-card-actions {
+            display: flex; gap: 6px; margin-top: 6px;
+        }
+        .skill-card-actions button {
+            padding: 4px 8px; font-size: 11px; border-radius: 6px; border: 1px solid #444;
+            background: #222; color: #aaa; cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <button class="back-btn" onclick="goBack()">鈫?杩斿洖</button>
+        <h1>馃 AI瀵硅瘽</h1>
+        <span class="quota-display" id="quotaDisplay">馃帪锔?--</span>
+    </header>
+
+    <!-- 馃幁 瑙掕壊涓撳鎸囩ず鍣?-->
+    <div id="roleIndicator" style="display:none; padding:8px 20px; background:linear-gradient(90deg, rgba(139,92,246,0.15), rgba(236,72,153,0.1)); border-bottom:1px solid rgba(139,92,246,0.3); cursor:pointer;" onclick="openRoleSelector()">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span id="roleIndicatorIcon" style="font-size:18px;"></span>
+                <div>
+                    <div id="roleIndicatorName" style="font-size:13px; color:#a78bfa; font-weight:600;"></div>
+                    <div id="roleIndicatorDesc" style="font-size:11px; color:#666;"></div>
+                </div>
+            </div>
+            <button onclick="event.stopPropagation(); deactivateRole()" style="background:none; border:none; color:#888; font-size:16px; cursor:pointer; padding:4px 8px;" title="鍏抽棴瑙掕壊">&times;</button>
+        </div>
+    </div>
+
+    <!-- 馃З 蹇嵎鎸夐挳鍖哄煙锛堝缁堟樉绀猴級 -->
+    <div class="quick-actions" style="padding:12px 20px; background:var(--bg-dark); border-bottom:1px solid #222;">
+        <div class="quick-questions" style="margin-top:0;">
+            <span class="quick-q" onclick="openRoleSelector()" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.15)); border:1px solid rgba(139,92,246,0.4); color:#a78bfa;">馃幁 瑙掕壊涓撳</span>
+            <span class="quick-q" onclick="fillInput('甯垜鍐欎竴涓煭瑙嗛鍓ф湰锛屼富棰樻槸')">馃摑 鍐欏墽鏈?/span>
+            <span class="quick-q" onclick="fillInput('缁欐垜涓€浜涘叧浜庣殑鍒涙剰鐏垫劅', 5)">馃挕 鎵剧伒鎰?/span>
+            <span class="quick-q" onclick="fillInput('甯垜浼樺寲杩欐鏂囨锛?)">鉁?浼樺寲鏂囨</span>
+            <span class="quick-q" onclick="startStoryboardMode()">馃幀 鍒嗛暅璁捐</span>
+            <span class="quick-q" onclick="openSkillDrawer()">馃З 鎶€鑳?/span>
+            <span class="quick-q" onclick="AgentUI.open()">馃 鏅鸿兘鍥㈤槦</span>
+            <span class="quick-q" onclick="fillInput('鎼滅储鏈€鏂?)">馃寪 鑱旂綉鎼滅储</span>
+        </div>
+    </div>
+    
+    <div class="chat-container" id="chatContainer">
+        <div class="welcome" id="welcome">
+            <h2>馃憢 浣犲ソ锛?/h2>
+            <p>鎴戞槸浣犵殑AI鍔╂墜锛屾湁浠€涔堝彲浠ュ府浣犵殑锛?/p>
+            <p class="cost-hint">鎸夊疄闄卼oken娑堣€楄璐癸紝鏈€浣?鑳剁墖</p>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div style="position:relative;">
+            <button class="upload-btn" id="uploadBtn" onclick="toggleUploadMenu()">鉃?/button>
+            <div class="upload-menu" id="uploadMenu">
+                <div class="upload-menu-item" onclick="triggerUpload('image')">
+                    <span class="icon">馃柤锔?/span>
+                    <span>涓婁紶鍥剧墖</span>
+                </div>
+                <div class="upload-menu-item" onclick="triggerUpload('video')">
+                    <span class="icon">馃幀</span>
+                    <span>涓婁紶瑙嗛</span>
+                </div>
+                <div class="upload-menu-item" onclick="triggerUpload('file')">
+                    <span class="icon">馃搫</span>
+                    <span>涓婁紶鏂囦欢</span>
+                </div>
+            </div>
+        </div>
+        <div class="input-wrapper">
+            <div class="upload-preview" id="uploadPreview"></div>
+            <textarea class="input-box" id="inputBox" placeholder="杈撳叆娑堟伅..." rows="1"
+                onkeydown="handleKeydown(event)"></textarea>
+        </div>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">鉃?/button>
+    </div>
+    
+    <!-- 闅愯棌鐨勬枃浠朵笂浼犺緭鍏ユ -->
+    <input type="file" id="imageInput" accept="image/*" multiple style="display:none;" onchange="handleFileSelect(event, 'image')">
+    <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="handleFileSelect(event, 'video')">
+    <input type="file" id="fileInput" accept=".txt,.pdf,.doc,.docx,.md,.json,.csv,.xml" style="display:none;" onchange="handleFileSelect(event, 'file')">
+    
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 馃幁 瑙掕壊涓撳閫夋嫨闈㈡澘 -->
+    <div id="roleSelectPanel" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.7);" onclick="closeRoleSelector()">
+        <div style="position:absolute; bottom:0; left:0; right:0; max-height:75vh; background:#111; border-radius:16px 16px 0 0; overflow:hidden;" onclick="event.stopPropagation()">
+            <div style="padding:16px 20px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:16px; font-weight:600;">馃幁 瑙掕壊涓撳 <span style="font-size:12px; color:#888; font-weight:400;">+1鑳剁墖/鏉?/span></div>
+                <button onclick="closeRoleSelector()" style="background:none; border:none; color:#888; font-size:20px; cursor:pointer;">&times;</button>
+            </div>
+            <!-- 鍒嗙被鏍囩 -->
+            <div id="roleCatTabs" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; border-bottom:1px solid #1a1a1a;"></div>
+            <!-- 瑙掕壊缃戞牸 -->
+            <div id="roleGrid" style="padding:16px 20px; display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; max-height:50vh; overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <!-- 馃 Agent Team 闈㈡澘 -->
+    <div id="agentTeamPanel">
+        <div class="at-panel-inner">
+            <div class="at-panel-header">
+                <h3>馃 鏅鸿兘鍥㈤槦</h3>
+                <button class="at-panel-close" onclick="AgentUI.close()">&times;</button>
+            </div>
+            <div class="at-panel-body">
+                <!-- 鍥㈤槦閫夋嫨 -->
+                <div id="atView_select" style="display:flex; flex-direction:column; gap:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div style="font-size:13px; color:#888;">閫夋嫨涓€涓洟闃熸ā鏉匡紝鎴栬嚜鐢辩粍闃?/div>
+                        <button class="at-btn at-btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="AgentUI.showTeamHistory()">馃搨 鍘嗗彶</button>
+                    </div>
+                    <div id="atTemplateGrid"></div>
+                </div>
+                <!-- 閰嶇疆 -->
+                <div id="atView_config" style="display:none; flex-direction:column; gap:12px;">
+                    <div id="atConfigArea"></div>
+                </div>
+                <!-- 杩愯涓?-->
+                <div id="atView_running" style="display:none; flex-direction:column; gap:8px;">
+                    <div id="atRunArea"></div>
+                </div>
+                <!-- 缁撴灉 -->
+                <div id="atView_result" style="display:none; flex-direction:column; gap:12px;">
+                    <div id="atResultArea"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 馃З 鎶€鑳介€夋嫨寮圭獥 -->
+    <div class="skill-drawer" id="skillDrawer">
+        <div class="skill-drawer-header">
+            <h3>馃З 鎶€鑳藉簱</h3>
+            <button class="skill-drawer-close" onclick="closeSkillDrawer()">&times;</button>
+        </div>
+        <div class="skill-filters" id="skillFilters">
+            <button class="skill-filter-btn active" data-category="all" onclick="filterSkills('all')">鍏ㄩ儴</button>
+            <button class="skill-filter-btn" data-category="video" onclick="filterSkills('video')">馃幀 瑙嗛</button>
+            <button class="skill-filter-btn" data-category="image" onclick="filterSkills('image')">馃帹 鍥惧儚</button>
+            <button class="skill-filter-btn" data-category="design" onclick="filterSkills('design')">馃幆 璁捐</button>
+            <button class="skill-filter-btn" data-category="content" onclick="filterSkills('content')">馃摑 鍐呭</button>
+            <button class="skill-filter-btn" data-category="tool" onclick="filterSkills('tool')">馃攳 宸ュ叿</button>
+            <button class="skill-filter-btn" data-category="automation" onclick="filterSkills('automation')">馃 鑷姩鍖?/button>
+            <button class="skill-filter-btn" data-category="custom" onclick="filterSkills('custom')">馃敡 鑷畾涔?/button>
+        </div>
+        <div class="skill-search">
+            <input type="text" id="skillSearch" placeholder="馃攳 鎼滅储鎶€鑳?.." oninput="searchSkills(this.value)">
+        </div>
+        <div class="skill-list" id="skillList">
+            <!-- 鐢?JS 鍔ㄦ€佹覆鏌?-->
+        </div>
+        <div style="padding:12px 16px; border-top:1px solid #333;">
+            <button onclick="openCreateSkillModal()" style="width:100%; padding:12px; background:linear-gradient(135deg,#333,#2a2a2a); border:1px dashed #555; border-radius:10px; color:#aaa; font-size:14px; cursor:pointer;">鉃?鍒涘缓鑷畾涔夋妧鑳?/button>
+        </div>
+    </div>
+    
+    <!-- 鎶€鑳介厤缃脊绐?-->
+    <div class="skill-config-modal" id="skillConfigModal">
+        <div class="skill-config-content">
+            <div class="skill-config-header">
+                <h3 id="skillConfigTitle">馃З 鎶€鑳介厤缃?/h3>
+                <button class="skill-drawer-close" onclick="closeSkillConfig()">&times;</button>
+            </div>
+            <div class="skill-config-body">
+                <div class="skill-config-desc" id="skillConfigDesc"></div>
+                <div class="skill-config-form" id="skillConfigForm">
+                    <!-- 鐢?JS 鍔ㄦ€佺敓鎴?-->
+                </div>
+                <div class="skill-cost-estimate" id="skillCostEstimate"></div>
+            </div>
+            <div class="skill-config-footer">
+                <button class="skill-config-cancel" onclick="closeSkillConfig()">鍙栨秷</button>
+                <button class="skill-config-execute" id="skillExecuteBtn" onclick="executeSelectedSkill()">馃殌 寮€濮嬫墽琛?/button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 鑷畾涔夋妧鑳藉垱寤哄脊绐?-->
+    <div class="create-skill-modal" id="createSkillModal">
+        <div class="create-skill-content">
+            <h3>馃敡 鍒涘缓鑷畾涔夋妧鑳?<button class="cs-btn-help" onclick="toggleSkillHelp()">鉂?甯姪鏁欑▼</button></h3>
+            
+            <!-- 甯姪闈㈡澘 -->
+            <div class="cs-help-panel" id="csHelpPanel">
+                <h4>馃摉 浠€涔堟槸鑷畾涔夋妧鑳斤紵</h4>
+                鑷畾涔夋妧鑳藉氨鏄竴涓?strong>鎻愮ず璇嶆ā鏉?/strong>锛屼綘鍙互鎶婂父鐢ㄧ殑AI鎸囦护淇濆瓨涓烘妧鑳斤紝姣忔浣跨敤鏃跺彧闇€濉叆涓嶅悓鐨勫弬鏁板嵆鍙€?                
+                <h4>馃摑 鏍稿績姒傚康锛氭彁绀鸿瘝妯℃澘</h4>
+                鍦ㄦā鏉夸腑鐢?<code>{{鍙橀噺鍚峿}</code> 鏍囪闇€瑕佸姩鎬佹浛鎹㈢殑鍐呭銆傛墽琛屾椂绯荤粺浼氭妸 <code>{{鍙橀噺鍚峿}</code> 鏇挎崲涓轰綘杈撳叆鐨勫疄闄呭€笺€?                <div class="cs-help-example">妯℃澘锛氳涓?span style="color:#fbbf24">{{topic}}</span>鍐欎竴绡?span style="color:#fbbf24">{{style}}</span>椋庢牸鐨勬枃妗?鍙傛暟濉叆锛歵opic=鏃呰 style=鏂囪壓
+瀹為檯鍙戦€侊細璇蜂负鏃呰鍐欎竴绡囨枃鑹洪鏍肩殑鏂囨</div>
+                
+                <h4>鈿欙笍 鍙傛暟瀹氫箟璇存槑</h4>
+                姣忎釜 <code>{{鍙橀噺鍚峿}</code> 閮介渶瑕佸湪銆屽弬鏁板畾涔夈€嶄腑娣诲姞瀵瑰簲鏉＄洰锛?                <div style="margin:6px 0;">
+                <span class="cs-help-tag">鍙橀噺鍚?(key)</span> 蹇呴』鍜屾ā鏉夸腑 <code>{{...}}</code> 閲岀殑鍚嶅瓧涓€鑷?                <br><span class="cs-help-tag">鏄剧ず鍚嶇О</span> 鐢ㄦ埛鐪嬪埌鐨勪腑鏂囨爣绛?                <br><span class="cs-help-tag">绫诲瀷</span> 鏂囨湰 / 澶氳鏂囨湰 / 鏁板瓧 / 閫夋嫨
+                <br><span class="cs-help-tag">榛樿鍊?/span> 鍙€夛紝棰勫～鐨勫垵濮嬪€?                </div>
+                
+                <h4>馃幆 瀹屾暣绀轰緥 1锛氬皬绾功绗旇鐢熸垚鍣?/h4>
+                <div class="cs-help-example"><strong>鎶€鑳藉悕绉帮細</strong>灏忕孩涔︾瑪璁扮敓鎴愬櫒
+<strong>鍥炬爣锛?/strong>馃摑  <strong>妯℃澘绫诲瀷锛?/strong>鏂囨湰鐢熸垚
+<strong>鎻忚堪锛?/strong>涓€閿敓鎴愬皬绾功鐖嗘绗旇
+<strong>鎻愮ず璇嶆ā鏉匡細</strong>
+璇蜂负銆寋{topic}}銆嶇敓鎴恵{count}}鏉″皬绾功椋庢牸鐨勭瑪璁版枃妗堛€?瑕佹眰锛?1. 鏍囬瑕佹湁鍚稿紩鍔涳紝鍠勭敤emoji
+2. 椋庢牸锛歿{style}}
+3. 姣忔潯200-300瀛?4. 鍖呭惈3-5涓瘽棰樻爣绛?
+<strong>鍙傛暟瀹氫箟锛?/strong>
+  鍙橀噺鍚? topic    鏄剧ず鍚嶇О: 绗旇涓婚   绫诲瀷: 鏂囨湰   榛樿鍊? (绌?
+  鍙橀噺鍚? count    鏄剧ず鍚嶇О: 鐢熸垚鏉℃暟   绫诲瀷: 鏁板瓧   榛樿鍊? 3
+  鍙橀噺鍚? style    鏄剧ず鍚嶇О: 鍐欎綔椋庢牸   绫诲瀷: 鏂囨湰   榛樿鍊? 娲绘臣鏈夎叮</div>
+                
+                <h4>馃幆 瀹屾暣绀轰緥 2锛欰I缁樺浘鎻愮ず璇嶇炕璇?/h4>
+                <div class="cs-help-example"><strong>鎶€鑳藉悕绉帮細</strong>鎻愮ず璇嶇炕璇戝姪鎵?<strong>鍥炬爣锛?/strong>馃帹  <strong>妯℃澘绫诲瀷锛?/strong>鏂囨湰鐢熸垚
+<strong>鎻忚堪锛?/strong>鎶婁腑鏂囩敾闈㈡弿杩扮炕璇戜负鑻辨枃AI缁樺浘鎻愮ず璇?<strong>鎻愮ず璇嶆ā鏉匡細</strong>
+璇锋妸浠ヤ笅涓枃鐢婚潰鎻忚堪缈昏瘧涓轰笓涓氱殑AI缁樺浘鎻愮ず璇嶏紙鑻辨枃锛夛紝
+瑕佹眰鐢⊿table Diffusion / Midjourney 椋庢牸鐨勫叧閿瘝鎻忚堪锛?鍖呭惈鐢婚潰鍐呭銆佸厜褰便€佹瀯鍥俱€侀鏍肩瓑缁村害銆?
+涓枃鎻忚堪锛歿{description}}
+鐢婚鍋忓ソ锛歿{art_style}}
+
+<strong>鍙傛暟瀹氫箟锛?/strong>
+  鍙橀噺鍚? description  鏄剧ず鍚嶇О: 鐢婚潰鎻忚堪   绫诲瀷: 澶氳   榛樿鍊? (绌?
+  鍙橀噺鍚? art_style    鏄剧ず鍚嶇О: 鐢婚鍋忓ソ   绫诲瀷: 鏂囨湰   榛樿鍊? 鐢靛奖璐ㄦ劅</div>
+                
+                <h4>馃幆 瀹屾暣绀轰緥 3锛氳棰戣剼鏈敓鎴?/h4>
+                <div class="cs-help-example"><strong>鎶€鑳藉悕绉帮細</strong>鐭棰戣剼鏈敓鎴?<strong>鍥炬爣锛?/strong>馃幀  <strong>妯℃澘绫诲瀷锛?/strong>鏂囨湰鐢熸垚
+<strong>鎻忚堪锛?/strong>鏍规嵁涓婚鑷姩鐢熸垚甯﹀垎闀滅殑鐭棰戣剼鏈?<strong>鎻愮ず璇嶆ā鏉匡細</strong>
+璇蜂负涓婚銆寋{topic}}銆嶇敓鎴愪竴涓獅{duration}}绉掔殑鐭棰戣剼鏈€?鐩爣骞冲彴锛歿{platform}}
+瑕佹眰锛?1. 鍖呭惈鐢婚潰鎻忚堪銆佸彴璇?鏃佺櫧銆佽儗鏅煶涔愬缓璁?2. 鍒嗛暅澶磋璁★紝鏍囨敞姣忎釜闀滃ご鏃堕暱
+3. 寮€澶?绉掑繀椤绘湁hook鍚稿紩瑙備紬
+
+<strong>鍙傛暟瀹氫箟锛?/strong>
+  鍙橀噺鍚? topic     鏄剧ず鍚嶇О: 瑙嗛涓婚   绫诲瀷: 鏂囨湰   榛樿鍊? (绌?
+  鍙橀噺鍚? duration  鏄剧ず鍚嶇О: 瑙嗛鏃堕暱   绫诲瀷: 鏁板瓧   榛樿鍊? 60
+  鍙橀噺鍚? platform  鏄剧ず鍚嶇О: 鐩爣骞冲彴   绫诲瀷: 鏂囨湰   榛樿鍊? 鎶栭煶</div>
+                
+                <h4>馃挕 灏忔妧宸?/h4>
+                鈥?鎻愮ず璇嶅啓寰楄秺<strong>鍏蜂綋</strong>锛孉I杈撳嚭鏁堟灉瓒婂ソ<br>
+                鈥?鍙互鐢?<code>馃摜 瀵煎叆</code> 鎸夐挳瀵煎叆鍒汉鍒嗕韩鐨勬妧鑳絁SON鏂囦欢<br>
+                鈥?鍒涘缓濂界殑鎶€鑳藉彲浠ョ偣 <code>馃摛 瀵煎嚭</code> 鍒嗕韩缁欐湅鍙?br>
+                鈥?妯℃澘绫诲瀷閫夈€屽浘鐗囩敓鎴愩€嶄細璋冪敤鍥剧墖API锛屻€屾枃鏈敓鎴愩€嶄細璋冪敤鏂囨湰API
+            </div>
+            
+            <div class="cs-field">
+                <label>鎶€鑳藉悕绉?*</label>
+                <input type="text" id="csName" placeholder="渚嬪锛氬皬绾功绗旇鐢熸垚鍣?>
+            </div>
+            <div class="cs-field">
+                <label>鍥炬爣</label>
+                <div class="cs-icons" id="csIconPicker">
+                    <span class="cs-icon-btn selected" data-icon="馃敡" onclick="selectSkillIcon(this)">馃敡</span>
+                    <span class="cs-icon-btn" data-icon="鉁? onclick="selectSkillIcon(this)">鉁?/span>
+                    <span class="cs-icon-btn" data-icon="馃挕" onclick="selectSkillIcon(this)">馃挕</span>
+                    <span class="cs-icon-btn" data-icon="馃帹" onclick="selectSkillIcon(this)">馃帹</span>
+                    <span class="cs-icon-btn" data-icon="馃摳" onclick="selectSkillIcon(this)">馃摳</span>
+                    <span class="cs-icon-btn" data-icon="馃幀" onclick="selectSkillIcon(this)">馃幀</span>
+                    <span class="cs-icon-btn" data-icon="馃摑" onclick="selectSkillIcon(this)">馃摑</span>
+                    <span class="cs-icon-btn" data-icon="馃殌" onclick="selectSkillIcon(this)">馃殌</span>
+                    <span class="cs-icon-btn" data-icon="馃専" onclick="selectSkillIcon(this)">馃専</span>
+                    <span class="cs-icon-btn" data-icon="馃敟" onclick="selectSkillIcon(this)">馃敟</span>
+                    <span class="cs-icon-btn" data-icon="馃尶" onclick="selectSkillIcon(this)">馃尶</span>
+                    <span class="cs-icon-btn" data-icon="馃幆" onclick="selectSkillIcon(this)">馃幆</span>
+                </div>
+            </div>
+            <div class="cs-field">
+                <label>妯℃澘绫诲瀷 *</label>
+                <select id="csTemplateType">
+                    <option value="text">馃摑 鏂囨湰鐢熸垚</option>
+                    <option value="image">馃帹 鍥剧墖鐢熸垚</option>
+                    <option value="video">馃幀 瑙嗛鐢熸垚</option>
+                </select>
+            </div>
+            <div class="cs-field">
+                <label>鎻忚堪</label>
+                <input type="text" id="csDescription" placeholder="绠€瑕佹弿杩拌繖涓妧鑳界殑鍔熻兘">
+            </div>
+            <div class="cs-field">
+                <label>鎻愮ず璇嶆ā鏉?* <span style="color:#666; font-size:12px;">(鐢?{{鍙橀噺鍚峿} 寮曠敤鍙傛暟)</span></label>
+                <textarea id="csPromptTemplate" placeholder="渚嬪锛氳涓簕{topic}}鐢熸垚{{count}}鏉″皬绾功椋庢牸鐨勭瑪璁版枃妗堬紝瑕佹眰鍚稿紩鐪肩悆銆佹湁骞茶揣..."></textarea>
+            </div>
+            <div class="cs-field">
+                <label>鍙傛暟瀹氫箟 <button onclick="addCustomParam()" style="float:right;background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;">+ 娣诲姞鍙傛暟</button></label>
+                <div class="cs-params-list" id="csParamsList"></div>
+            </div>
+            <div class="cs-footer">
+                <button class="cs-btn-import" onclick="importSkillJSON()">馃摜 瀵煎叆</button>
+                <button class="cs-btn-cancel" onclick="closeCreateSkillModal()">鍙栨秷</button>
+                <button class="cs-btn-save" onclick="saveNewCustomSkill()">淇濆瓨鎶€鑳?/button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 鎶€鑳芥墽琛岃繘搴︼紙绮剧編鍔ㄧ敾鐗堬級 -->
+    <div class="skill-progress-modal" id="skillProgressModal" data-phase="preparing">
+        <div class="sp-particles" id="spParticles"></div>
+        <div class="skill-progress-content">
+            <div class="sp-icon-area">
+                <div class="sp-orbit-ring">
+                    <div class="sp-orbit-dot"></div>
+                    <div class="sp-orbit-dot"></div>
+                    <div class="sp-orbit-dot"></div>
+                </div>
+                <div class="sp-icon" id="skillProgressIcon">馃殌</div>
+                <div class="sp-sparkles" id="spSparkles"></div>
+            </div>
+            <div class="sp-phase" id="spPhase">馃殌 鍑嗗鍚姩</div>
+            <div class="skill-progress-text" id="skillProgressText">鍑嗗涓?..</div>
+            <div class="sp-progress-wrap">
+                <div class="sp-progress-track">
+                    <div class="sp-progress-fill" id="skillProgressBar"></div>
+                </div>
+                <div class="sp-progress-pct" id="spProgressPct">0%</div>
+            </div>
+            <div class="skill-progress-steps" id="skillProgressSteps"></div>
+            <div class="skill-progress-buttons">
+                <button onclick="cancelSkillExecution()">鈴癸笍 鍙栨秷</button>
+                <button onclick="hideSkillProgress()">鈫欙笍 鍚庡彴杩愯</button>
+            </div>
+        </div>
+        <div class="sp-confetti" id="spConfetti"></div>
+    </div>
+
+    <script>
+        // 浣跨敤 NVAuth 妯″潡
+        var _sbClient = null, currentUser = null, userQuota = 0;
+        let authInitialized = false;
+        // 馃挵 AI瀵硅瘽璐圭敤锛堝悗绔寜token瀹為檯娑堣€楄璐癸紝1鑳剁墖=楼0.3锛?        const MIN_CHAT_COST = 1;  // 鏈€浣?鑳剁墖锛堢敤浜庝綑棰濇鏌ワ級
+
+        // 鍒濆鍖?        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('[chat] 椤甸潰鍔犺浇瀹屾垚锛屽紑濮嬪垵濮嬪寲...');
+            
+            // 馃敡 淇锛氱‘淇濆彂閫佹寜閽簨浠舵纭粦瀹氾紙鏀寔绉诲姩绔Е鎽革級
+            const sendBtn = document.getElementById('sendBtn');
+            if (sendBtn) {
+                sendBtn.onclick = null;
+                sendBtn.addEventListener('click', function(e) {
+                    console.log('[chat] 鍙戦€佹寜閽鐐瑰嚮 (click)');
+                    sendMessage();
+                });
+                sendBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('[chat] 鍙戦€佹寜閽鐐瑰嚮 (touchend)');
+                    sendMessage();
+                });
+                console.log('[chat] 鍙戦€佹寜閽簨浠跺凡缁戝畾');
+            }
+            
+            // 馃敡 淇锛氬揩鎹疯緭鍏ユ寜閽敮鎸佽Е鎽镐簨浠?            document.querySelectorAll('.quick-q').forEach(btn => {
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    const text = this.textContent.replace(/^[^\s]+\s*/, ''); // 绉婚櫎emoji鍓嶇紑
+                    
+                    // 馃З 鐗规畩鎸夐挳锛氳皟鐢ㄥ搴斿嚱鏁拌€屼笉鏄彂閫侀棶棰?                    if (text === '鎶€鑳?) {
+                        console.log('[chat] 鎶€鑳芥寜閽鐐瑰嚮');
+                        openSkillDrawer();
+                        return;
+                    }
+                    if (text === '鍒嗛暅璁捐') {
+                        console.log('[chat] 鍒嗛暅璁捐鎸夐挳琚偣鍑?);
+                        startStoryboardMode();
+                        return;
+                    }
+                    if (text === '鏅鸿兘鍥㈤槦') {
+                        console.log('[chat] 鏅鸿兘鍥㈤槦鎸夐挳琚偣鍑?);
+                        if (typeof AgentUI !== 'undefined') AgentUI.open();
+                        return;
+                    }
+                    if (text === '瑙掕壊涓撳') {
+                        console.log('[chat] 瑙掕壊涓撳鎸夐挳琚偣鍑?);
+                        if (typeof openRoleSelector === 'function') openRoleSelector();
+                        return;
+                    }
+                    
+                    const fillMap = {
+                        '鍐欏墽鏈?: '甯垜鍐欎竴涓煭瑙嗛鍓ф湰锛屼富棰樻槸',
+                        '鎵剧伒鎰?: { text: '缁欐垜涓€浜涘叧浜庣殑鍒涙剰鐏垫劅', cursor: 5 },
+                        '浼樺寲鏂囨': '甯垜浼樺寲杩欐鏂囨锛?,
+                        '鑱旂綉鎼滅储': '鎼滅储鏈€鏂?
+                    };
+                    const fillText = fillMap[text];
+                    if (fillText) {
+                        console.log('[chat] 蹇嵎濉厖:', fillText);
+                        if (typeof fillText === 'object') {
+                            fillInput(fillText.text, fillText.cursor);
+                        } else {
+                            fillInput(fillText);
+                        }
+                    }
+                });
+            });
+            
+            // 馃敡 淇锛氳繑鍥炴寜閽敮鎸佽Е鎽镐簨浠?            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) {
+                backBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    goBack();
+                });
+            }
+            
+            if (typeof NVAuth !== 'undefined') {
+                await checkUser();
+            }
+            updateQuotaDisplay();
+            // 馃幁 鍒濆鍖栬鑹蹭笓瀹舵寚绀哄櫒
+            _updateRoleIndicator();
+            console.log('[chat] 鍒濆鍖栧畬鎴?);
+        });
+
+        async function checkUser() {
+            try {
+                // 绛夊緟璁よ瘉鐘舵€佸氨缁?                await Promise.race([
+                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                    new Promise(resolve => setTimeout(resolve, 3000))
+                ]);
+                
+                currentUser = await NVAuth.getCurrentUser();
+                if (currentUser) {
+                    console.log('[chat] 鐢ㄦ埛宸茬櫥褰?', currentUser.email);
+                    await loadUserQuota();
+                } else {
+                    console.log('[chat] 鐢ㄦ埛鏈櫥褰?);
+                }
+            } catch (e) { console.error('妫€鏌ョ敤鎴峰け璐?', e); }
+            
+            // 鏍囪璁よ瘉鍒濆鍖栧畬鎴?            authInitialized = true;
+            console.log('[chat] 璁よ瘉鍒濆鍖栧畬鎴? currentUser:', currentUser ? currentUser.email : 'null');
+        }
+
+        async function loadUserQuota() {
+            try {
+                const profile = await NVAuth.getUserProfile(currentUser.id);
+                userQuota = profile?.quota_balance || 0;
+                updateQuotaDisplay();
+                console.log('[chat] 鐢ㄦ埛鑳剁墖:', userQuota);
+            } catch (e) { console.error('鍔犺浇閰嶉澶辫触:', e); }
+        }
+
+        function updateQuotaDisplay() {
+            const el = document.getElementById('quotaDisplay');
+            if (currentUser) {
+                el.textContent = `馃帪锔?${userQuota}`;
+            } else {
+                el.textContent = '馃帪锔?鏈櫥褰?;
+            }
+        }
+
+        // 棰勬墸璐瑰嚱鏁?        async function preDeduct(cost, description) {
+            // 馃敡 淇锛氱‘淇漜ost鏄暣鏁帮紙鏁版嵁搴撴槸INTEGER绫诲瀷锛?            cost = Math.ceil(cost);
+            
+            // 绛夊緟璁よ瘉鍒濆鍖栧畬鎴?            if (!authInitialized) {
+                const waitStart = Date.now();
+                while (!authInitialized && (Date.now() - waitStart) < 3000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+            
+            if (!currentUser) { showToast('璇峰厛鐧诲綍'); return false; }
+            if (userQuota < cost) { showToast(`鑳剁墖涓嶈冻锛岄渶瑕?{cost}鑳剁墖`); return false; }
+            try {
+                const res = await fetch('/api/supabase-proxy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'consume', userId: currentUser.id, amount: cost, description })
+                });
+                const data = await res.json().catch(() => ({}));
+                
+                // 馃敡 淇锛氬厛妫€鏌?HTTP 鐘舵€佺爜
+                if (!res.ok) {
+                    if (res.status === 400 && data.error === 'INSUFFICIENT_BALANCE') {
+                        throw new Error('浣欓涓嶈冻锛岃鍏堝厖鍊?);
+                    }
+                    throw new Error(data.message || data.error || `鏈嶅姟鍣ㄩ敊璇? ${res.status}`);
+                }
+                
+                if (data.success || data.newBalance !== undefined) {
+                    userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
+                    localStorage.setItem('film_balance', String(userQuota));
+                    updateQuotaDisplay();
+                    console.log(`馃帪锔?棰勬墸璐规垚鍔? -${cost}鑳剁墖, 浣欓=${userQuota}`);
+                    return true;
+                }
+                throw new Error(data.message || data.error || '鎵ｈ垂澶辫触');
+            } catch (e) { showToast('鎵ｈ垂澶辫触: ' + e.message); return false; }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 杩斿洖鍑芥暟 - 鐩存帴杩斿洖 mobile.html 宸ヤ綔鍖?        function goBack() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromMobile = urlParams.get('force') === 'mobile';
+            
+            if (fromMobile) {
+                location.href = 'mobile.html?skip_welcome=1';
+            } else {
+                location.href = 'index.html';
+            }
+        }
+
+        let messages = [];
+        let isGenerating = false;
+
+        // 馃 鏅鸿兘妯″瀷璺敱锛氭牴鎹敤鎴疯緭鍏ヨ嚜鍔ㄩ€夋嫨鎬т环姣旀渶楂樼殑妯″瀷
+        // 馃専 榛樿棣栭€?grok-4-fast锛氱敓鎴愭枃绔犮€佹彁绀鸿瘝浼樺寲銆佺敓鎴愭彁绀鸿瘝
+        // 妯″瀷浠锋牸鍙傝€?(yunwu.ai):
+        // - grok-4-fast: 杈撳叆锟?.5/1M, 杈撳嚭锟?.0/1M (棣栭€夊璇濇ā鍨?
+        // - gemini-3-flash-preview: 杈撳叆锟?.15/1M, 杈撳嚭锟?.9/1M (鏈€渚垮疁)
+        // - qwen-plus: 杈撳叆锟?.24/1M, 杈撳嚭锟?.6/1M (涓枃浼樺寲)
+        // - gemini-3-pro-preview: 杈撳叆锟?.6/1M, 杈撳嚭锟?.6/1M (澶氭ā鎬?
+        // - gemini-3-pro-preview-thinking: 杈撳叆锟?.6/1M, 杈撳嚭锟?.6/1M (鎬濊€冩ā寮?
+        function selectModelByIntent(text) {
+            const lower = text.toLowerCase();
+            
+            // 馃幀 鍒嗛暅/瑙嗚/鐢靛奖鐩稿叧 鈫?Gemini-3 Pro Thinking (娣卞害鎺ㄧ悊)
+            const visualKeywords = ['鍒嗛暅', '瑙嗚', '鐢靛奖', '鍦烘櫙', '鐢婚潰', '闀滃ご', '鎷嶆憚', '杩愰暅', '缁勬垚', '妲嬪浘', '鍏夊奖', '甯冨厜', '瑙掑害', '鏅埆', '鐗瑰啓', '杩滄櫙', '涓櫙', '杩戞櫙', 'storyboard', '绛栧垝鍒嗛暅', '瑙嗚鍐插嚮'];
+            if (visualKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'gemini-3-pro-preview-thinking', type: 'visual', icon: '馃幀', cost: 2 };
+            }
+            
+            // 馃 娣卞害鍒嗘瀽/鎺ㄧ悊 鈫?Gemini-3 Pro Thinking
+            const thinkingKeywords = ['娣卞害鍒嗘瀽', '璇︾粏鍒嗘瀽', '鎬濊€?, '鎺ㄧ悊', '璁鸿瘉', '璇佹槑', '澶嶆潅闂', '澶氭楠?];
+            if (thinkingKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'gemini-3-pro-preview-thinking', type: 'thinking', icon: '馃', cost: 2 };
+            }
+            
+            // 馃攳 鏅€氬垎鏋?鐞嗚В/瑙ｉ噴 鈫?Qwen Plus (涓枃浼樺寲涓斾究瀹?
+            const analysisKeywords = ['鍒嗘瀽', '瑙ｉ噴', '涓轰粈涔?, '鍘熷洜', '鐞嗚В', '姣旇緝', '鍖哄埆', '浼樺姡', '璇勪环', '鎬荤粨', '褰掔撼'];
+            if (analysisKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'qwen-plus', type: 'analysis', icon: '馃攳', cost: 1 };
+            }
+            
+            // 馃捇 缂栫▼/浠ｇ爜 鈫?Qwen Plus (浠ｇ爜鑳藉姏寮轰笖渚垮疁)
+            const codeKeywords = ['浠ｇ爜', '缂栫▼', '鍑芥暟', '绠楁硶', '鎶ラ敊', 'bug', 'code', 'python', 'javascript', 'java', 'html', 'css', 'sql', '璋冭瘯', '寮€鍙?, '绋嬪簭', '鑴氭湰'];
+            if (codeKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'qwen-plus', type: 'code', icon: '馃捇', cost: 1 };
+            }
+            
+            // 馃寪 鑱旂綉鎼滅储/瀹炴椂淇℃伅 鈫?Gemini-3 Flash (蹇€熶笖渚垮疁)
+            const searchKeywords = ['鎼滅储', '鏌ユ壘', '鏈€鏂?, '浠婂ぉ', '鏂伴椈', '瀹炴椂', '鐜板湪', '褰撳墠', '澶╂皵', '鑲′环', '鐑害', '璧涗簨', '姣旇禌', '鍝噷', '璋佹槸', '澶氬皯閽?];
+            if (searchKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'gemini-3-flash-preview', type: 'search', icon: '馃寪', enableSearch: true, cost: 1 };
+            }
+            
+            // 馃攳 OCR/鏂囧瓧璇嗗埆 鈫?deepseek-ocr
+            const ocrKeywords = ['ocr', '璇嗗埆鏂囧瓧', '鏂囧瓧璇嗗埆', '鎻愬彇鏂囧瓧', '璇诲彇鏂囧瓧', '鍥剧墖鏂囧瓧', '鎴浘鏂囧瓧', '璇嗗埆鍐呭', '璇嗗埆涓€涓?, '鐪嬬湅鍐欑殑浠€涔?, '璇诲嚭鏉?];
+            if (ocrKeywords.some(kw => lower.includes(kw))) {
+                return { model: 'deepseek-ocr', type: 'ocr', icon: '馃攳', cost: 2 };
+            }
+            
+            // 馃専 榛樿锛氱敓鎴愭枃绔?鎻愮ず璇嶄紭鍖?鍒涙剰鍐欎綔/瀵硅瘽 鈫?Grok-4 Fast (棣栭€?
+            return { model: 'grok-4-fast', type: 'chat', icon: '馃専', cost: 2 };
+        }
+        
+        // 馃摑 妯″瀷鍚嶇О鏄犲皠
+        const MODEL_NAMES = {
+            'grok-4-fast': 'Grok-4 Fast',
+            'gemini-3-flash-preview': 'Gemini Flash',
+            'gemini-3-pro-preview': 'Gemini Pro',
+            'gemini-3-pro-preview-thinking': 'Gemini 鎬濊€?,
+            'qwen-plus': '閫氫箟鍗冮棶',
+            'deepseek-ocr': 'DeepSeek OCR',
+            'gemini-2.0-flash': 'Gemini Vision'
+        };
+        
+        // ==================== 馃幁 瑙掕壊涓撳 UI ====================
+        let _roleCat = 'all';
+
+        function openRoleSelector() {
+            const panel = document.getElementById('roleSelectPanel');
+            if (!panel || typeof RoleExpert === 'undefined') return;
+            panel.style.display = 'block';
+            _renderRoleCatTabs();
+            _renderRoleGrid();
+        }
+
+        function closeRoleSelector() {
+            const panel = document.getElementById('roleSelectPanel');
+            if (panel) panel.style.display = 'none';
+        }
+
+        function _renderRoleCatTabs() {
+            const container = document.getElementById('roleCatTabs');
+            if (!container) return;
+            const cats = RoleExpert.getCategories();
+            container.innerHTML = cats.map(c => `
+                <button onclick="_setRoleCat('${c.id}')" style="padding:6px 14px; border-radius:16px; border:1px solid ${_roleCat === c.id ? 'var(--accent)' : '#333'}; background:${_roleCat === c.id ? 'rgba(251,191,36,0.15)' : '#1a1a1a'}; color:${_roleCat === c.id ? 'var(--accent)' : '#aaa'}; font-size:13px; white-space:nowrap; cursor:pointer;">${c.icon} ${c.name}</button>
+            `).join('');
+        }
+
+        function _setRoleCat(cat) {
+            _roleCat = cat;
+            _renderRoleCatTabs();
+            _renderRoleGrid();
+        }
+
+        function _renderRoleGrid() {
+            const grid = document.getElementById('roleGrid');
+            if (!grid) return;
+            const roles = RoleExpert.getRoles(_roleCat);
+            const activeId = RoleExpert.getActive()?.id;
+            grid.innerHTML = roles.map(r => `
+                <div onclick="selectRole('${r.id}')" style="padding:12px; background:${r.id === activeId ? 'rgba(139,92,246,0.2)' : '#1a1a1a'}; border:1px solid ${r.id === activeId ? 'rgba(139,92,246,0.5)' : '#2a2a2a'}; border-radius:12px; cursor:pointer; transition:all 0.2s;">
+                    <div style="font-size:24px; margin-bottom:6px;">${r.icon}</div>
+                    <div style="font-size:14px; font-weight:600; color:#fff; margin-bottom:2px;">${r.name}</div>
+                    <div style="font-size:11px; color:#888; line-height:1.4;">${r.description}</div>
+                    ${r.id === activeId ? '<div style="margin-top:6px; font-size:10px; color:#a78bfa;">鉁?褰撳墠浣跨敤涓?/div>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function selectRole(roleId) {
+            if (typeof RoleExpert === 'undefined') return;
+            const current = RoleExpert.getActive();
+            if (current && current.id === roleId) {
+                // 鐐瑰嚮宸叉縺娲荤殑瑙掕壊 鈫?鍙栨秷
+                RoleExpert.deactivate();
+            } else {
+                RoleExpert.activate(roleId);
+            }
+            _updateRoleIndicator();
+            closeRoleSelector();
+        }
+
+        function deactivateRole() {
+            if (typeof RoleExpert !== 'undefined') {
+                RoleExpert.deactivate();
+                _updateRoleIndicator();
+            }
+        }
+
+        function _updateRoleIndicator() {
+            const indicator = document.getElementById('roleIndicator');
+            if (!indicator) return;
+            const role = typeof RoleExpert !== 'undefined' ? RoleExpert.getActive() : null;
+            if (role) {
+                indicator.style.display = 'block';
+                document.getElementById('roleIndicatorIcon').textContent = role.icon;
+                document.getElementById('roleIndicatorName').textContent = role.name + ' 妯″紡';
+                document.getElementById('roleIndicatorDesc').textContent = role.description + ' 路 +1鑳剁墖/鏉?;
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+
+        // 馃幀 濂借幈鍧庤瑙夋寚瀵肩郴缁熸彁绀鸿瘝锛堢畝娲佺増锛?        const HOLLYWOOD_VISUAL_DIRECTOR_PROMPT = `浣犳槸涓撲笟鍒嗛暅璁捐甯堛€傜洿鎺ヨ緭鍑哄垎闀滆〃锛屼笉瑕佸簾璇濄€?
+鏍煎紡锛堟瘡涓垎闀滀竴琛岋級锛?銆愰暅鍙枫€戞櫙鍒?| 鐢婚潰鍐呭 | 闀滃ご杩愬姩 | 鏃堕暱
+
+绀轰緥锛?銆?銆戣繙鏅?| 鏃ヨ惤娴疯竟锛屼汉鐗╁墤褰辫蛋鏉?| 鎺ㄩ暅 | 3s
+銆?銆戜腑鏅?| 浜虹墿姝ｉ潰锛岃〃鎯呭潥姣?| 鍥哄畾 | 2s
+
+娉ㄦ剰锛?- 鍙緭鍑哄垎闀滆〃锛屼笉瑕佸叾浠栧唴瀹?- 姣忎釜鍒嗛暅涓€琛岋紝绠€娲佹槑浜哷;
+
+        // 濉厖杈撳叆妗嗭紙涓嶈嚜鍔ㄥ彂閫侊紝璁╃敤鎴风户缁紪杈戯級
+        // cursorAt: 鍙€夛紝鍏夋爣浣嶇疆绱㈠紩锛涢粯璁ゆ湯灏?        function fillInput(text, cursorAt) {
+            const input = document.getElementById('inputBox');
+            input.value = text;
+            input.focus();
+            const pos = typeof cursorAt === 'number' ? cursorAt : text.length;
+            input.setSelectionRange(pos, pos);
+        }
+        
+        // 蹇嵎闂锛堢洿鎺ュ彂閫侊級
+        function askQuestion(q) {
+            document.getElementById('inputBox').value = q;
+            sendMessage();
+        }
+        
+        // 馃幀 鍒嗛暅璁捐妯″紡锛氬厛璇㈤棶鐢ㄦ埛
+        let isStoryboardMode = false;
+        function startStoryboardMode() {
+            isStoryboardMode = true;
+            // 闅愯棌娆㈣繋
+            const welcomeEl = document.getElementById('welcome');
+            if (welcomeEl) welcomeEl.style.display = 'none';
+            // 鏄剧ずAI璇㈤棶
+            addMessage('馃幀 鍒嗛暅璁捐妯″紡\n\n璇锋弿杩颁綘鎯宠鐨勫満鏅垨鏁呬簨锛屾垜鏉ュ府浣犺鍒掑垎闀溿€俓n\n渚嬪锛歕n鈥?涓€涓コ瀛╁湪娴疯竟鐪嬫棩钀絓n鈥?缇庨鎺㈠簵vlog寮€鍦篭n鈥?浜у搧骞垮憡灞曠ず', 'ai');
+            // 璁剧疆杈撳叆妗嗘彁绀?            document.getElementById('inputBox').placeholder = '鎻忚堪浣犵殑鍦烘櫙鎴栨晠浜?..';
+            document.getElementById('inputBox').focus();
+        }
+
+        function handleKeydown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('inputBox');
+            const text = input.value.trim();
+            if (!text || isGenerating) return;
+
+            // 馃 鏅鸿兘妯″瀷璺敱锛堟瘡娆￠兘鏍规嵁鍐呭閲嶆柊閫夋嫨锛?            let routing;
+            
+            // 馃幀 鍒嗛暅妯″紡锛氬己鍒朵娇鐢ㄨ瑙夋寚瀵兼ā鍨?            if (isStoryboardMode) {
+                routing = { model: 'gemini-3-pro-preview', type: 'storyboard', icon: '馃幀', cost: 2 };
+                console.log(`馃幀 鍒嗛暅妯″紡: ${routing.model}`);
+            } else {
+                // 姣忔閮芥牴鎹唴瀹规櫤鑳介€夋嫨妯″瀷
+                routing = selectModelByIntent(text);
+                console.log(`馃 鏅鸿兘璺敱: ${routing.icon} ${routing.type} 鈫?${routing.model}`);
+            }
+
+            // 鉁?妫€鏌ヤ綑棰濇槸鍚﹁冻澶燂紙鏈€浣?鑳剁墖锛?            if (userQuota < MIN_CHAT_COST) {
+                showToast('浣欓涓嶈冻锛岃鍏堝厖鍊?);
+                return;
+            }
+
+            // 闅愯棌娆㈣繋
+            const welcomeEl = document.getElementById('welcome');
+            if (welcomeEl) welcomeEl.style.display = 'none';
+
+            // 娣诲姞鐢ㄦ埛娑堟伅锛堝惈闄勪欢棰勮锛?            let userDisplayText = text;
+            if (uploadedFiles.length > 0) {
+                const fileNames = uploadedFiles.map(f => `馃搸${f.name}`).join(' ');
+                userDisplayText = `${fileNames}\n${text}`;
+            }
+            addMessage(userDisplayText, 'user');
+            messages.push({ role: 'user', content: text });
+            input.value = '';
+            
+            // 淇濆瓨褰撳墠涓婁紶鐨勬枃浠讹紙鍙戦€佸悗娓呯┖锛?            const currentFiles = [...uploadedFiles];
+            uploadedFiles = [];
+            updateUploadPreview();
+
+            // 鏄剧ずtyping + 妯″瀷鎻愮ず
+            const container = document.getElementById('chatContainer');
+            const typingEl = document.createElement('div');
+            typingEl.className = 'message ai';
+            const typeNames = { storyboard: '鍒嗛暅璁捐', visual: '瑙嗚鎸囧', writing: '鍒涙剰鍐欎綔', thinking: '娣卞害鎬濊€?, analysis: '鏅鸿兘鍒嗘瀽', search: '鑱旂綉鎼滅储', code: '浠ｇ爜鍔╂墜', chat: '鏅鸿兘瀵硅瘽', ocr: '鏂囧瓧璇嗗埆' };
+            const modelName = MODEL_NAMES[routing.model] || routing.model;
+            typingEl.innerHTML = `<div class="typing"><span></span><span></span><span></span></div><div style="font-size:11px;color:#888;margin-top:4px;">${routing.icon} ${typeNames[routing.type] || '瀵硅瘽'} 路 ${modelName}</div>`;
+            container.appendChild(typingEl);
+            container.scrollTop = container.scrollHeight;
+
+            isGenerating = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                // 馃摑 鏋勫缓甯︿笂涓嬫枃璁板繂鐨勬秷鎭垪琛紙鏈€杩?杞璇濓級
+                const contextMessages = messages.slice(-6).map(m => ({
+                    role: m.role === 'user' ? 'user' : 'assistant',
+                    content: m.content
+                }));
+                
+                // 馃幀 鍒嗛暅/瑙嗚鎸囧妯″紡锛氭坊鍔犵郴缁熸彁绀鸿瘝
+                let systemPrompt = '';
+                let finalPrompt = text;
+                if (routing.type === 'storyboard' || routing.type === 'visual') {
+                    systemPrompt = HOLLYWOOD_VISUAL_DIRECTOR_PROMPT;
+                    // 鍒嗛暅妯″紡瀹屾垚鍚庨噸缃?                    if (isStoryboardMode) {
+                        isStoryboardMode = false;
+                        document.getElementById('inputBox').placeholder = '杈撳叆娑堟伅...';
+                    }
+                }
+
+                // 馃幁 瑙掕壊涓撳娉ㄥ叆锛氬皢瑙掕壊 system prompt 杩藉姞鍒扮郴缁熸彁绀鸿瘝
+                const activeRole = typeof RoleExpert !== 'undefined' ? RoleExpert.getActive() : null;
+                if (activeRole && !systemPrompt) {
+                    systemPrompt = activeRole.systemPrompt;
+                    // 瑙掕壊鍙兘寤鸿鏇村ソ鐨勬ā鍨?                    if (activeRole.modelHint && !isStoryboardMode) {
+                        routing.model = activeRole.modelHint;
+                        console.log(`馃幁 瑙掕壊妯″瀷寤鸿: ${activeRole.modelHint}`);
+                    }
+                } else if (activeRole && systemPrompt) {
+                    // 鍒嗛暅妯″紡 + 瑙掕壊涓撳鍙犲姞
+                    systemPrompt = activeRole.systemPrompt + '\n\n' + systemPrompt;
+                }
+
+                // 馃 娉ㄥ叆鐢ㄦ埛闀挎湡璁板繂
+                if (typeof getUserMemoryPrompt === 'function') {
+                    const memPrompt = getUserMemoryPrompt();
+                    if (memPrompt) {
+                        systemPrompt = systemPrompt ? (memPrompt + '\n' + systemPrompt) : memPrompt;
+                    }
+                }
+
+                // 馃 璁板綍妯″瀷浣跨敤鍋忓ソ
+                if (typeof UserMemory !== 'undefined') {
+                    UserMemory.recordModel('text', routing.model);
+                }
+                
+                // 馃搸 鏋勫缓鏈€缁堟秷鎭紙鏀寔澶氭ā鎬侊級
+                let finalMessage;
+                if (currentFiles.length > 0) {
+                    // 鏈夋枃浠舵椂锛屾瀯寤哄妯℃€佹秷鎭?                    const contentParts = [];
+                    
+                    // 娣诲姞鏂囦欢鍐呭
+                    for (const file of currentFiles) {
+                        if (file.type === 'image') {
+                            contentParts.push({
+                                type: 'image_url',
+                                image_url: { url: file.data }
+                            });
+                        } else if (file.type === 'file') {
+                            // 鏂囨湰鏂囦欢灏濊瘯瑙ｆ瀽鍐呭
+                            if (file.data.startsWith('data:text/') || file.data.startsWith('data:application/json')) {
+                                try {
+                                    const base64Content = file.data.split(',')[1];
+                                    const textContent = atob(base64Content);
+                                    contentParts.push({
+                                        type: 'text',
+                                        text: `[鏂囦欢: ${file.name}]\n${textContent}`
+                                    });
+                                } catch(e) {
+                                    contentParts.push({
+                                        type: 'text',
+                                        text: `[鏂囦欢: ${file.name}] (鏃犳硶瑙ｆ瀽)`
+                                    });
+                                }
+                            } else {
+                                // 鍏朵粬鏂囦欢绫诲瀷浣滀负闄勪欢淇℃伅
+                                contentParts.push({
+                                    type: 'text',
+                                    text: `[闄勪欢: ${file.name}, 澶у皬: ${(file.size/1024).toFixed(1)}KB]`
+                                });
+                            }
+                        } else if (file.type === 'video') {
+                            // 瑙嗛鏂囦欢浣滀负闄勪欢淇℃伅锛堝ぇ閮ㄥ垎AI涓嶆敮鎸佽棰戯級
+                            contentParts.push({
+                                type: 'text',
+                                text: `[瑙嗛闄勪欢: ${file.name}, 澶у皬: ${(file.size/1024/1024).toFixed(1)}MB]`
+                            });
+                        }
+                    }
+                    
+                    // 娣诲姞鏂囨湰鍐呭
+                    if (finalPrompt) {
+                        contentParts.push({ type: 'text', text: finalPrompt });
+                    }
+                    
+                    finalMessage = { role: 'user', content: contentParts };
+                    
+                    // 鏈夊浘鐗囨椂鍒囨崲鍒拌瑙夋ā鍨嬶紙OCR妯″紡淇濇寔涓嶅彉锛?                    const hasImages = currentFiles.some(f => f.type === 'image');
+                    if (hasImages && routing.type !== 'ocr' && !routing.model.includes('vision') && !routing.model.includes('gemini') && !routing.model.includes('gpt-4') && !routing.model.includes('deepseek-ocr')) {
+                        routing.model = 'gemini-2.0-flash';  // 鍒囨崲鍒版敮鎸佽瑙夌殑妯″瀷
+                        console.log('馃柤锔?妫€娴嬪埌鍥剧墖锛屽垏鎹㈠埌瑙嗚妯″瀷:', routing.model);
+                    }
+                } else {
+                    // 鏃犳枃浠舵椂锛屾櫘閫氭枃鏈秷鎭?                    finalMessage = { role: 'user', content: finalPrompt };
+                }
+                
+                // 馃攳 OCR妯″紡 + 鏈夊浘鐗囷細璧?vision action锛堜笓灞?OCR 閫氶亾锛?                let response;
+                const hasUploadedImages = currentFiles.some(f => f.type === 'image');
+                if (routing.type === 'ocr' && hasUploadedImages) {
+                    const imageFile = currentFiles.find(f => f.type === 'image');
+                    response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'vision',
+                            model: 'deepseek-ocr',
+                            prompt: finalPrompt || '璇疯瘑鍒苟杈撳嚭鍥剧墖涓殑鎵€鏈夋枃瀛楀唴瀹癸紝淇濇寔鍘熷鏍煎紡銆?,
+                            image_url: imageFile.data,
+                            userId: currentUser.id
+                        })
+                    });
+                } else {
+                    response = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'chat',
+                            messages: contextMessages.concat([finalMessage]),
+                            system: systemPrompt,
+                            model: routing.model,
+                            userId: currentUser.id,
+                            enableSearch: routing.enableSearch || false
+                        })
+                    });
+                }
+
+                // 妫€鏌ュ搷搴旂姸鎬?                if (!response.ok) {
+                    const errText = await response.text().catch(() => '');
+                    throw new Error(`鏈嶅姟鍣ㄩ敊璇?(${response.status}): ${errText.substring(0, 100) || '璇风◢鍚庨噸璇?}`);
+                }
+
+                const data = await response.json();
+                typingEl.remove();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                const aiText = data.content || data.text || data.response || '鎶辨瓑锛屾垜娌℃湁鐞嗚В浣犵殑闂銆?;
+                let actualCost = data.billed || 0;  // 鍚庣杩斿洖鐨勫疄闄呮墸璐?                const usage = data.usage || {};
+
+                // 馃幁 瑙掕壊涓撳闄勫姞璐癸紙鍚庣宸叉墸鍩虹璐癸紝鍓嶇鎵ｈ鑹查檮鍔犺垂锛?                let roleSurcharge = 0;
+                if (activeRole && actualCost > 0 && currentUser) {
+                    roleSurcharge = activeRole.filmSurcharge || 1;
+                    try {
+                        const surRes = await fetch('/api/supabase-proxy', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'consume', userId: currentUser.id,
+                                amount: roleSurcharge,
+                                description: `瑙掕壊涓撳:${activeRole.name}`
+                            })
+                        });
+                        const surData = await surRes.json().catch(() => ({}));
+                        if (surData.success) {
+                            actualCost += roleSurcharge;
+                            console.log(`馃幁 瑙掕壊闄勫姞璐? -${roleSurcharge}鑳剁墖 (${activeRole.name})`);
+                        }
+                    } catch (e) { console.warn('瑙掕壊闄勫姞璐瑰け璐?', e); }
+                }
+                
+                // 娣诲姞妯″瀷鏍囪瘑锛堟樉绀哄疄闄呮秷鑰楋級
+                const usedModel = data.model || routing.model;
+                const displayModelName = MODEL_NAMES[usedModel] || usedModel;
+                const tokenInfo = usage.totalTokens ? ` 路 ${usage.totalTokens}tk` : '';
+                const roleBadge = activeRole ? ` 路 ${activeRole.icon}${activeRole.name}` : '';
+                const modelBadge = `<div style="font-size:10px;color:#666;margin-bottom:4px;">${routing.icon} ${displayModelName}${tokenInfo}${roleBadge} 路 -${actualCost}鑳剁墖</div>`;
+                addMessageWithBadge(aiText, 'ai', modelBadge);
+                messages.push({ role: 'assistant', content: aiText });
+
+                // 鏇存柊浣欓鏄剧ず锛堢敤鍚庣杩斿洖鐨勫疄闄呮墸璐?+ 瑙掕壊闄勫姞璐癸級
+                if (actualCost > 0) {
+                    userQuota = Math.max(0, userQuota - actualCost);
+                    updateQuotaDisplay();
+                }
+                // 鍚屾鍚庣浣欓
+                loadUserQuota();
+
+            } catch (error) {
+                typingEl.remove();
+                addMessage('鍑洪敊浜嗭細' + error.message, 'ai');
+                // 鉁?鍚庣鎴愬姛鎵嶆墸璐癸紝澶辫触涓嶆墸璐癸紝鏃犻渶閫€娆?            } finally {
+                isGenerating = false;
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+        
+        // 娣诲姞甯︽爣璇嗙殑娑堟伅
+        function addMessageWithBadge(text, type, badge) {
+            const container = document.getElementById('chatContainer');
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            // AI娑堟伅娣诲姞澶嶅埗鎸夐挳
+            const copyBtn = type === 'ai' ? `<button class="copy-btn" onclick="copyMessageText(this, '${encodeURIComponent(text)}')">馃搵 澶嶅埗</button>` : '';
+            msg.innerHTML = copyBtn + badge + formatMessage(text);
+            // 淇濆瓨鍘熷鏂囨湰鐢ㄤ簬澶嶅埗
+            msg.dataset.rawText = text;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addMessage(text, type) {
+            const container = document.getElementById('chatContainer');
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            // AI娑堟伅娣诲姞澶嶅埗鎸夐挳
+            const copyBtn = type === 'ai' ? `<button class="copy-btn" onclick="copyMessageText(this)">馃搵 澶嶅埗</button>` : '';
+            msg.innerHTML = copyBtn + formatMessage(text);
+            // 淇濆瓨鍘熷鏂囨湰鐢ㄤ簬澶嶅埗
+            msg.dataset.rawText = text;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 澶嶅埗娑堟伅鏂囨湰
+        function copyMessageText(btn) {
+            const msg = btn.closest('.message');
+            const text = msg.dataset.rawText || msg.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = '鉁?宸插鍒?;
+                setTimeout(() => { btn.textContent = '馃搵 澶嶅埗'; }, 1500);
+            }).catch(() => {
+                // 澶囩敤鏂规硶
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                btn.textContent = '鉁?宸插鍒?;
+                setTimeout(() => { btn.textContent = '馃搵 澶嶅埗'; }, 1500);
+            });
+        }
+
+        function formatMessage(text) {
+            // 绠€鍗曠殑浠ｇ爜鍧楀鐞?            return text
+                .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code style="background:#333;padding:2px 6px;border-radius:4px;">$1</code>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // 鑷姩璋冩暣杈撳叆妗嗛珮搴?        document.getElementById('inputBox').addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+        
+        // ==================== 鏂囦欢涓婁紶鍔熻兘 ====================
+        let uploadedFiles = [];  // 宸蹭笂浼犵殑鏂囦欢
+        
+        function toggleUploadMenu() {
+            const menu = document.getElementById('uploadMenu');
+            menu.classList.toggle('show');
+        }
+        
+        // 鐐瑰嚮鍏朵粬鍦版柟鍏抽棴鑿滃崟
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('uploadMenu');
+            const btn = document.getElementById('uploadBtn');
+            if (menu && !menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        });
+        
+        function triggerUpload(type) {
+            document.getElementById('uploadMenu').classList.remove('show');
+            if (type === 'image') {
+                document.getElementById('imageInput').click();
+            } else if (type === 'video') {
+                document.getElementById('videoInput').click();
+            } else if (type === 'file') {
+                document.getElementById('fileInput').click();
+            }
+        }
+        
+        async function handleFileSelect(event, type) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+            
+            const previewContainer = document.getElementById('uploadPreview');
+            
+            for (const file of files) {
+                // 妫€鏌ユ枃浠跺ぇ灏?                const maxSize = type === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    showToast(`鏂囦欢杩囧ぇ锛屾渶澶?{maxSize / 1024 / 1024}MB`);
+                    continue;
+                }
+                
+                // 璇诲彇鏂囦欢涓篵ase64
+                const base64 = await fileToBase64(file);
+                
+                const fileObj = {
+                    type: type,
+                    name: file.name,
+                    size: file.size,
+                    data: base64
+                };
+                uploadedFiles.push(fileObj);
+                
+                // 鏄剧ず棰勮
+                const preview = document.createElement('div');
+                preview.className = 'preview-item';
+                preview.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#333;padding:4px 8px;border-radius:6px;margin:4px;font-size:12px;';
+                
+                if (type === 'image') {
+                    preview.innerHTML = `<img src="${base64}" style="width:24px;height:24px;object-fit:cover;border-radius:4px;"><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">脳</button>`;
+                } else if (type === 'video') {
+                    preview.innerHTML = `<span>馃幀</span><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">脳</button>`;
+                } else {
+                    preview.innerHTML = `<span>馃搫</span><span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span><button onclick="removeUploadedFile(${uploadedFiles.length - 1})" style="background:none;border:none;color:#f00;cursor:pointer;">脳</button>`;
+                }
+                
+                previewContainer.appendChild(preview);
+            }
+            
+            // 娓呯┖ input
+            event.target.value = '';
+        }
+        
+        function removeUploadedFile(index) {
+            uploadedFiles.splice(index, 1);
+            updateUploadPreview();
+        }
+        
+        function updateUploadPreview() {
+            const previewContainer = document.getElementById('uploadPreview');
+            previewContainer.innerHTML = '';
+            
+            uploadedFiles.forEach((file, index) => {
+                const preview = document.createElement('div');
+                preview.className = 'preview-item';
+                preview.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#333;padding:4px 8px;border-radius:6px;margin:4px;font-size:12px;';
+                
+                if (file.type === 'image') {
+                    preview.innerHTML = `<img src="${file.data}" style="width:24px;height:24px;object-fit:cover;border-radius:4px;"><span>${file.name.substring(0, 15)}</span><button onclick="removeUploadedFile(${index})" style="background:none;border:none;color:#f00;cursor:pointer;">脳</button>`;
+                } else {
+                    const icon = file.type === 'video' ? '馃幀' : '馃搫';
+                    preview.innerHTML = `<span>${icon}</span><span>${file.name.substring(0, 15)}</span><button onclick="removeUploadedFile(${index})" style="background:none;border:none;color:#f00;cursor:pointer;">脳</button>`;
+                }
+                
+                previewContainer.appendChild(preview);
+            });
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ==================== 椤甸潰鐘舵€佹寔涔呭寲 ====================
+        function saveChatState() {
+            try {
+                const state = {
+                    messages,
+                    inputValue: document.getElementById('inputBox')?.value || '',
+                    welcomeHidden: document.getElementById('welcome')?.style.display === 'none',
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('rollroll_chat_state', JSON.stringify(state));
+                console.log('[chat] 鐘舵€佸凡淇濆瓨');
+            } catch (e) { console.warn('[chat] 淇濆瓨鐘舵€佸け璐?', e); }
+        }
+
+        function restoreChatState() {
+            try {
+                const saved = sessionStorage.getItem('rollroll_chat_state');
+                if (!saved) return;
+                const state = JSON.parse(saved);
+                if (state.timestamp && Date.now() - state.timestamp > 30 * 60 * 1000) {
+                    sessionStorage.removeItem('rollroll_chat_state');
+                    return;
+                }
+                console.log('[chat] 鎭㈠鐘舵€?..');
+
+                // 鎭㈠杈撳叆妗?                if (state.inputValue) document.getElementById('inputBox').value = state.inputValue;
+
+                // 鎭㈠瀵硅瘽鍘嗗彶
+                if (state.messages && state.messages.length > 0) {
+                    messages = state.messages;
+                    const welcomeEl = document.getElementById('welcome');
+                    if (welcomeEl) welcomeEl.style.display = 'none';
+                    const container = document.getElementById('chatContainer');
+                    // 淇濈暀welcome鍏冪礌锛屽彧娓呴櫎娑堟伅
+                    const existingMsgs = container.querySelectorAll('.message');
+                    existingMsgs.forEach(m => m.remove());
+                    messages.forEach(msg => {
+                        addMessage(msg.content, msg.role === 'user' ? 'user' : 'ai');
+                    });
+                }
+
+                console.log('[chat] 鐘舵€佹仮澶嶅畬鎴?);
+            } catch (e) { console.warn('[chat] 鎭㈠鐘舵€佸け璐?', e); }
+        }
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden) saveChatState(); });
+        window.addEventListener('beforeunload', saveChatState);
+        window.addEventListener('pagehide', saveChatState);
+        window.addEventListener('load', () => setTimeout(restoreChatState, 200));
+        
+        // ==================== 馃З 鎶€鑳界郴缁?====================
+        let currentSkillCategory = 'all';
+        let selectedSkillId = null;
+        // 馃柤锔?澶氬浘瀛樺偍锛歿 paramKey: [base64_1, base64_2, ...] }
+        const skillImageStore = {};
+        
+        // 鎵撳紑鎶€鑳介€夋嫨寮圭獥
+        function openSkillDrawer() {
+            document.getElementById('skillDrawer').classList.add('show');
+            renderSkillList();
+        }
+        
+        // 鍏抽棴鎶€鑳介€夋嫨寮圭獥
+        function closeSkillDrawer() {
+            document.getElementById('skillDrawer').classList.remove('show');
+        }
+        
+        // 娓叉煋鎶€鑳藉垪琛?        function renderSkillList(searchKeyword = '') {
+            const container = document.getElementById('skillList');
+            if (typeof SkillManager === 'undefined') {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">馃З 鎶€鑳界郴缁熷姞杞戒腑...</div>';
+                return;
+            }
+            
+            let skills = [];
+            if (searchKeyword) {
+                skills = SkillManager.search(searchKeyword);
+            } else if (currentSkillCategory === 'all') {
+                skills = SkillManager.getAll();
+            } else {
+                skills = SkillManager.getByCategory(currentSkillCategory);
+            }
+            
+            if (skills.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">馃攳 鏈壘鍒板尮閰嶇殑鎶€鑳?/div>';
+                return;
+            }
+            
+            const categoryLabels = {
+                video: '馃幀 瑙嗛',
+                image: '馃帹 鍥惧儚',
+                design: '馃幆 璁捐',
+                content: '馃摑 鍐呭',
+                tool: '馃攳 宸ュ叿',
+                automation: '馃 鑷姩鍖?,
+                custom: '馃敡 鑷畾涔?
+            };
+            
+            container.innerHTML = skills.map(skill => {
+                const isCustom = skill.isCustom;
+                const actionsHtml = isCustom ? `
+                    <div class="skill-card-actions">
+                        <button onclick="event.stopPropagation(); editCustomSkill('${skill.id}')">鉁忥笍 缂栬緫</button>
+                        <button onclick="event.stopPropagation(); exportCustomSkill('${skill.id}')">馃摛 瀵煎嚭</button>
+                        <button onclick="event.stopPropagation(); deleteCustomSkill('${skill.id}')" style="color:#f87171;border-color:#5a2020;">馃棏锔?鍒犻櫎</button>
+                    </div>` : '';
+                return `
+                <div class="skill-card" onclick="openSkillConfig('${skill.id}')">
+                    <div class="skill-card-header">
+                        <span class="skill-card-icon">${skill.icon}</span>
+                        <span class="skill-card-category">${categoryLabels[skill.category] || skill.category}</span>
+                    </div>
+                    <div class="skill-card-title">${skill.name}</div>
+                    <div class="skill-card-desc">${skill.description}</div>
+                    ${actionsHtml}
+                </div>`;
+            }).join('');
+        }
+        
+        // 绛涢€夋妧鑳?        function filterSkills(category) {
+            currentSkillCategory = category;
+            document.querySelectorAll('.skill-filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === category);
+            });
+            document.getElementById('skillSearch').value = '';
+            renderSkillList();
+        }
+        
+        // 鎼滅储鎶€鑳?        function searchSkills(keyword) {
+            renderSkillList(keyword);
+        }
+        
+        // 鎵撳紑鎶€鑳介厤缃脊绐?        function openSkillConfig(skillId) {
+            if (typeof SkillManager === 'undefined') return;
+            const skill = SkillManager.getById(skillId);
+            if (!skill) return;
+            
+            selectedSkillId = skillId;
+            closeSkillDrawer();
+            
+            document.getElementById('skillConfigTitle').textContent = `${skill.icon} ${skill.name}`;
+            document.getElementById('skillConfigDesc').textContent = skill.description;
+            
+            // 娓叉煋鍙傛暟琛ㄥ崟
+            const formContainer = document.getElementById('skillConfigForm');
+            if (!skill.parameters || skill.parameters.length === 0) {
+                formContainer.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">姝ゆ妧鑳芥棤闇€棰濆閰嶇疆鍙傛暟</div>';
+            } else {
+                formContainer.innerHTML = skill.parameters.map(param => {
+                    let inputHtml = '';
+                    switch (param.type) {
+                        case 'textarea':
+                            inputHtml = `<textarea id="skill_param_${param.key}" class="skill-param-input" placeholder="${param.placeholder || ''}" style="min-height:80px; resize:vertical;">${param.default || ''}</textarea>`;
+                            break;
+                        case 'number':
+                            inputHtml = `<input type="number" id="skill_param_${param.key}" class="skill-param-input" value="${param.default || ''}" min="${param.min ?? ''}" max="${param.max ?? ''}">`;
+                            break;
+                        case 'select':
+                            const options = (param.options || []).map(opt => `<option value="${opt.value}" ${opt.value === param.default ? 'selected' : ''}>${opt.label}</option>`).join('');
+                            inputHtml = `<select id="skill_param_${param.key}" class="skill-param-input">${options}</select>`;
+                            break;
+                        case 'checkbox':
+                            inputHtml = `<label style="display:flex; align-items:center; gap:10px; cursor:pointer;"><input type="checkbox" id="skill_param_${param.key}" ${param.default ? 'checked' : ''} style="width:20px; height:20px; accent-color:var(--accent);"><span style="color:#ccc;">${param.checkboxLabel || '鍚敤'}</span></label>`;
+                            break;
+                        case 'image':
+                            skillImageStore[param.key] = [];
+                            inputHtml = `<div style="position:relative;">
+                                <input type="file" id="skill_param_${param.key}" accept="image/*" multiple
+                                    style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1;"
+                                    onchange="handleSkillImageUpload('${param.key}', this)">
+                                <label for="skill_param_${param.key}" id="skill_img_wrap_${param.key}"
+                                    style="display:block;border:2px dashed #444;border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:#888;">
+                                    <div style="font-size:24px;margin-bottom:4px;">馃摲</div>
+                                    <div class="skill-img-text" style="font-size:13px;">鐐瑰嚮涓婁紶鍥剧墖锛堝彲澶氶€夛級</div>
+                                    <div id="skill_img_previews_${param.key}" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
+                                </label>
+                            </div>`;
+                            break;
+                        default:
+                            inputHtml = `<input type="text" id="skill_param_${param.key}" class="skill-param-input" placeholder="${param.placeholder || ''}" value="${param.default || ''}">`;
+                    }
+                    return `
+                        <div>
+                            <label class="skill-param-label">${param.label}${param.required ? '<span style="color:#ef4444; margin-left:2px;">*</span>' : ''}</label>
+                            ${inputHtml}
+                            ${param.hint ? `<div class="skill-param-hint">${param.hint}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // 馃挵 鏄剧ず鎴愭湰棰勪及
+            updateSkillCostEstimate(skill);
+            
+            document.getElementById('skillConfigModal').classList.add('show');
+        }
+        
+        // 鏇存柊鎶€鑳芥垚鏈浼?        function updateSkillCostEstimate(skill) {
+            const estimateEl = document.getElementById('skillCostEstimate');
+            const executeBtn = document.getElementById('skillExecuteBtn');
+            if (!estimateEl) return;
+            
+            if (skill && skill.estimateCost) {
+                try {
+                    const params = collectSkillParams();
+                    const cost = skill.estimateCost(params);
+                    const film = Math.ceil(cost.film || 0);
+                    estimateEl.innerHTML = `<span>馃帪锔?棰勪及: ${film} 鑳剁墖</span><span>鈴憋笍 ${cost.time || '鏈煡'}</span>`;
+                    if (executeBtn) executeBtn.textContent = film > 0 ? `馃殌 鎵ц (${film} 鑳剁墖)` : '馃殌 寮€濮嬫墽琛?;
+                } catch (e) {
+                    estimateEl.innerHTML = '<span>鎴愭湰鍙栧喅浜庡弬鏁伴厤缃?/span>';
+                }
+            } else {
+                estimateEl.innerHTML = '<span>鎴愭湰鍙栧喅浜庡疄闄呯敓鎴愬唴瀹?/span>';
+                if (executeBtn) executeBtn.textContent = '馃殌 寮€濮嬫墽琛?;
+            }
+        }
+        
+        // 鍏抽棴鎶€鑳介厤缃脊绐?        function closeSkillConfig() {
+            document.getElementById('skillConfigModal').classList.remove('show');
+            selectedSkillId = null;
+            // 娓呯┖澶氬浘瀛樺偍
+            Object.keys(skillImageStore).forEach(k => { skillImageStore[k] = []; });
+        }
+        
+        // 馃柤锔?澶氬浘涓婁紶澶勭悊锛堝弬鑰冩墜鏈虹増 previewI2VImages 瀹炵幇锛?        function handleSkillImageUpload(paramKey, input) {
+            if (!input.files || input.files.length === 0) return;
+            const files = Array.from(input.files);
+            if (!skillImageStore[paramKey]) skillImageStore[paramKey] = [];
+            
+            const processPromises = files.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(file);
+                });
+            });
+            
+            Promise.all(processPromises).then(results => {
+                results.filter(Boolean).forEach(data => skillImageStore[paramKey].push(data));
+                renderSkillImagePreviews(paramKey);
+            });
+            input.value = '';
+        }
+        
+        function removeSkillImage(paramKey, index) {
+            if (!skillImageStore[paramKey]) return;
+            skillImageStore[paramKey].splice(index, 1);
+            renderSkillImagePreviews(paramKey);
+            event.stopPropagation();
+        }
+        
+        function clearSkillImages(paramKey) {
+            skillImageStore[paramKey] = [];
+            renderSkillImagePreviews(paramKey);
+            event.stopPropagation();
+        }
+        
+        function renderSkillImagePreviews(paramKey) {
+            const container = document.getElementById(`skill_img_previews_${paramKey}`);
+            const wrap = document.getElementById(`skill_img_wrap_${paramKey}`);
+            const textEl = wrap?.querySelector('.skill-img-text');
+            const images = skillImageStore[paramKey] || [];
+            
+            if (images.length === 0) {
+                container.style.display = 'none';
+                if (textEl) textEl.textContent = '鐐瑰嚮涓婁紶鍥剧墖锛堝彲澶氶€夛級';
+                if (wrap) { wrap.style.borderColor = '#444'; wrap.style.background = 'transparent'; }
+                return;
+            }
+            
+            container.style.display = 'flex';
+            if (textEl) textEl.textContent = `宸查€夋嫨 ${images.length} 寮犲浘鐗囷紙鐐瑰嚮鍙户缁坊鍔狅級`;
+            if (wrap) { wrap.style.borderColor = 'var(--accent)'; wrap.style.background = 'rgba(251,191,36,0.05)'; }
+            
+            container.innerHTML = images.map((data, idx) => `
+                <div style="position:relative;display:inline-block;">
+                    <img src="${data}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #333;">
+                    <button onclick="removeSkillImage('${paramKey}',${idx})" 
+                        style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:#f87171;border:none;border-radius:50%;color:#fff;font-size:12px;cursor:pointer;line-height:1;">脳</button>
+                </div>
+            `).join('') + (images.length > 1 ? `<button onclick="clearSkillImages('${paramKey}')" style="background:none;border:1px dashed #666;border-radius:6px;color:#888;font-size:11px;padding:4px 8px;cursor:pointer;align-self:center;">娓呯┖</button>` : '');
+        }
+        
+        // 鏀堕泦琛ㄥ崟鍙傛暟
+        function collectSkillParams() {
+            if (!selectedSkillId || typeof SkillManager === 'undefined') return {};
+            const skill = SkillManager.getById(selectedSkillId);
+            if (!skill) return {};
+            
+            const params = {};
+            for (const param of skill.parameters || []) {
+                const el = document.getElementById(`skill_param_${param.key}`);
+                if (!el) continue;
+                switch (param.type) {
+                    case 'checkbox':
+                        params[param.key] = el.checked;
+                        break;
+                    case 'number':
+                        params[param.key] = el.value ? Number(el.value) : param.default;
+                        break;
+                    case 'file':
+                    case 'image':
+                        // 馃柤锔?澶氬浘妯″紡锛氫紭鍏堜粠 skillImageStore 璇诲彇 base64 鏁扮粍
+                        if (skillImageStore[param.key] && skillImageStore[param.key].length > 0) {
+                            params[param.key] = skillImageStore[param.key];
+                        } else if (el.files && el.files.length > 0) {
+                            params[param.key] = el.files;
+                        } else {
+                            params[param.key] = null;
+                        }
+                        break;
+                    default:
+                        params[param.key] = el.value || param.default;
+                }
+            }
+            return params;
+        }
+        
+        // 鎵ц閫変腑鐨勬妧鑳?        async function executeSelectedSkill() {
+            if (!selectedSkillId || typeof SkillManager === 'undefined') return;
+            
+            // 馃敡 鍏堜繚瀛?skillId锛屽洜涓?closeSkillConfig 浼氭竻绌哄畠
+            const skillIdToExecute = selectedSkillId;
+            const params = collectSkillParams();
+            const skill = SkillManager.getById(skillIdToExecute);
+            
+            // 馃敀 鏍￠獙蹇呭～鍙傛暟
+            for (const p of skill?.parameters || []) {
+                if (!p.required) continue;
+                const v = params[p.key];
+                if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
+                    showToast(`璇峰～鍐欙細${p.label}`);
+                    return;
+                }
+            }
+            
+            // 馃挵 璁¤垂妫€鏌?            let filmCost = 0;
+            if (skill && skill.estimateCost) {
+                try {
+                    const cost = skill.estimateCost(params);
+                    filmCost = Math.ceil(cost.film || 0);
+                } catch (e) { filmCost = 1; }
+            }
+            
+            if (filmCost > 0) {
+                // 妫€鏌ョ櫥褰曠姸鎬?                if (!currentUser) {
+                    showToast('璇峰厛鐧诲綍鍚庡啀浣跨敤鎶€鑳?);
+                    return;
+                }
+                // 妫€鏌ヤ綑棰?                if (userQuota < filmCost) {
+                    showToast(`鑳剁墖涓嶈冻锛岄渶瑕?{filmCost}鑳剁墖锛屽綋鍓?{userQuota}`);
+                    return;
+                }
+            }
+            
+            // 鍏抽棴閰嶇疆寮圭獥锛堜細娓呯┖ selectedSkillId锛?            document.getElementById('skillConfigModal').classList.remove('show');
+            
+            // 鏄剧ず杩涘害寮圭獥
+            const progressModal = document.getElementById('skillProgressModal');
+            const progressBar = document.getElementById('skillProgressBar');
+            const progressText = document.getElementById('skillProgressText');
+            const progressSteps = document.getElementById('skillProgressSteps');
+            const progressIcon = document.getElementById('skillProgressIcon');
+            
+            progressModal.classList.add('show');
+            progressBar.style.width = '0%';
+            progressText.textContent = filmCost > 0 ? `棰勪及娑堣€?${filmCost} 鑳剁墖锛屽噯澶囦腑...` : '鍑嗗涓?..';
+            progressSteps.innerHTML = '';
+            progressIcon.textContent = skill?.icon || '馃殌';
+            // 馃帹 鍒濆鍖栫簿缇庡姩鐢?            initSkillParticles();
+            initSkillSparkles();
+            setSkillAnimPhase('preparing');
+            const _pctEl = document.getElementById('spProgressPct');
+            if (_pctEl) _pctEl.textContent = '0%';
+            let _animExecuting = false;
+            
+            // 娣诲姞鍒板璇濅腑
+            const welcomeEl = document.getElementById('welcome');
+            if (welcomeEl) welcomeEl.style.display = 'none';
+            addMessage(`馃З 鎵ц鎶€鑳? ${skill?.name || selectedSkillId}`, 'user');
+            
+            // 馃幆 鏀堕泦鎵€鏈夌敓鎴愮殑濯掍綋鍐呭
+            const generatedMedia = [];
+            
+            // 馃挵 鍖呰９鎵ц鍑芥暟锛堝甫璁¤垂锛?            const skillApiCall = () => SkillManager.execute(skillIdToExecute, params, {
+                    onProgress: (step, progress, message) => {
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = message || `姝ｅ湪鎵ц: ${step}`;
+                        if (_pctEl) _pctEl.textContent = Math.round(progress) + '%';
+                        if (!_animExecuting) { setSkillAnimPhase('executing'); _animExecuting = true; }
+                    },
+                    onStepComplete: (stepName, result) => {
+                        const stepEl = document.createElement('div');
+                        stepEl.className = 'sp-step-item';
+                        stepEl.innerHTML = `<span class="sp-step-check">鉁?/span><span class="sp-step-name">${stepName}</span>`;
+                        progressSteps.appendChild(stepEl);
+                        
+                        // 馃幆 鏀堕泦鐢熸垚鐨勫獟浣撳唴瀹?                        if (result) {
+                            console.log(`[onStepComplete] ${stepName}:`, JSON.stringify(result).substring(0, 200));
+                            // 妫€鏌ュ悇绉嶅彲鑳界殑URL鏍煎紡
+                            const imgUrl = result.imageUrl || null;
+                            const vidUrl = result.videoUrl || null;
+                            // result.url 鍙兘鏄浘鐗囨垨瑙嗛锛堟潵鑷猚haracter_design_pack绛夛紝鍙兘鏄?http 鎴?data:base64锛?                            const rawUrl = (result.url && typeof result.url === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(result.url) : result.url.startsWith('http'))) ? result.url : null;
+                            
+                            if (imgUrl) {
+                                generatedMedia.push({ type: 'image', url: imgUrl, step: stepName });
+                            } else if (rawUrl && !rawUrl.match(/\.(mp4|webm|mov)($|\?)/i)) {
+                                generatedMedia.push({ type: 'image', url: rawUrl, step: stepName });
+                            }
+                            
+                            if (vidUrl) {
+                                generatedMedia.push({ type: 'video', url: vidUrl, step: stepName });
+                            } else if (rawUrl && rawUrl.match(/\.(mp4|webm|mov)($|\?)/i)) {
+                                generatedMedia.push({ type: 'video', url: rawUrl, step: stepName });
+                            }
+                            
+                            if (result.script) generatedMedia.push({ type: 'text', content: result.script, step: stepName });
+                        }
+                    },
+                    onComplete: (result) => {
+                        progressText.textContent = '馃帀 鎵ц瀹屾垚锛?;
+                        progressBar.style.width = '100%';
+                        if (_pctEl) _pctEl.textContent = '100%';
+                        setSkillAnimPhase('complete');
+                        setTimeout(() => {
+                            progressModal.classList.remove('show');
+                            
+                            // 馃幆 灞曠ず鐢熸垚缁撴灉
+                            displaySkillResults(skill?.name || skillIdToExecute, result, generatedMedia);
+                            
+                            showToast(`鉁?${skill?.name || '鎶€鑳?}鎵ц瀹屾垚锛乣);
+                        }, 2200);
+                    },
+                    onError: (error) => {
+                        progressText.textContent = `鉂?鎵ц澶辫触: ${error.message}`;
+                        setSkillAnimPhase('error');
+                        const stepEl = document.createElement('div');
+                        stepEl.className = 'sp-step-item error';
+                        stepEl.innerHTML = `<span class="sp-step-check">鉂?/span><span class="sp-step-name">${error.message}</span>`;
+                        progressSteps.appendChild(stepEl);
+                        addMessage(`鉂?鎶€鑳芥墽琛屽け璐? ${error.message}`, 'ai');
+                    }
+                });
+            
+            try {
+                // 馃挵 鍚庣 API 宸茬粡鎸夋鎵ｈ垂锛屽墠绔笉鍐嶉噸澶嶆墸璐?                // 鍙仛浣欓妫€鏌ワ紙宸插湪涓婇潰瀹屾垚锛夛紝鐩存帴鎵ц鎶€鑳?                await skillApiCall();
+                // 鎵ц瀹屽悗鍚屾鍚庣浣欓
+                if (typeof loadUserQuota === 'function') loadUserQuota();
+            } catch (error) {
+                console.error('[chat] Skill鎵ц澶辫触:', error);
+                progressModal.classList.remove('show');
+                addMessage(`鉂?鎶€鑳芥墽琛屽け璐? ${error.message}`, 'ai');
+            }
+        }
+        
+        // 鍙栨秷鎶€鑳芥墽琛?        function cancelSkillExecution() {
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.cancel();
+            }
+            setSkillAnimPhase('error');
+            document.getElementById('skillProgressText').textContent = '馃洃 宸插彇娑?;
+            setTimeout(() => {
+                document.getElementById('skillProgressModal').classList.remove('show');
+            }, 800);
+            addMessage('馃洃 鎶€鑳芥墽琛屽凡鍙栨秷', 'ai');
+        }
+        
+        // 闅愯棌杩涘害寮圭獥锛堝悗鍙拌繍琛岋級
+        function hideSkillProgress() {
+            document.getElementById('skillProgressModal').classList.remove('show');
+            showToast('鎶€鑳藉湪鍚庡彴杩愯涓?..');
+        }
+        
+        // ==================== 馃帹 鎶€鑳芥墽琛屽姩鐢荤郴缁?====================
+        function initSkillParticles() {
+            const c = document.getElementById('spParticles');
+            if (!c) return;
+            c.innerHTML = '';
+            for (let i = 0; i < 22; i++) {
+                const p = document.createElement('div');
+                p.className = 'sp-particle';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDelay = Math.random() * 5 + 's';
+                p.style.animationDuration = (4 + Math.random() * 5) + 's';
+                const sz = 2 + Math.random() * 4;
+                p.style.width = sz + 'px';
+                p.style.height = sz + 'px';
+                c.appendChild(p);
+            }
+        }
+        
+        function initSkillSparkles() {
+            const c = document.getElementById('spSparkles');
+            if (!c) return;
+            c.innerHTML = '';
+            const positions = [
+                {top:'5%',left:'8%'}, {top:'12%',right:'3%'},
+                {bottom:'18%',left:'3%'}, {bottom:'8%',right:'12%'},
+                {top:'42%',left:'-8%'}, {top:'28%',right:'-10%'}
+            ];
+            const chars = ['鉁?,'鉁?,'猸?,'鉁?,'鉁?,'鉁?];
+            positions.forEach((pos, i) => {
+                const s = document.createElement('span');
+                s.className = 'sp-sparkle';
+                s.textContent = chars[i];
+                Object.assign(s.style, pos);
+                s.style.animationDelay = (i * 0.35) + 's';
+                s.style.fontSize = (10 + Math.random() * 8) + 'px';
+                s.style.color = i % 2 === 0 ? 'var(--accent)' : '#f97316';
+                c.appendChild(s);
+            });
+        }
+        
+        function setSkillAnimPhase(phase) {
+            const modal = document.getElementById('skillProgressModal');
+            const phaseEl = document.getElementById('spPhase');
+            if (!modal) return;
+            modal.dataset.phase = phase;
+            if (!phaseEl) return;
+            switch (phase) {
+                case 'preparing': phaseEl.textContent = '馃殌 鍑嗗鍚姩'; break;
+                case 'executing':  phaseEl.textContent = '鈿?姝ｅ湪鎵ц'; break;
+                case 'complete':   phaseEl.textContent = '馃帀 浠诲姟瀹屾垚'; createConfetti(); break;
+                case 'error':      phaseEl.textContent = '馃槩 鎵ц鍑洪敊'; break;
+            }
+        }
+        
+        function createConfetti() {
+            const c = document.getElementById('spConfetti');
+            if (!c) return;
+            c.innerHTML = '';
+            const colors = ['#fbbf24','#f97316','#ef4444','#22c55e','#3b82f6','#a855f7','#ec4899','#14b8a6'];
+            for (let i = 0; i < 55; i++) {
+                const p = document.createElement('div');
+                p.className = 'sp-confetti-piece';
+                p.style.left = (30 + Math.random() * 40) + '%';
+                p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.animationDelay = Math.random() * 0.6 + 's';
+                p.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+                const w = 4 + Math.random() * 7;
+                p.style.width = w + 'px';
+                p.style.height = w * (0.3 + Math.random() * 0.7) + 'px';
+                p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                // 闅忔満鏂瑰悜鍋忕Щ
+                const xOff = (Math.random() - 0.5) * 200;
+                p.style.setProperty('--x-drift', xOff + 'px');
+                c.appendChild(p);
+            }
+            setTimeout(() => { if (c) c.innerHTML = ''; }, 4000);
+        }
+        
+        // ==================== 馃敡 鑷畾涔夋妧鑳?CRUD ====================
+        let editingSkillId = null; // 缂栬緫涓殑鎶€鑳?ID
+        
+        function openCreateSkillModal(existingSkillId) {
+            editingSkillId = existingSkillId || null;
+            const modal = document.getElementById('createSkillModal');
+            
+            // 閲嶇疆琛ㄥ崟
+            document.getElementById('csName').value = '';
+            document.getElementById('csDescription').value = '';
+            document.getElementById('csPromptTemplate').value = '';
+            document.getElementById('csTemplateType').value = 'text';
+            document.getElementById('csParamsList').innerHTML = '';
+            document.querySelectorAll('.cs-icon-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelector('.cs-icon-btn[data-icon="馃敡"]')?.classList.add('selected');
+            
+            // 濡傛灉鏄紪杈戞ā寮忥紝濉厖鐜版湁鏁版嵁
+            if (existingSkillId && typeof SkillManager !== 'undefined') {
+                const skill = SkillManager.getById(existingSkillId);
+                if (skill) {
+                    document.getElementById('csName').value = skill.name || '';
+                    document.getElementById('csDescription').value = skill.description || '';
+                    document.getElementById('csPromptTemplate').value = skill.promptTemplate || '';
+                    document.getElementById('csTemplateType').value = skill.templateType || 'text';
+                    // 閫変腑鍥炬爣
+                    document.querySelectorAll('.cs-icon-btn').forEach(b => {
+                        b.classList.toggle('selected', b.dataset.icon === skill.icon);
+                    });
+                    // 濉厖鍙傛暟
+                    (skill.parameters || []).forEach(p => addCustomParam(p));
+                }
+            }
+            
+            closeSkillDrawer();
+            modal.classList.add('show');
+        }
+        
+        function closeCreateSkillModal() {
+            document.getElementById('createSkillModal').classList.remove('show');
+            editingSkillId = null;
+        }
+        
+        function selectSkillIcon(el) {
+            document.querySelectorAll('.cs-icon-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+        
+        function addCustomParam(existing) {
+            const list = document.getElementById('csParamsList');
+            const row = document.createElement('div');
+            row.className = 'cs-param-row';
+            row.innerHTML = `
+                <input type="text" placeholder="鍙橀噺鍚?(key)" class="cs-p-key" value="${existing?.key || ''}">
+                <input type="text" placeholder="鏄剧ず鍚嶇О" class="cs-p-label" value="${existing?.label || ''}">
+                <select class="cs-p-type">
+                    <option value="text" ${(existing?.type||'text')==='text'?'selected':''}>鏂囨湰</option>
+                    <option value="textarea" ${existing?.type==='textarea'?'selected':''}>澶氳</option>
+                    <option value="number" ${existing?.type==='number'?'selected':''}>鏁板瓧</option>
+                    <option value="select" ${existing?.type==='select'?'selected':''}>閫夋嫨</option>
+                </select>
+                <input type="text" placeholder="榛樿鍊? class="cs-p-default" value="${existing?.default || ''}" style="max-width:80px;">
+                <button class="cs-param-del" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            list.appendChild(row);
+        }
+        
+        function saveNewCustomSkill() {
+            const name = document.getElementById('csName').value.trim();
+            const promptTemplate = document.getElementById('csPromptTemplate').value.trim();
+            if (!name) { showToast('璇疯緭鍏ユ妧鑳藉悕绉?); return; }
+            if (!promptTemplate) { showToast('璇疯緭鍏ユ彁绀鸿瘝妯℃澘'); return; }
+            
+            const icon = document.querySelector('.cs-icon-btn.selected')?.dataset.icon || '馃敡';
+            const templateType = document.getElementById('csTemplateType').value;
+            const description = document.getElementById('csDescription').value.trim() || `鑷畾涔?{templateType === 'text' ? '鏂囨湰' : templateType === 'image' ? '鍥剧墖' : '瑙嗛'}鎶€鑳絗;
+            
+            // 鏀堕泦鍙傛暟
+            const parameters = [];
+            document.querySelectorAll('.cs-param-row').forEach(row => {
+                const key = row.querySelector('.cs-p-key')?.value.trim();
+                const label = row.querySelector('.cs-p-label')?.value.trim();
+                const type = row.querySelector('.cs-p-type')?.value || 'text';
+                const def = row.querySelector('.cs-p-default')?.value || '';
+                if (key && label) {
+                    parameters.push({ key, label, type, required: true, default: def, placeholder: `璇疯緭鍏?{label}` });
+                }
+            });
+            
+            const skillDef = {
+                id: editingSkillId || undefined,
+                name, icon, description,
+                category: 'custom',
+                templateType, promptTemplate, parameters
+            };
+            
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.saveCustomSkill(skillDef);
+                showToast(`鉁?鎶€鑳姐€?{name}銆嶅凡淇濆瓨`);
+                closeCreateSkillModal();
+                // 鍒锋柊鍒楄〃
+                openSkillDrawer();
+                filterSkills('custom');
+            }
+        }
+        
+        function editCustomSkill(skillId) {
+            openCreateSkillModal(skillId);
+        }
+        
+        function deleteCustomSkill(skillId) {
+            if (!confirm('纭畾鍒犻櫎杩欎釜鑷畾涔夋妧鑳斤紵')) return;
+            if (typeof SkillManager !== 'undefined') {
+                SkillManager.deleteCustomSkill(skillId);
+                showToast('宸插垹闄?);
+                renderSkillList();
+            }
+        }
+        
+        function exportCustomSkill(skillId) {
+            if (typeof SkillManager === 'undefined') return;
+            const data = SkillManager.exportSkill(skillId);
+            if (!data) { showToast('瀵煎嚭澶辫触'); return; }
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `skill_${data.skill.name || 'custom'}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('宸插鍑?);
+        }
+        
+        function toggleSkillHelp() {
+            const panel = document.getElementById('csHelpPanel');
+            panel.classList.toggle('show');
+        }
+        
+        function importSkillJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    const text = await file.text();
+                    const json = JSON.parse(text);
+                    if (typeof SkillManager !== 'undefined') {
+                        const skill = SkillManager.importSkill(json);
+                        showToast(`鉁?宸插鍏ユ妧鑳姐€?{skill.name}銆峘);
+                        closeCreateSkillModal();
+                        openSkillDrawer();
+                        filterSkills('custom');
+                    }
+                } catch (err) {
+                    showToast('瀵煎叆澶辫触: ' + err.message);
+                }
+            };
+            input.click();
+        }
+        
+        // 馃幆 灞曠ず鎶€鑳芥墽琛岀粨鏋?        function displaySkillResults(skillName, result, generatedMedia) {
+            console.log('[displaySkillResults] result:', JSON.stringify(result, null, 2));
+            console.log('[displaySkillResults] generatedMedia:', generatedMedia);
+            
+            // 鏋勫缓缁撴灉娑堟伅
+            let messageContent = `鉁?鎶€鑳姐€?{skillName}銆嶆墽琛屽畬鎴怽n\n`;
+            
+            // 馃捑 缁熻淇濆瓨鏁伴噺
+            let savedImages = 0;
+            let savedVideos = 0;
+            let savedCharacters = 0;
+            
+            // 馃敡 鍚堝苟鎵€鏈夊獟浣撳埌涓€涓粺涓€鏁扮粍锛堢敤浜庢渶缁堝睍绀猴級
+            const allMedia = [...(generatedMedia || [])];
+            
+            // 妫€鏌?result 涓槸鍚︽湁 videos 鏁扮粍锛堟壒閲忕敓鎴愮粨鏋滐級
+            if (result && result.videos && Array.isArray(result.videos)) {
+                const successCount = result.videos.filter(v => v.status === 'success').length;
+                messageContent += `馃帀 鎴愬姛鐢熸垚 ${successCount}/${result.videos.length} 涓棰慭n\n`;
+                
+                result.videos.forEach((v, idx) => {
+                    if (v.status === 'success' && v.videoUrl && typeof saveVideoToLibrary === 'function') {
+                        saveVideoToLibrary(v.videoUrl, `${skillName} - 瑙嗛${idx + 1}`, 'skill');
+                        savedVideos++;
+                        if (!allMedia.some(m => m.url === v.videoUrl)) {
+                            allMedia.push({ type: 'video', url: v.videoUrl, step: `瑙嗛${idx + 1}` });
+                        }
+                    }
+                    if (v.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(v.imageUrl, `${skillName} - 灏侀潰${idx + 1}`, 'skill');
+                        savedImages++;
+                    }
+                });
+            }
+            
+            // 妫€鏌?result 涓槸鍚︽湁 characterName锛堣鑹茶瀹氬寘缁撴灉锛?            if (result && result.characterName && result.assets) {
+                const assets = result.assets;
+                const posterUrl = assets.poster || assets.turnaround;
+                
+                // 鍙湪鏈夊疄闄呭浘鐗嘦RL鏃舵墠淇濆瓨瑙掕壊锛堟敮鎸?http 鍜?data:base64锛?                if (posterUrl && typeof posterUrl === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(posterUrl) : posterUrl.startsWith('http'))) {
+                    if (typeof saveCharacterToLibrary === 'function') {
+                        saveCharacterToLibrary(
+                            result.characterName,
+                            '',
+                            posterUrl,
+                            null,
+                            typeof assets.turnaround === 'string' ? assets.turnaround : null
+                        );
+                        savedCharacters++;
+                    }
+                } else {
+                    console.warn('[displaySkillResults] 瑙掕壊鍥剧墖URL鏃犳晥, 璺宠繃淇濆瓨瑙掕壊:', posterUrl);
+                }
+                
+                // 淇濆瓨鎵€鏈夎鑹插浘鐗囧埌绱犳潗搴擄紝鍚屾椂鍔犲叆灞曠ず鏁扮粍
+                Object.entries(result.assets).forEach(([key, url]) => {
+                    if (url && typeof url === 'string' && (typeof isValidMediaUrl === 'function' ? isValidMediaUrl(url) : url.startsWith('http'))) {
+                        if (typeof saveImageToLibrary === 'function') {
+                            saveImageToLibrary(url, `${result.characterName} - ${key}`, 'character');
+                            savedImages++;
+                        }
+                        if (!allMedia.some(m => m.url === url)) {
+                            allMedia.push({ type: 'image', url: url, step: `${result.characterName} - ${key}` });
+                        }
+                    }
+                });
+            }
+            
+            // 妫€鏌?result 涓槸鍚︽湁 images 鏁扮粍锛堥鏍肩粺涓€鍑哄浘缁撴灉锛?            if (result && result.images && Array.isArray(result.images)) {
+                result.images.forEach((img, idx) => {
+                    if (img.status === 'success' && img.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(img.imageUrl, `${skillName} - ${img.subject || '鍥剧墖' + (idx + 1)}`, 'skill');
+                        savedImages++;
+                        if (!allMedia.some(m => m.url === img.imageUrl)) {
+                            allMedia.push({ type: 'image', url: img.imageUrl, step: img.subject || `鍥剧墖${idx + 1}` });
+                        }
+                    }
+                });
+            }
+            
+            // 妫€鏌?result 涓槸鍚︽湁 pages 鏁扮粍锛堟极鐢诲垎闀滅粨鏋滐級
+            if (result && result.pages && Array.isArray(result.pages)) {
+                result.pages.forEach((page, idx) => {
+                    if (page.status === 'success' && page.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(page.imageUrl, `${skillName} - 绗?{page.page}椤礰, 'comic');
+                        savedImages++;
+                        if (!allMedia.some(m => m.url === page.imageUrl)) {
+                            allMedia.push({ type: 'image', url: page.imageUrl, step: `绗?{page.page}椤礰 });
+                        }
+                    }
+                });
+            }
+            
+            // 馃摵 杩炵画鍓ф儏缁撴灉锛坋pisodes锛?            if (result && result.episodes && Array.isArray(result.episodes)) {
+                result.episodes.forEach((ep, idx) => {
+                    if (ep.status === 'success') {
+                        if (ep.videoUrl && typeof saveVideoToLibrary === 'function') {
+                            saveVideoToLibrary(ep.videoUrl, `${skillName} - 绗?{ep.episode}闆哷, 'skill', ep.imageUrl);
+                            savedVideos++;
+                            if (!allMedia.some(m => m.url === ep.videoUrl)) {
+                                allMedia.push({ type: 'video', url: ep.videoUrl, step: `绗?{ep.episode}闆哷 });
+                            }
+                        }
+                        if (ep.imageUrl && typeof saveImageToLibrary === 'function') {
+                            saveImageToLibrary(ep.imageUrl, `${skillName} - 绗?{ep.episode}闆嗗皝闈, 'skill');
+                            savedImages++;
+                            if (!ep.videoUrl && !allMedia.some(m => m.url === ep.imageUrl)) {
+                                allMedia.push({ type: 'image', url: ep.imageUrl, step: `绗?{ep.episode}闆哷 });
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 馃帹 scenes 缁撴灉锛堝叏娴佺▼鑷姩鍖栧垎闀滃浘锛?            if (result && result.scenes && Array.isArray(result.scenes)) {
+                result.scenes.forEach((scene, idx) => {
+                    if (scene.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(scene.imageUrl, `${skillName} - 鍒嗛暅${scene.index || idx + 1}`, 'skill');
+                        savedImages++;
+                        if (!allMedia.some(m => m.url === scene.imageUrl)) {
+                            allMedia.push({ type: 'image', url: scene.imageUrl, step: `鍒嗛暅${scene.index || idx + 1}` });
+                        }
+                    }
+                    if (scene.videoUrl && typeof saveVideoToLibrary === 'function') {
+                        saveVideoToLibrary(scene.videoUrl, `${skillName} - 鍒嗛暅${scene.index || idx + 1}瑙嗛`, 'skill');
+                        savedVideos++;
+                        if (!allMedia.some(m => m.url === scene.videoUrl)) {
+                            allMedia.push({ type: 'video', url: scene.videoUrl, step: `鍒嗛暅${scene.index || idx + 1}` });
+                        }
+                    }
+                });
+            }
+            
+            // 馃摉 comics 缁撴灉锛堝叏娴佺▼鑷姩鍖栨极鐢婚〉锛?            if (result && result.comics && Array.isArray(result.comics)) {
+                result.comics.forEach((comic, idx) => {
+                    if (comic.imageUrl && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(comic.imageUrl, `${skillName} - 婕敾绗?{comic.page || idx + 1}椤礰, 'comic');
+                        savedImages++;
+                        if (!allMedia.some(m => m.url === comic.imageUrl)) {
+                            allMedia.push({ type: 'image', url: comic.imageUrl, step: `婕敾绗?{comic.page || idx + 1}椤礰 });
+                        }
+                    }
+                });
+            }
+            
+            // 馃懁 charSheet 瑙掕壊璁惧畾鍥?            if (result && result.charSheet && typeof result.charSheet === 'string') {
+                const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && u.startsWith('http'));
+                if (_isValid(result.charSheet)) {
+                    if (typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(result.charSheet, `${skillName} - 瑙掕壊璁惧畾琛╜, 'character');
+                        savedImages++;
+                    }
+                    if (!allMedia.some(m => m.url === result.charSheet)) {
+                        allMedia.push({ type: 'image', url: result.charSheet, step: '瑙掕壊璁惧畾琛? });
+                    }
+                }
+            }
+            
+            // 馃捑 浠?generatedMedia 涓繚瀛橈紙浣滀负琛ュ厖锛岃烦杩囧凡閫氳繃 result 淇濆瓨杩囩殑锛?            const _savedUrls = new Set();
+            if (result && result.images) result.images.forEach(img => { if (img.imageUrl) _savedUrls.add(img.imageUrl); });
+            if (result && result.videos) result.videos.forEach(v => { if (v.videoUrl) _savedUrls.add(v.videoUrl); if (v.imageUrl) _savedUrls.add(v.imageUrl); });
+            if (result && result.pages) result.pages.forEach(p => { if (p.imageUrl) _savedUrls.add(p.imageUrl); });
+            if (result && result.assets) Object.values(result.assets).forEach(u => { if (u) _savedUrls.add(u); });
+            if (result && result.episodes) result.episodes.forEach(ep => { if (ep.videoUrl) _savedUrls.add(ep.videoUrl); if (ep.imageUrl) _savedUrls.add(ep.imageUrl); });
+            if (result && result.scenes) result.scenes.forEach(s => { if (s.imageUrl) _savedUrls.add(s.imageUrl); if (s.videoUrl) _savedUrls.add(s.videoUrl); });
+            if (result && result.comics) result.comics.forEach(c => { if (c.imageUrl) _savedUrls.add(c.imageUrl); });
+            if (result && result.charSheet) _savedUrls.add(result.charSheet);
+            
+            if (generatedMedia && generatedMedia.length > 0) {
+                generatedMedia.forEach((m, idx) => {
+                    if (_savedUrls.has(m.url)) return; // 宸查€氳繃 result 淇濆瓨锛岃烦杩?                    if (m.type === 'image' && m.url && typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(m.url, m.step || `${skillName} - 鍥剧墖${idx + 1}`, 'skill');
+                        savedImages++;
+                    }
+                    if (m.type === 'video' && m.url && typeof saveVideoToLibrary === 'function') {
+                        saveVideoToLibrary(m.url, m.step || `${skillName} - 瑙嗛${idx + 1}`, 'skill');
+                        savedVideos++;
+                    }
+                });
+            }
+            
+            // 灞曠ず鎵€鏈夊獟浣撳唴瀹圭粺璁?            const allImages = allMedia.filter(m => m.type === 'image' && m.url);
+            const allVideos = allMedia.filter(m => m.type === 'video' && m.url);
+            
+            if (allImages.length > 0 || allVideos.length > 0) {
+                messageContent += `馃帹 鐢熸垚鍐呭锛歕n`;
+                if (allImages.length > 0) messageContent += `鈥?${allImages.length} 寮犲浘鐗嘰n`;
+                if (allVideos.length > 0) messageContent += `鈥?${allVideos.length} 涓棰慭n`;
+            }
+            
+            // 馃捑 鏄剧ず淇濆瓨缁撴灉
+            if (savedImages > 0 || savedVideos > 0 || savedCharacters > 0) {
+                messageContent += `\n馃捑 宸蹭繚瀛樺埌鏈湴锛歕n`;
+                if (savedCharacters > 0) messageContent += `鈥?${savedCharacters} 涓鑹?鈫?瑙掕壊搴揬n`;
+                if (savedImages > 0) messageContent += `鈥?${savedImages} 寮犲浘鐗?鈫?绱犳潗搴揬n`;
+                if (savedVideos > 0) messageContent += `鈥?${savedVideos} 涓棰?鈫?绱犳潗搴揬n`;
+            }
+            
+            // 馃摑 澶勭悊鏂囨湰绫荤粨鏋滐紙鏂囨銆佸垎闀滆剼鏈瓑锛?            let hasTextContent = false;
+            if (result && result.copywritings && Array.isArray(result.copywritings) && result.copywritings.length > 0) {
+                hasTextContent = true;
+                messageContent += `馃摑 鐢熸垚 ${result.copywritings.length} 鏉℃枃妗圽n`;
+            }
+            if (result && result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+                hasTextContent = true;
+                messageContent += `鉁傦笍 鎷嗗垎涓?${result.segments.length} 涓墖娈礬n`;
+            }
+            if (result && result.outline && typeof result.outline === 'string') {
+                hasTextContent = true;
+            }
+            // 鏂板锛歰crText, result(string), copyText, strategy, script
+            if (result && result.ocrText) { hasTextContent = true; messageContent += `馃攳 OCR璇嗗埆瀹屾垚\n`; }
+            if (result && typeof result.result === 'string') { hasTextContent = true; messageContent += `馃摑 鑴氭湰澶勭悊瀹屾垚\n`; }
+            if (result && result.copyText) { hasTextContent = true; messageContent += `馃摑 鏂囨鐢熸垚瀹屾垚\n`; }
+            if (result && result.strategy) { hasTextContent = true; messageContent += `馃搳 绛栫暐鏂规鐢熸垚瀹屾垚\n`; }
+            if (result && result.script && typeof result.script === 'string') { hasTextContent = true; messageContent += `馃摑 鍓ф湰鐢熸垚瀹屾垚\n`; }
+            // generatedMedia 涓殑鏂囨湰
+            const textItems = (generatedMedia || []).filter(m => m.type === 'text' && m.content);
+            if (textItems.length > 0) hasTextContent = true;
+            
+            // 鏃犱换浣曠粨鏋滄椂鎻愮ず
+            if (allImages.length === 0 && allVideos.length === 0 && savedCharacters === 0 && !hasTextContent) {
+                messageContent += `鈿狅笍 鏈敓鎴愭湁鏁堝唴瀹癸紝鍙兘API璋冪敤澶辫触锛岃妫€鏌ョ綉缁滄垨閲嶈瘯\n`;
+            }
+            
+            // 馃搳 娣诲姞瀛樺偍楠岃瘉淇℃伅锛堝府鍔╄瘖鏂棶棰橈級
+            try {
+                const charsCount = JSON.parse(localStorage.getItem('library_chars') || '[]').length;
+                const scenesCount = JSON.parse(localStorage.getItem('library_scenes') || '[]').length;
+                const pcCharsCount = JSON.parse(localStorage.getItem('character_library') || '[]').length;
+                messageContent += `\n馃搳 褰撳墠搴撳瓨锛氳鑹插簱 ${charsCount} 鏉?| 绱犳潗搴?${scenesCount} 鏉?| PC瑙掕壊搴?${pcCharsCount} 鏉;
+                
+                // 濡傛灉result鏈塧ssets浣嗛兘涓嶆槸鏈夋晥URL锛岄澶栨彁绀?                if (result && result.assets) {
+                    const assetKeys = Object.keys(result.assets);
+                    const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && typeof u === 'string' && u.startsWith('http'));
+                    const validUrls = Object.values(result.assets).filter(v => _isValid(v)).length;
+                    messageContent += `\n馃搸 result.assets: ${assetKeys.length}椤? 鏈夋晥URL: ${validUrls}涓猔;
+                }
+                if (generatedMedia) {
+                    messageContent += ` | generatedMedia: ${generatedMedia.length}椤筦;
+                }
+            } catch (e) { }
+            
+            // 娣诲姞鏂囨湰娑堟伅
+            addMessage(messageContent, 'ai');
+            
+            // 馃摑 灞曠ず鏂囨鍐呭锛堢儹鐐规枃妗堢瓑鏂囨湰绫绘妧鑳斤級
+            if (result && result.copywritings && Array.isArray(result.copywritings) && result.copywritings.length > 0) {
+                const textMsg = result.copywritings.map((c, i) => `${i + 1}. ${c}`).join('\n');
+                addMessage(textMsg, 'ai');
+            }
+            // 灞曠ず鑴氭湰鎷嗗垎缁撴灉
+            if (result && result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+                const segMsg = result.segments.map((s, i) => `鐗囨${i + 1}: ${typeof s === 'string' ? s : (s.description || s.content || JSON.stringify(s)).substring(0, 200)}`).join('\n\n');
+                addMessage(segMsg, 'ai');
+            }
+            // 灞曠ず OCR / 鑴氭湰 / 鏂囨 / 绛栫暐 / 鍓ф湰 绛夋枃鏈粨鏋?            if (result && result.ocrText) addMessage(`馃攳 OCR璇嗗埆缁撴灉锛歕n${result.ocrText}`, 'ai');
+            if (result && typeof result.result === 'string') addMessage(`馃摑 澶勭悊缁撴灉锛歕n${result.result}`, 'ai');
+            if (result && result.copyText) addMessage(`馃摑 鏂囨鍐呭锛歕n${result.copyText}`, 'ai');
+            if (result && result.strategy) addMessage(`馃搳 绛栫暐鏂规锛歕n${result.strategy}`, 'ai');
+            if (result && result.script && typeof result.script === 'string') addMessage(`馃摑 鍓ф湰锛歕n${result.script}`, 'ai');
+            
+            // 馃帹 灞曠ず鍥剧墖鍜岃棰戯紙浣跨敤鍚堝苟鍚庣殑 allMedia锛?            if (allImages.length > 0 || allVideos.length > 0) {
+                const mediaContainer = document.createElement('div');
+                mediaContainer.className = 'message ai';
+                mediaContainer.style.cssText = 'display:flex; flex-direction:column; gap:12px; max-width:90%;';
+                
+                // 灞曠ず鍥剧墖
+                if (allImages.length > 0) {
+                    const imagesGrid = document.createElement('div');
+                    imagesGrid.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px;';
+                    
+                    allImages.forEach((img, idx) => {
+                        const imgWrapper = document.createElement('div');
+                        imgWrapper.style.cssText = 'position:relative; border-radius:8px; overflow:hidden;';
+                        
+                        const imgEl = document.createElement('img');
+                        imgEl.src = img.url;
+                        imgEl.alt = img.step || `鍥剧墖 ${idx + 1}`;
+                        imgEl.style.cssText = 'width:100%; height:auto; display:block; cursor:pointer;';
+                        imgEl.onclick = () => window.open(img.url, '_blank');
+                        
+                        const label = document.createElement('div');
+                        label.style.cssText = 'padding:4px 8px; background:rgba(0,0,0,0.7); color:#aaa; font-size:11px; text-align:center;';
+                        label.textContent = img.step || `鍥剧墖 ${idx + 1}`;
+                        
+                        imgWrapper.appendChild(imgEl);
+                        imgWrapper.appendChild(label);
+                        imagesGrid.appendChild(imgWrapper);
+                    });
+                    
+                    mediaContainer.appendChild(imagesGrid);
+                }
+                
+                // 灞曠ず瑙嗛
+                if (allVideos.length > 0) {
+                    allVideos.forEach((vid, idx) => {
+                        const videoWrapper = document.createElement('div');
+                        videoWrapper.style.cssText = 'border-radius:8px; overflow:hidden; background:#000;';
+                        
+                        const videoEl = document.createElement('video');
+                        videoEl.src = vid.url;
+                        videoEl.controls = true;
+                        videoEl.style.cssText = 'width:100%; max-height:300px;';
+                        videoEl.setAttribute('playsinline', '');
+                        
+                        const label = document.createElement('div');
+                        label.style.cssText = 'padding:6px 10px; background:#1a1a1a; color:#888; font-size:12px;';
+                        label.textContent = vid.step || `瑙嗛 ${idx + 1}`;
+                        
+                        videoWrapper.appendChild(videoEl);
+                        videoWrapper.appendChild(label);
+                        mediaContainer.appendChild(videoWrapper);
+                    });
+                }
+                
+                document.getElementById('chatContainer').appendChild(mediaContainer);
+                mediaContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }
+    </script>
+</body>
+
+</html>

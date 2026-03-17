@@ -15,6 +15,9 @@
     const ToolRegistry = {
         _tools: new Map(),
 
+        // DubbingX 音色缓存 { male: [{voiceId,name,...}], female: [...], fetched: false }
+        _dubbingxVoiceCache: { male: [], female: [], fetched: false },
+
         register(id, config) {
             this._tools.set(id, config);
         },
@@ -28,6 +31,42 @@
             if (!tool) throw new Error(`工具不存在: ${toolId}`);
             console.log(`🔧 [Tool] 执行: ${toolId}`, params);
             return await tool.fn(params);
+        },
+
+        /** 预加载 DubbingX 音色列表（init 时异步调用） */
+        async _fetchDubbingXVoices() {
+            try {
+                // 并发拉取男声和女声
+                const [resM, resF] = await Promise.all([
+                    fetch('/api/yunwu', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-voices', gender: 1, pageSize: 50, grade: 'premium' })
+                    }),
+                    fetch('/api/yunwu', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'tts-voices', gender: 0, pageSize: 50, grade: 'premium' })
+                    })
+                ]);
+                const [dataM, dataF] = await Promise.all([resM.json().catch(() => ({})), resF.json().catch(() => ({}))]);
+                if (dataM.success && dataM.voices?.length) this._dubbingxVoiceCache.male = dataM.voices;
+                if (dataF.success && dataF.voices?.length) this._dubbingxVoiceCache.female = dataF.voices;
+                this._dubbingxVoiceCache.fetched = true;
+                console.log(`🎤 [ToolRegistry] DubbingX音色预���载: 男声${this._dubbingxVoiceCache.male.length}个, 女声${this._dubbingxVoiceCache.female.length}个`);
+            } catch (e) {
+                console.warn('[ToolRegistry] DubbingX音色预加载失败:', e.message);
+                this._dubbingxVoiceCache.fetched = true; // 标记已尝试，避免重复
+            }
+        },
+
+        /** 根据 roleHint 从缓存智能选取 DubbingX voiceId，返回 null 表示缓存为空 */
+        _pickDubbingXVoice(roleHint) {
+            const hint = (roleHint || '').toLowerCase();
+            const isFemale = /女|母|姐|妹|娘|公主|少女|她|girl|female/.test(hint);
+            const pool = isFemale ? this._dubbingxVoiceCache.female : this._dubbingxVoiceCache.male;
+            if (!pool.length) return null;
+            // 随机选（前5个高质量音色中随机）
+            const pick = pool[Math.floor(Math.random() * Math.min(pool.length, 5))];
+            return pick?.voiceId || null;
         },
 
         /** 获取工具描述（供 LLM 理解） */
@@ -136,14 +175,45 @@
             });
 
             // 视频生成
+            // 💰 允许使用的视频模型白名单，kling/hailuo/vidu/sora/modelscope-video不可用
+            const ALLOWED_VIDEO_MODELS = [
+                'grok-video-3', 'grok-video-3-10s', 'grok-video-3-15s',
+                'veo3.1', 'veo3.1-4K', 'veo3',
+                'wan26-720p-5s-audio', 'wan26-720p-10s-audio', 'wan26-720p-15s-audio',
+                'wan26-1080p-5s-audio', 'wan26-1080p-10s-audio', 'wan26-1080p-15s-audio',
+                'wan26-720p-5s', 'wan26-720p-10s', 'wan26-720p-15s',
+                'wan26-1080p-5s', 'wan26-1080p-10s', 'wan26-1080p-15s'
+            ];
+            const _pickVideoModel = (requested, hint = {}) => {
+                if (requested && ALLOWED_VIDEO_MODELS.includes(requested)) return requested;
+                // 优先用全局智能选择函数（由 skill-presets.js 暴露）
+                if (typeof window._selectVideoModel === 'function') {
+                    return window._selectVideoModel({ preferred: requested, ...hint });
+                }
+                // 兜底：内容感知智能选择（与 batch.js __smartSelectVideoModel 一致）
+                const topic = String(hint.topic || '').toLowerCase();
+                const needVoice = /配音|对话|旁白|语音|说话|台词|独白|voice|narrat|dialogue|speak|dub/.test(topic);
+                if (needVoice) return 'veo3.1';
+                const needHighQuality = /电影|大片|史诗|4k|高质量|cinematic|epic|震撼|广告片|宣传片/.test(topic);
+                if (needHighQuality) return 'veo3.1';
+                const needMusic = /音乐|歌曲|音效|配乐|bgm|music|singing/.test(topic);
+                if (needMusic) return 'wan26-720p-5s-audio';
+                const needAudio = /有声|audio|声音/.test(topic);
+                if (needAudio) return 'veo3.1';
+                const dur = parseInt(hint.duration) || 0;
+                if (dur > 10) return 'grok-video-3-15s';
+                if (dur > 5) return 'grok-video-3-10s';
+                return 'grok-video-3-10s';
+            };
+
             this.register('video_text', {
                 name: '文生视频',
-                description: '文字描述生成视频。参数: prompt(英文提示词), model(视频模型: sora-2-vip-all/veo3.1/grok-video-3/kling-2.5-720p-5s/hailuo-02-768p-6s/vidu-q2-pro-8s-1080p/vidu-q3-pro-8s-1080p/wan26-720p-5s/wan26-1080p-10s-audio等,默认sora-2-vip-all), aspectRatio(比例)',
+                description: '文字描述生成视频。参数: prompt(英文提示词), model(优先选有声: grok-video-3=6s有声/grok-video-3-10s=10s有声/grok-video-3-15s=15s有声/wan26-720p-5s-audio=5s有声/wan26-720p-10s-audio=10s有声/wan26-720p-15s-audio=15s有声/wan26-1080p-5s-audio=5s有声高清/wan26-1080p-10s-audio=10s有声高清/wan26-1080p-15s-audio=15s有声高清/wan26-720p-5s=5s无声/veo3.1=高质量有声/veo3.1-4K=超清暂不稳定,默认grok-video-3,kling/hailuo/vidu/sora/modelscope-video均不可用), aspectRatio(比例,默认16:9)',
                 params: ['prompt', 'model', 'aspectRatio'],
                 fn: async (p) => {
                     if (typeof callSora2TextToVideoAPI === 'function') {
                         return await callSora2TextToVideoAPI(p.prompt, {
-                            model: p.model || 'sora-2-vip-all',
+                            model: _pickVideoModel(p.model, { topic: p.prompt, duration: p.duration }),
                             aspectRatio: p.aspectRatio || '16:9'
                         });
                     }
@@ -153,12 +223,12 @@
 
             this.register('video_image', {
                 name: '图生视频',
-                description: '图片动态化生成视频。参数: imageUrl(图片URL), prompt(英文动作描述), model(视频模型: sora-2-vip-all/veo3.1/grok-video-3/kling-2.5-720p-5s/hailuo-02-768p-6s/vidu-q2-pro-8s-1080p/vidu-q3-pro-8s-1080p/wan26-720p-5s/wan26-1080p-10s-audio等,默认sora-2-vip-all), aspectRatio(比例)',
+                description: '图片动态化生成视频。参数: imageUrl(图片URL), prompt(英文动作描述), model(优先选有声: grok-video-3=6s有声/grok-video-3-10s=10s有声/grok-video-3-15s=15s有声/wan26-720p-5s-audio=5s有声/wan26-720p-10s-audio=10s有声/wan26-720p-15s-audio=15s有声/wan26-1080p-5s-audio=5s有声高清/wan26-1080p-10s-audio=10s有声高清/wan26-1080p-15s-audio=15s有声高清/wan26-720p-5s=5s无声/veo3.1=高质量有声/veo3.1-4K=超清暂不稳定,默认grok-video-3,kling/hailuo/vidu/sora/modelscope-video均不可用), aspectRatio(比例,默认16:9)',
                 params: ['imageUrl', 'prompt', 'model', 'aspectRatio'],
                 fn: async (p) => {
                     if (typeof callSora2ImageToVideoAPI === 'function') {
                         return await callSora2ImageToVideoAPI(p.imageUrl, p.prompt, {
-                            model: p.model || 'sora-2-vip-all',
+                            model: _pickVideoModel(p.model, { topic: p.prompt, duration: p.duration }),
                             aspectRatio: p.aspectRatio || '16:9'
                         });
                     }
@@ -194,21 +264,36 @@
                         composition: '请分析这张图片的构图方式，包括：构图法则(三分法/对称/引导线等)、视觉焦点位置、空间层次、适合的应用场景。用JSON格式输出: {"composition":"","focalPoint":"","layers":"","useCase":""}',
                         all: '请全面分析这张图片，包括以下维度：\n1. 内容：主体、背景、细节\n2. 风格：艺术风格、质感、氛围\n3. 色彩：主色调、配色方案、明暗\n4. 构图：构图方式、视觉焦点\n5. 文字：图中所有文字内容\n6. 建议：如何用AI复现类似风格的英文prompt关键词\n用JSON格式输出完整分析结果。'
                     };
-                    return await callOCRAPI(p.imageUrl, prompts[type] || prompts.all, 'gemini-2.5-flash');
+                    return await callOCRAPI(p.imageUrl, prompts[type] || prompts.all, 'gemini-3.1-flash-preview');
                 }
             });
 
             // TTS配音
             this.register('tts_generate', {
                 name: 'TTS配音',
-                description: 'AI文字转语音配音。参数: text(配音文本), engine(引擎: gemini/kling/dubbingx,默认gemini), voiceId(音色ID,可选), speed(语速0.5-2,默认1)',
-                params: ['text', 'engine', 'voiceId', 'speed'],
+                description: 'AI文字转语音配音。参数: text(配音文本), engine(引擎: dubbingx/kling/gemini,默认dubbingx), voiceId(音色ID,dubbingx需要用户指定或不填自动处理;已知kling男声:genshin_vindi2或diyinnansang_DB_CN_M_04-v2,女声:ai_shatang), speed(语速0.5-2,默认1), roleHint(角色描述如"旁白""年轻女性""成熟男性"，用于智能匹配音色)',
+                params: ['text', 'engine', 'voiceId', 'speed', 'roleHint'],
                 fn: async (p) => {
                     if (typeof callTTSAPI === 'function') {
+                        let engine = p.engine || 'dubbingx';
+                        let voiceId = p.voiceId || '';
+                        // dubbingx 无 voiceId 时：优先从缓存智能选，缓存空才降级 Kling
+                        if (engine === 'dubbingx' && !voiceId) {
+                            const cached = ToolRegistry._pickDubbingXVoice(p.roleHint || '');
+                            if (cached) {
+                                voiceId = cached; // 使用 DubbingX 真实音色
+                            } else {
+                                engine = 'kling';
+                                const hint = (p.roleHint || '').toLowerCase();
+                                const isFemale = /女|母|姐|妹|娘|公主|少女|她/.test(hint);
+                                voiceId = isFemale ? 'ai_shatang' : 'genshin_vindi2';
+                            }
+                        }
                         return await callTTSAPI(p.text, {
-                            engine: p.engine || 'gemini',
-                            voiceId: p.voiceId || '',
-                            speed: parseFloat(p.speed) || 1
+                            engine,
+                            voiceId,
+                            speed: parseFloat(p.speed) || 1,
+                            roleHint: p.roleHint || ''
                         });
                     }
                     throw new Error('callTTSAPI 不可用');
@@ -218,7 +303,7 @@
             // AI音乐生成
             this.register('music_generate', {
                 name: 'AI音乐',
-                description: 'Suno AI音乐生成。参数: prompt(歌词或描述), title(标题,可选), tags(风格标签如pop/rock,可选), model(chirp-v4/chirp-v5/chirp-auk,默认chirp-v4), instrumental(纯音乐true/false,默认false), description(灵感描述,可选-与prompt二选一)',
+                description: 'Suno AI音乐生成。参数: prompt(歌词或描述), title(标题,可选), tags(风格标签如pop/rock,可选), model(chirp-auk/chirp-v4/chirp-v5,默认chirp-auk即v4.5), instrumental(纯音乐true/false,默认false), description(灵感描述,可选-与prompt二选一)',
                 params: ['prompt', 'title', 'tags', 'model', 'instrumental', 'description'],
                 fn: async (p) => {
                     if (typeof callSunoMusicAPI === 'function') {
@@ -227,7 +312,7 @@
                             description: p.description || '',
                             title: p.title || '',
                             tags: p.tags || '',
-                            model: p.model || 'chirp-v4',
+                            model: p.model || 'chirp-auk',
                             instrumental: p.instrumental === true || p.instrumental === 'true'
                         });
                     }
@@ -272,7 +357,193 @@
                 }
             });
 
+            // 🧊 混元生3D
+            this.register('model3d', {
+                name: '混元生3D',
+                description: '腾讯混元生3D专业版，根据文字描述或图片生成高精度3D模型（GLB格式）。耗时约1-3分钟。参数: prompt(中文描述,如"一只熊猫"), imageUrl(参考图URL,可选,与prompt二选一或同时提供)',
+                params: ['prompt', 'imageUrl'],
+                fn: async (p) => {
+                    if (typeof callHunyuan3DAPI === 'function') {
+                        return await callHunyuan3DAPI({ prompt: p.prompt, imageUrl: p.imageUrl });
+                    }
+                    throw new Error('callHunyuan3DAPI 不可用');
+                }
+            });
+
+            // 🧩 技能系统工具（调用 SkillManager 执行高级图像编辑技能）
+            this.register('skill_portrait', {
+                name: 'AI写真',
+                description: '人像写真生成：保留人物特征，转换为时尚/商业/艺术/自然/复古/动漫风格写真，并行生成3张。参数: portrait(人像图URL,必须), style(fashion/commercial/artistic/natural/vintage/anime,默认fashion), sceneDesc(场景,可选), aspectRatio(3:4/1:1/9:16,默认3:4)',
+                params: ['portrait', 'style', 'sceneDesc', 'aspectRatio'],
+                fn: async (p) => {
+                    if (global.SkillManager) return await global.SkillManager.execute('ai_portrait', p, { onProgress: (s, pct, m) => console.log(`[skill_portrait] ${s} ${pct}%`), onStepComplete: () => { } });
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            this.register('skill_bg_replace', {
+                name: '商品背景替换',
+                description: '电商商品换背景：保留商品主体，生成白底/渐变/场景/节日/高端/自定义背景，生成2张。参数: productImage(商品图URL,必须), bgType(white/gradient/scene/festive/luxury/custom,默认white), bgDesc(自定义描述,bgType=custom时填), aspectRatio(1:1/3:4/16:9/9:16,默认1:1)',
+                params: ['productImage', 'bgType', 'bgDesc', 'aspectRatio'],
+                fn: async (p) => {
+                    if (global.SkillManager) return await global.SkillManager.execute('product_bg_replace', p, { onProgress: (s, pct, m) => console.log(`[skill_bg_replace] ${s} ${pct}%`), onStepComplete: () => { } });
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            this.register('skill_style_transfer', {
+                name: '风格变身',
+                description: '图片风格变换：转换为日漫/皮克斯/油画/水彩/赛博朋克/水墨/素描/吉卜力/像素/低多边形风格，生成2版本。参数: sourceImage(图片URL,必须), targetStyle(anime/pixar/oilpaint/watercolor/cyberpunk/ink/sketch/ghibli/pixel/lowpoly,默认anime), aspectRatio(1:1/9:16/16:9/3:4,默认1:1)',
+                params: ['sourceImage', 'targetStyle', 'aspectRatio'],
+                fn: async (p) => {
+                    if (global.SkillManager) return await global.SkillManager.execute('style_transfer', p, { onProgress: (s, pct, m) => console.log(`[skill_style_transfer] ${s} ${pct}%`), onStepComplete: () => { } });
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            this.register('skill_outpaint', {
+                name: '智能扩图',
+                description: 'AI扩展图片边界，无损延伸画面。参数: sourceImage(图片URL,必须), expandDirection(wide横向→16:9/tall纵向→9:16/all四周/top/bottom/left/right,默认wide), contentHint(扩展区域描述,可选)',
+                params: ['sourceImage', 'expandDirection', 'contentHint'],
+                fn: async (p) => {
+                    if (global.SkillManager) return await global.SkillManager.execute('smart_outpaint', p, { onProgress: (s, pct, m) => console.log(`[skill_outpaint] ${s} ${pct}%`), onStepComplete: () => { } });
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            // 🌤️ 天气查询工具
+            this.register('weather_query', {
+                name: '天气查询',
+                description: '查询全球任意城市的实时天气和未来预报。零配置，支持中文/英文城市名。参数: city(城市名,如"北京"/"New York"), forecast(预报范围:current仅今天/3days未来3天/7days未来7天,默认current)',
+                params: ['city', 'forecast'],
+                fn: async (p) => {
+                    if (global.SkillManager) {
+                        return await global.SkillManager.execute('weather_query', {
+                            city: p.city,
+                            forecast: p.forecast || 'current'
+                        }, { onProgress: () => { }, onStepComplete: () => { } });
+                    }
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            // 📝 内容总结工具
+            this.register('content_summarize', {
+                name: '内容总结',
+                description: '总结URL网页、长文本、视频内容。快速提取关键信息。参数: content(内容文本或URL), summaryType(总结方式:bullet要点列表/paragraph段落摘要/detailed详细总结/keypoints关键信息,默认bullet), language(输出语言:zh中文/en英文/auto自动,默认zh)',
+                params: ['content', 'summaryType', 'language'],
+                fn: async (p) => {
+                    if (global.SkillManager) {
+                        return await global.SkillManager.execute('content_summarize', {
+                            content: p.content,
+                            summaryType: p.summaryType || 'bullet',
+                            language: p.language || 'zh'
+                        }, { onProgress: () => { }, onStepComplete: () => { } });
+                    }
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            // 🔍 联网搜索工具
+            this.register('web_search', {
+                name: '联网搜索',
+                description: '实时搜索互联网获取最新信息。查新闻、找资料、搜热点。参数: query(搜索关键词), resultCount(结果数量:3/5/10,默认5), searchType(搜索类型:general综合/news新闻/tech技术,默认general)',
+                params: ['query', 'resultCount', 'searchType'],
+                fn: async (p) => {
+                    if (global.SkillManager) {
+                        return await global.SkillManager.execute('web_search', {
+                            query: p.query,
+                            resultCount: p.resultCount || '5',
+                            searchType: p.searchType || 'general'
+                        }, { onProgress: () => { }, onStepComplete: () => { } });
+                    }
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            // 🐙 GitHub集成工具
+            this.register('github_integration', {
+                name: 'GitHub助手',
+                description: '搜索代码仓库、查看Issue/PR、获取项目信息。参数: action(操作类型:search_repo/search_code/get_repo/get_issues/get_readme), query(搜索关键词或owner/repo), language(编程语言,可选)',
+                params: ['action', 'query', 'language'],
+                fn: async (p) => {
+                    if (global.SkillManager) {
+                        return await global.SkillManager.execute('github_integration', {
+                            action: p.action,
+                            query: p.query,
+                            language: p.language
+                        }, { onProgress: () => { }, onStepComplete: () => { } });
+                    }
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            // 👍 反馈收集工具（自我迭代）
+            this.register('feedback_collector', {
+                name: '反馈收集',
+                description: '收集用户对AI回复的反馈，帮助AI自我改进。参数: feedbackType(反馈类型:rating/suggestion/error_report), rating(评分1-5), content(详细反馈内容)',
+                params: ['feedbackType', 'rating', 'content'],
+                fn: async (p) => {
+                    if (global.SkillManager) {
+                        return await global.SkillManager.execute('feedback_collector', {
+                            feedbackType: p.feedbackType || 'rating',
+                            rating: p.rating || '5',
+                            content: p.content || ''
+                        }, { onProgress: () => { }, onStepComplete: () => { } });
+                    }
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            // 🔧 技能发现工具
+            this.register('find_skills', {
+                name: '技能发现',
+                description: '根据用户需求推荐合适的技能。参数: need(用户需求的描述文本)',
+                params: ['need'],
+                fn: async (p) => {
+                    if (global.SkillManager) {
+                        return await global.SkillManager.execute('find_skills', {
+                            need: p.need
+                        }, { onProgress: () => { }, onStepComplete: () => { } });
+                    }
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            // 🤖 主动代理工具
+            this.register('proactive_agent', {
+                name: '主动助手',
+                description: '分析用户行为，主动提供建议。参数: action(操作类型:analyze/suggest/remind)',
+                params: ['action'],
+                fn: async (p) => {
+                    if (global.SkillManager) {
+                        return await global.SkillManager.execute('proactive_agent', {
+                            action: p.action || 'suggest'
+                        }, { onProgress: () => { }, onStepComplete: () => { } });
+                    }
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
+            // 🧠 记忆图谱工具
+            this.register('ontology_memory', {
+                name: '记忆图谱',
+                description: '提取对话关键信息构建知识图谱。参数: action(操作类型:extract/view/forget), content(对话内容，extract时使用)',
+                params: ['action', 'content'],
+                fn: async (p) => {
+                    if (global.SkillManager) {
+                        return await global.SkillManager.execute('ontology_memory', {
+                            action: p.action || 'view',
+                            content: p.content || ''
+                        }, { onProgress: () => { }, onStepComplete: () => { } });
+                    }
+                    throw new Error('SkillManager 不可用');
+                }
+            });
+
             console.log(`🔧 [ToolRegistry] 已注册 ${this._tools.size} 个工具`);
+            // 异步预加载 DubbingX 音色缓存（不阻塞初始化）
+            this._fetchDubbingXVoices();
         }
     };
 
@@ -285,6 +556,14 @@
         });
     }
 
+    /** 判断错误是否为"后端已处理但连接中途断开"——此类错误不应重试（避免重复扣费） */
+    function isConnectionClosedAfterBilling(e) {
+        const msg = String(e?.message || '');
+        // net::ERR_CONNECTION_CLOSED 且状态码为 200，说明后端已完成处理并扣费
+        return /ERR_CONNECTION_CLOSED.*200|200.*ERR_CONNECTION_CLOSED|失败: 200$|failed.*200$/i.test(msg)
+            || /ERR_CONNECTION_CLOSED/i.test(msg);
+    }
+
     /** 带重试的函数调用 */
     async function withRetry(fn, maxRetries = 2, delayMs = 3000, label = '') {
         let lastErr;
@@ -294,6 +573,11 @@
             } catch (e) {
                 lastErr = e;
                 console.warn(`⚠️ [Retry] ${label} 第${attempt}次失败: ${e.message}`);
+                // 后端已处理（连接中途断开），不重试避免重复扣费
+                if (isConnectionClosedAfterBilling(e)) {
+                    console.warn(`⚠️ [Retry] ${label} 检测到连接断开(后端已处理)，跳过重试`);
+                    break;
+                }
                 if (attempt < maxRetries) await new Promise(r => setTimeout(r, delayMs * attempt));
             }
         }
@@ -309,7 +593,9 @@
         if (toolId === 'ocr') return 60000;              // OCR: 1分钟
         if (toolId === 'tts_generate') return 120000;     // TTS: 2分钟
         if (toolId === 'music_generate') return 300000;    // 音乐: 5分钟
+        if (toolId === 'model3d') return 300000;          // 3D模型: 5分钟
         if (toolId.startsWith('save_')) return 10000;    // 保存: 10秒
+        if (toolId.startsWith('skill_')) return 300000;   // 技能工具: 5分钟
         return 60000; // 默认 1分钟
     }
 
@@ -317,15 +603,15 @@
     /** 同类工具降级顺序：当主工具失败时自动尝试同类替代工具 */
     const TOOL_FALLBACKS = {
         // 图片生成类：互为备选
-        image_seedream:   ['image_banana', 'image_modelscope', 'image_mj'],
-        image_banana:     ['image_seedream', 'image_modelscope', 'image_mj'],
+        image_seedream: ['image_banana', 'image_modelscope', 'image_mj'],
+        image_banana: ['image_seedream', 'image_modelscope', 'image_mj'],
         image_modelscope: ['image_banana', 'image_seedream', 'image_mj'],
-        image_mj:         ['image_banana', 'image_seedream', 'image_modelscope'],
+        image_mj: ['image_banana', 'image_seedream', 'image_modelscope'],
         // 文本类
-        text_gen:   ['text_write'],
+        text_gen: ['text_write'],
         text_write: ['text_gen'],
         // 视频类
-        video_text:  ['video_image'],
+        video_text: ['video_image'],
         video_image: ['video_text'],
     };
 
@@ -398,7 +684,7 @@ ${input}`;
                     if (attempt <= 1 && typeof callZhenzhenTextAPI === 'function') {
                         try {
                             return await withTimeout(
-                                callZhenzhenTextAPI(thinkPrompt, { model: 'gemini-3-pro-preview', temperature: 0.3, max_tokens: 4096 }),
+                                callZhenzhenTextAPI(thinkPrompt, { model: 'gemini-3.1-pro-preview', temperature: 0.3, max_tokens: 4096 }),
                                 120000, `${this.name} LLM推理`
                             );
                         } catch (e) {
@@ -449,6 +735,17 @@ ${input}`;
 
             try {
                 if (decision.action === 'text_output') {
+                    // 检测 content 是否是被包裹的 JSON plan（LLM有时把plan包在text_output里）
+                    const cnt = (decision.content || '').trim();
+                    if (cnt.startsWith('{') || cnt.startsWith('[')) {
+                        try {
+                            const inner = JSON.parse(cnt);
+                            if (inner.action === 'plan' && Array.isArray(inner.steps) && inner.steps.length > 0) {
+                                console.log(`[${this.name}] text_output 内含隐藏plan，自动转为plan执行`);
+                                return await this._executePlan(inner.steps);
+                            }
+                        } catch (e) { /* 不是JSON，当普通文本 */ }
+                    }
                     this.status = 'done';
                     return { type: 'text', content: decision.content };
                 }
@@ -906,6 +1203,47 @@ ${input}`;
                 this._log(this.coordinator.id, 'thinking', '正在分析任务并制定计划...');
                 this._emit('agentUpdate', this.getAgentStates());
 
+                // 🎙️ 有声小说团队：硬编码计划，绕过coordinator自由发挥
+                const hasVoiceArtist = Array.from(this.agents.values()).some(a => a.role === 'voice_artist');
+                const hasWriter = Array.from(this.agents.values()).some(a => a.role === 'writer');
+                const hasMusicProducer = Array.from(this.agents.values()).some(a => a.role === 'music_producer');
+                // 只在纯音频团队（无视觉/视频制作）时走有声小说固定流程，影视制作/Skill-Agent团队不触发
+                const hasVisualProducer = Array.from(this.agents.values()).some(a => ['visual_artist', 'video_producer', 'storyboard_master', 'skill_master'].includes(a.role));
+                if (hasVoiceArtist && hasWriter && !hasVisualProducer) {
+                    const writerId = Array.from(this.agents.values()).find(a => a.role === 'writer').id;
+                    const voiceId = Array.from(this.agents.values()).find(a => a.role === 'voice_artist').id;
+                    const hardcodedSteps = [
+                        {
+                            agent: writerId,
+                            task: `请根据用户目标写一篇完整的中文有声小说/故事文本，要求：有清晰的角色对话和旁白，情节完整，字数1000-2000字。用户目标：${userGoal}`,
+                            dependsOn: []
+                        },
+                        {
+                            agent: voiceId,
+                            task: `请将writer写好的完整小说文本分段配音。每段≤500字，使用engine:dubbingx(不需要voiceId)；女性角色也可用engine:kling voiceId:ai_shatang，男性/旁白也可用engine:kling voiceId:genshin_vindi2，必须返回plan格式包含所有段落的tts_generate步骤，不能只配一段就结束。文本内容从上下文中获取。`,
+                            dependsOn: [0]
+                        }
+                    ];
+                    if (hasMusicProducer) {
+                        const musicId = Array.from(this.agents.values()).find(a => a.role === 'music_producer').id;
+                        hardcodedSteps.push({
+                            agent: musicId,
+                            task: `为有声小说《${userGoal}》生成背景音乐BGM。严格要求：1.必须设置instrumental:true（纯音乐，绝对不要有人声/歌词）；2.prompt只写音乐风格描述（如"Chinese folk, peaceful, cinematic"），不要把故事文本或对话放进prompt；3.tags用英文（如folk, cinematic, ambient）。`,
+                            dependsOn: []
+                        });
+                    }
+                    const hardcodedPlan = { action: 'plan', steps: hardcodedSteps, reasoning: '有声小说固定流程：写作→配音→BGM' };
+                    this._log(this.coordinator.id, 'result', `制定了 ${hardcodedSteps.length} 步计划（有声小说固定流程）`, hardcodedPlan);
+                    console.log(`📋 [有声小说硬编码计划]`, JSON.stringify(hardcodedSteps, null, 2));
+                    this._emit('planReady', hardcodedPlan);
+                    await this._executePlan(hardcodedSteps, userGoal);
+                    this.status = 'completed';
+                    const elapsed = Math.round((Date.now() - this._startTime) / 1000);
+                    this._log(this.coordinator.id, 'info', `✅ 任务完成！共产出 ${this.deliverables.length} 项交付物，耗时 ${elapsed}s`);
+                    this._emit('completed', { deliverables: this.deliverables, messageLog: this.messageLog });
+                    return { deliverables: this.deliverables, messageLog: this.messageLog };
+                }
+
                 const agentList = Array.from(this.agents.values())
                     .filter(a => a.role !== 'coordinator')
                     .map(a => `- ${a.id} (${a.name}): ${a.role}, 工具: [${a.tools.join(',')}]`)
@@ -914,11 +1252,20 @@ ${input}`;
                 // 📷 注入参考图上下文
                 const refContext = this._getReferenceContext();
 
+                // 检测是否为有声小说/广播剧任务（hasVoiceArtist 已在上方声明）
+                const audiobookHint = hasVoiceArtist ? `
+⚠️ 有声小说/广播剧任务强制规则（必须遵守）：
+1. writer 先写完整中文小说文本（步骤0）
+2. voice_artist 必须依赖 writer 步骤（dependsOn:[0]），其 task 描述必须包含：
+   "请将以下完整文本分段配音，每段≤500字，使用 engine:dubbingx(不需要voiceId)或 engine:kling voiceId:genshin_vindi2(男)/ai_shatang(女)，必须返回 plan 格式包含所有段落的 tts_generate 步骤。文本内容：[从上下文获取writer产出的完整文本]"
+3. music_producer 只负责生成背景音乐BGM（instrumental:true），绝对不能用来做人声配音
+4. 配音必须用 voice_artist 的 tts_generate 工具，不能用 music_generate` : '';
+
                 const planInput = `用户目标: ${userGoal}
 ${refContext ? '\n' + refContext + '\n' : ''}
 可用的团队成员:
 ${agentList}
-
+${audiobookHint}
 请为这个项目制定详细的分工计划。返回 JSON:
 {"action":"plan","steps":[{"agent":"<agent_id>","task":"具体任务描述","dependsOn":[]},...],"reasoning":"整体思路"}
 
@@ -949,6 +1296,7 @@ ${agentList}
                 if (this._cancelled) throw new Error('任务已取消');
 
                 this._log(this.coordinator.id, 'result', `制定了 ${plan.steps?.length || 0} 步计划`, plan);
+                console.log(`📋 [Coordinator计划] 完整步骤:`, JSON.stringify(plan.steps || [], null, 2));
                 this._emit('planReady', plan);
 
                 // 2. 执行计划
@@ -1011,7 +1359,7 @@ ${agentList}
 
                 // 🚀 同一波次内的步骤并行执行（带错峰启动避免API限速）
                 if (wave.length > 1) {
-                    this._log(this.coordinator.id, 'info', `⚡ 并行执行 ${wave.length} 个任务: ${wave.map(i => `步骤${i+1}`).join(', ')}`);
+                    this._log(this.coordinator.id, 'info', `⚡ 并行执行 ${wave.length} 个任务: ${wave.map(i => `步骤${i + 1}`).join(', ')}`);
                 }
 
                 // 🔧 错峰启动：每个任务间隔 500ms 启动，避免同时请求API限速
@@ -1039,7 +1387,7 @@ ${agentList}
                         const errMsg = wr.status === 'rejected' ? wr.reason?.message : '未知错误';
                         stepResults[i] = { error: errMsg };
                         waveErrors++;
-                        this._log(steps[i].agent || 'system', 'error', `步骤 ${i+1} 失败: ${errMsg}`);
+                        this._log(steps[i].agent || 'system', 'error', `步骤 ${i + 1} 失败: ${errMsg}`);
                     }
                 }
                 if (waveErrors === wave.length) consecutiveErrors += waveErrors;
@@ -1049,14 +1397,23 @@ ${agentList}
         /** 智能波次构建：根据任务类型自动决定并行/串行 */
         _buildExecutionWaves(steps) {
             const VISUAL_TOOLS = ['image_banana', 'image_seedream', 'image_modelscope', 'image_mj', 'video_text', 'video_image'];
+            const TEXT_ROLES = ['writer', 'copywriter'];   // 文本生产者
+            const AUDIO_ROLES = ['voice_artist'];           // 需要文本才能工作的角色
 
             // 1. 分析每个步骤的类型
             const stepTypes = steps.map(step => {
                 const agent = this.agents.get(step.agent);
                 const tools = agent ? agent.tools : [];
                 const hasVisual = tools.some(t => VISUAL_TOOLS.includes(t));
-                return { agent: step.agent, isVisual: hasVisual };
+                const role = agent ? agent.role : '';
+                return { agent: step.agent, role, isVisual: hasVisual };
             });
+
+            // 预先收集所有文本生产步骤的索引
+            const textStepIndices = steps.reduce((acc, _, i) => {
+                if (TEXT_ROLES.includes(stepTypes[i].role)) acc.push(i);
+                return acc;
+            }, []);
 
             // 2. 构建有效依赖（显式 + 智能隐式）
             let lastVisualIdx = -1;
@@ -1076,6 +1433,13 @@ ${agentList}
                     deps.add(lastVisualIdx);
                 }
                 if (stepTypes[i].isVisual) lastVisualIdx = i;
+
+                // 规则C: voice_artist 必须在所有文本生产步骤之后执行
+                if (AUDIO_ROLES.includes(stepTypes[i].role)) {
+                    for (const ti of textStepIndices) {
+                        if (ti < i) deps.add(ti); // 只依赖排在前面的文本步骤
+                    }
+                }
 
                 return deps;
             });
@@ -1118,6 +1482,40 @@ ${agentList}
             // 构建上下文（包含前序结果 + 参考图 + 共享板）
             const context = this._buildStepContext(stepResults, completed, userGoal);
 
+            // 🎤 voice_artist 特殊处理：自动从前序 writer/copywriter 结果中提取完整文本注入 task
+            let effectiveTask = step.task;
+            if (agent.role === 'voice_artist') {
+                const TEXT_PRODUCER_ROLES = ['writer', 'copywriter'];
+                let writerText = '';
+                for (const idx of completed) {
+                    const prevStep = allSteps[idx];
+                    const prevAgent = prevStep ? this.agents.get(prevStep.agent) : null;
+                    if (prevAgent && TEXT_PRODUCER_ROLES.includes(prevAgent.role)) {
+                        const r = stepResults[idx];
+                        if (r && r.type === 'text' && r.content) {
+                            writerText = String(r.content);
+                        } else if (r && r.type === 'tool_result' && r.result) {
+                            const res = r.result;
+                            const tv = typeof res === 'string' ? res : (res.content || res.text || res.result || res.script || '');
+                            if (tv) writerText = String(tv);
+                        } else if (r && r.type === 'plan_result') {
+                            for (const ps of (r.results || [])) {
+                                if (ps.status === 'success' && ps.result) {
+                                    const tv = typeof ps.result === 'string' ? ps.result : (ps.result.content || ps.result.text || '');
+                                    if (tv && tv.length > writerText.length) writerText = String(tv);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (writerText && writerText.length > 50) {
+                    effectiveTask = `请将以下完整文本分段配音，每段≤500字。引擎选择：engine:dubbingx(不需要voiceId)或engine:kling男声voiceId:genshin_vindi2/女声voiceId:ai_shatang。必须返回 plan 格式包含所有段落的 tts_generate 步骤，不能只配一段就结束。\n\n完整文本：\n${writerText}`;
+                    console.log(`🎤 [voice_artist] 自动注入writer文本 ${writerText.length}字`);
+                } else {
+                    console.warn(`🎤 [voice_artist] 未找到writer文本，使用原始task`);
+                }
+            }
+
             this._log(agent.id, 'thinking', `正在处理(${i + 1}/${allSteps.length}): ${step.task}`);
             this._emit('agentUpdate', this.getAgentStates());
 
@@ -1128,8 +1526,16 @@ ${agentList}
                 }
 
                 // Agent 思考
-                const decision = await agent.think(step.task, context);
+                if (agent.role === 'voice_artist') {
+                    console.log(`🎤 [DEBUG voice_artist] effectiveTask(前300字):`, effectiveTask.substring(0, 300));
+                    console.log(`🎤 [DEBUG voice_artist] context(前300字):`, context.substring(0, 300));
+                }
+                const decision = await agent.think(effectiveTask, context);
                 if (this._cancelled) throw new Error('任务已取消');
+
+                if (agent.role === 'voice_artist') {
+                    console.log(`🎤 [DEBUG voice_artist] decision:`, JSON.stringify(decision));
+                }
 
                 // 📷 自动注入参考图到图片生成工具参数
                 this._injectRefImages(decision);
@@ -1191,15 +1597,41 @@ ${agentList}
                 const r = stepResults[idx];
                 if (r && !r.error) {
                     let summary = '';
-                    if (r.type === 'text') summary = `文本: ${String(r.content).substring(0, 200)}`;
-                    else if (r.type === 'tool_result') summary = `工具结果: ${typeof r.result === 'string' ? r.result.substring(0, 200) : JSON.stringify(r.result).substring(0, 200)}`;
-                    else if (r.type === 'plan_result') summary = `计划执行: ${r.results?.filter(s => s.status === 'success').length || 0} 步成功`;
-                    else if (r.type === 'done') summary = `完成: ${r.result?.summary || ''}`;
+                    if (r.type === 'text') {
+                        summary = `文本内容:\n${String(r.content).substring(0, 2000)}`;
+                    } else if (r.type === 'tool_result') {
+                        const res = r.result;
+                        if (typeof res === 'string') {
+                            summary = `工具结果:\n${res.substring(0, 2000)}`;
+                        } else if (res && typeof res === 'object') {
+                            // 提取对象中的文本字段
+                            const textVal = res.content || res.text || res.result || res.script || res.copyText || res.outline || res.summary || null;
+                            if (textVal && typeof textVal === 'string') {
+                                summary = `工具结果(文本):\n${textVal.substring(0, 2000)}`;
+                            } else {
+                                summary = `工具结果: ${JSON.stringify(res).substring(0, 500)}`;
+                            }
+                        }
+                    } else if (r.type === 'plan_result') {
+                        const successCount = r.results?.filter(s => s.status === 'success').length || 0;
+                        const failCount = r.results?.filter(s => s.status === 'failed').length || 0;
+                        // 只显示数量摘要，不把音频URL或文本片段当内容注入
+                        // 避免 music_producer 把配音文本段误当 Suno 歌词
+                        summary = `任务计划已执行: ${successCount}步成功${failCount ? ', ' + failCount + '步失败' : ''}`;
+                        // 若步骤结果为纯文本（非URL）则摘要提取，限200字防污染
+                        const textOnly = (r.results || []).filter(s => s.status === 'success' && typeof s.result === 'string'
+                            && !s.result.startsWith('http') && !s.result.startsWith('data:') && s.result.length > 5);
+                        if (textOnly.length > 0) {
+                            summary += `，文本摘要: ${textOnly.map(s => s.result).join(' ').substring(0, 200)}`;
+                        }
+                    } else if (r.type === 'done') {
+                        summary = `完成: ${r.result?.summary || ''}`;
+                    }
                     if (summary) parts.push(`[已完成步骤${idx + 1}] ${summary}`);
                 }
             }
 
-            // 共享板中间产出摘要（其他Agent的产出）
+            // 共享板中间产出摘要（其他Agent的产出，供后续Agent引用）
             if (this.sharedBoard.intermediateResults.size > 0) {
                 const shared = [];
                 for (const [agentId, results] of this.sharedBoard.intermediateResults) {
@@ -1207,25 +1639,40 @@ ${agentList}
                     if (latest && latest.data) {
                         const d = latest.data;
                         let s = '';
-                        if (d.type === 'tool_result' && typeof d.result === 'string') s = d.result.substring(0, 100);
-                        else if (d.type === 'text') s = String(d.content).substring(0, 100);
-                        if (s) shared.push(`${agentId}: ${s}`);
+                        if (d.type === 'text') {
+                            s = String(d.content).substring(0, 1500);
+                        } else if (d.type === 'tool_result') {
+                            const res = d.result;
+                            if (typeof res === 'string') {
+                                s = res.substring(0, 1500);
+                            } else if (res && typeof res === 'object') {
+                                const tv = res.content || res.text || res.result || res.script || res.copyText || res.outline || res.summary || null;
+                                s = tv ? String(tv).substring(0, 1500) : JSON.stringify(res).substring(0, 500);
+                            }
+                        } else if (d.type === 'plan_result') {
+                            const sc = d.results?.filter(r => r.status === 'success').length || 0;
+                            const fc = d.results?.filter(r => r.status === 'failed').length || 0;
+                            s = `计划完成: ${sc}步成功${fc ? ', ' + fc + '步失败' : ''}`;
+                        }
+                        if (s) shared.push(`[${agentId}产出]:\n${s}`);
                     }
                 }
-                if (shared.length > 0) parts.push(`🤝 团队共享:\n${shared.join('\n')}`);
+                if (shared.length > 0) parts.push(`🤝 团队共享内容:\n${shared.join('\n\n')}`);
             }
 
             return parts.join('\n');
         }
 
         /** 判断URL的媒体类型 */
-        _detectMediaType(url) {
+        _detectMediaType(url, tool) {
             if (!url || typeof url !== 'string') return 'text';
             const lower = url.toLowerCase();
             // data: URI 直接根据 MIME 判断
             if (lower.startsWith('data:audio/')) return 'audio';
             if (lower.startsWith('data:video/')) return 'video';
             if (lower.startsWith('data:image/')) return 'image';
+            // 工具类型优先判断（TTS 返回的 URL 不一定含音频扩展名）
+            if (tool === 'tts_generate') return 'audio';
             // 音频检测
             if (lower.includes('.mp3') || lower.includes('.wav') || lower.includes('.ogg') ||
                 lower.includes('.aac') || lower.includes('.flac') || lower.includes('.m4a') ||
@@ -1248,7 +1695,7 @@ ${agentList}
 
             if (result.type === 'tool_result' && result.result) {
                 const r = result.result;
-                
+
                 // 🎵 Suno 音乐对象: {taskId, music: [{audio_url, title, ...}]}
                 if (r && typeof r === 'object' && !Array.isArray(r) && r.music && Array.isArray(r.music)) {
                     for (const track of r.music) {
@@ -1269,10 +1716,10 @@ ${agentList}
                     }
                     return;
                 }
-                
+
                 // URL字符串结果
                 if (typeof r === 'string' && (r.startsWith('http') || r.startsWith('data:'))) {
-                    const mediaType = this._detectMediaType(r);
+                    const mediaType = this._detectMediaType(r, result.tool);
                     this.deliverables.push({ type: mediaType, url: r, agent: agent.name, icon: agent.icon, tool: result.tool });
                 }
                 // 其他文本
@@ -1316,7 +1763,7 @@ ${agentList}
                             }
                         }
                         else if (typeof r === 'string' && (r.startsWith('http') || r.startsWith('data:'))) {
-                            const mediaType = this._detectMediaType(r);
+                            const mediaType = this._detectMediaType(r, step.tool);
                             this.deliverables.push({
                                 type: mediaType,
                                 url: r,

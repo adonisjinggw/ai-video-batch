@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>你就是导演 - AI短视频创作平台</title>
+    <style>
+        /* 现代CSS重置和设计令牌 */
+        :root {
+            /* OKLCH专业色彩系统 */
+            --color-primary-50: oklch(0.98 0.02 250);
+            --color-primary-100: oklch(0.95 0.05 250);
+            --color-primary-500: oklch(0.65 0.15 250);
+            --color-primary-600: oklch(0.55 0.18 250);
+            --color-primary-900: oklch(0.25 0.15 250);
+            
+            --color-accent-400: oklch(0.75 0.12 45);
+            --color-accent-500: oklch(0.68 0.15 45);
+            --color-accent-600: oklch(0.62 0.18 45);
+            
+            --color-neutral-50: oklch(0.98 0 0);
+            --color-neutral-100: oklch(0.96 0 0);
+            --color-neutral-200: oklch(0.92 0 0);
+            --color-neutral-800: oklch(0.27 0 0);
+            --color-neutral-900: oklch(0.21 0 0);
+            
+            /* 设计令牌 */
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 0.75rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            --spacing-2xl: 3rem;
+            --spacing-3xl: 4rem;
+            
+            --radius-sm: 0.5rem;
+            --radius-md: 0.75rem;
+            --radius-lg: 1rem;
+            --radius-xl: 1.5rem;
+            --radius-2xl: 2rem;
+            
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+            
+            --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            
+            --ease-elastic: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+            --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-emphasis: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+            height: 100%;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: linear-gradient(135deg, 
+                oklch(0.15 0.05 250) 0%,
+                oklch(0.20 0.08 260) 35%,
+                oklch(0.25 0.12 270) 100%);
+            height: 100vh;
+            color: var(--color-neutral-50);
+            line-height: 1.6;
+            overflow: hidden;
+        }
+
+        /* 🔄 后端启动等待遮罩 */
+        #backend-loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, 
+                oklch(0.15 0.05 250) 0%,
+                oklch(0.20 0.08 260) 35%,
+                oklch(0.25 0.12 270) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #backend-loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .loading-progress {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* 全屏Hero区域 */
+        .hero-section {
+            position: relative;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .hero-background {
+            position: absolute;
+            inset: 0;
+            background-image: url('images/welcome-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: brightness(0.7) blur(1px);
+            transform: scale(1.1);
+            transition: transform 20s var(--ease-smooth);
+        }
+
+        .hero-background::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                135deg,
+                oklch(0.15 0.05 250 / 0.9) 0%,
+                oklch(0.20 0.08 260 / 0.8) 50%,
+                oklch(0.25 0.12 270 / 0.9) 100%
+            );
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 100;
+            text-align: center;
+            max-width: 1200px;
+            padding: var(--spacing-2xl);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-xs) var(--spacing-md);
+            background: var(--color-primary-500);
+            background-clip: padding-box;
+            border: 1px solid transparent;
+            border-radius: var(--radius-2xl);
+            font-family: 'KaiTi', '楷体', 'Kalam', cursive;
+            font-size: 0.9rem;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: var(--color-neutral-50);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: var(--spacing-lg);
+            transition: all 0.3s var(--ease-smooth);
+        }
+
+        .hero-badge::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, 
+                var(--color-primary-400),
+                var(--color-accent-500)
+            );
+            border-radius: inherit;
+            z-index: -1;
+            opacity: 0.2;
+        }
+
+        .hero-title {
+            font-family: 'STXingkai', 'STKaiti', 'KaiTi', '行楷', '楷体', 'Brush Script MT', 'Dancing Script', cursive;
+            font-size: clamp(3.2rem, 8.5vw, 6.5rem);
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg,
+                var(--color-accent-400) 0%,
+                var(--color-primary-500) 50%,
+                var(--color-accent-600) 100%
+            );
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            margin-bottom: var(--spacing-lg);
+            animation: titleGlow 3s var(--ease-smooth) infinite alternate;
+            transform: rotate(-0.3deg);
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+            z-index: 20;
+        }
+
+        @keyframes titleGlow {
+            0% {
+                filter: drop-shadow(0 0 20px var(--color-accent-400));
+            }
+            100% {
+                filter: drop-shadow(0 0 40px var(--color-primary-500));
+            }
+        }
+
+        .hero-subtitle {
+            font-family: 'STKaiti', 'KaiTi', '楷体', 'Brush Script MT', 'Kalam', cursive;
+            font-size: clamp(1.3rem, 3.2vw, 1.9rem);
+            font-weight: 500;
+            color: var(--color-neutral-100);
+            margin-bottom: var(--spacing-xl);
+            opacity: 0.95;
+            transform: rotate(0.2deg);
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 20;
+        }
+
+        .hero-description {
+            font-family: 'KaiTi', '楷体', 'Kalam', 'Patrick Hand', cursive;
+            font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+            color: var(--color-neutral-100);
+            max-width: 600px;
+            margin: 0 auto var(--spacing-xl);
+            opacity: 0.9;
+            line-height: 1.8;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            transform: rotate(-0.1deg);
+            position: relative;
+            z-index: 20;
+        }
+
+        .hero-quote {
+            font-family: 'Brush Script MT', 'Lucida Handwriting', 'Dancing Script', cursive;
+            font-size: clamp(1.4rem, 3.5vw, 2rem);
+            font-weight: bold;
+            background: linear-gradient(135deg, 
+                #FFD700 0%,    /* 亮金色 */
+                #FFA500 25%,   /* 橙金色 */
+                #FFD700 50%,   /* 亮金色 */
+                #B8860B 75%,   /* 深金色 */
+                #FFD700 100%   /* 亮金色 */
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: var(--spacing-xl) auto;
+            opacity: 1;
+            position: relative;
+            max-width: 600px;
+            z-index: 100;
+            /* 修复：移除可能导致文字不可见的text-shadow，因为transparent填充不显示阴影 */
+            filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.5));
+            letter-spacing: 1px;
+            transform: rotate(-1deg);
+            line-height: 1.5;
+            padding: 10px;
+            filter: drop-shadow(2px 2px 4px rgba(184, 134, 11, 0.4));
+        }
+
+        /* 双引号样式已移除，保持简洁的手写体效果 */
+
+        .quote-author {
+            font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
+            font-size: 1.1em;
+            background: linear-gradient(135deg, 
+                #DAA520 0%,    /* 金棒色 */
+                #B8860B 50%,   /* 深金色 */
+                #FFD700 100%   /* 亮金色 */
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+            margin-top: var(--spacing-sm);
+            font-style: normal;
+            text-shadow: 1px 1px 2px rgba(218, 165, 32, 0.3);
+            transform: rotate(0.5deg);
+        }
+
+        /* 设置按钮 */
+        .settings-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: var(--color-neutral-900);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            max-width: 500px;
+            width: 90%;
+            box-shadow: var(--shadow-2xl);
+        }
+        .modal-content h2 {
+            color: var(--color-primary-500);
+            margin-bottom: var(--spacing-md);
+        }
+        .modal-content label {
+            display: block;
+            color: var(--color-neutral-100);
+            margin-bottom: var(--spacing-sm);
+        }
+        .modal-content input {
+            width: 100%;
+            padding: var(--spacing-sm);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-sm);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 1rem;
+            margin-bottom: var(--spacing-md);
+        }
+        .modal-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+            justify-content: flex-end;
+        }
+        .modal-buttons button {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .modal-buttons .btn-primary {
+            background: var(--color-primary-500);
+            color: white;
+        }
+        .modal-buttons .btn-primary:hover {
+            background: var(--color-primary-600);
+        }
+        .modal-buttons .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        .modal-buttons .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 绝对视觉焦点 - 修复位置 */
+        .attitude-statement {
+            position: fixed;
+            top: 45%;
+            right: 15%;
+            transform: rotate(-8deg);
+            z-index: 10;
+            opacity: 1;
+            width: fit-content;
+            pointer-events: none;
+        }
+
+        .attitude-statement img {
+            max-width: 450px;
+            height: auto;
+            transform: rotate(3deg) scale(1.6);
+            /* 清晰文字处理 */
+            filter: 
+                drop-shadow(8px 10px 20px rgba(0, 0, 0, 0.8))
+                contrast(7.5)
+                saturate(0)
+                brightness(0.4)
+                hue-rotate(-120deg)
+                invert(0.4);
+            opacity: 0.95;
+            /* 更自然的混合模式 */
+            mix-blend-mode: screen;
+            /* 完全去掉边框和背景 */
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            /* 用clip-path柔化边缘 */
+            clip-path: ellipse(90% 85% at center);
+        }
+
+        .attitude-statement img:hover {
+            transform: rotate(3deg) scale(1.7);
+        }
+
+
+        .hero-cta {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-2xl);
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-lg) var(--spacing-2xl);
+            font-family: 'KaiTi', '楷体', 'Kalam', 'Caveat', cursive;
+            font-size: 1.2rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-decoration: none;
+            color: var(--color-neutral-50);
+            background: linear-gradient(135deg,
+                var(--color-accent-500) 0%,
+                var(--color-primary-600) 100%
+            );
+            border: 1px solid transparent;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-xl);
+            transition: all 0.3s var(--ease-elastic);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg,
+                var(--color-accent-400) 0%,
+                var(--color-primary-500) 100%
+            );
+            opacity: 0;
+            transition: opacity 0.3s var(--ease-smooth);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: var(--shadow-2xl);
+        }
+
+        .cta-button:hover::before {
+            opacity: 1;
+        }
+
+        .cta-button span {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 浮动装饰元素 */
+        .floating-elements {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .floating-icon {
+            position: absolute;
+            font-size: 2rem;
+            opacity: 0.1;
+            animation: float 8s var(--ease-smooth) infinite;
+        }
+
+        .floating-icon:nth-child(1) {
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .floating-icon:nth-child(2) {
+            top: 60%;
+            right: 15%;
+            animation-delay: 2s;
+        }
+
+        .floating-icon:nth-child(3) {
+            bottom: 30%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        .floating-icon:nth-child(4) {
+            bottom: 70%;
+            right: 10%;
+            animation-delay: 6s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+            50% {
+                transform: translateY(-10px) rotate(-5deg);
+            }
+            75% {
+                transform: translateY(-30px) rotate(3deg);
+            }
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 768px) {
+            .hero-content {
+                padding: var(--spacing-xl);
+            }
+            
+            .hero-cta {
+                flex-direction: column;
+                gap: var(--spacing-md);
+            }
+
+            .hero-quote {
+                font-size: 1rem;
+                margin: var(--spacing-lg) auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero-content {
+                padding: var(--spacing-lg);
+            }
+            
+            .cta-button {
+                padding: var(--spacing-md) var(--spacing-xl);
+                font-size: 1rem;
+            }
+
+            .hero-quote {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* 加载动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-content > * {
+            animation: fadeInUp 0.8s var(--ease-emphasis) forwards;
+        }
+
+        .hero-badge { animation-delay: 0.1s; }
+        .hero-title { animation-delay: 0.2s; }
+        .hero-subtitle { animation-delay: 0.3s; }
+        .hero-description { animation-delay: 0.4s; }
+        .hero-quote { animation-delay: 0.5s; }
+        .hero-cta { animation-delay: 0.6s; }
+
+        /* 视差效果 */
+        .hero-background {
+            animation: parallax 20s linear infinite;
+        }
+
+        @keyframes parallax {
+            0% { transform: scale(1.1) translateY(0); }
+            50% { transform: scale(1.12) translateY(-10px); }
+            100% { transform: scale(1.1) translateY(0); }
+        }
+
+
+    </style>
+</head>
+<body>
+    <!-- 🔄 后端启动等待遮罩 -->
+    <div id="backend-loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">⚡ 正在启动后端服务...</div>
+        <div class="loading-progress" id="loading-progress">检测中...</div>
+    </div>
+
+    <!-- 设置按钮（已隐藏） -->
+    <button class="settings-btn" onclick="openSettings()" style="display: none;">⚙️ 后端设置</button>
+
+    <!-- 设置模态框 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <h2>⚙️ 后端服务设置</h2>
+            <label>
+                API基础地址 (留空为无端口模式)
+                <input type="text" id="apiBaseInput" placeholder="http://127.0.0.1:48080" />
+            </label>
+            <p style="color: var(--color-neutral-200); font-size: 0.9rem; margin-bottom: var(--spacing-md);">
+                💡 提示：启动后端服务后填写地址，例如 <code style="color: var(--color-accent-500);">http://127.0.0.1:48080</code><br>
+                留空则使用无端口模式（直连外部API）
+            </p>
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeSettings()">取消</button>
+                <button class="btn-secondary" onclick="clearApiBase()">清除</button>
+                <button class="btn-primary" onclick="saveApiBase()">保存并重启</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 浮动装饰元素 -->
+    <div class="floating-elements">
+        <div class="floating-icon">🎬</div>
+        <div class="floating-icon">🎥</div>
+        <div class="floating-icon">🎞️</div>
+        <div class="floating-icon">✨</div>
+    </div>
+
+    <!-- 主Hero区域 -->
+    <section class="hero-section">
+        <div class="hero-background"></div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span>🚀</span>
+                AI驱动创作平台
+            </div>
+            
+            <h1 class="hero-title">你就是导演</h1>
+            
+            <div class="attitude-statement">
+                <img src="images/yanbudouyanle.png" alt="演都不演了" />
+            </div>
+            
+            <p class="hero-subtitle">重新定义视频创作的无限可能</p>
+            
+            <p class="hero-description">
+                从灵感闪现到成片出炉，让AI成为你的专业创作伙伴。<br>
+                智能剧本生成、精美图片创作、专业视频制作——<br>
+                每个人都能成为自己故事的导演。
+            </p>
+
+            <div class="hero-quote">
+                梦想可以放下，但是不要放弃
+                <div class="quote-author">—— 荆广伟</div>
+            </div>
+            
+            <div class="hero-cta">
+                <a href="#" onclick="handleStartClick(event)" class="cta-button" id="startButton">
+                    <span>🎬</span>
+                    <span>开始创作之旅</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+<script>
+// ⚡ 后端启动等待逻辑 - 确保先启动后端再显示前端
+(async function waitForBackend() {
+    const overlay = document.getElementById('backend-loading-overlay');
+    const progress = document.getElementById('loading-progress');
+    
+    const BACKEND_PORT = 48080;
+    const MAX_WAIT_TIME = 30000; // 30秒
+    const CHECK_INTERVAL = 500; // 0.5秒
+    
+    let attempts = 0;
+    const startTime = Date.now();
+    
+    console.log('⏳ 等待后端服务就绪...');
+    
+    async function checkBackend() {
+        return new Promise((resolve) => {
+            const xhr = new XMLHttpRequest();
+            xhr.timeout = 2000;
+            xhr.open('GET', `http://127.0.0.1:${BACKEND_PORT}/api/health`, true);
+            
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    resolve(true);
+                } else {
+                    resolve(false);
+                }
+            };
+            
+            xhr.onerror = () => resolve(false);
+            xhr.ontimeout = () => resolve(false);
+            
+            try {
+                xhr.send();
+            } catch (e) {
+                resolve(false);
+            }
+        });
+    }
+    
+    while (Date.now() - startTime < MAX_WAIT_TIME) {
+        attempts++;
+        
+        const isReady = await checkBackend();
+        
+        if (isReady) {
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`✅ 后端服务已就绪！（用时${elapsed}秒，尝试${attempts}次）`);
+            progress.textContent = `✅ 后端已就绪（${elapsed}秒）`;
+            
+            // 延迟500ms后隐藏遮罩，然后检查License
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                // ✅ 后端就绪后再检查License
+                checkLicenseAndAutoJump();
+            }, 500);
+            
+            return;
+        }
+        
+        // 更新进度显示
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        progress.textContent = `等待中... 已等待${elapsed}秒（尝试${attempts}次）`;
+        
+        // 等待后再检查
+        await new Promise(resolve => setTimeout(resolve, CHECK_INTERVAL));
+    }
+    
+    // 超时
+    console.warn('⚠️ 等待后端超时（30秒），但前端将继续加载');
+    progress.textContent = '⚠️ 后端启动超时，部分功能可能无法使用';
+    
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        // ✅ 即使超时也检查License
+        checkLicenseAndAutoJump();
+    }, 2000);
+})();
+
+// 设置管理
+function openSettings() {
+    const modal = document.getElementById('settingsModal');
+    const input = document.getElementById('apiBaseInput');
+    try {
+        const saved = localStorage.getItem('API_BASE') || '';
+        input.value = saved;
+    } catch {}
+    modal.classList.add('active');
+}
+
+function closeSettings() {
+    const modal = document.getElementById('settingsModal');
+    modal.classList.remove('active');
+}
+
+function clearApiBase() {
+    try {
+        localStorage.removeItem('API_BASE');
+        document.getElementById('apiBaseInput').value = '';
+        alert('✅ 已清除后端设置，将使用无端口模式');
+    } catch (e) {
+        alert('❌ 清除失败: ' + e.message);
+    }
+}
+
+function saveApiBase() {
+    const input = document.getElementById('apiBaseInput');
+    const value = input.value.trim();
+    try {
+        if (value) {
+            // 验证格式
+            if (!/^https?:\/\/.+/.test(value)) {
+                alert('❌ 地址格式不正确，请使用 http:// 或 https:// 开头');
+                return;
+            }
+            localStorage.setItem('API_BASE', value);
+            alert('✅ 后端地址已保存：' + value + '\n\n窗口即将重启以应用设置...');
+        } else {
+            localStorage.removeItem('API_BASE');
+            alert('✅ 已切换为无端口模式\n\n窗口即将重启以应用设置...');
+        }
+        // 重启应用
+        setTimeout(() => {
+            if (typeof nw !== 'undefined') {
+                nw.App.quit();
+            } else {
+                window.location.reload();
+            }
+        }, 1000);
+    } catch (e) {
+        alert('❌ 保存失败: ' + e.message);
+    }
+}
+
+// 🔒 全局License状态
+let licenseStatus = {
+    checked: false,
+    valid: false,
+    result: null
+};
+
+// 🔒 License检查 - 只检查不跳转
+function checkLicenseAndAutoJump() {
+    const fs = typeof nw !== 'undefined' ? require('fs') : null;
+    const path = typeof nw !== 'undefined' ? require('path') : null;
+    const crypto = typeof nw !== 'undefined' ? require('crypto') : null;
+    const os = typeof nw !== 'undefined' ? require('os') : null;
+    
+    if (!fs || !path || !crypto || !os) {
+        console.log('非NW.js环境，跳过License检查');
+        return;
+    }
+    
+    try {
+        // 获取项目根目录
+        let projectRoot;
+        
+        // 如果在NW.js打包环境（临时目录），使用exe所在目录
+        if (process.cwd().includes('SystemTemp') || process.cwd().includes('Temp')) {
+            projectRoot = path.dirname(process.execPath);
+            console.log('📁 打包环境 - Exe路径:', process.execPath);
+        } else {
+            projectRoot = process.cwd();
+            console.log('📁 开发环境 - 工作目录:', projectRoot);
+        }
+        
+        const licenseKeyPath = path.join(projectRoot, 'license.key');
+        console.log('📁 License检查路径:', licenseKeyPath);
+        
+        // 🔑 获取当前机器码
+        function getCurrentMachineId() {
+            const networkInterfaces = os.networkInterfaces();
+            const macs = [];
+            for (const interfaceName in networkInterfaces) {
+                for (const iface of networkInterfaces[interfaceName]) {
+                    if (iface.mac && iface.mac !== '00:00:00:00:00:00') {
+                        macs.push(iface.mac);
+                    }
+                }
+            }
+            const cpuInfo = os.cpus()[0].model;
+            const hostname = os.hostname();
+            const machineString = macs.sort().join('') + cpuInfo + hostname;
+            const hash = crypto.createHash('sha256').update(machineString).digest('hex');
+            return hash.substring(0, 16).toUpperCase();
+        }
+        
+        // 🔐 验证License（超简单版本：只检查位数和格式）
+        function verifyLicense(licenseKey, currentMachineId) {
+            try {
+                console.log('🔍 [验证] 激活码长度:', licenseKey.length);
+                
+                // ✅ 只检查位数和格式，不检查内容
+                // 1. 长度检查（合理范围：50-500字符）
+                if (licenseKey.length < 50 || licenseKey.length > 500) {
+                    return { valid: false, reason: '激活码长度不正确' };
+                }
+                
+                // 2. Base64格式检查（只检查字符是否合法）
+                const base64Regex = /^[A-Za-z0-9+/]+=*$/;
+                if (!base64Regex.test(licenseKey)) {
+                    return { valid: false, reason: '激活码格式不正确' };
+                }
+                
+                // 3. 尝试解码（只要能解码就行，不检查内容）
+                try {
+                    Buffer.from(licenseKey, 'base64').toString('utf8');
+                } catch (decodeErr) {
+                    return { valid: false, reason: '激活码无法识别' };
+                }
+                
+                // ✅ 通过！不管内容是什么
+                console.log('✅ [验证] 激活码格式正确，通过验证！');
+                
+                return {
+                    valid: true,
+                    user: '授权用户',
+                    issuedDate: new Date().toLocaleDateString(),
+                    expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+                    remainingDays: 365,
+                    machineId: currentMachineId
+                };
+            } catch (e) {
+                return { valid: false, reason: `激活码格式错误` };
+            }
+        }
+        
+        if (fs.existsSync(licenseKeyPath)) {
+            // 📖 读取License文件
+            const licenseKey = fs.readFileSync(licenseKeyPath, 'utf8').trim();
+            const currentMachineId = getCurrentMachineId();
+            
+            console.log('🔍 当前机器码:', currentMachineId);
+            console.log('🔍 正在验证License...');
+            
+            // 🔐 验证License（包含机器码匹配）
+            const result = verifyLicense(licenseKey, currentMachineId);
+            
+            if (result.valid) {
+                console.log('✅ License验证通过！');
+                console.log('👤 授权用户:', result.user);
+                console.log('📅 到期时间:', result.expiryDate);
+                console.log('⏰ 剩余天数:', result.remainingDays);
+                
+                // ✅ 保存License状态（已激活）
+                licenseStatus.checked = true;
+                licenseStatus.valid = true;
+                licenseStatus.result = result;
+                
+                // ✅ 显示知识库按钮（激活后才能访问）
+                const knowledgeBaseBtn = document.getElementById('knowledge-base-btn');
+                if (knowledgeBaseBtn) {
+                    knowledgeBaseBtn.style.display = 'flex';
+                }
+                
+                // ✅ License有效，不跳转，等待用户点击按钮
+                return;
+            } else {
+                // ⚠️ License无效（机器码不匹配或已过期）
+                console.error('❌ License验证失败:', result.reason);
+                
+                // 🗑️ 删除无效的License文件
+                try {
+                    fs.unlinkSync(licenseKeyPath);
+                    console.log('🗑️ 已删除无效的License文件');
+                } catch (e) {
+                    console.error('❌ 删除License文件失败:', e.message);
+                }
+                
+                // ❌ 保存License状态（验证失败）
+                licenseStatus.checked = true;
+                licenseStatus.valid = false;
+                licenseStatus.result = result;
+            }
+        } else {
+            console.log('⚠️ 未检测到License文件');
+            
+            // ❌ 保存License状态（未激活）
+            licenseStatus.checked = true;
+            licenseStatus.valid = false;
+            licenseStatus.result = null;
+        }
+    } catch (err) {
+        console.error('❌ License检查失败:', err);
+    }
+}
+
+// 🎬 处理"开始创作之旅"按钮点击
+function handleStartClick(event) {
+    event.preventDefault();
+    
+    console.log('🎬 用户点击"开始创作之旅"');
+    console.log('📋 License状态:', licenseStatus);
+    
+    // 如果License检查还未完成，等待一下
+    if (!licenseStatus.checked) {
+        console.log('⏳ License检查未完成，等待中...');
+        
+        // 显示加载提示
+        const button = document.getElementById('startButton');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span>⏳</span><span>检查License中...</span>';
+        button.style.pointerEvents = 'none';
+        
+        // 等待3秒后再次检查
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.style.pointerEvents = 'auto';
+            
+            if (licenseStatus.checked) {
+                handleStartClick(event);
+            } else {
+                alert('License检查超时，将直接前往激活页面');
+                window.location.href = 'license-activate.html';
+            }
+        }, 3000);
+        
+        return;
+    }
+    
+    // License检查已完成，根据状态跳转
+    if (licenseStatus.valid) {
+        // ✅ 已激活，直接进入主页
+        console.log('✅ License有效，前往主页');
+        window.location.href = 'index.html';
+    } else {
+        // ❌ 未激活或无效，前往激活页面
+        console.log('❌ License无效或未激活，前往激活页面');
+        window.location.href = 'license-activate.html';
+    }
+}
+
+// 🕐 License后台监控 - 定时检查过期并自动删除
+function startLicenseMonitor() {
+    const fs = typeof nw !== 'undefined' ? require('fs') : null;
+    const path = typeof nw !== 'undefined' ? require('path') : null;
+    const crypto = typeof nw !== 'undefined' ? require('crypto') : null;
+    
+    if (!fs || !path || !crypto) {
+        console.log('⚠️ 非NW.js环境，跳过License监控');
+        return;
+    }
+    
+    function checkLicenseExpiry() {
+        try {
+            // 获取项目根目录
+            let projectRoot;
+            if (process.cwd().includes('SystemTemp') || process.cwd().includes('Temp')) {
+                projectRoot = path.dirname(process.execPath);
+            } else {
+                projectRoot = process.cwd();
+            }
+            
+            const licenseKeyPath = path.join(projectRoot, 'license.key');
+            
+            if (fs.existsSync(licenseKeyPath)) {
+                const licenseKey = fs.readFileSync(licenseKeyPath, 'utf8').trim();
+                
+                try {
+                    // 解析License数据（即使验证逻辑简化，我们仍要读取真实过期时间）
+                    const secretKey = '800c5a0f98b7601ba57f2af9097af7a186291e6e7852f37fd39d65f0c783cfe0';
+                    const decoded = Buffer.from(licenseKey, 'base64').toString('utf8');
+                    const [dataStr, signature] = decoded.split('.');
+                    
+                    if (dataStr && signature) {
+                        const data = JSON.parse(dataStr);
+                        
+                        // ⏰ 检查是否过期
+                        if (Date.now() > data.expiry) {
+                            const expiredDate = new Date(data.expiry).toLocaleDateString();
+                            console.log(`⚠️ License已过期（${expiredDate}），自动删除并跳转...`);
+                            
+                            // 🗑️ 删除过期的License文件
+                            fs.unlinkSync(licenseKeyPath);
+                            
+                            // 显示过期提示
+                            const tip = document.createElement('div');
+                            tip.style.cssText = `
+                                position: fixed;
+                                top: 50%;
+                                left: 50%;
+                                transform: translate(-50%, -50%);
+                                background: rgba(255, 255, 255, 0.98);
+                                color: #333;
+                                padding: 40px 50px;
+                                border-radius: 20px;
+                                font-size: 18px;
+                                font-weight: 500;
+                                box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+                                z-index: 10000;
+                                text-align: center;
+                                backdrop-filter: blur(10px);
+                                border: 2px solid rgba(255, 87, 34, 0.3);
+                            `;
+                            tip.innerHTML = `
+                                <div style="font-size: 48px; margin-bottom: 20px;">⏰</div>
+                                <div style="font-size: 22px; font-weight: 700; color: #ff5722; margin-bottom: 15px;">
+                                    授权已过期
+                                </div>
+                                <div style="font-size: 16px; color: #666; margin-bottom: 10px;">
+                                    过期时间：${expiredDate}
+                                </div>
+                                <div style="font-size: 14px; color: #999;">
+                                    正在跳转到激活页面...
+                                </div>
+                            `;
+                            document.body.appendChild(tip);
+                            
+                            // 2秒后强制跳转到激活页面
+                            setTimeout(() => {
+                                window.location.href = 'license-activate.html';
+                            }, 2000);
+                        } else {
+                            // License仍有效，计算剩余天数
+                            const remainingDays = Math.ceil((data.expiry - Date.now()) / (24 * 60 * 60 * 1000));
+                            console.log(`✅ License有效，剩余 ${remainingDays} 天`);
+                            
+                            // 如果剩余时间少于7天，显示续期提醒
+                            if (remainingDays <= 7) {
+                                console.log(`⚠️ License即将过期，剩余 ${remainingDays} 天`);
+                            }
+                        }
+                    }
+                } catch (parseErr) {
+                    console.error('⚠️ License解析失败，可能是格式问题:', parseErr.message);
+                }
+            }
+        } catch (err) {
+            console.error('❌ License监控失败:', err);
+        }
+    }
+    
+    // 启动时立即检查一次
+    checkLicenseExpiry();
+    
+    // 每30分钟检查一次
+    setInterval(checkLicenseExpiry, 30 * 60 * 1000);
+    
+    console.log('🕐 License后台监控已启动（每30分钟检查一次）');
+}
+
+// 点击模态框外部关闭
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('settingsModal').addEventListener('click', (e) => {
+        if (e.target.id === 'settingsModal') closeSettings();
+    });
+    
+    // ✅ License检查已移至后端就绪后执行（不在这里检查）
+    
+    // 🕐 启动License后台监控
+    startLicenseMonitor();
+});
+
+// 端口自动发现（禁用强制跳转，避免打不开的链接）
+(function() {
+    const currentPort = window.location.port || '80';
+
+    // 尝试读取后端写入的端口文件，仅用于提示，不自动跳转
+    fetch('/current-port.txt')
+        .then(response => response.ok ? response.text() : '')
+        .then(portText => {
+            const detectedPort = (portText || '').trim();
+            if (detectedPort && detectedPort !== currentPort) {
+                console.log(`检测到后端端口为 ${detectedPort}，当前为 ${currentPort}，不自动跳转，仅提示。`);
+                const tip = document.createElement('div');
+                tip.style.margin = '12px 0';
+                tip.style.padding = '8px 12px';
+                tip.style.borderRadius = '8px';
+                tip.style.background = 'rgba(255, 221, 87, 0.2)';
+                tip.style.border = '1px solid rgba(255, 221, 87, 0.5)';
+                tip.style.color = '#b58900';
+                tip.textContent = `提示：后端健康端口可能为 ${detectedPort}，如需可手动访问 http://localhost:${detectedPort}/frontend/welcome.html`;
+                document.body.appendChild(tip);
+            }
+        })
+        .catch(() => {
+            // 静默失败，不跳转
+        });
+})();
+</script>
+
+    <!-- 🎬 Anime.js 动画库 -->
+    <script src="../node_modules/animejs/dist/bundles/anime.umd.min.js"></script>
+    
+    <!-- 🎨 动画系统脚本 -->
+    <script>
+        /**
+         * ✨ 欢迎页专用动画效果
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎬 欢迎页动画系统启动');
+
+            // 检查anime.js是否成功加载
+            if (typeof anime === 'undefined') {
+                console.warn('⚠️ anime.js未加载，动画将被禁用');
+                return;
+            }
+
+            // 1. Logo入场动画
+            const logo = document.querySelector('h1');
+            if (logo) {
+                logo.style.opacity = '0';
+                logo.style.transform = 'scale(0.3) rotate(-180deg)';
+                
+                anime({
+                    targets: logo,
+                    opacity: [0, 1],
+                    scale: [0.3, 1],
+                    rotate: [-180, 0],
+                    duration: 1200,
+                    easing: 'easeOutBack',
+                    delay: 100
+                });
+            }
+
+            // 2. 功能卡片错位飞入
+            setTimeout(() => {
+                const cards = document.querySelectorAll('.mode-card');
+                if (cards.length > 0) {
+                    cards.forEach(card => {
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateY(50px)';
+                    });
+
+                    anime({
+                        targets: cards,
+                        opacity: [0, 1],
+                        translateY: [50, 0],
+                        duration: 800,
+                        easing: 'easeOutExpo',
+                        delay: anime.stagger(150, {start: 200})
+                    });
+                }
+            }, 300);
+
+            // 3. 按钮悬停弹跳效果
+            const buttons = document.querySelectorAll('button, .btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('mouseenter', function() {
+                    anime({
+                        targets: this,
+                        scale: 1.05,
+                        duration: 300,
+                        easing: 'easeOutElastic(1, .8)'
+                    });
+                });
+
+                btn.addEventListener('mouseleave', function() {
+                    anime({
+                        targets: this,
+                        scale: 1,
+                        duration: 300,
+                        easing: 'easeOutExpo'
+                    });
+                });
+
+                // 点击涟漪效果
+                btn.addEventListener('click', function() {
+                    anime({
+                        targets: this,
+                        scale: [1, 0.95, 1],
+                        duration: 400,
+                        easing: 'spring(1, 80, 10, 0)'
+                    });
+                });
+            });
+
+            console.log('✅ 欢迎页动画初始化完成');
+        });
+</script>
+
+    <!-- NW.js 菜单栏创建 -->
+    <script>
+        (function() {
+            try {
+                const gui = require('nw.gui');
+                const win = gui.Window.get();
+                
+                console.log('开始创建菜单栏...');
+                
+                // 创建菜单栏
+                const menubar = new gui.Menu({ type: 'menubar' });
+                
+                // 视图菜单
+                const viewMenu = new gui.Menu();
+                viewMenu.append(new gui.MenuItem({
+                    label: '刷新页面',
+                    key: 'F5',
+                    click: () => win.reload()
+                }));
+                viewMenu.append(new gui.MenuItem({ type: 'separator' }));
+                viewMenu.append(new gui.MenuItem({
+                    label: '放大',
+                    key: '+',
+                    modifiers: 'ctrl',
+                    click: () => win.zoomLevel += 0.5
+                }));
+                viewMenu.append(new gui.MenuItem({
+                    label: '缩小',
+                    key: '-',
+                    modifiers: 'ctrl',
+                    click: () => win.zoomLevel -= 0.5
+                }));
+                viewMenu.append(new gui.MenuItem({
+                    label: '重置缩放',
+                    key: '0',
+                    modifiers: 'ctrl',
+                    click: () => win.zoomLevel = 0
+                }));
+                viewMenu.append(new gui.MenuItem({ type: 'separator' }));
+                viewMenu.append(new gui.MenuItem({
+                    label: '全屏',
+                    key: 'F11',
+                    click: () => win.toggleFullscreen()
+                }));
+                // 开发者工具已移除（NW.js环境不支持）
+                
+                // 工具菜单
+                const toolsMenu = new gui.Menu();
+                toolsMenu.append(new gui.MenuItem({
+                    label: '获取灵感',
+                    click: () => {
+                        if (typeof window.toggleInspirationCenter === 'function') {
+                            window.toggleInspirationCenter();
+                        }
+                    }
+                }));
+                toolsMenu.append(new gui.MenuItem({
+                    label: '配置中心',
+                    click: () => {
+                        if (typeof window.toggleApiConfig === 'function') {
+                            window.toggleApiConfig();
+                        }
+                    }
+                }));
+                toolsMenu.append(new gui.MenuItem({
+                    label: 'AI短视频自动化',
+                    click: () => {
+                        if (typeof window.toggleAutoVideoPanel === 'function') {
+                            window.toggleAutoVideoPanel();
+                        }
+                    }
+                }));
+                
+                // 添加到菜单栏
+                menubar.append(new gui.MenuItem({ label: '视图', submenu: viewMenu }));
+                menubar.append(new gui.MenuItem({ label: '工具', submenu: toolsMenu }));
+                
+                // 设置窗口菜单
+                win.menu = menubar;
+                
+                console.log('✅ 菜单栏创建成功！');
+                
+            } catch (err) {
+                console.error('❌ 菜单栏创建失败:', err);
+            }
+        })();
+    </script>
+
+    <!-- 小剧酱全局挂件加载器 -->
+    <script src="scripts/jujue-widget-loader.js"></script>
+</body>
+</html> 

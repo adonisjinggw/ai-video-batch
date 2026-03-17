@@ -157,10 +157,76 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
         .generate-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* 生成中状态 - 红色 */
+        .generate-btn.generating {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            animation: pulse-generating 1.5s ease-in-out infinite;
+        }
+
+        /* 进度渐变状态 */
+        .generate-btn.progress-25 {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: #fff;
+        }
+
+        .generate-btn.progress-50 {
+            background: linear-gradient(135deg, #eab308, #ca8a04);
+            color: #000;
+        }
+
+        .generate-btn.progress-75 {
+            background: linear-gradient(135deg, #84cc16, #65a30d);
+            color: #000;
+        }
+
+        /* 完成状态 - 绿色 */
+        .generate-btn.completed {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff;
+            animation: pulse-complete 0.6s ease-out;
+        }
+
+        @keyframes pulse-generating {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { transform: scale(1.02); box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.2); }
+        }
+
+        @keyframes pulse-complete {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* 进度条效果 */
+        .generate-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: width 0.3s ease;
+        }
+
+        .generate-btn.generating::before {
+            animation: progress-fill 2s ease-out forwards;
+        }
+
+        @keyframes progress-fill {
+            0% { width: 0%; }
+            100% { width: 100%; }
         }
 
         .upload-area {
@@ -479,6 +545,12 @@
                             <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
                             <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
                         </optgroup>
+                        <optgroup label="🎬 LTX-Video (Lightricks)">
+                            <option value="ltx-video-5s">LTX-Video 5秒 (4胶片/快速)</option>
+                            <option value="ltx-video-10s">LTX-Video 10秒 (7胶片)</option>
+                            <option value="ltx-video-15s">LTX-Video 15秒 (10胶片)</option>
+                            <option value="ltx-video-custom">LTX-Video 自定义时长</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="setting-item"><label>比例</label>
@@ -596,6 +668,12 @@
                             <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
                             <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
                             <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 LTX-Video (Lightricks)">
+                            <option value="ltx-video-5s">LTX-Video 5秒 (4胶片/快速)</option>
+                            <option value="ltx-video-10s">LTX-Video 10秒 (7胶片)</option>
+                            <option value="ltx-video-15s">LTX-Video 15秒 (10胶片)</option>
+                            <option value="ltx-video-custom">LTX-Video 自定义时长</option>
                         </optgroup>
                     </select></div>
                 <div class="setting-item"><label>比例</label><select id="i2vRatio">
@@ -732,6 +810,12 @@
                             <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
                             <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
                             <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+                        </optgroup>
+                        <optgroup label="🎬 LTX-Video (Lightricks)">
+                            <option value="ltx-video-5s">LTX-Video 5秒 (4胶片/快速)</option>
+                            <option value="ltx-video-10s">LTX-Video 10秒 (7胶片)</option>
+                            <option value="ltx-video-15s">LTX-Video 15秒 (10胶片)</option>
+                            <option value="ltx-video-custom">LTX-Video 自定义时长</option>
                         </optgroup>
                     </select>
                 </div>
@@ -1134,16 +1218,74 @@
             }
         };
 
+        // ==================== 全局变量定义 ====================
+        // currentUser 已在第1009行声明，此处不再重复声明
+        let i2vImageData = null;  // 图生视频的上传图片
+        let i2vImageDataList = [];  // 图生视频的多张图片
+        let currentVideoUrls = { t2v: '', i2v: '', ref: '' };  // 当前生成的视频URL
+        
+        // 批量视频生成变量
+        let batchImages = [];  // 存储批量上传的图片
+        let batchImagePrompts = [];  // 存储每张图片的独立提示词
+        let batchVideoResults = [];  // 存储批量生成结果
+        let batchGenerating = false;  // 是否正在生成中
+        let batchT2vCards = [];  // 存储文生视频卡片数据 { prompt, model, ratio }
+
         // 初始化
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('[video-tools] 页面加载完成，开始初始化...');
             
             // 🔧 修复：确保所有生成按钮事件正确绑定（支持移动端触摸）
-            // 使用防抖避免重复触发
+            // 使用防抖避免重复触发，添加视觉反馈
             let isGenerating = false;
             let lastClickTime = 0;
-            const DEBOUNCE_MS = 1000; // 1秒内不响应重复点击
-            function debounceGenerate(fn, type) {
+            const DEBOUNCE_MS = 500; // 500ms防抖，减少等待时间
+            
+            // 更新按钮视觉状态
+            function updateBtnState(btn, state, progress = 0) {
+                // 清除所有状态类
+                btn.classList.remove('generating', 'progress-25', 'progress-50', 'progress-75', 'completed');
+                
+                switch(state) {
+                    case 'generating':
+                        btn.classList.add('generating');
+                        btn.disabled = true;
+                        btn.innerHTML = '⏳ 生成中...';
+                        break;
+                    case 'progress':
+                        btn.disabled = true;
+                        if (progress < 25) {
+                            btn.classList.add('generating');
+                        } else if (progress < 50) {
+                            btn.classList.add('progress-25');
+                        } else if (progress < 75) {
+                            btn.classList.add('progress-50');
+                        } else {
+                            btn.classList.add('progress-75');
+                        }
+                        btn.innerHTML = `⏳ 生成中 ${progress}%`;
+                        break;
+                    case 'completed':
+                        btn.classList.add('completed');
+                        btn.disabled = false;
+                        btn.innerHTML = '✅ 生成完成';
+                        setTimeout(() => {
+                            btn.classList.remove('completed');
+                            btn.innerHTML = '⚡ 重新生成';
+                        }, 2000);
+                        break;
+                    case 'error':
+                        btn.classList.remove('generating', 'progress-25', 'progress-50', 'progress-75');
+                        btn.disabled = false;
+                        btn.innerHTML = '❌ 生成失败，重试';
+                        break;
+                    default:
+                        btn.disabled = false;
+                        btn.innerHTML = btn.dataset.originalText || '⚡ 生成视频';
+                }
+            }
+            
+            function debounceGenerate(fn, type, btnSelector) {
                 return function(e) {
                     const now = Date.now();
                     if (isGenerating || (now - lastClickTime) < DEBOUNCE_MS) {
@@ -1155,7 +1297,33 @@
                     lastClickTime = now;
                     isGenerating = true;
                     console.log(`[video-tools] ${type}按钮被点击`);
-                    fn().finally(() => { isGenerating = false; });
+                    
+                    // 立即视觉反馈
+                    const btn = e.target.closest('.generate-btn, .result-btn');
+                    if (btn) {
+                        btn.dataset.originalText = btn.innerHTML;
+                        updateBtnState(btn, 'generating');
+                        
+                        // 模拟进度更新
+                        let progress = 0;
+                        const progressInterval = setInterval(() => {
+                            progress += Math.random() * 15;
+                            if (progress > 90) progress = 90;
+                            updateBtnState(btn, 'progress', Math.floor(progress));
+                        }, 2000);
+                        
+                        fn().then(() => {
+                            clearInterval(progressInterval);
+                            updateBtnState(btn, 'completed');
+                        }).catch(() => {
+                            clearInterval(progressInterval);
+                            updateBtnState(btn, 'error');
+                        }).finally(() => { 
+                            isGenerating = false; 
+                        });
+                    } else {
+                        fn().finally(() => { isGenerating = false; });
+                    }
                 };
             }
             
@@ -1163,31 +1331,31 @@
             const t2vBtns = document.querySelectorAll('#panel-t2v .generate-btn, #panel-t2v .result-btn.primary');
             t2vBtns.forEach(btn => {
                 btn.onclick = null;
-                btn.addEventListener('click', debounceGenerate(generateT2V, '文生视频'));
+                btn.addEventListener('click', debounceGenerate(generateT2V, '文生视频', '#panel-t2v .generate-btn'));
             });
             
             // 图生视频按钮（包括生成和重新生成）
             const i2vBtns = document.querySelectorAll('#panel-i2v .generate-btn, #panel-i2v .result-btn.primary');
             i2vBtns.forEach(btn => {
                 btn.onclick = null;
-                btn.addEventListener('click', debounceGenerate(generateI2V, '图生视频'));
+                btn.addEventListener('click', debounceGenerate(generateI2V, '图生视频', '#panel-i2v .generate-btn'));
             });
             
             // 视频克隆按钮（包括生成和重新克隆）
             const refBtns = document.querySelectorAll('#panel-ref .generate-btn, #panel-ref .result-btn.primary');
             refBtns.forEach(btn => {
                 btn.onclick = null;
-                btn.addEventListener('click', debounceGenerate(generateRef, '视频克隆'));
+                btn.addEventListener('click', debounceGenerate(generateRef, '视频克隆', '#panel-ref .generate-btn'));
             });
             
             // 批量生成按钮
             const batchBtns = document.querySelectorAll('#panel-batch .generate-btn');
             batchBtns.forEach(btn => {
                 btn.onclick = null;
-                btn.addEventListener('click', debounceGenerate(generateBatch, '批量生成'));
+                btn.addEventListener('click', debounceGenerate(generateBatch, '批量生成', '#panel-batch .generate-btn'));
             });
             
-            console.log('[video-tools] 按钮事件已绑定');
+            console.log('[video-tools] 按钮事件已绑定（带视觉反馈）');
             
             // 🧩 初始化批量文生视频宫格（页面首次进入）
             if (batchT2vCards.length === 0) {
@@ -1450,9 +1618,6 @@
 
         // ✅ 已移除退款函数 - 后端成功扣费后不再退款，避免成本损耗
 
-        let currentVideoUrls = { t2v: '', i2v: '', ref: '' };
-        let i2vImageData = '', refVideoData = '';
-        let i2vImageDataList = [];  // 多图上传列表
         function switchPanel(panel) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); event.target.classList.add('active'); document.getElementById('panel-' + panel).classList.add('active'); }
         // 旧版单图上传函数（已废弃，保留兼容）
         function previewI2VImage(input) { previewI2VImages(input); }
@@ -1830,6 +1995,7 @@ Output a concise English prompt that can be directly used for AI video generatio
         function isKlingModel(model) { return model && model.startsWith('kling-'); }
         // 🎬 判断是否是Wan2.6模型
         function isWan26Model(model) { return model && model.startsWith('wan26-'); }
+        function isLtxVideoModel(model) { return model && model.startsWith('ltx-video'); }
         // 🎬 解析Wan2.6模型参数 (wan26-720p-10s-audio -> { resolution: '720p', duration: 10, audio: true })
         function parseWan26Model(model) {
             const match = model.match(/wan26-(\d+p)-(\d+)s(-audio)?/i);
@@ -1938,13 +2104,25 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             }
         }
         // 🎯 处理提示词：添加中文语音指令 + 强制语音在视频结束前1秒结束
-        function ensureChineseAudio(prompt, duration = 15, isWan26 = false) {
+        function ensureChineseAudio(prompt, duration = 15, isWan26 = false, audio = true) {
             // 🔧 计算语音必须结束的时间点（Wan2.6 提前2秒，其他提前1秒）
             const bufferTime = isWan26 ? 2 : 1;
             const audioEndTime = Math.max(duration - bufferTime, 3);
             const wan26Hint = isWan26 ? '【Wan2.6特有】语速适中，断句自然，不要超时，最后保持2秒静音' : '';
             const audioDurationHint = `【重要】所有语音/旁白/对话必须在第${audioEndTime}秒前结束，最后${bufferTime}秒保持静音画面`;
             
+            // 无声版：不添加任何配音相关提示
+            if (!audio) {
+                if (!prompt) return `让图片动起来，平滑过渡。${audioDurationHint}`.trim();
+                const hasTimeControl = prompt.includes('秒前结束') || prompt.includes('静音画面') || prompt.includes('结束语音');
+                let result = prompt;
+                if (!hasTimeControl) {
+                    result += `。${audioDurationHint}`;
+                }
+                return result.trim();
+            }
+            
+            // 有声版：添加中文配音提示
             if (!prompt) return `让图片动起来，平滑过渡，使用中文配音。${audioDurationHint} ${wan26Hint}`.trim();
             const lower = prompt.toLowerCase();
             // 检测用户是否明确要求英文
@@ -1970,27 +2148,48 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             return result.trim();
         }
         async function generateT2V() { 
-            const rawPrompt = document.getElementById('t2vPrompt').value.trim(); 
+            let rawPrompt = document.getElementById('t2vPrompt').value.trim(); 
             if (!rawPrompt) { showToast('请输入视频描述'); return; } 
+            
+            // 检查是否是JSON格式的提示词（来自提示词优化技能）
+            try {
+                const parsed = JSON.parse(rawPrompt);
+                if (parsed.optimizedPrompt) {
+                    rawPrompt = parsed.optimizedPrompt;
+                } else if (parsed.originalPrompt) {
+                    rawPrompt = parsed.originalPrompt;
+                }
+            } catch (e) {
+                // 不是JSON，使用原样
+            }
+            
             const model = document.getElementById('t2vModel').value; 
             console.log('[t2v] 选择的模型:', model);
             const ratio = document.getElementById('t2vRatio').value; 
             const duration = getFixedDuration(model);
             const isWan26 = isWan26Model(model);
+            
             const isGrok = model && model.startsWith('grok-video');
             console.log('[t2v] isGrok:', isGrok, 'model:', model);
-            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);  // 🎯 确保中文配音+时长控制
+            // 🎯 获取Wan2.6音频参数
+            let wan26Audio = true;
+            if (isWan26) {
+                const wan26Params = parseWan26Model(model);
+                wan26Audio = wan26Params.audio;
+            }
+            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26, wan26Audio);  // 🎯 确保中文配音+时长控制
             const cost = VIDEO_COST[model] || 8; 
             if (!await preDeduct(cost, '文生视频')) return; 
             document.getElementById('t2vLoading').style.display = 'block'; 
             document.getElementById('t2vResult').style.display = 'none'; 
             try { 
-                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6/Grok模型使用yunwu API
+                // 🎬 Veo/Vidu/Hailuo/Kling/Wan2.6/Grok/LTX-Video模型使用yunwu API
                 const isVeo = isVeoModel(model);
                 const isVidu = isViduModel(model);
                 const isHailuo = isHailuoModel(model);
                 const isKling = isKlingModel(model);
-                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok;
+                const isLtxVideo = isLtxVideoModel(model);
+                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok || isLtxVideo;
                 console.log('[t2v] useYunwu:', useYunwu, 'isGrok:', isGrok, 'isWan26:', isWan26);
                 let apiEndpoint, requestBody;
                 
@@ -2038,20 +2237,6 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 } else if (isVeo) {
                     apiEndpoint = '/api/yunwu';
                     requestBody = { action: 'veo3', prompt, model, aspect_ratio: ratio, with_audio: true, userId: currentUser?.id, skip_billing: true };
-                } else if (isWan26) {
-                    // 🎬 Wan2.6模型 - 文生视频/图生视频都使用yunwu API
-                    const wan26Params = parseWan26Model(model);
-                    apiEndpoint = '/api/yunwu';
-                    requestBody = { 
-                        action: 'wan26', 
-                        prompt: prompt, 
-                        resolution: wan26Params.resolution,
-                        duration: wan26Params.duration,
-                        audio: wan26Params.audio,
-                        userId: currentUser?.id,
-                        skip_billing: true
-                    };
-                    console.log(`[t2v] Wan2.6文生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
                 } else if (isGrok) {
                     // 🎬 Grok模型 - 使用yunwu API
                     apiEndpoint = '/api/yunwu';
@@ -2065,6 +2250,43 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         skip_billing: true
                     };
                     console.log(`[t2v] Grok文生视频: ${model}`);
+                } else if (isLtxVideo) {
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'ltx', 
+                        model, 
+                        prompt, 
+                        aspect_ratio: ratio, 
+                        duration, 
+                        userId: currentUser?.id,
+                        skip_billing: true
+                    };
+                    console.log(`[t2v] LTX-Video文生视频: ${model}`);
+                } else if (isWan26) {
+                    // 🎬 Wan2.6模型 - 文生视频使用默认绿幕图
+                    const wan26Params = parseWan26Model(model);
+                    apiEndpoint = '/api/yunwu';
+                    // 简化prompt，移除时间控制要求和配音相关描述（如果无声版）
+                    let simplifiedPrompt = prompt 
+                        ? prompt.replace(/【重要】.*$/, '').replace(/语速适中.*$/, '').replace(/使用中文配音.*$/, '').trim()
+                        : '让画面动起来，平滑过渡';
+                    // 如果是有声版，添加配音描述
+                    if (wan26Params.audio) {
+                        simplifiedPrompt += '，使用中文配音，语速适中，断句自然';
+                    }
+                    requestBody = { 
+                        action: 'wan26', 
+                        prompt: simplifiedPrompt, 
+                        // 文生视频不传递img_url，后端会使用默认绿幕图
+                        resolution: wan26Params.resolution,
+                        duration: wan26Params.duration,
+                        audio: wan26Params.audio,  // 根据用户选择（有声/无声）
+                        userId: currentUser?.id,
+                        skip_billing: true
+                    };
+                    console.log(`[t2v] Wan2.6文生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
+                    console.log('[t2v] API端点:', apiEndpoint);
+                    console.log('[t2v] 请求体:', JSON.stringify(requestBody));
                 } else {
                     console.log('[t2v] 进入else分支，使用sora2');
                     apiEndpoint = '/api/sora2';
@@ -2074,11 +2296,13 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     }
                 }
                 
+                console.log('[t2v] 准备发送请求到:', apiEndpoint);
                 const response = await fetch(apiEndpoint, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify(requestBody) 
                 }); 
+                console.log('[t2v] 收到响应:', response.status, response.statusText);
                 if (!response.ok) throw new Error('API错误: ' + response.status); 
                 const data = await response.json(); 
                 if (data.error) throw new Error(data.message || data.error); 
@@ -2113,7 +2337,13 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             const duration = getFixedDuration(model);
             const isWan26 = isWan26Model(model);
             const isGrok = model && model.startsWith('grok-video');
-            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);  // 🎯 确保中文配音+时长控制
+            // 🎯 获取Wan2.6音频参数
+            let wan26Audio = true;
+            if (isWan26) {
+                const wan26Params = parseWan26Model(model);
+                wan26Audio = wan26Params.audio;
+            }
+            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26, wan26Audio);  // 🎯 确保中文配音+时长控制
             const cost = VIDEO_COST[model] || 8; 
             if (!await preDeduct(cost, '图生视频')) return; 
             document.getElementById('i2vLoading').style.display = 'block'; 
@@ -2124,7 +2354,8 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                 const isVidu = isViduModel(model);
                 const isHailuo = isHailuoModel(model);
                 const isKling = isKlingModel(model);
-                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok;
+                const isLtxVideo = isLtxVideoModel(model);
+                const useYunwu = isVeo || isVidu || isHailuo || isKling || isWan26 || isGrok || isLtxVideo;
                 
                 // 🎨 直接使用原图（线稿转换会丢失结构，已禁用）
                 let finalImageUrl = i2vImageData || i2vImageDataList[0];
@@ -2192,18 +2423,27 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     // 🎬 Wan2.6模型
                     const wan26Params = parseWan26Model(model);
                     apiEndpoint = '/api/yunwu';
+                    // 简化prompt，移除时间控制要求和配音相关描述（如果无声版）
+                    let simplifiedPrompt = prompt 
+                        ? prompt.replace(/【重要】.*$/, '').replace(/语速适中.*$/, '').replace(/使用中文配音.*$/, '').trim()
+                        : '让图片动起来，平滑过渡';
+                    // 如果是有声版，添加配音描述
+                    if (wan26Params.audio) {
+                        simplifiedPrompt += '，使用中文配音，语速适中，断句自然';
+                    }
                     requestBody = { 
                         action: 'wan26', 
-                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        prompt: simplifiedPrompt, 
                         img_url: finalImageUrl,
                         resolution: wan26Params.resolution,
                         duration: wan26Params.duration,
                         audio: wan26Params.audio,
-                        image_weight: 0.3,  // 较低的权重，避免第一帧显示原图
                         userId: currentUser?.id,
                         skip_billing: true
                     };
                     console.log(`[i2v] Wan2.6图生视频: ${wan26Params.resolution} ${wan26Params.duration}s audio=${wan26Params.audio}`);
+                    console.log('[i2v] API端点:', apiEndpoint);
+                    console.log('[i2v] 请求体:', JSON.stringify(requestBody).substring(0, 500));
                 } else if (isGrok) {
                     // 🎬 Grok模型 - 使用yunwu API
                     apiEndpoint = '/api/yunwu';
@@ -2220,6 +2460,19 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         preserve_subject: true
                     };
                     console.log(`[i2v] Grok图生视频: ${model}`);
+                } else if (isLtxVideo) {
+                    apiEndpoint = '/api/yunwu';
+                    requestBody = { 
+                        action: 'ltx', 
+                        model, 
+                        prompt: prompt || '让图片动起来，平滑过渡', 
+                        img_url: finalImageUrl,
+                        aspect_ratio: ratio, 
+                        duration, 
+                        userId: currentUser?.id,
+                        skip_billing: true
+                    };
+                    console.log(`[i2v] LTX-Video图生视频: ${model}`);
                 } else {
                     apiEndpoint = '/api/sora2';
                     requestBody = { action: 'image-to-video', prompt, image_url: finalImageUrl, model, aspect_ratio: ratio, duration, userId: currentUser?.id, image_weight: 0.98, preserve_subject: true };
@@ -2228,11 +2481,22 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     }
                 }
                 
-                const response = await fetch(apiEndpoint, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify(requestBody) 
-                }); 
+                console.log('[i2v] 准备发送请求到:', apiEndpoint);
+                console.log('[i2v] 请求体类型:', typeof requestBody);
+                console.log('[i2v] 请求体内容:', JSON.stringify(requestBody));
+                
+                let response;
+                try {
+                    response = await fetch(apiEndpoint, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(requestBody) 
+                    });
+                } catch (fetchError) {
+                    console.error('[i2v] fetch调用失败:', fetchError);
+                    throw fetchError;
+                }
+                console.log('[i2v] 收到响应:', response.status, response.statusText);
                 if (!response.ok) throw new Error('API错误: ' + response.status); 
                 const data = await response.json(); 
                 if (data.error) throw new Error(data.message || data.error); 
@@ -2268,7 +2532,13 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
             const ratio = document.getElementById('refRatio').value; 
             const duration = getFixedDuration(model);
             const isWan26 = isWan26Model(model);
-            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26);
+            // 🎯 获取Wan2.6音频参数
+            let wan26Audio = true;
+            if (isWan26) {
+                const wan26Params = parseWan26Model(model);
+                wan26Audio = wan26Params.audio;
+            }
+            const prompt = ensureChineseAudio(rawPrompt, duration, isWan26, wan26Audio);
             const cost = VIDEO_COST[model] || 8; 
             
             // 检查是否有参考视频
@@ -2536,7 +2806,13 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                     
                     // 组合提示词
                     const combinedPrompt = `Based on this video style: ${videoDescription}\n\nUser modification: ${prompt}`;
-                    const finalPrompt = ensureChineseAudio(combinedPrompt, duration, isWan26);
+                    // 🎯 获取Wan2.6音频参数
+                    let wan26Audio = true;
+                    if (isWan26) {
+                        const wan26Params = parseWan26Model(model);
+                        wan26Audio = wan26Params.audio;
+                    }
+                    const finalPrompt = ensureChineseAudio(combinedPrompt, duration, isWan26, wan26Audio);
                     
                     loadingText.textContent = '🎬 文生视频中...';
                     
@@ -2705,8 +2981,11 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
                         // Vidu/Hailuo/Kling 使用腾讯VOD轮询接口
                         pollBody = { action: 'poll-vod', task_id: taskId, userId: currentUser?.id };
                     } else if (isYunwu) {
-                        // Veo 使用普通轮询
                         pollBody = { action: 'poll', task_id: taskId, userId: currentUser?.id };
+                        if (source === 'ltx' || endpoint === 'runninghub') {
+                            pollBody._source = 'ltx';
+                            pollBody._endpoint = 'runninghub';
+                        }
                     } else {
                         // Sora2
                         pollBody = { action: 'poll', task_id: taskId, _source: source, _endpoint: endpoint, userId: currentUser?.id };
@@ -2748,9 +3027,6 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
         function showToast(msg) { const toast = document.getElementById('toast'); toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500); }
         
         // ==================== 🎯 批量视频生成功能 ====================
-        let batchImages = [];  // 存储批量上传的图片
-        let batchVideoResults = [];  // 存储批量生成结果
-        let batchGenerating = false;  // 是否正在生成中
         
         // ==================== 页面状态持久化 ====================
         function saveVideoToolsState() {
@@ -2929,7 +3205,6 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
         }
         
         // ==================== 文生视频宫格卡片 ====================
-        let batchT2vCards = [];  // 存储文生视频卡片数据 { prompt, model, ratio }
         
         // 添加文生视频卡片
         function addBatchT2vCard(prompt = '', model = '', ratio = '') {
@@ -3000,7 +3275,6 @@ The result should look like a simple black-and-white pencil sketch or blueprint.
         // 初始化文生视频卡片（延迟到 DOMContentLoaded 中执行）
         
         // 处理批量图片上传 - 九宫格布局，每张图片有独立提示词
-        let batchImagePrompts = [];  // 存储每张图片的独立提示词
         
         async function handleBatchImageUpload(input) {
             if (!input.files || input.files.length === 0) return;

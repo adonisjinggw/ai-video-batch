@@ -646,8 +646,13 @@
          */
         _buildCustomEstimateCost(def) {
             return (params) => {
-                const type = def.templateType || 'text';
+                const type = def.templateType || def.type || 'text';
                 const count = parseInt(params.count || def.count) || 1;
+                const explicitFilm = Number(def.estimateFilm);
+                const explicitTime = type === 'video' ? `约 ${count * 2} 分钟` : type === 'image' ? `约 ${count} 分钟` : '约 30 秒';
+                if (Number.isFinite(explicitFilm) && explicitFilm > 0) {
+                    return { film: Math.max(1, Math.ceil(explicitFilm)), time: explicitTime };
+                }
                 if (type === 'text') {
                     return { film: Math.max(10, count * 10), time: '约 30 秒' };
                 } else if (type === 'image') {
@@ -664,7 +669,7 @@
          * @private
          */
         _buildCustomExecute(def) {
-            const templateType = def.templateType || 'text';
+            const templateType = def.templateType || def.type || 'text';
             const promptTemplate = def.promptTemplate || '';
             const aspectRatio = def.aspectRatio || '16:9';
             const videoModel = def.videoModel || 'sora-2-vip-all';
@@ -672,9 +677,13 @@
 
             // 替换模板中的 {{key}} 为参数值
             function fillTemplate(template, params) {
-                return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-                    return params[key] !== undefined ? String(params[key]) : `{{${key}}}`;
-                });
+                return String(template || '')
+                    .replace(/\{\{(\w+)\}\}/g, (_, key) => {
+                        return params[key] !== undefined ? String(params[key]) : `{{${key}}}`;
+                    })
+                    .replace(/\{(\w+)\}/g, (_, key) => {
+                        return params[key] !== undefined ? String(params[key]) : `{${key}}`;
+                    });
             }
 
             if (templateType === 'text') {

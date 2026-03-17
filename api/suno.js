@@ -19,12 +19,12 @@ const FILM_COST = {
  */
 async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, model, cost, metadata) {
     if (!userId) return { success: false, error: 'no userId' };
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -39,13 +39,13 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
                 metadata
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
             console.warn('[suno] 保存记录失败:', data.error || data.message);
             return { success: false, error: data.error || data.message };
         }
-        
+
         console.log(`[suno] 📝 生成记录已保存: ${data.recordId}`);
         return { success: true, recordId: data.recordId };
     } catch (e) {
@@ -59,15 +59,15 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
  */
 async function __billing(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
-    
+
     const intAmount = Math.ceil(amount);
     const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -78,9 +78,9 @@ async function __billing(billingAction, userId, amount, description) {
                 description: description || (billingAction === 'refund' ? '退款' : '消费')
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
-        
+
         if (!res.ok || !data.success) {
             if (billingAction === 'consume') {
                 throw new Error(data.message || data.error || '扣费失败');
@@ -88,7 +88,7 @@ async function __billing(billingAction, userId, amount, description) {
             console.error(`[suno] 退款失败:`, data);
             return { success: false, error: data.message || data.error };
         }
-        
+
         console.log(`[suno] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
         return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
     } catch (e) {
@@ -159,11 +159,11 @@ async function fetchWithFallback(endpoint, body, action) {
 
         try {
             console.log(`[suno] 尝试 ${baseUrl}${endpoint}`);
-            
+
             // 🔧 添加超时控制
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-            
+
             const res = await fetch(`${baseUrl}${endpoint}`, {
                 method: 'POST',
                 headers: {
@@ -174,7 +174,7 @@ async function fetchWithFallback(endpoint, body, action) {
                 body: JSON.stringify(body),
                 signal: controller.signal
             });
-            
+
             clearTimeout(timeoutId);
 
             const text = await res.text();
@@ -191,12 +191,12 @@ async function fetchWithFallback(endpoint, body, action) {
             }
 
             const errDetail = typeof data.message === 'string' ? data.message
-                            : typeof data.error === 'string' ? data.error
-                            : text.slice(0, 200);
+                : typeof data.error === 'string' ? data.error
+                    : text.slice(0, 200);
             errors.push(`[${baseUrl}] ${res.status}: ${errDetail}`);
         } catch (e) {
             if (e.name === 'AbortError') {
-                errors.push(`[${baseUrl}] 请求超时(${timeoutMs/1000}s)`);
+                errors.push(`[${baseUrl}] 请求超时(${timeoutMs / 1000}s)`);
             } else {
                 errors.push(`[${baseUrl}] 网络错误: ${e.message}`);
             }
@@ -366,7 +366,7 @@ module.exports = async function handler(req, res) {
         // 🔒 先扣费（🔧 修复：__billing 会 throw，必须 try-catch 防止函数崩溃）
         if (!skipBilling && filmCost > 0 && userId) {
             try {
-                const billingResult = await __billing('consume', userId, filmCost, `音乐生成:${mv || 'chirp-v4'}`);
+                const billingResult = await __billing('consume', userId, filmCost, `音乐生成:${mv || 'chirp-auk'}`);
                 if (!billingResult.success && !billingResult.skipped) {
                     return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: String(billingResult.error || '扣费失败'), billed: 0 });
                 }
@@ -376,9 +376,9 @@ module.exports = async function handler(req, res) {
                 return json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: String(billingErr.message || '扣费失败'), billed: 0 });
             }
         }
-        
+
         const requestBody = {
-            mv: mv || 'chirp-v4'
+            mv: mv || 'chirp-auk'
         };
 
         // 灵感模式：使用 gpt_description_prompt
@@ -404,9 +404,9 @@ module.exports = async function handler(req, res) {
             if (negative_tags) requestBody.negative_tags = negative_tags;
             if (metadata) requestBody.metadata = metadata;
         } else {
-            return json(400, { 
+            return json(400, {
                 success: false,
-                error: 'MISSING_PROMPT', 
+                error: 'MISSING_PROMPT',
                 error_code: 'MISSING_PROMPT',
                 message: '请提供歌词内容或创作描述',
                 billed: 0
@@ -420,9 +420,9 @@ module.exports = async function handler(req, res) {
             if (billingSuccess) {
                 await __billing('refund', userId, filmCost, '音乐生成API失败退款');
             }
-            return json(500, { 
+            return json(500, {
                 success: false,
-                error: 'API_ERROR', 
+                error: 'API_ERROR',
                 error_code: 'API_ERROR',
                 message: result.error,
                 billed: 0
@@ -435,18 +435,18 @@ module.exports = async function handler(req, res) {
             if (billingSuccess) {
                 await __billing('refund', userId, filmCost, '音乐生成无taskID退款');
             }
-            return json(500, { 
+            return json(500, {
                 success: false,
-                error: 'NO_TASK_ID', 
+                error: 'NO_TASK_ID',
                 error_code: 'API_ERROR',
-                message: '未返回任务ID', 
+                message: '未返回任务ID',
                 raw: result.data,
                 billed: 0
             });
         }
 
         // ✅ 任务提交成功（已在开头扣费，有task_id意味着上游已消耗，不退款）
-        await __saveGenerationRecord(userId, 'music', `task:${taskId}`, gpt_description_prompt || prompt || '', mv || 'chirp-v4', filmCost, { title, tags, make_instrumental });
+        await __saveGenerationRecord(userId, 'music', `task:${taskId}`, gpt_description_prompt || prompt || '', mv || 'chirp-auk', filmCost, { title, tags, make_instrumental });
 
         return json(200, {
             success: true,
@@ -479,7 +479,7 @@ module.exports = async function handler(req, res) {
 
         // 🔧 增强：提取音乐数据，支持多种数据结构
         let musicList = [];
-        
+
         // 辅助函数：从单个项目提取音乐数据
         const extractMusicItem = (item) => {
             if (!item) return null;
@@ -496,7 +496,7 @@ module.exports = async function handler(req, res) {
                 prompt: item.prompt || item.lyrics || ''
             };
         };
-        
+
         // 结构1: taskData.data 是数组
         if (taskData.data && Array.isArray(taskData.data)) {
             musicList = taskData.data.map(extractMusicItem).filter(Boolean);
@@ -530,7 +530,7 @@ module.exports = async function handler(req, res) {
                 console.log('[suno] 从 taskData 单对象提取:', musicList.length);
             }
         }
-        
+
         console.log('[suno] 最终解析的音乐列表:', JSON.stringify(musicList, null, 2));
 
         return json(200, {
@@ -558,9 +558,9 @@ module.exports = async function handler(req, res) {
     if (action === 'lyrics') {
         const { prompt: lyricsPrompt } = req.body || {};
         if (!lyricsPrompt) {
-            return json(400, { 
+            return json(400, {
                 success: false,
-                error: 'MISSING_PROMPT', 
+                error: 'MISSING_PROMPT',
                 error_code: 'MISSING_PROMPT',
                 message: '请提供歌词提示词',
                 billed: 0
@@ -588,9 +588,9 @@ module.exports = async function handler(req, res) {
             if (billingSuccess) {
                 await __billing('refund', userId, filmCost, '歌词生成API失败退款');
             }
-            return json(500, { 
+            return json(500, {
                 success: false,
-                error: 'API_ERROR', 
+                error: 'API_ERROR',
                 error_code: 'API_ERROR',
                 message: result.error,
                 billed: 0
@@ -622,9 +622,9 @@ module.exports = async function handler(req, res) {
         } = req.body || {};
 
         if (!persona_id || !artist_clip_id) {
-            return json(400, { 
+            return json(400, {
                 success: false,
-                error: 'MISSING_PARAMS', 
+                error: 'MISSING_PARAMS',
                 error_code: 'MISSING_PARAMS',
                 message: '歌手风格需要 persona_id 和 artist_clip_id',
                 billed: 0
@@ -662,9 +662,9 @@ module.exports = async function handler(req, res) {
             if (billingSuccess) {
                 await __billing('refund', userId, filmCost, '歌手风格API失败退款');
             }
-            return json(500, { 
+            return json(500, {
                 success: false,
-                error: 'API_ERROR', 
+                error: 'API_ERROR',
                 error_code: 'API_ERROR',
                 message: result.error,
                 billed: 0
@@ -695,9 +695,9 @@ module.exports = async function handler(req, res) {
         } = req.body || {};
 
         if (!uploadClipId) {
-            return json(400, { 
+            return json(400, {
                 success: false,
-                error: 'MISSING_CLIP_ID', 
+                error: 'MISSING_CLIP_ID',
                 error_code: 'MISSING_CLIP_ID',
                 message: '二次创作需要 continue_clip_id',
                 billed: 0
@@ -718,7 +718,7 @@ module.exports = async function handler(req, res) {
 
         const requestBody = {
             prompt: uploadPrompt || '歌词',
-            mv: uploadMv || 'chirp-v4',
+            mv: uploadMv || 'chirp-auk',
             title: uploadTitle || '标题',
             tags: uploadTags || '',
             continue_clip_id: uploadClipId,
@@ -734,9 +734,9 @@ module.exports = async function handler(req, res) {
             if (billingSuccess) {
                 await __billing('refund', userId, filmCost, '上传二创API失败退款');
             }
-            return json(500, { 
+            return json(500, {
                 success: false,
-                error: 'API_ERROR', 
+                error: 'API_ERROR',
                 error_code: 'API_ERROR',
                 message: result.error,
                 billed: 0
@@ -759,9 +759,9 @@ module.exports = async function handler(req, res) {
         const { clip_id, is_infill } = req.body || {};
 
         if (!clip_id) {
-            return json(400, { 
+            return json(400, {
                 success: false,
-                error: 'MISSING_CLIP_ID', 
+                error: 'MISSING_CLIP_ID',
                 error_code: 'MISSING_CLIP_ID',
                 message: '歌曲拼接需要 clip_id',
                 billed: 0
@@ -790,9 +790,9 @@ module.exports = async function handler(req, res) {
             if (billingSuccess) {
                 await __billing('refund', userId, filmCost, '歌曲拼接API失败退款');
             }
-            return json(500, { 
+            return json(500, {
                 success: false,
-                error: 'API_ERROR', 
+                error: 'API_ERROR',
                 error_code: 'API_ERROR',
                 message: result.error,
                 billed: 0

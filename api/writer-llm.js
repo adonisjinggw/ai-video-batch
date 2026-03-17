@@ -20,32 +20,71 @@ const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || '';
 const MODELSCOPE_BASE_URL = 'https://api-inference.modelscope.cn/v1';
 const MODELSCOPE_WRITER_MODEL = process.env.MODELSCOPE_WRITER_MODEL || 'Qwen/Qwen3-Coder-480B-A35B-Instruct';
 
+// ========== Supabase 配置（用于会员验证） ==========
+const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
 // ========== 计费配置 ==========
-// 🎯 阶梯计费：按输入字符数计费，不封顶
-// <2000字符=1胶片, 2000-5000=2胶片, 5000-8000=3胶片, 每增加3000字符+1胶片
-function calculateFilmCost(messages) {
-    // 计算所有消息的总字符数
-    let totalChars = 0;
-    if (Array.isArray(messages)) {
-        for (const msg of messages) {
-            if (msg && typeof msg.content === 'string') {
-                totalChars += msg.content.length;
+// 🎯 按实际 token 计费：每 1000 token = 1 胶片（最低 1 胶片）
+const FILM_PER_1K_TOKENS = 1;
+
+/**
+ * 根据 API 返回的 usage 计算实际胶片消耗
+ * @param {object} usage - API 返回的 { prompt_tokens, completion_tokens, total_tokens }
+ * @returns {number} 应扣胶片数
+ */
+function calculateTokenCost(usage) {
+    const totalTokens = usage?.total_tokens || ((usage?.prompt_tokens || 0) + (usage?.completion_tokens || 0));
+    if (totalTokens <= 0) return 1; // 最低 1 胶片
+    return Math.max(1, Math.ceil(totalTokens / 1000 * FILM_PER_1K_TOKENS));
+}
+
+/**
+ * 🔐 检查用户是否为付费会员
+ * @param {string} userId
+ * @returns {Promise<{isPaid: boolean, membershipType: string, message: string}>}
+ */
+async function checkPaidMembership(userId) {
+    if (!SUPABASE_SERVICE_KEY) {
+        console.warn('[writer-llm] 未配置 SUPABASE_SERVICE_KEY，跳过会员验证');
+        return { isPaid: true, membershipType: 'unknown', message: '' };
+    }
+    try {
+        const url = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}&select=membership_type,membership_level,membership_expires_at`;
+        const resp = await fetch(url, {
+            headers: {
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (!resp.ok) {
+            console.warn('[writer-llm] 查询会员状态失败:', resp.status, '→ 放行（胶片扣费兜底）');
+            return { isPaid: true, membershipType: 'unknown', message: '' };
+        }
+        const rows = await resp.json().catch(() => []);
+        const profile = rows?.[0];
+        if (!profile) {
+            console.warn('[writer-llm] 用户profile不存在 → 放行（胶片扣费兜底）');
+            return { isPaid: true, membershipType: 'unknown', message: '' };
+        }
+        const mt = (profile.membership_type || 'free').toLowerCase();
+        const ml = Number(profile.membership_level) || 0;
+        // 检查会员是否过期
+        if (profile.membership_expires_at) {
+            const expiresAt = new Date(profile.membership_expires_at);
+            if (expiresAt < new Date()) {
+                return { isPaid: false, membershipType: 'free', message: '会员已过期，请续费后使用写作功能' };
             }
         }
-    }
-    
-    // 阶梯计费逻辑
-    if (totalChars < 2000) {
-        return { cost: 1, totalChars, tier: '基础' };
-    } else if (totalChars < 5000) {
-        return { cost: 2, totalChars, tier: '中等' };
-    } else if (totalChars < 8000) {
-        return { cost: 3, totalChars, tier: '较长' };
-    } else {
-        // 超过8000字符：3胶片 + 每额外3000字符加1胶片
-        const extraChars = totalChars - 8000;
-        const extraCost = Math.ceil(extraChars / 3000);
-        return { cost: 3 + extraCost, totalChars, tier: '超长' };
+        // free 用户 且 level=0 → 非付费
+        if (mt === 'free' && ml <= 0) {
+            return { isPaid: false, membershipType: 'free', message: '写作功能为付费会员专享，请升级会员后使用' };
+        }
+        return { isPaid: true, membershipType: mt, level: ml, message: '' };
+    } catch (e) {
+        console.error('[writer-llm] 会员验证异常:', e.message, '→ 放行（胶片扣费兜底）');
+        return { isPaid: true, membershipType: 'unknown', message: '' };
     }
 }
 
@@ -54,12 +93,12 @@ function calculateFilmCost(messages) {
  */
 async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, model, cost, metadata) {
     if (!userId) return { success: false, error: 'no userId' };
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -74,13 +113,13 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
                 metadata
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
             console.warn('[writer-llm] 保存记录失败:', data.error || data.message);
             return { success: false, error: data.error || data.message };
         }
-        
+
         console.log(`[writer-llm] 📝 生成记录已保存: ${data.recordId}`);
         return { success: true, recordId: data.recordId };
     } catch (e) {
@@ -94,15 +133,15 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
  */
 async function __billing(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
-    
+
     const intAmount = Math.ceil(amount);
     const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
-    
+
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
             : 'https://www.rollroll.art';
-        
+
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -113,9 +152,9 @@ async function __billing(billingAction, userId, amount, description) {
                 description: description || (billingAction === 'refund' ? '退款' : '消费')
             })
         });
-        
+
         const data = await res.json().catch(() => ({}));
-        
+
         if (!res.ok || !data.success) {
             if (billingAction === 'consume') {
                 throw new Error(data.message || data.error || '扣费失败');
@@ -123,7 +162,7 @@ async function __billing(billingAction, userId, amount, description) {
             console.error(`[writer-llm] 退款失败:`, data);
             return { success: false, error: data.message || data.error };
         }
-        
+
         console.log(`[writer-llm] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
         return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
     } catch (e) {
@@ -183,6 +222,17 @@ module.exports = async function handler(req, res) {
             return;
         }
 
+        // 🔐 付费会员验证：写作功能仅付费会员可用
+        if (!skipBilling) {
+            const memberCheck = await checkPaidMembership(userId);
+            if (!memberCheck.isPaid) {
+                console.log(`[writer-llm] 🚫 非付费用户被拒: ${userId}, type=${memberCheck.membershipType}`);
+                json(403, { error: 'MEMBERSHIP_REQUIRED', message: memberCheck.message || '写作功能为付费会员专享，请升级会员后使用' });
+                return;
+            }
+            console.log(`[writer-llm] ✅ 会员验证通过: ${userId}, type=${memberCheck.membershipType}, level=${memberCheck.level}`);
+        }
+
         // 检查是否有可用的API Key（MIMO 或 云雾+模型 或 MODELSCOPE 任意其一）
         const hasMimo = !!WRITER_MIMO_API_KEY;
         const hasYunmeng = !!(YUNMENG_API_KEY && YUNMENG_MODEL);
@@ -201,20 +251,9 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        // 💰 阶梯计费：按输入字符数计费
-        const { cost: filmCost, totalChars, tier } = calculateFilmCost(finalMessages);
-        console.log(`[writer-llm] 📊 阶梯计费: ${totalChars}字符 → ${filmCost}胶片 (${tier})`);
+        // 💰 按实际 token 后计费（API 调用成功后根据 usage 扣费）
+        let filmCost = 0;
         let billingSuccess = false;
-
-        // 🔒 先扣费
-        if (!skipBilling && filmCost > 0 && userId) {
-            const billingResult = await __billing('consume', userId, filmCost, `写作助手(${totalChars}字符)`);
-            if (!billingResult.success && !billingResult.skipped) {
-                json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
-                return;
-            }
-            billingSuccess = billingResult.success && !billingResult.skipped;
-        }
 
         // 优先顺序：可选魔塔(仅显式请求) → MIMO → 云雾(需明确模型)
         let response, data, content;
@@ -246,8 +285,16 @@ module.exports = async function handler(req, res) {
                 if (response.ok) {
                     data = await response.json();
                     content = data?.choices?.[0]?.message?.content;
+                    // 💰 后计费：按实际 token 扣费
+                    const usage = data?.usage;
+                    filmCost = calculateTokenCost(usage);
+                    if (!skipBilling && filmCost > 0) {
+                        const br = await __billing('consume', userId, filmCost, `写作助手(魔塔,${usage?.total_tokens || 0}tokens)`);
+                        billingSuccess = br.success && !br.skipped;
+                    }
+                    console.log(`[writer-llm] 💰 实际计费: ${usage?.total_tokens || 0}tokens → ${filmCost}胶片`);
                     await __saveGenerationRecord(userId, 'text', content?.trim() || '', finalMessages[0]?.content || '', 'roll', filmCost, {});
-                    json(200, { success: true, content: typeof content === 'string' ? content.trim() : '', raw: data, billed: billingSuccess ? filmCost : 0, model: 'roll' });
+                    json(200, { success: true, content: typeof content === 'string' ? content.trim() : '', raw: data, billed: filmCost, model: 'roll', tokens: usage?.total_tokens || 0 });
                     return;
                 }
                 console.warn('[writer-llm] 魔塔API失败:', response.status);
@@ -258,10 +305,10 @@ module.exports = async function handler(req, res) {
 
         // 1) 检查是否显式选择 MIMO
         const preferMimo = (modelLc === 'mimo' || modelLc.startsWith('mimo:') || modelLc.startsWith('mimo-') || modelLc.includes('mimo'));
-        
+
         // 2) 检查是否显式选择云雾（包括 grok-4-fast）
         const preferYunwu = (modelLc === 'yunwu' || modelLc === 'yunmeng' || modelLc.startsWith('yunwu:') || modelLc === 'qwen-plus' || modelLc.startsWith('qwen-') || modelLc.startsWith('grok-'));
-        
+
         // 1b) MIMO（主通道）
         if ((preferMimo || (!preferYunwu)) && WRITER_MIMO_API_KEY) {
             try {
@@ -296,8 +343,16 @@ module.exports = async function handler(req, res) {
                 if (response.ok) {
                     data = await response.json();
                     content = data?.choices?.[0]?.message?.content;
+                    // 💰 后计费：按实际 token 扣费
+                    const usage = data?.usage;
+                    filmCost = calculateTokenCost(usage);
+                    if (!skipBilling && filmCost > 0) {
+                        const br = await __billing('consume', userId, filmCost, `写作助手(MIMO,${usage?.total_tokens || 0}tokens)`);
+                        billingSuccess = br.success && !br.skipped;
+                    }
+                    console.log(`[writer-llm] 💰 实际计费: ${usage?.total_tokens || 0}tokens → ${filmCost}胶片`);
                     await __saveGenerationRecord(userId, 'text', content?.trim() || '', finalMessages[0]?.content || '', 'MIMO', filmCost, {});
-                    json(200, { success: true, content: typeof content === 'string' ? content.trim() : '', raw: data, billed: billingSuccess ? filmCost : 0 });
+                    json(200, { success: true, content: typeof content === 'string' ? content.trim() : '', raw: data, billed: filmCost, tokens: usage?.total_tokens || 0 });
                     return;
                 }
                 console.warn('[writer-llm] MIMO API失败:', response.status);
@@ -306,12 +361,16 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        // 2b) 云雾（需配置模型，支持 grok-4-fast）- 🚀 多端点并行请求
+        // 2b) 云雾（需配置模型，支持 grok-4-fast）- 串行 fallback
+        // ⚠️ 修复：原并行模式导致1次请求向云雾发N次（N=端点数），浪费资源且触发限流
         if ((preferYunwu || (!preferMimo)) && YUNMENG_API_KEY) {
             let yunwuModel = YUNMENG_MODEL || 'grok-4-fast';
             if (modelLc === 'qwen-plus' || modelLc.startsWith('qwen-')) yunwuModel = reqModel;
             if (modelLc.startsWith('grok-')) yunwuModel = reqModel;
             if (modelLc.startsWith('yunwu:')) yunwuModel = reqModel.split(':').slice(1).join(':') || 'grok-4-fast';
+            
+            console.log(`[writer-llm] ☁️ 云雾模型选择: reqModel=${reqModel}, yunwuModel=${yunwuModel}`);
+            
             const payload = {
                 model: yunwuModel,
                 messages: finalMessages,
@@ -321,91 +380,104 @@ module.exports = async function handler(req, res) {
                 stream: false
             };
 
-            // 🚀 并行请求所有端点，任一成功立即返回
-            console.log(`[writer-llm] 🚀 云雾并行请求 ${YUNMENG_ENDPOINTS.length} 个端点...`);
-            
-            const result = await new Promise((resolve) => {
-                let settled = false;
-                let failCount = 0;
-                const totalRequests = YUNMENG_ENDPOINTS.length;
-                const errors = [];
-                
-                YUNMENG_ENDPOINTS.forEach((endpoint, idx) => {
-                    const url = `${endpoint}/v1/chat/completions`;
-                    
-                    fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${YUNMENG_API_KEY}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(payload),
-                        signal: AbortSignal.timeout(120000)
-                    })
-                    .then(res => {
-                        if (settled) return;
-                        
+            // 串行尝试每个端点，成功立即返回，失败才试下一端点
+            // 🔄 增加限流重试：遇到429时延迟后重试同一端点
+            console.log(`[writer-llm] ☁️ 云雾串行请求 ${YUNMENG_ENDPOINTS.length} 个端点...`);
+            const errors = [];
+            let result = { success: false, errors };
+            const MAX_RETRIES_PER_ENDPOINT = 2; // 每个端点最大重试次数
+            const RATE_LIMIT_DELAY = 2000; // 429限流等待2秒
+
+            for (const endpoint of YUNMENG_ENDPOINTS) {
+                const url = `${endpoint}/v1/chat/completions`;
+                let endpointRetries = 0;
+
+                while (endpointRetries <= MAX_RETRIES_PER_ENDPOINT) {
+                    try {
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${YUNMENG_API_KEY}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(payload),
+                            signal: AbortSignal.timeout(120000)
+                        });
+
                         if (res.ok) {
                             console.log(`[writer-llm] ✅ ${endpoint} 成功`);
-                            settled = true;
-                            resolve({ success: true, response: res, endpoint });
-                        } else {
-                            console.warn(`[writer-llm] ${endpoint} 返回 ${res.status}`);
-                            errors.push({ endpoint, status: res.status });
-                            failCount++;
-                            
-                            if (failCount >= totalRequests && !settled) {
-                                settled = true;
-                                resolve({ success: false, errors });
+                            result = { success: true, response: res, endpoint };
+                            break;
+                        }
+
+                        // 429 限流：延迟后重试同一端点
+                        if (res.status === 429) {
+                            endpointRetries++;
+                            if (endpointRetries <= MAX_RETRIES_PER_ENDPOINT) {
+                                console.warn(`[writer-llm] ${endpoint} 限流(429)，${RATE_LIMIT_DELAY}ms后重试(${endpointRetries}/${MAX_RETRIES_PER_ENDPOINT})...`);
+                                await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY));
+                                continue; // 重试同一端点
                             }
                         }
-                    })
-                    .catch(err => {
-                        if (settled) return;
-                        console.warn(`[writer-llm] ${endpoint} 异常:`, err.message);
-                        errors.push({ endpoint, error: err.message });
-                        failCount++;
-                        
-                        if (failCount >= totalRequests && !settled) {
-                            settled = true;
-                            resolve({ success: false, errors });
+
+                        // 4xx 客户端错误不重试
+                        if (res.status >= 400 && res.status < 500) {
+                            console.warn(`[writer-llm] ${endpoint} 客户端错误 ${res.status}，不重试`);
+                            errors.push({ endpoint, status: res.status });
+                            break;
                         }
-                    });
-                });
-            });
+
+                        console.warn(`[writer-llm] ${endpoint} 返回 ${res.status}，尝试下一端点`);
+                        errors.push({ endpoint, status: res.status });
+                        break; // 5xx错误，尝试下一端点
+                    } catch (err) {
+                        console.warn(`[writer-llm] ${endpoint} 异常: ${err.message}，尝试下一端点`);
+                        errors.push({ endpoint, error: err.message });
+                        break;
+                    }
+                }
+
+                if (result.success) break; // 成功则跳出端点循环
+            }
 
             if (result.success) {
                 try {
                     data = await result.response.json();
                     content = data?.choices?.[0]?.message?.content;
+                    // 💰 后计费：按实际 token 扣费
+                    const usage = data?.usage;
+                    filmCost = calculateTokenCost(usage);
+                    if (!skipBilling && filmCost > 0) {
+                        const br = await __billing('consume', userId, filmCost, `写作助手(云雾,${usage?.total_tokens || 0}tokens)`);
+                        billingSuccess = br.success && !br.skipped;
+                    }
+                    console.log(`[writer-llm] 💰 实际计费: ${usage?.total_tokens || 0}tokens → ${filmCost}胶片`);
                     await __saveGenerationRecord(userId, 'text', content?.trim() || '', finalMessages[0]?.content || '', '云雾', filmCost, {});
-                    json(200, { success: true, content: typeof content === 'string' ? content.trim() : '', raw: data, billed: billingSuccess ? filmCost : 0 });
+                    json(200, { success: true, content: typeof content === 'string' ? content.trim() : '', raw: data, billed: filmCost, tokens: usage?.total_tokens || 0 });
                     return;
                 } catch (parseErr) {
                     console.warn('[writer-llm] 解析响应失败:', parseErr.message);
                 }
             }
 
-            // 所有端点失败
+            // 所有端点失败（后计费模式无需退款，因为还没扣）
             console.error('[writer-llm] 云雾所有端点均失败');
-            if (billingSuccess) {
-                await __billing('refund', userId, filmCost, '写作助手API失败退款');
-            }
             const firstError = result.errors?.[0];
-            json(500, { success: false, error: 'WRITER_LLM_FAILED', error_code: 'API_ERROR', status: firstError?.status || 500, message: '云雾所有节点均不可用', billed: 0 });
+            const hasRateLimit = result.errors?.some(e => e.status === 429);
+            const errorMessage = hasRateLimit
+                ? 'API限流，请稍后再试（所有节点均触发限流）'
+                : '云雾所有节点均不可用';
+            json(500, { success: false, error: 'WRITER_LLM_FAILED', error_code: hasRateLimit ? 'RATE_LIMIT' : 'API_ERROR', status: firstError?.status || 500, message: errorMessage, billed: 0 });
             return;
         }
 
-        // 所有通道失败 → 退款
-        if (billingSuccess) {
-            await __billing('refund', userId, filmCost, '写作助手所有API失败退款');
-        }
+        // 所有通道失败（后计费模式无需退款）
         json(500, { success: false, error: 'WRITER_LLM_FAILED', error_code: 'NO_API_AVAILABLE', message: '所有API通道均不可用', billed: 0 });
     } catch (error) {
-        // 异常兜底退款
+        // 异常兜底（后计费模式，如果已扣费则退款）
         try {
-            if (typeof billingSuccess !== 'undefined' && billingSuccess) {
-                await __billing('refund', userId, FILM_COST['text'] || 1, '写作助手异常退款');
+            if (typeof billingSuccess !== 'undefined' && billingSuccess && filmCost > 0) {
+                await __billing('refund', userId, filmCost, '写作助手异常退款');
             }
         } catch (e) { }
         json(500, { error: 'WRITER_LLM_FAILED', message: error?.message || String(error || '') });
