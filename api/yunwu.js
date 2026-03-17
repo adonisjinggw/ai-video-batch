@@ -379,7 +379,9 @@ async function _tryAllEndpoints(path, options, timeoutMs, isMJ = false) {
     }
     
     // 所有端点都失败了
-    return { error: new Error(isMJ ? '所有端点都不支持Midjourney' : '请求失败'), got429: false };
+    const errorSummary = errors.map(e => `${e.endpoint}: ${e.status || e.error}`).join('; ');
+    console.error(`[yunwu] ${isMJ ? '[MJ] ' : ''}所有端点失败: ${errorSummary}`);
+    return { error: new Error(isMJ ? `所有端点都不支持Midjourney (${errorSummary})` : `请求失败 (${errorSummary})`), got429: false };
 }
 
 /**
@@ -2896,6 +2898,34 @@ module.exports = async function handler(req, res) {
                 });
                 return;
             }
+        }
+
+        // ========== 🔧 调试：测试端点连接 ==========
+        if (action === 'test-endpoints') {
+            const testResults = [];
+            for (const endpoint of YUNWU_ENDPOINTS) {
+                try {
+                    const testRes = await fetch(`${endpoint.url}/v1/models`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${YUNWU_API_KEY}` },
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    testResults.push({
+                        name: endpoint.name,
+                        url: endpoint.url,
+                        status: testRes.status,
+                        ok: testRes.ok
+                    });
+                } catch (err) {
+                    testResults.push({
+                        name: endpoint.name,
+                        url: endpoint.url,
+                        error: err.message
+                    });
+                }
+            }
+            json(200, { success: true, endpoints: testResults, hasKey: !!YUNWU_API_KEY });
+            return;
         }
 
         // ========== Midjourney 图片生成 ==========
