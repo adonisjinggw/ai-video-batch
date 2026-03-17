@@ -7,6 +7,24 @@
  * 依赖：writing.html 中的基础小说逻辑（novelState, _novelLLM 等）
  */
 
+// ==================== 全局依赖检查 ====================
+(function checkDependencies() {
+    const missing = [];
+
+    if (typeof novelState === 'undefined') {
+        missing.push('novelState');
+    }
+    if (typeof _novelLLM !== 'function') {
+        missing.push('_novelLLM');
+    }
+
+    if (missing.length > 0) {
+        console.error('[novel-engine] 缺少必需的全局依赖:', missing.join(', '));
+        console.error('[novel-engine] 请确保在 writing.html 中正确加载此文件');
+        // 不阻止加载，但记录错误
+    }
+})();
+
 // ==================== 0. IndexedDB 持久化（支持大容量小说存储） ====================
 const _novelDB = {
     _db: null,
@@ -110,6 +128,9 @@ async function novelGenerateSummary(upToIdx) {
     const brief = chapters.map((c, i) => `第${i + 1}章「${c.title}」: ${(c.content || '').substring(0, 200)}...`).join('\n');
 
     try {
+        if (typeof _novelLLM !== 'function') {
+            throw new Error('_novelLLM函数未定义');
+        }
         const summary = await _novelLLM([
             { role: 'system', content: '你是一位小说编辑助手。请用300字以内总结以下小说前文的关键剧情、人物关系变化和重要伏笔。' },
             { role: 'user', content: `/no_think\n请总结以下内容：\n${brief}` }
@@ -244,6 +265,9 @@ async function novelConfirmTweak() {
 
     const genre = document.getElementById('novelGenreSelect').value;
     try {
+        if (typeof _novelLLM !== 'function') {
+            throw new Error('_novelLLM函数未定义');
+        }
         const result = await _novelLLM([
             { role: 'system', content: `你是${genre}小说作家。根据用户的修改指令，重写以下章节内容。直接输出修改后的完整章节正文。全文使用中文，严禁混入英文单词。` },
             { role: 'user', content: `/no_think\n原文：\n${ch.content}\n\n修改指令：${instruction}\n\n请输出修改后的完整正文：` }
@@ -301,6 +325,9 @@ async function novelDeAIChapter(idx) {
     ];
     var styleHint = styleHints[(idx * 7 + ch.content.length) % styleHints.length];
     try {
+        if (typeof _novelLLM !== 'function') {
+            throw new Error('_novelLLM函数未定义');
+        }
         const result = await _novelLLM([
             {
                 role: 'system', content: `你是一位资深${genre}小说编辑。现在请对「${chTitle}」进行去AI化润色，使其读起来像真人写的网文。全文使用中文，严禁混入英文单词。
@@ -443,6 +470,9 @@ async function _novelGenerateChapterEnhanced(idx) {
 
     try {
         const _chIdx = idx;
+        if (typeof _novelLLM !== 'function') {
+            throw new Error('_novelLLM函数未定义');
+        }
         const content = await _novelLLM([
             { role: 'system', content: sysPrompt },
             { role: 'user', content: userPrompt }

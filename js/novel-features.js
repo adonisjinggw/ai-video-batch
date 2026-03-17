@@ -170,7 +170,12 @@ function novelSaveCurrentProject() {
     try {
         localStorage.setItem('novel_project_' + novelState.currentProjectId, JSON.stringify(saveData));
     } catch (e) {
-        console.warn('[novel-save] localStorage write failed (已存IndexedDB):', e.message);
+        if (e.name === 'QuotaExceededError') {
+            alert('存储空间不足，无法保存项目。请清理浏览器缓存或删除旧项目。');
+            console.error('[novel-save] localStorage容量超限');
+        } else {
+            console.warn('[novel-save] localStorage write failed (已存IndexedDB):', e.message);
+        }
     }
     // 更新项目列表的 updatedAt
     var projects = novelGetProjects();

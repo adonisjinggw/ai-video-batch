@@ -4569,7 +4569,12 @@
             if (batchSection) batchSection.style.display = 'block';
 
             // 更新任务数量
-            document.getElementById('batchComicCount').textContent = batchComicTasks.length;
+            const batchComicCountEl = document.getElementById('batchComicCount');
+            if (batchComicCountEl) {
+                batchComicCountEl.textContent = batchComicTasks.length;
+            } else {
+                console.warn('[mobile] 元素未找到: batchComicCount');
+            }
 
             // 渲染任务列表
             renderBatchComicTaskList();
@@ -4596,8 +4601,19 @@
             if (batchSection) batchSection.style.display = 'none';
 
             // 重置进度和结果区域
-            document.getElementById('batchComicProgressSection').style.display = 'none';
-            document.getElementById('batchComicResultSection').style.display = 'none';
+            const batchComicProgressSection = document.getElementById('batchComicProgressSection');
+            if (batchComicProgressSection) {
+                batchComicProgressSection.style.display = 'none';
+            } else {
+                console.warn('[mobile] 元素未找到: batchComicProgressSection');
+            }
+
+            const batchComicResultSection = document.getElementById('batchComicResultSection');
+            if (batchComicResultSection) {
+                batchComicResultSection.style.display = 'none';
+            } else {
+                console.warn('[mobile] 元素未找到: batchComicResultSection');
+            }
         }
 
         /**
@@ -4627,7 +4643,12 @@
             除批量任           */
         function removeBatchComicTask(taskId) {
             batchComicTasks = batchComicTasks.filter(t => t.id !== taskId);
-            document.getElementById('batchComicCount').textContent = batchComicTasks.length;
+            const batchComicCountEl = document.getElementById('batchComicCount');
+            if (batchComicCountEl) {
+                batchComicCountEl.textContent = batchComicTasks.length;
+            } else {
+                console.warn('[mobile] 元素未找到: batchComicCount');
+            }
             renderBatchComicTaskList();
 
             if (batchComicTasks.length === 0) {
@@ -4665,11 +4686,20 @@
 
             // 禁用生成按钮
             const btn = document.getElementById('batchComicGenerateBtn');
-            btn.disabled = true;
-            btn.innerHTML = '⏳ 正在并发生成...';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ 正在并发生成...';
+            } else {
+                console.warn('[mobile] 元素未找到: batchComicGenerateBtn');
+            }
 
             // 显示进度区域
-            document.getElementById('batchComicProgressSection').style.display = 'block';
+            const batchComicProgressSection = document.getElementById('batchComicProgressSection');
+            if (batchComicProgressSection) {
+                batchComicProgressSection.style.display = 'block';
+            } else {
+                console.warn('[mobile] 元素未找到: batchComicProgressSection');
+            }
             renderBatchComicProgress();
 
             console.log(`📚 [mobile-批量漫画] 开始并发生成 ${batchComicTasks.length} 个漫画`);
@@ -4734,11 +4764,18 @@
 
             // 显示结果区域
             renderBatchComicResults();
-            document.getElementById('batchComicResultSection').style.display = 'block';
+            const batchComicResultSection = document.getElementById('batchComicResultSection');
+            if (batchComicResultSection) {
+                batchComicResultSection.style.display = 'block';
+            } else {
+                console.warn('[mobile] 元素未找到: batchComicResultSection');
+            }
 
             // 恢复按钮
-            btn.disabled = false;
-            btn.innerHTML = '🚀 开始并发生成漫画';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '🚀 开始并发生成漫画';
+            }
 
             // 显示完成提示
             if (failed === 0) {
@@ -5387,20 +5424,23 @@
                 if (priceInfo) {
                     priceHintArea.style.display = 'block';
 
-                    let content = '&lt;div style="font-weight: 700; font-size: 18px; color: #60a5fa;"&gt;' + (priceInfo.cost === 0 ? '🆓 免费' : '🎞️ ' + priceInfo.label) + '&lt;/div&gt;';
+                    let content = '<div style="font-weight: 700; font-size: 18px; color: #60a5fa;">' + (priceInfo.cost === 0 ? '🆓 免费' : '🎞️ ' + priceInfo.label) + '</div>';
 
                     if (priceInfo.warning) {
-                        content += '&lt;div style="margin-top: 8px; padding: 10px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 8px; color: #fca5a5; font-size: 13px;"&gt;' + priceInfo.warning + '&lt;/div&gt;';
+                        content += '<div style="margin-top: 8px; padding: 10px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 8px; color: #fca5a5; font-size: 13px;">' + priceInfo.warning + '</div>';
                     }
 
                     if (priceInfo.cost === 0) {
-                        content += '&lt;div style="margin-top: 8px; color: #888; font-size: 12px;"&gt;• 新用户有3次免费机会&lt;br&gt;• VIP用户无限制&lt;/div&gt;';
+                        content += '<div style="margin-top: 8px; color: #888; font-size: 12px;">• 新用户有3次免费机会<br>• VIP用户无限制</div>';
                     }
 
                     priceHintContent.innerHTML = content;
                 } else {
                     priceHintArea.style.display = 'none';
                 }
+            } else {
+                if (!priceHintArea) console.warn('[mobile] 元素未找到: priceHintArea');
+                if (!priceHintContent) console.warn('[mobile] 元素未找到: priceHintContent');
             }
 
             const hintEl = document.getElementById('continuityModeHint');
@@ -5432,9 +5472,18 @@
             const totalDuration = imageCount * clipDuration;
 
             const totalPanelsEl = document.getElementById('gridTotalPanels');
+            if (totalPanelsEl) {
+                totalPanelsEl.textContent = totalPanels;
+            } else {
+                console.warn('[mobile] 元素未找到: gridTotalPanels');
+            }
+
             const totalDurationEl = document.getElementById('gridTotalDuration');
-            if (totalPanelsEl) totalPanelsEl.textContent = totalPanels;
-            if (totalDurationEl) totalDurationEl.textContent = totalDuration;
+            if (totalDurationEl) {
+                totalDurationEl.textContent = totalDuration;
+            } else {
+                console.warn('[mobile] 元素未找到: gridTotalDuration');
+            }
         }
 
         // ==================== 图片上传预览 ====================
@@ -5449,6 +5498,16 @@
             const singlePreview = document.getElementById('i2vPreview');
             const mergeOptions = document.getElementById('i2vMergeOptions');
             const imageCountEl = document.getElementById('i2vImageCount');
+
+            if (!uploadText || !uploadArea || !previewContainer || !singlePreview || !mergeOptions || !imageCountEl) {
+                if (!uploadText) console.warn('[mobile] 元素未找到: i2vUploadText');
+                if (!uploadArea) console.warn('[mobile] 元素未找到: i2vUploadArea');
+                if (!previewContainer) console.warn('[mobile] 元素未找到: i2vPreviewContainer');
+                if (!singlePreview) console.warn('[mobile] 元素未找到: i2vPreview');
+                if (!mergeOptions) console.warn('[mobile] 元素未找到: i2vMergeOptions');
+                if (!imageCountEl) console.warn('[mobile] 元素未找到: i2vImageCount');
+                return;
+            }
 
             console.log('[mobile] 上传图片数量:', files.length);
 
@@ -5529,6 +5588,15 @@
             const uploadArea = document.getElementById('i2vUploadArea');
             const imageCountEl = document.getElementById('i2vImageCount');
 
+            if (!previewContainer || !singlePreview || !mergeOptions || !uploadText || !uploadArea) {
+                if (!previewContainer) console.warn('[mobile] 元素未找到: i2vPreviewContainer');
+                if (!singlePreview) console.warn('[mobile] 元素未找到: i2vPreview');
+                if (!mergeOptions) console.warn('[mobile] 元素未找到: i2vMergeOptions');
+                if (!uploadText) console.warn('[mobile] 元素未找到: i2vUploadText');
+                if (!uploadArea) console.warn('[mobile] 元素未找到: i2vUploadArea');
+                return;
+            }
+
             if (i2vImageDataList.length === 0) {
                 // 没有图片了
                 clearI2VImages();
@@ -5542,12 +5610,16 @@
                 i2vImageData = i2vImageDataList[0];
             } else {
                 // 更新多图预览
-                imageCountEl.textContent = i2vImageDataList.length;
+                if (imageCountEl) {
+                    imageCountEl.textContent = i2vImageDataList.length;
+                } else {
+                    console.warn('[mobile] 元素未找到: i2vImageCount');
+                }
                 uploadText.textContent = `已选择 ${i2vImageDataList.length} 张图片`;
                 previewContainer.innerHTML = i2vImageDataList.map((data, idx) => `
                     <div style="position:relative; display:inline-block;">
                         <img src="${data}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid #333;">
-                        <button onclick="removeI2VImage(${idx}); event.stopPropagation();" 
+                        <button onclick="removeI2VImage(${idx}); event.stopPropagation();"
                             style="position:absolute; top:-6px; right:-6px; width:18px; height:18px; background:#f87171; border:none; border-radius:50%; color:#fff; font-size:12px; cursor:pointer; line-height:1;">×</button>
                     </div>
                 `).join('');
@@ -5565,14 +5637,38 @@
             const uploadText = document.getElementById('i2vUploadText');
             const uploadArea = document.getElementById('i2vUploadArea');
 
-            previewContainer.innerHTML = '';
-            previewContainer.style.display = 'none';
-            singlePreview.style.display = 'none';
-            singlePreview.src = '';
-            mergeOptions.style.display = 'none';
-            uploadText.textContent = '点击上传图片（可多选）';
-            uploadArea.style.borderColor = '#2a2a35';
-            uploadArea.style.background = 'transparent';
+            if (previewContainer) {
+                previewContainer.innerHTML = '';
+                previewContainer.style.display = 'none';
+            } else {
+                console.warn('[mobile] 元素未找到: i2vPreviewContainer');
+            }
+
+            if (singlePreview) {
+                singlePreview.style.display = 'none';
+                singlePreview.src = '';
+            } else {
+                console.warn('[mobile] 元素未找到: i2vPreview');
+            }
+
+            if (mergeOptions) {
+                mergeOptions.style.display = 'none';
+            } else {
+                console.warn('[mobile] 元素未找到: i2vMergeOptions');
+            }
+
+            if (uploadText) {
+                uploadText.textContent = '点击上传图片（可多选）';
+            } else {
+                console.warn('[mobile] 元素未找到: i2vUploadText');
+            }
+
+            if (uploadArea) {
+                uploadArea.style.borderColor = '#2a2a35';
+                uploadArea.style.background = 'transparent';
+            } else {
+                console.warn('[mobile] 元素未找到: i2vUploadArea');
+            }
 
             console.log('[mobile] 已清空所有图片');
         }
@@ -5592,6 +5688,15 @@
             const singlePreview = document.getElementById('i2vPreview');
             const previewContainer = document.getElementById('i2vPreviewContainer');
             const mergeOptions = document.getElementById('i2vMergeOptions');
+
+            if (!uploadText || !uploadArea || !singlePreview || !previewContainer || !mergeOptions) {
+                if (!uploadText) console.warn('[mobile] 元素未找到: i2vUploadText');
+                if (!uploadArea) console.warn('[mobile] 元素未找到: i2vUploadArea');
+                if (!singlePreview) console.warn('[mobile] 元素未找到: i2vPreview');
+                if (!previewContainer) console.warn('[mobile] 元素未找到: i2vPreviewContainer');
+                if (!mergeOptions) console.warn('[mobile] 元素未找到: i2vMergeOptions');
+                return;
+            }
 
             uploadArea.style.borderColor = 'var(--accent)';
             uploadArea.style.background = 'rgba(251, 191, 36, 0.1)';
@@ -5620,7 +5725,12 @@
         // 🎬 从提示词优化跳转到文生视频
         function jumpToVideoToolsFromPromptOpt(prompt) {
             // 关闭技能结果页
-            document.getElementById('skillResultPage').classList.remove('show');
+            const skillResultPage = document.getElementById('skillResultPage');
+            if (skillResultPage) {
+                skillResultPage.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillResultPage');
+            }
             closeMobileSkillPanel();
 
             // 确保切换到创建页面
@@ -5633,12 +5743,16 @@
                     t2vPrompt.value = prompt;
                     t2vPrompt.focus();
                     showToast('✅ 已填充提示词，请选择模型后生成视频！', 3000);
-                    
+
                     // 滚动到文生视频区域
                     const createSection = document.getElementById('create');
                     if (createSection) {
                         createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                        console.warn('[mobile] 元素未找到: create');
                     }
+                } else {
+                    console.warn('[mobile] 元素未找到: t2vPrompt');
                 }
             }, 300);
         }
@@ -5837,20 +5951,36 @@ Output must look like a frame from a Japanese anime series. The character should
         // ==================== 快捷标签 ====================
         function insertTag(tag) {
             const input = document.getElementById('themeInput');
-            input.value = input.value ? input.value + '，' + tag : tag;
-            input.focus();
+            if (input) {
+                input.value = input.value ? input.value + '，' + tag : tag;
+                input.focus();
+            } else {
+                console.warn('[mobile] 元素未找到: themeInput');
+            }
         }
 
         function useTemplate(type) {
             const input = document.getElementById('themeInput');
-            input.value = templates[type] + input.value;
-            input.focus();
+            if (input) {
+                input.value = templates[type] + input.value;
+                input.focus();
+            } else {
+                console.warn('[mobile] 元素未找到: themeInput');
+            }
         }
 
         function useFillTemplate() {
             const select = document.getElementById('fillTemplateSelect');
             const preview = document.getElementById('fillPreview');
             const input = document.getElementById('themeInput');
+
+            if (!select || !preview || !input) {
+                if (!select) console.warn('[mobile] 元素未找到: fillTemplateSelect');
+                if (!preview) console.warn('[mobile] 元素未找到: fillPreview');
+                if (!input) console.warn('[mobile] 元素未找到: themeInput');
+                return;
+            }
+
             const key = select.value;
 
             if (!key || !fillTemplates[key]) {
@@ -5902,12 +6032,19 @@ Output must look like a frame from a Japanese anime series. The character should
             }
 
             if (typeof updateThemeFromBlanks === 'function') { try { updateThemeFromBlanks(); } catch (e) { } }
-            let theme = document.getElementById('themeInput').value.trim();
+            const themeInput = document.getElementById('themeInput');
+            if (!themeInput) {
+                console.warn('[mobile] 元素未找到: themeInput');
+                showToast('输入框未找到，请刷新页面');
+                return;
+            }
+
+            let theme = themeInput.value.trim();
             // 🔧 静默清理模板占位符（[未填写] / ______），让AI根据上下文自动补全
             if (theme.includes('[未填写]') || /_{3,}/.test(theme)) {
                 theme = theme.replace(/\[未填写\]/g, '').replace(/_{3,}(?:（[^）]*）)?/g, '');
                 theme = theme.replace(/\s{2,}/g, ' ').trim();
-                document.getElementById('themeInput').value = theme;
+                themeInput.value = theme;
             }
             if (!theme) {
                 showToast('请输入创意主题或选择一个模板');
@@ -6177,7 +6314,12 @@ Output must look like a frame from a Japanese anime series. The character should
             renderTaskList();
 
             // 清空输入
-            document.getElementById('themeInput').value = '';
+            const themeInputClear = document.getElementById('themeInput');
+            if (themeInputClear) {
+                themeInputClear.value = '';
+            } else {
+                console.warn('[mobile] 元素未找到: themeInput');
+            }
         }
 
         // ==================== 商用级视频提示词优化系统 ====================
@@ -9661,6 +9803,11 @@ ${idea.theme}${characterPrompt}
             panel.addEventListener('click', (e) => { if (e.target === panel) panel.remove(); });
 
             const list = document.getElementById('dlPanelList');
+            if (!list) {
+                console.warn('[mobile] 元素未找到: dlPanelList');
+                return;
+            }
+
             files.forEach((file, idx) => {
                 const item = document.createElement('div');
                 item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.05);border-radius:12px;';
@@ -9746,7 +9893,13 @@ ${idea.theme}${characterPrompt}
             const idea = ideas.find(i => i.id === id);
             if (!idea) return;
 
-            document.getElementById('themeInput').value = idea.theme;
+            const themeInput = document.getElementById('themeInput');
+            if (themeInput) {
+                themeInput.value = idea.theme;
+            } else {
+                console.warn('[mobile] 元素未找到: themeInput');
+            }
+
             currentMode = idea.type || 'video';
             switchMode(currentMode);
 
@@ -9828,7 +9981,15 @@ ${idea.theme}${characterPrompt}
         function renderWorksPage() {
             const taskList = document.getElementById('worksTaskList');
             const emptyState = document.getElementById('worksEmptyState');
-            if (!taskList) return;
+
+            if (!taskList) {
+                console.warn('[mobile] 元素未找到: worksTaskList');
+                return;
+            }
+
+            if (!emptyState) {
+                console.warn('[mobile] 元素未找到: worksEmptyState');
+            }
 
             // 根据筛选条件过滤
             let filteredIdeas = [...ideas];
@@ -10449,6 +10610,8 @@ ${idea.theme}${characterPrompt}
             const costDiv = document.getElementById('mobileMVCost');
             if (costDiv) {
                 costDiv.innerHTML = `<span style="color:#a78bfa;">💰 预估成本:</span> <span style="color:#fbbf24; font-weight:600;">~${minTotal}-${total}胶片</span> <span style="color:#888;">(wan26无声·${minSegs}-${estSegs}段×15s·宫格分镜·上限8段)</span>`;
+            } else {
+                console.warn('[mobile] 元素未找到: mobileMVCost');
             }
         }
 
@@ -10468,17 +10631,44 @@ ${idea.theme}${characterPrompt}
             _mobileMVGenerating = true;
             const btn = document.getElementById('mobileMVBtn');
             const progress = document.getElementById('mobileMVProgress');
-            if (btn) { btn.disabled = true; btn.textContent = '⏳ 生成中...'; btn.style.opacity = '0.6'; }
-            if (progress) progress.style.display = 'block';
+
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ 生成中...';
+                btn.style.opacity = '0.6';
+            } else {
+                console.warn('[mobile] 元素未找到: mobileMVBtn');
+            }
+
+            if (progress) {
+                progress.style.display = 'block';
+            } else {
+                console.warn('[mobile] 元素未找到: mobileMVProgress');
+            }
 
             // 进度更新辅助
             function _updateMVProgress(stage, percent, msg) {
                 const stageEl = document.getElementById('mobileMVStage');
                 const percentEl = document.getElementById('mobileMVPercent');
                 const barEl = document.getElementById('mobileMVBar');
-                if (stageEl) stageEl.textContent = stage || '处理中...';
-                if (percentEl) percentEl.textContent = (percent || 0) + '%';
-                if (barEl) barEl.style.width = (percent || 0) + '%';
+
+                if (stageEl) {
+                    stageEl.textContent = stage || '处理中...';
+                } else {
+                    console.warn('[mobile] 元素未找到: mobileMVStage');
+                }
+
+                if (percentEl) {
+                    percentEl.textContent = (percent || 0) + '%';
+                } else {
+                    console.warn('[mobile] 元素未找到: mobileMVPercent');
+                }
+
+                if (barEl) {
+                    barEl.style.width = (percent || 0) + '%';
+                } else {
+                    console.warn('[mobile] 元素未找到: mobileMVBar');
+                }
             }
 
             try {
@@ -10748,17 +10938,36 @@ ${idea.theme}${characterPrompt}
 
         function openMobileSkillPanel() {
             const sheet = document.getElementById('skillSheet');
-            if (!sheet) return;
+            if (!sheet) {
+                console.warn('[mobile] 元素未找到: skillSheet');
+                return;
+            }
             sheet.classList.add('show');
             renderMobileSkillGrid();
         }
 
         function closeMobileSkillPanel() {
             const sheet = document.getElementById('skillSheet');
-            if (sheet) sheet.classList.remove('show');
+            if (sheet) {
+                sheet.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillSheet');
+            }
+
             // 关闭子页面
-            document.getElementById('skillConfigPage')?.classList.remove('show');
-            document.getElementById('skillResultPage')?.classList.remove('show');
+            const skillConfigPage = document.getElementById('skillConfigPage');
+            if (skillConfigPage) {
+                skillConfigPage.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillConfigPage');
+            }
+
+            const skillResultPage = document.getElementById('skillResultPage');
+            if (skillResultPage) {
+                skillResultPage.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillResultPage');
+            }
         }
 
         function mobileSkillSetCategory(cat) {
@@ -10766,12 +10975,30 @@ ${idea.theme}${characterPrompt}
             document.querySelectorAll('.skill-cat-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.cat === cat);
             });
-            document.getElementById('skillSearchBox').value = '';
+
+            const skillSearchBox = document.getElementById('skillSearchBox');
+            if (skillSearchBox) {
+                skillSearchBox.value = '';
+            } else {
+                console.warn('[mobile] 元素未找到: skillSearchBox');
+            }
+
             // 切回技能列表时隐藏历史
             const histEl = document.getElementById('skillHistoryList');
             const gridEl = document.getElementById('skillGrid');
-            if (histEl) histEl.style.display = 'none';
-            if (gridEl) gridEl.style.display = '';
+
+            if (histEl) {
+                histEl.style.display = 'none';
+            } else {
+                console.warn('[mobile] 元素未找到: skillHistoryList');
+            }
+
+            if (gridEl) {
+                gridEl.style.display = '';
+            } else {
+                console.warn('[mobile] 元素未找到: skillGrid');
+            }
+
             renderMobileSkillGrid();
         }
 
@@ -10782,8 +11009,18 @@ ${idea.theme}${characterPrompt}
             });
             const gridEl = document.getElementById('skillGrid');
             const histEl = document.getElementById('skillHistoryList');
-            if (gridEl) gridEl.style.display = 'none';
-            if (!histEl) return;
+
+            if (gridEl) {
+                gridEl.style.display = 'none';
+            } else {
+                console.warn('[mobile] 元素未找到: skillGrid');
+            }
+
+            if (!histEl) {
+                console.warn('[mobile] 元素未找到: skillHistoryList');
+                return;
+            }
+
             histEl.style.display = '';
 
             const history = loadSkillHistory();
@@ -10882,7 +11119,15 @@ ${idea.theme}${characterPrompt}
 
         function renderMobileSkillGrid(keyword) {
             const grid = document.getElementById('skillGrid');
-            if (!grid || typeof SkillManager === 'undefined') return;
+            if (!grid) {
+                console.warn('[mobile] 元素未找到: skillGrid');
+                return;
+            }
+
+            if (typeof SkillManager === 'undefined') {
+                console.warn('[mobile] SkillManager 未定义');
+                return;
+            }
 
             let skills = keyword ? SkillManager.search(keyword) : SkillManager.getByCategory(_mobileSkillCat);
             const favorites = SkillManager.getFavorites();
@@ -10910,10 +11155,20 @@ ${idea.theme}${characterPrompt}
             if (!skill) return;
             _mobileSkillSelected = skillId;
 
-            document.getElementById('skillConfigTitle').textContent = `${skill.icon} ${skill.name}`;
+            const skillConfigTitle = document.getElementById('skillConfigTitle');
+            if (skillConfigTitle) {
+                skillConfigTitle.textContent = `${skill.icon} ${skill.name}`;
+            } else {
+                console.warn('[mobile] 元素未找到: skillConfigTitle');
+            }
 
             // 渲染参数表单
             const body = document.getElementById('skillConfigBody');
+            if (!body) {
+                console.warn('[mobile] 元素未找到: skillConfigBody');
+                return;
+            }
+
             const params = skill.parameters || [];
             if (params.length === 0) {
                 body.innerHTML = '<div style="color:#888;text-align:center;padding:20px;">此技能无需额外配置参数</div>';
@@ -10963,16 +11218,32 @@ ${idea.theme}${characterPrompt}
             // 渲染该技能的专属历史
             _renderSkillConfigHistory(skillId);
 
-            document.getElementById('skillConfigPage').classList.add('show');
-            document.getElementById('skillExecBtn').disabled = false;
-            document.getElementById('skillExecBtn').innerHTML = '⚡ 开始执行';
+            const skillConfigPage = document.getElementById('skillConfigPage');
+            if (skillConfigPage) {
+                skillConfigPage.classList.add('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillConfigPage');
+            }
+
+            const skillExecBtn = document.getElementById('skillExecBtn');
+            if (skillExecBtn) {
+                skillExecBtn.disabled = false;
+                skillExecBtn.innerHTML = '⚡ 开始执行';
+            } else {
+                console.warn('[mobile] 元素未找到: skillExecBtn');
+            }
         }
 
         /** 渲染技能配置页内的专属历史记录 */
         function _renderSkillConfigHistory(skillId) {
             const wrap = document.getElementById('skillConfigHistory');
             const list = document.getElementById('skillConfigHistoryList');
-            if (!wrap || !list) return;
+
+            if (!wrap || !list) {
+                if (!wrap) console.warn('[mobile] 元素未找到: skillConfigHistory');
+                if (!list) console.warn('[mobile] 元素未找到: skillConfigHistoryList');
+                return;
+            }
 
             const history = loadSkillHistory().filter(r => r.skillId === skillId);
             if (history.length === 0) {
@@ -11005,7 +11276,11 @@ ${idea.theme}${characterPrompt}
 
         function _mobileSkillUpdateCost(skill) {
             const area = document.getElementById('skillCostArea');
-            if (!area) return;
+            if (!area) {
+                console.warn('[mobile] 元素未找到: skillCostArea');
+                return;
+            }
+
             if (skill.estimateCost) {
                 try {
                     const p = _mobileSkillCollectParams(skill);
@@ -11044,7 +11319,14 @@ ${idea.theme}${characterPrompt}
                 event.preventDefault();
                 event.stopPropagation();
             }
-            document.getElementById('skillConfigPage').classList.remove('show');
+
+            const skillConfigPage = document.getElementById('skillConfigPage');
+            if (skillConfigPage) {
+                skillConfigPage.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillConfigPage');
+            }
+
             _mobileSkillSelected = null;
             Object.keys(_mobileSkillImageStore).forEach(k => { _mobileSkillImageStore[k] = []; });
         }
@@ -11083,22 +11365,53 @@ ${idea.theme}${characterPrompt}
             const wrap = document.getElementById(`msp_wrap_${paramKey}`);
             const textEl = wrap?.querySelector('.msp-img-text');
             const images = _mobileSkillImageStore[paramKey] || [];
+
             if (images.length === 0) {
-                if (container) container.style.display = 'none';
-                if (textEl) textEl.textContent = '点击上传图片（可多选）';
-                if (wrap) { wrap.style.borderColor = '#444'; wrap.style.background = 'transparent'; }
+                if (container) {
+                    container.style.display = 'none';
+                } else {
+                    console.warn(`[mobile] 元素未找到: msp_previews_${paramKey}`);
+                }
+
+                if (textEl) {
+                    textEl.textContent = '点击上传图片（可多选）';
+                }
+
+                if (wrap) {
+                    wrap.style.borderColor = '#444';
+                    wrap.style.background = 'transparent';
+                } else {
+                    console.warn(`[mobile] 元素未找到: msp_wrap_${paramKey}`);
+                }
                 return;
             }
-            if (container) container.style.display = 'flex';
-            if (textEl) textEl.textContent = `已选 ${images.length} 张（点击继续添加）`;
-            if (wrap) { wrap.style.borderColor = 'var(--accent)'; wrap.style.background = 'rgba(251,191,36,0.05)'; }
-            if (container) container.innerHTML = images.map((d, i) => `
+
+            if (container) {
+                container.style.display = 'flex';
+            } else {
+                console.warn(`[mobile] 元素未找到: msp_previews_${paramKey}`);
+            }
+
+            if (textEl) {
+                textEl.textContent = `已选 ${images.length} 张（点击继续添加）`;
+            }
+
+            if (wrap) {
+                wrap.style.borderColor = 'var(--accent)';
+                wrap.style.background = 'rgba(251,191,36,0.05)';
+            } else {
+                console.warn(`[mobile] 元素未找到: msp_wrap_${paramKey}`);
+            }
+
+            if (container) {
+                container.innerHTML = images.map((d, i) => `
                 <div style="position:relative;display:inline-block;">
                     <img src="${d}" style="width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #333;">
                     <button onclick="_mobileSkillRemoveImage('${paramKey}',${i})"
                         style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;background:#f87171;border:none;border-radius:50%;color:#fff;font-size:11px;cursor:pointer;line-height:1;">×</button>
                 </div>
             `).join('') + (images.length > 1 ? `<button onclick="_mobileSkillClearImages('${paramKey}')" style="background:none;border:1px dashed #666;border-radius:6px;color:#888;font-size:11px;padding:4px 8px;cursor:pointer;">清空</button>` : '');
+            }
         }
 
         async function mobileSkillExecute(event) {
@@ -11134,6 +11447,13 @@ ${idea.theme}${characterPrompt}
             // 🎬 在配置页内显示进度（不关闭面板，不跳转主页）
             const execBtn = document.getElementById('skillExecBtn');
             const configBody = document.getElementById('skillConfigBody');
+
+            if (!execBtn || !configBody) {
+                if (!execBtn) console.warn('[mobile] 元素未找到: skillExecBtn');
+                if (!configBody) console.warn('[mobile] 元素未找到: skillConfigBody');
+                return;
+            }
+
             execBtn.disabled = true;
             execBtn.innerHTML = '⏳ 执行中...';
 
@@ -11156,6 +11476,12 @@ ${idea.theme}${characterPrompt}
             const pctEl = document.getElementById('mspExecPct');
             const stepsEl = document.getElementById('mspExecSteps');
             const iconEl = document.getElementById('mspExecIcon');
+
+            if (!msgEl) console.warn('[mobile] 元素未找到: mspExecMsg');
+            if (!fillEl) console.warn('[mobile] 元素未找到: mspExecFill');
+            if (!pctEl) console.warn('[mobile] 元素未找到: mspExecPct');
+            if (!stepsEl) console.warn('[mobile] 元素未找到: mspExecSteps');
+            if (!iconEl) console.warn('[mobile] 元素未找到: mspExecIcon');
 
             try {
                 const result = await SkillManager.execute(_mobileSkillSelected, params, {
@@ -11207,14 +11533,30 @@ ${idea.theme}${characterPrompt}
         function mobileSkillCancel() {
             SkillManager.cancel();
             const bar = document.getElementById('skillExecBar');
-            document.getElementById('skillExecBarMsg').textContent = '正在取消...';
-            setTimeout(() => bar.classList.remove('show'), 1500);
+            const skillExecBarMsg = document.getElementById('skillExecBarMsg');
+
+            if (skillExecBarMsg) {
+                skillExecBarMsg.textContent = '正在取消...';
+            } else {
+                console.warn('[mobile] 元素未找到: skillExecBarMsg');
+            }
+
+            if (bar) {
+                setTimeout(() => bar.classList.remove('show'), 1500);
+            } else {
+                console.warn('[mobile] 元素未找到: skillExecBar');
+            }
         }
 
         function _mobileSkillShowResult(skill, result) {
             const sheet = document.getElementById('skillSheet');
             const body = document.getElementById('skillResultBody');
-            if (!sheet || !body) return;
+
+            if (!sheet || !body) {
+                if (!sheet) console.warn('[mobile] 元素未找到: skillSheet');
+                if (!body) console.warn('[mobile] 元素未找到: skillResultBody');
+                return;
+            }
 
             // 存储结果供发布功能使用
             _mobileSkillLastResult = result;
@@ -11556,8 +11898,20 @@ ${idea.theme}${characterPrompt}
 
             body.innerHTML = html;
             sheet.classList.add('show');
-            document.getElementById('skillConfigPage').classList.remove('show');
-            document.getElementById('skillResultPage').classList.add('show');
+
+            const skillConfigPage = document.getElementById('skillConfigPage');
+            if (skillConfigPage) {
+                skillConfigPage.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillConfigPage');
+            }
+
+            const skillResultPage = document.getElementById('skillResultPage');
+            if (skillResultPage) {
+                skillResultPage.classList.add('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillResultPage');
+            }
 
             // 📂 自动保存技能结果到历史（仅在真实执行时保存，从历史查看时跳过）
             if (_mobileSkillSelected) {
@@ -11578,7 +11932,12 @@ ${idea.theme}${characterPrompt}
                 return;
             }
             // 关闭结果页，重新打开配置页
-            document.getElementById('skillResultPage').classList.remove('show');
+            const skillResultPage = document.getElementById('skillResultPage');
+            if (skillResultPage) {
+                skillResultPage.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillResultPage');
+            }
             mobileSkillOpen(skill.id);
         }
 
@@ -11587,7 +11946,14 @@ ${idea.theme}${characterPrompt}
                 event.preventDefault();
                 event.stopPropagation();
             }
-            document.getElementById('skillResultPage').classList.remove('show');
+
+            const skillResultPage = document.getElementById('skillResultPage');
+            if (skillResultPage) {
+                skillResultPage.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillResultPage');
+            }
+
             closeMobileSkillPanel();
         }
 
@@ -11595,12 +11961,20 @@ ${idea.theme}${characterPrompt}
 
         function mobileSkillPublish() {
             const sheet = document.getElementById('publishSheet');
-            if (sheet) sheet.classList.add('show');
+            if (sheet) {
+                sheet.classList.add('show');
+            } else {
+                console.warn('[mobile] 元素未找到: publishSheet');
+            }
         }
 
         function closePublishSheet() {
             const sheet = document.getElementById('publishSheet');
-            if (sheet) sheet.classList.remove('show');
+            if (sheet) {
+                sheet.classList.remove('show');
+            } else {
+                console.warn('[mobile] 元素未找到: publishSheet');
+            }
         }
 
         /**

@@ -443,7 +443,9 @@
             try {
                 const out = await retryableAPICall(() => callModelScopeTextAPI(prompt), 1, 2000);
                 if (out) return out;
-            } catch (e) { }
+            } catch (e) {
+                console.warn('[api-core] ModelScope文本API调用失败:', e.message);
+            }
 
             // 2) 兜底：writer-llm
             try {
@@ -453,7 +455,9 @@
                 ];
                 const out = await retryableAPICall(() => callWriterLLM(msg, { temperature: 0.8, max_tokens: 4096 }), 1, 2000);
                 if (out) return out;
-            } catch (e) { }
+            } catch (e) {
+                console.warn('[api-core] Writer-LLM调用失败:', e.message);
+            }
 
             throw new Error('文本生成失败：免费通道不可用');
         }
@@ -1464,7 +1468,9 @@
                         });
                         if (mlib.length > 80) mlib = mlib.slice(-80);
                         localStorage.setItem('material_library', JSON.stringify(mlib));
-                    } catch (e) { }
+                    } catch (e) {
+                        console.warn('[api-core] 保存到素材库失败:', e.message);
+                    }
                 } catch (e) {
                     console.warn('[api-core] base64压缩绘制失败:', e.message);
                 }
@@ -1541,7 +1547,9 @@
                     });
                     localStorage.setItem('material_library', JSON.stringify(lib));
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.warn('[api-core] 保存到素材库失败:', e.message);
+            }
 
             return true;
         } catch (err) {
@@ -1608,7 +1616,9 @@
                     });
                     localStorage.setItem('material_library', JSON.stringify(lib));
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.warn('[api-core] 保存到素材库失败:', e.message);
+            }
 
             return true;
         } catch (err) {

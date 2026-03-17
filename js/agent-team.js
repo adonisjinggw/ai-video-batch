@@ -51,7 +51,7 @@
                 if (dataM.success && dataM.voices?.length) this._dubbingxVoiceCache.male = dataM.voices;
                 if (dataF.success && dataF.voices?.length) this._dubbingxVoiceCache.female = dataF.voices;
                 this._dubbingxVoiceCache.fetched = true;
-                console.log(`🎤 [ToolRegistry] DubbingX音色预���载: 男声${this._dubbingxVoiceCache.male.length}个, 女声${this._dubbingxVoiceCache.female.length}个`);
+                console.log(`🎤 [ToolRegistry] DubbingX音色预加载: 男声${this._dubbingxVoiceCache.male.length}个, 女声${this._dubbingxVoiceCache.female.length}个`);
             } catch (e) {
                 console.warn('[ToolRegistry] DubbingX音色预加载失败:', e.message);
                 this._dubbingxVoiceCache.fetched = true; // 标记已尝试，避免重复
@@ -80,6 +80,17 @@
 
         /** 初始化内置工具映射 */
         init() {
+            // 检查必需的全局函数
+            const requiredFunctions = [
+                'callScriptGenerator', 'callWriterLLM', 'callBanana2ImageAPI',
+                'callModelScopeImageAPI', 'callMidjourneyImageAPI', 'callSora2TextToVideoAPI',
+                'callSora2ImageToVideoAPI', 'callOCRAPI', 'callTTSAPI', 'callSunoMusicAPI'
+            ];
+            const missing = requiredFunctions.filter(fn => typeof window[fn] !== 'function');
+            if (missing.length > 0) {
+                console.warn(`[ToolRegistry] 缺少依赖函数: ${missing.join(', ')}`);
+            }
+
             // 文本生成
             this.register('text_gen', {
                 name: '文本生成',
