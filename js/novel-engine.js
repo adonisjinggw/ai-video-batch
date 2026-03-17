@@ -7,24 +7,6 @@
  * 依赖：writing.html 中的基础小说逻辑（novelState, _novelLLM 等）
  */
 
-// ==================== 全局依赖检查 ====================
-(function checkDependencies() {
-    const missing = [];
-
-    if (typeof novelState === 'undefined') {
-        missing.push('novelState');
-    }
-    if (typeof _novelLLM !== 'function') {
-        missing.push('_novelLLM');
-    }
-
-    if (missing.length > 0) {
-        console.error('[novel-engine] 缺少必需的全局依赖:', missing.join(', '));
-        console.error('[novel-engine] 请确保在 writing.html 中正确加载此文件');
-        // 不阻止加载，但记录错误
-    }
-})();
-
 // ==================== 0. IndexedDB 持久化（支持大容量小说存储） ====================
 const _novelDB = {
     _db: null,
