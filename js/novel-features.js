@@ -1894,208 +1894,262 @@ function novelImportProjectMedia(input) {
     input.value = '';
 }
 
-// ==================== 13d. 翻书阅读模式 ====================
+// ==================== 13d. 连续滚动阅读模式（优化版） ====================
 var _readingChapterIdx = 0;
-var _readerPages = [];      // 分页后的文本数组
-var _readerCurrentPage = 0; // 当前页索引
-var _readerTouchStartX = 0;
-var _readerAnimating = false;
+var _readerSettings = {
+    fontSize: 18,
+    theme: 'paper',
+    lineHeight: 1.8
+};
+
+// 加载阅读设置
+function _loadReaderSettings() {
+    try {
+        var saved = localStorage.getItem('novel_reader_settings');
+        if (saved) {
+            Object.assign(_readerSettings, JSON.parse(saved));
+        }
+    } catch (e) { }
+}
+
+// 保存阅读设置
+function _saveReaderSettings() {
+    try {
+        localStorage.setItem('novel_reader_settings', JSON.stringify(_readerSettings));
+    } catch (e) { }
+}
 
 function novelOpenReader(startIdx) {
     var overlay = document.getElementById('novelReadingOverlay');
     if (!overlay) return;
+
     _readingChapterIdx = startIdx || 0;
+    _loadReaderSettings();
+
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
-    _readerCurrentPage = 0;
-    _readerSplitPages();
-    _readerRenderPage();
-    // 绑定触摸翻页
-    var book = document.getElementById('novelReaderBook');
-    if (book && !book._swipeBound) {
-        book._swipeBound = true;
-        book.addEventListener('touchstart', function (e) {
-            _readerTouchStartX = e.touches[0].clientX;
-        }, { passive: true });
-        book.addEventListener('touchend', function (e) {
-            if (_readerAnimating) return;
-            var dx = e.changedTouches[0].clientX - _readerTouchStartX;
-            if (Math.abs(dx) > 50) {
-                if (dx < 0) novelReaderNext(); // 左滑 → 下一页
-                else novelReaderPrev();         // 右滑 → 上一页
-            }
-        }, { passive: true });
-        // 点击翻页：左半屏上一页，右半屏下一页
-        book.addEventListener('click', function (e) {
-            if (_readerAnimating) return;
-            var rect = book.getBoundingClientRect();
-            var x = e.clientX - rect.left;
-            if (x < rect.width * 0.35) novelReaderPrev();
-            else if (x > rect.width * 0.65) novelReaderNext();
-        });
+
+    // 渲染连续滚动内容
+    _readerRenderScrollContent();
+    _readerApplySettings();
+    _readerUpdateProgress();
+
+    // 绑定滚动事件监听
+    var scrollContainer = document.getElementById('novelReaderScroll');
+    if (scrollContainer && !scrollContainer._scrollBound) {
+        scrollContainer._scrollBound = true;
+        scrollContainer.addEventListener('scroll', _readerOnScroll, { passive: true });
     }
+
+    // 滚动到指定章节
+    setTimeout(function() {
+        _readerScrollToChapter(startIdx);
+    }, 100);
 }
 
 function novelCloseReader() {
     var overlay = document.getElementById('novelReadingOverlay');
     if (overlay) overlay.classList.remove('active');
     document.body.style.overflow = '';
+
+    // 保存阅读进度
+    _readerSaveProgress();
 }
 
-// 将章节内容按字数分页（估算每页能显示的字数）
-function _readerSplitPages() {
+// 渲染连续滚动内容（所有已完成章节）
+function _readerRenderScrollContent() {
+    var content = document.getElementById('novelReaderContent');
+    if (!content) return;
+
     var done = novelState.chapters.filter(function (c) { return c.status === 'done'; });
-    var ch = done[_readingChapterIdx];
-    if (!ch || !ch.content) { _readerPages = ['暂无内容']; return; }
+    if (done.length === 0) {
+        content.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">暂无已完成章节</div>';
+        return;
+    }
 
-    var text = ch.content;
-    // 估算每页字数：根据屏幕高度，17px字号，行高2，约每行20字
-    var bookEl = document.getElementById('novelReaderBook');
-    var h = bookEl ? bookEl.clientHeight : (window.innerHeight - 120);
-    var linesPerPage = Math.floor((h - 76) / 34); // 34px = 17px * 2 line-height
-    var charsPerLine = Math.floor((bookEl ? bookEl.clientWidth - 40 : 340) / 17);
-    var charsPerPage = Math.max(1200, linesPerPage * charsPerLine); // 最小1200字符，保证内容充分显示
+    var html = '';
+    for (var i = 0; i < novelState.chapters.length; i++) {
+        var ch = novelState.chapters[i];
+        if (ch.status !== 'done') continue;
 
-    console.log('[reader] 分页参数: 每页', charsPerPage, '字符,', linesPerPage, '行,', charsPerLine, '字/行');
+        var chapterTitle = _novelDisplayTitle(ch, i);
+        var paragraphs = (ch.content || '').split('\n').filter(function(p) { return p.trim(); });
 
-    _readerPages = [];
-    var paragraphs = text.split('\n');
-    var currentPage = '';
-    var currentLen = 0;
+        html += '<div class="reader-chapter" data-chapter-idx="' + i + '" id="readerChapter' + i + '">';
+        html += '<h2 class="reader-chapter-title">' + chapterTitle + '</h2>';
+        html += '<div class="reader-chapter-content">';
 
-    for (var pi = 0; pi < paragraphs.length; pi++) {
-        var para = paragraphs[pi];
-        var paraLen = para.length + 2; // +2 for indent/newline
-
-        // 如果段落本身就超过一页，需要拆分这个段落
-        if (paraLen > charsPerPage) {
-            // 如果当前页有内容，先保存
-            if (currentPage) {
-                _readerPages.push(currentPage);
-                currentPage = '';
-                currentLen = 0;
+        for (var j = 0; j < paragraphs.length; j++) {
+            if (paragraphs[j].trim()) {
+                html += '<p>' + paragraphs[j] + '</p>';
             }
-            
-            // 拆分长段落
-            var remaining = para;
-            while (remaining.length > 0) {
-                var chunkSize = Math.min(charsPerPage - 2, remaining.length); // 留2个字符给换行
-                var chunk = remaining.substring(0, chunkSize);
-                _readerPages.push(chunk);
-                remaining = remaining.substring(chunkSize);
+        }
+
+        html += '</div>';
+        html += '<div class="reader-chapter-end">— 本章完 —</div>';
+        html += '</div>';
+    }
+
+    content.innerHTML = html;
+}
+
+// 应用阅读设置
+function _readerApplySettings() {
+    var content = document.getElementById('novelReaderContent');
+    var scrollContainer = document.getElementById('novelReaderScroll');
+    if (!content || !scrollContainer) return;
+
+    // 应用字体大小
+    content.style.fontSize = _readerSettings.fontSize + 'px';
+    content.style.lineHeight = _readerSettings.lineHeight;
+
+    // 应用主题
+    scrollContainer.className = 'novel-reader-scroll theme-' + _readerSettings.theme;
+
+    // 更新设置面板显示
+    var fontDisplay = document.getElementById('fontSizeDisplay');
+    if (fontDisplay) fontDisplay.textContent = _readerSettings.fontSize + 'px';
+
+    // 更新主题选项激活状态
+    var themeOptions = document.querySelectorAll('.theme-option');
+    themeOptions.forEach(function(opt) {
+        opt.classList.remove('active');
+        if (opt.classList.contains(_readerSettings.theme)) {
+            opt.classList.add('active');
+        }
+    });
+}
+
+// 滚动到指定章节
+function _readerScrollToChapter(idx) {
+    var chapterEl = document.getElementById('readerChapter' + idx);
+    if (chapterEl) {
+        chapterEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+// 滚动事件监听（更新进度条和当前章节）
+function _readerOnScroll() {
+    var scrollContainer = document.getElementById('novelReaderScroll');
+    if (!scrollContainer) return;
+
+    // 更新进度条
+    var scrollTop = scrollContainer.scrollTop;
+    var scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+    var progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+
+    var progressFill = document.getElementById('readerProgressFill');
+    if (progressFill) progressFill.style.width = progress + '%';
+
+    // 检测当前阅读到哪一章
+    var chapters = document.querySelectorAll('.reader-chapter');
+    var currentChapter = null;
+
+    for (var i = 0; i < chapters.length; i++) {
+        var rect = chapters[i].getBoundingClientRect();
+        if (rect.top <= 100 && rect.bottom > 100) {
+            currentChapter = chapters[i];
+            break;
+        }
+    }
+
+    if (currentChapter) {
+        var idx = parseInt(currentChapter.getAttribute('data-chapter-idx'));
+        if (!isNaN(idx) && idx !== _readingChapterIdx) {
+            _readingChapterIdx = idx;
+            _readerUpdateChapterInfo();
+        }
+    }
+}
+
+// 更新章节信息显示
+function _readerUpdateChapterInfo() {
+    var done = novelState.chapters.filter(function (c) { return c.status === 'done'; });
+    var ch = novelState.chapters[_readingChapterIdx];
+
+    if (ch) {
+        var title = document.getElementById('novelReaderTitle');
+        if (title) title.textContent = _novelDisplayTitle(ch, _readingChapterIdx);
+
+        var info = document.getElementById('novelReaderChapterInfo');
+        if (info) {
+            var currentNum = 0;
+            for (var i = 0; i <= _readingChapterIdx; i++) {
+                if (novelState.chapters[i].status === 'done') currentNum++;
             }
-            continue;
-        }
-
-        // 正常段落处理
-        if (currentLen + paraLen > charsPerPage && currentPage) {
-            _readerPages.push(currentPage);
-            currentPage = '';
-            currentLen = 0;
-        }
-        currentPage += (currentPage ? '\n' : '') + para;
-        currentLen += paraLen;
-    }
-    if (currentPage) _readerPages.push(currentPage);
-    if (_readerPages.length === 0) _readerPages = ['暂无内容'];
-    
-    console.log('[reader] 分页完成: ' + _readerPages.length + '页, 每页约' + charsPerPage + '字符');
-}
-
-function novelReaderPrev() {
-    if (_readerAnimating) return;
-    var done = novelState.chapters.filter(function (c) { return c.status === 'done'; });
-    console.log('[reader] 点击上一页 - 当前: 第' + (_readingChapterIdx + 1) + '章 ' + (_readerCurrentPage + 1) + '/' + _readerPages.length + '页');
-    if (_readerCurrentPage > 0) {
-        _readerAnimateTurn('prev');
-    } else if (_readingChapterIdx > 0) {
-        console.log('[reader] 跳转到上一章: 第' + _readingChapterIdx + '章');
-        _readingChapterIdx--;
-        _readerSplitPages();
-        _readerCurrentPage = _readerPages.length - 1;
-        console.log('[reader] 上一章最后一页: ' + (_readerCurrentPage + 1) + '/' + _readerPages.length);
-        _readerRenderPage(); // 直接渲染新章节，不翻页动画
-    }
-}
-
-function novelReaderNext() {
-    if (_readerAnimating) return;
-    var done = novelState.chapters.filter(function (c) { return c.status === 'done'; });
-    console.log('[reader] 点击下一页 - 当前: 第' + (_readingChapterIdx + 1) + '章 ' + (_readerCurrentPage + 1) + '/' + _readerPages.length + '页');
-    if (_readerCurrentPage < _readerPages.length - 1) {
-        _readerAnimateTurn('next');
-    } else {
-        if (_readingChapterIdx < done.length - 1) {
-            console.log('[reader] 跳转到下一章: 第' + (_readingChapterIdx + 2) + '章');
-            _readingChapterIdx++;
-            _readerCurrentPage = 0;
-            _readerSplitPages();
-            console.log('[reader] 下一章第一页: 1/' + _readerPages.length);
-            _readerRenderPage(); // 直接渲染新章节，不翻页动画
+            info.textContent = currentNum + ' / ' + done.length;
         }
     }
 }
 
-function _readerAnimateTurn(direction) {
-    _readerAnimating = true;
-    var pageA = document.getElementById('novelReaderPageA');
-    var pageB = document.getElementById('novelReaderPageB');
-    if (!pageA || !pageB) { _readerAnimating = false; return; }
-
-    var newPageIdx = direction === 'next' ? _readerCurrentPage + 1 : _readerCurrentPage - 1;
-    if (newPageIdx < 0) newPageIdx = 0;
-    if (newPageIdx >= _readerPages.length) newPageIdx = _readerPages.length - 1;
-
-    // 准备新页内容
-    var totalPages = _readerPages.length;
-    var done = novelState.chapters.filter(function (c) { return c.status === 'done'; });
-    var chTitle = done[_readingChapterIdx] ? done[_readingChapterIdx].title : '';
-
-    pageB.innerHTML = _readerPages[newPageIdx] + '<div class="page-number">' + (newPageIdx + 1) + ' / ' + totalPages + '</div>';
-    pageB.style.display = '';
-
-    // 动画：当前页翻出，新页翻入
-    pageA.classList.add('turning');
-    pageB.classList.add('entering');
-    // 强制 reflow
-    void pageB.offsetWidth;
-    pageB.classList.add('show');
-
-    setTimeout(function () {
-        // 动画结束，交换
-        _readerCurrentPage = newPageIdx;
-        pageA.classList.remove('turning');
-        pageB.classList.remove('entering', 'show');
-        pageB.style.display = 'none';
-        pageA.innerHTML = _readerPages[_readerCurrentPage] + '<div class="page-number">' + (_readerCurrentPage + 1) + ' / ' + totalPages + '</div>';
-        _readerUpdateControls();
-        _readerAnimating = false;
-    }, 550);
+// 更新阅读进度
+function _readerUpdateProgress() {
+    _readerUpdateChapterInfo();
 }
 
-function _readerRenderPage() {
-    var pageA = document.getElementById('novelReaderPageA');
-    if (!pageA) return;
-    var totalPages = _readerPages.length;
-    pageA.innerHTML = _readerPages[_readerCurrentPage] + '<div class="page-number">' + (_readerCurrentPage + 1) + ' / ' + totalPages + '</div>';
-    _readerUpdateControls();
+// 保存阅读进度
+function _readerSaveProgress() {
+    if (!novelState.currentProjectId) return;
+    try {
+        var progress = {
+            projectId: novelState.currentProjectId,
+            chapterIdx: _readingChapterIdx,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('novel_reading_progress_' + novelState.currentProjectId, JSON.stringify(progress));
+    } catch (e) { }
 }
 
-function _readerUpdateControls() {
+// 上一章
+function novelGoToPrevChapter() {
     var done = novelState.chapters.filter(function (c) { return c.status === 'done'; });
-    var ch = done[_readingChapterIdx];
-    var totalPages = _readerPages.length;
+    if (_readingChapterIdx > 0) {
+        // 找到上一个已完成的章节
+        for (var i = _readingChapterIdx - 1; i >= 0; i--) {
+            if (novelState.chapters[i].status === 'done') {
+                _readingChapterIdx = i;
+                _readerScrollToChapter(i);
+                break;
+            }
+        }
+    }
+}
 
-    document.getElementById('novelReaderTitle').textContent = '第' + (_readingChapterIdx + 1) + '章 ' + (ch ? ch.title : '');
-    var pageInfo = document.getElementById('novelReaderPageInfo');
-    if (pageInfo) pageInfo.textContent = (_readerCurrentPage + 1) + '/' + totalPages + '页';
-    var pageNum = document.getElementById('novelReaderPageNum');
-    if (pageNum) pageNum.textContent = '第' + (_readingChapterIdx + 1) + '章 · ' + (_readerCurrentPage + 1) + '/' + totalPages + '页';
+// 下一章
+function novelGoToNextChapter() {
+    var done = novelState.chapters.filter(function (c) { return c.status === 'done'; });
+    if (_readingChapterIdx < novelState.chapters.length - 1) {
+        // 找到下一个已完成的章节
+        for (var i = _readingChapterIdx + 1; i < novelState.chapters.length; i++) {
+            if (novelState.chapters[i].status === 'done') {
+                _readingChapterIdx = i;
+                _readerScrollToChapter(i);
+                break;
+            }
+        }
+    }
+}
 
-    var prevBtn = document.getElementById('novelReaderPrevBtn');
-    var nextBtn = document.getElementById('novelReaderNextBtn');
-    if (prevBtn) prevBtn.disabled = (_readerCurrentPage <= 0 && _readingChapterIdx <= 0);
-    if (nextBtn) nextBtn.disabled = (_readerCurrentPage >= totalPages - 1 && _readingChapterIdx >= done.length - 1);
+// 切换设置面板
+function novelToggleSettings() {
+    var panel = document.getElementById('readerSettingsPanel');
+    if (panel) {
+        panel.classList.toggle('active');
+    }
+}
+
+// 改变字体大小
+function novelChangeFontSize(delta) {
+    _readerSettings.fontSize = Math.max(14, Math.min(28, _readerSettings.fontSize + delta));
+    _readerApplySettings();
+    _saveReaderSettings();
+}
+
+// 改变阅读主题
+function novelChangeTheme(theme) {
+    _readerSettings.theme = theme;
+    _readerApplySettings();
+    _saveReaderSettings();
 }
 
 // ==================== 14. 增强版章节列表渲染（覆盖原始版本） ====================

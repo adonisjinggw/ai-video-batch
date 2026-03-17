@@ -731,6 +731,7 @@
     min-width: 200px;
     z-index: 100;
     display: none;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
 }
 
@@ -907,12 +908,222 @@
     .novel-reader-page {
         transition: none;
     }
-    
+
     .novel-reader-page.turning,
     .novel-reader-page.entering,
     .novel-reader-page.entering.show {
         transition: none;
         transform: none;
         opacity: 1;
+    }
+}
+
+/* ==================== 📖 连续滚动阅读模式 ==================== */
+
+/* 滚动容器 */
+.novel-reader-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    scroll-behavior: smooth;
+}
+
+/* 阅读内容容器 */
+.novel-reader-content {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+    font-family: 'Georgia', 'Noto Serif SC', 'SimSun', serif;
+}
+
+/* 章节容器 */
+.reader-chapter {
+    margin-bottom: 60px;
+    scroll-margin-top: 60px;
+}
+
+/* 章节标题 */
+.reader-chapter-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #d4d4d4;
+    margin: 0 0 24px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #333;
+    text-align: center;
+}
+
+/* 章节内容 */
+.reader-chapter-content {
+    line-height: 1.8;
+}
+
+.reader-chapter-content p {
+    margin: 0 0 1em 0;
+    text-indent: 2em;
+    color: #d4d4d4;
+}
+
+/* 章节结束标记 */
+.reader-chapter-end {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin-top: 40px;
+    padding: 20px 0;
+    border-top: 1px solid #333;
+}
+
+/* 章节导航浮层 */
+.reader-chapter-float {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid #444;
+    border-radius: 24px;
+    padding: 8px 16px;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.novel-reading-overlay:hover .reader-chapter-float {
+    opacity: 1;
+}
+
+.reader-chapter-float button {
+    background: transparent;
+    border: none;
+    color: #ccc;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.reader-chapter-float button:hover {
+    background: rgba(99, 102, 241, 0.3);
+    color: #fff;
+}
+
+.reader-chapter-float button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.reader-chapter-float span {
+    font-size: 12px;
+    color: #888;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* 主题样式 */
+.novel-reader-scroll.theme-paper {
+    background: linear-gradient(135deg, #f8f3eb 0%, #f0e8d8 50%, #e8dcc8 100%);
+}
+
+.novel-reader-scroll.theme-paper .reader-chapter-title {
+    color: #2c2416;
+    border-bottom-color: #d4c4a8;
+}
+
+.novel-reader-scroll.theme-paper .reader-chapter-content p {
+    color: #2c2416;
+}
+
+.novel-reader-scroll.theme-paper .reader-chapter-end {
+    color: #8b7355;
+    border-top-color: #d4c4a8;
+}
+
+.novel-reader-scroll.theme-dark {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+
+.novel-reader-scroll.theme-dark .reader-chapter-title {
+    color: #e0e0e0;
+    border-bottom-color: #2a4a6a;
+}
+
+.novel-reader-scroll.theme-dark .reader-chapter-content p {
+    color: #d0d0d0;
+}
+
+.novel-reader-scroll.theme-dark .reader-chapter-end {
+    color: #6a8aaa;
+    border-top-color: #2a4a6a;
+}
+
+.novel-reader-scroll.theme-light {
+    background: #ffffff;
+}
+
+.novel-reader-scroll.theme-light .reader-chapter-title {
+    color: #1a1a1a;
+    border-bottom-color: #e0e0e0;
+}
+
+.novel-reader-scroll.theme-light .reader-chapter-content p {
+    color: #333333;
+}
+
+.novel-reader-scroll.theme-light .reader-chapter-end {
+    color: #999999;
+    border-top-color: #e0e0e0;
+}
+
+/* 滚动条样式 */
+.novel-reader-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.novel-reader-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.novel-reader-scroll::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.5);
+    border-radius: 4px;
+}
+
+.novel-reader-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.7);
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .novel-reader-content {
+        padding: 16px 12px 40px;
+    }
+
+    .reader-chapter-title {
+        font-size: 20px;
+        margin-bottom: 20px;
+    }
+
+    .reader-chapter-content {
+        font-size: 16px;
+        line-height: 1.8;
+    }
+
+    .reader-chapter-float {
+        bottom: 40px;
+        padding: 6px 12px;
+        gap: 8px;
+    }
+
+    .reader-chapter-float button {
+        font-size: 12px;
+        padding: 4px 8px;
     }
 }
