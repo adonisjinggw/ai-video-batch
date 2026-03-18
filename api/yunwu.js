@@ -3023,7 +3023,7 @@ module.exports = async function handler(req, res) {
             if (model === 'midjourney-turbo') speedMode = 'TURBO';
             else if (model === 'midjourney-relax') speedMode = 'RELAX';
 
-            // 🆕 处理参考图（图生图）
+            // 🆕 处理参考图（图生图）- 两步走：先上传获取URL，再提交imagine
             if (image_url) {
                 try {
                     let refBase64 = image_url;
@@ -3039,7 +3039,7 @@ module.exports = async function handler(req, res) {
                         }
                     }
 
-                    // 上传图片到Discord获取URL（直接调用API，不走fetchWithFallback避免重复计费）
+                    // 第一步：上传图片到Discord获取URL（直接调用，不计费）
                     console.log('[yunwu] 🖼️ MJ 图生图: 正在上传参考图到Discord...');
                     const uploadUrl = `https://api3.wlai.vip/mj-turbo/mj/submit/upload-discord-images`;
                     const uploadResponse = await fetch(uploadUrl, {
@@ -3058,7 +3058,7 @@ module.exports = async function handler(req, res) {
                         if (uploadData.code === 1 && uploadData.result && uploadData.result.length > 0) {
                             const discordUrl = uploadData.result[0];
                             console.log(`[yunwu] 🖼️ MJ 图生图: 参考图已上传, URL: ${discordUrl}`);
-                            // 将Discord URL添加到prompt中
+                            // 将Discord URL添加到prompt前面
                             optimizedPrompt = `${discordUrl} ${optimizedPrompt}`;
                         } else {
                             console.warn('[yunwu] MJ 参考图上传失败:', uploadData);
@@ -3072,7 +3072,7 @@ module.exports = async function handler(req, res) {
             }
 
             try {
-                // 提交 Imagine 任务
+                // 第二步：提交 Imagine 任务（这一步才计费）
                 const submitBody = {
                     prompt: optimizedPrompt,
                     notifyHook: '',
