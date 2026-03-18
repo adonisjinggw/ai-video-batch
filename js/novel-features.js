@@ -2317,6 +2317,17 @@ async function novelStartWritingEnhanced() {
         novelUpdateStatsDashboard();
         novelSaveCurrentProject();
         showToast('🎉 小说全部章节已完成！');
+
+        // 🆕 自动进行全局质量评估
+        if (typeof novelEvaluateAll === 'function') {
+            setTimeout(async () => {
+                const result = await novelEvaluateAll();
+                novelState._lastEvaluation = result;
+                if (typeof novelShowEvaluationResult === 'function') {
+                    novelShowEvaluationResult(result);
+                }
+            }, 1000);
+        }
     } else {
         document.getElementById('novelStartBtn').disabled = false;
         document.getElementById('novelStartBtn').textContent = '🚀 继续写作';

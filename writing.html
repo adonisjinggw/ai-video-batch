@@ -1223,6 +1223,7 @@
                     <button class="primary" id="novelStartBtn" onclick="novelStartWriting()">🚀 开始写作</button>
                     <button id="novelPauseBtn" onclick="novelTogglePause()" style="display:none;">⏸️ 暂停</button>
                     <button id="novelNextBtn" onclick="novelWriteNextChapter()" style="display:none;">✍️ 生成下一章</button>
+                    <button id="novelEvaluateBtn" onclick="novelTriggerEvaluation()" style="display:none;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;">📊 质量评估</button>
                 </div>
             </div>
             <div class="novel-progress" id="novelProgress" style="display:none;">
@@ -2516,6 +2517,11 @@
             document.getElementById('novelDoneCount').textContent = done;
             document.getElementById('novelTotalCount').textContent = total;
             document.getElementById('novelCostCount').textContent = novelState.totalCost;
+
+            // 🆕 更新评估按钮显示状态
+            if (typeof novelUpdateEvaluateButton === 'function') {
+                novelUpdateEvaluateButton();
+            }
         }
 
         function _novelRenderChapterList() {

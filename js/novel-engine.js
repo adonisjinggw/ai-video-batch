@@ -471,6 +471,12 @@ async function _novelGenerateChapterEnhanced(idx) {
         novelState.totalWords += ch.wordCount;
         novelState.totalCost += NOVEL_CHAPTER_COST;
         _novelSaveState();
+
+        // 🆕 自动评估章节质量
+        if (typeof novelAutoEvaluateChapter === 'function') {
+            await novelAutoEvaluateChapter(idx);
+        }
+
         // 每50章自动导出TXT备份
         const _doneTotal = novelState.chapters.filter(c => c.status === 'done').length;
         if (_doneTotal > 0 && _doneTotal % 50 === 0) {
@@ -631,4 +637,430 @@ function novelLoadFromFile(input) {
     reader.onerror = function () { showToast('文件读取失败'); };
     reader.readAsText(file);
     input.value = ''; // 允许重复选择同一文件
+}
+
+// ==================== 📊 小说评分评估系统 ====================
+
+/**
+ * 评估单个章节的质量
+ * @param {number} idx - 章节索引
+ * @returns {Object} 评估结果 { score, issues, repetitions, errors }
+ */
+async function novelEvaluateChapter(idx) {
+    const ch = novelState.chapters[idx];
+    if (!ch || !ch.content || ch.status !== 'done') {
+        return { score: 0, issues: ['章节未完成'], repetitions: [], errors: [] };
+    }
+
+    const content = ch.content;
+    const issues = [];
+    const repetitions = [];
+    const errors = [];
+    let score = 100;
+
+    // 1. 检测重复内容（与前面章节对比）
+    if (idx > 0) {
+        const prevContents = novelState.chapters.slice(Math.max(0, idx - 5), idx)
+            .filter(c => c.status === 'done')
+            .map(c => c.content);
+
+        // 检测重复的句子（超过15字的句子）
+        const sentences = content.match(/[^。！？]+[。！？]/g) || [];
+        for (const sent of sentences) {
+            if (sent.length < 15) continue;
+            for (let i = 0; i < prevContents.length; i++) {
+                if (prevContents[i].includes(sent)) {
+                    repetitions.push({
+                        type: '重复句子',
+                        content: sent.substring(0, 50) + '...',
+                        chapter: idx - prevContents.length + i + 1
+                    });
+                    score -= 5;
+                }
+            }
+        }
+
+        // 检测重复的对话模式
+        const dialogues = content.match(/["「『]([^"」』]{10,})["」』]/g) || [];
+        for (const dialog of dialogues) {
+            for (let i = 0; i < prevContents.length; i++) {
+                if (prevContents[i].includes(dialog)) {
+                    repetitions.push({
+                        type: '重复对话',
+                        content: dialog.substring(0, 50) + '...',
+                        chapter: idx - prevContents.length + i + 1
+                    });
+                    score -= 3;
+                }
+            }
+        }
+    }
+
+    // 2. 检测AI痕迹（高频词汇）
+    const aiWords = [
+        { word: '仿佛', limit: 2, penalty: 2 },
+        { word: '宛如', limit: 2, penalty: 2 },
+        { word: '犹如', limit: 2, penalty: 2 },
+        { word: '不禁', limit: 3, penalty: 1 },
+        { word: '竟然', limit: 3, penalty: 1 },
+        { word: '居然', limit: 3, penalty: 1 },
+        { word: '却是', limit: 3, penalty: 1 },
+        { word: '倒是', limit: 3, penalty: 1 }
+    ];
+
+    for (const { word, limit, penalty } of aiWords) {
+        const count = (content.match(new RegExp(word, 'g')) || []).length;
+        if (count > limit) {
+            issues.push(`AI痕迹：「${word}」出现${count}次（建议≤${limit}次）`);
+            score -= (count - limit) * penalty;
+        }
+    }
+
+    // 3. 检测常见错误
+    // 3.1 标点符号错误
+    if (/[,，][,，]/.test(content)) {
+        errors.push('标点错误：连续逗号');
+        score -= 2;
+    }
+    if (/[。.][。.]/.test(content)) {
+        errors.push('标点错误：连续句号');
+        score -= 2;
+    }
+
+    // 3.2 空格错误
+    const spaceErrors = content.match(/[a-zA-Z]\s+[a-zA-Z]/g) || [];
+    if (spaceErrors.length > 0) {
+        errors.push(`英文单词：发现${spaceErrors.length}处英文（应全中文）`);
+        score -= spaceErrors.length * 3;
+    }
+
+    // 3.3 段落格式
+    const paragraphs = content.split('\n').filter(p => p.trim());
+    if (paragraphs.length < 5) {
+        issues.push('段落过少：建议增加分段提高可读性');
+        score -= 5;
+    }
+
+    // 3.4 对话格式
+    const hasDialogue = /["「『]/.test(content);
+    if (!hasDialogue && content.length > 1000) {
+        issues.push('缺少对话：长篇章节建议增加人物对话');
+        score -= 3;
+    }
+
+    // 4. 检测章节标题或元评论（不应出现在正文中）
+    if (/^第\d+章/.test(content) || /^【.*】/.test(content)) {
+        errors.push('格式错误：正文包含章节标题');
+        score -= 5;
+    }
+    if (/写作说明|作者注|元评论/.test(content)) {
+        errors.push('格式错误：正文包含元评论');
+        score -= 5;
+    }
+
+    // 5. 检测字数是否达标
+    const targetLen = parseInt(document.getElementById('novelChapterLength')?.value || 3000);
+    const actualLen = content.length;
+    if (actualLen < targetLen * 0.8) {
+        issues.push(`字数不足：${actualLen}字（目标${targetLen}字）`);
+        score -= 10;
+    } else if (actualLen > targetLen * 1.5) {
+        issues.push(`字数过多：${actualLen}字（目标${targetLen}字）`);
+        score -= 5;
+    }
+
+    // 确保分数在0-100之间
+    score = Math.max(0, Math.min(100, score));
+
+    return {
+        score: Math.round(score),
+        issues,
+        repetitions,
+        errors,
+        wordCount: actualLen
+    };
+}
+
+/**
+ * 评估整部小说的质量
+ * @returns {Object} 全局评估结果
+ */
+async function novelEvaluateAll() {
+    const doneChapters = novelState.chapters.filter(c => c.status === 'done');
+    if (doneChapters.length === 0) {
+        return {
+            overallScore: 0,
+            chapterScores: [],
+            globalIssues: ['没有已完成的章节'],
+            totalRepetitions: 0,
+            totalErrors: 0
+        };
+    }
+
+    showToast('正在评估小说质量...');
+    const chapterScores = [];
+    let totalScore = 0;
+    let totalRepetitions = 0;
+    let totalErrors = 0;
+    const globalIssues = [];
+
+    // 评估每个章节
+    for (let i = 0; i < novelState.chapters.length; i++) {
+        if (novelState.chapters[i].status !== 'done') continue;
+
+        const result = await novelEvaluateChapter(i);
+        chapterScores.push({
+            index: i,
+            title: novelState.chapters[i].title,
+            ...result
+        });
+        totalScore += result.score;
+        totalRepetitions += result.repetitions.length;
+        totalErrors += result.errors.length;
+    }
+
+    const overallScore = Math.round(totalScore / doneChapters.length);
+
+    // 全局问题检测
+    // 1. 检测整体重复率
+    if (totalRepetitions > doneChapters.length * 2) {
+        globalIssues.push(`重复内容过多：发现${totalRepetitions}处重复`);
+    }
+
+    // 2. 检测整体AI痕迹
+    const lowScoreChapters = chapterScores.filter(c => c.score < 70);
+    if (lowScoreChapters.length > doneChapters.length * 0.3) {
+        globalIssues.push(`质量较低章节过多：${lowScoreChapters.length}/${doneChapters.length}章低于70分`);
+    }
+
+    // 3. 检测字数波动
+    const wordCounts = chapterScores.map(c => c.wordCount);
+    const avgWords = wordCounts.reduce((a, b) => a + b, 0) / wordCounts.length;
+    const maxWords = Math.max(...wordCounts);
+    const minWords = Math.min(...wordCounts);
+    if (maxWords > avgWords * 1.5 || minWords < avgWords * 0.5) {
+        globalIssues.push(`章节字数波动较大：${minWords}-${maxWords}字（平均${Math.round(avgWords)}字）`);
+    }
+
+    return {
+        overallScore,
+        chapterScores,
+        globalIssues,
+        totalRepetitions,
+        totalErrors,
+        evaluatedChapters: doneChapters.length,
+        totalChapters: novelState.chapters.length
+    };
+}
+
+/**
+ * 显示评估结果UI
+ */
+function novelShowEvaluationResult(result) {
+    const { overallScore, chapterScores, globalIssues, totalRepetitions, totalErrors } = result;
+
+    // 创建评估结果面板
+    let html = `
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="this.remove()">
+            <div style="background:#1a1a2e;border-radius:16px;max-width:600px;max-height:80vh;overflow-y:auto;padding:24px;color:#fff;" onclick="event.stopPropagation()">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <h3 style="margin:0;font-size:20px;">📊 小说质量评估报告</h3>
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;color:#888;font-size:24px;cursor:pointer;">&times;</button>
+                </div>
+
+                <div style="text-align:center;margin-bottom:24px;">
+                    <div style="font-size:48px;font-weight:bold;color:${overallScore >= 80 ? '#22c55e' : overallScore >= 60 ? '#fbbf24' : '#ef4444'};">
+                        ${overallScore}
+                    </div>
+                    <div style="color:#94a3b8;margin-top:8px;">综合评分</div>
+                    <div style="color:#94a3b8;font-size:14px;margin-top:4px;">
+                        ${result.evaluatedChapters}/${result.totalChapters} 章已评估
+                    </div>
+                </div>
+
+                ${globalIssues.length > 0 ? `
+                <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px;margin-bottom:16px;">
+                    <div style="font-weight:bold;margin-bottom:8px;color:#ef4444;">⚠️ 全局问题</div>
+                    ${globalIssues.map(issue => `<div style="font-size:14px;color:#fca5a5;margin-bottom:4px;">• ${issue}</div>`).join('')}
+                </div>
+                ` : ''}
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                    <div style="background:rgba(251,191,36,0.1);border-radius:8px;padding:12px;text-align:center;">
+                        <div style="font-size:24px;font-weight:bold;color:#fbbf24;">${totalRepetitions}</div>
+                        <div style="font-size:14px;color:#94a3b8;margin-top:4px;">重复内容</div>
+                    </div>
+                    <div style="background:rgba(239,68,68,0.1);border-radius:8px;padding:12px;text-align:center;">
+                        <div style="font-size:24px;font-weight:bold;color:#ef4444;">${totalErrors}</div>
+                        <div style="font-size:14px;color:#94a3b8;margin-top:4px;">错误问题</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <div style="font-weight:bold;margin-bottom:12px;">📖 章节评分详情</div>
+                    <div style="max-height:300px;overflow-y:auto;">
+                        ${chapterScores.map(ch => `
+                            <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;" onclick="novelViewChapter(${ch.index})">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                    <div style="font-weight:bold;">第${ch.index + 1}章 ${ch.title}</div>
+                                    <div style="font-size:18px;font-weight:bold;color:${ch.score >= 80 ? '#22c55e' : ch.score >= 60 ? '#fbbf24' : '#ef4444'};">
+                                        ${ch.score}分
+                                    </div>
+                                </div>
+                                ${ch.issues.length > 0 ? `
+                                    <div style="font-size:13px;color:#fbbf24;margin-bottom:4px;">
+                                        ${ch.issues.slice(0, 2).map(issue => `• ${issue}`).join('<br>')}
+                                        ${ch.issues.length > 2 ? `<br>• 还有${ch.issues.length - 2}个问题...` : ''}
+                                    </div>
+                                ` : ''}
+                                ${ch.repetitions.length > 0 ? `
+                                    <div style="font-size:13px;color:#ef4444;">
+                                        • ${ch.repetitions.length}处重复内容
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:8px;">
+                    <button onclick="novelExportEvaluationReport()" style="flex:1;background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
+                        📄 导出报告
+                    </button>
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
+                        关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+/**
+ * 导出评估报告
+ */
+function novelExportEvaluationReport() {
+    if (!novelState._lastEvaluation) {
+        showToast('请先进行评估');
+        return;
+    }
+
+    const { overallScore, chapterScores, globalIssues, totalRepetitions, totalErrors } = novelState._lastEvaluation;
+
+    let report = `# 小说质量评估报告\n\n`;
+    report += `**综合评分**: ${overallScore}/100\n`;
+    report += `**评估章节**: ${chapterScores.length}章\n`;
+    report += `**重复内容**: ${totalRepetitions}处\n`;
+    report += `**错误问题**: ${totalErrors}处\n\n`;
+
+    if (globalIssues.length > 0) {
+        report += `## 全局问题\n\n`;
+        globalIssues.forEach(issue => {
+            report += `- ${issue}\n`;
+        });
+        report += `\n`;
+    }
+
+    report += `## 章节详情\n\n`;
+    chapterScores.forEach(ch => {
+        report += `### 第${ch.index + 1}章 ${ch.title} (${ch.score}分)\n\n`;
+        if (ch.issues.length > 0) {
+            report += `**问题**:\n`;
+            ch.issues.forEach(issue => report += `- ${issue}\n`);
+        }
+        if (ch.repetitions.length > 0) {
+            report += `\n**重复内容** (${ch.repetitions.length}处):\n`;
+            ch.repetitions.forEach(rep => {
+                report += `- ${rep.type}: ${rep.content} (与第${rep.chapter}章重复)\n`;
+            });
+        }
+        if (ch.errors.length > 0) {
+            report += `\n**错误**:\n`;
+            ch.errors.forEach(err => report += `- ${err}\n`);
+        }
+        report += `\n`;
+    });
+
+    // 下载报告
+    const blob = new Blob([report], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${novelState.theme || '小说'}_评估报告.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('评估报告已导出');
+}
+
+/**
+ * 在章节生成后自动评估
+ */
+async function novelAutoEvaluateChapter(idx) {
+    try {
+        const result = await novelEvaluateChapter(idx);
+
+        // 保存评估结果到章节
+        if (!novelState.chapters[idx]._evaluation) {
+            novelState.chapters[idx]._evaluation = result;
+        }
+
+        // 如果评分低于60，显示警告
+        if (result.score < 60) {
+            const issues = [...result.issues, ...result.errors].slice(0, 3).join('\n');
+            showToast(`⚠️ 第${idx + 1}章评分较低(${result.score}分)\n${issues}`, 5000);
+        }
+
+        return result;
+    } catch (e) {
+        console.warn('[novel-eval] 章节评估失败:', e);
+        return null;
+    }
+}
+
+/**
+ * 手动触发全局评估
+ */
+async function novelTriggerEvaluation() {
+    const doneChapters = novelState.chapters.filter(c => c.status === 'done');
+    if (doneChapters.length === 0) {
+        showToast('没有已完成的章节可以评估');
+        return;
+    }
+
+    const btn = document.getElementById('novelEvaluateBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '📊 评估中...';
+    }
+
+    try {
+        const result = await novelEvaluateAll();
+        novelState._lastEvaluation = result;
+        novelShowEvaluationResult(result);
+    } catch (e) {
+        showToast('评估失败: ' + e.message);
+        console.error('[novel-eval] 评估失败:', e);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '📊 质量评估';
+        }
+    }
+}
+
+/**
+ * 显示/隐藏评估按钮
+ */
+function novelUpdateEvaluateButton() {
+    const btn = document.getElementById('novelEvaluateBtn');
+    if (!btn) return;
+
+    const doneChapters = novelState.chapters.filter(c => c.status === 'done');
+    if (doneChapters.length > 0) {
+        btn.style.display = '';
+    } else {
+        btn.style.display = 'none';
+    }
 }
