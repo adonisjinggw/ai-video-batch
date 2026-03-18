@@ -649,6 +649,10 @@ function shortDramaPauseResume() {
     showToast(shortDramaState.paused ? '已暂停' : '继续生成');
 }
 
+/**
+ * 导出短剧剧本
+ */
+function exportShortDramaScript() {
     const doneEpisodes = shortDramaState.episodes.filter(e => e.status === 'done');
     if (doneEpisodes.length === 0) {
         showToast('没有已完成的集数');
