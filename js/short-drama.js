@@ -352,28 +352,36 @@ async function generateOriginalShortDrama() {
  * 小说改编短剧流程
  */
 async function adaptNovelToShortDramaFlow() {
-    // 从当前小说项目获取内容
-    if (!novelState || !novelState.chapters || novelState.chapters.length === 0) {
-        showToast('请先创建或加载小说项目');
-        return;
-    }
-
-    const doneChapters = novelState.chapters.filter(c => c.status === 'done');
-    if (doneChapters.length === 0) {
-        showToast('小说还没有完成的章节');
-        return;
-    }
-
     const episodeCount = parseInt(document.getElementById('shortDramaAdaptEpisodeCount').value);
+    let novelContent = '';
+    let novelTitle = '';
+
+    // 优先使用导入的小说源
+    if (shortDramaState.sourceNovel) {
+        novelContent = shortDramaState.sourceNovel.content;
+        novelTitle = shortDramaState.sourceNovel.name;
+    }
+    // 否则从当前小说项目获取内容
+    else if (novelState && novelState.chapters && novelState.chapters.length > 0) {
+        const doneChapters = novelState.chapters.filter(c => c.status === 'done');
+        if (doneChapters.length === 0) {
+            showToast('小说还没有完成的章节');
+            return;
+        }
+        novelContent = doneChapters.map((ch, i) =>
+            `第${i + 1}章 ${ch.title}\n${ch.content}`
+        ).join('\n\n');
+        novelTitle = novelState.theme || '未命名小说';
+    }
+    // 都没有则提示
+    else {
+        showToast('请先导入小说或创建小说项目');
+        return;
+    }
 
     showToast('正在改编小说为短剧...');
 
     try {
-        // 合并小说内容
-        const novelContent = doneChapters.map((ch, i) =>
-            `第${i + 1}章 ${ch.title}\n${ch.content}`
-        ).join('\n\n');
-
         // 生成改编大纲
         const outlineText = await adaptNovelToShortDrama(novelContent, episodeCount);
         const episodes = parseShortDramaOutline(outlineText);
@@ -383,9 +391,8 @@ async function adaptNovelToShortDramaFlow() {
         }
 
         shortDramaState.mode = 'adapt';
-        shortDramaState.sourceNovel = novelState.theme || '未命名小说';
-        shortDramaState.theme = `${novelState.theme}（改编）`;
-        shortDramaState.genre = novelState.genre || 'urban';
+        shortDramaState.theme = `${novelTitle}（改编）`;
+        shortDramaState.genre = 'urban';
         shortDramaState.episodes = episodes;
         shortDramaState.totalEpisodes = episodes.length;
 
@@ -682,4 +689,204 @@ function exportShortDramaScript() {
     a.click();
     URL.revokeObjectURL(url);
     showToast('剧本已导出');
+}
+
+// ==================== 小说导入功能 ====================
+
+/**
+ * 触发文件上传
+ */
+function importNovelFromFile() {
+    const fileInput = document.getElementById('shortDramaNovelFileInput');
+    if (fileInput) {
+        fileInput.click();
+    }
+}
+
+/**
+ * 处理文件上传
+ */
+async function handleNovelFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // 检查文件类型
+    const validTypes = ['.txt', '.md'];
+    const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!validTypes.includes(fileExt)) {
+        showToast('仅支持 .txt 和 .md 格式的文件');
+        return;
+    }
+
+    // 检查文件大小（限制10MB）
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('文件过大，请选择小于10MB的文件');
+        return;
+    }
+
+    try {
+        showToast('正在读取文件...');
+        const text = await file.text();
+
+        // 清理文本
+        const cleanedText = text.trim();
+        const wordCount = cleanedText.length;
+
+        if (wordCount < 1000) {
+            showToast('文件内容过短，至少需要1000字');
+            return;
+        }
+
+        // 保存到状态
+        shortDramaState.sourceNovel = {
+            name: file.name,
+            content: cleanedText,
+            wordCount: wordCount
+        };
+
+        // 更新UI
+        updateSourceInfo();
+        showToast(`✅ 已导入: ${file.name} (${wordCount}字)`);
+    } catch (error) {
+        console.error('文件读取失败:', error);
+        showToast('文件读取失败，请重试');
+    }
+
+    // 清空input，允许重复选择同一文件
+    event.target.value = '';
+}
+
+/**
+ * 从历史记录导入小说
+ */
+async function importNovelFromHistory() {
+    try {
+        // 从 IndexedDB 获取所有小说项目
+        const db = await openNovelDB();
+        const tx = db.transaction('novels', 'readonly');
+        const store = tx.objectStore('novels');
+        const novels = await store.getAll();
+
+        if (!novels || novels.length === 0) {
+            showToast('暂无已生成的小说');
+            return;
+        }
+
+        // 创建选择对话框
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+        const content = document.createElement('div');
+        content.style.cssText = 'background:#1a1a1a;border-radius:12px;padding:24px;max-width:600px;width:100%;max-height:80vh;overflow-y:auto;';
+
+        let html = '<div style="font-size:18px;font-weight:bold;margin-bottom:16px;color:#fff;">📖 选择要导入的小说</div>';
+        html += '<div style="display:flex;flex-direction:column;gap:12px;">';
+
+        for (const novel of novels) {
+            const chapters = novel.chapters || [];
+            const totalWords = chapters.reduce((sum, ch) => sum + (ch.content?.length || 0), 0);
+            const doneCount = chapters.filter(ch => ch.status === 'done').length;
+
+            html += `
+                <div onclick="selectNovelFromHistory('${novel.id}')" style="padding:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px;">${novel.title || '未命名小说'}</div>
+                    <div style="font-size:13px;color:#888;">
+                        📊 ${doneCount}/${chapters.length}章 · ${totalWords}字 · ${novel.genre || '未分类'}
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        html += '<button onclick="this.closest(\'.novel-import-modal\').remove()" style="margin-top:16px;width:100%;padding:12px;background:#444;color:#fff;border:none;border-radius:8px;cursor:pointer;">取消</button>';
+
+        content.innerHTML = html;
+        modal.appendChild(content);
+        modal.className = 'novel-import-modal';
+        document.body.appendChild(modal);
+
+    } catch (error) {
+        console.error('获取小说列表失败:', error);
+        showToast('获取小说列表失败');
+    }
+}
+
+/**
+ * 选择历史小说
+ */
+async function selectNovelFromHistory(novelId) {
+    try {
+        const db = await openNovelDB();
+        const tx = db.transaction('novels', 'readonly');
+        const store = tx.objectStore('novels');
+        const novel = await store.get(novelId);
+
+        if (!novel) {
+            showToast('小说不存在');
+            return;
+        }
+
+        // 合并所有章节内容
+        const chapters = novel.chapters || [];
+        const doneChapters = chapters.filter(ch => ch.status === 'done');
+
+        if (doneChapters.length === 0) {
+            showToast('该小说没有已完成的章节');
+            return;
+        }
+
+        let content = `# ${novel.title}\n\n`;
+        for (const chapter of doneChapters) {
+            content += `## ${chapter.title}\n\n${chapter.content}\n\n`;
+        }
+
+        const wordCount = content.length;
+
+        // 保存到状态
+        shortDramaState.sourceNovel = {
+            name: novel.title || '未命名小说',
+            content: content,
+            wordCount: wordCount
+        };
+
+        // 更新UI
+        updateSourceInfo();
+
+        // 关闭对话框
+        const modal = document.querySelector('.novel-import-modal');
+        if (modal) modal.remove();
+
+        showToast(`✅ 已导入: ${novel.title} (${wordCount}字)`);
+    } catch (error) {
+        console.error('导入小说失败:', error);
+        showToast('导入失败，请重试');
+    }
+}
+
+/**
+ * 更新源信息显示
+ */
+function updateSourceInfo() {
+    const infoDiv = document.getElementById('shortDramaSourceInfo');
+    const nameSpan = document.getElementById('shortDramaSourceName');
+    const wordsSpan = document.getElementById('shortDramaSourceWords');
+
+    if (shortDramaState.sourceNovel) {
+        if (infoDiv) infoDiv.style.display = 'block';
+        if (nameSpan) nameSpan.textContent = shortDramaState.sourceNovel.name;
+        if (wordsSpan) wordsSpan.textContent = shortDramaState.sourceNovel.wordCount;
+    } else {
+        if (infoDiv) infoDiv.style.display = 'none';
+    }
+}
+
+/**
+ * 打开 IndexedDB
+ */
+function openNovelDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('NovelWriterDB', 1);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
 }
