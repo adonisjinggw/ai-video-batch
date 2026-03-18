@@ -208,11 +208,11 @@
         if (m === 'veo_3_1-4K' || m === 'veo3') return 8;
         if (m === 'veo2') return 8;
         if (String(m).startsWith('vidu-') || String(m).startsWith('kling-')) {
-            const durationMatch = String(m).match(/-(\\d+)s[-$]/i) || String(m).match(/-(\\d+)s$/i);
+            const durationMatch = String(m).match(/-(\d+)s[-$]/i) || String(m).match(/-(\d+)s$/i);
             return durationMatch ? parseInt(durationMatch[1]) : 5;
         }
         if (String(m).startsWith('hailuo-')) {
-            const durationMatch = String(m).match(/-(\\d+)s[-$]/i) || String(m).match(/-(\\d+)s$/i);
+            const durationMatch = String(m).match(/-(\d+)s[-$]/i) || String(m).match(/-(\d+)s$/i);
             return durationMatch ? parseInt(durationMatch[1]) : 6;
         }
         if (String(m).startsWith('wan26-')) {
@@ -360,8 +360,7 @@
             body: JSON.stringify({
                 action: 'text',
                 prompt,
-                userId
-                ,
+                userId,
                 skip_billing: _billingSessionCount > 0 || undefined
             })
         });
