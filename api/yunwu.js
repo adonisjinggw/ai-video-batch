@@ -3121,8 +3121,8 @@ module.exports = async function handler(req, res) {
                             console.log(`[yunwu] 🔄 MJ轮询 (${attempt + 1}/${maxAttempts}): ${status} ${progress}%`);
                         }
 
-                        // 🔧 修复：检查多种完成状态，包括 95%+ 进度
-                        if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'DONE' || (progress >= 95 && pollData.imageUrl)) {
+                        // 🔧 检查多种完成状态
+                        if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'DONE') {
                             imageUrl = pollData.imageUrl;
                             console.log('[yunwu] ✅ Midjourney 生成成功:', imageUrl);
                             break;
