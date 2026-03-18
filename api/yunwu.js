@@ -3052,19 +3052,25 @@ module.exports = async function handler(req, res) {
 
             try {
                 // 提交 Imagine 任务
+                const submitBody = {
+                    prompt: optimizedPrompt,
+                    notifyHook: '',
+                    state: '',
+                    mode: speedMode
+                };
+
+                // 🔧 只有在有参考图时才添加 base64Array 参数
+                if (base64Array.length > 0) {
+                    submitBody.base64Array = base64Array;
+                }
+
                 const submitResponse = await fetchWithFallbackWithTimeout('/mj-turbo/mj/submit/imagine', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${YUNWU_API_KEY}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        prompt: optimizedPrompt,
-                        base64Array: base64Array,  // 🆕 传入参考图（图生图）
-                        notifyHook: '',
-                        state: '',
-                        mode: speedMode
-                    })
+                    body: JSON.stringify(submitBody)
                 }, 60000, true);  // 🔧 isMJ = true
 
                 if (!submitResponse.ok) {
