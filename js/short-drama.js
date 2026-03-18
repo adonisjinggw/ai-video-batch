@@ -334,6 +334,7 @@ async function generateOriginalShortDrama() {
 
         shortDramaState.episodes = episodes;
         renderShortDramaEpisodeList();
+        updateShortDramaProgress();
 
         showToast(`✅ 大纲生成完成（${episodes.length}集）`);
 
@@ -389,6 +390,7 @@ async function adaptNovelToShortDramaFlow() {
         shortDramaState.totalEpisodes = episodes.length;
 
         renderShortDramaEpisodeList();
+        updateShortDramaProgress();
 
         showToast(`✅ 改编大纲完成（${episodes.length}集）`);
 
@@ -416,6 +418,7 @@ async function generateAllShortDramaEpisodes() {
 
         ep.status = 'generating';
         renderShortDramaEpisodeList();
+        updateShortDramaProgress();
 
         try {
             // 获取前文上下文（最近3集）
@@ -441,6 +444,7 @@ async function generateAllShortDramaEpisodes() {
             }
 
             renderShortDramaEpisodeList();
+            updateShortDramaProgress();
 
         } catch (e) {
             ep.status = 'error';
@@ -593,9 +597,58 @@ function viewShortDramaEpisode(index) {
 }
 
 /**
- * 导出短剧剧本
+ * 更新短剧进度
  */
-function exportShortDramaScript() {
+function updateShortDramaProgress() {
+    const done = shortDramaState.episodes.filter(e => e.status === 'done').length;
+    const total = shortDramaState.episodes.length;
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+
+    const progressLabel = document.getElementById('shortDramaProgressLabel');
+    const progressPercent = document.getElementById('shortDramaProgressPercent');
+    const progressFill = document.getElementById('shortDramaProgressFill');
+    const doneCount = document.getElementById('shortDramaDoneCount');
+    const totalEpisodes = document.getElementById('shortDramaTotalEpisodes');
+    const totalDuration = document.getElementById('shortDramaTotalDuration');
+
+    if (progressLabel) {
+        progressLabel.textContent = shortDramaState.writing ?
+            `正在生成第 ${done + 1} 集...` :
+            (done >= total ? '全部完成！' : `已完成 ${done}/${total} 集`);
+    }
+    if (progressPercent) progressPercent.textContent = pct + '%';
+    if (progressFill) progressFill.style.width = pct + '%';
+    if (doneCount) doneCount.textContent = done;
+    if (totalEpisodes) totalEpisodes.textContent = total;
+    if (totalDuration) {
+        const minutes = Math.round(shortDramaState.episodes
+            .filter(e => e.status === 'done')
+            .reduce((sum, e) => sum + (e.duration || 0), 0) / 60);
+        totalDuration.textContent = minutes;
+    }
+
+    // 显示/隐藏相关元素
+    const progress = document.getElementById('shortDramaProgress');
+    const stats = document.getElementById('shortDramaStats');
+    const actions = document.getElementById('shortDramaActions');
+
+    if (progress && total > 0) progress.style.display = '';
+    if (stats && done > 0) stats.style.display = '';
+    if (actions && done > 0) actions.style.display = '';
+}
+
+/**
+ * 暂停/继续短剧生成
+ */
+function shortDramaPauseResume() {
+    shortDramaState.paused = !shortDramaState.paused;
+    const btn = event.target;
+    if (btn) {
+        btn.textContent = shortDramaState.paused ? '▶️ 继续' : '⏸️ 暂停';
+    }
+    showToast(shortDramaState.paused ? '已暂停' : '继续生成');
+}
+
     const doneEpisodes = shortDramaState.episodes.filter(e => e.status === 'done');
     if (doneEpisodes.length === 0) {
         showToast('没有已完成的集数');

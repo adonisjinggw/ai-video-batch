@@ -25,6 +25,7 @@
         // 📖 加载 novel-engine.js（在 novelState 定义之后）
     </script>
     <script src="/js/novel-engine.js"></script>
+    <script src="/js/short-drama.js"></script>
     <script>
         // 🔄 全局类型切换函数（必须在 HTML onclick 之前定义）
         window.currentType = 'story';
@@ -48,7 +49,9 @@
             });
 
             const isNovel = (type === 'novel');
+            const isShortDrama = (type === 'shortdrama');
             const novelPanel = document.getElementById('novelPanel');
+            const shortDramaPanel = document.getElementById('shortDramaPanel');
             const batchToggle = document.getElementById('batchToggle');
             const singleInput = document.getElementById('singleInputSection');
             const batchInput = document.getElementById('batchInputSection');
@@ -60,6 +63,18 @@
 
             if (isNovel) {
                 if (novelPanel) novelPanel.classList.add('active');
+                if (shortDramaPanel) shortDramaPanel.classList.remove('active');
+                if (batchToggle) batchToggle.style.display = 'none';
+                if (singleInput) singleInput.style.display = 'none';
+                if (batchInput) batchInput.style.display = 'none';
+                if (settingsRow) settingsRow.style.display = 'none';
+                if (generateBtn) generateBtn.style.display = 'none';
+                if (resultSection) resultSection.style.display = 'none';
+                if (batchResultSection) batchResultSection.style.display = 'none';
+                if (loading) loading.style.display = 'none';
+            } else if (isShortDrama) {
+                if (novelPanel) novelPanel.classList.remove('active');
+                if (shortDramaPanel) shortDramaPanel.classList.add('active');
                 if (batchToggle) batchToggle.style.display = 'none';
                 if (singleInput) singleInput.style.display = 'none';
                 if (batchInput) batchInput.style.display = 'none';
@@ -70,6 +85,7 @@
                 if (loading) loading.style.display = 'none';
             } else {
                 if (novelPanel) novelPanel.classList.remove('active');
+                if (shortDramaPanel) shortDramaPanel.classList.remove('active');
                 if (batchToggle) batchToggle.style.display = '';
                 if (settingsRow) settingsRow.style.display = '';
                 if (generateBtn) generateBtn.style.display = '';
@@ -952,6 +968,40 @@
             color: var(--accent);
             font-weight: 600;
         }
+
+        /* ==================== 📺 短剧模块样式 ==================== */
+        .short-drama-mode-switch {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .episode-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .episode-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
+        }
+
+        .episode-item.done {
+            border-left: 3px solid var(--success);
+        }
+
+        .episode-item.generating {
+            border-left: 3px solid var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+
+        .episode-item.error {
+            border-left: 3px solid var(--danger);
+        }
     </style>
     <link rel="stylesheet" href="/css/novel-enhanced.css">
 </head>
@@ -1273,6 +1323,125 @@
                     去AI化</button>
                 <button onclick="novelShowPublishPanel()"
                     style="background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:700;"> 发布</button>
+            </div>
+        </div>
+
+        <!-- 📺 短剧面板 -->
+        <div class="novel-panel" id="shortDramaPanel">
+            <div class="novel-header">
+                <h2>📺 短剧创作工作台</h2>
+                <p>原创短剧 · 小说改编 · 符合短剧标准 · 快节奏冲突</p>
+            </div>
+
+            <!-- 模式切换 -->
+            <div class="short-drama-mode-switch" style="display:flex;gap:12px;margin-bottom:20px;">
+                <button class="novel-mode-btn active" id="shortDramaOriginalBtn" onclick="switchShortDramaMode('original')" style="flex:1;">
+                    ✨ 原创短剧
+                </button>
+                <button class="novel-mode-btn" id="shortDramaAdaptBtn" onclick="switchShortDramaMode('adapt')" style="flex:1;">
+                    📖 小说改编
+                </button>
+            </div>
+
+            <!-- 原创短剧面板 -->
+            <div id="shortDramaOriginalPanel">
+                <div class="novel-input-group">
+                    <label>📝 短剧主题</label>
+                    <input type="text" id="shortDramaTheme" placeholder="例如：霸总爱上灰姑娘、复仇千金归来..." style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
+                </div>
+
+                <div class="novel-input-group">
+                    <label>🎭 短剧类型</label>
+                    <select id="shortDramaGenre" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
+                        <option value="urban">都市情感</option>
+                        <option value="revenge">复仇逆袭</option>
+                        <option value="fantasy">玄幻修仙</option>
+                        <option value="romance">甜宠言情</option>
+                        <option value="suspense">悬疑推理</option>
+                    </select>
+                </div>
+
+                <div class="novel-input-group">
+                    <label>📊 集数设置</label>
+                    <select id="shortDramaEpisodeCount" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
+                        <option value="30">30集（短篇）</option>
+                        <option value="60" selected>60集（标准）</option>
+                        <option value="80">80集（中篇）</option>
+                        <option value="100">100集（长篇）</option>
+                    </select>
+                </div>
+
+                <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px;margin-bottom:16px;">
+                    <div style="font-size:14px;color:#60a5fa;margin-bottom:8px;">📺 短剧标准规则</div>
+                    <div style="font-size:13px;color:#94a3b8;line-height:1.6;">
+                        • 每集时长：90秒（约350字）<br>
+                        • 场景切换：每集2-4个场景<br>
+                        • 对话要求：简短有力，口语化<br>
+                        • 冲突要求：每集必须有冲突<br>
+                        • 悬念要求：结尾必须留悬念
+                    </div>
+                </div>
+
+                <button class="primary" onclick="startShortDramaGeneration()" style="width:100%;">
+                    🚀 开始生成短剧
+                </button>
+            </div>
+
+            <!-- 小说改编面板 -->
+            <div id="shortDramaAdaptPanel" style="display:none;">
+                <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:16px;margin-bottom:16px;">
+                    <div style="font-size:14px;color:#fbbf24;margin-bottom:8px;">📖 小说改编说明</div>
+                    <div style="font-size:13px;color:#94a3b8;line-height:1.6;">
+                        • 将从当前小说项目中提取内容<br>
+                        • 自动提炼核心冲突和主线剧情<br>
+                        • 删减支线，强化戏剧冲突<br>
+                        • 加快节奏，符合短剧特点
+                    </div>
+                </div>
+
+                <div class="novel-input-group">
+                    <label>📊 改编集数</label>
+                    <select id="shortDramaAdaptEpisodeCount" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
+                        <option value="30">30集（精简版）</option>
+                        <option value="60" selected>60集（标准版）</option>
+                        <option value="80">80集（完整版）</option>
+                    </select>
+                </div>
+
+                <button class="primary" onclick="startShortDramaGeneration()" style="width:100%;">
+                    🎬 开始改编短剧
+                </button>
+            </div>
+
+            <!-- 短剧进度 -->
+            <div class="novel-progress" id="shortDramaProgress" style="display:none;">
+                <div class="novel-progress-text">
+                    <span id="shortDramaProgressLabel">准备中...</span>
+                    <span id="shortDramaProgressPercent">0%</span>
+                </div>
+                <div class="novel-progress-bar">
+                    <div class="novel-progress-fill" id="shortDramaProgressFill" style="width:0%"></div>
+                </div>
+            </div>
+
+            <!-- 短剧统计 -->
+            <div class="novel-stats" id="shortDramaStats" style="display:none;">
+                <span>📺 总集数: <b class="accent" id="shortDramaTotalEpisodes">0</b></span>
+                <span>✅ 已完成: <b class="accent" id="shortDramaDoneCount">0</b>集</span>
+                <span>⏱️ 总时长: <b class="accent" id="shortDramaTotalDuration">0</b>分钟</span>
+            </div>
+
+            <!-- 集数列表 -->
+            <div class="novel-chapter-list" id="shortDramaEpisodeList"></div>
+
+            <!-- 集数内容 -->
+            <div class="novel-chapter-content" id="shortDramaContent" style="display:none;"></div>
+
+            <!-- 操作按钮 -->
+            <div class="novel-actions" id="shortDramaActions" style="display:none;">
+                <button onclick="exportShortDramaScript()">📄 导出剧本</button>
+                <button onclick="evaluateAllShortDramaEpisodes()">📊 质量评估</button>
+                <button onclick="shortDramaPauseResume()">⏸️ 暂停/继续</button>
             </div>
         </div>
 
