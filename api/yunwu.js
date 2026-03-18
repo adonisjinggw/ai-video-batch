@@ -3028,21 +3028,29 @@ module.exports = async function handler(req, res) {
                     if (image_url.startsWith('http://') || image_url.startsWith('https://')) {
                         console.log('[yunwu] 🖼️ MJ 图生图: 正在转换参考图 URL 为 base64...');
                         const imgRes = await fetch(image_url);
-                        if (imgRes.ok) {
-                            const buffer = await imgRes.arrayBuffer();
-                            const base64Data = Buffer.from(buffer).toString('base64');
-                            const contentType = imgRes.headers.get('content-type') || 'image/png';
-                            refBase64 = `data:${contentType};base64,${base64Data}`;
+                        if (!imgRes.ok) {
+                            throw new Error(`参考图下载失败: ${imgRes.status}`);
                         }
+                        const buffer = await imgRes.arrayBuffer();
+                        const base64Data = Buffer.from(buffer).toString('base64');
+                        const contentType = imgRes.headers.get('content-type') || 'image/png';
+                        refBase64 = `data:${contentType};base64,${base64Data}`;
                     }
                     // 去掉 data:xxx;base64, 前缀，MJ API 只需要纯 base64
                     if (refBase64.startsWith('data:')) {
                         refBase64 = refBase64.split(',')[1] || refBase64;
                     }
+                    // 🔧 验证 base64 有效性
+                    if (!refBase64 || refBase64.length < 100) {
+                        throw new Error('参考图 base64 无效');
+                    }
                     base64Array = [refBase64];
                     console.log(`[yunwu] 🖼️ MJ 图生图: 参考图已准备, 大小: ${Math.round(refBase64.length / 1024)}KB`);
                 } catch (refErr) {
-                    console.warn('[yunwu] MJ 参考图处理失败:', refErr.message);
+                    console.error('[yunwu] MJ 参考图处理失败:', refErr.message);
+                    // 🔧 参考图失败时，清空 base64Array，改为纯文生图
+                    base64Array = [];
+                    console.log('[yunwu] ⚠️ 参考图处理失败，改为纯文生图模式');
                 }
             }
 
@@ -3117,11 +3125,12 @@ module.exports = async function handler(req, res) {
                             console.log(`[yunwu] 🔄 MJ轮询 (${attempt + 1}/${maxAttempts}): ${status} ${progress}%`);
                         }
 
-                        if (status === 'SUCCESS') {
+                        // 🔧 修复：检查多种完成状态，包括 95%+ 进度
+                        if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'DONE' || (progress >= 95 && pollData.imageUrl)) {
                             imageUrl = pollData.imageUrl;
                             console.log('[yunwu] ✅ Midjourney 生成成功:', imageUrl);
                             break;
-                        } else if (status === 'FAILURE') {
+                        } else if (status === 'FAILURE' || status === 'FAILED') {
                             throw new Error(pollData.failReason || 'Midjourney 生成失败');
                         }
                         // IN_PROGRESS, SUBMITTED, NOT_START 继续等待
