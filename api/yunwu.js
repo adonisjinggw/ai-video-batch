@@ -3039,9 +3039,10 @@ module.exports = async function handler(req, res) {
                         }
                     }
 
-                    // 上传图片到Discord获取URL
+                    // 上传图片到Discord获取URL（直接调用API，不走fetchWithFallback避免重复计费）
                     console.log('[yunwu] 🖼️ MJ 图生图: 正在上传参考图到Discord...');
-                    const uploadResponse = await fetchWithFallbackWithTimeout('/mj-turbo/mj/submit/upload-discord-images', {
+                    const uploadUrl = `https://api3.wlai.vip/mj-turbo/mj/submit/upload-discord-images`;
+                    const uploadResponse = await fetch(uploadUrl, {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${YUNWU_API_KEY}`,
@@ -3050,7 +3051,7 @@ module.exports = async function handler(req, res) {
                         body: JSON.stringify({
                             base64Array: [refBase64]
                         })
-                    }, 30000);
+                    });
 
                     if (uploadResponse.ok) {
                         const uploadData = await uploadResponse.json();
