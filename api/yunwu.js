@@ -3051,7 +3051,8 @@ module.exports = async function handler(req, res) {
             }
 
             try {
-                // 提交 Imagine 任务
+                // 🔧 根据是否有参考图选择不同的 API 端点
+                let apiPath = '/mj-turbo/mj/submit/imagine';
                 const submitBody = {
                     prompt: optimizedPrompt,
                     notifyHook: '',
@@ -3059,12 +3060,15 @@ module.exports = async function handler(req, res) {
                     mode: speedMode
                 };
 
-                // 🔧 只有在有参考图时才添加 base64Array 参数
+                // 🖼️ 如果有参考图，使用 blend 接口
                 if (base64Array.length > 0) {
+                    apiPath = '/mj-turbo/mj/submit/blend';
                     submitBody.base64Array = base64Array;
+                    submitBody.dimensions = aspect_ratio === '1:1' ? 'SQUARE' : (aspect_ratio === '16:9' ? 'LANDSCAPE' : 'PORTRAIT');
+                    console.log('[yunwu] 🖼️ MJ 图生图: 使用 blend 接口');
                 }
 
-                const submitResponse = await fetchWithFallbackWithTimeout('/mj-turbo/mj/submit/imagine', {
+                const submitResponse = await fetchWithFallbackWithTimeout(apiPath, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${YUNWU_API_KEY}`,
