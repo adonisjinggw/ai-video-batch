@@ -3024,7 +3024,6 @@ module.exports = async function handler(req, res) {
             else if (model === 'midjourney-relax') speedMode = 'RELAX';
 
             // 🆕 处理参考图（图生图）
-            let base64Array = [];
             if (image_url) {
                 try {
                     let refBase64 = image_url;
@@ -3039,12 +3038,33 @@ module.exports = async function handler(req, res) {
                             refBase64 = `data:${contentType};base64,${base64Data}`;
                         }
                     }
-                    // 去掉 data:xxx;base64, 前缀，MJ API 只需要纯 base64
-                    if (refBase64.startsWith('data:')) {
-                        refBase64 = refBase64.split(',')[1] || refBase64;
+
+                    // 上传图片到Discord获取URL
+                    console.log('[yunwu] 🖼️ MJ 图生图: 正在上传参考图到Discord...');
+                    const uploadResponse = await fetchWithFallbackWithTimeout('/mj-turbo/mj/submit/upload-discord-images', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${YUNWU_API_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            base64Array: [refBase64]
+                        })
+                    }, 30000);
+
+                    if (uploadResponse.ok) {
+                        const uploadData = await uploadResponse.json();
+                        if (uploadData.code === 1 && uploadData.result && uploadData.result.length > 0) {
+                            const discordUrl = uploadData.result[0];
+                            console.log(`[yunwu] 🖼️ MJ 图生图: 参考图已上传, URL: ${discordUrl}`);
+                            // 将Discord URL添加到prompt中
+                            optimizedPrompt = `${discordUrl} ${optimizedPrompt}`;
+                        } else {
+                            console.warn('[yunwu] MJ 参考图上传失败:', uploadData);
+                        }
+                    } else {
+                        console.warn('[yunwu] MJ 参考图上传请求失败:', uploadResponse.status);
                     }
-                    base64Array = [refBase64];
-                    console.log(`[yunwu] 🖼️ MJ 图生图: 参考图已准备, 大小: ${Math.round(refBase64.length / 1024)}KB`);
                 } catch (refErr) {
                     console.warn('[yunwu] MJ 参考图处理失败:', refErr.message);
                 }
@@ -3054,7 +3074,6 @@ module.exports = async function handler(req, res) {
                 // 提交 Imagine 任务
                 const submitBody = {
                     prompt: optimizedPrompt,
-                    base64Array: base64Array,
                     notifyHook: '',
                     state: '',
                     mode: speedMode
