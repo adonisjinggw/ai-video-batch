@@ -3048,9 +3048,12 @@ module.exports = async function handler(req, res) {
                     console.log(`[yunwu] 🖼️ MJ 图生图: 参考图已准备, 大小: ${Math.round(refBase64.length / 1024)}KB`);
                 } catch (refErr) {
                     console.error('[yunwu] MJ 参考图处理失败:', refErr.message);
-                    // 🔧 参考图失败时，清空 base64Array，改为纯文生图
-                    base64Array = [];
-                    console.log('[yunwu] ⚠️ 参考图处理失败，改为纯文生图模式');
+                    // 🔄 参考图失败时退款并返回错误
+                    if (billingSuccess) {
+                        await __billing('refund', userId, filmCost, 'MJ参考图处理失败退款');
+                    }
+                    json(500, { success: false, error: 'REF_IMAGE_FAILED', message: `参考图处理失败: ${refErr.message}`, billed: 0 });
+                    return;
                 }
             }
 
