@@ -326,7 +326,8 @@ const WAN26_BASE_URL = 'https://dashscope.aliyuncs.com';
 async function _tryAllEndpoints(path, options, timeoutMs, isMJ = false) {
     // 🔧 Midjourney 请求尝试所有端点，因为不是所有端点都支持 MJ
     const endpoints = isMJ ? YUNWU_ENDPOINTS : [YUNWU_ENDPOINTS[0]];
-    
+    const errors = [];  // 🔧 收集所有端点的错误信息
+
     for (const endpoint of endpoints) {
         const url = `${endpoint.url}${path}`;
         
@@ -351,6 +352,7 @@ async function _tryAllEndpoints(path, options, timeoutMs, isMJ = false) {
                 return { response };
             } else if (response.status === 429) {
                 console.warn(`[yunwu] ${endpoint.name} 限速(429)`);
+                errors.push({ endpoint: endpoint.name, status: 429 });
                 if (!isMJ) return { error: new Error('RATE_LIMIT'), got429: true };
                 // MJ 请求继续尝试其他端点
                 continue;
@@ -364,6 +366,7 @@ async function _tryAllEndpoints(path, options, timeoutMs, isMJ = false) {
                 } catch (e) {
                     console.warn(`[yunwu] ${endpoint.name} 返回 ${response.status}, 无法获取详情`);
                 }
+                errors.push({ endpoint: endpoint.name, status: response.status, error: errorDetail });
                 if (!isMJ) {
                     return { error: new Error(`请求失败: ${response.status} - ${errorDetail}`), got429: false };
                 }
@@ -372,6 +375,7 @@ async function _tryAllEndpoints(path, options, timeoutMs, isMJ = false) {
             }
         } catch (err) {
             console.warn(`[yunwu] ${endpoint.name} 异常:`, err.message);
+            errors.push({ endpoint: endpoint.name, error: err.message });
             if (!isMJ) return { error: new Error(err.message), got429: false };
             // MJ 请求继续尝试其他端点
             continue;
