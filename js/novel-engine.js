@@ -772,12 +772,32 @@ async function novelEvaluateChapter(idx) {
     // 确保分数在0-100之间
     score = Math.max(0, Math.min(100, score));
 
+    // 🆕 收集AI痕迹的具体位置
+    const aiTraces = [];
+    for (const { word, limit } of aiWords) {
+        const regex = new RegExp(word, 'g');
+        const matches = [];
+        let match;
+        while ((match = regex.exec(content)) !== null) {
+            matches.push(match.index);
+        }
+        if (matches.length > limit) {
+            aiTraces.push({
+                word,
+                count: matches.length,
+                limit,
+                positions: matches
+            });
+        }
+    }
+
     return {
         score: Math.round(score),
         issues,
         repetitions,
         errors,
-        wordCount: actualLen
+        wordCount: actualLen,
+        aiTraces  // 🆕 添加AI痕迹详情
     };
 }
 
@@ -854,7 +874,7 @@ async function novelEvaluateAll() {
 }
 
 /**
- * 显示评估结果UI
+ * 显示评估结果UI（增强版：显示具体内容+支持修正）
  */
 function novelShowEvaluationResult(result) {
     const { overallScore, chapterScores, globalIssues, totalRepetitions, totalErrors } = result;
@@ -862,9 +882,9 @@ function novelShowEvaluationResult(result) {
     // 创建评估结果面板
     let html = `
         <div style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="this.remove()">
-            <div style="background:#1a1a2e;border-radius:16px;max-width:600px;max-height:80vh;overflow-y:auto;padding:24px;color:#fff;" onclick="event.stopPropagation()">
+            <div style="background:#1a1a2e;border-radius:16px;max-width:800px;max-height:85vh;overflow-y:auto;padding:24px;color:#fff;" onclick="event.stopPropagation()">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                    <h3 style="margin:0;font-size:20px;">📊 小说质量评估报告</h3>
+                    <h3 style="margin:0;font-size:20px;">📊 小说质量评估报告（增强版）</h3>
                     <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;color:#888;font-size:24px;cursor:pointer;">&times;</button>
                 </div>
 
@@ -898,24 +918,58 @@ function novelShowEvaluationResult(result) {
 
                 <div style="margin-bottom:16px;">
                     <div style="font-weight:bold;margin-bottom:12px;">📖 章节评分详情</div>
-                    <div style="max-height:300px;overflow-y:auto;">
+                    <div style="max-height:400px;overflow-y:auto;">
                         ${chapterScores.map(ch => `
-                            <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;" onclick="novelViewChapter(${ch.index})">
+                            <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:8px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                    <div style="font-weight:bold;">第${ch.index + 1}章 ${ch.title}</div>
-                                    <div style="font-size:18px;font-weight:bold;color:${ch.score >= 80 ? '#22c55e' : ch.score >= 60 ? '#fbbf24' : '#ef4444'};">
-                                        ${ch.score}分
+                                    <div style="font-weight:bold;cursor:pointer;" onclick="novelViewChapter(${ch.index})">第${ch.index + 1}章 ${ch.title}</div>
+                                    <div style="display:flex;gap:8px;align-items:center;">
+                                        <div style="font-size:18px;font-weight:bold;color:${ch.score >= 80 ? '#22c55e' : ch.score >= 60 ? '#fbbf24' : '#ef4444'};">
+                                            ${ch.score}分
+                                        </div>
+                                        ${ch.score < 70 ? `
+                                            <button onclick="novelFixChapter(${ch.index})" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;">
+                                                🔧 修正
+                                            </button>
+                                        ` : ''}
                                     </div>
                                 </div>
+
                                 ${ch.issues.length > 0 ? `
-                                    <div style="font-size:13px;color:#fbbf24;margin-bottom:4px;">
-                                        ${ch.issues.slice(0, 2).map(issue => `• ${issue}`).join('<br>')}
-                                        ${ch.issues.length > 2 ? `<br>• 还有${ch.issues.length - 2}个问题...` : ''}
+                                    <div style="font-size:13px;color:#fbbf24;margin-bottom:8px;">
+                                        <div style="font-weight:bold;margin-bottom:4px;">⚠️ 问题：</div>
+                                        ${ch.issues.map(issue => `<div style="margin-left:12px;margin-bottom:2px;">• ${issue}</div>`).join('')}
                                     </div>
                                 ` : ''}
+
                                 ${ch.repetitions.length > 0 ? `
+                                    <div style="font-size:13px;color:#ef4444;margin-bottom:8px;">
+                                        <div style="font-weight:bold;margin-bottom:4px;">🔄 重复内容：</div>
+                                        ${ch.repetitions.slice(0, 3).map(rep => `
+                                            <div style="margin-left:12px;margin-bottom:4px;background:rgba(239,68,68,0.1);padding:4px 8px;border-radius:4px;">
+                                                <div style="color:#fca5a5;font-size:12px;">${rep.type} (与第${rep.chapter}章重复)</div>
+                                                <div style="color:#fff;margin-top:2px;">"${rep.content}"</div>
+                                            </div>
+                                        `).join('')}
+                                        ${ch.repetitions.length > 3 ? `<div style="margin-left:12px;color:#888;font-size:12px;">还有${ch.repetitions.length - 3}处重复...</div>` : ''}
+                                    </div>
+                                ` : ''}
+
+                                ${ch.aiTraces && ch.aiTraces.length > 0 ? `
+                                    <div style="font-size:13px;color:#a78bfa;margin-bottom:8px;">
+                                        <div style="font-weight:bold;margin-bottom:4px;">🤖 AI痕迹：</div>
+                                        ${ch.aiTraces.map(trace => `
+                                            <div style="margin-left:12px;margin-bottom:2px;">
+                                                • 「${trace.word}」出现${trace.count}次（建议≤${trace.limit}次）
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+
+                                ${ch.errors.length > 0 ? `
                                     <div style="font-size:13px;color:#ef4444;">
-                                        • ${ch.repetitions.length}处重复内容
+                                        <div style="font-weight:bold;margin-bottom:4px;">❌ 错误：</div>
+                                        ${ch.errors.map(err => `<div style="margin-left:12px;margin-bottom:2px;">• ${err}</div>`).join('')}
                                     </div>
                                 ` : ''}
                             </div>
@@ -924,6 +978,9 @@ function novelShowEvaluationResult(result) {
                 </div>
 
                 <div style="display:flex;gap:8px;">
+                    <button onclick="novelBatchFixLowScoreChapters()" style="flex:1;background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
+                        🔧 批量修正低分章节
+                    </button>
                     <button onclick="novelExportEvaluationReport()" style="flex:1;background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
                         📄 导出报告
                     </button>
@@ -936,6 +993,113 @@ function novelShowEvaluationResult(result) {
     `;
 
     document.body.insertAdjacentHTML('beforeend', html);
+}
+
+/**
+ * 修正单个章节的质量问题
+ */
+async function novelFixChapter(idx) {
+    const ch = novelState.chapters[idx];
+    if (!ch || ch.status !== 'done') {
+        showToast('章节不存在或未完成');
+        return;
+    }
+
+    const evaluation = ch._evaluation || await novelEvaluateChapter(idx);
+    if (evaluation.score >= 80) {
+        showToast('该章节质量已经很好，无需修正');
+        return;
+    }
+
+    if (!confirm(`确定要修正第${idx + 1}章吗？\n当前评分：${evaluation.score}分\n将根据评估结果重新生成该章节。`)) {
+        return;
+    }
+
+    showToast('正在修正章节...');
+
+    try {
+        // 构建修正提示
+        const issues = [
+            ...evaluation.issues,
+            ...evaluation.errors,
+            ...evaluation.repetitions.map(r => `避免重复：${r.content}`)
+        ];
+
+        const fixPrompt = `请重写第${idx + 1}章，修正以下问题：\n${issues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}\n\n原章节内容：\n${ch.content.substring(0, 500)}...\n\n要求：\n1. 保持故事情节连贯\n2. 避免上述所有问题\n3. 字数保持在${ch.content.length}字左右\n4. 减少AI痕迹词汇的使用\n5. 增加对话和细节描写`;
+
+        // 调用LLM重写
+        const newContent = await _novelLLM([
+            { role: 'system', content: '你是专业小说编辑，擅长修正文本质量问题。全文使用中文，严禁混入英文单词。' },
+            { role: 'user', content: fixPrompt }
+        ], { maxTokens: 8192, temperature: 0.85, timeout: 120000 });
+
+        // 更新章节内容
+        ch.content = newContent;
+        ch.wordCount = newContent.length;
+
+        // 重新评估
+        const newEvaluation = await novelEvaluateChapter(idx);
+        ch._evaluation = newEvaluation;
+
+        // 保存
+        novelSaveCurrentProject();
+        novelViewChapter(idx);
+
+        showToast(`✅ 第${idx + 1}章修正完成！评分：${evaluation.score} → ${newEvaluation.score}`);
+
+        // 刷新评估报告
+        if (novelState._lastEvaluation) {
+            const result = await novelEvaluateAll();
+            novelState._lastEvaluation = result;
+        }
+    } catch (e) {
+        showToast('修正失败: ' + e.message);
+        console.error('[novel-fix] 修正失败:', e);
+    }
+}
+
+/**
+ * 批量修正低分章节
+ */
+async function novelBatchFixLowScoreChapters() {
+    const lowScoreChapters = novelState.chapters
+        .map((ch, idx) => ({ ch, idx, score: ch._evaluation?.score || 100 }))
+        .filter(item => item.ch.status === 'done' && item.score < 70);
+
+    if (lowScoreChapters.length === 0) {
+        showToast('没有需要修正的低分章节');
+        return;
+    }
+
+    if (!confirm(`发现${lowScoreChapters.length}个低分章节（<70分），确定要批量修正吗？\n这可能需要较长时间。`)) {
+        return;
+    }
+
+    // 关闭评估面板
+    document.querySelector('div[style*="position:fixed"]')?.remove();
+
+    showToast(`开始批量修正${lowScoreChapters.length}个章节...`);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const { idx, score } of lowScoreChapters) {
+        try {
+            showToast(`正在修正第${idx + 1}章（${score}分）...`);
+            await novelFixChapter(idx);
+            successCount++;
+        } catch (e) {
+            console.error(`[novel-fix] 第${idx + 1}章修正失败:`, e);
+            failCount++;
+        }
+    }
+
+    showToast(`批量修正完成！成功：${successCount}，失败：${failCount}`);
+
+    // 重新评估
+    const result = await novelEvaluateAll();
+    novelState._lastEvaluation = result;
+    novelShowEvaluationResult(result);
 }
 
 /**
