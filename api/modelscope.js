@@ -1101,162 +1101,7 @@ module.exports = async function handler(req, res) {
                 
                 console.log(`[modelscope] 🎨 开始生成 ${angles.length} 个视角...`);
                 
-                // 🌟 广角扩展模式特殊处理
-                if (mode === 'wide-extend') {
-                    try {
-                        const promptText = `${WIDE_ANGLE_PROMPT}, ${originalPrompt || 'seamless wide angle extension'}`;
-                        const modelToUse = selectedModel || IMAGE_EDIT_MODEL;
-                        // 🔧 扩展支持：Banana系列、星梦画师、通义万象、Gemini、Grok、Claude、GPT等
-                        const isNonModelScopeModel = modelToUse.includes('gemini') || 
-                                                     modelToUse.includes('grok') ||
-                                                     modelToUse.includes('claude') ||
-                                                     modelToUse.includes('gpt') ||
-                                                     modelToUse.includes('nano-banana') ||      // Banana系列
-                                                     modelToUse.includes('doubao-seedream') ||   // 星梦画师
-                                                     modelToUse.includes('Qwen/Qwen-Image') ||   // 通义万象
-                                                     modelToUse.includes('qwen-image');
-                        
-                        const MODEL_NAME_MAPPING = {
-                            'gemini-3.1-flash-image-preview': 'gemini-3-flash-preview',
-                            'gemini-3.1-flash-image-preview-2k': 'gemini-3-flash-preview',
-                            'gemini-3.1-flash-image-preview-4k': 'gemini-3.1-pro-preview',
-                            'gemini-3.1-pro': 'gemini-3.1-pro-preview',
-                            'gemini-3-pro': 'gemini-3-pro-preview',
-                            // 🆕 Banana系列映射
-                            'nano-banana-2': 'gemini-2.0-flash-exp',
-                            'nano-banana-2-2k': 'gemini-2.0-flash-exp',
-                            'nano-banana-2-4k': 'gemini-2.0-flash-exp',
-                            // 🆕 通义万象映射
-                            'Qwen/Qwen-Image-2512': 'qwen-vl-max',
-                            // 🆕 星梦画师映射
-                            'doubao-seedream-4-5-251128': 'doubao-seedream-4-5-251128',
-                            'doubao-seedream-5-0-260128': 'doubao-seedream-5-0-260128'
-                        };
-                        
-                        const apiModelName = isNonModelScopeModel ? (MODEL_NAME_MAPPING[modelToUse] || modelToUse) : modelToUse;
-                        let resultImageUrls = [];
-                        
-                        if (isNonModelScopeModel) {
-                            const yunwuKey = YUNWU_API_KEYS[0];
-                            if (!yunwuKey) {
-                                throw new Error('云雾API密钥未配置');
-                            }
-                            
-                            if (referenceImage) {
-                                // 图生图：chat/completions
-                                const messageContent = [
-                                    { type: 'text', text: promptText },
-                                    { type: 'image_url', image_url: { url: referenceImage } }
-                                ];
-                                const submitRes = await fetch('https://yunwu.ai/v1/chat/completions', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Authorization': `Bearer ${yunwuKey}`,
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        model: apiModelName,
-                                        messages: [{ role: 'user', content: messageContent }]
-                                    })
-                                });
-                                if (!submitRes.ok) {
-                                    const errText = await submitRes.text();
-                                    throw new Error(`云雾API错误(${submitRes.status}): ${errText.slice(0, 200)}`);
-                                }
-                                const submitData = await submitRes.json();
-                                const content = submitData?.choices?.[0]?.message?.content;
-                                if (typeof content === 'string' && (content.startsWith('http') || content.startsWith('data:image'))) {
-                                    resultImageUrls = [content];
-                                } else if (typeof content === 'string') {
-                                    const urlMatch = content.match(/https?:\/\/[^\s"'<>]+/);
-                                    if (urlMatch) resultImageUrls = [urlMatch[0]];
-                                }
-                            } else {
-                                // 文生图：images/generations
-                                const submitRes = await fetch('https://yunwu.ai/v1/images/generations', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Authorization': `Bearer ${yunwuKey}`,
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        model: apiModelName,
-                                        prompt: promptText,
-                                        size: '1024x1024',
-                                        n: 1,
-                                        response_format: 'url'
-                                    })
-                                });
-                                if (!submitRes.ok) {
-                                    const errText = await submitRes.text();
-                                    throw new Error(`云雾API错误(${submitRes.status}): ${errText.slice(0, 200)}`);
-                                }
-                                const submitData = await submitRes.json();
-                                if (submitData?.data && Array.isArray(submitData.data)) {
-                                    resultImageUrls = submitData.data.map(item => item.url).filter(u => u);
-                                }
-                            }
-                        } else {
-                            // ModelScope API
-                            const messageContent = [{ type: 'text', text: promptText }];
-                            if (referenceImage) {
-                                messageContent.push({ type: 'image_url', image_url: { url: referenceImage } });
-                            }
-                            const submitRes = await callModelScope('v1/chat/completions', {
-                                method: 'POST',
-                                headers: {
-                                    'Authorization': `Bearer ${apiKey}`,
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    model: apiModelName,
-                                    messages: [{ role: 'user', content: messageContent }]
-                                })
-                            }, 180000);
-                            const submitData = await submitRes.json();
-                            const content = submitData?.choices?.[0]?.message?.content;
-                            if (typeof content === 'string' && content.startsWith('http')) {
-                                resultImageUrls = [content];
-                            } else if (typeof content === 'string') {
-                                const urlMatch = content.match(/https?:\/\/[^\s"'<>]+/);
-                                if (urlMatch) resultImageUrls = [urlMatch[0]];
-                            }
-                        }
-                        
-                        if (resultImageUrls.length > 0) {
-                            results.push({
-                                angle: 'wide-extend',
-                                name: '广角扩展',
-                                mode: 'wide-extend',
-                                images: resultImageUrls,
-                                success: true
-                            });
-                        } else {
-                            failedAngles.push({ angle: 'wide-extend', name: '广角扩展', error: '未能获取图片URL' });
-                        }
-                        
-                    } catch (wideError) {
-                        console.error(`[modelscope] 🎨 广角扩展失败:`, wideError.message);
-                        failedAngles.push({ angle: 'wide-extend', name: '广角扩展', error: wideError.message });
-                    }
-                    
-                    // 返回结果
-                    if (failedAngles.length > 0 && billingSuccess) {
-                        const refundAmount = costPerImage * failedAngles.length;
-                        await __billing('refund', userId, refundAmount, `广角扩展失败退款`);
-                    }
-                    
-                    json(200, { 
-                        success: results.length > 0, 
-                        results,
-                        failed: failedAngles,
-                        totalGenerated: results.length,
-                        totalFailed: failedAngles.length,
-                        mode: 'wide-extend',
-                        billed: billingSuccess ? costPerImage : 0
-                    });
-                    return;
-                }
+
                 
                 // 逐个生成每个角度的图片
                 for (const angleKey of angles) {
@@ -1308,208 +1153,58 @@ module.exports = async function handler(req, res) {
                             promptText = `${promptText}, ${VECTOR_PROMPT}`;
                         }
                         
-                        // 构建请求体
-                        const messageContent = [
-                            { type: 'text', text: promptText }
-                        ];
+                        // 🎨 直接调用 /api/banana2（用户选什么模型就用什么，不做映射转换）
+                        const modelToUse = selectedModel || 'nano-banana-2';
+                        console.log(`[modelscope] 🎨 生成视角: ${template.name}, 使用模型: ${modelToUse}`);
                         
-                        // 添加参考图
+                        const banana2Body = {
+                            prompt: promptText,
+                            model: modelToUse,
+                            aspect_ratio: '1:1',
+                            userId,
+                            skip_billing: true  // modelscope.js 已在进入循环前完成计费
+                        };
                         if (referenceImage) {
-                            if (referenceImage.startsWith('data:') || referenceImage.startsWith('http')) {
-                                messageContent.push({ type: 'image_url', image_url: { url: referenceImage } });
-                            }
+                            banana2Body.image_url = referenceImage;
                         }
                         
-                        // 使用用户选择的模型，如果没有则使用默认模型
-                        const modelToUse = selectedModel || IMAGE_EDIT_MODEL;
+                        const submitRes = await fetch('/api/banana2', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(banana2Body)
+                        });
                         
-                        // 判断是否为非 ModelScope 模型（需要走云雾API的模型）
-                        // 🔧 扩展支持：Banana系列、星梦画师、通义万象、Gemini、Grok、Claude、GPT等
-                        const isNonModelScopeModel = modelToUse.includes('gemini') || 
-                                                     modelToUse.includes('grok') ||
-                                                     modelToUse.includes('claude') ||
-                                                     modelToUse.includes('gpt') ||
-                                                     modelToUse.includes('nano-banana') ||      // Banana系列（标准/2K/4K）
-                                                     modelToUse.includes('doubao-seedream') ||   // 星梦画师
-                                                     modelToUse.includes('Qwen/Qwen-Image') ||   // 通义万象（魔塔命名格式）
-                                                     modelToUse.includes('qwen-image');          // 通义万象（简化命名）
-                        
-                        // 模型名映射：前端模型名 -> 云雾API模型名
-                        const MODEL_NAME_MAPPING = {
-                            // Gemini 图像生成模型
-                            'gemini-3.1-flash-image-preview': 'gemini-3-flash-preview',
-                            'gemini-3.1-flash-image-preview-2k': 'gemini-3-flash-preview',
-                            'gemini-3.1-flash-image-preview-4k': 'gemini-3.1-pro-preview',
-                            // 其他模型映射
-                            'gemini-3.1-pro': 'gemini-3.1-pro-preview',
-                            'gemini-3-pro': 'gemini-3-pro-preview',
-                            // 🆕 Banana系列映射
-                            'nano-banana-2': 'gemini-2.0-flash-exp',
-                            'nano-banana-2-2k': 'gemini-2.0-flash-exp',
-                            'nano-banana-2-4k': 'gemini-2.0-flash-exp',
-                            // 🆕 通义万象映射
-                            'Qwen/Qwen-Image-2512': 'qwen-vl-max',
-                            // 🆕 星梦画师映射
-                            'doubao-seedream-4-5-251128': 'doubao-seedream-4-5-251128',
-                            'doubao-seedream-5-0-260128': 'doubao-seedream-5-0-260128'
-                        };
-                        
-                        // 转换模型名
-                        const apiModelName = isNonModelScopeModel ? (MODEL_NAME_MAPPING[modelToUse] || modelToUse) : modelToUse;
-                        
-                        const requestBody = {
-                            model: apiModelName,
-                            messages: [{
-                                role: 'user',
-                                content: messageContent
-                            }]
-                        };
-                        
-                        console.log(`[modelscope] 🎨 生成视角: ${template.name} (${template.mode || 'normal'}), 原始模型: ${modelToUse}, API模型: ${apiModelName}, 使用API: ${isNonModelScopeModel ? '云雾' : 'ModelScope'}`);
-                        
-                        let submitRes;
-                        let submitData;
-                        
-                        if (isNonModelScopeModel) {
-                            const yunwuKey = YUNWU_API_KEYS[0];
-                            if (!yunwuKey) {
-                                throw new Error('云雾API密钥未配置');
-                            }
-                            
-                            if (referenceImage) {
-                                // 图生图：chat/completions
-                                const messageContent = [
-                                    { type: 'text', text: promptText },
-                                    { type: 'image_url', image_url: { url: referenceImage } }
-                                ];
-                                console.log(`[modelscope] 调用云雾API chat/completions (图生图)`);
-                                submitRes = await fetch('https://yunwu.ai/v1/chat/completions', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Authorization': `Bearer ${yunwuKey}`,
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        model: apiModelName,
-                                        messages: [{ role: 'user', content: messageContent }]
-                                    })
-                                });
-                            } else {
-                                // 文生图：images/generations
-                                console.log(`[modelscope] 调用云雾API images/generations (文生图)`);
-                                submitRes = await fetch('https://yunwu.ai/v1/images/generations', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Authorization': `Bearer ${yunwuKey}`,
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        model: apiModelName,
-                                        prompt: promptText,
-                                        size: '1024x1024',
-                                        n: 1,
-                                        response_format: 'url'
-                                    })
-                                });
-                            }
-                            
-                            if (!submitRes.ok) {
-                                const errText = await submitRes.text();
-                                throw new Error(`云雾API错误(${submitRes.status}): ${errText.slice(0, 200)}`);
-                            }
-                            
-                            submitData = await submitRes.json();
-                            console.log(`[modelscope] 云雾API响应:`, JSON.stringify(submitData).slice(0, 200));
-                        } else {
-                            // 使用 ModelScope API
-                            submitRes = await callModelScope('v1/chat/completions', {
-                                method: 'POST',
-                                headers: {
-                                    'Authorization': `Bearer ${apiKey}`,
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(requestBody)
-                            }, 180000);
-                            
-                            submitData = await submitRes.json();
+                        if (!submitRes.ok) {
+                            const errData = await submitRes.json().catch(() => ({ message: await submitRes.text() }));
+                            throw new Error(`banana2错误(${submitRes.status}): ${errData.message || JSON.stringify(errData).slice(0, 200)}`);
                         }
                         
-                        // 解析响应
+                        const submitData = await submitRes.json();
+                        
+                        // 解析 banana2 响应
                         let resultImageUrls = [];
-                        console.log(`[modelscope] 🎨 解析响应数据:`, JSON.stringify(submitData).slice(0, 1000));
-
-                        if (submitData.task_id) {
-                            const result = await pollImageTask(submitData.task_id, apiKey);
-                            resultImageUrls = result.images || [];
-                        } else if (submitData.data && Array.isArray(submitData.data)) {
-                            // images/generations 端点返回格式: { data: [{ url: "..." }] }
-                            console.log(`[modelscope] 🎨 检测到 images/generations 格式响应`);
+                        
+                        // 优先提取 output.url（Supabase Storage URL）
+                        if (submitData.output?.url) {
+                            resultImageUrls = [submitData.output.url];
+                        } else if (submitData.output?.images?.length > 0) {
+                            resultImageUrls = submitData.output.images;
+                        } else if (submitData.data?.length > 0) {
+                            // 标准 images/generations 格式
                             resultImageUrls = submitData.data.map(item => item.url || item).filter(u => u && typeof u === 'string');
-                        } else {
-                            // chat/completions 端点返回格式: { choices: [{ message: { content: "..." } }] }
-                            const content = submitData?.choices?.[0]?.message?.content;
-                            console.log(`[modelscope] 🎨 响应内容类型:`, typeof content);
-
-                            if (typeof content === 'string') {
-                                console.log(`[modelscope] 🎨 字符串内容前200字符:`, content.slice(0, 200));
-                                
-                                if (content.startsWith('http')) {
-                                    resultImageUrls = [content];
-                                } else if (content.startsWith('[')) {
-                                    try {
-                                        const parsed = JSON.parse(content);
-                                        if (Array.isArray(parsed)) {
-                                            resultImageUrls = parsed.map(item => item.url || item).filter(u => u && typeof u === 'string');
-                                        }
-                                    } catch (e) {
-                                        console.log(`[modelscope] 🎨 JSON解析失败:`, e.message);
-                                    }
-                                } else if (content.startsWith('data:image')) {
-                                    // base64 图片
-                                    resultImageUrls = [content];
-                                    console.log(`[modelscope] 🎨 检测到base64图片`);
-                                } else {
-                                    // 🔍 尝试从文本中提取 URL 或 base64
-                                    const urlMatch = content.match(/https?:\/\/[^\s"'<>]+/);
-                                    if (urlMatch) {
-                                        resultImageUrls = [urlMatch[0]];
-                                        console.log(`[modelscope] 🎨 从文本提取URL:`, urlMatch[0]);
-                                    } else {
-                                        // 尝试提取 base64 图片
-                                        const base64Match = content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
-                                        if (base64Match) {
-                                            resultImageUrls = [base64Match[0]];
-                                            console.log(`[modelscope] 🎨 从文本提取base64图片`);
-                                        }
-                                    }
-                                }
-                            } else if (Array.isArray(content)) {
-                                console.log(`[modelscope] 🎨 数组内容长度:`, content.length);
-                                for (const item of content) {
-                                    console.log(`[modelscope] 🎨 数组项:`, typeof item, item?.type || 'no-type');
-                                    if (typeof item === 'string' && (item.startsWith('http') || item.startsWith('data:image'))) {
-                                        resultImageUrls.push(item);
-                                    } else if (item?.type === 'image_url' && item?.image_url?.url) {
-                                        resultImageUrls.push(item.image_url.url);
-                                    } else if (item?.type === 'image' && item?.image_url) {
-                                        resultImageUrls.push(item.image_url);
-                                    } else if (item?.url) {
-                                        resultImageUrls.push(item.url);
-                                    }
-                                }
-                            }
+                        } else if (submitData.images?.length > 0) {
+                            resultImageUrls = submitData.images;
                         }
-
-                        console.log(`[modelscope] 🎨 解析到的图片URL数量:`, resultImageUrls.length, resultImageUrls);
+                        
+                        console.log(`[modelscope] 🎨 视角 ${template.name} 生成完成，图片数: ${resultImageUrls.length}`);
                         
                         if (resultImageUrls.length === 0) {
-                            // 没有获取到图片URL，标记为失败
                             failedAngles.push({
                                 angle: angleKey,
                                 name: template.name,
-                                error: '未能获取图片URL，API返回格式异常'
+                                error: submitData.message || '未能获取图片URL'
                             });
-                            console.log(`[modelscope] 🎨 视角 ${template.name} 未能获取图片URL，标记为失败`);
+                            console.log(`[modelscope] 🎨 视角 ${template.name} 未能获取图片URL`);
                         } else {
                             results.push({
                                 angle: angleKey,
@@ -1520,16 +1215,14 @@ module.exports = async function handler(req, res) {
                                 rotation: template.rotation || null,
                                 lens: template.lens || null
                             });
-                            console.log(`[modelscope] 🎨 添加结果:`, JSON.stringify(results[results.length - 1]));
                         }
                         
                     } catch (angleError) {
-                        console.error(`[modelscope] 🎨 视角 ${template.name} 生成失败:`, angleError.message, angleError.stack);
+                        console.error(`[modelscope] 🎨 视角 ${template.name} 生成失败:`, angleError.message);
                         failedAngles.push({ 
                             angle: angleKey, 
                             name: template.name, 
-                            error: angleError.message,
-                            stack: angleError.stack?.slice(0, 500)
+                            error: angleError.message
                         });
                     }
                 }
@@ -1568,7 +1261,13 @@ module.exports = async function handler(req, res) {
         json(400, { error: 'INVALID_ACTION' });
     } catch (error) {
         console.error('[modelscope] 调用失败:', error);
-        json(500, { error: 'MODELSCOPE_FAILED', message: error.message });
+        console.error('[modelscope] 错误堆栈:', error.stack);
+        // 确保返回有效的JSON
+        json(500, {
+            error: 'MODELSCOPE_FAILED',
+            message: error.message || '服务器内部错误',
+            debug: error.stack ? error.stack.substring(0, 500) : undefined
+        });
     }
 };
 
