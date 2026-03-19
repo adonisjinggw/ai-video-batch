@@ -75,7 +75,7 @@
             description: '前后端开发、架构设计、代码审查',
             systemPrompt: `你是全栈高级工程师，精通前端(React/Vue/HTML)、后端(Node/Python)、数据库、DevOps。
 规则：代码要生产级品质，含错误处理和注释。先说方案再给代码。优先简洁高效的实现。`,
-            modelHint: 'qwen-plus',
+            modelHint: 'qwen3.5-plus',
             tags: ['代码', '编程', '前端', '后端', 'API', '架构']
         },
         {

@@ -2744,7 +2744,7 @@ ${text}`;
                 let data = null;
                 let lastError = null;
 
-                // 尝试 yunwu API (qwen-plus - 更稳定)
+                // 尝试 yunwu API (qwen3.5-plus - 更稳定)
                 try {
                     document.getElementById('scriptLoadingText').textContent = 'AI分析中 (Qwen)...';
                     const res1 = await fetch('/api/yunwu', {
@@ -2752,7 +2752,7 @@ ${text}`;
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             action: 'chat',
-                            model: 'qwen-plus',
+                            model: 'qwen3.5-plus',
                             messages: [{ role: 'user', content: prompt }],
                             userId: currentUser?.id
                         })

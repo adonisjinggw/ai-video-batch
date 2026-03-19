@@ -1051,7 +1051,7 @@ module.exports = async function handler(req, res) {
                 'grok-4-fast': { input: 1.5, output: 6.0 },               // Grok-4 快速版
                 'grok-4-fast-non-reasoning': { input: 1.5, output: 6.0 }, // Grok-4 无推理版
                 'gemini-3-flash-preview': { input: 0.15, output: 0.9 },   // 最便宜
-                'qwen-plus': { input: 0.24, output: 0.6 },                // 中文优化
+                'qwen3.5-plus': { input: 0.24, output: 0.6 },             // 中文优化
                 'gemini-3-pro-preview': { input: 0.6, output: 3.6 },      // 多模态(旧)
                 'gemini-3.1-pro-preview': { input: 0.6, output: 3.6 },    // 多模态(新)
                 'gemini-3-pro-preview-thinking': { input: 0.6, output: 3.6 }  // 思考模式

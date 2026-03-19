@@ -437,7 +437,7 @@ async function pollImageTask(taskId, apiKey) {
             console.log(`[modelscope] 轮询 ${attempt + 1}/${maxAttempts}: ${data.task_status}`);
             if (data.task_status === 'SUCCEED') {
                 const outputImages = data.output_images || [];
-                
+
                 // 🔧 修复黑图：将阿里云OSS URL转换为base64，避免CORS问题
                 const convertedImages = [];
                 for (const imgUrl of outputImages) {
@@ -449,7 +449,7 @@ async function pollImageTask(taskId, apiKey) {
                         convertedImages.push(imgUrl);
                     }
                 }
-                
+
                 return {
                     images: convertedImages,
                     taskId
@@ -467,6 +467,328 @@ async function pollImageTask(taskId, apiKey) {
         }
     }
     throw new Error('图像生成超时，请稍后重试');
+}
+
+/**
+ * 🎨 调用云雾API生成图片（用于多角度出图）
+ * @param {string} prompt - 提示词
+ * @param {string} model - 模型名 (nano-banana-2, nano-banana-2-2k, nano-banana-2-4k, gemini-3.1-flash-image-preview, doubao-seedream-*, Qwen/Qwen-Image-2512 等)
+ * @param {string} resolution - 分辨率 (1K, 2K, 4K)
+ * @param {string} imageUrl - 参考图URL（可选，用于图生图）
+ * @returns {Promise<string>} - 返回图片URL
+ */
+async function callYunwuImageAPI(prompt, model, resolution, imageUrl) {
+    if (YUNWU_API_KEYS.length === 0) {
+        throw new Error('未配置云雾API Key');
+    }
+
+    const apiKey = YUNWU_API_KEYS[0];
+    const baseUrl = YUNWU_ENDPOINTS[0].url;
+
+    // 🔧 模型映射逻辑（与 banana2.js 保持一致）
+    let actualModel = model || 'nano-banana-2';
+    let targetResolution = resolution || '1K';
+
+    // OpenRouter 模型处理
+    if (model && model.startsWith('openrouter:')) {
+        actualModel = model.replace('openrouter:', '');
+    }
+
+    // nano-banana-2 系列 → gemini-3-pro-image-preview
+    if (model === 'nano-banana-2' || model === 'banana2' || model === 'modelscope') {
+        actualModel = 'gemini-3-pro-image-preview';
+        targetResolution = '1K';
+    } else if (model === 'nano-banana-2-2k' || model === 'banana2-2k' || model === 'banana2_2k') {
+        actualModel = 'gemini-3-pro-image-preview';
+        targetResolution = '2K';
+    } else if (model === 'nano-banana-2-4k' || model === 'banana2-4k' || model === 'banana2_4k') {
+        actualModel = 'gemini-3-pro-image-preview';
+        targetResolution = '4K';
+    }
+    // gemini-3.1-flash-image-preview 系列
+    else if (model === 'gemini-3.1-flash-image-preview') {
+        actualModel = 'gemini-3.1-flash-image-preview';
+        targetResolution = '1K';
+    } else if (model === 'gemini-3.1-flash-image-preview-2k') {
+        actualModel = 'gemini-3.1-flash-image-preview';
+        targetResolution = '2K';
+    } else if (model === 'gemini-3.1-flash-image-preview-4k') {
+        actualModel = 'gemini-3.1-flash-image-preview';
+        targetResolution = '4K';
+    }
+    // doubao-seedream 系列
+    else if (model && (model.includes('seedream') || model.includes('doubao'))) {
+        actualModel = model; // 保持原模型名
+    }
+    // Qwen 万象Max
+    else if (model === 'Qwen/Qwen-Image-2512' || model === 'qwen-image-max') {
+        actualModel = 'Qwen/Qwen-Image-2512';
+    }
+    // midjourney 系列
+    else if (model && model.startsWith('midjourney-')) {
+        actualModel = model;
+    }
+    // 其他未识别的模型，默认用 gemini-3-pro-image-preview
+    else if (!actualModel.includes('gemini') && !actualModel.includes('seedream') && !actualModel.includes('qwen') && !actualModel.includes('midjourney')) {
+        console.warn(`[modelscope] 🎨 未识别的模型 ${model}，默认使用 gemini-3-pro-image-preview`);
+        actualModel = 'gemini-3-pro-image-preview';
+    }
+
+    console.log(`[modelscope] 🎨 云雾API生成: 用户选择模型=${model}, 实际API模型=${actualModel}, 分辨率=${targetResolution}`);
+
+    // 🔧 根据模型类型选择不同的处理方式
+    // 星梦画师和万象Max需要特殊处理
+    const isSeedream = actualModel && (actualModel.includes('seedream') || actualModel.includes('doubao'));
+    const isQwenImageMax = actualModel && actualModel.includes('Qwen/Qwen-Image');
+
+    // 🎨 星梦画师：使用云雾API的seedream端点
+    if (isSeedream) {
+        return await callYunwuSeedreamAPI(prompt, actualModel, imageUrl);
+    }
+
+    // 🎨 万象Max：使用云雾API的万象Max端点
+    if (isQwenImageMax) {
+        return await callYunwuQwenMaxAPI(prompt, imageUrl);
+    }
+
+    // 🎨 Gemini 系列：使用标准Gemini端点
+    return await callYunwuGeminiAPI(prompt, actualModel, targetResolution, imageUrl, apiKey, baseUrl);
+}
+
+/**
+ * 🎨 调用云雾API的Gemini端点
+ */
+async function callYunwuGeminiAPI(prompt, geminiModel, targetResolution, imageUrl, apiKey, baseUrl) {
+    // 🔧 4K/2K 在提示词中添加高清指令
+    let finalPrompt = prompt;
+    if (targetResolution === '4K') {
+        finalPrompt = prompt + ' [Generate in ultra-high resolution 4K quality, extremely detailed and sharp]';
+    } else if (targetResolution === '2K') {
+        finalPrompt = prompt + ' [Generate in high resolution 2K quality, detailed and crisp]';
+    }
+
+    // 🔧 构建请求体
+    const parts = [{ text: finalPrompt }];
+
+    // 如果有参考图，添加图片
+    if (imageUrl) {
+        const imageData = await prepareReferenceImage(imageUrl);
+        if (imageData) {
+            parts.push({ inline_data: { mime_type: imageData.mimeType, data: imageData.data } });
+        }
+    }
+
+    // 🔧 尺寸计算
+    let width = 1024, height = 1024;
+    if (targetResolution === '2K') {
+        width = 2048; height = 2048;
+    } else if (targetResolution === '4K') {
+        width = 4096; height = 4096;
+    }
+
+    const requestBody = {
+        contents: [{ role: 'user', parts: parts }],
+        generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
+            image_config: {
+                aspect_ratio: '1:1',
+                size: `${width}x${height}`
+            }
+        }
+    };
+
+    const apiPath = `/v1beta/models/${geminiModel}:generateContent`;
+    const url = `${baseUrl}${apiPath}`;
+
+    console.log(`[modelscope] 🎨 Gemini请求: ${url}, 模型=${geminiModel}`);
+
+    const response = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    }, 90000);
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`云雾API错误(${response.status}): ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    console.log(`[modelscope] 🎨 Gemini响应:`, JSON.stringify(data).substring(0, 300));
+
+    // 解析响应
+    if (data?.candidates?.[0]?.content?.parts) {
+        for (const part of data.candidates[0].content.parts) {
+            if (part.inline_data) {
+                const mimeType = part.inline_data.mime_type || 'image/png';
+                return `data:${mimeType};base64,${part.inline_data.data}`;
+            }
+        }
+    }
+
+    if (data?.images?.length > 0) {
+        return data.images[0];
+    }
+
+    throw new Error('Gemini API未返回图片数据');
+}
+
+/**
+ * 🎨 调用云雾API的星梦画师端点
+ */
+async function callYunwuSeedreamAPI(prompt, model, imageUrl) {
+    console.log(`[modelscope] 🎨 星梦画师API: ${model}`);
+
+    const apiKey = YUNWU_API_KEYS[0];
+    const baseUrl = YUNWU_ENDPOINTS[0].url;
+    const apiPath = '/v1beta/models/doubao-seedream-4-0-250108:generateContent';
+
+    // 构建请求体
+    const parts = [{ text: prompt }];
+
+    // 添加参考图
+    if (imageUrl) {
+        const imageData = await prepareReferenceImage(imageUrl);
+        if (imageData) {
+            parts.push({ inline_data: { mime_type: imageData.mimeType, data: imageData.data } });
+        }
+    }
+
+    const requestBody = {
+        contents: [{ role: 'user', parts: parts }],
+        generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE']
+        }
+    };
+
+    const url = `${baseUrl}${apiPath}`;
+    const response = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    }, 90000);
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`星梦画师API错误(${response.status}): ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+
+    // 解析响应
+    if (data?.candidates?.[0]?.content?.parts) {
+        for (const part of data.candidates[0].content.parts) {
+            if (part.inline_data) {
+                const mimeType = part.inline_data.mime_type || 'image/png';
+                return `data:${mimeType};base64,${part.inline_data.data}`;
+            }
+        }
+    }
+
+    throw new Error('星梦画师API未返回图片数据');
+}
+
+/**
+ * 🎨 调用云雾API的万象Max端点
+ */
+async function callYunwuQwenMaxAPI(prompt, imageUrl) {
+    console.log(`[modelscope] 🎨 万象Max API`);
+
+    const apiKey = YUNWU_API_KEYS[0];
+    const baseUrl = YUNWU_ENDPOINTS[0].url;
+    const apiPath = '/v1beta/models/Qwen/Qwen-Image-2512:generateContent';
+
+    // 构建请求体
+    const parts = [{ text: prompt }];
+
+    // 添加参考图
+    if (imageUrl) {
+        const imageData = await prepareReferenceImage(imageUrl);
+        if (imageData) {
+            parts.push({ inline_data: { mime_type: imageData.mimeType, data: imageData.data } });
+        }
+    }
+
+    const requestBody = {
+        contents: [{ role: 'user', parts: parts }],
+        generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
+            image_config: {
+                aspect_ratio: '1:1',
+                size: '1024x1024'
+            }
+        }
+    };
+
+    const url = `${baseUrl}${apiPath}`;
+    const response = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    }, 90000);
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`万象Max API错误(${response.status}): ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+
+    // 解析响应
+    if (data?.candidates?.[0]?.content?.parts) {
+        for (const part of data.candidates[0].content.parts) {
+            if (part.inline_data) {
+                const mimeType = part.inline_data.mime_type || 'image/png';
+                return `data:${mimeType};base64,${part.inline_data.data}`;
+            }
+        }
+    }
+
+    throw new Error('万象Max API未返回图片数据');
+}
+
+/**
+ * 🔧 准备参考图（下载并转换为base64）
+ */
+async function prepareReferenceImage(imageUrl) {
+    if (!imageUrl) return null;
+
+    try {
+        if (imageUrl.startsWith('data:')) {
+            const parts2 = imageUrl.split(',');
+            if (parts2.length === 2) {
+                const mimeType = parts2[0].match(/:(.*);/)?.[1] || 'image/jpeg';
+                const data = parts2[1];
+                console.log(`[modelscope] 🎨 参考图为data URL`);
+                return { mimeType, data };
+            }
+        } else if (imageUrl.startsWith('http')) {
+            console.log(`[modelscope] 🎨 参考图为URL，开始下载转换...`);
+            const base64Url = await convertImageToBase64(imageUrl);
+            if (base64Url && base64Url.startsWith('data:')) {
+                const parts2 = base64Url.split(',');
+                if (parts2.length === 2) {
+                    const mimeType = parts2[0].match(/:(.*);/)?.[1] || 'image/jpeg';
+                    const data = parts2[1];
+                    console.log(`[modelscope] 🎨 参考图下载转换成功`);
+                    return { mimeType, data };
+                }
+            }
+        }
+    } catch (err) {
+        console.error(`[modelscope] 🎨 参考图处理失败:`, err.message);
+    }
+
+    return null;
 }
 
 /**
@@ -1042,22 +1364,22 @@ module.exports = async function handler(req, res) {
 
         // 🎨 多角度出图功能（完整版 - 包含主体模式、摄像头模式、广角扩展、分层编辑、矢量转换）
         if (action === 'multi-angle') {
-            const { 
-                angles, 
-                mode, 
-                originalPrompt, 
+            const {
+                angles,
+                mode,
+                originalPrompt,
                 referenceImage,
                 layerEdit,
                 vectorMode,
                 batchGenerate,
                 selectedModel
             } = body;
-            
+
             if (!angles || !Array.isArray(angles) || angles.length === 0) {
                 json(400, { error: 'MISSING_ANGLES', message: '请选择至少一个视角' });
                 return;
             }
-            
+
             if (!referenceImage && !originalPrompt) {
                 json(400, { error: 'MISSING_REFERENCE', message: '需要提供参考图或原始提示词' });
                 return;
@@ -1099,132 +1421,122 @@ module.exports = async function handler(req, res) {
                 const results = [];
                 const failedAngles = [];
                 
-                console.log(`[modelscope] 🎨 开始生成 ${angles.length} 个视角...`);
-                
+                console.log(`[modelscope] 🎨 开始生成 ${angles.length} 个视角（分批并发模式，每批2个）...`);
 
-                
-                // 逐个生成每个角度的图片
-                for (const angleKey of angles) {
-                    const template = ANGLE_TEMPLATES[angleKey];
-                    console.log(`[modelscope] 🎨 处理视角: ${angleKey}, template=${template ? 'found' : 'not found'}`);
-                    
-                    if (!template) {
-                        failedAngles.push({ angle: angleKey, error: '未知视角' });
-                        continue;
-                    }
-                    
-                    try {
-                        // 构建基础提示词
-                        let basePrompt;
-                        
-                        // 根据模式选择提示词
-                        switch (mode) {
-                            case 'wide-extend':
-                                basePrompt = WIDE_ANGLE_PROMPT;
-                                break;
-                            case 'subject':
-                                // 主体模式 - 强调3D旋转和一致性
-                                basePrompt = `${template.prompt}, rotate the subject to show ${angleKey} view, maintain exact same product, consistent lighting and style, 3D rotation effect`;
-                                break;
-                            case 'camera':
-                                // 摄像头模式 - 强调镜头效果
-                                basePrompt = `${template.prompt}, camera angle change, ${template.lens || 'standard'} lens perspective, professional cinematography`;
-                                break;
-                            default:
-                                basePrompt = template.prompt;
+                // 🎯 分批并发执行：每批最多2个角度，避免内存/并发限制
+                const BATCH_SIZE = 2;
+
+                for (let batchStart = 0; batchStart < angles.length; batchStart += BATCH_SIZE) {
+                    const batch = angles.slice(batchStart, batchStart + BATCH_SIZE);
+                    const batchNum = Math.floor(batchStart / BATCH_SIZE) + 1;
+                    const totalBatches = Math.ceil(angles.length / BATCH_SIZE);
+                    console.log(`[modelscope] 🎨 处理第 ${batchNum}/${totalBatches} 批，包含 ${batch.length} 个视角`);
+
+                    // 并发执行这一批
+                    const batchPromises = batch.map(async (angleKey) => {
+                        const template = ANGLE_TEMPLATES[angleKey];
+                        console.log(`[modelscope] 🎨 处理视角: ${angleKey}, template=${template ? 'found' : 'not found'}`);
+
+                        if (!template) {
+                            return { success: false, angle: angleKey, name: angleKey, error: '未知视角' };
                         }
-                        
-                        // 添加原始提示词
-                        let promptText = `${basePrompt}, ${originalPrompt || 'maintain consistent style and lighting'}`;
-                        
-                        // 添加分层编辑提示词
-                        if (layerEdit && layerEdit.enabled) {
-                            const layerType = layerEdit.type || 'extract';
-                            const layerStyle = layerEdit.style || '';
-                            let layerPrompt = LAYER_EDIT_PROMPTS[layerType] || LAYER_EDIT_PROMPTS['extract'];
-                            if (layerStyle) {
-                                layerPrompt = layerPrompt.replace('{style}', layerStyle);
+
+                        try {
+                            // 构建基础提示词
+                            let basePrompt;
+
+                            // 根据模式选择提示词
+                            switch (mode) {
+                                case 'wide-extend':
+                                    basePrompt = WIDE_ANGLE_PROMPT;
+                                    break;
+                                case 'subject':
+                                    // 主体模式 - 强调3D旋转和一致性
+                                    basePrompt = `${template.prompt}, rotate the subject to show ${angleKey} view, maintain exact same product, consistent lighting and style, 3D rotation effect`;
+                                    break;
+                                case 'camera':
+                                    // 摄像头模式 - 强调镜头效果
+                                    basePrompt = `${template.prompt}, camera angle change, ${template.lens || 'standard'} lens perspective, professional cinematography`;
+                                    break;
+                                default:
+                                    basePrompt = template.prompt;
                             }
-                            promptText = `${promptText}, ${layerPrompt}`;
-                        }
-                        
-                        // 添加矢量转换提示词
-                        if (vectorMode) {
-                            promptText = `${promptText}, ${VECTOR_PROMPT}`;
-                        }
-                        
-                        // 🎨 直接调用 /api/banana2（用户选什么模型就用什么，不做映射转换）
-                        const modelToUse = selectedModel || 'nano-banana-2';
-                        console.log(`[modelscope] 🎨 生成视角: ${template.name}, 使用模型: ${modelToUse}`);
-                        
-                        const banana2Body = {
-                            prompt: promptText,
-                            model: modelToUse,
-                            aspect_ratio: '1:1',
-                            userId,
-                            skip_billing: true  // modelscope.js 已在进入循环前完成计费
-                        };
-                        if (referenceImage) {
-                            banana2Body.image_url = referenceImage;
-                        }
-                        
-                        const submitRes = await fetch('/api/banana2', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(banana2Body)
-                        });
-                        
-                        if (!submitRes.ok) {
-                            const errData = await submitRes.json().catch(() => ({ message: await submitRes.text() }));
-                            throw new Error(`banana2错误(${submitRes.status}): ${errData.message || JSON.stringify(errData).slice(0, 200)}`);
-                        }
-                        
-                        const submitData = await submitRes.json();
-                        
-                        // 解析 banana2 响应
-                        let resultImageUrls = [];
-                        
-                        // 优先提取 output.url（Supabase Storage URL）
-                        if (submitData.output?.url) {
-                            resultImageUrls = [submitData.output.url];
-                        } else if (submitData.output?.images?.length > 0) {
-                            resultImageUrls = submitData.output.images;
-                        } else if (submitData.data?.length > 0) {
-                            // 标准 images/generations 格式
-                            resultImageUrls = submitData.data.map(item => item.url || item).filter(u => u && typeof u === 'string');
-                        } else if (submitData.images?.length > 0) {
-                            resultImageUrls = submitData.images;
-                        }
-                        
-                        console.log(`[modelscope] 🎨 视角 ${template.name} 生成完成，图片数: ${resultImageUrls.length}`);
-                        
-                        if (resultImageUrls.length === 0) {
-                            failedAngles.push({
-                                angle: angleKey,
-                                name: template.name,
-                                error: submitData.message || '未能获取图片URL'
-                            });
-                            console.log(`[modelscope] 🎨 视角 ${template.name} 未能获取图片URL`);
-                        } else {
-                            results.push({
+
+                            // 添加原始提示词
+                            let promptText = `${basePrompt}, ${originalPrompt || 'maintain consistent style and lighting'}`;
+
+                            // 添加分层编辑提示词
+                            if (layerEdit && layerEdit.enabled) {
+                                const layerType = layerEdit.type || 'extract';
+                                const layerStyle = layerEdit.style || '';
+                                let layerPrompt = LAYER_EDIT_PROMPTS[layerType] || LAYER_EDIT_PROMPTS['extract'];
+                                if (layerStyle) {
+                                    layerPrompt = layerPrompt.replace('{style}', layerStyle);
+                                }
+                                promptText = `${promptText}, ${layerPrompt}`;
+                            }
+
+                            // 添加矢量转换提示词
+                            if (vectorMode) {
+                                promptText = `${promptText}, ${VECTOR_PROMPT}`;
+                            }
+
+                            // 🎨 直接使用云雾API生成图片（不通过HTTP调用banana2）
+                            const modelToUse = selectedModel || 'nano-banana-2';
+                            console.log(`[modelscope] 🎨 生成视角: ${template.name}, 使用模型: ${modelToUse}`);
+
+                            // 检查 API Key 是否配置
+                            if (YUNWU_API_KEYS.length === 0) {
+                                throw new Error('云雾API Key未配置');
+                            }
+
+                            // 直接调用云雾API
+                            const imageUrl = await callYunwuImageAPI(
+                                promptText,
+                                modelToUse,
+                                '1K',
+                                referenceImage
+                            );
+
+                            console.log(`[modelscope] 🎨 视角 ${template.name} 生成完成`);
+
+                            return {
+                                success: true,
                                 angle: angleKey,
                                 name: template.name,
                                 mode: template.mode || 'normal',
-                                images: resultImageUrls,
-                                success: true,
+                                images: [imageUrl],
                                 rotation: template.rotation || null,
                                 lens: template.lens || null
+                            };
+                        } catch (apiError) {
+                            console.error(`[modelscope] 🎨 视角 ${template.name} 生成失败:`, apiError.message);
+                            return {
+                                success: false,
+                                angle: angleKey,
+                                name: template.name,
+                                error: apiError.message
+                            };
+                        }
+                    });
+
+                    // 等待这一批完成
+                    const batchResults = await Promise.all(batchPromises);
+
+                    // 收集这批结果
+                    for (const result of batchResults) {
+                        if (result.success) {
+                            results.push(result);
+                        } else {
+                            failedAngles.push({
+                                angle: result.angle,
+                                name: result.name,
+                                error: result.error
                             });
                         }
-                        
-                    } catch (angleError) {
-                        console.error(`[modelscope] 🎨 视角 ${template.name} 生成失败:`, angleError.message);
-                        failedAngles.push({ 
-                            angle: angleKey, 
-                            name: template.name, 
-                            error: angleError.message
-                        });
                     }
+
+                    console.log(`[modelscope] 🎨 第 ${batchNum} 批完成: 成功=${batchResults.filter(r => r.success).length}, 失败=${batchResults.filter(r => !r.success).length}`);
                 }
                 
                 console.log(`[modelscope] 🎨 最终结果: results=${results.length}, failed=${failedAngles.length}`);
@@ -1270,4 +1582,6 @@ module.exports = async function handler(req, res) {
         });
     }
 };
+
+
 

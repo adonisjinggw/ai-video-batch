@@ -6,7 +6,7 @@ const WRITER_MIMO_MODEL = process.env.WRITER_MIMO_MODEL || process.env.WRITER_LL
 // 云雾API（备用，仅在明确配置模型时启用）
 const YUNMENG_API_KEY = process.env.YUNMENG_API_KEY || process.env.YUNWU_API_KEY || '';
 const YUNMENG_BASE_URL = (process.env.YUNMENG_BASE_URL || 'https://yunwu.ai/v1').replace(/\/$/, '');
-const YUNMENG_MODEL = process.env.YUNMENG_MODEL || process.env.YUNWU_MODEL || 'qwen-plus';
+const YUNMENG_MODEL = process.env.YUNMENG_MODEL || process.env.YUNWU_MODEL || 'qwen3.5-plus';
 
 // 🚀 云雾多端点配置（与 banana2.js 一致）
 const YUNMENG_ENDPOINTS = [
@@ -307,7 +307,7 @@ module.exports = async function handler(req, res) {
         const preferMimo = (modelLc === 'mimo' || modelLc.startsWith('mimo:') || modelLc.startsWith('mimo-') || modelLc.includes('mimo'));
 
         // 2) 检查是否显式选择云雾（包括 grok-4-fast）
-        const preferYunwu = (modelLc === 'yunwu' || modelLc === 'yunmeng' || modelLc.startsWith('yunwu:') || modelLc === 'qwen-plus' || modelLc.startsWith('qwen-') || modelLc.startsWith('grok-'));
+        const preferYunwu = (modelLc === 'yunwu' || modelLc === 'yunmeng' || modelLc.startsWith('yunwu:') || modelLc === 'qwen3.5-plus' || modelLc.startsWith('qwen-') || modelLc.startsWith('grok-'));
 
         // 1b) MIMO（主通道）
         if ((preferMimo || (!preferYunwu)) && WRITER_MIMO_API_KEY) {
@@ -365,7 +365,7 @@ module.exports = async function handler(req, res) {
         // ⚠️ 修复：原并行模式导致1次请求向云雾发N次（N=端点数），浪费资源且触发限流
         if ((preferYunwu || (!preferMimo)) && YUNMENG_API_KEY) {
             let yunwuModel = YUNMENG_MODEL || 'grok-4-fast';
-            if (modelLc === 'qwen-plus' || modelLc.startsWith('qwen-')) yunwuModel = reqModel;
+            if (modelLc === 'qwen3.5-plus' || modelLc.startsWith('qwen-')) yunwuModel = reqModel;
             if (modelLc.startsWith('grok-')) yunwuModel = reqModel;
             if (modelLc.startsWith('yunwu:')) yunwuModel = reqModel.split(':').slice(1).join(':') || 'grok-4-fast';
             
