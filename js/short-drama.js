@@ -75,8 +75,7 @@ async function generateShortDramaOutline(theme, genre, episodeCount) {
         { role: 'user', content: prompt }
     ], {
         maxTokens: 4096,
-        temperature: 0.9,
-        timeout: 180000  // 🔧 增加到180秒，避免大纲生成超时
+        temperature: 0.9
     });
 
     return result;
@@ -127,9 +126,8 @@ ${previousContext ? `【前情提要】\n${previousContext}\n` : ''}
 - 结尾要让人想看下一集
 - 严禁与前面集数重复相似的情节和对话`;
 
-    const result = await _novelLLM([
-        { role: 'user', content: prompt }
-    ], {
+    const result = await callLLMAPI(prompt, {
+        model: 'deepseek-chat',
         maxTokens: 2048,
         temperature: 0.9
     });
@@ -166,9 +164,8 @@ ${novelContent.substring(0, 10000)}...
 - 冲突要激烈，反转要多
 - 结局要有升华`;
 
-    const result = await _novelLLM([
-        { role: 'user', content: prompt }
-    ], {
+    const result = await callLLMAPI(prompt, {
+        model: 'deepseek-chat',
         maxTokens: 4096,
         temperature: 0.8
     });
