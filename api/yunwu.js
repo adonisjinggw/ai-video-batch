@@ -3339,7 +3339,7 @@ module.exports = async function handler(req, res) {
                 const pollResponse = await fetchWithFallbackWithTimeout(`/mj-turbo/mj/task/${taskId}/fetch`, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${YUNWU_API_KEY}` }
-                }, 15000, true);  // 🔧 isMJ = true
+                }, 15000);  // 🔧 不传 isMJ，使用默认单端点
 
                 if (!pollResponse.ok) {
                     json(200, { success: false, status: 'IN_PROGRESS' });
