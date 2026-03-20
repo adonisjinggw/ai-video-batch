@@ -11576,7 +11576,7 @@ ${idea.theme}${characterPrompt}
             const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && typeof u === 'string' && (u.startsWith('http') || u.startsWith('data:')));
 
             // 📝 文本结果（兼容所有文本格式）
-            const _textContent = result.content || result.ocrText || result.result || result.copyText || result.strategy || result.script || result.outline || result.recipe || null;
+            const _textContent = result.content || result.ocrText || result.result || result.copyText || result.strategy || result.script || result.outline || result.recipe || result.optimizedPrompt || result.prompt || result.enhancedPrompt || null;
             const _textList = result.copywritings || null;
             if (_textContent || _textList) {
                 const text = _textContent || (_textList || []).join('\n');
@@ -11586,10 +11586,11 @@ ${idea.theme}${characterPrompt}
                 else if (result.script) label = '📝 剧本内容';
                 else if (result.copyText) label = '📝 文案内容';
                 else if (result.recipe) label = '🍳 菜谱内容';
+                else if (result.optimizedPrompt || result.prompt || result.enhancedPrompt) label = '🎬 优化提示词';
                 html += `<div class="skill-result-item">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                         <span style="font-size:13px;color:var(--accent);font-weight:600;">${label}</span>
-                        <button onclick="navigator.clipboard.writeText(this.closest('.skill-result-item').querySelector('.skill-result-text').textContent);showToast('✅ 已复制')" 
+                        <button onclick="navigator.clipboard.writeText(this.closest('.skill-result-item').querySelector('.skill-result-text').textContent);showToast('✅ 已复制')"
                             style="padding:4px 10px;background:#333;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">复制</button>
                     </div>
                     <div class="skill-result-text" style="white-space:pre-wrap;max-height:400px;overflow-y:auto;">${text}</div>
@@ -11830,24 +11831,25 @@ ${idea.theme}${characterPrompt}
                 }
             }
 
-            // 🎬 提示词优化结果
-            if (result.optimizedPrompt) {
+            // 🎬 提示词优化结果（支持多种字段名）
+            const promptText = result.optimizedPrompt || result.prompt || result.enhancedPrompt || result.improvedPrompt;
+            if (promptText && typeof promptText === 'string' && promptText.length > 10) {
                 html += `<div class="skill-result-item">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                         <span style="font-size:13px;color:var(--accent);font-weight:600;">🎬 优化提示词</span>
-                        <button onclick="navigator.clipboard.writeText(this.closest('.skill-result-item').querySelector('.skill-result-text').textContent);showToast('✅ 已复制')" 
+                        <button onclick="navigator.clipboard.writeText(this.closest('.skill-result-item').querySelector('.skill-result-text').textContent);showToast('✅ 已复制')"
                             style="padding:4px 10px;background:#333;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">复制</button>
                     </div>
-                    <div class="skill-result-text" style="white-space:pre-wrap;max-height:300px;overflow-y:auto;">${result.optimizedPrompt}</div>
+                    <div class="skill-result-text" style="white-space:pre-wrap;max-height:300px;overflow-y:auto;">${promptText}</div>
                 </div>`;
-                
+
                 if (result.previewImage) {
                     html += `<div class="skill-result-item">
                         <img src="${result.previewImage}" class="skill-result-img" onclick="openImageViewer('${result.previewImage.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
                         <div style="font-size:12px;color:#aaa;margin-bottom:6px;">🖼️ 预览图</div>
                         <div style="display:flex;gap:8px;">
                             <a href="${result.previewImage}" download="preview.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
-                            <button onclick="jumpToVideoToolsFromPromptOpt('${result.optimizedPrompt.replace(/'/g, "\\\\'")}')" style="flex:1;padding:8px;background:linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1));border:1px solid rgba(251,191,36,0.5);border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">🎬 生成视频</button>
+                            <button onclick="jumpToVideoToolsFromPromptOpt('${promptText.replace(/'/g, "\\\\'")}')" style="flex:1;padding:8px;background:linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1));border:1px solid rgba(251,191,36,0.5);border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">🎬 生成视频</button>
                         </div>
                     </div>`;
                 }
@@ -11872,6 +11874,42 @@ ${idea.theme}${characterPrompt}
                     + '<div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:10px;">🧊 3D模型文件（共 ' + result.model3dFiles.length + ' 个）</div>'
                     + _3dItemsHtml
                     + '</div>';
+            }
+
+            // 📊 generatedMedia 结果（来自 chat.html 的技能执行）
+            if (result.generatedMedia && Array.isArray(result.generatedMedia) && result.generatedMedia.length > 0) {
+                for (const media of result.generatedMedia) {
+                    if (media.type === 'image' && media.url && _isValid(media.url)) {
+                        if (typeof saveImageToLibrary === 'function') {
+                            saveImageToLibrary(media.url, `${skillName} - ${media.step || '图片'}`, 'skill');
+                            savedImages++;
+                        }
+                        html += `<div class="skill-result-item">
+                            <img src="${media.url}" class="skill-result-img" onclick="openImageViewer('${media.url.replace(/'/g, "\\'")}')" style="cursor:pointer;">
+                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${media.step || '生成图片'}</div>
+                            <a href="${media.url}" download="${media.step || 'image'}.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                        </div>`;
+                    } else if (media.type === 'video' && media.url && _isValid(media.url)) {
+                        if (typeof saveVideoToLibrary === 'function') {
+                            saveVideoToLibrary(media.url, `${skillName} - ${media.step || '视频'}`, 'skill');
+                            savedVideos++;
+                        }
+                        html += `<div class="skill-result-item">
+                            <video src="${media.url}" controls class="skill-result-video"></video>
+                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${media.step || '生成视频'}</div>
+                            <a href="${media.url}" download="${media.step || 'video'}.mp4" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                        </div>`;
+                    } else if (media.type === 'text' && media.content) {
+                        html += `<div class="skill-result-item">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                <span style="font-size:13px;color:var(--accent);font-weight:600;">${media.step || '生成文本'}</span>
+                                <button onclick="navigator.clipboard.writeText(this.closest('.skill-result-item').querySelector('.skill-result-text').textContent);showToast('✅ 已复制')"
+                                    style="padding:4px 10px;background:#333;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">复制</button>
+                            </div>
+                            <div class="skill-result-text" style="white-space:pre-wrap;max-height:400px;overflow-y:auto;">${media.content}</div>
+                        </div>`;
+                    }
+                }
             }
 
             if (!html) {
@@ -13832,11 +13870,11 @@ ${story}
     async function generateWritingFromText(text) {
         const user = await getCurrentUser();
         if (!user) throw new Error('请先登录');
-        
+
         // 提取文案主题
         let prompt = text.replace(/写.*文案|生成.*文案|帮我写/i, '').trim();
         if (!prompt) prompt = text;
-        
+
         // 调用文案生成API
         const response = await fetch('/api/writer-llm', {
             method: 'POST',
@@ -13846,19 +13884,41 @@ ${story}
                 userId: user.id
             })
         });
-        
+
         if (!response.ok) throw new Error('文案生成失败');
-        
+
         const data = await response.json();
-        if (data.result) {
-            showWritingResult(data.result);
+        if (data.content) {
+            return data.content;
+        } else if (data.result) {
+            return data.result;
         }
+        throw new Error('未返回文案内容');
     }
 
     // 显示图片结果
     function showImageResult(imageUrl) {
-        const imgWin = window.open('', '_blank');
-        imgWin.document.write(`<img src="${imageUrl}" style="max-width:100%;height:auto;"><br><a href="${imageUrl}" download>下载图片</a>`);
+        // 检查是否在小助手对话框内
+        const chatContainer = document.querySelector('#rollroll-dialog [style*="max-height:250px"]');
+        if (chatContainer) {
+            // 在对话框内显示图片
+            const imgMsg = document.createElement('div');
+            imgMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;';
+            imgMsg.innerHTML = `
+                <div style="color:#fff;font-size:13px;margin-bottom:8px;">🎨 图片生成成功！</div>
+                <img src="${imageUrl}" style="max-width:100%;height:auto;border-radius:8px;cursor:pointer;" onclick="window.open('${imageUrl}', '_blank')">
+                <div style="margin-top:8px;display:flex;gap:8px;">
+                    <button onclick="window.open('${imageUrl}', '_blank')" style="flex:1;padding:6px;background:#FF6B9D;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">查看大图</button>
+                    <a href="${imageUrl}" download style="flex:1;padding:6px;background:#C44569;color:#fff;border:none;border-radius:6px;font-size:12px;text-align:center;text-decoration:none;display:block;">下载图片</a>
+                </div>
+            `;
+            chatContainer.appendChild(imgMsg);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        } else {
+            // 不在对话框内，使用原来的新窗口方式
+            const imgWin = window.open('', '_blank');
+            imgWin.document.write(`<img src="${imageUrl}" style="max-width:100%;height:auto;"><br><a href="${imageUrl}" download>下载图片</a>`);
+        }
     }
 
     // 显示文案结果
@@ -14063,11 +14123,54 @@ ${story}
                 welcomeMsg.textContent = '🤖 ' + randomDialogGreeting;
                 chatContainer.appendChild(welcomeMsg);
                 
-                // 历史消息（用于上下文记忆）
+                // 历史消息（用于上下文记忆，最多保留20条）
+                const MAX_HISTORY = 20;
                 let chatHistory = [
                     { role: 'system', content: '你是小卷助手，一个友好、热情、有帮助的AI助手。用中文回复，保持简洁有趣。' },
                     { role: 'assistant', content: randomDialogGreeting }
                 ];
+
+                // 用户选择的意图（按钮点击时设置）
+                let selectedIntent = null;
+
+                // 预编译正则表达式（性能优化）
+                const INTENT_PATTERNS = {
+                    search: /搜索|查询|找.*资料|帮我找|search/i,
+                    video: /视频|短视频|生成视频|制作视频|帮我生成视频|分镜|镜头.*镜头/i,
+                    image: /^(画|生成图片|作图|帮我画|画一张|画个)/i,
+                    writing: /文案|写|文章|脚本|剧本|帮我写/i
+                };
+                const WEB_KEYWORDS_REGEX = /最新|现在|今天|今年|2026|实时|当前|新闻|天气|股票|汇率|比分/i;
+
+                // 辅助函数：添加用户消息
+                function addUserMessage(text) {
+                    const msg = document.createElement('div');
+                    msg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.2);border-radius:8px;font-size:13px;color:#FF6B9D;';
+                    msg.textContent = '👤 ' + text;
+                    chatContainer.appendChild(msg);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+
+                // 辅助函数：添加错误消息
+                function addErrorMessage(message) {
+                    const msg = document.createElement('div');
+                    msg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,0,0,0.2);border-radius:8px;font-size:13px;color:#ff6b6b;';
+                    msg.textContent = '❌ ' + message;
+                    chatContainer.appendChild(msg);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+
+                // 辅助函数：限制历史记录大小
+                function addToHistory(role, content) {
+                    chatHistory.push({ role, content });
+                    // 保留系统消息，限制其他消息数量
+                    if (chatHistory.length > MAX_HISTORY) {
+                        chatHistory = [
+                            chatHistory[0], // 保留系统消息
+                            ...chatHistory.slice(-MAX_HISTORY + 1)
+                        ];
+                    }
+                }
                 
                 // 输入区域
                 const inputWrapper = document.createElement('div');
@@ -14118,116 +14221,250 @@ ${story}
                         const sendMessage = async () => {
                             const text = input.value.trim();
                             if (!text) return;
-                            
+
                             // 显示加载状态
                             sendBtn.textContent = '处理中...';
                             sendBtn.disabled = true;
                             input.disabled = true;
-                            
-                            // 简单意图识别
-                            const lowerText = text.toLowerCase();
-                            let intent = 'chat';
-                            // 宽松匹配：包含关键词就触发
-                            if (/图|画|生成图片|作图|帮我画|画一张/i.test(text)) intent = 'image';
-                            else if (/视频|短视频|生成视频|制作视频|帮我生成视频/i.test(text)) intent = 'video';
-                            else if (/文案|写|文章|脚本|剧本|帮我写/i.test(text)) intent = 'writing';
-                            
-                            console.log('[小卷] 意图识别:', intent, '输入:', text, '匹配图:', /图|画|生成图片|作图/i.test(text));
-                            
-                            if (intent === 'image') {
-                                // 调用图片生成
-                                sendBtn.textContent = '🎨 正在生成图片...';
-                                try {
-                                    await generateImageFromText(text);
-                                    closeDialog();
-                                } catch (e) {
-                                    alert('图片生成失败: ' + e.message);
+
+                            // 意图识别：优先使用按钮选择的意图，否则从文本识别
+                            let intent = selectedIntent || 'chat';
+
+                            // 如果没有按钮选择，则从文本识别意图
+                            if (!selectedIntent) {
+                                // 优先匹配搜索
+                                if (/搜索|查询|找.*资料|帮我找|search/i.test(text)) {
+                                    intent = 'search';
                                 }
-                            } else if (intent === 'video') {
-                                // 调用视频生成
-                                sendBtn.textContent = '🎬 正在生成视频...';
-                                try {
-                                    await generateVideoFromText(text);
-                                    closeDialog();
-                                } catch (e) {
-                                    alert('视频生成失败: ' + e.message);
+                                // 优先匹配视频（更严格的匹配）
+                                else if (/视频|短视频|生成视频|制作视频|帮我生成视频|分镜|镜头.*镜头/i.test(text)) {
+                                    intent = 'video';
                                 }
-                            } else if (intent === 'writing') {
-                                // 调用文案生成
-                                sendBtn.textContent = '✍️ 正在生成文案...';
-                                try {
-                                    await generateWritingFromText(text);
-                                    closeDialog();
-                                } catch (e) {
-                                    alert('文案生成失败: ' + e.message);
+                                // 然后匹配图片（避免误判）
+                                else if (/^(画|生成图片|作图|帮我画|画一张|画个)/i.test(text)) {
+                                    intent = 'image';
                                 }
-                            } else {
-                                // 其他情况：直接显示回复（简单对话）
-                                sendBtn.textContent = '🤖 思考中...';
-                                sendBtn.disabled = true;
-                                input.disabled = true;
-                                
-                                try {
+                                // 文案
+                                else if (/文案|写|文章|脚本|剧本|帮我写/i.test(text)) {
+                                    intent = 'writing';
+                                }
+                            }
+
+                            console.log('[小卷] 意图识别:', intent, '按钮选择:', selectedIntent, '输入:', text);
+
+                            // 清除选中的意图（用完即清）
+                            selectedIntent = null;
+
+                            try {
+                                if (intent === 'search') {
+                                    // 联网搜索 - 使用 grok-4-fast（有联网能力）
+                                    sendBtn.textContent = '🔍 正在搜索...';
+                                    addUserMessage(text);
+
+                                    try {
+                                        // 提取搜索关键词
+                                        let query = text.replace(/搜索|查询|找.*资料|帮我找/i, '').trim();
+                                        if (!query) query = text;
+
+                                        // 调用搜索API - 使用 grok-4-fast 模型（有联网能力）
+                                        const response = await fetch('/api/writer-llm', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                model: 'grok-4-fast',
+                                                messages: [
+                                                    { role: 'system', content: '你是一个专业的搜索助手，可以联网搜索最新信息。请根据用户的问题提供准确、有用、最新的信息。' },
+                                                    { role: 'user', content: query }
+                                                ],
+                                                userId: (await getCurrentUser())?.id || 'anonymous'
+                                            })
+                                        });
+
+                                        if (!response.ok) throw new Error('搜索失败');
+
+                                        const data = await response.json();
+                                        if (data.content) {
+                                            // 显示搜索结果（安全转义）
+                                            const searchMsg = document.createElement('div');
+                                            searchMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
+
+                                            const title = document.createElement('div');
+                                            title.style.cssText = 'color:#FF6B9D;margin-bottom:8px;';
+                                            title.textContent = '🔍 搜索结果 (grok-4-fast)';
+
+                                            const content = document.createElement('div');
+                                            content.style.cssText = 'margin-bottom:8px;';
+                                            content.textContent = data.content;
+
+                                            const btn = document.createElement('button');
+                                            btn.style.cssText = 'padding:6px 12px;background:#FF6B9D;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;';
+                                            btn.textContent = '复制结果';
+                                            btn.onclick = () => navigator.clipboard.writeText(data.content).then(() => alert('已复制到剪贴板'));
+
+                                            searchMsg.appendChild(title);
+                                            searchMsg.appendChild(content);
+                                            searchMsg.appendChild(btn);
+                                            chatContainer.appendChild(searchMsg);
+                                            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                                            // 添加到对话历史
+                                            addToHistory('user', text);
+                                            addToHistory('assistant', data.content);
+                                        } else {
+                                            throw new Error('未返回搜索结果');
+                                        }
+                                    } catch (e) {
+                                        addErrorMessage('搜索失败: ' + e.message);
+                                    }
+                                } else if (intent === 'image') {
+                                    // 调用图片生成
+                                    sendBtn.textContent = '🎨 正在生成图片...';
+                                    addUserMessage(text);
+
+                                    try {
+                                        await generateImageFromText(text);
+                                    } catch (e) {
+                                        addErrorMessage('图片生成失败: ' + e.message);
+                                    }
+                                } else if (intent === 'video') {
+                                    // 调用视频生成
+                                    sendBtn.textContent = '🎬 正在生成视频...';
+                                    addUserMessage(text);
+
+                                    try {
+                                        await generateVideoFromText(text);
+                                        // 显示成功消息
+                                        const successMsg = document.createElement('div');
+                                        successMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;color:#fff;';
+                                        successMsg.textContent = '🎬 视频生成任务已提交！请在视频列表中查看进度';
+                                        chatContainer.appendChild(successMsg);
+                                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    } catch (e) {
+                                        addErrorMessage('视频生成失败: ' + e.message);
+                                    }
+                                } else if (intent === 'writing') {
+                                    // 调用文案生成 - 使用 qwen3.5-plus（擅长中文创作）
+                                    sendBtn.textContent = '✍️ 正在生成文案...';
+                                    addUserMessage(text);
+
+                                    try {
+                                        // 提取文案主题
+                                        let prompt = text.replace(/写.*文案|生成.*文案|帮我写/i, '').trim();
+                                        if (!prompt) prompt = text;
+
+                                        // 使用 qwen3.5-plus 生成文案
+                                        const response = await fetch('/api/writer-llm', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                model: 'qwen3.5-plus',
+                                                prompt: prompt,
+                                                userId: (await getCurrentUser())?.id || 'anonymous'
+                                            })
+                                        });
+
+                                        if (!response.ok) throw new Error('文案生成失败');
+
+                                        const data = await response.json();
+                                        const result = data.content || data.result;
+                                        if (result) {
+                                            // 在对话框内显示文案（安全转义）
+                                            const writingMsg = document.createElement('div');
+                                            writingMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
+
+                                            const title = document.createElement('div');
+                                            title.style.cssText = 'color:#FF6B9D;margin-bottom:8px;';
+                                            title.textContent = '✍️ 文案生成成功！(qwen3.5-plus)';
+
+                                            const content = document.createElement('div');
+                                            content.style.cssText = 'margin-bottom:8px;';
+                                            content.textContent = result;
+
+                                            const btn = document.createElement('button');
+                                            btn.style.cssText = 'padding:6px 12px;background:#FF6B9D;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;';
+                                            btn.textContent = '复制文案';
+                                            btn.onclick = () => navigator.clipboard.writeText(result).then(() => alert('已复制到剪贴板'));
+
+                                            writingMsg.appendChild(title);
+                                            writingMsg.appendChild(content);
+                                            writingMsg.appendChild(btn);
+                                            chatContainer.appendChild(writingMsg);
+                                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                                        } else {
+                                            throw new Error('未返回文案内容');
+                                        }
+                                    } catch (e) {
+                                        addErrorMessage('文案生成失败: ' + e.message);
+                                    }
+                                } else {
+                                    // 其他情况：智能对话
+                                    sendBtn.textContent = '🤖 思考中...';
                                     console.log('[小卷] 开始调用writer-llm, text:', text);
-                                    
-                                    // 添加用户消息到历史
-                                    chatHistory.push({ role: 'user', content: text });
-                                    
-                                    // 先显示用户消息
-                                    const userMsg = document.createElement('div');
-                                    userMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.2);border-radius:8px;font-size:13px;color:#FF6B9D;';
-                                    userMsg.textContent = '👤 ' + text;
-                                    chatContainer.appendChild(userMsg);
-                                    
-                                    // 调用简单的LLM回复（带上下文历史）
+
+                                    // 添加用户消息到历史和显示
+                                    addToHistory('user', text);
+                                    addUserMessage(text);
+
+                                    // 智能选择模型：需要最新信息 → grok-4-fast，普通对话 → qwen3.5-plus
+                                    const needsWeb = /最新|现在|今天|今年|2026|实时|当前|新闻|天气|股票|汇率|比分/i.test(text);
+                                    const selectedModel = needsWeb ? 'grok-4-fast' : 'qwen3.5-plus';
+                                    if (needsWeb) console.log('[小卷] 检测到需要最新信息，使用 grok-4-fast');
+
+                                    // 调用LLM回复
                                     const response = await fetch('/api/writer-llm', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
+                                            model: selectedModel,
                                             messages: chatHistory,
                                             userId: (await getCurrentUser())?.id || 'anonymous'
                                         })
                                     });
-                                    console.log('[小卷] writer-llm响应状态:', response.status);
+                                    console.log('[小卷] writer-llm响应状态:', response.status, '使用模型:', selectedModel);
                                     const data = await response.json();
                                     console.log('[小卷] writer-llm返回:', JSON.stringify(data).substring(0, 200));
                                     if (data.content) {
                                         console.log('[小卷] 准备显示回复');
-                                        
-                                        // 显示AI回复
+
+                                        // 显示AI回复（安全转义）
                                         const replyDiv = document.createElement('div');
                                         replyDiv.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
-                                        replyDiv.textContent = '🤖 ' + data.content;
+
+                                        const icon = document.createElement('span');
+                                        icon.textContent = '🤖';
+
+                                        if (selectedModel === 'grok-4-fast') {
+                                            const tag = document.createElement('span');
+                                            tag.style.cssText = 'font-size:10px;color:#888;';
+                                            tag.textContent = ' (联网)';
+                                            icon.appendChild(tag);
+                                        }
+
+                                        const contentText = document.createTextNode(' ' + data.content);
+                                        replyDiv.appendChild(icon);
+                                        replyDiv.appendChild(contentText);
                                         chatContainer.appendChild(replyDiv);
-                                        
-                                        // 添加AI回复到历史
-                                        chatHistory.push({ role: 'assistant', content: data.content });
-                                        
-                                        // 滚动到底部
                                         chatContainer.scrollTop = chatContainer.scrollHeight;
-                                        
-                                        // 清空输入框
-                                        input.value = '';
-                                        
+
+                                        // 添加AI回复到历史
+                                        addToHistory('assistant', data.content);
                                         console.log('[小卷] 已添加回复到DOM');
                                     } else {
                                         throw new Error(data.message || 'API返回格式错误');
                                     }
-                                } catch (e) {
-                                    console.error('[小卷] 对话失败:', e);
-                                    alert('对话失败: ' + (e.message || '未知错误'));
                                 }
-                                
+
+                                // 清空输入框
+                                input.value = '';
+                            } catch (e) {
+                                console.error('[小卷] 处理失败:', e);
+                                addErrorMessage('处理失败: ' + (e.message || '未知错误'));
+                            } finally {
                                 // 无论成功失败都恢复按钮
                                 sendBtn.textContent = '发送 ✈️';
                                 sendBtn.disabled = false;
                                 input.disabled = false;
                             }
-                            
-                            // 恢复按钮状态
-                            sendBtn.textContent = '发送 ✈️';
-                            sendBtn.disabled = false;
-                            input.disabled = false;
                         };
                         sendBtn.onclick = sendMessage;
                         input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
@@ -14260,6 +14497,9 @@ ${story}
                     // 其他快捷操作：在输入框中填充对应提示，不关闭对话框
                     const input = document.getElementById('rollroll-input');
                     if (input) {
+                        // 设置选中的意图
+                        selectedIntent = action;
+
                         if (action === 'search') {
                             input.value = '帮我搜索一下';
                         } else if (action === 'video') {

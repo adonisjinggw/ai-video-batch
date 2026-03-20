@@ -5944,7 +5944,7 @@ ${paramDesc}
             if (result && result.outline && typeof result.outline === 'string') {
                 hasTextContent = true;
             }
-            // 新增：ocrText, result(string), copyText, strategy, script
+            // 新增：ocrText, result(string), copyText, strategy, script, optimizedPrompt, prompt, enhancedPrompt
             if (result && result.ocrText) { hasTextContent = true; messageContent += `🔍 OCR识别完成\n`; }
             if (result && typeof result.result === 'string') { hasTextContent = true; messageContent += `📝 脚本处理完成\n`; }
             if (result && result.copyText) { hasTextContent = true; messageContent += `📝 文案生成完成\n`; }
@@ -5952,6 +5952,7 @@ ${paramDesc}
             if (result && result.script && typeof result.script === 'string') { hasTextContent = true; messageContent += `📝 剧本生成完成\n`; }
             if (result && result.text && typeof result.text === 'string') { hasTextContent = true; messageContent += `📝 文本生成完成\n`; }
             if (result && result.content && typeof result.content === 'string') { hasTextContent = true; messageContent += `📝 内容生成完成\n`; }
+            if (result && (result.optimizedPrompt || result.prompt || result.enhancedPrompt)) { hasTextContent = true; messageContent += `🎬 提示词优化完成\n`; }
             // generatedMedia 中的文本
             const textItems = (generatedMedia || []).filter(m => m.type === 'text' && m.content);
             if (textItems.length > 0) hasTextContent = true;
@@ -6099,6 +6100,13 @@ ${paramDesc}
                 const contentMsg = `📝 生成内容：\n${result.content}`;
                 addMessage(contentMsg, 'ai');
                 messages.push({ role: 'assistant', content: contentMsg });
+            }
+            // 🎬 提示词优化结果
+            if (result && (result.optimizedPrompt || result.prompt || result.enhancedPrompt) && typeof (result.optimizedPrompt || result.prompt || result.enhancedPrompt) === 'string') {
+                const promptText = result.optimizedPrompt || result.prompt || result.enhancedPrompt;
+                const promptMsg = `🎬 优化提示词：\n${promptText}`;
+                addMessage(promptMsg, 'ai');
+                messages.push({ role: 'assistant', content: promptMsg });
             }
 
             // 🍳 菜谱结果展示
