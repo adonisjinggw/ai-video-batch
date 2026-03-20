@@ -75,7 +75,8 @@ async function generateShortDramaOutline(theme, genre, episodeCount) {
         { role: 'user', content: prompt }
     ], {
         maxTokens: 4096,
-        temperature: 0.9
+        temperature: 0.9,
+        timeout: 180000  // 🔧 增加到180秒，避免大纲生成超时
     });
 
     return result;
