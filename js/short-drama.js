@@ -41,7 +41,7 @@ const SHORT_DRAMA_RULES = {
 /**
  * 生成短剧大纲
  */
-async function generateShortDramaOutline(theme, genre, episodeCount) {
+async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qwen3.5-plus', useMemory = true) {
     const genreConfig = SHORT_DRAMA_GENRES[genre] || SHORT_DRAMA_GENRES['urban'];
 
     const prompt = `你是一位专业的短剧编剧。请为以下主题创作一部${episodeCount}集的短剧大纲。
@@ -76,7 +76,9 @@ async function generateShortDramaOutline(theme, genre, episodeCount) {
     ], {
         maxTokens: 4096,
         temperature: 0.9,
-        timeout: 180000  // 🔧 增加到180秒，避免大纲生成超时
+        timeout: 180000,  // 🔧 增加到180秒，避免大纲生成超时
+        model: model,
+        useMemory: useMemory
     });
 
     return result;
@@ -141,7 +143,7 @@ ${previousContext ? `【前情提要】\n${previousContext}\n` : ''}
 /**
  * 将小说改编为短剧大纲
  */
-async function adaptNovelToShortDrama(novelContent, episodeCount) {
+async function adaptNovelToShortDrama(novelContent, episodeCount, model = 'qwen3.5-plus', useMemory = true) {
     const prompt = `你是一位专业的短剧改编编剧。请将以下小说内容改编为${episodeCount}集的短剧大纲。
 
 【原小说内容】
@@ -166,9 +168,10 @@ ${novelContent.substring(0, 10000)}...
 - 结局要有升华`;
 
     const result = await callLLMAPI(prompt, {
-        model: 'deepseek-chat',
+        model: model,
         maxTokens: 4096,
-        temperature: 0.8
+        temperature: 0.8,
+        useMemory: useMemory
     });
 
     return result;
@@ -312,6 +315,8 @@ async function generateOriginalShortDrama() {
     const theme = document.getElementById('shortDramaTheme').value.trim();
     const genre = document.getElementById('shortDramaGenre').value;
     const episodeCount = parseInt(document.getElementById('shortDramaEpisodeCount').value);
+    const model = document.getElementById('shortDramaModel')?.value || 'qwen3.5-plus';
+    const useMemory = document.querySelector('input[name="shortDramaMemory"]:checked')?.value === 'true';
 
     if (!theme) {
         showToast('请输入短剧主题');
@@ -321,12 +326,14 @@ async function generateOriginalShortDrama() {
     shortDramaState.theme = theme;
     shortDramaState.genre = genre;
     shortDramaState.totalEpisodes = episodeCount;
+    shortDramaState.model = model;
+    shortDramaState.useMemory = useMemory;
 
     showToast('正在生成短剧大纲...');
 
     try {
         // 1. 生成大纲
-        const outlineText = await generateShortDramaOutline(theme, genre, episodeCount);
+        const outlineText = await generateShortDramaOutline(theme, genre, episodeCount, model, useMemory);
         const episodes = parseShortDramaOutline(outlineText);
 
         if (episodes.length === 0) {
@@ -354,6 +361,8 @@ async function generateOriginalShortDrama() {
  */
 async function adaptNovelToShortDramaFlow() {
     const episodeCount = parseInt(document.getElementById('shortDramaAdaptEpisodeCount').value);
+    const model = document.getElementById('shortDramaAdaptModel')?.value || 'qwen3.5-plus';
+    const useMemory = document.querySelector('input[name="shortDramaAdaptMemory"]:checked')?.value === 'true';
     let novelContent = '';
     let novelTitle = '';
 
@@ -384,7 +393,7 @@ async function adaptNovelToShortDramaFlow() {
 
     try {
         // 生成改编大纲
-        const outlineText = await adaptNovelToShortDrama(novelContent, episodeCount);
+        const outlineText = await adaptNovelToShortDrama(novelContent, episodeCount, model, useMemory);
         const episodes = parseShortDramaOutline(outlineText);
 
         if (episodes.length === 0) {
@@ -396,6 +405,8 @@ async function adaptNovelToShortDramaFlow() {
         shortDramaState.genre = 'urban';
         shortDramaState.episodes = episodes;
         shortDramaState.totalEpisodes = episodes.length;
+        shortDramaState.model = model;
+        shortDramaState.useMemory = useMemory;
 
         renderShortDramaEpisodeList();
         updateShortDramaProgress();
