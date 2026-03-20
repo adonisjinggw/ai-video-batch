@@ -944,11 +944,19 @@ function novelShowEvaluationResult(result) {
 
                                 ${ch.repetitions.length > 0 ? `
                                     <div style="font-size:13px;color:#ef4444;margin-bottom:8px;">
-                                        <div style="font-weight:bold;margin-bottom:4px;">🔄 重复内容：</div>
-                                        ${ch.repetitions.slice(0, 3).map(rep => `
-                                            <div style="margin-left:12px;margin-bottom:4px;background:rgba(239,68,68,0.1);padding:4px 8px;border-radius:4px;">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                            <div style="font-weight:bold;">🔄 重复内容：</div>
+                                            <button onclick="novelAutoFixRepetitions(${ch.index})" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">
+                                                ✨ 一键去重
+                                            </button>
+                                        </div>
+                                        ${ch.repetitions.slice(0, 3).map((rep, idx) => `
+                                            <div style="margin-left:12px;margin-bottom:4px;background:rgba(239,68,68,0.1);padding:4px 8px;border-radius:4px;position:relative;">
                                                 <div style="color:#fca5a5;font-size:12px;">${rep.type} (与第${rep.chapter}章重复)</div>
-                                                <div style="color:#fff;margin-top:2px;">"${rep.content}"</div>
+                                                <div style="color:#fff;margin-top:2px;cursor:pointer;" onclick="novelHighlightText(${ch.index}, '${rep.content.replace(/'/g, "\\'")}')">
+                                                    "${rep.content}"
+                                                    <span style="color:#888;font-size:11px;margin-left:4px;">点击定位</span>
+                                                </div>
                                             </div>
                                         `).join('')}
                                         ${ch.repetitions.length > 3 ? `<div style="margin-left:12px;color:#888;font-size:12px;">还有${ch.repetitions.length - 3}处重复...</div>` : ''}
@@ -957,10 +965,16 @@ function novelShowEvaluationResult(result) {
 
                                 ${ch.aiTraces && ch.aiTraces.length > 0 ? `
                                     <div style="font-size:13px;color:#a78bfa;margin-bottom:8px;">
-                                        <div style="font-weight:bold;margin-bottom:4px;">🤖 AI痕迹：</div>
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                            <div style="font-weight:bold;">🤖 AI痕迹：</div>
+                                            <button onclick="novelAutoFixAITraces(${ch.index})" style="background:#a78bfa;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">
+                                                ✨ 一键优化
+                                            </button>
+                                        </div>
                                         ${ch.aiTraces.map(trace => `
-                                            <div style="margin-left:12px;margin-bottom:2px;">
+                                            <div style="margin-left:12px;margin-bottom:2px;cursor:pointer;" onclick="novelHighlightText(${ch.index}, '${trace.word}')">
                                                 • 「${trace.word}」出现${trace.count}次（建议≤${trace.limit}次）
+                                                <span style="color:#888;font-size:11px;margin-left:4px;">点击定位</span>
                                             </div>
                                         `).join('')}
                                     </div>
@@ -1228,3 +1242,183 @@ function novelUpdateEvaluateButton() {
         btn.style.display = 'none';
     }
 }
+
+/**
+ * 🆕 高亮显示章节中的特定文本
+ */
+function novelHighlightText(chapterIdx, text) {
+    // 切换到该章节
+    novelViewChapter(chapterIdx);
+
+    // 关闭评估弹窗
+    const modal = document.querySelector('div[style*="position:fixed"][style*="z-index:10000"]');
+    if (modal) modal.remove();
+
+    // 等待章节渲染完成后高亮
+    setTimeout(() => {
+        const contentDiv = document.getElementById('novelChapterContent');
+        if (!contentDiv) return;
+
+        const content = contentDiv.innerHTML;
+        const escapedText = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const highlightedContent = content.replace(
+            new RegExp(escapedText, 'g'),
+            `<mark style="background:#fbbf24;color:#000;padding:2px 4px;border-radius:2px;animation:pulse 1s ease-in-out 3;">$&</mark>`
+        );
+
+        contentDiv.innerHTML = highlightedContent;
+
+        // 滚动到第一个高亮位置
+        const firstMark = contentDiv.querySelector('mark');
+        if (firstMark) {
+            firstMark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        showToast('已定位到重复内容');
+    }, 300);
+}
+
+/**
+ * 🆕 自动修复章节中的重复内容
+ */
+async function novelAutoFixRepetitions(idx) {
+    const ch = novelState.chapters[idx];
+    if (!ch || ch.status !== 'done') {
+        showToast('章节不存在或未完成');
+        return;
+    }
+
+    const evaluation = ch._evaluation || await novelEvaluateChapter(idx);
+    if (evaluation.repetitions.length === 0) {
+        showToast('该章节没有重复内容');
+        return;
+    }
+
+    if (!confirm(`发现${evaluation.repetitions.length}处重复内容，确定要自动去重吗？\n\n将使用AI重写这些重复部分，保持故事连贯性。`)) {
+        return;
+    }
+
+    showToast('正在去除重复内容...');
+
+    try {
+        // 构建去重提示
+        const repetitionList = evaluation.repetitions.map((r, i) =>
+            `${i + 1}. "${r.content}" (${r.type}，与第${r.chapter}章重复)`
+        ).join('\n');
+
+        const fixPrompt = `请修改以下章节内容，去除重复部分并用新的表达替换：
+
+原章节内容：
+${ch.content}
+
+需要去除/改写的重复内容：
+${repetitionList}
+
+要求：
+1. 保持故事情节和人物性格一致
+2. 用不同的表达方式替换重复内容
+3. 保持章节字数不变（约${ch.content.length}字）
+4. 确保修改后的内容自然流畅
+5. 全文使用中文，严禁英文单词`;
+
+        const newContent = await _novelLLM([
+            { role: 'system', content: '你是专业小说编辑，擅长去除重复内容并保持故事连贯性。' },
+            { role: 'user', content: fixPrompt }
+        ], { maxTokens: 8192, temperature: 0.85, timeout: 120000 });
+
+        // 更新章节
+        ch.content = newContent;
+        ch.wordCount = newContent.length;
+
+        // 重新评估
+        const newEvaluation = await novelEvaluateChapter(idx);
+        ch._evaluation = newEvaluation;
+
+        // 保存并刷新显示
+        novelSaveCurrentProject();
+        novelViewChapter(idx);
+
+        showToast(`✅ 去重完成！重复内容从${evaluation.repetitions.length}处减少到${newEvaluation.repetitions.length}处`);
+
+    } catch (err) {
+        console.error('[novel] 自动去重失败:', err);
+        showToast('去重失败: ' + err.message);
+    }
+}
+
+/**
+ * 🆕 自动优化AI痕迹词汇
+ */
+async function novelAutoFixAITraces(idx) {
+    const ch = novelState.chapters[idx];
+    if (!ch || ch.status !== 'done') {
+        showToast('章节不存在或未完成');
+        return;
+    }
+
+    const evaluation = ch._evaluation || await novelEvaluateChapter(idx);
+    if (!evaluation.aiTraces || evaluation.aiTraces.length === 0) {
+        showToast('该章节没有AI痕迹问题');
+        return;
+    }
+
+    if (!confirm(`发现${evaluation.aiTraces.length}个AI痕迹词汇，确定要自动优化吗？\n\n将替换这些词汇为更自然的表达。`)) {
+        return;
+    }
+
+    showToast('正在优化AI痕迹...');
+
+    try {
+        const traceList = evaluation.aiTraces.map((t, i) =>
+            `${i + 1}. 「${t.word}」出现${t.count}次（建议≤${t.limit}次）`
+        ).join('\n');
+
+        const fixPrompt = `请优化以下章节内容，减少AI痕迹词汇的使用：
+
+原章节内容：
+${ch.content}
+
+需要减少使用的词汇：
+${traceList}
+
+要求：
+1. 用更自然、多样化的表达替换这些词汇
+2. 保持故事情节和人物性格不变
+3. 保持章节字数（约${ch.content.length}字）
+4. 确保修改后语言更加生动自然
+5. 全文使用中文，严禁英文单词
+
+示例替换：
+- "仿佛" → "好像"、"似乎"、"如同"
+- "不禁" → "忍不住"、直接描述动作
+- "竟然" → "居然"、"没想到"、或省略`;
+
+        const newContent = await _novelLLM([
+            { role: 'system', content: '你是专业小说编辑，擅长优化文本表达，减少AI痕迹。' },
+            { role: 'user', content: fixPrompt }
+        ], { maxTokens: 8192, temperature: 0.85, timeout: 120000 });
+
+        // 更新章节
+        ch.content = newContent;
+        ch.wordCount = newContent.length;
+
+        // 重新评估
+        const newEvaluation = await novelEvaluateChapter(idx);
+        ch._evaluation = newEvaluation;
+
+        // 保存并刷新显示
+        novelSaveCurrentProject();
+        novelViewChapter(idx);
+
+        const oldTraceCount = evaluation.aiTraces.reduce((sum, t) => sum + t.count, 0);
+        const newTraceCount = newEvaluation.aiTraces ? newEvaluation.aiTraces.reduce((sum, t) => sum + t.count, 0) : 0;
+
+        showToast(`✅ 优化完成！AI痕迹词汇从${oldTraceCount}次减少到${newTraceCount}次`);
+
+    } catch (err) {
+        console.error('[novel] AI痕迹优化失败:', err);
+        showToast('优化失败: ' + err.message);
+    }
+}
+
+
