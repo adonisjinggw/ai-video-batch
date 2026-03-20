@@ -1413,6 +1413,29 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
+            // 🔧 如果没有参考图，先生成第一张图作为参考
+            let actualReferenceImage = referenceImage;
+            if (!actualReferenceImage && originalPrompt) {
+                console.log(`[modelscope] 🎨 文生图模式：先生成第一张图作为参考...`);
+                try {
+                    const firstImage = await callYunwuImageAPI(
+                        originalPrompt,
+                        selectedModel || 'nano-banana-2',
+                        '1K',
+                        null  // 没有参考图
+                    );
+                    actualReferenceImage = firstImage;
+                    console.log(`[modelscope] 🎨 第一张参考图生成完成`);
+                } catch (err) {
+                    console.error(`[modelscope] 🎨 生成第一张参考图失败:`, err.message);
+                    json(500, {
+                        error: 'REFERENCE_GENERATION_FAILED',
+                        message: `生成参考图失败: ${err.message}`
+                    });
+                    return;
+                }
+            }
+
             // 💰 计费计算
             const costPerImage = FILM_COST['image2image'] || 4;
             let totalCost = costPerImage * angles.length;
@@ -1523,7 +1546,7 @@ module.exports = async function handler(req, res) {
                                 promptText,
                                 modelToUse,
                                 '1K',
-                                referenceImage
+                                actualReferenceImage  // 🔧 使用实际的参考图（可能是用户上传的，也可能是刚生成的）
                             );
 
                             console.log(`[modelscope] 🎨 视角 ${template.name} 生成完成`);
