@@ -329,6 +329,17 @@ async function generateOriginalShortDrama() {
     shortDramaState.model = model;
     shortDramaState.useMemory = useMemory;
 
+    // 显示进度条
+    const progress = document.getElementById('shortDramaProgress');
+    const progressLabel = document.getElementById('shortDramaProgressLabel');
+    const progressPercent = document.getElementById('shortDramaProgressPercent');
+    const progressFill = document.getElementById('shortDramaProgressFill');
+
+    if (progress) progress.style.display = '';
+    if (progressLabel) progressLabel.textContent = '正在生成短剧大纲...';
+    if (progressPercent) progressPercent.textContent = '0%';
+    if (progressFill) progressFill.style.width = '0%';
+
     showToast('正在生成短剧大纲...');
 
     try {
@@ -353,6 +364,8 @@ async function generateOriginalShortDrama() {
     } catch (e) {
         showToast('生成失败: ' + e.message);
         console.error('[short-drama] 生成失败:', e);
+        // 隐藏进度条
+        if (progress) progress.style.display = 'none';
     }
 }
 
@@ -389,6 +402,17 @@ async function adaptNovelToShortDramaFlow() {
         return;
     }
 
+    // 显示进度条
+    const progress = document.getElementById('shortDramaProgress');
+    const progressLabel = document.getElementById('shortDramaProgressLabel');
+    const progressPercent = document.getElementById('shortDramaProgressPercent');
+    const progressFill = document.getElementById('shortDramaProgressFill');
+
+    if (progress) progress.style.display = '';
+    if (progressLabel) progressLabel.textContent = '正在改编小说为短剧...';
+    if (progressPercent) progressPercent.textContent = '0%';
+    if (progressFill) progressFill.style.width = '0%';
+
     showToast('正在改编小说为短剧...');
 
     try {
@@ -420,6 +444,9 @@ async function adaptNovelToShortDramaFlow() {
     } catch (e) {
         showToast('改编失败: ' + e.message);
         console.error('[short-drama] 改编失败:', e);
+        // 隐藏进度条
+        const progress = document.getElementById('shortDramaProgress');
+        if (progress) progress.style.display = 'none';
     }
 }
 
