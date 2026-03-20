@@ -609,31 +609,36 @@ async function callYunwuGeminiAPI(prompt, geminiModel, targetResolution, imageUr
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
-    }, 90000);
+    }, 120000);  // 🔧 增加超时到120秒，避免慢速API超时
 
     if (!response.ok) {
         const errText = await response.text();
+        console.error(`[modelscope] 🎨 Gemini API错误(${response.status}):`, errText.slice(0, 500));
         throw new Error(`云雾API错误(${response.status}): ${errText.slice(0, 200)}`);
     }
 
     const data = await response.json();
-    console.log(`[modelscope] 🎨 Gemini响应:`, JSON.stringify(data).substring(0, 300));
+    console.log(`[modelscope] 🎨 Gemini完整响应:`, JSON.stringify(data, null, 2).substring(0, 1000));
 
     // 解析响应
     if (data?.candidates?.[0]?.content?.parts) {
         for (const part of data.candidates[0].content.parts) {
             if (part.inline_data) {
                 const mimeType = part.inline_data.mime_type || 'image/png';
+                console.log(`[modelscope] 🎨 找到inline_data图片，mimeType=${mimeType}`);
                 return `data:${mimeType};base64,${part.inline_data.data}`;
             }
         }
     }
 
     if (data?.images?.length > 0) {
+        console.log(`[modelscope] 🎨 找到images数组，返回第一张`);
         return data.images[0];
     }
 
-    throw new Error('Gemini API未返回图片数据');
+    // 🔧 更详细的错误信息
+    console.error(`[modelscope] 🎨 Gemini API响应格式异常:`, JSON.stringify(data, null, 2));
+    throw new Error(`Gemini API未返回图片数据。响应: ${JSON.stringify(data).substring(0, 200)}`);
 }
 
 /**

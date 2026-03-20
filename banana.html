@@ -4343,13 +4343,16 @@
                     console.warn(`[banana] 🎨 部分视角生成失败: ${data.totalFailed}/${data.totalGenerated + data.totalFailed}`);
                     if (data.failed && data.failed.length > 0) {
                         console.warn('[banana] 🎨 失败详情:', data.failed);
+                        // 🔧 显示失败详情给用户
+                        const failedNames = data.failed.map(f => `${f.name || f.angle}(${f.error || '未知错误'})`).join('、');
+                        showToast(`⚠️ 部分视角失败: ${failedNames}`, 5000);
                     }
                 }
-                
+
                 // 如果全部失败
                 if (!data.success || data.totalGenerated === 0) {
-                    const failReason = data.failed?.map(f => f.name || f.angle).join(', ') || '未知原因';
-                    throw new Error(`生成失败: ${failReason}`);
+                    const failDetails = data.failed?.map(f => `${f.name || f.angle}: ${f.error || '未知原因'}`).join('\n') || '未知原因';
+                    throw new Error(`所有视角生成失败:\n${failDetails}`);
                 }
                 
                 // 显示结果
