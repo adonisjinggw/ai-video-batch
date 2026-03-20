@@ -928,7 +928,7 @@ function novelShowEvaluationResult(result) {
                                             ${ch.score}分
                                         </div>
                                         ${ch.score < 70 ? `
-                                            <button onclick="novelFixChapter(${ch.index})" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;">
+                                            <button onclick="event.stopPropagation(); novelFixChapter(${ch.index})" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;">
                                                 🔧 修正
                                             </button>
                                         ` : ''}
@@ -946,7 +946,7 @@ function novelShowEvaluationResult(result) {
                                     <div style="font-size:13px;color:#ef4444;margin-bottom:8px;">
                                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                                             <div style="font-weight:bold;">🔄 重复内容：</div>
-                                            <button onclick="novelAutoFixRepetitions(${ch.index})" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">
+                                            <button onclick="event.stopPropagation(); novelAutoFixRepetitions(${ch.index})" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">
                                                 ✨ 一键去重
                                             </button>
                                         </div>
@@ -967,7 +967,7 @@ function novelShowEvaluationResult(result) {
                                     <div style="font-size:13px;color:#a78bfa;margin-bottom:8px;">
                                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                                             <div style="font-weight:bold;">🤖 AI痕迹：</div>
-                                            <button onclick="novelAutoFixAITraces(${ch.index})" style="background:#a78bfa;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">
+                                            <button onclick="event.stopPropagation(); novelAutoFixAITraces(${ch.index})" style="background:#a78bfa;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">
                                                 ✨ 一键优化
                                             </button>
                                         </div>
@@ -992,10 +992,10 @@ function novelShowEvaluationResult(result) {
                 </div>
 
                 <div style="display:flex;gap:8px;">
-                    <button onclick="novelBatchFixLowScoreChapters()" style="flex:1;background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
+                    <button onclick="event.stopPropagation(); novelBatchFixLowScoreChapters()" style="flex:1;background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
                         🔧 批量修正低分章节
                     </button>
-                    <button onclick="novelExportEvaluationReport()" style="flex:1;background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
+                    <button onclick="event.stopPropagation(); novelExportEvaluationReport()" style="flex:1;background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
                         📄 导出报告
                     </button>
                     <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
@@ -1013,6 +1013,8 @@ function novelShowEvaluationResult(result) {
  * 修正单个章节的质量问题
  */
 async function novelFixChapter(idx) {
+    console.log('[novel-fix] 开始修正章节:', idx);
+
     const ch = novelState.chapters[idx];
     if (!ch || ch.status !== 'done') {
         showToast('章节不存在或未完成');
@@ -1030,6 +1032,7 @@ async function novelFixChapter(idx) {
     }
 
     showToast('正在修正章节...');
+    console.log('[novel-fix] 评估结果:', evaluation);
 
     try {
         // 构建修正提示
