@@ -129,10 +129,11 @@ ${previousContext ? `【前情提要】\n${previousContext}\n` : ''}
 - 结尾要让人想看下一集
 - 严禁与前面集数重复相似的情节和对话`;
 
-    const result = await callLLMAPI(prompt, {
-        model: 'deepseek-chat',
+    const result = await callWriterLLM(prompt, {
+        model: model,
         maxTokens: 2048,
-        temperature: 0.9
+        temperature: 0.9,
+        useMemory: useMemory
     });
 
     return result;
