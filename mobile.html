@@ -14232,8 +14232,8 @@ ${story}
 
                             // 如果没有按钮选择，则从文本识别意图
                             if (!selectedIntent) {
-                                // 优先匹配搜索
-                                if (/搜索|查询|找.*资料|帮我找|search/i.test(text)) {
+                                // 优先匹配搜索（联网查询）
+                                if (/搜索|查询|找.*资料|帮我找|search|最新|新闻|天气|股票/i.test(text)) {
                                     intent = 'search';
                                 }
                                 // 优先匹配视频（更严格的匹配）
@@ -14244,8 +14244,8 @@ ${story}
                                 else if (/^(画|生成图片|作图|帮我画|画一张|画个)/i.test(text)) {
                                     intent = 'image';
                                 }
-                                // 文案
-                                else if (/文案|写|文章|脚本|剧本|帮我写/i.test(text)) {
+                                // 文案生成（中文创作）
+                                else if (/文案|写|文章|脚本|剧本|帮我写|创作|小说|故事/i.test(text)) {
                                     intent = 'writing';
                                 }
                             }
@@ -14405,10 +14405,26 @@ ${story}
                                     addToHistory('user', text);
                                     addUserMessage(text);
 
-                                    // 智能选择模型：需要最新信息 → grok-4-fast，普通对话 → qwen3.5-plus
-                                    const needsWeb = /最新|现在|今天|今年|2026|实时|当前|新闻|天气|股票|汇率|比分/i.test(text);
-                                    const selectedModel = needsWeb ? 'grok-4-fast' : 'qwen3.5-plus';
-                                    if (needsWeb) console.log('[小卷] 检测到需要最新信息，使用 grok-4-fast');
+                                    // 智能选择模型
+                                    let selectedModel = 'qwen3.5-plus'; // 默认：中文对话
+                                    let modelTag = '';
+
+                                    // 1. 需要联网/最新信息 → grok-4-fast
+                                    if (/最新|现在|今天|今年|2026|实时|当前|新闻|天气|股票|汇率|比分/i.test(text)) {
+                                        selectedModel = 'grok-4-fast';
+                                        modelTag = ' (联网)';
+                                        console.log('[小卷] 检测到需要最新信息，使用 grok-4-fast');
+                                    }
+                                    // 2. 多模态任务（图片理解、视觉分析）→ gemini-2.0-flash-exp
+                                    else if (/看图|识别图片|分析图片|图片.*什么|这张图|看看这个|图像识别/i.test(text)) {
+                                        selectedModel = 'gemini-2.0-flash-exp';
+                                        modelTag = ' (多模态)';
+                                        console.log('[小卷] 检测到多模态任务，使用 gemini-2.0-flash-exp');
+                                    }
+                                    // 3. 默认：qwen3.5-plus（中文对话、推理）
+                                    else {
+                                        console.log('[小卷] 普通对话，使用 qwen3.5-plus');
+                                    }
 
                                     // 调用LLM回复
                                     const response = await fetch('/api/writer-llm', {
@@ -14433,10 +14449,10 @@ ${story}
                                         const icon = document.createElement('span');
                                         icon.textContent = '🤖';
 
-                                        if (selectedModel === 'grok-4-fast') {
+                                        if (modelTag) {
                                             const tag = document.createElement('span');
                                             tag.style.cssText = 'font-size:10px;color:#888;';
-                                            tag.textContent = ' (联网)';
+                                            tag.textContent = modelTag;
                                             icon.appendChild(tag);
                                         }
 
