@@ -1004,21 +1004,27 @@
         }
         /* 📱 响应式布局 - 小屏幕优化 */
         @media (max-width: 480px) {
-            /* 短剧创作工作台 - 小屏幕改为单列 */
-            #shortDramaOriginalPanel > div[style*="grid-template-columns"],
-            #shortDramaAdaptPanel > div[style*="grid-template-columns"] {
+            /* 所有两列grid布局在小屏幕改为单列 */
+            div[style*="grid-template-columns:1fr 1fr"] {
                 display: block !important;
             }
 
-            #shortDramaOriginalPanel > div[style*="grid-template-columns"] > div,
-            #shortDramaAdaptPanel > div[style*="grid-template-columns"] > div {
+            div[style*="grid-template-columns:1fr 1fr"] > div {
                 margin-bottom: 16px !important;
             }
 
-            /* 记忆选项文字进一步简化 */
-            #shortDramaOriginalPanel label[style*="justify-content:center"] span,
-            #shortDramaAdaptPanel label[style*="justify-content:center"] span {
+            /* 记忆选项文字在小屏幕上缩小 */
+            label[style*="justify-content:center"] span {
                 font-size: 12px !important;
+            }
+
+            /* 小说设置区域也优化 */
+            .novel-settings {
+                display: block !important;
+            }
+
+            .novel-settings .setting-item {
+                margin-bottom: 16px !important;
             }
         }
     </style>
