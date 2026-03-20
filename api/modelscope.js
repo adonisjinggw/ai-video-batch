@@ -763,18 +763,29 @@ async function callYunwuQwenMaxAPI(prompt, imageUrl) {
 
 /**
  * 🔧 准备参考图（下载并转换为base64）
+ * 🔧 添加缓存机制，避免重复下载同一张图片
  */
+const imageCache = new Map();  // URL -> {mimeType, data}
+
 async function prepareReferenceImage(imageUrl) {
     if (!imageUrl) return null;
 
+    // 🔧 检查缓存
+    if (imageCache.has(imageUrl)) {
+        console.log(`[modelscope] 🎨 使用缓存的参考图`);
+        return imageCache.get(imageUrl);
+    }
+
     try {
+        let result = null;
+
         if (imageUrl.startsWith('data:')) {
             const parts2 = imageUrl.split(',');
             if (parts2.length === 2) {
                 const mimeType = parts2[0].match(/:(.*);/)?.[1] || 'image/jpeg';
                 const data = parts2[1];
                 console.log(`[modelscope] 🎨 参考图为data URL`);
-                return { mimeType, data };
+                result = { mimeType, data };
             }
         } else if (imageUrl.startsWith('http')) {
             console.log(`[modelscope] 🎨 参考图为URL，开始下载转换...`);
@@ -785,10 +796,22 @@ async function prepareReferenceImage(imageUrl) {
                     const mimeType = parts2[0].match(/:(.*);/)?.[1] || 'image/jpeg';
                     const data = parts2[1];
                     console.log(`[modelscope] 🎨 参考图下载转换成功`);
-                    return { mimeType, data };
+                    result = { mimeType, data };
                 }
             }
         }
+
+        // 🔧 存入缓存（限制缓存大小，避免内存溢出）
+        if (result) {
+            if (imageCache.size > 10) {
+                // 删除最旧的缓存项
+                const firstKey = imageCache.keys().next().value;
+                imageCache.delete(firstKey);
+            }
+            imageCache.set(imageUrl, result);
+        }
+
+        return result;
     } catch (err) {
         console.error(`[modelscope] 🎨 参考图处理失败:`, err.message);
     }
@@ -1422,10 +1445,10 @@ module.exports = async function handler(req, res) {
 
             try {
                 console.log(`[modelscope] 🎨 多角度出图: 模式=${mode}, 视角数=${angles.length}, 分层=${layerEdit?.enabled}, 矢量=${vectorMode}`);
-                
+
                 const results = [];
                 const failedAngles = [];
-                
+
                 console.log(`[modelscope] 🎨 开始生成 ${angles.length} 个视角（分批并发模式，每批2个）...`);
 
                 // 🎯 分批并发执行：每批最多2个角度，避免内存/并发限制
