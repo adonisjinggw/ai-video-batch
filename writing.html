@@ -1241,7 +1241,7 @@
             <div class="novel-settings">
                 <div class="setting-item">
                     <label>题材类型</label>
-                    <select id="novelGenreSelect">
+                    <select id="novelGenreSelect" onchange="toggleCustomGenre()">
                         <option value="玄幻">🔮 玄幻</option>
                         <option value="都市">🏙️ 都市</option>
                         <option value="科幻">🚀 科幻</option>
@@ -1250,7 +1250,26 @@
                         <option value="历史">📜 历史</option>
                         <option value="武侠">⚔️ 武侠</option>
                         <option value="奇幻">🧙 奇幻</option>
+                        <option value="仙侠">⚡ 仙侠</option>
+                        <option value="修真">🌟 修真</option>
+                        <option value="网游">🎮 网游</option>
+                        <option value="竞技">🏆 竞技</option>
+                        <option value="军事">🎖️ 军事</option>
+                        <option value="谍战">🕵️ 谍战</option>
+                        <option value="灵异">👻 灵异</option>
+                        <option value="恐怖">😱 恐怖</option>
+                        <option value="推理">🔎 推理</option>
+                        <option value="职场">💼 职场</option>
+                        <option value="商战">💰 商战</option>
+                        <option value="娱乐">🎬 娱乐</option>
+                        <option value="体育">⚽ 体育</option>
+                        <option value="二次元">🎨 二次元</option>
+                        <option value="同人">📚 同人</option>
+                        <option value="轻小说">📖 轻小说</option>
+                        <option value="custom">✏️ 自定义...</option>
                     </select>
+                    <input type="text" id="customGenreInput" placeholder="输入自定义类型，如：末世求生、星际穿越..."
+                        style="display:none;margin-top:8px;width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;font-size:13px;">
                 </div>
                 <div class="setting-item">
                     <label>目标章节数</label>
@@ -1800,6 +1819,18 @@
             const input = document.getElementById('customLengthInput');
             if (sel && input) {
                 input.style.display = sel.value === 'custom' ? 'block' : 'none';
+            }
+        }
+
+        // 🆕 自定义题材类型输入框显隐控制
+        function toggleCustomGenre() {
+            const sel = document.getElementById('novelGenreSelect');
+            const input = document.getElementById('customGenreInput');
+            if (sel && input) {
+                input.style.display = sel.value === 'custom' ? 'block' : 'none';
+                if (sel.value === 'custom') {
+                    input.focus();
+                }
             }
         }
 
@@ -2866,7 +2897,12 @@
             if (!theme) { showToast('请输入小说主题'); return; }
             if (userQuota < NOVEL_OUTLINE_COST) { showToast('胶片不足'); return; }
 
-            const genre = document.getElementById('novelGenreSelect').value;
+            const genreSelect = document.getElementById('novelGenreSelect');
+            let genre = genreSelect.value;
+            if (genre === 'custom') {
+                const customGenre = document.getElementById('customGenreInput').value.trim();
+                genre = customGenre || '自定义';
+            }
             const _ccSel = document.getElementById('novelChapterCount');
             let chapterCount = parseInt(_ccSel.value);
             if (_ccSel.value === 'custom' || isNaN(chapterCount)) {
@@ -3033,7 +3069,12 @@
             _novelUpdateProgress();
 
             const chapterLen = document.getElementById('novelChapterLength').value;
-            const genre = document.getElementById('novelGenreSelect').value;
+            const genreSelect = document.getElementById('novelGenreSelect');
+            let genre = genreSelect.value;
+            if (genre === 'custom') {
+                const customGenre = document.getElementById('customGenreInput').value.trim();
+                genre = customGenre || '自定义';
+            }
 
             // 优先使用增强版上下文构建（novel-engine.js），否则本地构建
             let context = '';
@@ -3094,7 +3135,12 @@
                 try {
                     if (window.UserMemory) {
                         const model = document.getElementById('novelModelSelect').value;
-                        const genre = document.getElementById('novelGenreSelect').value;
+                        const genreSelect = document.getElementById('novelGenreSelect');
+            let genre = genreSelect.value;
+            if (genre === 'custom') {
+                const customGenre = document.getElementById('customGenreInput').value.trim();
+                genre = customGenre || '自定义';
+            }
                         window.UserMemory.recordModel('text', model);
                         window.UserMemory.recordTopic(theme);
                         window.UserMemory.recordSkillUse('novel_writing', { style: genre });
