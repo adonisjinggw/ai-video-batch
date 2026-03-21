@@ -366,6 +366,12 @@ async function generateOriginalShortDrama() {
     try {
         // 1. 生成大纲
         const outlineText = await generateShortDramaOutline(theme, genre, episodeCount, model, useMemory, style);
+
+        // 大纲生成完成，更新进度
+        if (progressLabel) progressLabel.textContent = '大纲生成完成，正在解析...';
+        if (progressPercent) progressPercent.textContent = '50%';
+        if (progressFill) progressFill.style.width = '50%';
+
         const episodes = parseShortDramaOutline(outlineText);
 
         if (episodes.length === 0) {
@@ -375,6 +381,11 @@ async function generateOriginalShortDrama() {
         shortDramaState.episodes = episodes;
         renderShortDramaEpisodeList();
         updateShortDramaProgress();
+
+        // 完成
+        if (progressLabel) progressLabel.textContent = `✅ 大纲生成完成（${episodes.length}集）`;
+        if (progressPercent) progressPercent.textContent = '100%';
+        if (progressFill) progressFill.style.width = '100%';
 
         showToast(`✅ 大纲生成完成（${episodes.length}集）`);
 
