@@ -64,7 +64,8 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
         realistic: '贴近生活，真实细腻，情感共鸣',
         poetic: '文艺唯美，意境深远，诗意浪漫',
         thriller: '惊悚刺激，紧张压抑，扣人心弦',
-        inspirational: '励志向上，正能量满满，温暖治愈'
+        inspirational: '励志向上，正能量满满，温暖治愈',
+        tragic: '虐心悲情，催泪虐恋，情感虐心，悲剧色彩浓厚'
     };
     const styleDesc = styleDescriptions[style] || styleDescriptions.normal;
 
