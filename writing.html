@@ -2736,10 +2736,12 @@
             if (model.startsWith('openrouter:')) {
                 const openrouterModel = model.replace('openrouter:', '');
                 console.log('[novel] 使用 OpenRouter 模型:', openrouterModel);
-                
+
+                // OpenRouter 使用固定85秒超时，避免Cloudflare 100秒限制
+                const openrouterTimeout = 85000;
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), timeout);
-                
+                const timer = setTimeout(() => controller.abort(), openrouterTimeout);
+
                 try {
                     const res = await fetch('/api/modelscope', {
                         method: 'POST',
@@ -2749,18 +2751,19 @@
                             model: openrouterModel,
                             messages: messages,
                             userId: currentUser?.id
-                        })
+                        }),
+                        signal: controller.signal
                     });
                     clearTimeout(timer);
-                    
+
                     if (!res.ok) {
                         const errData = await res.json().catch(() => ({}));
                         throw new Error(errData?.message || errData?.error || `HTTP ${res.status}`);
                     }
-                    
+
                     const data = await res.json();
                     if (data.error) throw new Error(data.message || data.error);
-                    
+
                     return data.content || '';
                 } catch (err) {
                     clearTimeout(timer);
