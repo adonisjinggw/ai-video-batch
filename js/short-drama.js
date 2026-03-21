@@ -192,12 +192,15 @@ ${novelContent.substring(0, 10000)}...
  * 解析短剧大纲
  */
 function parseShortDramaOutline(outlineText) {
+    console.log('[short-drama] 开始解析大纲，原文长度:', outlineText.length);
+    console.log('[short-drama] 大纲前500字:', outlineText.substring(0, 500));
+
     const episodes = [];
     const lines = outlineText.split('\n').filter(line => line.trim());
 
     for (const line of lines) {
-        // 匹配格式：第X集：标题 - 剧情
-        const match = line.match(/第(\d+)集[：:]\s*(.+?)\s*[-—]\s*(.+)/);
+        // 匹配格式：第X集：标题 - 剧情 或 第X集 标题 - 剧情
+        const match = line.match(/第(\d+)集[：:\s]*(.+?)\s*[-—–]\s*(.+)/);
         if (match) {
             episodes.push({
                 index: parseInt(match[1]) - 1,
@@ -209,6 +212,11 @@ function parseShortDramaOutline(outlineText) {
                 duration: 0
             });
         }
+    }
+
+    console.log('[short-drama] 解析结果: 共', episodes.length, '集');
+    if (episodes.length > 0) {
+        console.log('[short-drama] 第一集:', episodes[0]);
     }
 
     return episodes;
