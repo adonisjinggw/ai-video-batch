@@ -1948,13 +1948,13 @@
 
             // 🔧 优化后的提示词：要求简洁、无冗余、符合人类阅读习惯
             const typePromptMap = {
-                story: `请根据以下主题创作一个故事：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出故事正文，不要任何标题、选项、方案说明\n3. 语言简洁流畅，避免冗余修饰\n4. 不要分多个版本或选项`,
-                article: `请根据以下主题写一篇文章：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出文章正文，不要分析说明或多个版本\n3. 结构清晰，段落分明，易于阅读`,
-                script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出剧本，包含角色对话和简洁的场景描述\n3. 不要写创意分析或多个版本`,
-                poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，可以是现代诗或古诗词\n2. 直接输出诗词正文\n3. 不要写解析或多个版本`,
-                copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，吸引人，有创意\n2. 直接输出一个精炼的文案，不要多个版本或选项\n3. 简洁有力，避免冗长`,
-                continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明`,
-                paper: `请根据以下题目撰写一篇学术论文：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 包含摘要、关键词、引言、正文（分章节）、结论、参考文献\n3. 语言严谨规范，逻辑清晰，论据充分\n4. 直接输出论文正文，不要元评论`
+                story: `请根据以下主题创作一个故事：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出故事正文，不要任何标题、选项、方案说明\n3. 语言简洁流畅，避免冗余修饰\n4. 不要分多个版本或选项\n5. **全文使用中文，严禁出现英文单词**`,
+                article: `请根据以下主题写一篇文章：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出文章正文，不要分析说明或多个版本\n3. 结构清晰，段落分明，易于阅读\n4. **全文使用中文，严禁出现英文单词**`,
+                script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出剧本，包含角色对话和简洁的场景描述\n3. 不要写创意分析或多个版本\n4. **全文使用中文，严禁出现英文单词**`,
+                poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，可以是现代诗或古诗词\n2. 直接输出诗词正文\n3. 不要写解析或多个版本\n4. **全文使用中文，严禁出现英文单词**`,
+                copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，吸引人，有创意\n2. 直接输出一个精炼的文案，不要多个版本或选项\n3. 简洁有力，避免冗长\n4. **全文使用中文，严禁出现英文单词**`,
+                continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明\n4. **全文使用中文，严禁出现英文单词**`,
+                paper: `请根据以下题目撰写一篇学术论文：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 包含摘要、关键词、引言、正文（分章节）、结论、参考文献\n3. 语言严谨规范，逻辑清晰，论据充分\n4. 直接输出论文正文，不要元评论\n5. **全文使用中文，严禁出现英文单词**`
             };
 
             try {
@@ -2113,13 +2113,13 @@
             // 🔧 优化后的提示词生成函数（支持独立参数：类型、风格、长度）
             const buildPrompt = (input, type, style, length) => {
                 const basePrompts = {
-                    story: `请根据以下主题创作一个故事：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出故事正文，不要任何标题、选项、方案说明\n3. 语言简洁流畅，避免冗余修饰\n4. 不要分多个版本或选项`,
-                    article: `请根据以下主题写一篇文章：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出文章正文，不要分析说明或多个版本\n3. 结构清晰，段落分明，易于阅读`,
-                    script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出剧本，包含角色对话和简洁的场景描述\n3. 不要写创意分析或多个版本`,
-                    poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，可以是现代诗或古诗词\n2. 直接输出诗词正文\n3. 不要写解析或多个版本`,
-                    copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，吸引人，有创意\n2. 直接输出一个精炼的文案，不要多个版本或选项\n3. 简洁有力，避免冗长`,
-                    continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明`,
-                    paper: `请根据以下题目撰写一篇学术论文：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 包含摘要、关键词、引言、正文（分章节）、结论、参考文献\n3. 语言严谨规范，逻辑清晰，论据充分\n4. 直接输出论文正文，不要元评论`
+                    story: `请根据以下主题创作一个故事：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出故事正文，不要任何标题、选项、方案说明\n3. 语言简洁流畅，避免冗余修饰\n4. 不要分多个版本或选项\n5. **全文使用中文，严禁出现英文单词**`,
+                    article: `请根据以下主题写一篇文章：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出文章正文，不要分析说明或多个版本\n3. 结构清晰，段落分明，易于阅读\n4. **全文使用中文，严禁出现英文单词**`,
+                    script: `请根据以下场景写一段剧本对话：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接输出剧本，包含角色对话和简洁的场景描述\n3. 不要写创意分析或多个版本\n4. **全文使用中文，严禁出现英文单词**`,
+                    poem: `请根据以下意境创作诗词：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，可以是现代诗或古诗词\n2. 直接输出诗词正文\n3. 不要写解析或多个版本\n4. **全文使用中文，严禁出现英文单词**`,
+                    copy: `请根据以下信息写营销文案：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，吸引人，有创意\n2. 直接输出一个精炼的文案，不要多个版本或选项\n3. 简洁有力，避免冗长\n4. **全文使用中文，严禁出现英文单词**`,
+                    continue: `请续写以下内容：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 直接续写，保持风格一致\n3. 不要重复原文或写说明\n4. **全文使用中文，严禁出现英文单词**`,
+                    paper: `请根据以下题目撰写一篇学术论文：\n\n${input}\n\n要求：\n1. ${styleMap[style]}，${lengthMap[length]}\n2. 包含摘要、关键词、引言、正文（分章节）、结论、参考文献\n3. 语言严谨规范，逻辑清晰，论据充分\n4. 直接输出论文正文，不要元评论\n5. **全文使用中文，严禁出现英文单词**`
                 };
                 return basePrompts[type] || basePrompts.story;
             };

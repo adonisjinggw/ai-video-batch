@@ -55,6 +55,8 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
 
     const prompt = `你是一位专业的短剧编剧。请为以下主题创作一部${episodeCount}集的短剧大纲。
 
+**重要规则：全文必须使用中文，严禁出现任何英文单词、拼音或字母。**
+
 主题：${theme}
 类型：${genreConfig.name}
 风格：${styleDesc}
@@ -79,7 +81,8 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
 - 每集标题要吸引人，体现核心冲突
 - 剧情要环环相扣，层层递进
 - 避免重复套路，每集都有新看点
-- 结局要有反转或升华`;
+- 结局要有反转或升华
+- **全文使用中文，不得出现英文单词**`;
 
     const result = await _novelLLM([
         { role: 'user', content: prompt }
@@ -104,6 +107,8 @@ async function generateShortDramaEpisode(episodeIndex, outline, previousContext 
     const genreConfig = SHORT_DRAMA_GENRES[shortDramaState.genre] || SHORT_DRAMA_GENRES['urban'];
 
     const prompt = `你是一位专业的短剧编剧。请创作第${episodeIndex + 1}集的完整剧本。
+
+**重要规则：全文必须使用中文，严禁出现任何英文单词、拼音或字母。**
 
 【剧本信息】
 主题：${shortDramaState.theme}
@@ -137,7 +142,8 @@ ${previousContext ? `【前情提要】\n${previousContext}\n` : ''}
 - 每个场景要有视觉冲击力
 - 冲突要激烈，情绪要饱满
 - 结尾要让人想看下一集
-- 严禁与前面集数重复相似的情节和对话`;
+- 严禁与前面集数重复相似的情节和对话
+- **全文使用中文，不得出现英文单词**`;
 
     const result = await callWriterLLM(prompt, {
         model: model,
@@ -157,6 +163,8 @@ ${previousContext ? `【前情提要】\n${previousContext}\n` : ''}
 async function adaptNovelToShortDrama(novelContent, episodeCount, model = 'qwen3.5-plus', useMemory = true) {
     const prompt = `你是一位专业的短剧改编编剧。请将以下小说内容改编为${episodeCount}集的短剧大纲。
 
+**重要规则：全文必须使用中文，严禁出现任何英文单词、拼音或字母。**
+
 【原小说内容】
 ${novelContent.substring(0, 10000)}...
 
@@ -170,6 +178,13 @@ ${novelContent.substring(0, 10000)}...
 【输出格式】
 第1集：[标题] - [一句话剧情]
 第2集：[标题] - [一句话剧情]
+...
+
+【要求】
+- 每集标题要吸引人
+- 剧情要环环相扣
+- 结局要有反转
+- **全文使用中文，不得出现英文单词**`;
 ...
 
 要求：
