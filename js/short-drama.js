@@ -23,7 +23,17 @@ const SHORT_DRAMA_GENRES = {
     'revenge': { name: '复仇逆袭', tags: ['复仇', '逆袭', '打脸'], rhythm: 'very-fast' },
     'fantasy': { name: '玄幻修仙', tags: ['修仙', '异能', '穿越'], rhythm: 'fast' },
     'romance': { name: '甜宠言情', tags: ['霸总', '甜宠', '虐恋'], rhythm: 'medium' },
-    'suspense': { name: '悬疑推理', tags: ['悬疑', '推理', '反转'], rhythm: 'fast' }
+    'suspense': { name: '悬疑推理', tags: ['悬疑', '推理', '反转'], rhythm: 'fast' },
+    'ceo': { name: '霸总豪门', tags: ['霸总', '豪门', '契约'], rhythm: 'fast' },
+    'rebirth': { name: '重生逆袭', tags: ['重生', '逆袭', '复仇'], rhythm: 'very-fast' },
+    'medical': { name: '医疗救赎', tags: ['医生', '救赎', '温情'], rhythm: 'medium' },
+    'military': { name: '军旅铁血', tags: ['军人', '热血', '兄弟'], rhythm: 'fast' },
+    'ancient': { name: '古装宫斗', tags: ['宫斗', '权谋', '爱恨'], rhythm: 'fast' },
+    'campus': { name: '校园青春', tags: ['校园', '青春', '初恋'], rhythm: 'medium' },
+    'supernatural': { name: '灵异奇幻', tags: ['灵异', '奇幻', '冒险'], rhythm: 'fast' },
+    'business': { name: '商战谋略', tags: ['商战', '谋略', '权力'], rhythm: 'fast' },
+    'family': { name: '家庭伦理', tags: ['家庭', '亲情', '矛盾'], rhythm: 'medium' },
+    'comedy': { name: '喜剧搞笑', tags: ['喜剧', '搞笑', '轻松'], rhythm: 'fast' }
 };
 
 // 短剧标准规则
