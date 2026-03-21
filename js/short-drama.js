@@ -41,13 +41,23 @@ const SHORT_DRAMA_RULES = {
 /**
  * 生成短剧大纲
  */
-async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qwen3.5-plus', useMemory = true) {
+async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qwen3.5-plus', useMemory = true, style = 'normal') {
     const genreConfig = SHORT_DRAMA_GENRES[genre] || SHORT_DRAMA_GENRES['urban'];
+
+    const styleDescriptions = {
+        normal: '节奏适中，情节合理',
+        intense: '节奏紧凑，冲突激烈，情绪饱满',
+        sweet: '温馨甜蜜，浪漫温情，少冲突多甜宠',
+        suspenseful: '悬念迭起，反转不断，气氛紧张',
+        humorous: '轻松幽默，诙谐搞笑，娱乐性强'
+    };
+    const styleDesc = styleDescriptions[style] || styleDescriptions.normal;
 
     const prompt = `你是一位专业的短剧编剧。请为以下主题创作一部${episodeCount}集的短剧大纲。
 
 主题：${theme}
 类型：${genreConfig.name}
+风格：${styleDesc}
 集数：${episodeCount}集
 每集时长：约90秒（350字左右）
 
@@ -315,9 +325,18 @@ async function startShortDramaGeneration() {
 async function generateOriginalShortDrama() {
     const theme = document.getElementById('shortDramaTheme').value.trim();
     const genre = document.getElementById('shortDramaGenre').value;
+    const style = document.getElementById('shortDramaStyle')?.value || 'normal';
     const episodeCount = parseInt(document.getElementById('shortDramaEpisodeCount').value);
     const model = document.getElementById('shortDramaModel')?.value || 'qwen3.5-plus';
     const useMemory = document.querySelector('input[name="shortDramaMemory"]:checked')?.value === 'true';
+
+    console.log('🎬 [short-drama] 开始生成短剧');
+    console.log('  主题:', theme);
+    console.log('  类型:', genre);
+    console.log('  风格:', style);
+    console.log('  集数:', episodeCount);
+    console.log('  模型:', model);
+    console.log('  使用记忆:', useMemory);
 
     if (!theme) {
         showToast('请输入短剧主题');
@@ -326,6 +345,7 @@ async function generateOriginalShortDrama() {
 
     shortDramaState.theme = theme;
     shortDramaState.genre = genre;
+    shortDramaState.style = style;
     shortDramaState.totalEpisodes = episodeCount;
     shortDramaState.model = model;
     shortDramaState.useMemory = useMemory;
@@ -345,7 +365,7 @@ async function generateOriginalShortDrama() {
 
     try {
         // 1. 生成大纲
-        const outlineText = await generateShortDramaOutline(theme, genre, episodeCount, model, useMemory);
+        const outlineText = await generateShortDramaOutline(theme, genre, episodeCount, model, useMemory, style);
         const episodes = parseShortDramaOutline(outlineText);
 
         if (episodes.length === 0) {
