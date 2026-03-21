@@ -89,7 +89,7 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
     ], {
         maxTokens: 4096,
         temperature: 0.9,
-        timeout: 180000,  // 🔧 增加到180秒，避免大纲生成超时
+        timeout: 85000,  // 🔧 85秒，避免Cloudflare 100秒限制
         model: model,
         useMemory: useMemory
     });
