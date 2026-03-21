@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>✍️ AI写作 - RollRoll</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
@@ -1013,9 +1016,9 @@
                 margin-bottom: 16px !important;
             }
 
-            /* 普通写作设置区域改为单列 */
-            .settings-row {
-                display: block !important;
+            /* 普通写作设置区域改为单列 - 不使用!important避免覆盖JS的display:none */
+            .settings-row:not([style*="display: none"]) {
+                display: block;
             }
 
             .settings-row .setting-item {
