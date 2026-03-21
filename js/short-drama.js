@@ -69,15 +69,35 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
     };
     const styleDesc = styleDescriptions[style] || styleDescriptions.normal;
 
-    const prompt = `你是一位专业的短剧编剧。请为以下主题创作一部${episodeCount}集的短剧大纲。
+    // 🔧 分批生成，避免超时（每批30集）
+    const BATCH_SIZE = 30;
+    const batches = Math.ceil(episodeCount / BATCH_SIZE);
+    let allOutlines = [];
+
+    for (let batchIdx = 0; batchIdx < batches; batchIdx++) {
+        const from = batchIdx * BATCH_SIZE + 1;
+        const to = Math.min((batchIdx + 1) * BATCH_SIZE, episodeCount);
+        const batchSize = to - from + 1;
+
+        console.log(`[short-drama] 生成第${from}-${to}集大纲 (${batchIdx + 1}/${batches})`);
+
+        // 如果是后续批次，提供前文衔接
+        let prevContext = '';
+        if (batchIdx > 0 && allOutlines.length > 0) {
+            const lastFew = allOutlines.slice(-3).join('\n');
+            prevContext = `\n\n【前文衔接】\n${lastFew}\n`;
+        }
+
+        const prompt = `你是一位专业的短剧编剧。请为以下主题创作第${from}-${to}集的短剧大纲。
 
 **重要规则：全文必须使用中文，严禁出现任何英文单词、拼音或字母。**
 
 主题：${theme}
 类型：${genreConfig.name}
 风格：${styleDesc}
-集数：${episodeCount}集
-每集时长：约90秒（350字左右）
+总集数：${episodeCount}集
+当前生成：第${from}-${to}集
+每集时长：约90秒（350字左右）${prevContext}
 
 短剧创作规则：
 1. 节奏要快，每集必须有明确的冲突或反转
@@ -89,28 +109,34 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
 7. 人物性格鲜明，矛盾冲突激烈
 
 请输出格式：
-第1集：[标题] - [一句话剧情]
-第2集：[标题] - [一句话剧情]
+第${from}集：[标题] - [一句话剧情]
+第${from + 1}集：[标题] - [一句话剧情]
 ...
 
 要求：
 - 每集标题要吸引人，体现核心冲突
 - 剧情要环环相扣，层层递进
 - 避免重复套路，每集都有新看点
-- 结局要有反转或升华
+- ${batchIdx === batches - 1 ? '结局要有反转或升华' : '承接前文，为后续剧情铺垫'}
 - **全文使用中文，不得出现英文单词**`;
 
-    const result = await _novelLLM([
-        { role: 'user', content: prompt }
-    ], {
-        maxTokens: 4096,
-        temperature: 0.9,
-        timeout: 70000,  // 🔧 70秒，确保重试后也不超过Cloudflare 100秒限制
-        model: model,
-        useMemory: useMemory
-    });
+        const result = await _novelLLM([
+            { role: 'user', content: prompt }
+        ], {
+            maxTokens: 2048,
+            temperature: 0.9,
+            timeout: 60000,  // 🔧 单批60秒足够
+            retries: 1,
+            model: model,
+            useMemory: useMemory
+        });
 
-    return result;
+        // 收集本批次的大纲
+        const lines = result.split('\n').filter(line => line.trim() && /第\s*\d+\s*集/.test(line));
+        allOutlines.push(...lines);
+    }
+
+    return allOutlines.join('\n');
 }
 
 /**
