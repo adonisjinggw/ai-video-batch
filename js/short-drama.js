@@ -337,13 +337,19 @@ function switchShortDramaMode(mode) {
 
     const originalPanel = document.getElementById('shortDramaOriginalPanel');
     const adaptPanel = document.getElementById('shortDramaAdaptPanel');
+    const originalBtn = document.getElementById('shortDramaOriginalBtn');
+    const adaptBtn = document.getElementById('shortDramaAdaptBtn');
 
     if (mode === 'original') {
         originalPanel.style.display = 'block';
         adaptPanel.style.display = 'none';
+        originalBtn.classList.add('active');
+        adaptBtn.classList.remove('active');
     } else {
         originalPanel.style.display = 'none';
         adaptPanel.style.display = 'block';
+        originalBtn.classList.remove('active');
+        adaptBtn.classList.add('active');
     }
 }
 
