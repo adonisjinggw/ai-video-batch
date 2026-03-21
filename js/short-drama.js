@@ -100,7 +100,7 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
 /**
  * 生成单集短剧内容
  */
-async function generateShortDramaEpisode(episodeIndex, outline, previousContext = '') {
+async function generateShortDramaEpisode(episodeIndex, outline, previousContext = '', model = 'qwen3.5-plus', useMemory = true) {
     const ep = shortDramaState.episodes[episodeIndex];
     if (!ep) throw new Error('集数不存在');
 
@@ -522,7 +522,7 @@ async function generateAllShortDramaEpisodes() {
                 .map(e => `第${e.index + 1}集：${e.title}\n${e.content.substring(0, 200)}...`)
                 .join('\n\n');
 
-            const content = await generateShortDramaEpisode(i, ep.outline, prevContext);
+            const content = await generateShortDramaEpisode(i, ep.outline, prevContext, shortDramaState.model, shortDramaState.useMemory);
 
             ep.content = content;
             ep.wordCount = content.length;
