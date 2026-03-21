@@ -185,15 +185,8 @@ ${novelContent.substring(0, 10000)}...
 - 剧情要环环相扣
 - 结局要有反转
 - **全文使用中文，不得出现英文单词**`;
-...
 
-要求：
-- 每集标题要吸引人
-- 剧情要紧凑，不拖沓
-- 冲突要激烈，反转要多
-- 结局要有升华`;
-
-    const result = await callLLMAPI(prompt, {
+    const result = await callWriterLLM(prompt, {
         model: model,
         maxTokens: 4096,
         temperature: 0.8,
