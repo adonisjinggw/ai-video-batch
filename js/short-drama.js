@@ -199,8 +199,8 @@ function parseShortDramaOutline(outlineText) {
     const lines = outlineText.split('\n').filter(line => line.trim());
 
     for (const line of lines) {
-        // 匹配格式：第X集：标题 - 剧情 或 第X集 标题 - 剧情
-        const match = line.match(/第(\d+)集[：:\s]*(.+?)\s*[-—–]\s*(.+)/);
+        // 匹配格式：第 X 集：标题 - 剧情（支持空格）
+        const match = line.match(/第\s*(\d+)\s*集[：:\s]*(.+?)\s*[-—–]\s*(.+)/);
         if (match) {
             episodes.push({
                 index: parseInt(match[1]) - 1,
