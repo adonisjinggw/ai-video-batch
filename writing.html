@@ -2953,7 +2953,7 @@
                 const skeleton = await _novelLLM([
                     { role: 'system', content: `你是${genre}长篇小说架构师，擅长设计宏大叙事结构和角色成长线。全文使用中文，严禁混入英文单词。` },
                     { role: 'user', content: skeletonPrompt }
-                ], { maxTokens: 4096, temperature: 0.9, timeout: 120000, retries: 1 });
+                ], { maxTokens: 4096, temperature: 0.9, timeout: 90000, retries: 2 });
 
                 novelState.outline = skeleton;
                 console.log('[novel] 阶段1完成：故事骨架已生成');
@@ -2967,7 +2967,7 @@
                     const detailResult = await _novelLLM([
                         { role: 'system', content: `你是${genre}小说大纲策划师。全文使用中文，严禁混入英文单词。` },
                         { role: 'user', content: detailPrompt }
-                    ], { maxTokens: 8192, temperature: 0.85, timeout: 150000, retries: 1 });
+                    ], { maxTokens: 8192, temperature: 0.85, timeout: 90000, retries: 2 });
 
                     novelState.outline += '\n\n【章节大纲】\n' + detailResult;
                     _novelParseChapters(detailResult, 0, chapterCount);
@@ -2994,7 +2994,7 @@
                         const batchResult = await _novelLLM([
                             { role: 'system', content: `你是${genre}小说大纲策划师，严格按照给定的故事弧线展开章节。全文使用中文，严禁混入英文单词。` },
                             { role: 'user', content: batchPrompt }
-                        ], { maxTokens: 8192, temperature: 0.85, timeout: 150000, retries: 1 });
+                        ], { maxTokens: 8192, temperature: 0.85, timeout: 90000, retries: 2 });
 
                         novelState.outline += '\n\n' + batchResult;
                         _novelParseChapters(batchResult, from, batchSize);
