@@ -59,7 +59,12 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
         intense: '节奏紧凑，冲突激烈，情绪饱满',
         sweet: '温馨甜蜜，浪漫温情，少冲突多甜宠',
         suspenseful: '悬念迭起，反转不断，气氛紧张',
-        humorous: '轻松幽默，诙谐搞笑，娱乐性强'
+        humorous: '轻松幽默，诙谐搞笑，娱乐性强',
+        dramatic: '戏剧张力强，情感浓烈，高潮迭起',
+        realistic: '贴近生活，真实细腻，情感共鸣',
+        poetic: '文艺唯美，意境深远，诗意浪漫',
+        thriller: '惊悚刺激，紧张压抑，扣人心弦',
+        inspirational: '励志向上，正能量满满，温暖治愈'
     };
     const styleDesc = styleDescriptions[style] || styleDescriptions.normal;
 
