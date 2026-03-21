@@ -1004,18 +1004,22 @@
         }
         /* 📱 响应式布局 - 小屏幕优化 */
         @media (max-width: 480px) {
-            /* 仅针对记忆选项的两列布局 */
-            #memoryOptions[style*="grid-template-columns"] {
-                display: block !important;
+            /* 记忆选项的flex布局改为竖向 */
+            .setting-item > div[style*="display:flex;gap:8px"] {
+                flex-direction: column !important;
             }
 
-            #memoryOptions > label {
-                margin-bottom: 12px !important;
+            .setting-item > div[style*="display:flex;gap:8px"] > label {
+                width: 100% !important;
             }
 
-            /* 记忆选项文字在小屏幕上缩小 */
-            #memoryOptions label span {
-                font-size: 12px !important;
+            /* 小说/短剧的记忆选项 */
+            .novel-input-group > div[style*="display:flex;gap:8px"] {
+                flex-direction: column !important;
+            }
+
+            .novel-input-group > div[style*="display:flex;gap:8px"] > label {
+                width: 100% !important;
             }
         }
     </style>
