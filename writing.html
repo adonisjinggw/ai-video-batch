@@ -2729,7 +2729,7 @@
         async function _novelLLM(messages, opts = {}) {
             const model = document.getElementById('novelModelSelect').value;
             const maxRetries = opts.retries !== undefined ? opts.retries : 1;
-            const timeout = opts.timeout || 90000;
+            const timeout = opts.timeout || 70000;  // 🔧 70秒，确保重试后也不超过Cloudflare 100秒限制
             const useStream = opts.stream === true;
 
             // 🚀 OpenRouter 模型特殊处理
@@ -2737,8 +2737,8 @@
                 const openrouterModel = model.replace('openrouter:', '');
                 console.log('[novel] 使用 OpenRouter 模型:', openrouterModel);
 
-                // OpenRouter 使用固定85秒超时，避免Cloudflare 100秒限制
-                const openrouterTimeout = 85000;
+                // OpenRouter 使用固定70秒超时，确保重试后也不超过Cloudflare 100秒限制
+                const openrouterTimeout = 70000;
                 const controller = new AbortController();
                 const timer = setTimeout(() => controller.abort(), openrouterTimeout);
 
