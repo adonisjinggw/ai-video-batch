@@ -380,13 +380,17 @@
     async function callWriterLLM(messages, opts = {}) {
         let userId = await getCurrentUserId();
 
-        // 🧠 注入用户记忆到 system prompt
-        if (typeof getUserMemoryPrompt === 'function' && Array.isArray(messages) && messages.length > 0) {
+        // 🧠 注入用户记忆到 system prompt（仅当 useMemory 为 true 时）
+        const useMemory = opts.useMemory !== false; // 默认为 true，除非明确设置为 false
+        if (useMemory && typeof getUserMemoryPrompt === 'function' && Array.isArray(messages) && messages.length > 0) {
             const memPrompt = getUserMemoryPrompt();
             if (memPrompt && messages[0] && messages[0].role === 'system') {
                 messages = messages.slice();
                 messages[0] = { ...messages[0], content: memPrompt + '\n' + messages[0].content };
+                console.log('🧠 [api-core] 已注入用户记忆');
             }
+        } else if (!useMemory) {
+            console.log('🚫 [api-core] 用户选择不使用记忆，跳过记忆注入');
         }
 
         const payload = {
@@ -414,13 +418,16 @@
     /**
      * 📝 剧本生成器（自动选择最佳通道）
      */
-    async function callScriptGenerator(idea, prompt) {
-        // 🧠 注入用户记忆到 prompt 前
-        if (typeof getUserMemoryPrompt === 'function') {
+    async function callScriptGenerator(idea, prompt, useMemory = true) {
+        // 🧠 注入用户记忆到 prompt 前（仅当 useMemory 为 true 时）
+        if (useMemory && typeof getUserMemoryPrompt === 'function') {
             const memPrompt = getUserMemoryPrompt();
             if (memPrompt && prompt) {
                 prompt = memPrompt + '\n' + prompt;
+                console.log('🧠 [api-core] 已注入用户记忆到剧本生成');
             }
+        } else if (!useMemory) {
+            console.log('🚫 [api-core] 用户选择不使用记忆，跳过记忆注入');
         }
 
         const s = (idea && idea.settings) ? idea.settings : {};
