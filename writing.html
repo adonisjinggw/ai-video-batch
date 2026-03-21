@@ -2768,28 +2768,34 @@
                 }
             }
 
-            
+
             const isYunwu = model.startsWith('yunwu:');
 
-            // 🧠 注入用户记忆到 messages
+            // 🧠 注入用户记忆到 messages（仅当 useMemory 为 true 时）
             let finalMessages = messages;
-            try {
-                const memoryPrompt = window.getUserMemoryPrompt();
-                if (memoryPrompt && Array.isArray(finalMessages) && finalMessages.length > 0) {
-                    // 在第一条消息前添加记忆
-                    const firstMsg = finalMessages[0];
-                    if (firstMsg.role === 'system') {
-                        firstMsg.content = memoryPrompt + '\n\n' + firstMsg.content;
-                    } else {
-                        finalMessages = [
-                            { role: 'system', content: memoryPrompt },
-                            ...finalMessages
-                        ];
+            const useMemory = opts.useMemory !== false; // 默认为 true，除非明确设置为 false
+
+            if (useMemory) {
+                try {
+                    const memoryPrompt = window.getUserMemoryPrompt();
+                    if (memoryPrompt && Array.isArray(finalMessages) && finalMessages.length > 0) {
+                        // 在第一条消息前添加记忆
+                        const firstMsg = finalMessages[0];
+                        if (firstMsg.role === 'system') {
+                            firstMsg.content = memoryPrompt + '\n\n' + firstMsg.content;
+                        } else {
+                            finalMessages = [
+                                { role: 'system', content: memoryPrompt },
+                                ...finalMessages
+                            ];
+                        }
+                        console.log('🧠 [小说创作] 已注入用户记忆');
                     }
-                    console.log('🧠 [小说创作] 已注入用户记忆');
+                } catch (e) {
+                    console.warn('🧠 [小说创作] 记忆注入失败:', e);
                 }
-            } catch (e) {
-                console.warn('🧠 [小说创作] 记忆注入失败:', e);
+            } else {
+                console.log('🚫 [小说创作] 用户选择不使用记忆，跳过记忆注入');
             }
 
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
