@@ -675,7 +675,7 @@ function renderShortDramaEpisodeList() {
         const scoreText = ep._evaluation ? `${ep._evaluation.score}分` : '';
 
         return `
-            <div class="episode-item ${ep.status}" onclick="viewShortDramaEpisode(${i})">
+            <div class="novel-chapter-item ${ep.status}" onclick="viewShortDramaEpisode(${i})">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <div>
                         <span style="margin-right:8px;">${statusIcon}</span>
