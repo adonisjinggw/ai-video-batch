@@ -7,6 +7,7 @@
     <title>🧩 提示词填空 - RollRoll</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
+    <script src="/js/prompt-templates.js?v=20260322a"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -600,7 +601,26 @@
                     <option value="watercolor">🎨 水彩艺术</option>
                     <option value="oil_painting">🖼️ 油画风格</option>
                 </optgroup>
+                <optgroup label="🖼️ 三联画人像（高级一致性）">
+                    <option value="triptych_expressions">🎭 三联画·表情变奏</option>
+                    <option value="triptych_angles">📐 三联画·角度测试</option>
+                    <option value="consistency_lock">🔒 一致性锁定增强</option>
+                </optgroup>
+                <!-- PROMPT_TEMPLATES 共享模板由 JS 动态追加在下方 -->
             </select>
+        </div>
+
+        <!-- 🆕 一致性预设管理区 -->
+        <div class="section" id="consistencyPresetSection" style="display:none; margin-top:8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <div class="section-title" style="margin:0;">💾 一致性预设</div>
+                <button onclick="showSavePresetDialog()" 
+                    style="padding:6px 14px;background:linear-gradient(135deg,rgba(139,92,246,0.3),rgba(139,92,246,0.15));border:1px solid rgba(139,92,246,0.5);border-radius:6px;color:#c4b5fd;font-size:12px;font-weight:500;cursor:pointer;">
+                    💾 保存当前为预设
+                </button>
+            </div>
+            <div id="consistencyPresetList" style="max-height:200px;overflow-y:auto;"></div>
+            <div style="font-size:11px;color:#555;margin-top:6px;text-align:center;">预设自动同步云端，换设备也能用</div>
         </div>
 
         <div class="section" id="varsSection" style="display:none;">
@@ -618,10 +638,10 @@
             <div class="section-title">👁️ 预览结果</div>
             <div class="preview-box" id="previewBox"></div>
             <div class="result-actions">
-                <button class="result-btn" onclick="copyResult()">📋 复制</button>
-                <button class="result-btn" onclick="goToVideoTools()">🎬 去生视频</button>
-                <button class="result-btn" onclick="pushToSticker()">🌟 去生表情包</button>
-                <button class="result-btn primary" onclick="useResult()">🎨 去生图</button>
+                <button type="button" class="result-btn" onclick="copyResult(); event.preventDefault();">📋 复制</button>
+                <button type="button" class="result-btn" onclick="goToVideoTools(); event.preventDefault();">🎬 去生视频</button>
+                <button type="button" class="result-btn" onclick="pushToSticker(); event.preventDefault();">🌟 去生表情包</button>
+                <button type="button" class="result-btn primary" onclick="useResult(); event.preventDefault();">🎨 去生图</button>
             </div>
         </div>
 
@@ -3931,8 +3951,313 @@
                     }
                 ],
                 template: '【美妆类目】{beauty_category}\n【拍摄风格】{shot_style}\n【背景道具】{background_props}\n【光线氛围】{lighting_mood}\n【色彩主题】{color_theme}\n【卖点聚焦】{selling_focus}\n【质量】美妆电商图，质感细腻，光泽诱人，高级感'
+            },
+
+            // ==================== 🖼️ 三联画人像（高级一致性）====================
+            triptych_expressions: {
+                name: '🎭 三联画·表情变奏',
+                vars: [
+                    {
+                        key: 'background', label: '🎨 背景风格', options: [
+                            'perfectly pure white seamless studio',
+                            'textured gray seamless with subtle gradient falloff',
+                            'soft gradient from pale lavender to white',
+                            'warm beige seamless studio',
+                            'dark charcoal seamless studio'
+                        ]
+                    },
+                    {
+                        key: 'expression_left', label: '😐 左侧表情', options: [
+                            'playful / cheeky — 调皮',
+                            'confident / fierce — 自信',
+                            'surprised / shocked — 惊讶',
+                            'dreamy / gentle — 梦幻',
+                            'laughing / joyful — 开心大笑',
+                            'cool / aloof — 高冷'
+                        ]
+                    },
+                    {
+                        key: 'expression_left_detail', label: '📝 左侧表情细节',
+                        optional: true,
+                        hasInput: true,
+                        options: ['a mischievous smirk with one eye gently winking, eyes sparkling, confident playful energy']
+                    },
+                    {
+                        key: 'expression_middle', label: '😐 中间表情', options: [
+                            'cute / "acting adorable" — 卖萌',
+                            'elegant / regal — 优雅',
+                            'thoughtful / contemplative — 沉思',
+                            'flirty / seductive — 撩人',
+                            'shy / bashful — 害羞',
+                            'determined / focused — 专注'
+                        ]
+                    },
+                    {
+                        key: 'expression_middle_detail', label: '📝 中间表情细节',
+                        optional: true,
+                        hasInput: true,
+                        options: ['innocent wide eyes, slightly puffed cheeks, a tiny pout or "duck-lip" (very subtle), a sweet bashful vibe']
+                    },
+                    {
+                        key: 'expression_right', label: '😐 右侧表情', options: [
+                            'sulky / pouting / "hmph" — 生气',
+                            'angry / fierce — 愤怒',
+                            'sad / melancholic — 悲伤',
+                            'mysterious / enigmatic — 神秘',
+                            'scared / vulnerable — 恐惧',
+                            'ecstatic / overjoyed — 狂喜'
+                        ]
+                    },
+                    {
+                        key: 'expression_right_detail', label: '📝 右侧表情细节',
+                        optional: true,
+                        hasInput: true,
+                        options: ['a mild offended or stubborn look—lips pressed or a small pout, slight cheek puff, eyebrows subtly knit']
+                    }
+                ],
+                template: 'Create a 16:9 horizontal triptych portrait (three-panel layout) on a {background} studio background. Split the canvas into three equal vertical panels with a thin clean gutter. In all three panels, match the reference images for identity, facial structure, hairstyle, costume, jewelry, shot size, framing, camera angle, subject placement, lighting ratio, and overall color grading. Keep everything else unchanged across panels—only the facial expression and micro-gestures change.\n\nTo avoid repetitive expressions, make each panel\'s emotion clearly distinct and easy to read (stronger contrast between panels, but without distorting the face):\n• Left panel ({expression_left}): {expression_left_detail}.\n• Middle panel ({expression_middle}): {expression_middle_detail}.\n• Right panel ({expression_right}): {expression_right_detail}.\n\nPreserve realistic anatomy and the exact same facial proportions (no changes to age, eye shape, jawline, nose, or face width). Ensure clean cutout edges against the background. Do not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or any extra text.'
+            },
+            triptych_angles: {
+                name: '📐 三联画·角度测试',
+                vars: [
+                    {
+                        key: 'background', label: '🎨 背景风格', options: [
+                            'textured gray seamless backdrop with subtle gradient falloff and fine photographic grain',
+                            'perfectly pure white seamless studio background',
+                            'soft gradient from light gray to white',
+                            'dark charcoal seamless studio background',
+                            'warm neutral beige backdrop'
+                        ]
+                    },
+                    {
+                        key: 'shot_range', label: '📐 取景范围', options: [
+                            'close-ups (head and neck only)',
+                            'half-body shots (head to waist)',
+                            'three-quarter body shots (head to knees)',
+                            'full-body shots'
+                        ]
+                    },
+                    {
+                        key: 'angle_a', label: '🅰️ A面板角度', options: [
+                            'straight-on front view looking into the lens',
+                            'slightly turned left (15 degrees)',
+                            'looking up at camera (low angle)',
+                            'looking down at camera (high angle)'
+                        ]
+                    },
+                    {
+                        key: 'angle_b', label: '🅱️ B面板角度', options: [
+                            '45-degree three-quarter face view',
+                            '30-degree slight turn',
+                            '60-degree deep three-quarter',
+                            'looking over shoulder'
+                        ]
+                    },
+                    {
+                        key: 'angle_c', label: '©️ C面板角度', options: [
+                            'true 90-degree side profile',
+                            '135-degree back-three-quarter',
+                            'true 180-degree back view',
+                            'dramatic extreme angle from below'
+                        ]
+                    },
+                    {
+                        key: 'lighting', label: '💡 灯光风格', options: [
+                            'soft but directional key light, gentle shadow shaping, natural contrast, crisp eye detail, and realistic skin texture',
+                            'Rembrandt lighting with dramatic chiaroscuro',
+                            'flat even lighting with minimal shadows',
+                            'butterfly/paramount lighting for glamorous look',
+                            'split lighting for dramatic half-face effect',
+                            'rim lighting with soft fill for ethereal look'
+                        ]
+                    }
+                ],
+                template: 'Create one image containing three side-by-side face {shot_range} of the same person, aligned to the same scale and framing, on a {background}. Panel A (left) is a {angle_a}. Panel B (center) is a {angle_b}. Panel C (right) is a {angle_c}. Separate the panels with two thin vertical divider lines, perfectly straight and evenly spaced, in a clean editorial layout.\n\nNo matter what background appears in the reference images (white, outdoor, or any environment), replace it and render the final image as a premium studio look-test triptych on the {background}. The background must be consistent across all three panels, with no environmental elements.\n\nUnify the lighting to a controlled studio setup: {lighting}. Keep the person\'s identity, facial proportions, hairstyle, and overall styling matched to the reference images, but keep the background strictly the same studio backdrop in every panel.\n\nAdd only the panel labels exactly as text: "A" above the left panel, "B" above the center panel, and "C" above the right panel, in a simple clean sans-serif, small and understated. Do not add any other text. Do not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or extra text.'
+            },
+            consistency_lock: {
+                name: '🔒 一致性锁定增强',
+                vars: [
+                    {
+                        key: 'lock_elements', label: '🔒 锁定元素（跨所有面板必须一致）', multiSelect: true, options: [
+                            'identity（身份特征）',
+                            'facial structure & proportions（面部结构与比例）',
+                            'hairstyle & headpiece（发型与头饰）',
+                            'costume & jewelry（服装与首饰）',
+                            'lighting ratio（光照比）',
+                            'color grading（调色）',
+                            'shot size & framing（景别与构图）',
+                            'camera angle（机位角度）',
+                            'skin texture（皮肤纹理）'
+                        ]
+                    },
+                    {
+                        key: 'allow_change', label: '✅ 允许变化（仅这些可以不同）', multiSelect: true, options: [
+                            'facial expression（表情）',
+                            'body pose（姿态）',
+                            'camera angle（机位）',
+                            'outfit variation（服装变化）',
+                            'background（背景）',
+                            'accessories（配饰）'
+                        ]
+                    },
+                    {
+                        key: 'negative_constraints', label: '🚫 反向约束（绝对禁止改变）', multiSelect: true, options: [
+                            'no changes to age（不改变年龄）',
+                            'no changes to eye shape（不改变眼型）',
+                            'no changes to jawline（不改变下颌线）',
+                            'no changes to nose（不改变鼻型）',
+                            'no changes to face width（不改变脸宽）',
+                            'no changes to body proportions（不改变身材比例）'
+                        ]
+                    },
+                    {
+                        key: 'original_prompt', label: '🎯 你的原始提示词', options: [
+                            '（在上面选择自定义输入来填写你的提示词）'
+                        ],
+                        hasInput: true,
+                        inputPlaceholder: '在这里输入你的原始提示词（如：生成一个角色的三张不同表情照片...）'
+                    }
+                ],
+                template: 'CHARACTER CONSISTENCY LOCK — Apply these rules to ALL panels/frames in the output:\n\n🔒 LOCK (must be identical across all panels): {lock_elements}\n✅ ALLOWED CHANGES (only these may differ): {allow_change}\n🚫 NEGATIVE CONSTRAINTS (strictly forbidden): {negative_constraints}\n\n📝 ORIGINAL PROMPT TO EXECUTE:\n{original_prompt}\n\nDo not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or any extra text.'
             }
         };
+
+        // ==================== PROMPT_TEMPLATES 适配器（从共享模板库导入250+模板）====================
+        // 将 PROMPT_TEMPLATES（prompt-templates.js 格式）转换为 prompt-fill TEMPLATES 格式
+        (function mergePromptTemplates() {
+            if (!window.PROMPT_TEMPLATES) return; // prompt-templates.js 未加载则跳过
+
+            // 分类推断（基于模板 key 前缀）
+            function guessCategory(key) {
+                if (/^fill_\d+$/.test(key)) return '🎯 超简单填空';
+                if (/^calendar_/.test(key)) return '📅 日历卡片';
+                if (/^triptych/.test(key) || key === 'consistency_lock' || key === 'character_sheet') return '🖼️ 角色一致性';
+                if (/^double_exposure$|^photo_to_anime$|^photo_enhancement$|^vintage_photo$|^ghibli_style$|^cyberpunk_style$|^pixel_retro$|^oil_painting$|^watercolor_art$|^ukiyo_e$|^pixar_3d$|^cosplay_photo$/.test(key)) return '🎬 精品模板';
+                if (/^knowledge_card$|^visual_resume$|^infographic$|^pitch_deck$|^user_persona$|^swot_diagram$|^step_tutorial$|^recipe_card$/.test(key)) return '🍌 Pro 精选';
+                if (/^character_card$|^character_relationship$|^char_biography$|^plush_toy$|^keychain_merch$|^enamel_pin$/.test(key)) return '🆕 新增模板';
+                if (/^ai_conversation$|^alter_ego$|^anxiety_monster$|^digital_avatar$|^brain_wave$|^formula_story$|^concept_map$|^hologram$|^data_sculpture$|^gene_art$|^crystal_emoji$|^reaction_meme$/.test(key)) return '🌟 AI时代创新';
+                if (/^dream_journal$|^emotional_weather$|^inner_child$|^inner_dialogue$|^future_letter$|^comfort_zone$|^gratitude_jar$|^mood_tracker$/.test(key)) return '💝 情感治愈';
+                if (/^nine_grid$|^vs_comparison$|^trend_challenge$|^line_sticker$|^story_sticker$|^reading_map$|^spot_difference$/.test(key)) return '📱 社交媒体';
+                if (/^anatomy_diagram$|^timeline_history$|^doc_to_flowchart$|^language_pictogram$|^dialect_poster$|^pictogram$|^decision_matrix$|^value_hierarchy$/.test(key)) return '🎓 教育';
+                if (/^fashion_model$|^room_makeover$|^voice_cast$|^ar_filter$|^fake_screenshot$|^ost_cover$|^sound_wave$|^fortune_card$/.test(key)) return '💼 专业应用';
+                if (/^intangible_heritage$|^hanfu_database$|^tea_ceremony$|^mythology_card$|^multiverse_self$/.test(key)) return '🌏 文化融合';
+                if (/^habit_chain$|^workout_progress$|^plant_diary$|^baby_milestone$|^bucket_list$|^goal_vision$|^pet_costume$/.test(key)) return '🏋️ 生活记录';
+                if (/^multi_char_comic$|^script_storyboard$|^story_setting$|^fan_art_guide$|^toy_exploded$|^figure_scene$|^food_art$|^text_shape_art$|^book_cover$/.test(key)) return '🎬 内容创作';
+                if (/^game_card$|^maze_puzzle$|^legacy_blueprint$|^quest_log$|^life_rpg$|^personality_test$|^achievement_badge$|^mistake_collection$|^choices_tree$|^skill_tree$/.test(key)) return '🎮 游戏化';
+                if (/^glitch_art$|^lego_style$|^miniature_world$|^universe_timeline$|^energy_distribution$|^emotion_data_viz$|^map_exploration$|^workbuddy_channel_setup$/.test(key)) return '🔬 科技前沿';
+                if (/^minimal_bw$|^self_care_bingo$|^memory_palace$|^inventory_grid$|^age_transform$/.test(key)) return '🎭 互动艺术';
+                return '🌈 更多模板';
+            }
+
+            // 将 PROMPT_TEMPLATES 中模板的 {key} 变量提取为 vars 数组
+            function extractVars(templateStr, variables) {
+                const vars = [];
+                if (variables && typeof variables === 'object') {
+                    // 有 variables 定义，直接转换
+                    for (const [key, config] of Object.entries(variables)) {
+                        vars.push({
+                            key: key,
+                            label: config.label || key,
+                            options: config.options || ['自定义'],
+                            hasInput: true,
+                            inputPlaceholder: config.default || '请输入'
+                        });
+                    }
+                }
+                // 同时处理 template 中的 ______（下划线填空）和 {key}（花括号变量）
+                // 如果没有 variables，则用正则从 template 提取占位符
+                if (vars.length === 0) {
+                    // 匹配 ______(说明) 格式
+                    const blankRegex = /_{3,}[^）\n]*[（(][^）)\n]+[）)]/g;
+                    let match;
+                    let idx = 1;
+                    while ((match = blankRegex.exec(templateStr)) !== null) {
+                        const descMatch = match[0].match(/[（(]([^）)\n]+)[）)]/);
+                        vars.push({
+                            key: 'blank_' + idx,
+                            label: descMatch ? descMatch[1] : '填空 ' + idx,
+                            options: [],
+                            hasInput: true,
+                            inputPlaceholder: '请输入' + (descMatch ? descMatch[1] : '内容')
+                        });
+                        idx++;
+                    }
+                    // 匹配 {key} 格式
+                    const braceRegex = /\{(\w+)\}/g;
+                    while ((match = braceRegex.exec(templateStr)) !== null) {
+                        const key = match[1];
+                        if (!vars.find(v => v.key === key)) {
+                            vars.push({
+                                key: key,
+                                label: key,
+                                options: [],
+                                hasInput: true,
+                                inputPlaceholder: '请输入' + key
+                            });
+                        }
+                    }
+                }
+                // 如果没有任何变量/填空，添加一个主题输入框
+                if (vars.length === 0) {
+                    vars.push({
+                        key: 'theme',
+                        label: '主题/内容',
+                        options: [],
+                        hasInput: true,
+                        inputPlaceholder: '请描述你想生成的内容'
+                    });
+                }
+                return vars;
+            }
+
+            // 转换并合并
+            const select = document.getElementById('templateSelect');
+            if (!select) return;
+
+            // 收集分组
+            const groups = {};  // categoryName → [{ key, name }]
+            let mergedCount = 0;
+            let skippedCount = 0;
+
+            for (const [key, tmpl] of Object.entries(window.PROMPT_TEMPLATES)) {
+                // 跳过已存在于 TEMPLATES 中的 key（避免覆盖高级模板）
+                if (TEMPLATES[key]) { skippedCount++; continue; }
+
+                // 转换格式
+                const converted = {
+                    name: tmpl.name || key,
+                    template: tmpl.template || '',
+                    vars: extractVars(tmpl.template || '', tmpl.variables),
+                    // 标记为共享模板（用于后续区分）
+                    _fromShared: true
+                };
+
+                // 合并到 TEMPLATES
+                TEMPLATES[key] = converted;
+
+                // 分组
+                const cat = guessCategory(key);
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push({ key, name: tmpl.name || key });
+                mergedCount++;
+            }
+
+            // 按分类字母排序后动态渲染 optgroup
+            const sortedCats = Object.keys(groups).sort();
+            for (const cat of sortedCats) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = cat;
+                for (const item of groups[cat]) {
+                    const opt = document.createElement('option');
+                    opt.value = item.key;
+                    opt.textContent = item.name;
+                    optgroup.appendChild(opt);
+                }
+                select.appendChild(optgroup);
+            }
+
+            console.log(`[PROMPT_TEMPLATES] 已合并 ${mergedCount} 个模板，跳过 ${skippedCount} 个（已存在），共 ${sortedCats.length} 个分类`);
+        })();
 
         let currentTemplate = null;
         let currentValues = {};
@@ -4036,6 +4361,8 @@
 
         function loadTemplate() {
             const key = document.getElementById('templateSelect').value;
+            const consistencyTemplates = ['triptych_expressions', 'triptych_angles', 'consistency_lock'];
+
             if (!key || !TEMPLATES[key]) {
                 // 🔧 批量模式下不需要清除这些元素（它们已经被隐藏）
                 if (!isBatchMode) {
@@ -4043,6 +4370,7 @@
                     document.getElementById('previewSection').style.display = 'none';
                     document.getElementById('generateBtn').style.display = 'none';
                 }
+                document.getElementById('consistencyPresetSection').style.display = 'none';
                 currentTemplate = null;  // 🆕 清空当前模板
                 updateAddToBatchBtn();  // 🆕 更新按钮状态
                 return;
@@ -4109,6 +4437,14 @@
                 document.getElementById('varsSection').style.display = 'block';
                 document.getElementById('generateBtn').style.display = 'block';
                 document.getElementById('previewSection').style.display = 'none';
+            }
+
+            // 🆕 一致性模板时显示预设管理区
+            if (consistencyTemplates.includes(key) && !isBatchMode) {
+                document.getElementById('consistencyPresetSection').style.display = 'block';
+                renderConsistencyPresetList();
+            } else {
+                document.getElementById('consistencyPresetSection').style.display = 'none';
             }
 
             // 🆕 更新"添加到批量"按钮状态
@@ -4485,6 +4821,11 @@ ${basePrompt}
                                     <option value="cyberpunk">🌆赛博朋克</option>
                                     <option value="pixar_3d">🎪Pixar 3D</option>
                                     <option value="watercolor">🎨水彩</option>
+                                </optgroup>
+                                <optgroup label="🖼️ 三联画人像">
+                                    <option value="triptych_expressions">🎭表情变奏</option>
+                                    <option value="triptych_angles">📐角度测试</option>
+                                    <option value="consistency_lock">🔒一致性锁定</option>
                                 </optgroup>
                             </select>
                         </div>
@@ -4998,20 +5339,35 @@ ${basePrompt}
 
             // 🔧 修复：结果按钮支持触摸事件
             document.querySelectorAll('.result-btn').forEach(btn => {
-                btn.addEventListener('touchend', function (e) {
-                    e.preventDefault();
-                    const onclick = this.getAttribute('onclick');
-                    if (onclick) eval(onclick);
-                });
+                const onclickAttr = btn.getAttribute('onclick');
+                if (onclickAttr) {
+                    // 提取函数名（如 "copyResult()" 中的 "copyResult"）
+                    const fnMatch = onclickAttr.match(/^(\w+)\(/);
+                    if (fnMatch && typeof window[fnMatch[1]] === 'function') {
+                        const fn = window[fnMatch[1]];
+                        btn.addEventListener('touchend', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            fn();
+                        });
+                    }
+                }
             });
 
             // 🔧 修复：批量操作按钮也绑定 touchend（部分移动端浏览器 onclick 不触发）
             document.querySelectorAll('.batch-action-btn').forEach(btn => {
-                btn.addEventListener('touchend', function (e) {
-                    e.preventDefault();
-                    const onclick = this.getAttribute('onclick');
-                    if (onclick) eval(onclick);
-                });
+                const onclickAttr = btn.getAttribute('onclick');
+                if (onclickAttr) {
+                    const fnMatch = onclickAttr.match(/^(\w+)\(/);
+                    if (fnMatch && typeof window[fnMatch[1]] === 'function') {
+                        const fn = window[fnMatch[1]];
+                        btn.addEventListener('touchend', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            fn();
+                        });
+                    }
+                }
             });
 
             console.log('[prompt-fill] 初始化完成');
@@ -5085,6 +5441,267 @@ ${basePrompt}
 
         // ✅ 已移除退款函数 - 后端成功扣费后不再退款，避免成本损耗
 
+        // ==================== 一致性配置云端持久化 ====================
+
+        const CONSISTENCY_STORAGE_KEY = 'rollroll_consistency_presets';
+        const CONSISTENCY_CURRENT_KEY = 'rollroll_consistency_current';
+
+        // 收集当前一致性配置
+        function collectConsistencyConfig() {
+            if (!currentTemplate || !['triptych_expressions', 'triptych_angles', 'consistency_lock'].includes(document.getElementById('templateSelect')?.value)) {
+                return null;
+            }
+            return {
+                templateKey: document.getElementById('templateSelect')?.value || '',
+                currentValues: JSON.parse(JSON.stringify(currentValues || {})),
+                blankValues: JSON.parse(JSON.stringify(blankValues || {})),
+                customInputValues: JSON.parse(JSON.stringify(customInputValues || {})),
+                multiSelectValues: JSON.parse(JSON.stringify(multiSelectValues || {})),
+                timestamp: Date.now()
+            };
+        }
+
+        // 保存当前一致性配置到 localStorage + 云端
+        async function saveConsistencyToCloud() {
+            const config = collectConsistencyConfig();
+            if (!config) return;
+
+            // 先存 localStorage（即时可用）
+            try { localStorage.setItem(CONSISTENCY_CURRENT_KEY, JSON.stringify(config)); } catch(e) {}
+
+            // 异步存云端 user_settings.ui_preferences
+            try {
+                if (typeof NVAuth !== 'undefined' && NVAuth.getCurrentUser && NVAuth.getCurrentUser()) {
+                    const client = NVAuth.getSupabase();
+                    if (client) {
+                        const { data } = await client
+                            .from('user_settings')
+                            .select('ui_preferences')
+                            .eq('user_id', NVAuth.getCurrentUser().id)
+                            .single();
+                        const prefs = data?.ui_preferences || {};
+                        prefs.consistency_current = config;
+                        await client
+                            .from('user_settings')
+                            .update({ ui_preferences: prefs })
+                            .eq('user_id', NVAuth.getCurrentUser().id);
+                        console.log('[prompt-fill] 一致性配置已同步云端');
+                    }
+                }
+            } catch (e) {
+                console.warn('[prompt-fill] 一致性配置云端同步失败:', e);
+            }
+        }
+
+        // 从 localStorage + 云端加载一致性配置
+        async function loadConsistencyFromCloud() {
+            // 先尝试 localStorage
+            try {
+                const local = localStorage.getItem(CONSISTENCY_CURRENT_KEY);
+                if (local) {
+                    const config = JSON.parse(local);
+                    if (config && config.templateKey) return config;
+                }
+            } catch(e) {}
+
+            // 再尝试云端
+            try {
+                if (typeof NVAuth !== 'undefined' && NVAuth.getCurrentUser && NVAuth.getCurrentUser()) {
+                    const client = NVAuth.getSupabase();
+                    if (client) {
+                        const { data } = await client
+                            .from('user_settings')
+                            .select('ui_preferences')
+                            .eq('user_id', NVAuth.getCurrentUser().id)
+                            .single();
+                        const config = data?.ui_preferences?.consistency_current;
+                        if (config && config.templateKey) {
+                            // 回写 localStorage
+                            try { localStorage.setItem(CONSISTENCY_CURRENT_KEY, JSON.stringify(config)); } catch(e) {}
+                            return config;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('[prompt-fill] 云端加载一致性配置失败:', e);
+            }
+            return null;
+        }
+
+        // 保存一致性预设（命名保存）
+        async function saveConsistencyPreset(presetName) {
+            const config = collectConsistencyConfig();
+            if (!config) { showToast('请先选择一个一致性模板并填写参数'); return false; }
+            config.presetName = presetName;
+
+            // 读取已有预设列表
+            let presets = [];
+            try { presets = JSON.parse(localStorage.getItem(CONSISTENCY_STORAGE_KEY) || '[]'); } catch(e) {}
+
+            // 检查同名覆盖
+            const idx = presets.findIndex(p => p.presetName === presetName);
+            if (idx >= 0) presets[idx] = config;
+            else presets.push(config);
+
+            localStorage.setItem(CONSISTENCY_STORAGE_KEY, JSON.stringify(presets));
+
+            // 同步云端
+            try {
+                if (typeof NVAuth !== 'undefined' && NVAuth.getCurrentUser && NVAuth.getCurrentUser()) {
+                    const client = NVAuth.getSupabase();
+                    if (client) {
+                        const { data } = await client
+                            .from('user_settings')
+                            .select('ui_preferences')
+                            .eq('user_id', NVAuth.getCurrentUser().id)
+                            .single();
+                        const prefs = data?.ui_preferences || {};
+                        prefs.consistency_presets = presets;
+                        await client
+                            .from('user_settings')
+                            .update({ ui_preferences: prefs })
+                            .eq('user_id', NVAuth.getCurrentUser().id);
+                    }
+                }
+            } catch(e) { console.warn('[prompt-fill] 预设云端同步失败:', e); }
+
+            showToast(`预设「${presetName}」已保存`);
+            renderConsistencyPresetList();
+            return true;
+        }
+
+        // 删除一致性预设
+        async function deleteConsistencyPreset(presetName) {
+            let presets = [];
+            try { presets = JSON.parse(localStorage.getItem(CONSISTENCY_STORAGE_KEY) || '[]'); } catch(e) {}
+            presets = presets.filter(p => p.presetName !== presetName);
+            localStorage.setItem(CONSISTENCY_STORAGE_KEY, JSON.stringify(presets));
+
+            try {
+                if (typeof NVAuth !== 'undefined' && NVAuth.getCurrentUser && NVAuth.getCurrentUser()) {
+                    const client = NVAuth.getSupabase();
+                    if (client) {
+                        const { data } = await client
+                            .from('user_settings')
+                            .select('ui_preferences')
+                            .eq('user_id', NVAuth.getCurrentUser().id)
+                            .single();
+                        const prefs = data?.ui_preferences || {};
+                        prefs.consistency_presets = presets;
+                        await client
+                            .from('user_settings')
+                            .update({ ui_preferences: prefs })
+                            .eq('user_id', NVAuth.getCurrentUser().id);
+                    }
+                }
+            } catch(e) {}
+
+            showToast(`预设「${presetName}」已删除`);
+            renderConsistencyPresetList();
+        }
+
+        // 加载一致性预设并应用
+        async function loadConsistencyPreset(presetName) {
+            let presets = [];
+            try { presets = JSON.parse(localStorage.getItem(CONSISTENCY_STORAGE_KEY) || '[]'); } catch(e) {}
+
+            const preset = presets.find(p => p.presetName === presetName);
+            if (!preset) { showToast('预设不存在'); return; }
+
+            // 应用模板选择
+            if (preset.templateKey) {
+                document.getElementById('templateSelect').value = preset.templateKey;
+                loadTemplate();
+
+                // 等待 DOM 渲染后恢复值
+                setTimeout(() => {
+                    if (preset.currentValues) {
+                        currentValues = preset.currentValues;
+                        Object.keys(preset.currentValues).forEach(key => {
+                            const select = document.querySelector(`select[onchange*="'${key}'"]`);
+                            if (select && preset.currentValues[key]) {
+                                const isCustom = !Array.from(select.options).some(opt => opt.value === preset.currentValues[key]);
+                                if (isCustom && preset.customInputValues && preset.customInputValues[key]) {
+                                    select.value = '__custom__';
+                                    handleVarChange(key, '__custom__', select);
+                                    const customInput = document.querySelector(`#customInput_${key} input`);
+                                    if (customInput) {
+                                        customInput.value = preset.customInputValues[key];
+                                        updateCustomInput(key, preset.customInputValues[key]);
+                                    }
+                                } else {
+                                    select.value = preset.currentValues[key];
+                                    handleVarChange(key, preset.currentValues[key], select);
+                                }
+                            }
+                        });
+                    }
+                    if (preset.multiSelectValues) {
+                        multiSelectValues = preset.multiSelectValues;
+                        Object.keys(preset.multiSelectValues).forEach(key => {
+                            const values = preset.multiSelectValues[key] || [];
+                            values.forEach(val => {
+                                const checkbox = document.querySelector(`input[type="checkbox"][value="${val.replace(/"/g, '&quot;')}"]`);
+                                if (checkbox) checkbox.checked = true;
+                            });
+                            currentValues[key] = values.join('\n');
+                            const preview = document.getElementById(`multiSelectPreview_${key}`);
+                            if (preview && values.length > 0) preview.textContent = `✅ 已选择 ${values.length} 项`;
+                        });
+                    }
+                    if (preset.blankValues) {
+                        blankValues = preset.blankValues;
+                        Object.keys(preset.blankValues).forEach(key => {
+                            (preset.blankValues[key] || []).forEach((val, idx) => {
+                                const input = document.getElementById(`blank_${key}_${idx}`);
+                                if (input && val) input.value = val;
+                            });
+                        });
+                    }
+                    showToast(`预设「${presetName}」已加载`);
+                }, 150);
+            }
+        }
+
+        // 渲染预设列表UI
+        function renderConsistencyPresetList() {
+            const container = document.getElementById('consistencyPresetList');
+            if (!container) return;
+            let presets = [];
+            try { presets = JSON.parse(localStorage.getItem(CONSISTENCY_STORAGE_KEY) || '[]'); } catch(e) {}
+
+            if (presets.length === 0) {
+                container.innerHTML = '<div style="font-size:12px;color:#666;text-align:center;padding:12px;">暂无保存的预设</div>';
+                return;
+            }
+
+            container.innerHTML = presets.map(p => {
+                const tplName = { triptych_expressions: '🎭 表情变奏', triptych_angles: '📐 角度测试', consistency_lock: '🔒 一致性锁定' }[p.templateKey] || p.templateKey;
+                const timeStr = p.timestamp ? new Date(p.timestamp).toLocaleDateString('zh-CN', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+                return `
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#1a1a24;border:1px solid #333;border-radius:6px;margin-bottom:6px;">
+                        <div>
+                            <div style="font-size:13px;color:#e5e5e5;font-weight:500;">${p.presetName}</div>
+                            <div style="font-size:11px;color:#666;margin-top:2px;">${tplName} · ${timeStr}</div>
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            <button onclick="loadConsistencyPreset('${p.presetName.replace(/'/g, "\\'")}')" 
+                                style="padding:4px 10px;background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.4);border-radius:4px;color:#a78bfa;font-size:11px;cursor:pointer;">加载</button>
+                            <button onclick="if(confirm('确定删除预设「${p.presetName.replace(/'/g, "\\'")}'？'))deleteConsistencyPreset('${p.presetName.replace(/'/g, "\\'")}')" 
+                                style="padding:4px 10px;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);border-radius:4px;color:#f87171;font-size:11px;cursor:pointer;">删除</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        // 弹出保存预设对话框
+        function showSavePresetDialog() {
+            const config = collectConsistencyConfig();
+            if (!config) { showToast('请先选择一致性模板并填写参数'); return; }
+            const name = prompt('请输入预设名称（用于区分不同角色/场景）:');
+            if (name && name.trim()) saveConsistencyPreset(name.trim());
+        }
+
         // ==================== 页面状态持久化 ====================
         function savePromptFillState() {
             try {
@@ -5102,6 +5719,12 @@ ${basePrompt}
                 };
                 sessionStorage.setItem('rollroll_promptfill_state', JSON.stringify(state));
                 console.log('[prompt-fill] 状态已保存');
+
+                // 🆕 如果当前是一致性模板，额外保存到云端
+                const consistencyTemplates = ['triptych_expressions', 'triptych_angles', 'consistency_lock'];
+                if (consistencyTemplates.includes(state.templateSelect)) {
+                    saveConsistencyToCloud(); // 异步，不阻塞
+                }
             } catch (e) {
                 console.warn('[prompt-fill] 保存状态失败:', e);
             }
@@ -5210,6 +5833,68 @@ ${basePrompt}
             } catch (e) {
                 console.warn('[prompt-fill] 恢复状态失败:', e);
             }
+
+            // 🆕 sessionStorage 没有数据时，尝试从云端恢复一致性配置
+            const saved = sessionStorage.getItem('rollroll_promptfill_state');
+            if (!saved) {
+                loadConsistencyFromCloud().then(config => {
+                    if (config && config.templateKey) {
+                        console.log('[prompt-fill] 从云端恢复一致性配置:', config.templateKey);
+                        loadConsistencyPreset(config.presetName || '__current__');
+                        // 临时用 __current__ 名称加载
+                        if (!config.presetName) {
+                            document.getElementById('templateSelect').value = config.templateKey;
+                            loadTemplate();
+                            setTimeout(() => {
+                                if (config.currentValues) {
+                                    currentValues = config.currentValues;
+                                    Object.keys(config.currentValues).forEach(key => {
+                                        const select = document.querySelector(`select[onchange*="'${key}'"]`);
+                                        if (select && config.currentValues[key]) {
+                                            const isCustom = !Array.from(select.options).some(opt => opt.value === config.currentValues[key]);
+                                            if (isCustom && config.customInputValues && config.customInputValues[key]) {
+                                                select.value = '__custom__';
+                                                handleVarChange(key, '__custom__', select);
+                                                const customInput = document.querySelector(`#customInput_${key} input`);
+                                                if (customInput) {
+                                                    customInput.value = config.customInputValues[key];
+                                                    updateCustomInput(key, config.customInputValues[key]);
+                                                }
+                                            } else {
+                                                select.value = config.currentValues[key];
+                                                handleVarChange(key, config.currentValues[key], select);
+                                            }
+                                        }
+                                    });
+                                }
+                                if (config.multiSelectValues) {
+                                    multiSelectValues = config.multiSelectValues;
+                                    Object.keys(config.multiSelectValues).forEach(key => {
+                                        const values = config.multiSelectValues[key] || [];
+                                        values.forEach(val => {
+                                            const checkbox = document.querySelector(`input[type="checkbox"][value="${val.replace(/"/g, '&quot;')}"]`);
+                                            if (checkbox) checkbox.checked = true;
+                                        });
+                                        currentValues[key] = values.join('\n');
+                                        const preview = document.getElementById(`multiSelectPreview_${key}`);
+                                        if (preview && values.length > 0) preview.textContent = `✅ 已选择 ${values.length} 项`;
+                                    });
+                                }
+                                if (config.blankValues) {
+                                    blankValues = config.blankValues;
+                                    Object.keys(config.blankValues).forEach(key => {
+                                        (config.blankValues[key] || []).forEach((val, idx) => {
+                                            const input = document.getElementById(`blank_${key}_${idx}`);
+                                            if (input && val) input.value = val;
+                                        });
+                                    });
+                                }
+                                showToast('已从云端恢复上次的一致性配置');
+                            }, 150);
+                        }
+                    }
+                });
+            }
         }
 
         // 绑定状态保存事件
@@ -5218,7 +5903,29 @@ ${basePrompt}
         });
         window.addEventListener('beforeunload', savePromptFillState);
         window.addEventListener('pagehide', savePromptFillState);
-        window.addEventListener('load', () => setTimeout(restorePromptFillState, 300));
+        window.addEventListener('load', () => {
+            setTimeout(restorePromptFillState, 300);
+            // 🆕 页面加载后同步云端预设到本地
+            setTimeout(async () => {
+                try {
+                    if (typeof NVAuth !== 'undefined' && NVAuth.getCurrentUser && NVAuth.getCurrentUser()) {
+                        const client = NVAuth.getSupabase();
+                        if (client) {
+                            const { data } = await client
+                                .from('user_settings')
+                                .select('ui_preferences')
+                                .eq('user_id', NVAuth.getCurrentUser().id)
+                                .single();
+                            const prefs = data?.ui_preferences || {};
+                            if (prefs.consistency_presets && Array.isArray(prefs.consistency_presets)) {
+                                localStorage.setItem(CONSISTENCY_STORAGE_KEY, JSON.stringify(prefs.consistency_presets));
+                                console.log('[prompt-fill] 已同步云端预设到本地:', prefs.consistency_presets.length, '个');
+                            }
+                        }
+                    }
+                } catch(e) { console.warn('[prompt-fill] 预设云端同步失败:', e); }
+            }, 1000);
+        });
     </script>
 </body>
 
