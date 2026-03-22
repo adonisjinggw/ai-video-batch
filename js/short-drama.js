@@ -14,7 +14,9 @@ const shortDramaState = {
     episodeDuration: 90,  // 秒
     currentEpisode: 0,
     writing: false,
-    paused: false
+    paused: false,
+    characters: [],  // 🆕 角色列表（同小说引擎）
+    scenes: []       // 🆕 场景列表
 };
 
 // 短剧类型配置
@@ -52,7 +54,8 @@ const SHORT_DRAMA_RULES = {
  * 生成短剧大纲
  */
 async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qwen3.5-plus', useMemory = true, style = 'normal') {
-    const genreConfig = SHORT_DRAMA_GENRES[genre] || SHORT_DRAMA_GENRES['urban'];
+    // 处理自定义类型：如果有预设配置用预设，否则用自定义值
+    const genreConfig = SHORT_DRAMA_GENRES[genre] || (genre ? { name: genre, tags: [genre], rhythm: 'fast' } : SHORT_DRAMA_GENRES['urban']);
 
     const styleDescriptions = {
         normal: '节奏适中，情节合理',
@@ -67,7 +70,7 @@ async function generateShortDramaOutline(theme, genre, episodeCount, model = 'qw
         inspirational: '励志向上，正能量满满，温暖治愈',
         tragic: '虐心悲情，催泪虐恋，情感虐心，悲剧色彩浓厚'
     };
-    const styleDesc = styleDescriptions[style] || styleDescriptions.normal;
+    const styleDesc = styleDescriptions[style] || (style ? style : styleDescriptions.normal);
 
     const prompt = `你是一位专业的短剧编剧。请为以下主题创作一部${episodeCount}集的短剧大纲。
 
@@ -124,6 +127,9 @@ async function generateShortDramaEpisode(episodeIndex, outline, previousContext 
 
     const genreConfig = SHORT_DRAMA_GENRES[shortDramaState.genre] || SHORT_DRAMA_GENRES['urban'];
 
+    // 🆕 构建一致性约束
+    const consistencyConstraint = _shortDramaBuildConsistencyPrompt();
+
     const prompt = `你是一位专业的短剧编剧。请创作第${episodeIndex + 1}集的完整剧本。
 
 **重要规则：全文必须使用中文，严禁出现任何英文单词、拼音或字母。**
@@ -135,7 +141,7 @@ async function generateShortDramaEpisode(episodeIndex, outline, previousContext 
 剧情：${ep.outline}
 
 ${previousContext ? `【前情提要】\n${previousContext}\n` : ''}
-
+${consistencyConstraint}
 【短剧标准规则】
 1. 时长：90秒（约350字）
 2. 场景：2-4个场景，快速切换
@@ -230,8 +236,9 @@ function parseShortDramaOutline(outlineText) {
     const lines = outlineText.split('\n').filter(line => line.trim());
 
     for (const line of lines) {
-        // 匹配格式：第 X 集：标题 - 剧情（支持空格）
-        const match = line.match(/第\s*(\d+)\s*集[：:\s]*(.+?)\s*[-—–]\s*(.+)/);
+        // 匹配格式：第四集：新欢登场 - 剧情 或 第4集:标题 - 剧情
+        // 支持全角冒号（：）和半角冒号（:），支持空格
+        const match = line.match(/第\s*(\d+)\s*集[：:：]\s*(.+?)\s*[-—–]\s*(.+)/);
         if (match) {
             episodes.push({
                 index: parseInt(match[1]) - 1,
@@ -369,11 +376,55 @@ async function startShortDramaGeneration() {
  */
 async function generateOriginalShortDrama() {
     const theme = document.getElementById('shortDramaTheme').value.trim();
-    const genre = document.getElementById('shortDramaGenre').value;
-    const style = document.getElementById('shortDramaStyle')?.value || 'normal';
+    let genre = document.getElementById('shortDramaGenre').value;
+    let style = document.getElementById('shortDramaStyle')?.value || 'normal';
+
+    // 处理自定义类型和风格
+    if (genre === 'custom') {
+        const customGenre = document.getElementById('shortDramaCustomGenre')?.value.trim();
+        genre = customGenre || '';
+    }
+    if (style === 'custom') {
+        const customStyle = document.getElementById('shortDramaCustomStyle')?.value.trim();
+        style = customStyle || '';
+    }
+
     const episodeCount = parseInt(document.getElementById('shortDramaEpisodeCount').value);
     const model = document.getElementById('shortDramaModel')?.value || 'qwen3.5-plus';
     const useMemory = document.querySelector('input[name="shortDramaMemory"]:checked')?.value === 'true';
+
+    // 检查登录状态（异步等待登录加载）
+    if (typeof currentUser !== 'undefined' && !currentUser) {
+        try {
+            console.log('[short-drama] currentUser 为空，尝试通过 NVAuth 获取登录状态...');
+            let user = null;
+            if (typeof NVAuth !== 'undefined' && typeof NVAuth.getCurrentUser === 'function') {
+                user = await NVAuth.getCurrentUser();
+                if (user) {
+                    console.log('[short-drama] 通过 NVAuth.getCurrentUser 获取到用户:', user.email);
+                }
+            } else if (typeof getSupabase === 'function') {
+                const client = getSupabase();
+                if (client && client.auth) {
+                    const { data: { session } } = await client.auth.getSession();
+                    if (session && session.user) {
+                        user = session.user;
+                        console.log('[short-drama] 通过 getSupabase.getSession 获取到用户:', user.email);
+                    }
+                }
+            }
+            if (user) {
+                window.currentUser = user;
+            } else {
+                showToast('请先登录后再使用短剧功能');
+                return;
+            }
+        } catch (e) {
+            console.warn('[short-drama] 获取登录状态失败:', e);
+            showToast('请先登录后再使用短剧功能');
+            return;
+        }
+    }
 
     console.log('🎬 [short-drama] 开始生成短剧');
     console.log('  主题:', theme);
@@ -385,6 +436,18 @@ async function generateOriginalShortDrama() {
 
     if (!theme) {
         showToast('请输入短剧主题');
+        return;
+    }
+
+    // 验证自定义类型和风格是否已填写
+    const genreSel = document.getElementById('shortDramaGenre');
+    const styleSel = document.getElementById('shortDramaStyle');
+    if (genreSel?.value === 'custom' && !genre) {
+        showToast('请输入自定义短剧类型');
+        return;
+    }
+    if (styleSel?.value === 'custom' && !style) {
+        showToast('请输入自定义写作风格');
         return;
     }
 
@@ -427,17 +490,19 @@ async function generateOriginalShortDrama() {
         renderShortDramaEpisodeList();
         updateShortDramaProgress();
 
+        // 🆕 大纲生成后自动提取角色
+        shortDramaExtractCharacters();
+
         // 完成
         if (progressLabel) progressLabel.textContent = `✅ 大纲生成完成（${episodes.length}集）`;
         if (progressPercent) progressPercent.textContent = '100%';
         if (progressFill) progressFill.style.width = '100%';
 
-        showToast(`✅ 大纲生成完成（${episodes.length}集）`);
+        showToast(`✅ 大纲生成完成（${episodes.length}集），请查看后决定是否生成剧本`);
 
-        // 2. 开始生成剧本
-        if (confirm('大纲已生成，是否开始生成剧本？')) {
-            await generateAllShortDramaEpisodes();
-        }
+        // 显示"生成剧本"按钮，让用户看完大纲再决定
+        const startBtn = document.getElementById('shortDramaStartWritingBtn');
+        if (startBtn) startBtn.style.display = '';
     } catch (e) {
         showToast('生成失败: ' + e.message);
         console.error('[short-drama] 生成失败:', e);
@@ -450,6 +515,39 @@ async function generateOriginalShortDrama() {
  * 小说改编短剧流程
  */
 async function adaptNovelToShortDramaFlow() {
+    // 检查登录状态（异步等待登录加载）
+    if (typeof currentUser !== 'undefined' && !currentUser) {
+        try {
+            console.log('[short-drama] adaptNovel: currentUser 为空，尝试通过 NVAuth 获取登录状态...');
+            let user = null;
+            if (typeof NVAuth !== 'undefined' && typeof NVAuth.getCurrentUser === 'function') {
+                user = await NVAuth.getCurrentUser();
+                if (user) {
+                    console.log('[short-drama] adaptNovel: 通过 NVAuth.getCurrentUser 获取到用户:', user.email);
+                }
+            } else if (typeof getSupabase === 'function') {
+                const client = getSupabase();
+                if (client && client.auth) {
+                    const { data: { session } } = await client.auth.getSession();
+                    if (session && session.user) {
+                        user = session.user;
+                        console.log('[short-drama] adaptNovel: 通过 getSupabase.getSession 获取到用户:', user.email);
+                    }
+                }
+            }
+            if (user) {
+                window.currentUser = user;
+            } else {
+                showToast('请先登录后再使用短剧功能');
+                return;
+            }
+        } catch (e) {
+            console.warn('[short-drama] adaptNovel: 获取登录状态失败:', e);
+            showToast('请先登录后再使用短剧功能');
+            return;
+        }
+    }
+
     const episodeCount = parseInt(document.getElementById('shortDramaAdaptEpisodeCount').value);
     const model = document.getElementById('shortDramaAdaptModel')?.value || 'qwen3.5-plus';
     const useMemory = document.querySelector('input[name="shortDramaAdaptMemory"]:checked')?.value === 'true';
@@ -512,12 +610,14 @@ async function adaptNovelToShortDramaFlow() {
         renderShortDramaEpisodeList();
         updateShortDramaProgress();
 
-        showToast(`✅ 改编大纲完成（${episodes.length}集）`);
+        // 🆕 大纲生成后自动提取角色
+        shortDramaExtractCharacters();
 
-        // 开始生成剧本
-        if (confirm('改编大纲已生成，是否开始生成剧本？')) {
-            await generateAllShortDramaEpisodes();
-        }
+        showToast(`✅ 改编大纲完成（${episodes.length}集），请查看后决定是否生成剧本`);
+
+        // 显示"生成剧本"按钮，让用户看完大纲再决定
+        const startBtn = document.getElementById('shortDramaStartWritingBtn');
+        if (startBtn) startBtn.style.display = '';
     } catch (e) {
         showToast('改编失败: ' + e.message);
         console.error('[short-drama] 改编失败:', e);
@@ -569,6 +669,12 @@ async function generateAllShortDramaEpisodes() {
             renderShortDramaEpisodeList();
             updateShortDramaProgress();
 
+            // 🆕 每5集更新一次角色和场景提取
+            if ((i + 1) % 5 === 0) {
+                shortDramaExtractCharacters();
+                shortDramaExtractScenes();
+            }
+
         } catch (e) {
             ep.status = 'error';
             console.error(`[short-drama] 第${i + 1}集生成失败:`, e);
@@ -580,6 +686,9 @@ async function generateAllShortDramaEpisodes() {
 
     if (shortDramaState.episodes.every(e => e.status === 'done')) {
         showToast('🎉 短剧全部完成！');
+        // 🆕 最终提取角色和场景
+        shortDramaExtractCharacters();
+        shortDramaExtractScenes();
         // 自动显示评估
         setTimeout(() => evaluateAllShortDramaEpisodes(), 1000);
     }
@@ -669,6 +778,9 @@ function showShortDramaEvaluationResult(result) {
                 <button onclick="exportShortDramaScript()" style="width:100%;background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;margin-top:12px;">
                     📄 导出完整剧本
                 </button>
+                <button onclick="exportShortDramaJSON()" style="width:100%;background:#10b981;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;margin-top:8px;">
+                    💾 导出JSON（手机可读）
+                </button>
             </div>
         </div>
     `;
@@ -686,6 +798,7 @@ function renderShortDramaEpisodeList() {
     list.innerHTML = shortDramaState.episodes.map((ep, i) => {
         const statusIcon = ep.status === 'done' ? '✅' : ep.status === 'generating' ? '⏳' : ep.status === 'error' ? '❌' : '⭕';
         const scoreText = ep._evaluation ? `${ep._evaluation.score}分` : '';
+        const outlineText = ep.outline ? `<div style="font-size:12px;color:var(--text-dim);margin-top:4px;line-height:1.5;">${ep.outline}</div>` : '';
 
         return `
             <div class="novel-chapter-item ${ep.status}" onclick="viewShortDramaEpisode(${i})">
@@ -697,6 +810,7 @@ function renderShortDramaEpisodeList() {
                     </div>
                     ${scoreText ? `<div style="color:#fbbf24;font-size:14px;">${scoreText}</div>` : ''}
                 </div>
+                ${outlineText}
             </div>
         `;
     }).join('');
@@ -1005,4 +1119,414 @@ function openNovelDB() {
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
     });
+}
+
+// ==================== 🆕 角色提取（适配短剧大纲格式） ====================
+
+/**
+ * 从短剧大纲中提取角色
+ * 短剧大纲格式: "第1集：标题 - 剧情" 中剧情描述可能包含角色名
+ * 同时也会尝试从已生成的剧本内容中提取角色
+ */
+function shortDramaExtractCharacters() {
+    const chars = [];
+    const addedNames = new Set();
+    const outline = shortDramaState.episodes.map(ep => ep.outline || '').join('\n');
+
+    function _addChar(name, desc, source) {
+        name = name.replace(/[""「」『』【】\[\]]/g, '').trim();
+        if (name.length < 2 || name.length > 10) return false;
+        if (addedNames.has(name)) return false;
+
+        // 黑名单（通用代词和模糊称呼）
+        const stopWords = new Set(['他们','她们','我们','自己','大家','所有','这个','那个','一个','什么','对方','众人','旁边','周围','有人','别人','某人','此人','其他','各位','那人','这人','老者','少年','少女','女子','男子','老人','孩子','小孩','老头','妇人','小姐','公子','先生','夫人','陛下','殿下']);
+        if (stopWords.has(name)) return false;
+
+        // 过滤含虚词的短名字
+        if (/[的了是在有不人我他她它这那里也就都要会可以上下来去到过说着被让给把还没很太更最又再才刚]/.test(name) && name.length <= 3) return false;
+
+        addedNames.add(name);
+        chars.push({ name, desc: (desc || '').substring(0, 80).trim() || '主要角色', _source: source });
+        return true;
+    }
+
+    // 第1层：从已生成剧本中提取角色名（以"角色名："或"角色名说"格式出现）
+    const allContent = shortDramaState.episodes
+        .filter(e => e.status === 'done' && e.content)
+        .map(e => e.content)
+        .join('\n');
+
+    if (allContent) {
+        // 匹配 "角色名：对话" 格式（剧本中最常见的角色标识）
+        const dialoguePattern = /^([\u4e00-\u9fa5]{2,6})[：:]/gm;
+        let dm;
+        while ((dm = dialoguePattern.exec(allContent)) !== null) {
+            _addChar(dm[1], '剧中角色', 'script_dialogue');
+        }
+    }
+
+    // 第2层：从大纲剧情描述中提取高频出现的名字
+    if (chars.length < 3 && outline) {
+        // 统计2-4字中文词组出现频率
+        const wordFreq = {};
+        const namePattern = /([\u4e00-\u9fa5]{2,4})(?:的|和|与|被|把|对|向|在|给|让|从|到|跟)/g;
+        let nm;
+        while ((nm = namePattern.exec(outline)) !== null) {
+            const w = nm[1];
+            if (!addedNames.has(w) && w.length >= 2) {
+                wordFreq[w] = (wordFreq[w] || 0) + 1;
+            }
+        }
+        // 取出现>=2次的名字
+        for (const [name, freq] of Object.entries(wordFreq)) {
+            if (freq >= 2) {
+                _addChar(name, '大纲角色', 'outline_freq');
+            }
+        }
+    }
+
+    // 保留已有角色的 imageUrl
+    if (shortDramaState.characters && shortDramaState.characters.length > 0) {
+        var oldCharsMap = {};
+        shortDramaState.characters.forEach(function (oc) { if (oc.imageUrl) oldCharsMap[oc.name] = oc; });
+        chars.forEach(function (nc) {
+            var old = oldCharsMap[nc.name];
+            if (old) {
+                nc.imageUrl = old.imageUrl;
+                if (old._generating) nc._generating = old._generating;
+                if (old.desc && old.desc.length > nc.desc.length) nc.desc = old.desc;
+            }
+        });
+    }
+
+    shortDramaState.characters = chars;
+    _shortDramaRenderCharCards();
+    console.log('[short-drama] 角色提取完成:', chars.length, '个角色', chars.map(c => c.name).join(', '));
+    return chars;
+}
+
+// ==================== 🆕 场景提取 ====================
+
+/**
+ * 从已生成的剧本中提取场景
+ */
+function shortDramaExtractScenes() {
+    const scenes = [];
+    const addedNames = new Set();
+
+    const allContent = shortDramaState.episodes
+        .filter(e => e.status === 'done' && e.content)
+        .map(e => e.content)
+        .join('\n');
+
+    if (!allContent) {
+        shortDramaState.scenes = scenes;
+        _shortDramaRenderSceneCards();
+        return scenes;
+    }
+
+    // 匹配 "场景N：地点-时间" 或 "场景N: 地点 时间"
+    const scenePattern = /场景\d+[：:]\s*(.+?)(?:\n|$)/g;
+    let sm;
+    while ((sm = scenePattern.exec(allContent)) !== null) {
+        let sceneName = sm[1].replace(/[-—]\s*.+$/, '').trim(); // 只取地点部分
+        sceneName = sceneName.replace(/\s*-\s*.+$/, '').trim(); // 处理 "地点 - 时间"
+        if (sceneName.length >= 2 && sceneName.length <= 20 && !addedNames.has(sceneName)) {
+            addedNames.add(sceneName);
+            scenes.push({ name: sceneName, desc: sm[1].trim() });
+        }
+    }
+
+    shortDramaState.scenes = scenes;
+    _shortDramaRenderSceneCards();
+    console.log('[short-drama] 场景提取完成:', scenes.length, '个场景');
+    return scenes;
+}
+
+// ==================== 🆕 一致性约束注入 ====================
+
+/**
+ * 将角色设定和场景约束注入到集数生成提示词中
+ * 在 generateShortDramaEpisode 调用时使用
+ */
+function _shortDramaBuildConsistencyPrompt() {
+    let constraint = '';
+
+    // 角色一致性约束
+    if (shortDramaState.characters && shortDramaState.characters.length > 0) {
+        constraint += '\n【🎭 角色一致性约束】\n';
+        constraint += '以下角色必须保持外貌、性格、说话方式前后一致：\n';
+        shortDramaState.characters.forEach(ch => {
+            constraint += `- ${ch.name}：${ch.desc || '主要角色'}\n`;
+        });
+        constraint += '⚠️ 严禁角色名字拼写不一致、性格突变、外貌描述矛盾。\n';
+    }
+
+    // 场景一致性约束
+    if (shortDramaState.scenes && shortDramaState.scenes.length > 0) {
+        constraint += '\n【📍 场景一致性约束】\n';
+        constraint += '以下场景的描述必须保持一致：\n';
+        shortDramaState.scenes.forEach(sc => {
+            constraint += `- ${sc.name}：${sc.desc || ''}\n`;
+        });
+        constraint += '⚠️ 同一场景的环境、光线、氛围描述必须前后一致。\n';
+    }
+
+    return constraint;
+}
+
+// ==================== 🆕 角色卡片渲染 ====================
+
+function _shortDramaRenderCharCards() {
+    const container = document.getElementById('shortDramaCharCards');
+    if (!container) return;
+
+    const chars = shortDramaState.characters || [];
+    if (chars.length === 0) {
+        container.parentElement.style.display = 'none';
+        return;
+    }
+
+    container.parentElement.style.display = '';
+    container.innerHTML = chars.map(function (char, idx) {
+        var imgHtml = char.imageUrl
+            ? '<div style="margin-bottom:10px;"><img src="' + char.imageUrl + '" style="width:100%;border-radius:8px;cursor:pointer;" onclick="window.open(\'' + char.imageUrl + '\')"></div>'
+            : '';
+        var btnText = char._generating ? '⏳ 生成中...' : '🎨 生成角色图';
+        var btnDisabled = char._generating ? ' opacity:0.6;cursor:not-allowed;' : '';
+        return '<div class="novel-char-card">'
+            + '<div class="char-name">🎭 ' + char.name + '</div>'
+            + '<div class="char-desc">' + char.desc + '</div>'
+            + imgHtml
+            + '<button class="char-gen-btn' + (char._generating ? ' loading' : '') + '" onclick="shortDramaGenerateCharImage(' + idx + ')" style="' + btnDisabled + '">' + btnText + '</button>'
+            + '</div>';
+    }).join('');
+}
+
+// ==================== 🆕 场景卡片渲染 ====================
+
+function _shortDramaRenderSceneCards() {
+    const container = document.getElementById('shortDramaSceneCards');
+    if (!container) return;
+
+    const scenes = shortDramaState.scenes || [];
+    if (scenes.length === 0) {
+        container.parentElement.style.display = 'none';
+        return;
+    }
+
+    container.parentElement.style.display = '';
+    container.innerHTML = scenes.map(function (sc, idx) {
+        return '<div class="novel-char-card">'
+            + '<div class="char-name">📍 ' + sc.name + '</div>'
+            + '<div class="char-desc">' + (sc.desc || '场景') + '</div>'
+            + '</div>';
+    }).join('');
+}
+
+// ==================== 🆕 角色图片生成 ====================
+
+async function shortDramaGenerateCharImage(charIdx) {
+    var chars = shortDramaState.characters || [];
+    var ch = chars[charIdx];
+    if (!ch || ch._generating) return;
+
+    if (typeof callBanana2ImageAPI !== 'function') {
+        showToast('图片生成API未加载，请刷新页面');
+        return;
+    }
+
+    ch._generating = true;
+    _shortDramaRenderCharCards();
+
+    var genre = SHORT_DRAMA_GENRES[shortDramaState.genre] || SHORT_DRAMA_GENRES['urban'];
+    var theme = shortDramaState.theme || '';
+
+    try {
+        var imageUrl = await callBanana2ImageAPI(
+            '专业角色设计图(character design sheet)，全部文字必须使用中文标注。\n'
+            + '大标题：「人物介绍」，风格：' + genre.name + '短剧。\n'
+            + '角色名称：' + ch.name + '\n'
+            + '角色描述：' + (ch.desc || '主要角色') + '\n'
+            + '故事背景：' + theme.substring(0, 50) + '\n'
+            + '请生成一张精美的角色设计图，包含全身像和面部特写，风格统一，适合短剧角色参考。',
+            {
+                model: 'gemini-3.1-flash-image-preview-4k',
+                aspectRatio: '3:4'
+            }
+        );
+        ch.imageUrl = imageUrl;
+        ch._generating = false;
+        _shortDramaRenderCharCards();
+        showToast('✅ ' + ch.name + ' 角色设计图已生成');
+    } catch (e) {
+        ch._generating = false;
+        _shortDramaRenderCharCards();
+        showToast('角色图生成失败: ' + e.message);
+    }
+}
+
+// ==================== 🆕 JSON 导出（手机可读） ====================
+
+/**
+ * 导出短剧数据为 JSON 文件
+ * 包含：主题、类型、角色、场景、集数列表、每集内容
+ */
+function exportShortDramaJSON() {
+    const doneEpisodes = shortDramaState.episodes.filter(e => e.status === 'done');
+    if (doneEpisodes.length === 0) {
+        showToast('没有已完成的集数');
+        return;
+    }
+
+    const exportData = {
+        title: shortDramaState.theme || '未命名短剧',
+        genre: SHORT_DRAMA_GENRES[shortDramaState.genre]?.name || shortDramaState.genre || '短剧',
+        genreKey: shortDramaState.genre,
+        style: shortDramaState.style || 'normal',
+        totalEpisodes: shortDramaState.totalEpisodes,
+        completedEpisodes: doneEpisodes.length,
+        exportTime: new Date().toISOString(),
+        characters: (shortDramaState.characters || []).map(c => ({
+            name: c.name,
+            desc: c.desc,
+            imageUrl: c.imageUrl || null
+        })),
+        scenes: (shortDramaState.scenes || []).map(s => ({
+            name: s.name,
+            desc: s.desc
+        })),
+        episodes: doneEpisodes.map(ep => ({
+            episode: ep.index + 1,
+            title: ep.title,
+            outline: ep.outline,
+            content: ep.content,
+            wordCount: ep.wordCount,
+            duration: ep.duration,
+            evaluation: ep._evaluation ? {
+                score: ep._evaluation.score,
+                issues: ep._evaluation.issues
+            } : null
+        }))
+    };
+
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${shortDramaState.theme || '短剧'}_数据.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('JSON 文件已导出，可在手机上查看');
+}
+
+// ==================== 🆕 一致性校验（短剧版） ====================
+
+/**
+ * 校验短剧各集之间的一致性
+ */
+async function shortDramaCheckConsistency() {
+    var doneEpisodes = shortDramaState.episodes.filter(e => e.status === 'done');
+    if (doneEpisodes.length < 3) {
+        showToast('至少需要3集已完成内容才能校验');
+        return;
+    }
+
+    // 显示加载提示
+    var resultDiv = document.getElementById('shortDramaConsistencyResult');
+    if (resultDiv) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#60a5fa;">🔄 正在分析短剧一致性...</div>';
+    }
+
+    // 取每集前200字和末200字
+    var brief = doneEpisodes.map(function (ep) {
+        var s = ep.content || '';
+        var head = s.substring(0, 200);
+        var tail = s.length > 400 ? s.slice(-200) : '';
+        return '第' + (ep.index + 1) + '集「' + ep.title + '」:\n开头：' + head + '\n结尾：' + tail;
+    }).join('\n---\n');
+
+    // 角色信息
+    var charInfo = '';
+    if (shortDramaState.characters && shortDramaState.characters.length > 0) {
+        charInfo = '\n\n【已识别角色】\n' + shortDramaState.characters.map(c => c.name + '：' + c.desc).join('\n');
+    }
+
+    var sysPrompt = '你是专业短剧编剧和编辑。请检查以下短剧各集内容的一致性问题，包括：角色名字拼写不一致、时间线矛盾、地点描述前后矛盾、人物性格突变、服装/外观描述矛盾、称呼混乱等。\n\n'
+        + '必须严格用以下JSON数组格式回复（不要任何其他内容）：\n'
+        + '[{"episode":集数,"type":"问题类型","desc":"问题描述","fix":"修复建议"}]\n'
+        + '如果没发现问题，返回空数组 []。\n'
+        + '集号为整数（从1开始），type只能是以下之一：name_inconsistent|timeline_conflict|location_conflict|personality_shift|appearance_conflict|other';
+
+    try {
+        var model = shortDramaState.model || 'qwen3.5-plus';
+        var result = await _novelLLM([
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: '/no_think\n请检查以下短剧内容的一致性：\n\n' + brief + charInfo }
+        ], { maxTokens: 4096, temperature: 0.2, model: model, useMemory: false });
+
+        // 解析JSON
+        var issues = [];
+        try {
+            var jsonStr = result.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+            var startBracket = jsonStr.indexOf('[');
+            var endBracket = jsonStr.lastIndexOf(']');
+            if (startBracket >= 0 && endBracket > startBracket) {
+                jsonStr = jsonStr.substring(startBracket, endBracket + 1);
+            }
+            issues = JSON.parse(jsonStr);
+        } catch (parseErr) {
+            if (resultDiv) {
+                resultDiv.innerHTML = '<div style="padding:16px;color:#94a3b8;">' + result.replace(/\n/g, '<br>') + '</div>';
+            }
+            return;
+        }
+
+        // 显示结果
+        _shortDramaRenderConsistencyResult(issues, resultDiv);
+    } catch (e) {
+        if (resultDiv) {
+            resultDiv.innerHTML = '<div style="padding:16px;color:#ef4444;">校验失败: ' + e.message + '</div>';
+        }
+    }
+}
+
+function _shortDramaRenderConsistencyResult(issues, container) {
+    if (!container) container = document.getElementById('shortDramaConsistencyResult');
+    if (!container) return;
+    container.style.display = 'block';
+
+    if (!issues || issues.length === 0) {
+        container.innerHTML = '<div style="padding:16px;text-align:center;color:#22c55e;">✅ 未发现一致性问题，短剧剧情连贯性良好！</div>';
+        return;
+    }
+
+    var typeLabel = {
+        name_inconsistent: '👤 名字不一致',
+        timeline_conflict: '⏰ 时间线矛盾',
+        location_conflict: '📍 地点矛盾',
+        personality_shift: '🎭 性格突变',
+        appearance_conflict: '👗 外观矛盾',
+        other: '⚠️ 其他'
+    };
+
+    var html = '<div style="padding:16px;">';
+    html += '<div style="font-size:16px;font-weight:bold;margin-bottom:12px;color:#fbbf24;">🔍 发现 ' + issues.length + ' 个一致性问题</div>';
+
+    issues.forEach(function (issue) {
+        var label = typeLabel[issue.type] || typeLabel.other;
+        html += '<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:8px;">'
+            + '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">'
+            + '<span style="color:#fbbf24;">' + label + '</span>'
+            + '<span style="color:#888;">第' + issue.episode + '集</span>'
+            + '</div>'
+            + '<div style="font-size:14px;color:#e2e8f0;margin-bottom:6px;">' + (issue.desc || '') + '</div>'
+            + '<div style="font-size:13px;color:#60a5fa;">💡 ' + (issue.fix || '建议人工检查') + '</div>'
+            + '</div>';
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
 }

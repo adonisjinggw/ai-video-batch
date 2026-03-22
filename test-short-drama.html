@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head><title>短剧测试</title></head>
+<body>
+<h2>短剧登录检查测试</h2>
+<pre id="result">加载中...</pre>
+<script>
+(async function() {
+    const lines = [];
+    lines.push('typeof currentUser: ' + typeof currentUser);
+    lines.push('currentUser: ' + JSON.stringify(currentUser));
+    lines.push('typeof getCurrentUser: ' + typeof getCurrentUser);
+    lines.push('typeof getSupabase: ' + typeof getSupabase);
+    
+    // Test getCurrentUser
+    if (typeof getCurrentUser === 'function') {
+        try {
+            lines.push('Calling getCurrentUser()...');
+            const user = await getCurrentUser();
+            lines.push('getCurrentUser result: ' + JSON.stringify(user));
+        } catch(e) {
+            lines.push('getCurrentUser ERROR: ' + e.message);
+        }
+    }
+    
+    // Test getSupabase
+    if (typeof getSupabase === 'function') {
+        try {
+            lines.push('Calling getSupabase()...');
+            const client = getSupabase();
+            lines.push('getSupabase result type: ' + typeof client);
+            if (client && client.auth) {
+                const { data } = await client.auth.getSession();
+                lines.push('getSession result: ' + JSON.stringify(data?.session?.user?.email || 'no session'));
+            }
+        } catch(e) {
+            lines.push('getSupabase ERROR: ' + e.message);
+        }
+    }
+    
+    document.getElementById('result').textContent = lines.join('\n');
+})();
+</script>
+<script src="/js/supabase-config.js"></script>
+<script src="/js/short-drama.js"></script>
+</body>
+</html>

@@ -8,7 +8,7 @@
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
     <script src="/js/api-core.js?v=20260225e&t=20260225e"></script>
-    <script src="/js/prompt-templates.js?v=20260308a"></script>
+    <script src="/js/prompt-templates.js?v=20260322a"></script>
     <script src="/js/user-memory.js?v=20260213a"></script>
     <script src="/js/writing-vault.js?v=20260213a"></script>
     <script src="/js/billing.js?v=20260213a"></script>
@@ -2484,11 +2484,13 @@
                 console.log('[chat] 发送按钮事件已绑定');
             }
 
-            // 🔧 修复：快捷输入按钮支持触摸事件
+            // 🔧 修复：快捷输入按钮同时支持 click 和 touchend 事件
             document.querySelectorAll('.quick-q').forEach(btn => {
-                btn.addEventListener('touchend', function (e) {
+                // 统一处理函数
+                function handleQuickBtn(e) {
                     e.preventDefault();
-                    const text = this.textContent.replace(/^[^\s]+\s*/, ''); // 移除emoji前缀
+                    const text = this.textContent.replace(/^[^\s]+\s*/, '').trim(); // 移除emoji前缀
+                    console.log('[chat] 快捷按钮触发:', text);
 
                     // 🧩 特殊按钮：调用对应函数而不是发送问题
                     if (text === '技能') {
@@ -2527,6 +2529,14 @@
                             fillInput(fillText);
                         }
                     }
+                }
+
+                // 同时绑定 click（桌面/普通移动端）和 touchend（触摸防延迟）
+                btn.addEventListener('click', handleQuickBtn);
+                btn.addEventListener('touchend', function(e) {
+                    // 防止 touchend 后又触发 click 导致双重执行
+                    e.preventDefault();
+                    handleQuickBtn.call(this, e);
                 });
             });
 
@@ -2879,6 +2889,7 @@
                 music_video: 'ai_music_video',
                 music_mv: 'ai_music_video',
                 make_mv: 'ai_music_video',
+                ai_mv: 'ai_music_video',
                 story_video: 'continuous_story_video',
                 continuous_video: 'continuous_story_video',
                 continuity_video: 'continuous_story_video',
@@ -2886,9 +2897,24 @@
                 film_video: 'continuous_story_video',
                 ad_video: 'continuous_story_video',
                 promo_video: 'continuous_story_video',
+                promotional_video: 'continuous_story_video',
+                story: 'continuous_story_video',
+                drama_video: 'continuous_story_video',
+                vlog_video: 'continuous_story_video',
+                documentary_video: 'continuous_story_video',
+                tutorial_video: 'continuous_story_video',
                 batch_video: 'batch_short_video',
                 short_video_batch: 'batch_short_video',
                 short_video: 'batch_short_video',
+                batch_short: 'batch_short_video',
+                multiple_videos: 'batch_short_video',
+                video_batch: 'batch_short_video',
+                video: 'continuous_story_video',
+                make_video: 'continuous_story_video',
+                create_video: 'continuous_story_video',
+                generate_video: 'continuous_story_video',
+                video_generation: 'continuous_story_video',
+                text_to_video: 'continuous_story_video',
                 comic_storyboard: 'novel_to_comic',
                 comic: 'novel_to_comic',
                 storyboard: 'novel_to_comic',
@@ -3156,6 +3182,53 @@
             const catalog = _buildSkillCatalog();
             if (!catalog) { console.log('[意图分析] 技能清单为空'); return null; }
 
+            // ⚡ 快速关键词预检测：在调用LLM之前先检测视频相关关键词
+            const lowerText = text.toLowerCase();
+            const videoKeywords = [
+                '视频', 'video', '拍个', '生成视频', '做个视频', '制作视频', '来个视频', '弄个视频',
+                '整段视频', '拍一段', '生成一段', '短视频', '拍视频', '帮我拍', '帮我做视频',
+                '帮我生成视频', '帮我制作视频', '一段视频', '条视频', '个视频', '做视频', '出视频',
+                '秒视频', '秒的视频', '的短片', '小视频', '剪个视频'
+            ];
+            const mvKeywords = ['mv', '音乐视频', 'music video', '歌曲视频', '歌配视频', '拍个mv', '做个mv'];
+            const batchKeywords = ['批量', '多个', '多条', '几条', '一系列'];
+            
+            // 检测是否包含视频关键词
+            const hasVideoKeyword = videoKeywords.some(kw => lowerText.includes(kw));
+            const hasMvKeyword = mvKeywords.some(kw => lowerText.includes(kw));
+            const hasBatchKeyword = batchKeywords.some(kw => lowerText.includes(kw));
+            
+            // 如果检测到视频关键词，直接返回对应技能（跳过LLM调用）
+            if (hasVideoKeyword || hasMvKeyword) {
+                let targetSkillId = 'continuous_story_video'; // 默认单条连贯视频
+                let reason = '检测到视频生成意图';
+                
+                if (hasMvKeyword) {
+                    targetSkillId = 'ai_music_video';
+                    reason = '检测到MV/音乐视频意图';
+                } else if (hasBatchKeyword) {
+                    targetSkillId = 'batch_short_video';
+                    reason = '检测到批量视频生成意图';
+                }
+                
+                const skill = SkillManager.getById(targetSkillId);
+                if (skill) {
+                    console.log(`[意图分析] ⚡ 关键词预检测命中: ${targetSkillId}`);
+                    // 提取主题描述（去掉视频相关关键词）
+                    let description = text
+                        .replace(/帮我|请|生成|制作|做|来个|弄个|整段|拍个|拍一段|视频|video/gi, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    if (!description) description = text; // 如果提取后为空，使用原文
+                    
+                    return {
+                        skill,
+                        reason,
+                        params: _normalizeIntentParamsForSkill(skill, { description }, text)
+                    };
+                }
+            }
+
             const systemPrompt = `/no_think
 你是意图分类器，只输出JSON。根据用户消息判断是否想让AI帮忙创作/生成内容。
 
@@ -3176,6 +3249,7 @@ ${catalog}
 - 想创作/生成/制作/设计**具体内容**（图、视频、音乐、3D、配音、漫画、品牌、海报等）→ skill
 - 描述画面/场景暗示想要看到效果 → skill
 - "来一个/弄一个/整一个" + **具体创作内容** → skill
+- **视频关键词检测**：用户提到"视频"、"video"、"拍个"、"生成视频"、"做个视频"、"制作视频"等 → 必须匹配视频相关skill
 - 纯粹提问/闲聊/讨论/分析/翻译/学习 → chat
 - 谈论系统功能/操作方式/使用方法/反馈建议/投诉/bug报告 → chat
 - 没有明确创作主题的模糊指令（如"全自动完成""开始""继续""快一点"）→ chat
@@ -3199,10 +3273,14 @@ MV/音乐视频规则（优先级高）：
 - 关键词：写小说、长篇、网文、连载、XX万字、多章节、写一部XX
 - 从用户描述中提取小说主题和推荐题材(玄幻/都市/科幻/武侠/言情/悬疑/历史/奇幻)
 
-视频技能选择指南（重要）：
+视频技能选择指南（重要，优先级高）：
 - 用户想做MV/音乐视频 → ai_music_video（不是continuous_story_video）
 - 用户要一个完整连贯的视频（广告/VCR/宣传片/故事/剧情/纪录片/Vlog/教程）→ continuous_story_video
 - 用户要多个独立不同主题的短视频（批量/多条/各种主题）→ batch_short_video
+- **关键**：用户说"生成视频"、"做个视频"、"来个视频"、"制作视频"、"视频生成"、"帮我生成一个视频"等 → continuous_story_video
+- **关键**：用户描述画面内容并暗示要视频 → continuous_story_video
+- **关键**：用户提到"视频"但没有明确说要批量 → 默认 continuous_story_video（单条连贯视频）
+- 用户明确要"批量"/"多个"/"多条"视频 → batch_short_video
 
 重要：如果用户需求在已有技能中找不到完全匹配的，可以输出一个新的英文snake_case技能ID（如 logo_design、recipe_image、travel_video），系统会自动创建该技能。
 
@@ -3344,6 +3422,34 @@ skill意图的params规则：
                         return { skill: autoSkill, reason: `🆕 自动创建技能: ${autoSkill.description}`, params: _normalizeIntentParamsForSkill(autoSkill, parsed.params || null, text) };
                     }
                 }
+                
+                // 🔒 兜底：LLM返回chat但用户明显想要视频生成时，强制路由到视频技能
+                if (parsed.intent === 'chat') {
+                    const _lowerFallback = text.toLowerCase();
+                    const _videoFallbackKw = ['视频', 'video', '短视频', '秒视频', '秒的视频', '生成视频', '做个视频', '制作视频', '拍个', '拍一段', '一段视频'];
+                    const _imgFallbackKw = ['画', '画一张', '画一幅', '画个', '帮我画', '生成图片', '生成一张', '生成图', '绘制', '画图', '出图', '图片生成'];
+                    const _hasFallbackVideo = _videoFallbackKw.some(kw => _lowerFallback.includes(kw));
+                    const _hasFallbackImg = !_hasFallbackVideo && _imgFallbackKw.some(kw => _lowerFallback.includes(kw));
+                    
+                    if (_hasFallbackVideo) {
+                        const _fbSkillId = _lowerFallback.includes('批量') || _lowerFallback.includes('多个') ? 'batch_short_video' : 'continuous_story_video';
+                        const _fbSkill = SkillManager.getById(_fbSkillId);
+                        if (_fbSkill) {
+                            console.log('[意图分析] 🔒 兜底路由视频技能:', _fbSkillId);
+                            let _fbDesc = text.replace(/帮我|请|生成|制作|做|来个|弄个|整段|拍个|拍一段|视频|video|\d+秒/gi, '').replace(/\s+/g, ' ').trim() || text;
+                            return { skill: _fbSkill, reason: '检测到视频生成意图', params: _normalizeIntentParamsForSkill(_fbSkill, { description: _fbDesc }, text) };
+                        }
+                    }
+                    if (_hasFallbackImg) {
+                        const _fbImgSkill = SkillManager.getById('unified_style_image') || SkillManager.getById('style_image') || SkillManager.getAll().find(s => s.category === 'image');
+                        if (_fbImgSkill) {
+                            console.log('[意图分析] 🔒 兜底路由图片技能:', _fbImgSkill.id);
+                            let _fbDesc = text.replace(/帮我|请|生成|绘制|画一张|画一幅|画个|画|出图/gi, '').replace(/\s+/g, ' ').trim() || text;
+                            return { skill: _fbImgSkill, reason: '检测到图片生成意图', params: _normalizeIntentParamsForSkill(_fbImgSkill, { description: _fbDesc }, text) };
+                        }
+                    }
+                }
+                
                 console.log('[意图分析] → 普通对话');
                 return null;
             } catch (e) {
@@ -5335,7 +5441,10 @@ ${paramDesc}
                 '性格': 'personality_test', '运势': 'fortune_card', '塔罗': 'fortune_card',
                 '迷宫': 'maze_puzzle', '找不同': 'spot_difference',
                 '愿景': 'goal_vision_board', '习惯': 'habit_chain', '遗愿': 'bucket_list',
-                'swot': 'swot_diagram', 'ppt': 'pitch_deck_slide'
+                'swot': 'swot_diagram', 'ppt': 'pitch_deck_slide',
+                '三联画': 'triptych_expressions', 'triptych': 'triptych_expressions', '三面板': 'triptych_expressions',
+                '表情变奏': 'triptych_expressions', '多表情': 'triptych_expressions',
+                '角度测试': 'triptych_angles', '三视图': 'triptych_angles', '三角度': 'triptych_angles', 'look': 'triptych_angles', 'looktest': 'triptych_angles'
             };
 
             // 优先精确关键词匹配
@@ -5430,8 +5539,17 @@ ${paramDesc}
 
                     // 填充模板变量
                     let raw = matched.tpl.template || '';
-                    // 替换 {variable} 占位符
-                    raw = raw.replace(/\{(\w+)\}/g, (m, v) => subject);
+                    // 高级变量填充：模板带 variables 定义时，每个变量使用对应默认值（而非全部替换为subject）
+                    if (matched.tpl.variables && typeof matched.tpl.variables === 'object') {
+                        for (const [varName, varDef] of Object.entries(matched.tpl.variables)) {
+                            const defaultVal = varDef.default || varDef || '';
+                            raw = raw.replace(new RegExp('\\{' + varName + '\\}', 'g'), defaultVal);
+                        }
+                        console.log('[模板执行] 使用模板默认变量填充');
+                    } else {
+                        // 兼容旧逻辑：替换 {variable} 占位符
+                        raw = raw.replace(/\{(\w+)\}/g, (m, v) => subject);
+                    }
                     // 替换 ______ 占位符
                     raw = raw.replace(/_{4,}/g, subject);
                     filledPrompt = raw;
@@ -5474,9 +5592,10 @@ ${paramDesc}
                 // 4. 调用图片生成API
                 _setStep('🎨 正在生成图片...', 55);
                 if (typeof callBanana2ImageAPI !== 'function') throw new Error('图片生成API未加载');
+                const tplAspectRatio = matched && matched.tpl.aspectRatio ? matched.tpl.aspectRatio : '1:1';
                 const imageUrl = await callBanana2ImageAPI(generatedPrompt, {
                     model: 'gemini-3.1-flash-image-preview-4k',
-                    aspectRatio: '1:1'
+                    aspectRatio: tplAspectRatio
                 });
                 if (!imageUrl) throw new Error('图片生成未返回结果');
 
@@ -6530,8 +6649,8 @@ ${paramDesc}
                         const btn = document.createElement('div');
                         btn.style.cssText = 'padding:10px 14px;margin:6px 0;background:#f5f5f5;border-radius:8px;cursor:pointer;transition:background 0.2s;';
                         btn.textContent = opt.text;
-                        btn.onmouseover = function() { this.style.background = '#e0e0e0; };
-                        btn.onmouseout = function() { this.style.background = '#f5f5f5; };
+                        btn.onmouseover = function() { this.style.background = '#e0e0e0'; };
+                        btn.onmouseout = function() { this.style.background = '#f5f5f5'; };
                         btn.onclick = function() {
                             const input = document.getElementById('inputBox');
                             if (input) {

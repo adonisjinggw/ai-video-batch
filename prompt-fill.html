@@ -4167,18 +4167,41 @@
                 // 同时处理 template 中的 ______（下划线填空）和 {key}（花括号变量）
                 // 如果没有 variables，则用正则从 template 提取占位符
                 if (vars.length === 0) {
-                    // 匹配 ______(说明) 格式
-                    const blankRegex = /_{3,}[^）\n]*[（(][^）)\n]+[）)]/g;
+                    // 匹配 ______(说明) 或 ______（说明）格式
+                    const blankRegex = /_{3,}[^）)\n]*[（(]([^）)\n]+)[）)]/g;
                     let match;
                     let idx = 1;
                     while ((match = blankRegex.exec(templateStr)) !== null) {
-                        const descMatch = match[0].match(/[（(]([^）)\n]+)[）)]/);
+                        const descContent = match[1]; // 括号内的内容，如 "人物/动物"、"风格：北欧/日式/工业风"
+
+                        // 解析括号内容：提取 label 和 options
+                        let label = descContent;
+                        let options = [];
+                        const colonIdx = descContent.indexOf('：');
+                        const colonIdxEn = descContent.indexOf(':');
+
+                        if (colonIdx > 0 || colonIdxEn > 0) {
+                            // 有 "标签：选项1/选项2" 格式，如 "风格：北欧/日式/工业风"
+                            const sepIdx = colonIdx > 0 ? colonIdx : colonIdxEn;
+                            label = descContent.substring(0, sepIdx);
+                            const optStr = descContent.substring(sepIdx + 1);
+                            // 按 / 分割选项
+                            options = optStr.split('/').map(s => s.trim()).filter(s => s);
+                        } else if (descContent.includes('/')) {
+                            // 有 "选项1/选项2/选项3" 格式，如 "人物/动物"、"职业1/职业2/职业3"
+                            const parts = descContent.split('/').map(s => s.trim()).filter(s => s);
+                            if (parts.length >= 2) {
+                                label = parts[0];  // 取第一段作为标签
+                                options = parts;
+                            }
+                        }
+
                         vars.push({
                             key: 'blank_' + idx,
-                            label: descMatch ? descMatch[1] : '填空 ' + idx,
-                            options: [],
+                            label: label,
+                            options: options,
                             hasInput: true,
-                            inputPlaceholder: '请输入' + (descMatch ? descMatch[1] : '内容')
+                            inputPlaceholder: '请输入' + label
                         });
                         idx++;
                     }
@@ -4382,16 +4405,13 @@
             customInputValues = {};  // 🆕 重置自定义输入值
             multiSelectValues = {};  // 🎬 重置多选值
 
-            // 渲染变量输入
+            // 🎯 统一渲染方式：所有模板都用 select 下拉选择（共享模板也统一）
             const container = document.getElementById('varsContainer');
-            container.innerHTML = currentTemplate.vars.map(v => {
-                // 检查是否有自定义输入框
-                const hasCustomInput = v.hasInput === true;
-                // 🎬 检查是否是多选字段
-                const isMultiSelect = v.multiSelect === true;
 
+            container.innerHTML = currentTemplate.vars.map(v => {
+                // 🎬 多选字段（仅高级模板的 consistency_lock 等使用）
+                const isMultiSelect = v.multiSelect === true;
                 if (isMultiSelect) {
-                    // 🎬 多选模式：渲染checkbox列表
                     multiSelectValues[v.key] = [];
                     return `
                         <div class="var-row">
@@ -4413,6 +4433,8 @@
                     `;
                 }
 
+                // 🎯 下拉选择（所有模板统一）
+                const hasCustomInput = v.hasInput === true;
                 return `
                     <div class="var-row">
                         <div class="var-label">${v.label}${hasCustomInput ? ' <span style="color:#fbbf24;font-size:11px;">(可自定义)</span>' : ''}</div>
@@ -4514,18 +4536,50 @@
             if (currentTemplate) {
                 // 使用模板生成
                 basePrompt = currentTemplate.template;
+
+                // 🔧 第一步：替换 {key} 花括号变量（原有高级模板）
                 for (const [key, value] of Object.entries(currentValues)) {
-                    // 🆕 先处理下划线填空
-                    let processedValue = value;
-                    if (blankValues[key] && blankValues[key].length > 0) {
-                        let blankIndex = 0;
-                        processedValue = value.replace(/_{3,}/g, () => {
-                            const filled = blankValues[key][blankIndex] || '[未填写]';
-                            blankIndex++;
-                            return filled;
-                        });
+                    if (!key.startsWith('blank_')) {
+                        // 🆕 处理下划线填空（原有高级模板中的 blankValues）
+                        let processedValue = value;
+                        if (blankValues[key] && blankValues[key].length > 0) {
+                            let blankIndex = 0;
+                            processedValue = value.replace(/_{3,}/g, () => {
+                                const filled = blankValues[key][blankIndex] || '[未填写]';
+                                blankIndex++;
+                                return filled;
+                            });
+                        }
+                        basePrompt = basePrompt.replace(new RegExp(`\\{${key}\\}`, 'g'), processedValue || '');
                     }
-                    basePrompt = basePrompt.replace(new RegExp(`\\{${key}\\}`, 'g'), processedValue || '');
+                }
+
+                // 🔧 第二步：替换 ______（...）下划线填空（共享模板）
+                // 按 blank_1, blank_2, ... 顺序替换模板中的第 N 个 ______ 占位符
+                const blankKeys = Object.keys(currentValues).filter(k => k.startsWith('blank_')).sort((a, b) => {
+                    return parseInt(a.replace('blank_', '')) - parseInt(b.replace('blank_', ''));
+                });
+                if (blankKeys.length > 0) {
+                    const blankRegex = /_{3,}[^）)\n]*[（(][^）)\n]+[）)]/g;
+                    let blankIdx = 0;
+                    basePrompt = basePrompt.replace(blankRegex, (match) => {
+                        if (blankIdx < blankKeys.length) {
+                            const val = currentValues[blankKeys[blankIdx]] || '';
+                            blankIdx++;
+                            return val || match; // 有值就替换，没值保留原占位符
+                        }
+                        return match;
+                    });
+                    // 替换没有括号说明的 ______ 占位符
+                    const plainBlankRegex = /_{3,}(?![^）)\n]*[（(])/g;
+                    basePrompt = basePrompt.replace(plainBlankRegex, () => {
+                        if (blankIdx < blankKeys.length) {
+                            const val = currentValues[blankKeys[blankIdx]] || '';
+                            blankIdx++;
+                            return val || '______';
+                        }
+                        return '______';
+                    });
                 }
 
                 // 🆕 移除空的可选字段行（如 【xxx】\n 或 【xxx】 后面没有内容）
@@ -4786,6 +4840,9 @@ ${basePrompt}
                 '奇幻森林中的小精灵'
             ];
 
+            // 🎯 克隆主模板选择器的所有 optgroup/option（包含250+共享模板）
+            const mainSelect = document.getElementById('templateSelect');
+
             for (let i = 0; i < BATCH_GRID_SIZE; i++) {
                 const item = document.createElement('div');
                 item.className = 'batch-item';
@@ -4800,33 +4857,6 @@ ${basePrompt}
                         <div class="batch-param-group">
                             <label>📋 模板</label>
                             <select id="batchTemplate_${i}" class="batch-template-select" onchange="updateBatchItemParams(${i})">
-                                <option value="">--不用模板--</option>
-                                <optgroup label="🎬 视频">
-                                    <option value="video_pro">🎬专业视频</option>
-                                </optgroup>
-                                <optgroup label="🎄 节日">
-                                    <option value="christmas">🎄圣诞节</option>
-                                    <option value="spring_festival">🧧春节</option>
-                                    <option value="christmas_card">🎁圣诞贺卡</option>
-                                    <option value="spring_card">🧧春节贺卡</option>
-                                </optgroup>
-                                <optgroup label="🎨 图片">
-                                    <option value="portrait">👤人物肖像</option>
-                                    <option value="product">📦产品展示</option>
-                                    <option value="landscape">🏞️风景摄影</option>
-                                    <option value="photo_pro">📸专业摄影</option>
-                                </optgroup>
-                                <optgroup label="✨ 风格">
-                                    <option value="ghibli">🏯吉卜力</option>
-                                    <option value="cyberpunk">🌆赛博朋克</option>
-                                    <option value="pixar_3d">🎪Pixar 3D</option>
-                                    <option value="watercolor">🎨水彩</option>
-                                </optgroup>
-                                <optgroup label="🖼️ 三联画人像">
-                                    <option value="triptych_expressions">🎭表情变奏</option>
-                                    <option value="triptych_angles">📐角度测试</option>
-                                    <option value="consistency_lock">🔒一致性锁定</option>
-                                </optgroup>
                             </select>
                         </div>
                         <div id="batchVars_${i}" class="batch-vars-container">
@@ -4835,6 +4865,22 @@ ${basePrompt}
                     </div>
                 `;
                 grid.appendChild(item);
+
+                // 🎯 克隆模板列表到每个格子的下拉框
+                const batchSelect = document.getElementById(`batchTemplate_${i}`);
+                if (mainSelect) {
+                    for (let j = 0; j < mainSelect.options.length; j++) {
+                        const opt = mainSelect.options[j];
+                        const cloneOpt = document.createElement('option');
+                        cloneOpt.value = opt.value;
+                        cloneOpt.textContent = opt.textContent;
+                        batchSelect.appendChild(cloneOpt);
+                    }
+                    // 克隆 optgroup（如果有的话重新构建）
+                    // 因为 option 已经扁平化了，optgroup 信息保留在 mainSelect 的 HTML 结构中
+                    // 使用 innerHTML 方式完整克隆
+                    batchSelect.innerHTML = mainSelect.innerHTML;
+                }
             }
 
             updateBatchCount();
@@ -4874,13 +4920,13 @@ ${basePrompt}
             varsContainer.innerHTML = html;
         }
 
-        // 🆕 构建单个参数的select HTML
+        // 🆕 构建单个参数的select HTML（统一用 select，不使用 input）
         function buildBatchVarSelect(index, varDef) {
             const options = varDef.options || [];
             // 截取选项文本前10个字符作为显示（避免过长）
             const shortLabel = varDef.label.length > 4 ? varDef.label.substring(0, 4) : varDef.label;
 
-            let html = `<select id="batchVar_${index}_${varDef.key}" title="${varDef.label}">`;
+            let html = `<select id="batchVar_${index}_${varDef.key}" title="${varDef.label}" onchange="handleBatchVarCustom(${index}, '${varDef.key}', this)">`;
             html += `<option value="">--${shortLabel}--</option>`;
 
             for (const opt of options) {
@@ -4889,8 +4935,30 @@ ${basePrompt}
                 html += `<option value="${opt}">${shortOpt}</option>`;
             }
 
+            // 共享模板统一都有 hasInput=true，加自定义输入选项
+            if (varDef.hasInput) {
+                html += `<option value="__custom__">✉️ 自定义...</option>`;
+            }
+
             html += '</select>';
+            // 自定义输入框（默认隐藏）
+            html += `<input type="text" id="batchCustomInput_${index}_${varDef.key}" 
+                placeholder="${varDef.inputPlaceholder || '请输入'}" 
+                style="display:none;width:100%;padding:4px 6px;background:#1a1a24;border:1px solid #333;border-radius:4px;color:#ccc;font-size:11px;margin-top:4px;">`;
             return html;
+        }
+
+        // 🆕 批量模式下，select 选"自定义"时显示/隐藏 input
+        function handleBatchVarCustom(index, key, selectEl) {
+            const customInput = document.getElementById(`batchCustomInput_${index}_${key}`);
+            if (!customInput) return;
+            if (selectEl.value === '__custom__') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
         }
 
         // 更新已填写数量
@@ -5157,7 +5225,7 @@ ${basePrompt}
             showToast(`生成完成！成功 ${successCount}/${themes.length}`);
         }
 
-        // 🆕 收集单个格子的所有参数值
+        // 🆕 收集单个格子的所有参数值（统一从 select 读取）
         function collectBatchItemVars(index, templateKey) {
             const varValues = {};
             if (!templateKey || !TEMPLATES[templateKey]) return varValues;
@@ -5166,9 +5234,14 @@ ${basePrompt}
             const vars = template.vars || [];
 
             for (const varDef of vars) {
-                const selectEl = document.getElementById(`batchVar_${index}_${varDef.key}`);
-                if (selectEl && selectEl.value) {
-                    varValues[varDef.key] = selectEl.value;
+                const el = document.getElementById(`batchVar_${index}_${varDef.key}`);
+                if (el && el.value && el.value !== '__custom__') {
+                    varValues[varDef.key] = el.value;
+                }
+                // 🎯 检查自定义输入框（select 选了"自定义"后出现的 input）
+                const customEl = document.getElementById(`batchCustomInput_${index}_${varDef.key}`);
+                if (customEl && customEl.value) {
+                    varValues[varDef.key] = customEl.value;
                 }
             }
 
@@ -5177,9 +5250,48 @@ ${basePrompt}
 
         // 🆕 根据模板和参数构建完整提示词
         function buildBatchTemplatePrompt(theme, template, varValues) {
+            // 🎯 共享模板：直接替换模板中的 ______ 占位符
+            if (template._fromShared) {
+                let prompt = template.template || '';
+
+                // 按 blank_1, blank_2, ... 顺序替换
+                const blankKeys = Object.keys(varValues).filter(k => k.startsWith('blank_')).sort((a, b) => {
+                    return parseInt(a.replace('blank_', '')) - parseInt(b.replace('blank_', ''));
+                });
+
+                if (blankKeys.length > 0) {
+                    const blankRegex = /_{3,}[^）)\n]*[（(][^）)\n]+[）)]/g;
+                    let blankIdx = 0;
+                    prompt = prompt.replace(blankRegex, (match) => {
+                        if (blankIdx < blankKeys.length) {
+                            const val = varValues[blankKeys[blankIdx]] || '';
+                            blankIdx++;
+                            return val || match;
+                        }
+                        return match;
+                    });
+                    // 替换没有括号说明的 ______
+                    const plainBlankRegex = /_{3,}(?![^）)\n]*[（(])/g;
+                    prompt = prompt.replace(plainBlankRegex, () => {
+                        if (blankIdx < blankKeys.length) {
+                            const val = varValues[blankKeys[blankIdx]] || '';
+                            blankIdx++;
+                            return val || '______';
+                        }
+                        return '______';
+                    });
+                }
+
+                // 如果有主题，添加到模板开头
+                if (theme) {
+                    prompt = `【主题】${theme}\n\n` + prompt;
+                }
+                return prompt;
+            }
+
+            // 🎯 原生高级模板：使用标签格式
             let prompt = `【主题】${theme}\n【风格模板】${template.name}\n\n`;
 
-            // 遍历模板的所有变量
             const vars = template.vars || [];
             for (const varDef of vars) {
                 const value = varValues[varDef.key];

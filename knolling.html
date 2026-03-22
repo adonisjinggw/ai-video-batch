@@ -1600,6 +1600,23 @@
                 name: '📚 叙事短片',
                 desc: '微电影/故事视频',
                 template: '关于______（故事主题）的叙事短片，______（主角）在______（场景）中，有开头、发展、高潮、结尾，电影级运镜，情感张力，讲述一个完整的微故事'
+            },
+
+            // ==================== 🖼️ 一致性模板（角色一致性保障） ====================
+            triptych_expressions: {
+                name: '🎭 三联画·表情变奏',
+                desc: '同一角色三种不同表情的三联画',
+                template: 'Create a 16:9 horizontal triptych portrait (three-panel layout) on a ______（背景：pure white studio/gray seamless/lavender gradient/warm beige/dark charcoal） studio background. Split the canvas into three equal vertical panels with a thin clean gutter. In all three panels, match the reference images for identity, facial structure, hairstyle, costume, jewelry, shot size, framing, camera angle, subject placement, lighting ratio, and overall color grading. Keep everything else unchanged across panels—only the facial expression and micro-gestures change.\n\n• Left panel ______（左侧表情：playful调皮/confident自信/surprised惊讶/dreamy梦幻/laughing开心/cool高冷）.\n• Middle panel ______（中间表情：cute卖萌/elegant优雅/thoughtful沉思/flirty撩人/shy害羞/determined专注）.\n• Right panel ______（右侧表情：sulky生气/angry愤怒/sad悲伤/mysterious神秘/scared恐惧/ecstatic狂喜）.\n\nPreserve realistic anatomy and the exact same facial proportions. Ensure clean cutout edges against the background. Do not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or any extra text.'
+            },
+            triptych_angles: {
+                name: '📐 三联画·角度测试',
+                desc: '同一角色三个不同角度的三联画',
+                template: 'Create one image containing three side-by-side face ______（取景：close-ups近景/half-body半身/three-quarter七分身/full-body全身） of the same person, aligned to the same scale and framing, on a ______（背景：gray seamless/white studio/light gray gradient/charcoal/warm beige）. Panel A (left) is a ______（A面板角度：straight-on正面/slightly turned 15°左转15°/low angle低角度仰拍/high angle高角度俯拍）. Panel B (center) is a ______（B面板角度：45° three-quarter/30° slight turn/60° deep three-quarter/over shoulder回眸）. Panel C (right) is a ______（C面板角度：90° side profile/135° back-three-quarter/180° back view/dramatic extreme angle）. Separate the panels with two thin vertical divider lines, perfectly straight and evenly spaced.\n\nUnify the lighting to a controlled studio setup: ______（灯光：soft directional key light/Rembrandt chiaroscuro/flat even lighting/butterfly glamorous/split dramatic/rim ethereal）. Keep the person\'s identity matched to the reference images, but keep the background strictly the same studio backdrop in every panel.\n\nAdd only the panel labels: "A" above the left panel, "B" above the center panel, and "C" above the right panel, in a simple clean sans-serif, small and understated. Do not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or extra text.'
+            },
+            consistency_lock: {
+                name: '🔒 一致性锁定增强',
+                desc: '给提示词加角色一致性约束',
+                template: 'CHARACTER CONSISTENCY LOCK — Apply these rules to ALL panels/frames in the output:\n\n🔒 LOCK (must be identical across all panels): ______（锁定元素：identity身份/facial structure面部结构/hairstyle发型/costume服装/lighting光照/color grading调色/shot size景别/camera angle机位/skin texture皮肤纹理）\n✅ ALLOWED CHANGES (only these may differ): ______（允许变化：facial expression表情/body pose姿态/camera angle机位/outfit variation服装/background背景/accessories配饰）\n🚫 NEGATIVE CONSTRAINTS (strictly forbidden): ______（禁止改变：no age changes/no eye shape changes/no jawline changes/no nose changes/no face width changes/no body proportion changes）\n\n📝 ORIGINAL PROMPT TO EXECUTE:\n______（你的原始提示词）\n\nDo not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or any extra text.'
             }
         };
 
@@ -2071,6 +2088,13 @@
             // 🎬 视频提示词
             templateOptions += '<optgroup label="🎬 视频提示词">';
             ['video_cinematic', 'video_vlog', 'video_product', 'video_nature', 'video_food', 'video_portrait', 'video_timelapse', 'video_slowmo', 'video_drone', 'video_tracking', 'video_loop', 'video_transition', 'video_intro', 'video_emotion', 'video_action', 'video_reveal', 'video_tutorial', 'video_story'].forEach(key => {
+                if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
+            });
+            templateOptions += '</optgroup>';
+
+            // 🖼️ 角色一致性模板
+            templateOptions += '<optgroup label="🖼️ 角色一致性">';
+            ['triptych_expressions', 'triptych_angles', 'consistency_lock'].forEach(key => {
                 if (fillTemplates[key]) templateOptions += `<option value="${key}">${fillTemplates[key].name}</option>`;
             });
             templateOptions += '</optgroup>';

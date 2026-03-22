@@ -27,10 +27,16 @@
 
         // 📖 加载 novel-engine.js（在 novelState 定义之后）
     </script>
-    <script src="/js/novel-engine.js"></script>
+    <script src="/js/novel-engine.js?v=8.10.1"></script>
     <script src="/js/novel-features.js"></script>
-    <script src="/js/short-drama.js"></script>
+    <script src="/js/short-drama.js?v=8.11.0"></script>
     <script>
+        // 🔄 显示版本号（从 script src 自动读取）
+        document.querySelectorAll('script[src*="/js/short-drama.js"]').forEach(s => {
+            const m = s.src.match(/[?&]v=([\d.]+)/);
+            if (m) document.getElementById('verBadge').textContent = 'v' + m[1];
+        });
+
         // 🔄 全局类型切换函数（必须在 HTML onclick 之前定义）
         window.currentType = 'story';
         window.batchMode = false;
@@ -1005,6 +1011,20 @@
         .episode-item.error {
             border-left: 3px solid var(--danger);
         }
+        /* 版本号标签 - 手机端醒目 */
+        .ver-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 400;
+            line-height: 1;
+            background: var(--accent);
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 8px;
+            margin-left: 6px;
+            vertical-align: middle;
+            letter-spacing: 0.3px;
+        }
         /* 📱 响应式布局 - 小屏幕优化 */
         @media (max-width: 480px) {
             /* 所有两列grid布局在小屏幕改为单列 */
@@ -1041,7 +1061,7 @@
 <body>
     <header class="header">
         <button class="back-btn" onclick="goBack()">← 返回</button>
-        <h1>✍️ AI写作</h1>
+        <h1>✍️ AI写作 <span class="ver-badge" id="verBadge"></span></h1>
         <div style="width: 50px;"></div>
     </header>
 
@@ -1430,7 +1450,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
                     <div class="novel-input-group" style="margin-bottom:0;">
                         <label>🎭 短剧类型</label>
-                        <select id="shortDramaGenre" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
+                        <select id="shortDramaGenre" onchange="toggleCustomShortDramaOption('Genre')" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
                             <option value="urban" style="background:#1a1a2e;color:#fff;">💼 都市情感</option>
                             <option value="ceo" style="background:#1a1a2e;color:#fff;">👔 霸总豪门</option>
                             <option value="revenge" style="background:#1a1a2e;color:#fff;">⚔️ 复仇逆袭</option>
@@ -1446,12 +1466,14 @@
                             <option value="family" style="background:#1a1a2e;color:#fff;">🏠 家庭伦理</option>
                             <option value="supernatural" style="background:#1a1a2e;color:#fff;">👻 灵异奇幻</option>
                             <option value="comedy" style="background:#1a1a2e;color:#fff;">😂 喜剧搞笑</option>
+                            <option value="custom" style="background:#1a1a2e;color:#fff;">✏️ 自定义...</option>
                         </select>
+                        <input type="text" id="shortDramaCustomGenre" placeholder="输入自定义类型，如：赛博朋克、末世求生..." style="display:none;width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;margin-top:8px;box-sizing:border-box;">
                     </div>
 
                     <div class="novel-input-group" style="margin-bottom:0;">
                         <label>✨ 写作风格</label>
-                        <select id="shortDramaStyle" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
+                        <select id="shortDramaStyle" onchange="toggleCustomShortDramaOption('Style')" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
                             <option value="normal" style="background:#1a1a2e;color:#fff;">📝 正常</option>
                             <option value="intense" style="background:#1a1a2e;color:#fff;">🔥 激烈</option>
                             <option value="sweet" style="background:#1a1a2e;color:#fff;">💕 甜宠</option>
@@ -1463,7 +1485,9 @@
                             <option value="poetic" style="background:#1a1a2e;color:#fff;">🌸 文艺</option>
                             <option value="thriller" style="background:#1a1a2e;color:#fff;">😨 惊悚</option>
                             <option value="inspirational" style="background:#1a1a2e;color:#fff;">💪 励志</option>
+                            <option value="custom" style="background:#1a1a2e;color:#fff;">✏️ 自定义...</option>
                         </select>
+                        <input type="text" id="shortDramaCustomStyle" placeholder="输入自定义风格，如：暗黑哥特、轻松治愈..." style="display:none;width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;margin-top:8px;box-sizing:border-box;">
                     </div>
                 </div>
 
@@ -1630,13 +1654,43 @@
             <!-- 集数列表 -->
             <div class="novel-chapter-list" id="shortDramaEpisodeList"></div>
 
+            <!-- 🆕 角色卡片 -->
+            <div class="novel-char-section" id="shortDramaCharSection" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div style="font-size:16px;font-weight:bold;">🎭 角色设定</div>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="shortDramaExtractCharacters()" style="padding:6px 12px;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:#60a5fa;cursor:pointer;font-size:12px;">🔄 重新识别</button>
+                    </div>
+                </div>
+                <div class="novel-char-cards" id="shortDramaCharCards"></div>
+            </div>
+
+            <!-- 🆕 场景卡片 -->
+            <div class="novel-char-section" id="shortDramaSceneSection" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div style="font-size:16px;font-weight:bold;">📍 场景设定</div>
+                    <button onclick="shortDramaExtractScenes()" style="padding:6px 12px;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:#60a5fa;cursor:pointer;font-size:12px;">🔄 重新识别</button>
+                </div>
+                <div class="novel-char-cards" id="shortDramaSceneCards"></div>
+            </div>
+
+            <!-- 🆕 一致性校验结果 -->
+            <div id="shortDramaConsistencyResult" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;margin-bottom:16px;"></div>
+
+            <!-- 开始生成剧本按钮（大纲生成后显示） -->
+            <button class="primary" id="shortDramaStartWritingBtn" onclick="generateAllShortDramaEpisodes()" style="width:100%;display:none;">
+                📝 开始生成剧本
+            </button>
+
             <!-- 集数内容 -->
             <div class="novel-chapter-content" id="shortDramaContent" style="display:none;"></div>
 
             <!-- 操作按钮 -->
             <div class="novel-actions" id="shortDramaActions" style="display:none;">
                 <button onclick="exportShortDramaScript()">📄 导出剧本</button>
+                <button onclick="exportShortDramaJSON()">💾 导出JSON</button>
                 <button onclick="evaluateAllShortDramaEpisodes()">📊 质量评估</button>
+                <button onclick="shortDramaCheckConsistency()">🔍 一致性校验</button>
                 <button onclick="shortDramaPauseResume()">⏸️ 暂停/继续</button>
             </div>
         </div>
@@ -1862,6 +1916,18 @@
         function toggleCustomGenre() {
             const sel = document.getElementById('novelGenreSelect');
             const input = document.getElementById('customGenreInput');
+            if (sel && input) {
+                input.style.display = sel.value === 'custom' ? 'block' : 'none';
+                if (sel.value === 'custom') {
+                    input.focus();
+                }
+            }
+        }
+
+        // 🆕 短剧自定义类型/风格输入框显隐控制
+        function toggleCustomShortDramaOption(type) {
+            const sel = document.getElementById('shortDrama' + type);
+            const input = document.getElementById('shortDramaCustom' + type);
             if (sel && input) {
                 input.style.display = sel.value === 'custom' ? 'block' : 'none';
                 if (sel.value === 'custom') {
@@ -2743,7 +2809,8 @@
 
         // 调用 writer-llm API 的统一封装（支持流式+超时+自动重试）
         async function _novelLLM(messages, opts = {}) {
-            const model = document.getElementById('novelModelSelect').value;
+            // 🎯 优先使用 opts.model，其次从 novelModelSelect 取值
+            const model = opts.model || document.getElementById('novelModelSelect').value;
             const maxRetries = opts.retries !== undefined ? opts.retries : 1;
             const timeout = opts.timeout || 70000;  // 🔧 70秒，确保重试后也不超过Cloudflare 100秒限制
             const useStream = opts.stream === true;
@@ -2827,7 +2894,7 @@
                         body: JSON.stringify({
                             model,
                             messages: finalMessages,
-                            userId: currentUser.id,
+                            userId: currentUser?.id,
                             max_completion_tokens: opts.maxTokens || 16384,
                             temperature: opts.temperature || 0.85,
                             stream: useStream

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>短剧API测试</title></head>
+<body style="background:#1a1a2e;color:#fff;padding:20px;font-family:sans-serif;">
+<h2>短剧 API 测试</h2>
+<button onclick="runTest()" style="padding:10px 20px;background:#4CAF50;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;">运行测试</button>
+<div id="log" style="white-space:pre-wrap;max-height:80vh;overflow:auto;background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;font-size:14px;margin-top:10px;"></div>
+<script>
+const log = document.getElementById('log');
+function addLog(msg) {
+    log.textContent += msg + '\n';
+    log.scrollTop = log.scrollHeight;
+}
+
+async function runTest() {
+    log.textContent = '';
+    addLog('=== 开始测试 ===');
+    addLog('时间: ' + new Date().toISOString());
+    
+    // 1. 检查 localStorage 中的 Supabase session
+    addLog('\n--- 1. 检查 localStorage ---');
+    const keys = Object.keys(localStorage);
+    const authKeys = keys.filter(k => k.includes('supabase') || k.includes('auth'));
+    addLog('Auth相关 keys: ' + JSON.stringify(authKeys));
+    for (const k of authKeys) {
+        try {
+            const val = localStorage.getItem(k);
+            addLog(k + ': ' + (val ? val.substring(0, 100) : 'null'));
+        } catch(e) {
+            addLog(k + ': [读取失败]');
+        }
+    }
+    
+    // 2. 尝试获取 token
+    addLog('\n--- 2. 获取 Access Token ---');
+    let token = null;
+    try {
+        // Supabase stores session in localStorage
+        const sessionKey = Object.keys(localStorage).find(k => k.includes('sb-') && k.includes('auth-token'));
+        if (sessionKey) {
+            addLog('Found session key: ' + sessionKey);
+            const sessionData = JSON.parse(localStorage.getItem(sessionKey));
+            token = sessionData?.access_token || sessionData?.token || null;
+            addLog('Token: ' + (token ? token.substring(0, 30) + '...' : 'null'));
+            addLog('User email: ' + (sessionData?.user?.email || 'N/A'));
+        } else {
+            addLog('No Supabase auth token found in localStorage');
+            // List all keys
+            addLog('All localStorage keys: ' + JSON.stringify(keys));
+        }
+    } catch(e) {
+        addLog('获取 token 失败: ' + e.message);
+    }
+    
+    if (!token) {
+        addLog('\n未登录，无法继续测试 API');
+        addLog('请先从 mobile.html 登录');
+        return;
+    }
+    
+    // 3. 测试 API
+    addLog('\n--- 3. 测试 writer-llm API ---');
+    addLog('发送请求...');
+    const startTime = Date.now();
+    try {
+        const res = await fetch('/api/writer-llm', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                model: 'qwen3.5-plus',
+                messages: [{ role: 'user', content: '请用一句话描述天空为什么是蓝色的' }],
+                max_completion_tokens: 500,
+                temperature: 0.7,
+                stream: false
+            })
+        });
+        
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        addLog('HTTP ' + res.status + ' (' + elapsed + 's)');
+        
+        const data = await res.json();
+        if (data.content) {
+            addLog('\nAI回复: ' + data.content.substring(0, 200));
+            addLog('\n=== API 测试通过 ===');
+        } else {
+            addLog('响应: ' + JSON.stringify(data).substring(0, 300));
+        }
+    } catch(e) {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        addLog('失败 (' + elapsed + 's): ' + e.message);
+        addLog('\n=== API 测试失败 ===');
+    }
+}
+</script>
+</body>
+</html>

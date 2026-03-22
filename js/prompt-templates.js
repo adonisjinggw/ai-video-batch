@@ -1313,3 +1313,81 @@ window.PROMPT_TEMPLATES = {
         template: '二十四节气日历卡片。顶部：节气名称"______（节气如立春/雨水/惊蛰/春分/清明/谷雨/立夏/小满/芒种/夏至/小暑/大暑/立秋/处暑/白露/秋分/寒露/霜降/立冬/小雪/大雪/冬至/小寒/大寒）"大字，公历日期"______（如2025年2月4日）"，农历"______（如正月初六）"。主视觉：______（节气相关自然景象/传统习俗插画），体现节气特色。底部：节气诗词或谚语"______（节气相关诗词/农谚）"。传统与现代结合，竖版3:4比例'
     }
 };
+
+// ==================== 模板分类映射（供 prompt-fill.html 等页面使用）====================
+window.TEMPLATE_CATEGORY_MAP = {
+    // 🎯 超简单填空玩法
+    fill_1:'fill', fill_2:'fill', fill_3:'fill', fill_4:'fill', fill_5:'fill', fill_6:'fill', fill_7:'fill', fill_8:'fill', fill_9:'fill', fill_10:'fill',
+    fill_11:'fill', fill_12:'fill', fill_13:'fill', fill_14:'fill', fill_15:'fill', fill_16:'fill', fill_17:'fill', fill_18:'fill', fill_19:'fill', fill_20:'fill',
+    fill_21:'fill', fill_22:'fill', fill_23:'fill', fill_24:'fill', fill_25:'fill', fill_26:'fill', fill_27:'fill', fill_28:'fill', fill_29:'fill', fill_30:'fill',
+    fill_31:'fill', fill_32:'fill', fill_33:'fill', fill_34:'fill', fill_35:'fill', fill_36:'fill', fill_37:'fill', fill_38:'fill', fill_39:'fill', fill_40:'fill',
+    fill_41:'fill', fill_42:'fill', fill_43:'fill', fill_44:'fill', fill_45:'fill', fill_46:'fill', fill_47:'fill', fill_48:'fill', fill_49:'fill', fill_50:'fill',
+    fill_51:'fill', fill_52:'fill', fill_53:'fill', fill_54:'fill', fill_55:'fill', fill_56:'fill', fill_57:'fill', fill_58:'fill', fill_59:'fill', fill_60:'fill',
+    fill_61:'fill', fill_62:'fill', fill_63:'fill', fill_64:'fill', fill_65:'fill', fill_66:'fill', fill_67:'fill', fill_68:'fill', fill_69:'fill', fill_70:'fill',
+    fill_71:'fill', fill_72:'fill', fill_73:'fill', fill_74:'fill', fill_75:'fill', fill_76:'fill', fill_77:'fill', fill_78:'fill', fill_79:'fill', fill_80:'fill',
+    fill_81:'fill', fill_82:'fill', fill_83:'fill', fill_84:'fill', fill_85:'fill', fill_86:'fill', fill_87:'fill', fill_88:'fill', fill_89:'fill', fill_90:'fill',
+    fill_91:'fill', fill_92:'fill', fill_93:'fill', fill_94:'fill', fill_95:'fill', fill_96:'fill', fill_97:'fill', fill_98:'fill', fill_99:'fill', fill_100:'fill',
+    fill_101:'fill', fill_102:'fill', fill_103:'fill', fill_104:'fill', fill_105:'fill', fill_106:'fill', fill_107:'fill', fill_108:'fill',
+    // 🎬 原有精品模板
+    cosplay_photo:'pro', double_exposure:'pro', photo_to_anime:'pro', photo_enhancement:'pro', vintage_photo:'pro', ghibli_style:'pro', cyberpunk_style:'pro', pixel_retro:'pro', oil_painting:'pro', watercolor_art:'pro', ukiyo_e:'pro', pixar_3d:'pro', product_ad:'pro', product_packaging:'pro', product_exploded:'pro', brand_dna:'pro', movie_poster:'pro', game_ui_status:'pro', album_cover:'pro', app_icon:'pro',
+    // 🍌 Nano Banana Pro 精选模板
+    knowledge_card:'banana_pro', visual_resume:'banana_pro', infographic:'banana_pro', pitch_deck_slide:'banana_pro', user_persona:'banana_pro', swot_diagram:'banana_pro', step_tutorial:'banana_pro', recipe_card:'banana_pro',
+    // 🆕 新增模板
+    character_card:'new', character_relationship:'new', journal_relations:'new', y2k_poster:'new', knolling:'new', nft_artwork:'new', tattoo_design:'new', plush_toy:'pro', keychain_merch:'pro', enamel_pin:'pro',
+    // 🌟 AI时代创新玩法
+    ai_conversation_art:'ai_innovation', alter_ego:'ai_innovation', anxiety_monster:'ai_innovation', digital_avatar_eco:'ai_innovation', brain_wave:'ai_innovation', formula_story:'ai_innovation', concept_map_3d:'ai_innovation', hologram:'ai_innovation', data_sculpture:'ai_innovation', gene_art:'ai_innovation', crystal_emoji:'ai_innovation', reaction_meme:'ai_innovation',
+    // 💝 情感治愈创新
+    dream_journal_art:'emotional', emotional_weather:'emotional', inner_child:'emotional', inner_dialogue:'emotional', future_letter:'emotional', comfort_zone_map:'emotional', gratitude_jar:'emotional', mood_tracker:'emotional',
+    // 📱 社交媒体创新
+    nine_grid_story:'social', vs_comparison:'social', trend_challenge:'social', line_sticker_pack:'social', story_sticker_pack:'social', reading_map:'social', spot_difference:'social',
+    // 🎓 教育创新
+    anatomy_diagram:'education', timeline_history:'education', doc_to_flowchart:'education', language_pictogram:'education', dialect_poster:'education', pictogram:'education',
+    // 💼 专业应用创新
+    fashion_model:'professional', room_makeover:'professional', voice_cast:'professional', ar_filter_preview:'professional', fake_screenshot:'professional', ost_cover:'professional', sound_wave_print:'professional', fortune_card:'professional',
+    // 🌏 文化融合创新
+    intangible_heritage:'cultural', hanfu_database:'cultural', tea_ceremony_guide:'cultural', mythology_card:'cultural', multiverse_self:'cultural',
+    // 🏋️ 生活记录创新
+    habit_chain:'life', workout_progress:'life', plant_diary:'life', baby_milestone:'life', bucket_list:'life', goal_vision_board:'life', pet_costume:'life',
+    // 🎬 内容创作创新
+    multi_char_comic:'creative', script_storyboard:'creative', story_setting:'creative', fan_art_guide:'creative', char_biography:'creative', toy_exploded:'creative', figure_scene:'creative', food_art:'creative', text_shape_art:'creative',
+    // 🎮 游戏化创新
+    game_card:'gaming', maze_puzzle:'gaming', legacy_blueprint:'gaming', quest_log:'gaming', life_rpg_status:'gaming', personality_test:'gaming', achievement_badge:'gaming', mistake_collection:'gaming', choices_tree:'gaming', skill_tree:'gaming',
+    // 🔬 科技前沿创新
+    glitch_art:'tech', lego_style:'tech', glitch_art:'tech', miniature_world:'tech', universe_timeline:'tech', energy_distribution:'tech', emotion_data_viz:'tech', map_exploration:'tech',
+    // 🎭 互动艺术创新
+    minimal_bw_illust:'interactive_art', self_care_bingo:'interactive_art', memory_palace:'interactive_art', inventory_grid:'interactive_art', reading_map:'interactive_art',
+    // 🌈 更多创新玩法
+    age_transform:'interactive_art', book_cover:'creative', decision_matrix:'education', legacy_blueprint:'gaming', value_hierarchy:'education', workbuddy_channel_setup:'tech',
+    // 🖼️ 三联画人像（高级一致性）
+    character_sheet:'character', consistency_lock:'character', triptych_expressions:'character', triptych_angles:'character',
+    // 📅 日历卡片
+    calendar_art_simple:'calendar', calendar_art_creative:'calendar', calendar_art_cute:'calendar', calendar_art_festival:'calendar', calendar_art_minimal:'calendar', calendar_art_motivational:'calendar', calendar_art_photo:'calendar', calendar_art_chinese:'calendar', calendar_birthday:'calendar', calendar_solar_term:'calendar', festival_calendar:'calendar',
+    // 🔧 电商模板（prompt-fill.html 独有，这里不重复）
+};
+
+// 分类显示名
+window.TEMPLATE_CATEGORY_LABELS = {
+    fill: '🎯 超简单填空',
+    pro: '🎬 精品模板',
+    banana_pro: '🍌 Pro 精选',
+    new: '🆕 新增模板',
+    ai_innovation: '🌟 AI时代创新',
+    emotional: '💝 情感治愈',
+    social: '📱 社交媒体',
+    education: '🎓 教育',
+    professional: '💼 专业应用',
+    cultural: '🌏 文化融合',
+    life: '🏋️ 生活记录',
+    creative: '🎬 内容创作',
+    gaming: '🎮 游戏化',
+    tech: '🔬 科技前沿',
+    interactive_art: '🎭 互动艺术',
+    character: '🖼️ 三联画人像（高级一致性）',
+    calendar: '📅 日历卡片',
+    // prompt-fill.html 本地高级模板
+    video: '🎬 视频模板',
+    ecommerce: '🛒 电商模板',
+    photo_advanced: '📸 专业摄影',
+    holiday: '🎉 节日主题',
+    style: '✨ 创意风格',
+};

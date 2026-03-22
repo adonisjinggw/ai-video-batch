@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>✍️ AI写作 - RollRoll</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase SDK -->
+    <script src="/api/supabase-sdk?version=2.45.1"></script>
+    <script src="/js/supabase-config.js?v=20260315a"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -429,10 +431,41 @@
             document.getElementById('resultSection').style.display = 'block';
         }
 
+        // ========== 获取当前用户 ==========
+        async function getCurrentUserId() {
+            if (typeof NVAuth !== 'undefined') {
+                try {
+                    const user = await NVAuth.getCurrentUser();
+                    return user?.id || null;
+                } catch (e) {
+                    console.warn('[writing] 获取用户失败:', e);
+                }
+            }
+            return null;
+        }
+
+        // ========== 检查登录状态 ==========
+        async function checkLogin() {
+            const userId = await getCurrentUserId();
+            if (!userId) {
+                showToast('请先登录后再使用写作功能');
+                return null;
+            }
+            return userId;
+        }
+
         async function generateContent() {
             const input = document.getElementById('contentInput').value.trim();
             if (!input) {
                 showToast('请输入内容');
+                return;
+            }
+
+            // 🔐 检查登录状态
+            const userId = await checkLogin();
+            if (!userId) {
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('loading').style.display = 'none';
                 return;
             }
 
@@ -471,15 +504,23 @@
             };
 
             try {
-                const response = await fetch('/api/yunwu', {
+                // ✍️ 使用 writer-llm API（专为写作优化）
+                const response = await fetch('/api/writer-llm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        action: 'text',
-                        model: 'gemini-2.5-flash',
-                        prompt: typePromptMap[currentType]
+                        model: 'qwen3.5-plus',
+                        prompt: typePromptMap[currentType],
+                        userId: userId,
+                        temperature: 0.8,
+                        max_completion_tokens: 4096
                     })
                 });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.message || `API错误 (${response.status})`);
+                }
 
                 const data = await response.json();
                 currentResult = data.content || data.response || data.text || '';
@@ -498,7 +539,8 @@
                     showToast('创作失败，请重试');
                 }
             } catch (error) {
-                showToast('创作失败：' + error.message);
+                console.error('[writing] 生成失败:', error);
+                showToast('创作失败：' + (error.message || '未知错误'));
             } finally {
                 btn.disabled = false;
                 loading.style.display = 'none';

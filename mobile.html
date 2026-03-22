@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V8.9.5</title>
+    <title>RollRoll 移动版 V8.10.3</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2459,7 +2459,18 @@
             if (location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1) {
                 history.replaceState({}, '', location.pathname);
                 _showIntro = false;
-                // 登录后直接显示主页面，不隐藏任何元素
+                // 🔧 清理可能残留的隐藏CSS（防止浏览器缓存旧版导致白屏/黑屏）
+                var oldStyle = document.getElementById('cinemaIntroInjectedStyle');
+                if (oldStyle) oldStyle.remove();
+                // 确保主页面元素可见
+                document.querySelectorAll('#welcomeScreen,header.header,main.main,#mobileDebugBar').forEach(function(el) {
+                    el.style.display = '';
+                    el.style.opacity = '';
+                    el.style.visibility = '';
+                });
+                // 隐藏欢迎页
+                var welcome = document.getElementById('welcomeScreen');
+                if (welcome) welcome.classList.add('hide');
                 return;
             }
             // 强制显示开场动画和欢迎页
@@ -13795,8 +13806,12 @@ ${story}
             function finishIntro() {
                 if (!animationRunning) return;
                 animationRunning = false;
-                // 🔧 不移除注入的CSS，避免登录后页面闪现
-                // 直接通过CSS控制显示欢迎页和隐藏开场动画
+
+                // 🔧 移除注入的隐藏CSS，恢复 main.main 等元素可见性
+                var injectedStyle = document.getElementById('cinemaIntroInjectedStyle');
+                if (injectedStyle) injectedStyle.remove();
+
+                // 🔧 显示欢迎页和隐藏开场动画（main.main 由浏览器默认样式控制，不再需要覆盖）
                 var welcome = document.getElementById('welcomeScreen');
                 if (welcome) {
                     welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
@@ -13842,8 +13857,12 @@ ${story}
         
         // 使用项目中稳定的付费模型 nano-banana-2
         const result = await generateImageWithModel(prompt, 'nano-banana-2', '9:16', user.id);
-        if (result && result.length > 0) {
-            showImageResult(result[0]);
+        if (result) {
+            // generateImageWithModel 返回 { url, images, billed }
+            const imageUrl = result.url || (result.images && result.images[0]) || (Array.isArray(result) && result[0]);
+            if (imageUrl) {
+                showImageResult(imageUrl);
+            }
         }
     }
 
@@ -13852,15 +13871,18 @@ ${story}
         const user = await getCurrentUser();
         if (!user) throw new Error('请先登录');
         
-        // 提取视频描述
-        let prompt = text.replace(/生成.*视频|制作.*视频|短视频/i, '').trim();
-        if (!prompt) prompt = text;
+        // 提取视频描述（去除各种口语化的指令前缀）
+        let prompt = text.replace(/生成.*视频|制作.*视频|短视频|发.*视频|拍.*视频|做.*视频|来.*视频|帮我.*视频|我要.*视频|一个.*视频|帮我生成|帮我制作|帮我拍|帮我做|给我.*视频|给我.*一下.*视频|video|视频/gi, '').trim();
+        // 清理多余空格和标点
+        prompt = prompt.replace(/^[，。、\s]+|[，。、\s]+$/g, '').trim();
+        if (!prompt || prompt.length < 2) prompt = text;
         
-        // 创建一个简单的视频生成任务
+        // 创建一个简单的视频生成任务（必须带 userId，否则 API 返回 401）
         const idea = {
             title: prompt.substring(0, 20),
             prompt: prompt,
-            scenes: [{ description: prompt }]
+            scenes: [{ description: prompt }],
+            userId: user.id
         };
         
         await generateVideo(idea);
@@ -13899,7 +13921,7 @@ ${story}
     // 显示图片结果
     function showImageResult(imageUrl) {
         // 检查是否在小助手对话框内
-        const chatContainer = document.querySelector('#rollroll-dialog [style*="max-height:250px"]');
+        const chatContainer = document.getElementById('rollroll-chat');
         if (chatContainer) {
             // 在对话框内显示图片
             const imgMsg = document.createElement('div');
@@ -14059,6 +14081,8 @@ ${story}
             
             // 创建对话框
             let dialog = null;
+            // 用户选择的意图（按钮点击时设置，sendMessage 内使用后清除）
+            let selectedIntent = null;
             
             function createDialog() {
                 if (dialog) return;
@@ -14100,6 +14124,7 @@ ${story}
                 
                 // 聊天消息区域（可滚动）
                 const chatContainer = document.createElement('div');
+                chatContainer.id = 'rollroll-chat';
                 chatContainer.style.cssText = 'max-height:250px;min-height:100px;overflow-y:auto;margin-bottom:12px;padding:8px;background:rgba(0,0,0,0.3);border-radius:8px;';
                 
                 // 多样化对话框欢迎语库
@@ -14129,9 +14154,6 @@ ${story}
                     { role: 'system', content: '你是小卷助手，一个友好、热情、有帮助的AI助手。用中文回复，保持简洁有趣。' },
                     { role: 'assistant', content: randomDialogGreeting }
                 ];
-
-                // 用户选择的意图（按钮点击时设置）
-                let selectedIntent = null;
 
                 // 预编译正则表达式（性能优化）
                 const INTENT_PATTERNS = {
@@ -14236,16 +14258,16 @@ ${story}
                                 if (/搜索|查询|找.*资料|帮我找|search|最新|新闻|天气|股票/i.test(text)) {
                                     intent = 'search';
                                 }
-                                // 优先匹配视频（更严格的匹配）
-                                else if (/视频|短视频|生成视频|制作视频|帮我生成视频|分镜|镜头.*镜头/i.test(text)) {
+                                // 优先匹配视频（更宽松的匹配，覆盖更多口语化表达）
+                                else if (/视频|短视频|生成视频|制作视频|帮我生成视频|分镜|镜头.*镜头|发个视频|拍.*视频|我要视频|来个视频|做个视频|video/i.test(text)) {
                                     intent = 'video';
                                 }
                                 // 然后匹配图片（避免误判）
-                                else if (/^(画|生成图片|作图|帮我画|画一张|画个)/i.test(text)) {
+                                else if (/^(画|生成图片|作图|帮我画|画一张|画个|画个|帮我生成|生成.*图|画.*图)/i.test(text)) {
                                     intent = 'image';
                                 }
-                                // 文案生成（中文创作）
-                                else if (/文案|写|文章|脚本|剧本|帮我写|创作|小说|故事/i.test(text)) {
+                                // 文案生成（中文创作，更宽松的匹配）
+                                else if (/文案|写.*文章|写.*脚本|写.*剧本|帮我写|创作|小说|故事|写.*文案|帮我.*写|写.*内容|写.*稿/i.test(text)) {
                                     intent = 'writing';
                                 }
                             }
@@ -14504,30 +14526,31 @@ ${story}
             }
             
             function handleOptionClick(action) {
-                // 快捷操作：根据action执行不同的处理
+                // 快捷操作：根据action直接执行对应处理
                 if (action === 'full_chat') {
                     // 跳转到完整对话页面
                     closeDialog();
                     window.location.href = 'chat.html';
-                } else {
-                    // 其他快捷操作：在输入框中填充对应提示，不关闭对话框
-                    const input = document.getElementById('rollroll-input');
-                    if (input) {
-                        // 设置选中的意图
-                        selectedIntent = action;
+                    return;
+                }
 
-                        if (action === 'search') {
-                            input.value = '帮我搜索一下';
-                        } else if (action === 'video') {
-                            input.value = '生成一个关于...的视频';
-                        } else if (action === 'image') {
-                            input.value = '画一张...的图片';
-                        } else if (action === 'writing') {
-                            input.value = '写一篇关于...的文案';
-                        }
-                        input.focus();
-                        input.select();
-                    }
+                const prompts = {
+                    video: '帮我生成一个视频：',
+                    image: '帮我画一张图片：',
+                    search: '帮我搜索：',
+                    writing: '帮我写一篇文案：'
+                };
+
+                // 预设意图
+                selectedIntent = action;
+
+                // 在输入框中填入引导文本，用户直接修改补充后发送
+                const input = document.getElementById('rollroll-input');
+                if (input) {
+                    input.value = prompts[action] || '';
+                    input.focus();
+                    // 光标移到末尾
+                    input.setSelectionRange(input.value.length, input.value.length);
                 }
             }
             

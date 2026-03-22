@@ -829,6 +829,8 @@ async function novelEvaluateAll() {
         if (novelState.chapters[i].status !== 'done') continue;
 
         const result = await novelEvaluateChapter(i);
+        // 存到章节对象，供批量修正等功能使用
+        novelState.chapters[i]._evaluation = result;
         chapterScores.push({
             index: i,
             title: novelState.chapters[i].title,
@@ -837,6 +839,12 @@ async function novelEvaluateAll() {
         totalScore += result.score;
         totalRepetitions += result.repetitions.length;
         totalErrors += result.errors.length;
+
+        // 📊 评估进度反馈（每5章更新一次，最后一批也更新）
+        const doneCount = chapterScores.length;
+        if (doneCount <= 5 || doneCount % 5 === 0 || i === novelState.chapters.length - 1) {
+            showToast(`评估进度: ${doneCount}/${doneChapters.length} 章`);
+        }
     }
 
     const overallScore = Math.round(totalScore / doneChapters.length);
@@ -888,6 +896,41 @@ function novelShowEvaluationResult(result) {
                     <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;color:#888;font-size:24px;cursor:pointer;">&times;</button>
                 </div>
 
+                <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:16px;">
+                    <div style="font-weight:bold;margin-bottom:10px;color:#94a3b8;">🔧 评估设置</div>
+                    <div style="display:flex;gap:12px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <label style="color:#94a3b8;font-size:13px;">评估模型:</label>
+                            <select id="evalModelSelect" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;padding:6px 10px;font-size:13px;">
+                                <option value="qwen3.5-plus" selected>🧠 Qwen3.5-Plus</option>
+                                <option value="yunwu:qwen-plus">☁️ Qwen-Plus</option>
+                                <option value="yunwu:grok-4-fast">⚡ Grok-4 Fast</option>
+                                <option value="yunwu:grok-4.1">🌟 Grok-4.1</option>
+                            </select>
+                        </div>
+                        <button onclick="novelReEvaluate()" style="background:#22c55e;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;">
+                            🔄 重新评估
+                        </button>
+                    </div>
+                    <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;">
+                        <div style="color:#94a3b8;font-size:13px;margin-bottom:8px;">多模型评估（勾选要使用的模型）:</div>
+                        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#fff;">
+                                <input type="checkbox" class="eval-model-checkbox" value="qwen3.5-plus" checked style="cursor:pointer;"> 🧠 Qwen3.5-Plus
+                            </label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#fff;">
+                                <input type="checkbox" class="eval-model-checkbox" value="yunwu:grok-4-fast" style="cursor:pointer;"> ⚡ Grok-4 Fast
+                            </label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#fff;">
+                                <input type="checkbox" class="eval-model-checkbox" value="yunwu:grok-4.1" style="cursor:pointer;"> 🌟 Grok-4.1
+                            </label>
+                        </div>
+                        <button onclick="novelMultiModelEvaluate()" style="background:#8b5cf6;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;">
+                            🎯 多模型对比评估
+                        </button>
+                    </div>
+                </div>
+
                 <div style="text-align:center;margin-bottom:24px;">
                     <div style="font-size:48px;font-weight:bold;color:${overallScore >= 80 ? '#22c55e' : overallScore >= 60 ? '#fbbf24' : '#ef4444'};">
                         ${overallScore}
@@ -896,6 +939,7 @@ function novelShowEvaluationResult(result) {
                     <div style="color:#94a3b8;font-size:14px;margin-top:4px;">
                         ${result.evaluatedChapters}/${result.totalChapters} 章已评估
                     </div>
+                    ${result.model ? `<div style="color:#fbbf24;font-size:12px;margin-top:4px;">模型: ${result.model}（按token计费，服务端扣减胶片）</div>` : ''}
                 </div>
 
                 ${globalIssues.length > 0 ? `
@@ -922,16 +966,16 @@ function novelShowEvaluationResult(result) {
                         ${chapterScores.map(ch => `
                             <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:8px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                    <div style="font-weight:bold;cursor:pointer;" onclick="novelViewChapter(${ch.index})">第${ch.index + 1}章 ${ch.title}</div>
-                                    <div style="display:flex;gap:8px;align-items:center;">
-                                        <div style="font-size:18px;font-weight:bold;color:${ch.score >= 80 ? '#22c55e' : ch.score >= 60 ? '#fbbf24' : '#ef4444'};">
-                                            ${ch.score}分
-                                        </div>
-                                        ${ch.score < 70 ? `
-                                            <button onclick="event.stopPropagation(); novelFixChapter(${ch.index})" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;">
-                                                🔧 修正
-                                            </button>
-                                        ` : ''}
+                                    <div style="font-weight:bold;cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" onclick="novelViewChapter(${ch.index})">第${ch.index + 1}章 ${ch.title}</div>
+                                    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+                                        <input type="number" min="0" max="100" value="${ch.score}" id="novelScoreInput_${ch.index}" onchange="novelManualSetScore(${ch.index}, this.value)" style="width:52px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:${ch.score >= 80 ? '#22c55e' : ch.score >= 60 ? '#fbbf24' : '#ef4444'};font-size:14px;font-weight:bold;text-align:center;padding:2px 4px;" />
+                                        <span style="color:#94a3b8;font-size:13px;">分</span>
+                                        <button onclick="event.stopPropagation(); novelFixChapter(${ch.index})" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;">
+                                            🔧 修正
+                                        </button>
+                                        <button onclick="event.stopPropagation(); novelRegenerateChapter(${ch.index})" style="background:#f59e0b;color:#fff;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;">
+                                            🔄 重写
+                                        </button>
                                     </div>
                                 </div>
 
@@ -1030,6 +1074,10 @@ async function novelFixChapter(idx) {
     if (!confirm(`确定要修正第${idx + 1}章吗？\n当前评分：${evaluation.score}分\n将根据评估结果重新生成该章节。`)) {
         return;
     }
+
+    // 关闭评估面板
+    const modal = document.querySelector('div[style*="position:fixed"][style*="z-index:10000"]');
+    if (modal) modal.remove();
 
     showToast('正在修正章节...');
     console.log('[novel-fix] 评估结果:', evaluation);
@@ -1201,6 +1249,65 @@ async function novelAutoEvaluateChapter(idx) {
 }
 
 /**
+ * 手动设置章节评分
+ */
+function novelManualSetScore(idx, value) {
+    const score = Math.max(0, Math.min(100, parseInt(value) || 0));
+    const input = document.getElementById('novelScoreInput_' + idx);
+    if (input) {
+        input.value = score;
+        input.style.color = score >= 80 ? '#22c55e' : score >= 60 ? '#fbbf24' : '#ef4444';
+    }
+    const ch = novelState.chapters[idx];
+    if (ch) {
+        if (!ch._evaluation) ch._evaluation = { score: 100, issues: [], repetitions: [], errors: [] };
+        ch._evaluation.score = score;
+        console.log(`[novel] 第${idx + 1}章评分手动设为 ${score}分`);
+    }
+}
+
+/**
+ * 重新生成单个章节（不参考原内容，全新生成）
+ */
+async function novelRegenerateChapter(idx) {
+    const ch = novelState.chapters[idx];
+    if (!ch) {
+        showToast('章节不存在');
+        return;
+    }
+
+    if (!confirm(`确定要重新生成第${idx + 1}章吗？\n原内容将被覆盖。`)) return;
+
+    // 关闭评估面板
+    const modal = document.querySelector('div[style*="position:fixed"][style*="z-index:10000"]');
+    if (modal) modal.remove();
+
+    showToast(`正在重新生成第${idx + 1}章...`);
+    try {
+        // 重置状态
+        ch.status = 'generating';
+        ch.content = '';
+        _novelRenderChapterList();
+        _novelUpdateProgress();
+
+        await _novelGenerateChapter(idx);
+
+        // 自动评估
+        const result = await novelEvaluateChapter(idx);
+        ch._evaluation = result;
+
+        novelSaveCurrentProject();
+        novelViewChapter(idx);
+        showToast(`✅ 第${idx + 1}章重新生成完成！评分：${result.score}分`);
+    } catch (e) {
+        ch.status = 'error';
+        _novelRenderChapterList();
+        showToast('重新生成失败: ' + e.message);
+        console.error('[novel] 重新生成失败:', e);
+    }
+}
+
+/**
  * 手动触发全局评估
  */
 async function novelTriggerEvaluation() {
@@ -1217,9 +1324,14 @@ async function novelTriggerEvaluation() {
     }
 
     try {
-        const result = await novelEvaluateAll();
+        // 默认使用 qwen3.5-plus 进行 LLM 评估
+        const modelSelect = document.getElementById('evalModelSelect');
+        const selectedModel = modelSelect ? modelSelect.value : 'qwen3.5-plus';
+        const result = await novelEvaluateAllWithModel(selectedModel);
         novelState._lastEvaluation = result;
+        novelState._lastEvalModel = selectedModel;
         novelShowEvaluationResult(result);
+        showToast(`✅ 评估完成（${selectedModel}）`);
     } catch (e) {
         showToast('评估失败: ' + e.message);
         console.error('[novel-eval] 评估失败:', e);
@@ -1244,6 +1356,361 @@ function novelUpdateEvaluateButton() {
     } else {
         btn.style.display = 'none';
     }
+}
+
+/**
+ * 🆕 使用选定模型重新评估
+ */
+async function novelReEvaluate() {
+    const modelSelect = document.getElementById('evalModelSelect');
+    const selectedModel = modelSelect ? modelSelect.value : 'qwen3.5-plus';
+    
+    console.log('[novel-eval] 使用模型重新评估:', selectedModel);
+
+    // 🔒 防止重复点击
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 评估中...'; }
+
+    showToast(`正在使用 ${selectedModel} 重新评估...`);
+
+    try {
+        const result = await novelEvaluateAllWithModel(selectedModel);
+        novelState._lastEvaluation = result;
+        novelState._lastEvalModel = selectedModel;
+        
+        // 关闭当前面板并显示新结果
+        const modal = document.querySelector('div[style*="position:fixed"][style*="z-index:10000"]');
+        if (modal) modal.remove();
+        
+        novelShowEvaluationResult(result);
+        showToast('✅ 重新评估完成');
+    } catch (e) {
+        showToast('评估失败: ' + e.message);
+        console.error('[novel-eval] 重新评估失败:', e);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 重新评估'; }
+    }
+}
+
+/**
+ * 🆕 多模型评估（使用多个模型评估并对比结果）
+ */
+async function novelMultiModelEvaluate() {
+    // 获取用户选择的模型
+    const checkboxes = document.querySelectorAll('.eval-model-checkbox:checked');
+    const models = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (models.length < 2) {
+        showToast('请至少选择2个模型进行对比评估');
+        return;
+    }
+
+    // 🔒 防止重复点击
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 评估中...'; }
+
+    console.log('[novel-eval] 开始多模型评估:', models);
+    showToast(`正在使用 ${models.length} 个模型并行评估...`);
+
+    // 🔧 估算胶片消耗（所有模型均通过 LLM 评估，按 token 计费）
+    const doneCount = novelState.chapters.filter(c => c.status === 'done').length;
+    const estFilm = models.length * doneCount; // 每章每模型约1胶片
+    if (estFilm > 0) {
+        showToast(`预估胶片消耗: 约 ${estFilm} 胶片（${models.length}个模型 × ${doneCount}章）`);
+    }
+
+    try {
+        // 并行执行所有模型评估
+        const evalPromises = models.map(async (model) => {
+            try {
+                const result = await novelEvaluateAllWithModel(model);
+                return { model, result };
+            } catch (e) {
+                console.error(`[novel-eval] 模型 ${model} 评估失败:`, e);
+                return { model, result: { error: e.message } };
+            }
+        });
+
+        // 等待所有评估完成
+        const evalResults = await Promise.all(evalPromises);
+        
+        // 整理结果
+        const results = {};
+        evalResults.forEach(({ model, result }) => {
+            results[model] = result;
+        });
+
+        // 关闭当前面板并显示多模型对比结果
+        const modal = document.querySelector('div[style*="position:fixed"][style*="z-index:10000"]');
+        if (modal) modal.remove();
+
+        // 显示多模型评估对比结果
+        novelShowMultiModelResult(results);
+        showToast('✅ 多模型评估完成');
+    } catch (e) {
+        showToast('多模型评估失败: ' + e.message);
+        console.error('[novel-eval] 多模型评估失败:', e);
+    } finally {
+        // 🔓 恢复按钮状态
+        if (btn) { btn.disabled = false; btn.textContent = '🎯 多模型对比评估'; }
+    }
+}
+
+/**
+ * 🆕 使用指定模型评估所有章节
+ */
+async function novelEvaluateAllWithModel(model) {
+    const doneChapters = novelState.chapters.filter(c => c.status === 'done');
+    if (doneChapters.length === 0) {
+        return {
+            overallScore: 0,
+            chapterScores: [],
+            globalIssues: ['没有已完成的章节'],
+            totalRepetitions: 0,
+            totalErrors: 0,
+            model: model
+        };
+    }
+
+    // 并行评估所有章节（最多3个并发）
+    const chapterIndices = novelState.chapters
+        .map((c, i) => c.status === 'done' ? i : -1)
+        .filter(i => i !== -1);
+    
+    const batchSize = 3; // 每批最多3个章节并行
+    const chapterScores = [];
+    
+    for (let i = 0; i < chapterIndices.length; i += batchSize) {
+        // 📊 实时进度反馈
+        const completed = Math.min(i + batchSize, chapterIndices.length);
+        showToast(`${model} 评估进度: ${completed}/${chapterIndices.length} 章`);
+        
+        const batch = chapterIndices.slice(i, i + batchSize);
+        const batchResults = await Promise.all(
+            batch.map(async (idx) => {
+                try {
+                    const result = await novelEvaluateChapterWithModel(idx, model);
+                    novelState.chapters[idx]._evaluation = result;
+                    novelState.chapters[idx]._evalModel = model;
+                    return {
+                        index: idx,
+                        title: novelState.chapters[idx].title,
+                        ...result
+                    };
+                } catch (e) {
+                    console.error(`[novel-eval] 章节 ${idx + 1} 评估失败:`, e);
+                    // 返回默认结果
+                    return {
+                        index: idx,
+                        title: novelState.chapters[idx].title,
+                        score: 70,
+                        issues: ['评估失败'],
+                        repetitions: [],
+                        errors: []
+                    };
+                }
+            })
+        );
+        chapterScores.push(...batchResults);
+    }
+
+    // 计算统计数据
+    let totalScore = 0;
+    let totalRepetitions = 0;
+    let totalErrors = 0;
+    const globalIssues = [];
+
+    chapterScores.forEach(ch => {
+        totalScore += ch.score;
+        totalRepetitions += ch.repetitions?.length || 0;
+        totalErrors += ch.errors?.length || 0;
+    });
+
+    const overallScore = Math.round(totalScore / doneChapters.length);
+
+    // 全局问题检测
+    if (totalRepetitions > doneChapters.length * 2) {
+        globalIssues.push(`重复内容过多：发现${totalRepetitions}处重复`);
+    }
+
+    const lowScoreChapters = chapterScores.filter(c => c.score < 70);
+    if (lowScoreChapters.length > doneChapters.length * 0.3) {
+        globalIssues.push(`质量较低章节过多：${lowScoreChapters.length}/${doneChapters.length}章低于70分`);
+    }
+
+    return {
+        overallScore,
+        chapterScores,
+        globalIssues,
+        totalRepetitions,
+        totalErrors,
+        evaluatedChapters: doneChapters.length,
+        totalChapters: novelState.chapters.length,
+        model: model
+    };
+}
+
+/**
+ * 🆕 使用指定模型评估单个章节
+ */
+async function novelEvaluateChapterWithModel(idx, model) {
+    const ch = novelState.chapters[idx];
+    if (!ch || !ch.content || ch.status !== 'done') {
+        return { score: 0, issues: ['章节未完成'], repetitions: [], errors: [] };
+    }
+
+    // 网站模式不支持本地评估，所有评估均通过 LLM 模型完成
+    if (model === 'local') {
+        showToast('当前为在线模式，请选择 LLM 模型进行评估');
+        throw new Error('在线模式不支持本地规则评估，请选择 LLM 模型');
+    }
+
+    // 使用 LLM 模型评估
+    try {
+        const evalPrompt = `/no_think
+请作为专业小说编辑，评估以下章节的质量。
+
+章节标题：${ch.title}
+章节内容：
+${ch.content.substring(0, 3000)}${ch.content.length > 3000 ? '...(内容过长已截断)' : ''}
+
+请从以下维度评估并打分（每项0-20分，总分100分）：
+1. 情节连贯性
+2. 人物塑造
+3. 语言表达
+4. 节奏把控
+5. 创意新颖度
+
+输出格式（严格JSON）：
+{"score":总分,"dimensions":{"plot":分,"character":分,"language":分,"pace":分,"creative":分},"issues":["问题1","问题2"],"suggestions":["建议1","建议2"]}`;
+
+        const response = await _novelLLM([
+            { role: 'system', content: '你是专业小说编辑，擅长评估小说质量。输出纯JSON格式。' },
+            { role: 'user', content: evalPrompt }
+        ], { model: model, maxTokens: 500, temperature: 0.3, timeout: 130000, retries: 0 });
+
+        // 解析 JSON
+        let evalResult;
+        try {
+            // 尝试提取 JSON
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                evalResult = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error('无法解析评估结果');
+            }
+        } catch (parseErr) {
+            console.warn('[novel-eval] JSON解析失败，使用默认值:', parseErr);
+            evalResult = { score: 70, issues: ['评估结果解析失败'], suggestions: [] };
+        }
+
+        // 合并本地检测的重复内容
+        const localResult = await novelEvaluateChapter(idx);
+        
+        return {
+            score: Math.min(100, Math.max(0, evalResult.score || 70)),
+            issues: evalResult.issues || [],
+            suggestions: evalResult.suggestions || [],
+            dimensions: evalResult.dimensions || {},
+            repetitions: localResult.repetitions,
+            errors: localResult.errors,
+            wordCount: ch.content.length,
+            aiTraces: localResult.aiTraces,
+            model: model
+        };
+    } catch (e) {
+        console.error('[novel-eval] LLM评估失败:', e);
+        return { score: 0, issues: ['评估失败: ' + e.message], repetitions: [], errors: ['API调用失败'] };
+    }
+}
+
+/**
+ * 🆕 显示多模型评估对比结果
+ */
+function novelShowMultiModelResult(results) {
+    const modelNames = {
+        'qwen3.5-plus': 'Qwen3.5-Plus',
+        'yunwu:qwen-plus': 'Qwen-Plus',
+        'yunwu:grok-4-fast': 'Grok-4 Fast',
+        'yunwu:grok-4.1': 'Grok-4.1'
+    };
+
+    const modelCount = Object.keys(results).length;
+    const gridCols = modelCount <= 2 ? 2 : modelCount <= 4 ? 4 : modelCount;
+
+    // 📊 统计胶片消耗（所有模型均通过 LLM 评估）
+    const evaluatedChapters = Object.values(results).find(r => !r.error)?.chapterScores?.length || 0;
+    const estimatedFilmCost = modelCount * evaluatedChapters;
+
+    let html = `
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="this.remove()">
+            <div style="background:#1a1a2e;border-radius:16px;max-width:900px;max-height:85vh;overflow-y:auto;padding:24px;color:#fff;" onclick="event.stopPropagation()">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <h3 style="margin:0;font-size:20px;">🎯 多模型评估对比</h3>
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;color:#888;font-size:24px;cursor:pointer;">&times;</button>
+                </div>
+
+                <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div style="font-size:13px;color:#fbbf24;">💰 本次评估胶片消耗（预估）</div>
+                        <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${modelCount}个模型 × ${evaluatedChapters}章（按实际token计费，服务端扣减）</div>
+                    </div>
+                    <div style="font-size:20px;font-weight:bold;color:#fbbf24;">~${estimatedFilmCost} 胶片</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:16px;margin-bottom:24px;">
+                    ${Object.entries(results).map(([model, result]) => `
+                        <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;text-align:center;">
+                            <div style="font-size:14px;color:#94a3b8;margin-bottom:8px;">${modelNames[model] || model}</div>
+                            <div style="font-size:36px;font-weight:bold;color:${result.error ? '#ef4444' : result.overallScore >= 80 ? '#22c55e' : result.overallScore >= 60 ? '#fbbf24' : '#ef4444'};">
+                                ${result.error ? '❌' : result.overallScore}
+                            </div>
+                            ${result.error ? `<div style="font-size:12px;color:#ef4444;">${result.error}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <div style="font-weight:bold;margin-bottom:12px;">📊 章节评分对比</div>
+                    <div style="max-height:400px;overflow-y:auto;">
+                        ${Object.values(results).find(r => !r.error)?.chapterScores ? Object.values(results).find(r => !r.error).chapterScores.map(ch => {
+                            const scores = Object.entries(results).map(([model, r]) => {
+                                if (r.error) return { model, score: '-' };
+                                const chapter = r.chapterScores?.find(c => c.index === ch.index);
+                                return { model, score: chapter?.score || '-' };
+                            });
+                            return `
+                                <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:8px;">
+                                    <div style="font-weight:bold;margin-bottom:8px;">第${ch.index + 1}章 ${ch.title}</div>
+                                    <div style="display:flex;gap:12px;">
+                                        ${scores.map(s => `
+                                            <div style="flex:1;text-align:center;">
+                                                <div style="font-size:12px;color:#94a3b8;">${modelNames[s.model] || s.model}</div>
+                                                <div style="font-size:18px;font-weight:bold;color:${s.score === '-' ? '#888' : s.score >= 80 ? '#22c55e' : s.score >= 60 ? '#fbbf24' : '#ef4444'};">
+                                                    ${s.score}
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : '<div style="color:#888;text-align:center;padding:20px;">暂无对比数据</div>'}
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:8px;">
+                    <button onclick="novelShowEvaluationResult(novelState._lastEvaluation)" style="flex:1;background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
+                        📊 查看详细报告
+                    </button>
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;">
+                        关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', html);
 }
 
 /**
@@ -1300,6 +1767,10 @@ async function novelAutoFixRepetitions(idx) {
     if (!confirm(`发现${evaluation.repetitions.length}处重复内容，确定要自动去重吗？\n\n将使用AI重写这些重复部分，保持故事连贯性。`)) {
         return;
     }
+
+    // 关闭评估面板
+    const modal = document.querySelector('div[style*="position:fixed"][style*="z-index:10000"]');
+    if (modal) modal.remove();
 
     showToast('正在去除重复内容...');
 
@@ -1368,6 +1839,10 @@ async function novelAutoFixAITraces(idx) {
     if (!confirm(`发现${evaluation.aiTraces.length}个AI痕迹词汇，确定要自动优化吗？\n\n将替换这些词汇为更自然的表达。`)) {
         return;
     }
+
+    // 关闭评估面板
+    const modal = document.querySelector('div[style*="position:fixed"][style*="z-index:10000"]');
+    if (modal) modal.remove();
 
     showToast('正在优化AI痕迹...');
 
