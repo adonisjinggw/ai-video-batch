@@ -364,10 +364,18 @@ function switchShortDramaMode(mode) {
  * 开始生成短剧
  */
 async function startShortDramaGeneration() {
-    if (shortDramaState.mode === 'original') {
-        await generateOriginalShortDrama();
-    } else {
-        await adaptNovelToShortDramaFlow();
+    // 🔒 防止重复点击
+    if (shortDramaState.writing) { showToast('正在生成中，请勿重复操作'); return; }
+    shortDramaState.writing = true;
+
+    try {
+        if (shortDramaState.mode === 'original') {
+            await generateOriginalShortDrama();
+        } else {
+            await adaptNovelToShortDramaFlow();
+        }
+    } finally {
+        shortDramaState.writing = false;
     }
 }
 
@@ -631,66 +639,74 @@ async function adaptNovelToShortDramaFlow() {
  * 生成所有集数的剧本
  */
 async function generateAllShortDramaEpisodes() {
+    // 🔒 防止重复点击
+    if (shortDramaState.writing) { showToast('正在生成剧本中，请勿重复操作'); return; }
     shortDramaState.writing = true;
 
-    for (let i = 0; i < shortDramaState.episodes.length; i++) {
-        if (shortDramaState.paused) break;
+    const startBtn = document.getElementById('shortDramaStartWritingBtn');
+    if (startBtn) { startBtn.disabled = true; startBtn.textContent = '⏳ 剧本生成中...'; }
 
-        const ep = shortDramaState.episodes[i];
-        if (ep.status === 'done') continue;
+    try {
+        for (let i = 0; i < shortDramaState.episodes.length; i++) {
+            if (shortDramaState.paused) break;
 
-        ep.status = 'generating';
-        renderShortDramaEpisodeList();
-        updateShortDramaProgress();
+            const ep = shortDramaState.episodes[i];
+            if (ep.status === 'done') continue;
 
-        try {
-            // 获取前文上下文（最近3集）
-            const prevContext = shortDramaState.episodes
-                .slice(Math.max(0, i - 3), i)
-                .filter(e => e.status === 'done')
-                .map(e => `第${e.index + 1}集：${e.title}\n${e.content.substring(0, 200)}...`)
-                .join('\n\n');
-
-            const content = await generateShortDramaEpisode(i, ep.outline, prevContext, shortDramaState.model, shortDramaState.useMemory);
-
-            ep.content = content;
-            ep.wordCount = content.length;
-            ep.duration = Math.round(content.length / 4);  // 估算：4字/秒
-            ep.status = 'done';
-
-            // 自动评估
-            const evaluation = evaluateShortDramaEpisode(ep);
-            ep._evaluation = evaluation;
-
-            if (evaluation.score < 60) {
-                showToast(`⚠️ 第${i + 1}集评分较低(${evaluation.score}分)`, 3000);
-            }
-
+            ep.status = 'generating';
             renderShortDramaEpisodeList();
             updateShortDramaProgress();
 
-            // 🆕 每5集更新一次角色和场景提取
-            if ((i + 1) % 5 === 0) {
-                shortDramaExtractCharacters();
-                shortDramaExtractScenes();
+            try {
+                // 获取前文上下文（最近3集）
+                const prevContext = shortDramaState.episodes
+                    .slice(Math.max(0, i - 3), i)
+                    .filter(e => e.status === 'done')
+                    .map(e => `第${e.index + 1}集：${e.title}\n${e.content.substring(0, 200)}...`)
+                    .join('\n\n');
+
+                const content = await generateShortDramaEpisode(i, ep.outline, prevContext, shortDramaState.model, shortDramaState.useMemory);
+
+                ep.content = content;
+                ep.wordCount = content.length;
+                ep.duration = Math.round(content.length / 4);  // 估算：4字/秒
+                ep.status = 'done';
+
+                // 自动评估
+                const evaluation = evaluateShortDramaEpisode(ep);
+                ep._evaluation = evaluation;
+
+                if (evaluation.score < 60) {
+                    showToast(`⚠️ 第${i + 1}集评分较低(${evaluation.score}分)`, 3000);
+                }
+
+                renderShortDramaEpisodeList();
+                updateShortDramaProgress();
+
+                // 🆕 每5集更新一次角色和场景提取
+                if ((i + 1) % 5 === 0) {
+                    shortDramaExtractCharacters();
+                    shortDramaExtractScenes();
+                }
+
+            } catch (e) {
+                ep.status = 'error';
+                console.error(`[short-drama] 第${i + 1}集生成失败:`, e);
+                showToast(`第${i + 1}集生成失败: ${e.message}`);
             }
-
-        } catch (e) {
-            ep.status = 'error';
-            console.error(`[short-drama] 第${i + 1}集生成失败:`, e);
-            showToast(`第${i + 1}集生成失败: ${e.message}`);
         }
-    }
 
-    shortDramaState.writing = false;
-
-    if (shortDramaState.episodes.every(e => e.status === 'done')) {
-        showToast('🎉 短剧全部完成！');
-        // 🆕 最终提取角色和场景
-        shortDramaExtractCharacters();
-        shortDramaExtractScenes();
-        // 自动显示评估
-        setTimeout(() => evaluateAllShortDramaEpisodes(), 1000);
+        if (shortDramaState.episodes.every(e => e.status === 'done')) {
+            showToast('🎉 短剧全部完成！');
+            // 🆕 最终提取角色和场景
+            shortDramaExtractCharacters();
+            shortDramaExtractScenes();
+            // 自动显示评估
+            setTimeout(() => evaluateAllShortDramaEpisodes(), 1000);
+        }
+    } finally {
+        shortDramaState.writing = false;
+        if (startBtn) { startBtn.disabled = false; startBtn.textContent = '🎬 生成剧本'; }
     }
 }
 
@@ -1362,7 +1378,11 @@ async function shortDramaGenerateCharImage(charIdx) {
     } catch (e) {
         ch._generating = false;
         _shortDramaRenderCharCards();
-        showToast('角色图生成失败: ' + e.message);
+        let msg = e.message || '';
+        if (msg.includes('abort') || msg.includes('Abort')) {
+            msg = '图片生成超时，请稍后重试（4K图片生成较慢）';
+        }
+        showToast('角色图生成失败: ' + msg);
     }
 }
 
@@ -1427,6 +1447,10 @@ function exportShortDramaJSON() {
  * 校验短剧各集之间的一致性
  */
 async function shortDramaCheckConsistency() {
+    // 🔒 防止重复点击
+    if (shortDramaState._checking) { showToast('正在校验中，请稍候'); return; }
+    shortDramaState._checking = true;
+
     var doneEpisodes = shortDramaState.episodes.filter(e => e.status === 'done');
     if (doneEpisodes.length < 3) {
         showToast('至少需要3集已完成内容才能校验');
@@ -1490,6 +1514,8 @@ async function shortDramaCheckConsistency() {
         if (resultDiv) {
             resultDiv.innerHTML = '<div style="padding:16px;color:#ef4444;">校验失败: ' + e.message + '</div>';
         }
+    } finally {
+        shortDramaState._checking = false;
     }
 }
 

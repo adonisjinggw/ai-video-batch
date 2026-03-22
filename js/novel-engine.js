@@ -350,22 +350,33 @@ async function novelDeAIAll() {
     const done = novelState.chapters.filter(c => c.status === 'done');
     if (done.length === 0) { showToast('没有已完成章节'); return; }
 
+    // 🔒 防止重复点击
+    if (novelState._deAIing) { showToast('正在批量去AI化中，请勿重复操作'); return; }
+    novelState._deAIing = true;
+
     const totalCost = done.length * NOVEL_CHAPTER_COST;
-    if (!confirm('将对全部 ' + done.length + ' 章进行去AI化润色，预计消耗 ' + totalCost + ' 胶片。是否继续？')) return;
+    if (!confirm('将对全部 ' + done.length + ' 章进行去AI化润色，预计消耗 ' + totalCost + ' 胶片。是否继续？')) {
+        novelState._deAIing = false;
+        return;
+    }
 
     showToast('开始批量去AI化...');
     var successCount = 0;
-    for (var i = 0; i < novelState.chapters.length; i++) {
-        if (novelState.chapters[i].status !== 'done') continue;
-        try {
-            await novelDeAIChapter(i);
-            successCount++;
-            document.getElementById('novelProgressLabel').textContent = '去AI化 ' + successCount + '/' + done.length + ' 章...';
-        } catch (e) {
-            console.warn('[novel] deAI chapter ' + i + ' failed:', e);
+    try {
+        for (var i = 0; i < novelState.chapters.length; i++) {
+            if (novelState.chapters[i].status !== 'done') continue;
+            try {
+                await novelDeAIChapter(i);
+                successCount++;
+                document.getElementById('novelProgressLabel').textContent = '去AI化 ' + successCount + '/' + done.length + ' 章...';
+            } catch (e) {
+                console.warn('[novel] deAI chapter ' + i + ' failed:', e);
+            }
         }
+        showToast('批量去AI化完成：' + successCount + '/' + done.length + ' 章 ✅');
+    } finally {
+        novelState._deAIing = false;
     }
-    showToast('批量去AI化完成：' + successCount + '/' + done.length + ' 章 ✅');
 }
 
 // ==================== 5. 大纲变动重解析 ====================
@@ -1136,7 +1147,12 @@ async function novelBatchFixLowScoreChapters() {
         return;
     }
 
+    // 🔒 防止重复点击
+    if (novelState._batchFixing) { showToast('正在批量修正中，请勿重复操作'); return; }
+    novelState._batchFixing = true;
+
     if (!confirm(`发现${lowScoreChapters.length}个低分章节（<70分），确定要批量修正吗？\n这可能需要较长时间。`)) {
+        novelState._batchFixing = false;
         return;
     }
 
@@ -1148,23 +1164,27 @@ async function novelBatchFixLowScoreChapters() {
     let successCount = 0;
     let failCount = 0;
 
-    for (const { idx, score } of lowScoreChapters) {
-        try {
-            showToast(`正在修正第${idx + 1}章（${score}分）...`);
-            await novelFixChapter(idx);
-            successCount++;
-        } catch (e) {
-            console.error(`[novel-fix] 第${idx + 1}章修正失败:`, e);
-            failCount++;
+    try {
+        for (const { idx, score } of lowScoreChapters) {
+            try {
+                showToast(`正在修正第${idx + 1}章（${score}分）...`);
+                await novelFixChapter(idx);
+                successCount++;
+            } catch (e) {
+                console.error(`[novel-fix] 第${idx + 1}章修正失败:`, e);
+                failCount++;
+            }
         }
+
+        showToast(`批量修正完成！成功：${successCount}，失败：${failCount}`);
+
+        // 重新评估
+        const result = await novelEvaluateAll();
+        novelState._lastEvaluation = result;
+        novelShowEvaluationResult(result);
+    } finally {
+        novelState._batchFixing = false;
     }
-
-    showToast(`批量修正完成！成功：${successCount}，失败：${failCount}`);
-
-    // 重新评估
-    const result = await novelEvaluateAll();
-    novelState._lastEvaluation = result;
-    novelShowEvaluationResult(result);
 }
 
 /**
@@ -1275,6 +1295,9 @@ async function novelRegenerateChapter(idx) {
         showToast('章节不存在');
         return;
     }
+
+    // 🔒 防止重复点击（章节正在生成中）
+    if (ch.status === 'generating') { showToast('该章节正在生成中，请稍候'); return; }
 
     if (!confirm(`确定要重新生成第${idx + 1}章吗？\n原内容将被覆盖。`)) return;
 

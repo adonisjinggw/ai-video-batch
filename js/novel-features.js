@@ -676,6 +676,10 @@ async function novelCheckConsistency() {
     }
     if (doneChapters.length < 3) { showToast('至少需要3章已完成内容才能校验'); return; }
 
+    // 🔒 防止重复点击
+    if (novelState._checking) { showToast('正在校验中，请稍候'); return; }
+    novelState._checking = true;
+
     var reportEl = document.getElementById('novelConsistencyReport');
     reportEl.classList.add('show');
     reportEl.innerHTML = '<div class="issue-loading">🔄 正在深度分析剧情一致性...</div>';
@@ -725,6 +729,8 @@ async function novelCheckConsistency() {
     } catch (e) {
         reportEl.innerHTML = '<span class="issue-warn">校验失败: ' + e.message + '</span>';
         _novelIssues = [];
+    } finally {
+        novelState._checking = false;
     }
 }
 
@@ -1342,7 +1348,15 @@ async function novelGenerateAllCharImages() {
     if (chars.length === 0) { showToast('没有角色可生成'); return; }
     var toGen = chars.filter(function (c) { return !c.imageUrl && !c._generating; });
     if (toGen.length === 0) { showToast('所有角色图都已生成'); return; }
-    if (!confirm('将为 ' + toGen.length + ' 个角色生成设计图，每个消耗约5胶片，确认？')) return;
+
+    // 🔒 防止重复点击
+    if (novelState._generatingCharImages) { showToast('正在批量生成角色图中，请勿重复操作'); return; }
+    novelState._generatingCharImages = true;
+
+    if (!confirm('将为 ' + toGen.length + ' 个角色生成设计图，每个消耗约5胶片，确认？')) {
+        novelState._generatingCharImages = false;
+        return;
+    }
     
     // 获取统一的故事风格
     var genre = '';
@@ -1392,6 +1406,9 @@ async function novelGenerateAllCharImages() {
     _novelRenderCharCards();
     try { novelSaveCurrentProject(); } catch (e) { }
     showToast('✅ 角色图批量生成完成');
+    } finally {
+        novelState._generatingCharImages = false;
+    }
 }
 
 // 渲染角色卡片

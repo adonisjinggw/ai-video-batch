@@ -639,7 +639,13 @@
             throw new Error(fetchErr.name === 'AbortError' ? '图片生成超时（150秒）' : fetchErr.message);
         }
         clearTimeout(_b2Timeout);
-        const data = await res.json().catch(() => ({}));
+        let data;
+        try {
+            data = await res.json();
+        } catch (jsonErr) {
+            // 服务器返回非 JSON（可能是 Cloudflare 502/504 错误页）
+            throw new Error('服务器响应异常，图片可能生成失败，请重试');
+        }
         if (!res.ok || !data.success) {
             throw new Error(data.message || data.error || `Banana2失败: ${res.status}`);
         }
