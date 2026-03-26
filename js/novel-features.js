@@ -2442,7 +2442,7 @@ async function novelGenerateStoryboards(chapterIdx) {
         var raw = await _novelLLM([
             { role: 'system', content: '你是专业分镜师，擅长将文字拆分为电影级分镜场景。只输出JSON。' },
             { role: 'user', content: prompt }
-        ], { maxTokens: 2048, temperature: 0.7, stream: true, timeout: 60000 });
+        ], { maxTokens: 2048, temperature: 0.7, stream: false, timeout: 60000 });
 
         var text = typeof raw === 'object' && raw !== null ? (raw.content || '') : String(raw);
         var jsonStr = text;
