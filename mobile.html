@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V8.10.3</title>
+    <title>RollRoll 移动版 V8.12.0</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2506,7 +2506,7 @@
                 <div class="quote-text">梦想可以放下，但是不要放弃</div>
                 <div class="quote-author">—— 荆广伟</div>
             </div>
-            <a id="welcomeEnterBtn" href="auth.html?force=mobile&no_redirect=true" class="btn-start-journey">🔒 登录 /
+            <a id="welcomeEnterBtn" href="auth.html?force=mobile&return_to=mobile.html" class="btn-start-journey">🔒 登录 /
                 注册开始创作</a>
         </div>
     </div>
@@ -6043,7 +6043,8 @@ Output must look like a frame from a Japanese anime series. The character should
                 showToast(authResult.message || '请先登录后再生成');
                 console.log('[mobile] 用户未登录或登录已过期，跳转到登录页');
                 setTimeout(() => {
-                    window.location.href = 'auth.html?force=mobile&no_redirect=true';
+                    // 🆕 添加 return_to 参数，登录后返回当前页
+                    window.location.href = 'auth.html?force=mobile&return_to=mobile.html&no_redirect=true';
                 }, 1000);
                 return;
             }
@@ -13963,15 +13964,28 @@ ${story}
         console.log('🎬 小卷助手：等待登录...');
         
         let assistantContainer = null;
+        let _createRetries = 0;
+        const MAX_CREATE_RETRIES = 15; // 最多重试15次（15秒）
         
         // 暴露到全局，供调试和页面检测使用
         window._verifyLogin = async function() {
             try {
                 if (typeof __mobileSupabaseClient === 'undefined' || !__mobileSupabaseClient) {
+                    console.log('🎬 登录验证：Supabase 客户端未初始化');
                     return false;
                 }
-                const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
-                return !!(session?.user);
+                const { data: { session }, error: sessionError } = await __mobileSupabaseClient.auth.getSession();
+                if (sessionError) {
+                    console.log('🎬 登录验证：获取 session 失败', sessionError.message);
+                    return false;
+                }
+                // 必须同时有 session 和 user
+                if (!session || !session.user) {
+                    console.log('🎬 登录验证：session 或 user 不存在');
+                    return false;
+                }
+                console.log('🎬 登录验证成功:', session.user.email);
+                return true;
             } catch (e) {
                 console.error('🎬 登录验证失败:', e);
                 return false;
@@ -13993,9 +14007,16 @@ ${story}
                 const mainStyle = getComputedStyle(mainEl);
                 const isMainVisible = mainStyle.display !== 'none' && mainStyle.visibility !== 'hidden' && mainStyle.opacity !== '0';
                 if (!isMainVisible) {
-                    console.log('🎬 createRollRoll 安全检查失败：主内容区不可见');
+                    _createRetries++;
+                    if (_createRetries <= MAX_CREATE_RETRIES) {
+                        console.log('🎬 主内容区不可见，1秒后重试(' + _createRetries + '/' + MAX_CREATE_RETRIES + ')...');
+                        setTimeout(() => window._createRollRoll(), 1000);
+                    } else {
+                        console.log('🎬 主内容区持续不可见，放弃创建小卷');
+                    }
                     return;
                 }
+                _createRetries = 0;
             }
             
             if (document.getElementById('rollroll-assistant')) {
@@ -14622,6 +14643,7 @@ ${story}
                 assistant.remove();
             }
             assistantContainer = null;
+            _createRetries = 0;
         }
         
         // 等待 Supabase 客户端就绪并设置监听
@@ -14631,11 +14653,19 @@ ${story}
                     clearInterval(checkSupabase);
                     console.log('🎬 Supabase 客户端就绪，设置认证监听');
                     
+                    // 🆕 检查是否在欢迎页（通过 URL 参数判断）
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const isWelcomePage = !urlParams.has('logged_in') && !urlParams.has('skip_welcome');
+                    
                     // 先检查当前登录状态
                     const isLoggedIn = await window._verifyLogin();
                     if (isLoggedIn) {
-                        console.log('🎬 检测到已登录，创建小卷');
-                        window._createRollRoll();
+                        if (isWelcomePage) {
+                            console.log('🎬 检测到已登录但在欢迎页，等待页面跳转...');
+                        } else {
+                            console.log('🎬 检测到已登录且不在欢迎页，创建小卷');
+                            window._createRollRoll();
+                        }
                     } else {
                         console.log('🎬 用户未登录，等待登录...');
                     }
@@ -14644,7 +14674,9 @@ ${story}
                     __mobileSupabaseClient.auth.onAuthStateChange(async (event, session) => {
                         console.log('🎬 认证状态变化:', event);
                         if (event === 'SIGNED_IN' && session?.user) {
-                            window._createRollRoll();
+                            // 登录后延迟创建，等待页面跳转和主内容区显示
+                            console.log('🎬 登录成功，延迟创建小卷');
+                            setTimeout(() => window._createRollRoll(), 2000);
                         } else if (event === 'SIGNED_OUT') {
                             removeRollRoll();
                         }

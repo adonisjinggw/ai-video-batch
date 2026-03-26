@@ -6487,43 +6487,70 @@ ${paramDesc}
             console.log('🎬 小卷助手内嵌代码开始执行');
 
             // 等待页面完全加载
+            // 等待 Supabase 客户端就绪
+            async function waitForSupabase() {
+                for (let i = 0; i < 60; i++) {
+                    if (_sbClient && typeof _sbClient.auth !== 'undefined') return _sbClient;
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                return null;
+            }
+
             async function initRollRoll() {
                 console.log('🎬 小卷初始化函数被调用');
 
-                // 检查是否已存在
                 if (document.getElementById('rollroll-assistant')) {
                     console.log('🎬 小卷已经存在，跳过');
                     return;
                 }
 
-                // 检查登录状态 - 只使用 Supabase 会话
-            let isLoggedIn = false;
-            
-            // 检查 Supabase 会话
-            if (typeof _sbClient !== 'undefined') {
-                try {
-                    const { data: { session } } = await _sbClient.auth.getSession();
-                    if (session?.user) {
-                        console.log('🎬 检测到 Supabase 会话:', session.user.email);
-                        isLoggedIn = true;
+                // 等待 Supabase 客户端就绪
+                const sbClient = await waitForSupabase();
+                let isLoggedIn = false;
+
+                if (sbClient) {
+                    try {
+                        const { data: { session } } = await sbClient.auth.getSession();
+                        if (session?.user) {
+                            // 🔒 额外验证：refresh token 确认 session 未过期
+                            try {
+                                const { data: { session: refreshedSession }, error: refreshErr } = await sbClient.auth.refreshSession();
+                                if (refreshErr || !refreshedSession?.user) {
+                                    console.log('🎬 session refresh 失败，视为未登录:', refreshErr?.message);
+                                    isLoggedIn = false;
+                                } else {
+                                    console.log('🎬 检测到有效 Supabase 会话:', refreshedSession.user.email);
+                                    isLoggedIn = true;
+                                }
+                            } catch (refreshEx) {
+                                console.log('🎬 session refresh 异常，视为未登录:', refreshEx.message);
+                                isLoggedIn = false;
+                            }
+                        }
+                    } catch (e) {
+                        console.log('🎬 检查 Supabase 会话失败:', e);
                     }
-                } catch (e) {
-                    console.log('🎬 检查 Supabase 会话失败:', e);
+
+                    // 监听认证状态变化（确保登出时移除小卷）
+                    sbClient.auth.onAuthStateChange((event, session) => {
+                        console.log('🎬 小卷：认证状态变化:', event);
+                        if (event === 'SIGNED_IN' && session?.user) {
+                            if (!document.getElementById('rollroll-assistant')) {
+                                console.log('🎬 检测到登录，创建小卷');
+                                createRollRoll();
+                            }
+                        } else if (event === 'SIGNED_OUT') {
+                            const assistant = document.getElementById('rollroll-assistant');
+                            if (assistant) {
+                                console.log('🎬 检测到登出，移除小卷');
+                                assistant.remove();
+                            }
+                        }
+                    });
                 }
-            }
 
                 if (!isLoggedIn) {
                     console.log('🎬 用户未登录，小卷不显示');
-                    // 监听登录事件
-                    window.addEventListener('storage', function (e) {
-                        if ((e.key === 'sb_user_info' || e.key === 'user_id') && !document.getElementById('rollroll-assistant')) {
-                            setTimeout(initRollRoll, 1000);
-                        }
-                    });
-                    window.addEventListener('userLoggedIn', function () {
-                        console.log('🎬 收到 userLoggedIn 事件');
-                        setTimeout(initRollRoll, 1000);
-                    });
                     return;
                 }
 

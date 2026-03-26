@@ -25970,6 +25970,23 @@ const PROMPT_TEMPLATES = {
         name: '🌿 节气日历卡片',
         desc: '二十四节气专属设计',
         template: '二十四节气日历卡片。顶部：节气名称"______（节气如立春/雨水/惊蛰/春分/清明/谷雨/立夏/小满/芒种/夏至/小暑/大暑/立秋/处暑/白露/秋分/寒露/霜降/立冬/小雪/大雪/冬至/小寒/大寒）"大字，公历日期"______（如2025年2月4日）"，农历"______（如正月初六）"。主视觉：______（节气相关自然景象/传统习俗插画），体现节气特色。底部：节气诗词或谚语"______（节气相关诗词/农谚）"。传统与现代结合，竖版3:4比例'
+    },
+
+    // ==================== 🖼️ 三联画人像（高级一致性）====================
+    triptych_expressions: {
+        name: '🎭 三联画·表情变奏',
+        desc: '同一角色三种不同表情的三联画',
+        template: 'Create a 16:9 horizontal triptych portrait (three-panel layout) on a ______（背景：pure white studio/gray seamless/lavender gradient/warm beige/dark charcoal） studio background. Split the canvas into three equal vertical panels with a thin clean gutter. In all three panels, match the reference images for identity, facial structure, hairstyle, costume, jewelry, shot size, framing, camera angle, subject placement, lighting ratio, and overall color grading. Keep everything else unchanged across panels—only the facial expression and micro-gestures change.\n\n• Left panel ______（左侧表情：playful调皮/confident自信/surprised惊讶/dreamy梦幻/laughing开心/cool高冷）.\n• Middle panel ______（中间表情：cute卖萌/elegant优雅/thoughtful沉思/flirty撩人/shy害羞/determined专注）.\n• Right panel ______（右侧表情：sulky生气/angry愤怒/sad悲伤/mysterious神秘/scared恐惧/ecstatic狂喜）.\n\nPreserve realistic anatomy and the exact same facial proportions. Ensure clean cutout edges against the background. Do not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or any extra text.'
+    },
+    triptych_angles: {
+        name: '📐 三联画·角度测试',
+        desc: '同一角色三个不同角度的三联画',
+        template: 'Create one image containing three side-by-side face ______（取景：close-ups近景/half-body半身/three-quarter七分身/full-body全身） of the same person, aligned to the same scale and framing, on a ______（背景：gray seamless/white studio/light gray gradient/charcoal/warm beige）. Panel A (left) is a ______（A面板角度：straight-on正面/slightly turned 15°左转15°/low angle低角度仰拍/high angle高角度俯拍）. Panel B (center) is a ______（B面板角度：45° three-quarter/30° slight turn/60° deep three-quarter/over shoulder回眸）. Panel C (right) is a ______（C面板角度：90° side profile/135° back-three-quarter/180° back view/dramatic extreme angle）. Separate the panels with two thin vertical divider lines, perfectly straight and evenly spaced.\n\nUnify the lighting to a controlled studio setup: ______（灯光：soft directional key light/Rembrandt chiaroscuro/flat even lighting/butterfly glamorous/split dramatic/rim ethereal）. Keep the person\'s identity matched to the reference images, but keep the background strictly the same studio backdrop in every panel.\n\nAdd only the panel labels: "A" above the left panel, "B" above the center panel, and "C" above the right panel, in a simple clean sans-serif, small and understated. Do not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or extra text.'
+    },
+    consistency_lock: {
+        name: '🔒 一致性锁定增强',
+        desc: '给提示词加角色一致性约束',
+        template: 'CHARACTER CONSISTENCY LOCK — Apply these rules to ALL panels/frames in the output:\n\n🔒 LOCK (must be identical across all panels): ______（锁定元素：identity身份/facial structure面部结构/hairstyle发型/costume服装/lighting光照/color grading调色/shot size景别/camera angle机位/skin texture皮肤纹理）\n✅ ALLOWED CHANGES (only these may differ): ______（允许变化：facial expression表情/body pose姿态/camera angle机位/outfit variation服装/background背景/accessories配饰）\n🚫 NEGATIVE CONSTRAINTS (strictly forbidden): ______（禁止改变：no age changes/no eye shape changes/no jawline changes/no nose changes/no face width changes/no body proportion changes）\n\n📝 ORIGINAL PROMPT TO EXECUTE:\n______（你的原始提示词）\n\nDo not add any watermark, logo, subtitles, UI elements, borders, QR codes, signatures, or any extra text.'
     }
 };
 // 🧩 PromptFill 风格：内置模板预设（“简单/标准/高级”）

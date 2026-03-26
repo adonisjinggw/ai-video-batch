@@ -279,7 +279,7 @@ module.exports = async function handler(req, res) {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(180000)
+                    signal: AbortSignal.timeout(80000)
                 });
 
                 if (response.ok) {
@@ -337,7 +337,7 @@ module.exports = async function handler(req, res) {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(120000)
+                    signal: AbortSignal.timeout(80000)
                 });
 
                 if (response.ok) {
@@ -377,7 +377,7 @@ module.exports = async function handler(req, res) {
                 max_tokens: max_completion_tokens,
                 temperature,
                 top_p,
-                stream: false
+                stream: !!stream  // 🔄 前端要求流式时，对云雾也用流式（避免 Vercel 524 超时）
             };
 
             // 串行尝试每个端点，成功立即返回，失败才试下一端点
@@ -401,7 +401,7 @@ module.exports = async function handler(req, res) {
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify(payload),
-                            signal: AbortSignal.timeout(120000)
+                            signal: AbortSignal.timeout(80000)
                         });
 
                         if (res.ok) {
@@ -441,6 +441,67 @@ module.exports = async function handler(req, res) {
             }
 
             if (result.success) {
+                // 🔄 流式转发：避免 Vercel 函数超时（HTTP 524）
+                if (stream && result.response.headers.get('content-type')?.includes('text/event-stream')) {
+                    res.setHeader('Content-Type', 'text/event-stream');
+                    res.setHeader('Cache-Control', 'no-cache');
+                    res.setHeader('Connection', 'keep-alive');
+                    res.statusCode = 200;
+
+                    // 转发流 + 收集 usage 用于计费
+                    const reader = result.response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let fullContent = '';
+                    let lastUsage = null;
+
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            const chunk = decoder.decode(value, { stream: true });
+                            // 提取 usage（最后一个 chunk 可能包含）
+                            for (const line of chunk.split('\n')) {
+                                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                                    try {
+                                        const parsed = JSON.parse(line.slice(6));
+                                        const delta = parsed.choices?.[0]?.delta?.content;
+                                        if (delta) fullContent += delta;
+                                        if (parsed.usage) lastUsage = parsed.usage;
+                                    } catch (e) { /* skip parse error */ }
+                                }
+                            }
+                            res.write(value);
+                        }
+                    } catch (streamErr) {
+                        console.warn('[writer-llm] 云雾流式转发异常:', streamErr.message);
+                    }
+
+                    res.end();
+
+                    // 💰 流结束后按 usage 计费
+                    try {
+                        if (lastUsage) {
+                            filmCost = calculateTokenCost(lastUsage);
+                            if (!skipBilling && filmCost > 0) {
+                                await __billing('consume', userId, filmCost, `写作助手(云雾流式,${lastUsage?.total_tokens || 0}tokens)`);
+                            }
+                            console.log(`[writer-llm] 💰 流式计费: ${lastUsage?.total_tokens || 0}tokens → ${filmCost}胶片`);
+                        } else {
+                            // 没有精确 token 数，按字符估算
+                            filmCost = Math.max(1, Math.ceil(fullContent.length / 500));
+                            if (!skipBilling && filmCost > 0) {
+                                await __billing('consume', userId, filmCost, `写作助手(云雾流式估算,${fullContent.length}字符)`);
+                            }
+                            console.log(`[writer-llm] 💰 流式估算计费: ${fullContent.length}字符 → ${filmCost}胶片`);
+                        }
+                        await __saveGenerationRecord(userId, 'text', fullContent?.trim() || '', finalMessages[0]?.content || '', '云雾', filmCost, {});
+                    } catch (billingErr) {
+                        console.error('[writer-llm] 流式计费失败:', billingErr.message);
+                    }
+                    return;
+                }
+
+                // 非流式：原有逻辑
                 try {
                     data = await result.response.json();
                     content = data?.choices?.[0]?.message?.content;

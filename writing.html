@@ -10,8 +10,8 @@
     <title>✍️ AI写作 - RollRoll</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
-    <script src="/js/user-memory.js?v=20260213a"></script>
-    <script src="/js/skill-presets.js?v=20260213a"></script>
+    <script src="/js/user-memory.js?v=20260325"></script>
+    <script src="/js/skill-presets.js?v=20260325"></script>
     <script>
         // 📖 全局 novelState 定义（必须在 novel-engine.js 之前）
         window.novelState = window.novelState || {
@@ -27,14 +27,13 @@
 
         // 📖 加载 novel-engine.js（在 novelState 定义之后）
     </script>
-    <script src="/js/novel-engine.js?v=8.10.1"></script>
-    <script src="/js/novel-features.js"></script>
-    <script src="/js/short-drama.js?v=8.11.0"></script>
+    <script src="/js/novel-engine.js?v=8.21.0"></script>
+    <script src="/js/novel-features.js?v=8.21.0"></script>
     <script>
         // 🔄 显示版本号（从 script src 自动读取）
         // 注意：verBadge 在 body 中，head 中的脚本执行时 DOM 未就绪，必须用 DOMContentLoaded
         document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('script[src*="/js/short-drama.js"]').forEach(function(s) {
+            document.querySelectorAll('script[src*="/js/novel-engine.js"]').forEach(function(s) {
                 var m = s.src.match(/[?&]v=([\d.]+)/);
                 if (m) document.getElementById('verBadge').textContent = 'v' + m[1];
             });
@@ -62,9 +61,7 @@
             });
 
             const isNovel = (type === 'novel');
-            const isShortDrama = (type === 'shortdrama');
             const novelPanel = document.getElementById('novelPanel');
-            const shortDramaPanel = document.getElementById('shortDramaPanel');
             const batchToggle = document.getElementById('batchToggle');
             const singleInput = document.getElementById('singleInputSection');
             const batchInput = document.getElementById('batchInputSection');
@@ -76,18 +73,6 @@
 
             if (isNovel) {
                 if (novelPanel) novelPanel.classList.add('active');
-                if (shortDramaPanel) shortDramaPanel.classList.remove('active');
-                if (batchToggle) batchToggle.style.display = 'none';
-                if (singleInput) singleInput.style.display = 'none';
-                if (batchInput) batchInput.style.display = 'none';
-                if (settingsRow) settingsRow.style.display = 'none';
-                if (generateBtn) generateBtn.style.display = 'none';
-                if (resultSection) resultSection.style.display = 'none';
-                if (batchResultSection) batchResultSection.style.display = 'none';
-                if (loading) loading.style.display = 'none';
-            } else if (isShortDrama) {
-                if (novelPanel) novelPanel.classList.remove('active');
-                if (shortDramaPanel) shortDramaPanel.classList.add('active');
                 if (batchToggle) batchToggle.style.display = 'none';
                 if (singleInput) singleInput.style.display = 'none';
                 if (batchInput) batchInput.style.display = 'none';
@@ -98,7 +83,6 @@
                 if (loading) loading.style.display = 'none';
             } else {
                 if (novelPanel) novelPanel.classList.remove('active');
-                if (shortDramaPanel) shortDramaPanel.classList.remove('active');
                 if (batchToggle) batchToggle.style.display = '';
                 if (settingsRow) settingsRow.style.display = '';
                 if (generateBtn) generateBtn.style.display = '';
@@ -981,39 +965,6 @@
             font-weight: 600;
         }
 
-        /* ==================== 📺 短剧模块样式 ==================== */
-        .short-drama-mode-switch {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .episode-item {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .episode-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateX(4px);
-        }
-
-        .episode-item.done {
-            border-left: 3px solid var(--success);
-        }
-
-        .episode-item.generating {
-            border-left: 3px solid var(--accent);
-            animation: pulse 1.5s infinite;
-        }
-
-        .episode-item.error {
-            border-left: 3px solid var(--danger);
-        }
         /* 版本号标签 - 手机端醒目 */
         .ver-badge {
             display: inline-block;
@@ -1058,7 +1009,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="/css/novel-enhanced.css?v=3">
+    <link rel="stylesheet" href="/css/novel-enhanced.css?v=4">
 </head>
 
 <body>
@@ -1072,12 +1023,11 @@
         <div class="type-tabs">
             <button class="type-tab active" data-type="story" onclick="switchType('story')">📖 故事</button>
             <button class="type-tab" data-type="article" onclick="switchType('article')">📝 文章</button>
-            <button class="type-tab" data-type="shortdrama" onclick="switchType('shortdrama')">📺 短剧</button>
             <button class="type-tab" data-type="poem" onclick="switchType('poem')">🌸 诗词</button>
             <button class="type-tab" data-type="copy" onclick="switchType('copy')">📢 文案</button>
             <button class="type-tab" data-type="continue" onclick="switchType('continue')">✨ 续写</button>
             <button class="type-tab" data-type="paper" onclick="switchType('paper')">📄 论文</button>
-            <button class="type-tab" data-type="novel" onclick="switchType('novel')">📖 长篇小说</button>
+            <button class="type-tab" data-type="novel" onclick="switchType('novel')">📖 长篇/短剧</button>
         </div>
 
         <!-- 单篇/批量模式切换（非小说模式时显示） -->
@@ -1237,12 +1187,15 @@
             </div>
         </div>
 
-        <!-- 📖 长篇小说面板 -->
+        <!-- 📖 长篇/短剧工作台 -->
         <div class="novel-panel" id="novelPanel">
             <div class="novel-header">
-                <h2>📖 长篇小说工作台</h2>
-                <p>AI自动生成大纲 → 逐章写作 → 断点续写 · 云端保存 · 一键导出</p>
+                <h2>📖 长篇/短剧工作台</h2>
+                <p>长篇小说 · 短剧剧本 · AI自动生成 · 断点续写 · 云端保存</p>
             </div>
+
+            <!-- ============ 长篇小说配置区 ============ -->
+            <div id="novelLongConfig">
             <div class="novel-restore-banner" id="novelRestoreBanner" style="display:none;">
                 <div class="restore-info"></div>
                 <button class="restore-btn" onclick="novelRestoreState()">📂 恢复</button>
@@ -1271,7 +1224,7 @@
             <div class="novel-settings">
                 <div class="setting-item">
                     <label>题材类型</label>
-                    <select id="novelGenreSelect" onchange="toggleCustomGenre()">
+                    <select id="novelGenreSelect" onchange="toggleCustomGenre(); updateChapterCountForGenre();">
                         <option value="玄幻">🔮 玄幻</option>
                         <option value="都市">🏙️ 都市</option>
                         <option value="科幻">🚀 科幻</option>
@@ -1296,6 +1249,7 @@
                         <option value="二次元">🎨 二次元</option>
                         <option value="同人">📚 同人</option>
                         <option value="轻小说">📖 轻小说</option>
+                        <option value="短剧">🎭 短剧</option>
                         <option value="custom">✏️ 自定义...</option>
                     </select>
                     <input type="text" id="customGenreInput" placeholder="输入自定义类型，如：末世求生、星际穿越..."
@@ -1316,7 +1270,79 @@
                         <option value="custom">自定义...</option>
                     </select>
                 </div>
-                <div class="setting-item">
+                <div id="shortDramaExtraOptions" style="display:none;">
+                    <div class="setting-item">
+                        <label>短剧风格</label>
+                        <select id="shortDramaStyle" onchange="toggleCustomShortDramaStyle()">
+                            <optgroup label="🔥 热门爆款">
+                                <option value="都市情感">🏙️ 都市情感</option>
+                                <option value="豪门总裁">💎 豪门总裁</option>
+                                <option value="甜宠">🍬 甜宠</option>
+                                <option value="虐恋">💔 虐恋</option>
+                                <option value="逆袭">💪 逆袭</option>
+                                <option value="重生">🔄 重生</option>
+                                <option value="穿越">🌀 穿越</option>
+                                <option value="复仇">🔥 复仇</option>
+                                <option value="萌宝">👶 萌宝</option>
+                                <option value="闪婚">💒 闪婚</option>
+                            </optgroup>
+                            <optgroup label="👘 古风古装">
+                                <option value="古风">👘 古风</option>
+                                <option value="宫斗">👑 宫斗</option>
+                                <option value="武侠江湖">⚔️ 武侠江湖</option>
+                                <option value="仙侠修仙">⚡ 仙侠修仙</option>
+                                <option value="架空历史">📜 架空历史</option>
+                            </optgroup>
+                            <optgroup label="🔮 奇幻科幻">
+                                <option value="玄幻奇幻">🔮 玄幻奇幻</option>
+                                <option value="末世求生">☠️ 末世求生</option>
+                                <option value="赛博朋克">🤖 赛博朋克</option>
+                                <option value="星际穿越">🚀 星际穿越</option>
+                                <option value="无限流">♾️ 无限流</option>
+                                <option value="异能觉醒">🌟 异能觉醒</option>
+                            </optgroup>
+                            <optgroup label="🔍 悬疑烧脑">
+                                <option value="悬疑推理">🔍 悬疑推理</option>
+                                <option value="惊悚恐怖">😱 惊悚恐怖</option>
+                                <option value="灵异怪谈">👻 灵异怪谈</option>
+                                <option value="盗墓探险">🏺 盗墓探险</option>
+                                <option value="刑侦探案">🔎 刑侦探案</option>
+                            </optgroup>
+                            <optgroup label="📚 青春日常">
+                                <option value="青春校园">📚 青春校园</option>
+                                <option value="职场逆袭">💼 职场逆袭</option>
+                                <option value="乡村田园">🌾 乡村田园</option>
+                                <option value="军旅生活">🎖️ 军旅生活</option>
+                                <option value="美食人生">🍜 美食人生</option>
+                            </optgroup>
+                            <optgroup label="😂 其他风格">
+                                <option value="喜剧搞笑">😂 喜剧搞笑</option>
+                                <option value="动作热血">🔥 动作热血</option>
+                                <option value="体育竞技">⚽ 体育竞技</option>
+                                <option value="医疗救援">🏥 医疗救援</option>
+                                <option value="谍战特工">🕵️ 谍战特工</option>
+                                <option value="女性力量">🌸 女性力量</option>
+                                <option value="民国风云">📻 民国风云</option>
+                                <option value="萌系日常">🐱 萌系日常</option>
+                                <option value="神话传说">🐉 神话传说</option>
+                                <option value="商战风云">💰 商战风云</option>
+                            </optgroup>
+                            <option value="custom">✏️ 自定义...</option>
+                        </select>
+                        <input type="text" id="customShortDramaStyleInput" placeholder="输入自定义风格，如：民俗恐怖、废土末日..."
+                            style="display:none;margin-top:8px;width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;font-size:13px;">
+                    </div>
+                    <div class="setting-item">
+                        <label>每集字数</label>
+                        <select id="shortDramaEpisodeLength">
+                            <option value="250">~250字（60秒）</option>
+                            <option value="350" selected>~350字（90秒）</option>
+                            <option value="500">~500字（120秒）</option>
+                            <option value="800">~800字（180秒）</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="novelChapterLengthSection" class="setting-item">
                     <label>每章字数</label>
                     <select id="novelChapterLength">
                         <option value="3000">~3000字</option>
@@ -1424,278 +1450,7 @@
                 <button onclick="novelShowPublishPanel()"
                     style="background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:700;"> 发布</button>
             </div>
-        </div>
-
-        <!-- 📺 短剧面板 -->
-        <div class="novel-panel" id="shortDramaPanel">
-            <div class="novel-header">
-                <h2>📺 短剧创作工作台</h2>
-                <p>原创短剧 · 小说改编 · 符合短剧标准 · 快节奏冲突</p>
-            </div>
-
-            <!-- 模式切换 -->
-            <div class="short-drama-mode-switch" style="display:flex;gap:12px;margin-bottom:20px;">
-                <button class="novel-mode-btn active" id="shortDramaOriginalBtn" onclick="switchShortDramaMode('original')" style="flex:1;">
-                    ✨ 原创短剧
-                </button>
-                <button class="novel-mode-btn" id="shortDramaAdaptBtn" onclick="switchShortDramaMode('adapt')" style="flex:1;">
-                    📖 小说改编
-                </button>
-            </div>
-
-            <!-- 原创短剧面板 -->
-            <div id="shortDramaOriginalPanel">
-                <div class="novel-input-group">
-                    <label>📝 短剧主题</label>
-                    <input type="text" id="shortDramaTheme" placeholder="例如：霸总爱上灰姑娘、复仇千金归来..." style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-                    <div class="novel-input-group" style="margin-bottom:0;">
-                        <label>🎭 短剧类型</label>
-                        <select id="shortDramaGenre" onchange="toggleCustomShortDramaOption('Genre')" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
-                            <option value="urban" style="background:#1a1a2e;color:#fff;">💼 都市情感</option>
-                            <option value="ceo" style="background:#1a1a2e;color:#fff;">👔 霸总豪门</option>
-                            <option value="revenge" style="background:#1a1a2e;color:#fff;">⚔️ 复仇逆袭</option>
-                            <option value="rebirth" style="background:#1a1a2e;color:#fff;">🔄 重生逆袭</option>
-                            <option value="romance" style="background:#1a1a2e;color:#fff;">💕 甜宠言情</option>
-                            <option value="fantasy" style="background:#1a1a2e;color:#fff;">🔮 玄幻修仙</option>
-                            <option value="ancient" style="background:#1a1a2e;color:#fff;">👑 古装宫斗</option>
-                            <option value="suspense" style="background:#1a1a2e;color:#fff;">🔍 悬疑推理</option>
-                            <option value="medical" style="background:#1a1a2e;color:#fff;">⚕️ 医疗救赎</option>
-                            <option value="military" style="background:#1a1a2e;color:#fff;">🎖️ 军旅铁血</option>
-                            <option value="campus" style="background:#1a1a2e;color:#fff;">🎓 校园青春</option>
-                            <option value="business" style="background:#1a1a2e;color:#fff;">💰 商战谋略</option>
-                            <option value="family" style="background:#1a1a2e;color:#fff;">🏠 家庭伦理</option>
-                            <option value="supernatural" style="background:#1a1a2e;color:#fff;">👻 灵异奇幻</option>
-                            <option value="comedy" style="background:#1a1a2e;color:#fff;">😂 喜剧搞笑</option>
-                            <option value="custom" style="background:#1a1a2e;color:#fff;">✏️ 自定义...</option>
-                        </select>
-                        <input type="text" id="shortDramaCustomGenre" placeholder="输入自定义类型，如：赛博朋克、末世求生..." style="display:none;width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;margin-top:8px;box-sizing:border-box;">
-                    </div>
-
-                    <div class="novel-input-group" style="margin-bottom:0;">
-                        <label>✨ 写作风格</label>
-                        <select id="shortDramaStyle" onchange="toggleCustomShortDramaOption('Style')" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
-                            <option value="normal" style="background:#1a1a2e;color:#fff;">📝 正常</option>
-                            <option value="intense" style="background:#1a1a2e;color:#fff;">🔥 激烈</option>
-                            <option value="sweet" style="background:#1a1a2e;color:#fff;">💕 甜宠</option>
-                            <option value="tragic" style="background:#1a1a2e;color:#fff;">💔 虐心</option>
-                            <option value="suspenseful" style="background:#1a1a2e;color:#fff;">😱 悬疑</option>
-                            <option value="humorous" style="background:#1a1a2e;color:#fff;">😂 幽默</option>
-                            <option value="dramatic" style="background:#1a1a2e;color:#fff;">🎭 戏剧</option>
-                            <option value="realistic" style="background:#1a1a2e;color:#fff;">🎬 写实</option>
-                            <option value="poetic" style="background:#1a1a2e;color:#fff;">🌸 文艺</option>
-                            <option value="thriller" style="background:#1a1a2e;color:#fff;">😨 惊悚</option>
-                            <option value="inspirational" style="background:#1a1a2e;color:#fff;">💪 励志</option>
-                            <option value="custom" style="background:#1a1a2e;color:#fff;">✏️ 自定义...</option>
-                        </select>
-                        <input type="text" id="shortDramaCustomStyle" placeholder="输入自定义风格，如：暗黑哥特、轻松治愈..." style="display:none;width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;margin-top:8px;box-sizing:border-box;">
-                    </div>
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-                    <div class="novel-input-group" style="margin-bottom:0;">
-                        <label>📊 集数设置</label>
-                        <select id="shortDramaEpisodeCount" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
-                            <option value="30" style="background:#1a1a2e;color:#fff;">30集（短篇）</option>
-                            <option value="60" selected style="background:#1a1a2e;color:#fff;">60集（标准）</option>
-                            <option value="80" style="background:#1a1a2e;color:#fff;">80集（中篇）</option>
-                            <option value="100" style="background:#1a1a2e;color:#fff;">100集（长篇）</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-                    <div class="novel-input-group" style="margin-bottom:0;">
-                        <label>🤖 AI模型</label>
-                        <select id="shortDramaModel" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
-                            <option value="qwen3.5-plus" selected style="background:#1a1a2e;color:#fff;">🧠 Qwen3.5-Plus（推荐）</option>
-                            <option value="yunwu:qwen-plus" style="background:#1a1a2e;color:#fff;">☁️ Qwen-Plus</option>
-                            <option value="yunwu:grok-4-fast" style="background:#1a1a2e;color:#fff;">⚡ Grok-4 Fast</option>
-                            <option value="yunwu:grok-4.1" style="background:#1a1a2e;color:#fff;">🌟 Grok-4.1</option>
-                            <optgroup label="🆓 OpenRouter 免费模型">
-                                <option value="openrouter:openrouter/hunter-alpha" style="background:#1a1a2e;color:#fff;">🆓 Hunter Alpha</option>
-                                <option value="openrouter:openrouter/healer-alpha" style="background:#1a1a2e;color:#fff;">🆓 Healer Alpha</option>
-                                <option value="openrouter:nvidia/nemotron-3-super-120b-a12b:free" style="background:#1a1a2e;color:#fff;">🆓 Nemotron 120B</option>
-                                <option value="openrouter:bytedance-seed/seedream-4.5" style="background:#1a1a2e;color:#fff;">🆓 Seedream 4.5</option>
-                            </optgroup>
-                            <optgroup label="⭐ OpenRouter 付费模型">
-                                <option value="openrouter:bytedance-seed/seed-2.0-lite" style="background:#1a1a2e;color:#fff;">⭐ Seed 2.0 Lite</option>
-                                <option value="openrouter:bytedance-seed/seed-2.0-mini" style="background:#1a1a2e;color:#fff;">⭐ Seed 2.0 Mini</option>
-                            </optgroup>
-                        </select>
-                    </div>
-
-                    <div class="novel-input-group" style="margin-bottom:0;">
-                        <label>🧠 使用记忆</label>
-                        <div style="display:flex;gap:8px;margin-top:4px;">
-                            <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;font-size:13px;">
-                                <input type="radio" name="shortDramaMemory" value="true" checked style="cursor:pointer;">
-                                <span>✅ 使用</span>
-                            </label>
-                            <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;font-size:13px;">
-                                <input type="radio" name="shortDramaMemory" value="false" style="cursor:pointer;">
-                                <span>❌ 不用</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px;margin-bottom:16px;">
-                    <div style="font-size:14px;color:#60a5fa;margin-bottom:8px;">📺 短剧标准规则</div>
-                    <div style="font-size:13px;color:#94a3b8;line-height:1.6;">
-                        • 每集时长：90秒（约350字）<br>
-                        • 场景切换：每集2-4个场景<br>
-                        • 对话要求：简短有力，口语化<br>
-                        • 冲突要求：每集必须有冲突<br>
-                        • 悬念要求：结尾必须留悬念
-                    </div>
-                </div>
-
-                <button class="primary" onclick="startShortDramaGeneration()" style="width:100%;">
-                    🚀 开始生成短剧
-                </button>
-            </div>
-
-            <!-- 小说改编面板 -->
-            <div id="shortDramaAdaptPanel" style="display:none;">
-                <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:16px;margin-bottom:16px;">
-                    <div style="font-size:14px;color:#fbbf24;margin-bottom:8px;">📖 小说改编说明</div>
-                    <div style="font-size:13px;color:#cbd5e1;line-height:1.6;">
-                        • 将从当前小说项目中提取内容<br>
-                        • 自动提炼核心冲突和主线剧情<br>
-                        • 删减支线，强化戏剧冲突<br>
-                        • 加快节奏，符合短剧特点
-                    </div>
-                </div>
-
-                <div class="novel-input-group">
-                    <label>📚 导入小说源</label>
-                    <div style="display:flex;gap:8px;margin-bottom:12px;">
-                        <button onclick="importNovelFromFile()" style="flex:1;padding:10px;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);border-radius:8px;color:#60a5fa;cursor:pointer;">
-                            📁 上传文件
-                        </button>
-                        <button onclick="importNovelFromHistory()" style="flex:1;padding:10px;background:rgba(168,85,247,0.2);border:1px solid rgba(168,85,247,0.3);border-radius:8px;color:#a855f7;cursor:pointer;">
-                            📖 从已生成
-                        </button>
-                    </div>
-                    <input type="file" id="shortDramaNovelFileInput" accept=".txt,.md" style="display:none;" onchange="handleNovelFileUpload(event)">
-                    <div id="shortDramaSourceInfo" style="display:none;padding:10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#4ade80;font-size:13px;margin-top:8px;">
-                        ✅ 已导入: <span id="shortDramaSourceName"></span> (<span id="shortDramaSourceWords"></span>字)
-                    </div>
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-                    <div class="novel-input-group" style="margin-bottom:0;">
-                        <label>📊 改编集数</label>
-                        <select id="shortDramaAdaptEpisodeCount" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
-                            <option value="30">30集（精简版）</option>
-                            <option value="60" selected>60集（标准版）</option>
-                            <option value="80">80集（完整版）</option>
-                        </select>
-                    </div>
-
-                    <div class="novel-input-group" style="margin-bottom:0;">
-                        <label>🤖 AI模型</label>
-                        <select id="shortDramaAdaptModel" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;">
-                            <option value="qwen3.5-plus" selected style="background:#1a1a2e;color:#fff;">🧠 Qwen3.5-Plus（推荐）</option>
-                            <option value="yunwu:qwen-plus" style="background:#1a1a2e;color:#fff;">☁️ Qwen-Plus</option>
-                            <option value="yunwu:grok-4-fast" style="background:#1a1a2e;color:#fff;">⚡ Grok-4 Fast</option>
-                            <option value="yunwu:grok-4.1" style="background:#1a1a2e;color:#fff;">🌟 Grok-4.1</option>
-                            <optgroup label="🆓 OpenRouter 免费模型">
-                                <option value="openrouter:openrouter/hunter-alpha" style="background:#1a1a2e;color:#fff;">🆓 Hunter Alpha</option>
-                                <option value="openrouter:openrouter/healer-alpha" style="background:#1a1a2e;color:#fff;">🆓 Healer Alpha</option>
-                                <option value="openrouter:nvidia/nemotron-3-super-120b-a12b:free" style="background:#1a1a2e;color:#fff;">🆓 Nemotron 120B</option>
-                                <option value="openrouter:bytedance-seed/seedream-4.5" style="background:#1a1a2e;color:#fff;">🆓 Seedream 4.5</option>
-                            </optgroup>
-                            <optgroup label="⭐ OpenRouter 付费模型">
-                                <option value="openrouter:bytedance-seed/seed-2.0-lite" style="background:#1a1a2e;color:#fff;">⭐ Seed 2.0 Lite</option>
-                                <option value="openrouter:bytedance-seed/seed-2.0-mini" style="background:#1a1a2e;color:#fff;">⭐ Seed 2.0 Mini</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="novel-input-group">
-                    <label>🧠 使用记忆</label>
-                    <div style="display:flex;gap:8px;">
-                        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;font-size:13px;">
-                            <input type="radio" name="shortDramaAdaptMemory" value="true" checked style="cursor:pointer;">
-                            <span>✅ 使用</span>
-                        </label>
-                        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;font-size:13px;">
-                            <input type="radio" name="shortDramaAdaptMemory" value="false" style="cursor:pointer;">
-                            <span>❌ 不用</span>
-                        </label>
-                    </div>
-                </div>
-
-                <button class="primary" onclick="startShortDramaGeneration()" style="width:100%;">
-                    🎬 开始改编短剧
-                </button>
-            </div>
-
-            <!-- 短剧进度 -->
-            <div class="novel-progress" id="shortDramaProgress" style="display:none;">
-                <div class="novel-progress-text">
-                    <span id="shortDramaProgressLabel">准备中...</span>
-                    <span id="shortDramaProgressPercent">0%</span>
-                </div>
-                <div class="novel-progress-bar">
-                    <div class="novel-progress-fill" id="shortDramaProgressFill" style="width:0%"></div>
-                </div>
-            </div>
-
-            <!-- 短剧统计 -->
-            <div class="novel-stats" id="shortDramaStats" style="display:none;">
-                <span>📺 总集数: <b class="accent" id="shortDramaTotalEpisodes">0</b></span>
-                <span>✅ 已完成: <b class="accent" id="shortDramaDoneCount">0</b>集</span>
-                <span>⏱️ 总时长: <b class="accent" id="shortDramaTotalDuration">0</b>分钟</span>
-            </div>
-
-            <!-- 集数列表 -->
-            <div class="novel-chapter-list" id="shortDramaEpisodeList"></div>
-
-            <!-- 🆕 角色卡片 -->
-            <div class="novel-char-section" id="shortDramaCharSection" style="display:none;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                    <div style="font-size:16px;font-weight:bold;">🎭 角色设定</div>
-                    <div style="display:flex;gap:8px;">
-                        <button onclick="shortDramaExtractCharacters()" style="padding:6px 12px;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:#60a5fa;cursor:pointer;font-size:12px;">🔄 重新识别</button>
-                    </div>
-                </div>
-                <div class="novel-char-cards" id="shortDramaCharCards"></div>
-            </div>
-
-            <!-- 🆕 场景卡片 -->
-            <div class="novel-char-section" id="shortDramaSceneSection" style="display:none;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                    <div style="font-size:16px;font-weight:bold;">📍 场景设定</div>
-                    <button onclick="shortDramaExtractScenes()" style="padding:6px 12px;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:#60a5fa;cursor:pointer;font-size:12px;">🔄 重新识别</button>
-                </div>
-                <div class="novel-char-cards" id="shortDramaSceneCards"></div>
-            </div>
-
-            <!-- 🆕 一致性校验结果 -->
-            <div id="shortDramaConsistencyResult" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;margin-bottom:16px;"></div>
-
-            <!-- 开始生成剧本按钮（大纲生成后显示） -->
-            <button class="primary" id="shortDramaStartWritingBtn" onclick="generateAllShortDramaEpisodes()" style="width:100%;display:none;">
-                📝 开始生成剧本
-            </button>
-
-            <!-- 集数内容 -->
-            <div class="novel-chapter-content" id="shortDramaContent" style="display:none;"></div>
-
-            <!-- 操作按钮 -->
-            <div class="novel-actions" id="shortDramaActions" style="display:none;">
-                <button onclick="exportShortDramaScript()">📄 导出剧本</button>
-                <button onclick="exportShortDramaJSON()">💾 导出JSON</button>
-                <button onclick="evaluateAllShortDramaEpisodes()">📊 质量评估</button>
-                <button onclick="shortDramaCheckConsistency()">🔍 一致性校验</button>
-                <button onclick="shortDramaPauseResume()">⏸️ 暂停/继续</button>
-            </div>
+            <!-- END novelLongConfig -->
         </div>
 
         <div class="history-section" id="historySection">
@@ -1927,15 +1682,62 @@
             }
         }
 
-        // 🆕 短剧自定义类型/风格输入框显隐控制
-        function toggleCustomShortDramaOption(type) {
-            const sel = document.getElementById('shortDrama' + type);
-            const input = document.getElementById('shortDramaCustom' + type);
+        // 🎭 短剧风格自定义切换
+        function toggleCustomShortDramaStyle() {
+            const sel = document.getElementById('shortDramaStyle');
+            const input = document.getElementById('customShortDramaStyleInput');
             if (sel && input) {
                 input.style.display = sel.value === 'custom' ? 'block' : 'none';
                 if (sel.value === 'custom') {
                     input.focus();
                 }
+            }
+        }
+
+        // 获取短剧风格文本（供生成时使用）
+        function _getShortDramaStyle() {
+            const sel = document.getElementById('shortDramaStyle');
+            if (!sel) return '';
+            if (sel.value === 'custom') {
+                return document.getElementById('customShortDramaStyleInput')?.value.trim() || '';
+            }
+            return sel.value;
+        }
+
+        // 🎭 根据题材更新章节数选项（短剧模式）
+        function updateChapterCountForGenre() {
+            const genre = document.getElementById('novelGenreSelect')?.value;
+            const chapterSelect = document.getElementById('novelChapterCount');
+            const shortDramaOptions = document.getElementById('shortDramaExtraOptions');
+            const chapterLengthSection = document.getElementById('novelChapterLengthSection');
+            if (!chapterSelect) return;
+
+            if (genre === '短剧') {
+                chapterSelect.innerHTML = `
+                    <option value="10">10集 (~3500字)</option>
+                    <option value="20">20集 (~7000字)</option>
+                    <option value="30" selected>30集 (~1万字)</option>
+                    <option value="50">50集 (~1.7万字)</option>
+                    <option value="80">80集 (~2.8万字)</option>
+                    <option value="100">100集 (~3.5万字)</option>
+                `;
+                if (shortDramaOptions) shortDramaOptions.style.display = '';
+                if (chapterLengthSection) chapterLengthSection.style.display = 'none';
+            } else {
+                chapterSelect.innerHTML = `
+                    <option value="10">10章 (~5万字)</option>
+                    <option value="30">30章 (~15万字)</option>
+                    <option value="50" selected>50章 (~25万字)</option>
+                    <option value="100">100章 (~50万字)</option>
+                    <option value="200">200章 (~100万字)</option>
+                    <option value="500">500章 (~250万字)</option>
+                    <option value="1000">1000章 (~500万字)</option>
+                    <option value="2000">2000章 (~1000万字)</option>
+                    <option value="5000">5000章 (~2500万字)</option>
+                    <option value="custom">自定义...</option>
+                `;
+                if (shortDramaOptions) shortDramaOptions.style.display = 'none';
+                if (chapterLengthSection) chapterLengthSection.style.display = '';
             }
         }
 
@@ -2815,7 +2617,7 @@
             // 🎯 优先使用 opts.model，其次从 novelModelSelect 取值
             const model = opts.model || document.getElementById('novelModelSelect').value;
             const maxRetries = opts.retries !== undefined ? opts.retries : 1;
-            const timeout = opts.timeout || 70000;  // 🔧 70秒，确保重试后也不超过Cloudflare 100秒限制
+            const timeout = opts.timeout || 150000;  // 🔧 150秒，LLM生成可能需要较长时间，超时会导致Cloudflare 524
             const useStream = opts.stream === true;
 
             // 🚀 OpenRouter 模型特殊处理
@@ -2823,8 +2625,8 @@
                 const openrouterModel = model.replace('openrouter:', '');
                 console.log('[novel] 使用 OpenRouter 模型:', openrouterModel);
 
-                // OpenRouter 使用固定70秒超时，确保重试后也不超过Cloudflare 100秒限制
-                const openrouterTimeout = 70000;
+                // OpenRouter 使用固定150秒超时，与默认超时一致
+                const openrouterTimeout = 150000;
                 const controller = new AbortController();
                 const timer = setTimeout(() => controller.abort(), openrouterTimeout);
 
@@ -2860,9 +2662,15 @@
 
             const isYunwu = model.startsWith('yunwu:');
 
+            // 🧠 辅助：读取"使用记忆"单选按钮的值
+            function _novelGetUseMemory() {
+                const checked = document.querySelector('input[name="novelMemory"]:checked');
+                return checked ? checked.value === 'true' : true; // 默认 true
+            }
+
             // 🧠 注入用户记忆到 messages（仅当 useMemory 为 true 时）
             let finalMessages = messages;
-            const useMemory = opts.useMemory !== false; // 默认为 true，除非明确设置为 false
+            const useMemory = opts.useMemory === true; // 只有明确设置为 true 时才使用记忆
 
             if (useMemory) {
                 try {
@@ -2888,9 +2696,10 @@
             }
 
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), timeout);
+                let res;
                 try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), timeout);
                     const res = await fetch('/api/writer-llm', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -2911,13 +2720,13 @@
                         throw new Error(errData?.message || errData?.error || `HTTP ${res.status}`);
                     }
 
-                    // 流式处理：SSE text/event-stream
-                    const ct = res.headers.get('content-type') || '';
-                    if (useStream && (ct.includes('text/event-stream') || ct.includes('text/plain'))) {
+                    // 流式处理：前端请求 stream 时，直接按流式读取（不依赖 content-type 判断）
+                    if (useStream) {
                         const reader = res.body.getReader();
                         const decoder = new TextDecoder();
                         let content = '';
                         let buffer = '';
+                        let hasSSE = false; // 检测是否 SSE 格式
 
                         while (true) {
                             const { done, value } = await reader.read();
@@ -2926,41 +2735,53 @@
                             const lines = buffer.split('\n');
                             buffer = lines.pop() || '';
                             for (const line of lines) {
-                                if (!line.startsWith('data: ')) continue;
-                                const chunk = line.slice(6).trim();
-                                if (chunk === '[DONE]') continue;
-                                try {
-                                    const parsed = JSON.parse(chunk);
-                                    if (parsed.error) throw new Error(parsed.message || '流式生成失败');
-                                    const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content;
-                                    if (delta) {
-                                        content += delta;
-                                        if (opts.onProgress) opts.onProgress(content);
+                                if (line.startsWith('data: ')) {
+                                    hasSSE = true;
+                                    const chunk = line.slice(6).trim();
+                                    if (chunk === '[DONE]') continue;
+                                    try {
+                                        const parsed = JSON.parse(chunk);
+                                        if (parsed.error) throw new Error(parsed.message || '流式生成失败');
+                                        const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content;
+                                        if (delta) {
+                                            content += delta;
+                                            if (opts.onProgress) opts.onProgress(content);
+                                        }
+                                    } catch (pe) {
+                                        if (pe.message && pe.message.includes('失败')) throw pe;
                                     }
-                                } catch (pe) {
-                                    if (pe.message && pe.message.includes('失败')) throw pe;
                                 }
                             }
                         }
+                        // 如果不是 SSE 格式，buffer 里可能还有剩余纯文本
+                        if (!hasSSE && buffer) content += buffer;
                         if (!content) throw new Error('流式响应为空');
                         return content;
                     }
 
-                    // 非流式处理
+                    // 非流式处理（res.json() 无超时限制，因为服务端已在处理中）
                     const data = await res.json();
                     const content = data.content || '';
                     if (opts.onProgress && content) opts.onProgress(content);
-                    return content;
+                    // 返回完整数据对象，包含扣费信息
+                    return {
+                        content: content,
+                        billed: data.billed || 0,
+                        tokens: data.tokens || 0,
+                        model: data.model || model
+                    };
                 } catch (e) {
-                    clearTimeout(timer);
                     const isTimeout = e.name === 'AbortError';
                     console.warn(`[novel] LLM请求${isTimeout ? '超时' : '失败'}(${attempt + 1}/${maxRetries + 1}):`, e.message);
                     if (attempt >= maxRetries) throw new Error(isTimeout ? 'API请求超时，请稍后重试' : e.message);
-                    await new Promise(r => setTimeout(r, 500 * (attempt + 1))); // 快速重试
+                    await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
                 }
             }
         }
 
+        // 🎬 加载小说生成引擎
+    </script>
+    <script>
         function _novelUpdateProgress() {
             const done = novelState.chapters.filter(c => c.status === 'done').length;
             const total = novelState.chapters.length;
@@ -3002,6 +2823,11 @@
             }
             document.getElementById('novelExportActions').style.display = '';
             _novelRenderChapterList();
+            // 滚动到该章节卡片
+            setTimeout(function() {
+                var activeItem = document.querySelector('.novel-chapter-item.active');
+                if (activeItem) activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 50);
         }
 
         // 生成大纲（两阶段：先骨架后分批详细大纲，兼顾一致性与速度）
@@ -3032,6 +2858,7 @@
                 opt.selected = true;
                 _ccSel.insertBefore(opt, _ccSel.querySelector('[value="custom"]'));
             }
+
             const chapterLen = document.getElementById('novelChapterLength').value;
 
             const btn = document.querySelector('#novelStep1 button');
@@ -3058,6 +2885,7 @@
                 if (te) te.textContent = '已用时 ' + _sec + '秒';
             }, 1000);
 
+            novelState.genre = genre;
             novelState.outline = '';
             novelState.chapters = [];
             novelState.totalCost += NOVEL_OUTLINE_COST;
@@ -3065,36 +2893,85 @@
 
             try {
                 // 阶段1：生成全局骨架（世界观 + 角色 + 故事弧线）
-                const arcCount = Math.max(3, Math.min(Math.ceil(chapterCount / 50), 20)); // 每50章一个弧线节点
-                const skeletonPrompt = `/no_think\n你是专业的${genre}小说架构师。请为以下主题设计一部${chapterCount}章长篇小说的全局骨架。\n\n主题：${theme}\n\n请输出：\n【世界观】（100字以内的世界观设定）\n【角色】\n- 角色名：一句话描述（列出5-8个主要角色）\n【故事弧线】（将全书分为${arcCount}个大阶段，每个阶段标注起止章节范围和核心剧情走向，格式如下）\n第1-50章 阶段名：核心剧情走向\n第51-100章 阶段名：核心剧情走向\n...\n\n要求：阶段之间情节递进，有起承转合，角色成长清晰。题材：${genre}。`;
+                const isShortDrama = genre === '短剧';
+                const sdStyle = isShortDrama ? _getShortDramaStyle() : '';
+                const sdEpLen = isShortDrama ? document.getElementById('shortDramaEpisodeLength')?.value : chapterLen;
+                const chapterLabel = isShortDrama ? '集' : '章';
+                const workLabel = isShortDrama ? '短剧' : '长篇小说';
+                const arcCount = Math.max(3, Math.min(Math.ceil(chapterCount / 50), 20));
+
+                let skeletonPrompt, systemRole;
+                if (isShortDrama) {
+                    systemRole = `你是专业短剧编剧架构师，擅长设计高反转、强节奏的竖屏短剧。风格：${sdStyle || '都市情感'}。全文使用中文，严禁混入英文单词。`;
+                    skeletonPrompt = `/no_think\n你是专业短剧编剧架构师（风格：${sdStyle || '都市情感'}）。请为以下主题设计一部${chapterCount}集短剧的全局骨架。
+
+主题：${theme}
+
+请输出：
+【核心设定】（80字以内的世界观设定，竖屏短剧适合的快节奏场景）
+【人物关系】
+- 角色名：身份+一句话描述+核心动机（列出4-6个主要角色）
+【故事弧线】（将全剧分为${arcCount}个大阶段，每个阶段标注起止集数和核心反转，格式如下）
+第1-10集 阶段名：核心反转/高潮
+第11-20集 阶段名：核心反转/高潮
+...
+
+短剧创作要求：
+- 每集${sdEpLen}字左右（约${Math.round(parseInt(sdEpLen) / 5)}秒），节奏极快
+- 每1-2集必须有一个反转或钩子，观众才能持续看下去
+- 情节高度集中，禁止冗长铺垫和心理描写
+- 结尾必须留悬念`;
+                } else {
+                    systemRole = `你是${genre}长篇小说架构师，擅长设计宏大叙事结构和角色成长线。全文使用中文，严禁混入英文单词。`;
+                    skeletonPrompt = `/no_think\n你是专业的${genre}小说架构师。请为以下主题设计一部${chapterCount}章长篇小说的全局骨架。
+
+主题：${theme}
+
+请输出：
+【世界观】（100字以内的世界观设定）
+【角色】
+- 角色名：一句话描述（列出5-8个主要角色）
+【故事弧线】（将全书分为${arcCount}个大阶段，每个阶段标注起止章节范围和核心剧情走向，格式如下）
+第1-50章 阶段名：核心剧情走向
+第51-100章 阶段名：核心剧情走向
+...
+
+要求：阶段之间情节递进，有起承转合，角色成长清晰。题材：${genre}。`;
+                }
 
                 const skeleton = await _novelLLM([
-                    { role: 'system', content: `你是${genre}长篇小说架构师，擅长设计宏大叙事结构和角色成长线。全文使用中文，严禁混入英文单词。` },
+                    { role: 'system', content: systemRole },
                     { role: 'user', content: skeletonPrompt }
-                ], { maxTokens: 4096, temperature: 0.9, timeout: 90000, retries: 2 });
+                ], { maxTokens: 4096, temperature: 0.9, stream: true, useMemory: false });
 
-                novelState.outline = skeleton;
-                console.log('[novel] 阶段1完成：故事骨架已生成');
+                const skeletonText = typeof skeleton === 'object' && skeleton !== null ? (skeleton.content || '') : skeleton;
+                novelState.outline = skeletonText;
+                console.log('[novel] 阶段1完成：故事骨架已生成，长度:', skeletonText.length);
 
                 // 若总章节≤100，骨架中可能已包含章节大纲，尝试直接解析
                 if (chapterCount <= BATCH_SIZE) {
-                    _updateMsg(' 🧠 正在生成' + chapterCount + '章详细大纲...');
-                    // 单批直接生成全部章节大纲
-                    const detailPrompt = `/no_think\n以下是小说的全局骨架：\n${skeleton}\n\n请根据以上骨架，列出全部${chapterCount}章的章节标题和一句话大纲。\n格式：\n第1章 标题：一句话大纲\n第2章 标题：一句话大纲\n...\n\n每章目标${chapterLen}字，题材：${genre}。每章大纲一句话即可，要体现情节递进。`;
+                    _updateMsg(' 🧠 正在生成' + chapterCount + chapterLabel + '详细大纲...');
+                    let detailPrompt;
+                    if (isShortDrama) {
+                        detailPrompt = `/no_think\n以下是短剧的全局骨架：\n${skeletonText}\n\n请根据以上骨架，列出全部${chapterCount}集的集数标题和一句话大纲。\n格式：\n第1集 标题：一句话大纲（含反转/钩子）\n第2集 标题：一句话大纲（含反转/钩子）\n...\n\n每集目标${sdEpLen}字（约${Math.round(parseInt(sdEpLen) / 5)}秒），风格：${sdStyle || '都市情感'}。每集大纲必须体现反转或悬念，节奏极快。`;
+                    } else {
+                        detailPrompt = `/no_think\n以下是小说的全局骨架：\n${skeletonText}\n\n请根据以上骨架，列出全部${chapterCount}章的章节标题和一句话大纲。\n格式：\n第1章 标题：一句话大纲\n第2章 标题：一句话大纲\n...\n\n每章目标${chapterLen}字，题材：${genre}。每章大纲一句话即可，要体现情节递进。`;
+                    }
 
                     const detailResult = await _novelLLM([
-                        { role: 'system', content: `你是${genre}小说大纲策划师。全文使用中文，严禁混入英文单词。` },
+                        { role: 'system', content: systemRole },
                         { role: 'user', content: detailPrompt }
-                    ], { maxTokens: 8192, temperature: 0.85, timeout: 90000, retries: 2 });
+                    ], { maxTokens: 8192, temperature: 0.85, stream: true, useMemory: false });
 
-                    novelState.outline += '\n\n【章节大纲】\n' + detailResult;
-                    _novelParseChapters(detailResult, 0, chapterCount);
+                    const detailText = typeof detailResult === 'object' && detailResult !== null ? (detailResult.content || '') : detailResult;
+                    novelState.outline += '\n\n【章节大纲】\n' + detailText;
+                    _novelParseChapters(detailText, 0, chapterCount);
                 } else {
                     // 阶段2：分批生成详细章节大纲（每批带骨架上下文）
                     for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
                         const from = batchIdx * BATCH_SIZE;
                         const batchSize = Math.min(BATCH_SIZE, chapterCount - from);
-                        const stepNum = batchIdx + 2; // 第1步是骨架
+                        const stepNum = batchIdx + 2;
                         _updateMsg(' 🧠 第' + stepNum + '/' + (totalBatches + 1) + '步：生成第' + (from + 1) + '~' + (from + batchSize) + '章大纲...');
 
                         // 拼接上下文：骨架 + 上一批最后5章（衔接）
@@ -3107,15 +2984,18 @@
                             prevContext = '\n\n【前文衔接】最近章节：\n' + lastFew;
                         }
 
-                        const batchPrompt = `/no_think\n以下是小说的全局骨架：\n${skeleton}${prevContext}\n\n请根据以上骨架和故事弧线，列出第${from + 1}章到第${from + batchSize}章的章节标题和一句话大纲。\n格式：\n第${from + 1}章 标题：一句话大纲\n第${from + 2}章 标题：一句话大纲\n...\n\n要求：严格遵循故事弧线的剧情走向，承接前文，情节递进，每章目标${chapterLen}字，题材：${genre}。每章大纲一句话即可。`;
+                        const batchPrompt = isShortDrama
+                            ? `/no_think\n以下是短剧的全局骨架：\n${skeletonText}${prevContext}\n\n请根据以上骨架和故事弧线，列出第${from + 1}集到第${from + batchSize}集的集数标题和一句话大纲。\n格式：\n第${from + 1}集 标题：一句话大纲（含反转/钩子）\n第${from + 2}集 标题：一句话大纲（含反转/钩子）\n...\n\n要求：严格遵循故事弧线的反转节奏，承接前文，每集目标${sdEpLen}字（约${Math.round(parseInt(sdEpLen) / 5)}秒），风格：${sdStyle || '都市情感'}。每集大纲必须含反转或悬念。`
+                            : `/no_think\n以下是小说的全局骨架：\n${skeletonText}${prevContext}\n\n请根据以上骨架和故事弧线，列出第${from + 1}章到第${from + batchSize}章的章节标题和一句话大纲。\n格式：\n第${from + 1}章 标题：一句话大纲\n第${from + 2}章 标题：一句话大纲\n...\n\n要求：严格遵循故事弧线的剧情走向，承接前文，情节递进，每章目标${chapterLen}字，题材：${genre}。每章大纲一句话即可。`;
 
                         const batchResult = await _novelLLM([
                             { role: 'system', content: `你是${genre}小说大纲策划师，严格按照给定的故事弧线展开章节。全文使用中文，严禁混入英文单词。` },
                             { role: 'user', content: batchPrompt }
-                        ], { maxTokens: 8192, temperature: 0.85, timeout: 90000, retries: 2 });
+                        ], { maxTokens: 8192, temperature: 0.85, stream: true, useMemory: false });
 
-                        novelState.outline += '\n\n' + batchResult;
-                        _novelParseChapters(batchResult, from, batchSize);
+                        const batchText = typeof batchResult === 'object' && batchResult !== null ? (batchResult.content || '') : batchResult;
+                        novelState.outline += '\n\n' + batchText;
+                        _novelParseChapters(batchText, from, batchSize);
 
                         // 实时更新UI
                         document.getElementById('novelOutlineBox').textContent = novelState.outline;
@@ -3162,7 +3042,7 @@
 
         // 解析LLM返回的章节大纲文本，追加到 novelState.chapters
         function _novelParseChapters(text, fromIdx, expectedCount) {
-            const lines = text.match(/第\d+章\s+[^\n]+/g) || [];
+            const lines = text.match(/第\d+[章节集]\s+[^\n]+/g) || [];
             for (let j = 0; j < expectedCount; j++) {
                 const line = lines[j] || '';
                 const titleMatch = line.match(/第\d+章\s+(.+)/);
@@ -3242,7 +3122,7 @@
                 const content = await _novelLLM([
                     { role: 'system', content: sysPrompt },
                     { role: 'user', content: userPrompt }
-                ], { maxTokens: dynamicMaxTokens, temperature: 0.9 });
+                ], { maxTokens: dynamicMaxTokens, temperature: 0.9, useMemory: false });
 
                 ch.content = content;
                 ch.wordCount = content.length;

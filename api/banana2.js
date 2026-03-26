@@ -1193,10 +1193,10 @@ module.exports = async function handler(req, res) {
             throw new Error(`图片生成失败 (${response.status}): ${errorDetail || '未知错误'}`);
         }
 
-        // 🔧 body读取超时：4K大图base64可能很大，设35s上限（原来20s不够）
+        // 🔧 body读取超时：4K大图base64可能很大，设60s上限
         const data = await Promise.race([
             response.json(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('响应体读取超时(35s)，图片数据过大或网络慢')), 35000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('响应体读取超时(60s)，图片数据过大或网络慢')), 60000))
         ]);
 
         // 🔧 调试：输出原始返回格式

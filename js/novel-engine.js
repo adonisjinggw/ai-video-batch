@@ -439,7 +439,37 @@ async function _novelGenerateChapterEnhanced(idx) {
     const targetLen = parseInt(chapterLen) || 3000;
     const dynamicMaxTokens = Math.min(16384, Math.max(4096, Math.ceil(targetLen * 1.8)));
 
-    const sysPrompt = `你是一位顶级${genre}网络小说作家。你正在创作一部长篇连载${genre}小说，现在写第${idx + 1}章。
+    // 判断是否短剧模式
+    const isShortDrama = novelState.genre === '短剧';
+    const sdStyle = isShortDrama ? (function() {
+        const sel = document.getElementById('shortDramaStyle');
+        if (!sel) return '都市情感';
+        return sel.value === 'custom' ? (document.getElementById('customShortDramaStyleInput')?.value.trim() || '都市情感') : sel.value;
+    })() : '';
+    const chapterLabel = isShortDrama ? '集' : '章';
+    const targetEpLen = isShortDrama ? (document.getElementById('shortDramaEpisodeLength')?.value || '350') : chapterLen;
+
+    let sysPrompt;
+    if (isShortDrama) {
+        sysPrompt = `你是一位顶级短剧编剧（风格：${sdStyle || '都市情感'}）。你正在创作一部竖屏短剧，现在写第${idx + 1}集。
+核心要求：
+- 直接输出正文（剧本式对话+动作描写），禁止输出集数标题、写作说明、元评论
+- 全文使用中文，严禁混入任何英文单词或英文短语
+- 每集约${targetEpLen}字（约${Math.round(parseInt(targetEpLen) / 5)}秒），节奏极快，绝不拖沓
+- 每1-2个场景必须有一个反转或钩子，让观众忍不住看下一集
+- 开头必须紧接上一集结尾，3句内进入核心冲突
+- 对话要极简有力，每句对话不超过20字，禁止长篇大论
+- 动作描写简洁，用短句和换行制造节奏感
+- 结尾必须留悬念：新人物出场、惊人真相、生死危机、关系反转等
+- 禁止内心独白和抒情，用对话和动作推动一切
+
+去AI化要求：
+- 禁止"仿佛""宛如""犹如"等比喻，短剧不需要文艺感
+- 禁止排比句和华丽辞藻
+- 禁止"不禁""竟然""居然"等AI高频词
+- 每段不超过3行，大量换行，适合竖屏阅读`;
+    } else {
+        sysPrompt = `你是一位顶级${genre}网络小说作家。你正在创作一部长篇连载${genre}小说，现在写第${idx + 1}章。
 核心要求：
 - 直接输出正文，禁止输出章节标题、写作说明、元评论
 - 全文使用中文，严禁混入任何英文单词或英文短语
@@ -457,9 +487,12 @@ async function _novelGenerateChapterEnhanced(idx) {
 - 场景描写要简洁有力，不要每个细节都铺开描写
 - 避免每段开头都用时间、环境或角色动作起笔，段落开头要多样化
 - 情节推进要快，减少无意义的铺垫和过渡`;
+    }
 
     const prevChTitle = idx > 0 ? novelState.chapters[idx - 1]?.title : '';
-    const userPrompt = `/no_think\n${context}\n\n=== 写作任务 ===\n第${idx + 1}章「${ch.title}」\n大纲：${ch.outline}\n目标字数：约${chapterLen}字\n\n特别注意：\n- 开头必须紧接前章${prevChTitle ? '「' + prevChTitle + '」' : ''}的最后一个场景，不要跳跃\n- 本章核心事件必须围绕大纲展开，不要偏离\n- 严禁出现与前文雷同的对话、场景描写或情节走向\n- 章节结尾要为下一章埋下伏笔`;
+    const userPrompt = isShortDrama
+        ? `/no_think\n${context}\n\n=== 编剧任务 ===\n第${idx + 1}集「${ch.title}」\n大纲：${ch.outline}\n目标字数：约${targetEpLen}字（约${Math.round(parseInt(targetEpLen) / 5)}秒）\n风格：${sdStyle || '都市情感'}\n\n特别注意：\n- 开头3句内必须进入核心冲突，紧接${prevChTitle ? '上一集「' + prevChTitle + '」' : ''}结尾\n- 本集必须有一个反转或钩子，围绕大纲展开\n- 对话极简，每句不超过20字，大量换行\n- 结尾必须留悬念，让观众想看下一集`
+        : `/no_think\n${context}\n\n=== 写作任务 ===\n第${idx + 1}章「${ch.title}」\n大纲：${ch.outline}\n目标字数：约${chapterLen}字\n\n特别注意：\n- 开头必须紧接前章${prevChTitle ? '「' + prevChTitle + '」' : ''}的最后一个场景，不要跳跃\n- 本章核心事件必须围绕大纲展开，不要偏离\n- 严禁出现与前文雷同的对话、场景描写或情节走向\n- 章节结尾要为下一章埋下伏笔`;
 
     try {
         const _chIdx = idx;
@@ -472,11 +505,30 @@ async function _novelGenerateChapterEnhanced(idx) {
         ], {
             maxTokens: dynamicMaxTokens,
             temperature: 0.9,
-            stream: false
+            stream: true
         });
 
-        ch.content = content;
-        ch.wordCount = content.length;
+        // 🔧 正文标准化：确保 ch.content 永远是字符串
+        let normalizedContent = '';
+        if (typeof content === 'string') {
+            normalizedContent = content;
+        } else if (Array.isArray(content)) {
+            normalizedContent = content.join('\n');
+        } else if (content && typeof content === 'object') {
+            // 尝试提取常见正文字段
+            normalizedContent = content.text || content.content || content.script || content.dialogue || '';
+            if (!normalizedContent && content.scenes && Array.isArray(content.scenes)) {
+                normalizedContent = content.scenes.map(s => s.text || s.content || '').join('\n');
+            }
+            if (!normalizedContent) {
+                normalizedContent = String(content);
+            }
+        } else {
+            normalizedContent = String(content || '');
+        }
+
+        ch.content = normalizedContent;
+        ch.wordCount = normalizedContent.length;
         ch.status = 'done';
         ch.generatedAt = Date.now();
         novelState.totalWords += ch.wordCount;
@@ -1111,7 +1163,6 @@ async function novelFixChapter(idx) {
 
         // 更新章节内容
         ch.content = newContent;
-        ch.wordCount = newContent.length;
 
         // 重新评估
         const newEvaluation = await novelEvaluateChapter(idx);

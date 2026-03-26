@@ -13,7 +13,14 @@ const OPENROUTER_SITE_NAME = 'RollRoll AI';
 const OPENROUTER_FREE_MODELS = [
     'openrouter/hunter-alpha',
     'openrouter/healer-alpha', 
-    'nvidia/nemotron-3-super-120b-a12b:free'
+    'nvidia/nemotron-3-super-120b-a12b:free',
+    'bytedance-seed/seedream-4.5'
+];
+
+// OpenRouter 付费模型列表
+const OPENROUTER_PAID_MODELS = [
+    'bytedance-seed/seed-2.0-lite',
+    'bytedance-seed/seed-2.0-mini'
 ];
 
 // ☁️ 云雾 API 端点（用于 Gemini 等非 ModelScope 模型）
@@ -963,8 +970,8 @@ module.exports = async function handler(req, res) {
             return;
         }
         
-        // 非多角度出图模式需要 prompt
-        if (action !== 'multi-angle' && !prompt) {
+        // 非多角度出图模式需要 prompt（openrouter 用 messages，不需要 prompt）
+        if (action !== 'multi-angle' && action !== 'openrouter' && action !== 'openrouter-chat' && !prompt) {
             json(400, { error: 'MISSING_PARAMS', message: '缺少 prompt 参数' });
             return;
         }

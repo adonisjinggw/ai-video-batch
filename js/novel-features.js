@@ -564,8 +564,8 @@ function novelExtractCharacters() {
     // ===== 第1层：从大纲【角色】段落提取（最可靠） =====
     // 匹配【角色】或【人物】后面的所有内容，一直到下一个【或字符串结束
     const charSectionPatterns = [
-        /【角色[设定简介]*】([\s\S]*?)(?=【|$)/gi,
-        /【(?:主要)?人物[设定简介]*】([\s\S]*?)(?=【|$)/gi,
+        /【角色[设定简介关系]*】([\s\S]*?)(?=【|$)/gi,
+        /【(?:主要)?人物[设定简介关系]*】([\s\S]*?)(?=【|$)/gi,
     ];
     
     console.log('[novel] 开始提取角色，outline前100字:', outline.substring(0, 100));
@@ -1357,7 +1357,8 @@ async function novelGenerateAllCharImages() {
         novelState._generatingCharImages = false;
         return;
     }
-    
+
+    try {
     // 获取统一的故事风格
     var genre = '';
     try { genre = document.getElementById('novelGenreSelect').value; } catch (e) { }
@@ -1372,8 +1373,9 @@ async function novelGenerateAllCharImages() {
     toGen.forEach(function(c) { c._generating = true; });
     _novelRenderCharCards();
     
-    // 并行生成所有角色图
-    var promises = toGen.map(async function(ch) {
+    // 串行生成角色图（避免后端过载）
+    for (var gi = 0; gi < toGen.length; gi++) {
+        var ch = toGen[gi];
         var prompt = '专业角色设计图(character design sheet)，全部文字必须使用中文标注。\n' +
             '大标题：「人物介绍」，风格：' + storyContext + '。\n' +
             '角色名：「' + ch.name + '」\n' +
@@ -1394,18 +1396,24 @@ async function novelGenerateAllCharImages() {
                 aspectRatio: '3:4'
             });
             ch.imageUrl = imageUrl;
+            if (typeof _novelDB !== 'undefined') {
+                try {
+                    await _novelDB.save('novel_char_' + novelState.currentProjectId + '_' + ch.name, { imageUrl: imageUrl, timestamp: Date.now() });
+                } catch (e) { console.warn('[novel] IndexedDB保存失败:', e); }
+            }
         } catch (e) {
             console.error('[novel] 角色图生成失败:', ch.name, e);
         }
         ch._generating = false;
-    });
-    
-    // 等待所有生成完成
-    await Promise.all(promises);
+        _novelRenderCharCards();
+    }
     
     _novelRenderCharCards();
     try { novelSaveCurrentProject(); } catch (e) { }
     showToast('✅ 角色图批量生成完成');
+    } catch (e) {
+        console.error('[novel] 批量生成角色图失败:', e);
+        showToast('角色图生成失败：' + (e.message || '未知错误'));
     } finally {
         novelState._generatingCharImages = false;
     }
@@ -1989,21 +1997,41 @@ function _readerRenderScrollContent() {
         return;
     }
 
+    // 🔧 正文标准化辅助函数
+    function normalizeContent(ch) {
+        if (!ch || !ch.content) return '';
+        if (typeof ch.content === 'string') return ch.content;
+        if (Array.isArray(ch.content)) return ch.content.join('\n');
+        if (typeof ch.content === 'object') {
+            var text = ch.content.text || ch.content.content || ch.content.script || ch.content.dialogue || '';
+            if (!text && ch.content.scenes && Array.isArray(ch.content.scenes)) {
+                text = ch.content.scenes.map(function(s) { return s.text || s.content || ''; }).join('\n');
+            }
+            return text || String(ch.content);
+        }
+        return String(ch.content);
+    }
+
     var html = '';
     for (var i = 0; i < novelState.chapters.length; i++) {
         var ch = novelState.chapters[i];
         if (ch.status !== 'done') continue;
 
         var chapterTitle = _novelDisplayTitle(ch, i);
-        var paragraphs = (ch.content || '').split('\n').filter(function(p) { return p.trim(); });
+        var normalizedText = normalizeContent(ch);
+        var paragraphs = normalizedText.split('\n').filter(function(p) { return p.trim(); });
 
         html += '<div class="reader-chapter" data-chapter-idx="' + i + '" id="readerChapter' + i + '">';
         html += '<h2 class="reader-chapter-title">' + chapterTitle + '</h2>';
         html += '<div class="reader-chapter-content">';
 
-        for (var j = 0; j < paragraphs.length; j++) {
-            if (paragraphs[j].trim()) {
-                html += '<p>' + paragraphs[j] + '</p>';
+        if (paragraphs.length === 0) {
+            html += '<p style="color:#888;text-align:center;padding:20px;">暂无正文内容</p>';
+        } else {
+            for (var j = 0; j < paragraphs.length; j++) {
+                if (paragraphs[j].trim()) {
+                    html += '<p>' + paragraphs[j] + '</p>';
+                }
             }
         }
 
@@ -2215,6 +2243,13 @@ function _novelRenderChapterListEnhanced() {
         } else if (ch._sceneGenerating) {
             sceneHtml = '<div class="ch-scene-wrap" style="margin:6px 0;text-align:center;color:#888;font-size:12px;">🖼️ 场景图生成中...</div>';
         }
+        // 分镜面板
+        var storyboardHtml = '';
+        if (ch._storyboardGenerating) {
+            storyboardHtml = '<div style="margin:6px 0;text-align:center;color:#888;font-size:12px;">🎬 分镜拆分中...</div>';
+        } else if (ch._storyboards && ch._storyboards.length > 0) {
+            storyboardHtml = _novelRenderStoryboardPanel(ch, i);
+        }
         const actionsHtml = ch.status === 'done' ? `
             <div class="ch-actions">
                 <button onclick="event.stopPropagation();novelViewChapter(${i})">📖 查看</button>
@@ -2223,9 +2258,9 @@ function _novelRenderChapterListEnhanced() {
                 <button onclick="event.stopPropagation();novelOpenReader(${i})">👁️ 阅读</button>
                 <button onclick="event.stopPropagation();if(confirm('为第${i + 1}章生成配音？将消耗胶片'))novelTTSChapter(${i})">🎤 配音</button>
                 <button onclick="event.stopPropagation();novelShowVoiceSelector()">🎙️ 换音色</button>
-                <button onclick="event.stopPropagation();if(confirm('为第${i + 1}章生成场景图？将消耗约5胶片'))novelGenerateSceneImage(${i})">🖼️ 场景</button>
+                <button onclick="event.stopPropagation();novelStoryboardFullPipeline(${i})">🖼️ 场景</button>
                 <button onclick="event.stopPropagation();if(confirm('对第${i + 1}章进行去AI化润色？将消耗胶片'))novelDeAIChapter(${i})">🧹 去AI</button>
-            </div>${sceneHtml}${audioHtml}` : ch.status === 'error' ? `
+            </div>${storyboardHtml}${sceneHtml}${audioHtml}` : ch.status === 'error' ? `
             <div class="ch-actions">
                 <button onclick="event.stopPropagation();novelRetryChapter(${i})">🔄 重试</button>
             </div>` : '';
@@ -2356,6 +2391,303 @@ async function novelWriteNextChapterEnhanced() {
     if (nextIdx < 0) { showToast('所有章节已完成'); return; }
     await _novelGenerateChapterEnhanced(nextIdx);
     novelViewChapter(nextIdx);
+}
+
+// ==================== 15. 分镜场景图 + 批量视频生成 ====================
+
+var _storyboardVideoPool = 3;
+var _storyboardPlaying = false;
+var _storyboardPlayerIdx = 0;
+
+function _novelGetStoryboardLayout(chapterIdx) {
+    var genre = '';
+    try { genre = document.getElementById('novelGenreSelect').value; } catch (e) { }
+    if (genre === '短剧') return { ratio: '9:16', cols: 2, aspectRatio: '9:16', label: '竖屏' };
+    return { ratio: '16:9', cols: 3, aspectRatio: '16:9', label: '横屏' };
+}
+
+function _novelGetCharImageUrls() {
+    if (!novelState.characters || !Array.isArray(novelState.characters)) return [];
+    return novelState.characters.filter(function (c) { return c.imageUrl; }).map(function (c) { return c.imageUrl; });
+}
+
+async function novelGenerateStoryboards(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch || ch.status !== 'done') { showToast('章节未完成'); return; }
+    if (typeof _novelLLM !== 'function') { showToast('LLM未加载'); return; }
+    if (ch._storyboardGenerating) return;
+    ch._storyboardGenerating = true;
+    _novelRenderChapterList();
+    showToast('🧠 正在拆分场景...');
+
+    try {
+        var layout = _novelGetStoryboardLayout(chapterIdx);
+        var wordCount = ch.wordCount || (ch.content || '').length || 300;
+        var sceneCount = Math.max(3, Math.min(Math.ceil(wordCount / (layout.ratio === '9:16' ? 100 : 200)), 8));
+
+        var charInfo = '';
+        if (novelState.characters && novelState.characters.length > 0) {
+            charInfo = '\n已设定角色：' + novelState.characters.map(function (c) {
+                return c.name + '（' + (c.desc || '主要角色') + (c.imageUrl ? '，已有角色设定图' : '') + ')';
+            }).join('；');
+        }
+
+        var prompt = '/no_think\n请将以下' + (layout.ratio === '9:16' ? '短剧' : '小说') + '章节拆分为' + sceneCount + '个分镜场景。' +
+            charInfo + '\n\n章节：「' + (ch.title || '第' + (chapterIdx + 1) + '章') + '」\n' +
+            '大纲：' + (ch.outline || '无') + '\n正文前500字：' + (ch.content || '').substring(0, 500) +
+            '\n\n要求：\n1. 每个场景是独立画面，有明确场景切换\n2. 每个场景标注出场角色（从已设定角色中选择）\n' +
+            '3. 每个场景标注建议时长（1-5秒）\n4. 总时长约' + Math.round(wordCount / 5) + '秒\n\n' +
+            '只输出JSON数组：[{"scene":"场景描述","characters":["角色名"],"prompt":"分镜构图提示词（中文）","duration":3}]';
+
+        var raw = await _novelLLM([
+            { role: 'system', content: '你是专业分镜师，擅长将文字拆分为电影级分镜场景。只输出JSON。' },
+            { role: 'user', content: prompt }
+        ], { maxTokens: 2048, temperature: 0.7, stream: true, timeout: 60000 });
+
+        var text = typeof raw === 'object' && raw !== null ? (raw.content || '') : String(raw);
+        var jsonStr = text;
+        var cb = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (cb) jsonStr = cb[1].trim();
+        var tk = jsonStr.match(/<\/think>\s*([\s\S]*)/);
+        if (tk) jsonStr = tk[1].trim();
+
+        var storyboards = JSON.parse(jsonStr);
+        if (!Array.isArray(storyboards) || storyboards.length === 0) throw new Error('场景解析为空');
+
+        ch._storyboards = storyboards.map(function (s, idx) {
+            return {
+                id: idx, scene: s.scene || ('场景' + (idx + 1)), characters: s.characters || [],
+                prompt: s.prompt || s.scene || ('分镜' + (idx + 1)),
+                duration: Math.max(1, Math.min(5, parseInt(s.duration) || 3)),
+                imageUrl: null, imageBase64: null, videoUrl: null, _generating: false
+            };
+        });
+        ch._storyboardLayout = layout.ratio;
+        ch._storyboardCols = layout.cols;
+        ch._storyboardPanelUrl = null;
+        _novelSaveState();
+        _novelRenderChapterList();
+        showToast('✅ 已拆分为 ' + ch._storyboards.length + ' 个场景');
+    } catch (e) {
+        console.error('[storyboard] 场景拆分失败:', e);
+        showToast('场景拆分失败: ' + e.message);
+    } finally {
+        ch._storyboardGenerating = false;
+        _novelRenderChapterList();
+    }
+}
+
+async function _novelGenerateStoryboardPanel(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch || !ch._storyboards || ch._storyboards.length === 0) return;
+    if (typeof callBanana2ImageAPI !== 'function') { showToast('图片API未加载'); return; }
+
+    var layout = _novelGetStoryboardLayout(chapterIdx);
+    var count = ch._storyboards.length;
+    showToast('🎨 正在生成分镜大图...');
+
+    var scenesText = ch._storyboards.map(function (s, i) {
+        return '第' + (i + 1) + '格：' + s.prompt;
+    }).join('\n');
+
+    var prompt = '电影分镜板，' + layout.label + '布局，' + ch._storyboardCols + '列网格排列，共' + count + '个分镜格子。\n\n' +
+        '每个分镜内容：\n' + scenesText +
+        '\n\n要求：\n- 每个格子用细白线分隔\n- 每格下方小字标注序号\n- 整体风格统一，电影级光影\n- 每格之间留少量间距';
+
+    var refImages = _novelGetCharImageUrls();
+    var options = { model: 'gemini-3.1-flash-image-preview-4k', aspectRatio: layout.aspectRatio };
+    if (refImages.length > 0) {
+        options.refImages = refImages;
+        prompt = '【角色一致性参考】请严格参照参考图中角色形象，保持每格分镜中角色外观一致。\n\n' + prompt;
+    }
+
+    try {
+        var imageUrl = await callBanana2ImageAPI(prompt, options);
+        ch._storyboardPanelUrl = imageUrl;
+        _novelSaveState();
+        _novelRenderChapterList();
+        showToast('✅ 分镜大图已生成，正在分割...');
+        await _novelSplitStoryboardPanel(chapterIdx);
+    } catch (e) {
+        console.error('[storyboard] 大图生成失败:', e);
+        showToast('大图生成失败: ' + e.message);
+    }
+}
+
+async function _novelSplitStoryboardPanel(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch || !ch._storyboardPanelUrl || !ch._storyboards) return;
+    showToast('✂️ 正在分割分镜...');
+
+    return new Promise(function (resolve, reject) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function () {
+            try {
+                var count = ch._storyboards.length;
+                var cols = ch._storyboardCols || 2;
+                var rows = Math.ceil(count / cols);
+                var cellW = Math.floor(img.width / cols);
+                var cellH = Math.floor(img.height / rows);
+                for (var i = 0; i < count; i++) {
+                    var col = i % cols, row = Math.floor(i / cols);
+                    var canvas = document.createElement('canvas');
+                    canvas.width = cellW; canvas.height = cellH;
+                    canvas.getContext('2d').drawImage(img, col * cellW, row * cellH, cellW, cellH, 0, 0, cellW, cellH);
+                    ch._storyboards[i].imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                }
+                _novelSaveState();
+                _novelRenderChapterList();
+                showToast('✅ 分镜分割完成，共 ' + count + ' 张');
+                resolve();
+            } catch (e) { showToast('分割失败: ' + e.message); reject(e); }
+        };
+        img.onerror = function () { showToast('图片加载失败，跳过分割'); reject(new Error('跨域受限')); };
+        img.src = ch._storyboardPanelUrl;
+    });
+}
+
+async function novelStoryboardFullPipeline(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    var charImages = _novelGetCharImageUrls();
+    if (novelState.characters && novelState.characters.length > 0 && charImages.length === 0) {
+        if (!confirm('⚠️ 尚未生成角色设定图，分镜角色外观可能不一致。\n建议先在角色区域点击"一键生成全部角色图"。\n\n是否继续生成分镜？')) return;
+    }
+    if (!ch._storyboards || ch._storyboards.length === 0) {
+        await novelGenerateStoryboards(chapterIdx);
+    }
+    if (!ch._storyboardPanelUrl) {
+        await _novelGenerateStoryboardPanel(chapterIdx);
+    }
+}
+
+async function _generateOneStoryboardVideo(sb, chapterIdx) {
+    var imgUrl = sb.imageBase64 || sb.imageUrl;
+    if (!imgUrl) return;
+    try {
+        var videoUrl = await callSora2ImageToVideoAPI(imgUrl, 'Animate this image with natural movement. ' + sb.scene, {
+            duration: sb.duration || 5
+        });
+        sb.videoUrl = videoUrl;
+        _novelSaveState();
+    } catch (e) {
+        console.warn('[storyboard] 视频失败:', e.message);
+    }
+}
+
+async function novelBatchGenerateStoryboardVideos(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch || !ch._storyboards) { showToast('请先生成分镜'); return; }
+    if (typeof callSora2ImageToVideoAPI !== 'function') { showToast('视频API未加载'); return; }
+    var pending = ch._storyboards.filter(function (s) {
+        return (s.imageBase64 || s.imageUrl) && !s.videoUrl && !s._generating;
+    });
+    if (pending.length === 0) { showToast('所有分镜视频已生成'); return; }
+
+    showToast('🎬 开始生成 ' + pending.length + ' 个视频（并发' + _storyboardVideoPool + '）...');
+    pending.forEach(function (s) { s._generating = true; });
+    _novelRenderChapterList();
+
+    var doneCount = 0, failCount = 0, total = pending.length;
+    var queue = pending.slice();
+    var running = 0;
+
+    function runNext() {
+        while (running < _storyboardVideoPool && queue.length > 0) {
+            var sb = queue.shift();
+            running++;
+            _generateOneStoryboardVideo(sb, chapterIdx).then(function () { doneCount++; })
+                .catch(function () { failCount++; })
+                .finally(function () {
+                    sb._generating = false;
+                    running--;
+                    _novelRenderChapterList();
+                    if (doneCount + failCount >= total) {
+                        _novelSaveState();
+                        showToast(failCount > 0 ? '✅ 完成（' + doneCount + '成功，' + failCount + '失败）' : '✅ 全部视频生成完成');
+                    } else { runNext(); }
+                });
+        }
+    }
+    runNext();
+}
+
+function novelPlayStoryboardVideos(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch || !ch._storyboards) return;
+    var videos = ch._storyboards.filter(function (s) { return s.videoUrl; });
+    if (videos.length === 0) { showToast('没有可播放的视频'); return; }
+
+    _storyboardPlaying = true;
+    _storyboardPlayerIdx = 0;
+
+    function playNext() {
+        if (_storyboardPlayerIdx >= videos.length || !_storyboardPlaying) {
+            _storyboardPlaying = false;
+            return;
+        }
+        var sb = videos[_storyboardPlayerIdx];
+        var playerEl = document.getElementById('storyboard-player-' + chapterIdx);
+        if (!playerEl) return;
+
+        playerEl.innerHTML =
+            '<div style="background:#111;border-radius:8px;overflow:hidden;">' +
+            '<video src="' + sb.videoUrl + '" style="width:100%;display:block;" autoplay playsinline></video>' +
+            '<div style="padding:8px 12px;color:#fff;font-size:12px;">' +
+            '<span>▶ ' + (_storyboardPlayerIdx + 1) + '/' + videos.length + '</span>' +
+            '<span style="float:right;">' + (sb.scene || '').substring(0, 30) + '</span></div>' +
+            '<div style="padding:0 12px 10px;display:flex;gap:6px;">' +
+            '<button onclick="novelStopStoryboardPlay()" style="flex:1;padding:6px;background:#e74c3c;color:#fff;border:none;border-radius:6px;font-size:12px;">⏹ 停止</button>' +
+            '<button onclick="novelSkipStoryboardVideo(' + chapterIdx + ')" style="flex:1;padding:6px;background:#3498db;color:#fff;border:none;border-radius:6px;font-size:12px;">⏭ 下一个</button>' +
+            '</div></div>';
+
+        var video = playerEl.querySelector('video');
+        if (video) video.onended = function () { _storyboardPlayerIdx++; setTimeout(playNext, 300); };
+    }
+    playNext();
+}
+
+function novelStopStoryboardPlay() { _storyboardPlaying = false; }
+
+function novelSkipStoryboardVideo(chapterIdx) {
+    _storyboardPlayerIdx++;
+    var ch = novelState.chapters[chapterIdx];
+    var videos = (ch._storyboards || []).filter(function (s) { return s.videoUrl; });
+    if (_storyboardPlayerIdx >= videos.length) { _storyboardPlaying = false; return; }
+    novelPlayStoryboardVideos(chapterIdx);
+}
+
+function _novelRenderStoryboardPanel(ch, i) {
+    if (!ch._storyboards || ch._storyboards.length === 0) return '';
+    var html = '<div class="ch-storyboard-panel" style="margin:8px 0;padding:10px;background:rgba(255,255,255,0.05);border-radius:10px;border:1px solid rgba(255,255,255,0.1);">';
+    if (ch._storyboardPanelUrl) {
+        html += '<div style="margin-bottom:8px;"><img src="' + ch._storyboardPanelUrl + '" style="width:100%;border-radius:8px;max-height:300px;object-fit:contain;background:#000;"></div>';
+    }
+    html += '<div style="display:grid;grid-template-columns:repeat(' + (ch._storyboardCols || 2) + ',1fr);gap:6px;margin-bottom:8px;">';
+    ch._storyboards.forEach(function (sb) {
+        var imgSrc = sb.imageBase64 || sb.imageUrl || '';
+        var icon = sb._generating ? '⏳' : (sb.videoUrl ? '✅' : (imgSrc ? '🎬' : '⬜'));
+        html += '<div style="background:rgba(0,0,0,0.3);border-radius:6px;overflow:hidden;">';
+        if (sb.videoUrl) {
+            html += '<video src="' + sb.videoUrl + '" style="width:100%;display:block;" preload="metadata"></video>';
+        } else if (imgSrc) {
+            html += '<img src="' + imgSrc + '" style="width:100%;display:block;">';
+        } else {
+            html += '<div style="width:100%;aspect-ratio:16/9;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;color:#666;font-size:11px;">等待生成</div>';
+        }
+        html += '<div style="padding:3px 6px;font-size:10px;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + icon + ' ' + (sb.scene || '').substring(0, 20) + ' (' + (sb.duration || 3) + 's)</div></div>';
+    });
+    html += '</div>';
+    var hasImages = ch._storyboards.some(function (s) { return s.imageBase64 || s.imageUrl; });
+    var hasVideos = ch._storyboards.some(function (s) { return s.videoUrl; });
+    html += '<div style="display:flex;gap:4px;flex-wrap:wrap;">';
+    html += '<button class="ch-scene-btn" onclick="event.stopPropagation();novelStoryboardFullPipeline(' + i + ')" style="flex:1;padding:5px;font-size:11px;background:#6c5ce7;color:#fff;border:none;border-radius:6px;">🔄 重新分镜</button>';
+    if (hasImages) html += '<button class="ch-scene-btn" onclick="event.stopPropagation();novelBatchGenerateStoryboardVideos(' + i + ')" style="flex:1;padding:5px;font-size:11px;background:#e17055;color:#fff;border:none;border-radius:6px;">🎬 批量生成视频</button>';
+    if (hasVideos) html += '<button class="ch-scene-btn" onclick="event.stopPropagation();novelPlayStoryboardVideos(' + i + ')" style="flex:1;padding:5px;font-size:11px;background:#00b894;color:#fff;border:none;border-radius:6px;">▶ 串联播放</button>';
+    html += '</div>';
+    html += '<div id="storyboard-player-' + i + '" style="margin-top:8px;"></div>';
+    html += '</div>';
+    return html;
 }
 
 // ==================== 初始化增强 ====================

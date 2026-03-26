@@ -2934,13 +2934,14 @@
             if (mjVersionGroup) {
                 mjVersionGroup.style.display = isMidjourney ? 'block' : 'none';
             }
-            // 🎨 多图参考支持：星梦画师 + 通义万象MAX + Banana系列
-            const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream') || model.includes('openrouter:bytedance-seed/seedream'));
+            // 🎨 多图参考支持：星梦画师 + 通义万象MAX + Banana系列 + OpenRouter
+            const isOpenRouterImage = model && model.startsWith('openrouter:');
+            const isSeedream = model && !isOpenRouterImage && (model.includes('seedream') || model.includes('doubao-seedream'));
             const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
             const isBanana = model && model.startsWith('nano-banana-');
             const multiRefSection = document.getElementById('multiRefSection');
             if (multiRefSection) {
-                if (isSeedream || isQwenImage || isBanana) {
+                if (isSeedream || isQwenImage || isBanana || isOpenRouterImage) {
                     multiRefSection.classList.add('show');
                 } else {
                     multiRefSection.classList.remove('show');
@@ -3052,7 +3053,7 @@
 
                 // 🎬 模拟进度更新
                 let progress = 0;
-                const progressInterval = setInterval(() => {
+                progressInterval = setInterval(() => {
                     progress += Math.random() * 15;
                     if (progress > 95) progress = 95;
                     ButtonState.setProgress('generateBtn', Math.floor(progress));
@@ -3092,10 +3093,11 @@
                     response = await fetch('/api/modelscope', fetchOptions);
                 } else {
                     const isMidjourney = model && model.startsWith('midjourney-');
-                    const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream') || model.includes('openrouter:bytedance-seed/seedream'));
                     const isOpenRouterImage = model && model.startsWith('openrouter:');
-                    // 🎨 星梦画师路由到 yunwu API，OpenRouter 图片模型路由到 /api/banana2
-                    const apiEndpoint = isMidjourney ? '/api/yunwu' : (isSeedream ? '/api/yunwu' : (isOpenRouterImage ? '/api/banana2' : '/api/banana2'));
+                    // 🔧 修复：排除 openrouter: 前缀，避免免费 Seedream 4.5 被误路由到云雾通道
+                    const isSeedream = model && !isOpenRouterImage && (model.includes('seedream') || model.includes('doubao-seedream'));
+                    // 🎨 路由优先级：OpenRouter → /api/openrouter，星梦画师 → /api/yunwu，其他 → /api/banana2
+                    const apiEndpoint = isMidjourney ? '/api/yunwu' : (isOpenRouterImage ? '/api/openrouter' : (isSeedream ? '/api/yunwu' : '/api/banana2'));
                     const requestBody = { prompt, model, aspect_ratio: ratio, userId: userId };  // 🔒 使用缓存的userId
 
                     // 🎨 星梦画师特殊处理
@@ -4747,10 +4749,11 @@
         async function generateSingleImageAPI(prompt, model, ratio, multiRefImages = null, singleRefImage = null) {
             let response;
             const isMidjourney = model && model.startsWith('midjourney-');
-            const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream') || model.includes('openrouter:bytedance-seed/seedream'));
+            const isOpenRouterImage = model && model.startsWith('openrouter:');
+            // 🔧 修复：排除 openrouter: 前缀，避免免费 Seedream 4.5 被误路由到云雾通道
+            const isSeedream = model && !isOpenRouterImage && (model.includes('seedream') || model.includes('doubao-seedream'));
             const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
             const isBanana = model && model.startsWith('nano-banana-');
-            const isOpenRouterImage = model && model.startsWith('openrouter:');
 
             // 🔧 根据模型类型设置不同的超时时间
             // 万象Max 需要较长时间（异步任务轮询）

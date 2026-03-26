@@ -313,7 +313,7 @@ async function signInWithEmail(email, password) {
 
         // 🔧 添加超时机制，避免代理请求卡住导致无限加载
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时（缩短以更快反馈）
 
         const proxyRes = await fetch('/api/supabase-proxy', {
             method: 'POST',
