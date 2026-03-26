@@ -505,7 +505,7 @@ async function _novelGenerateChapterEnhanced(idx) {
         ], {
             maxTokens: dynamicMaxTokens,
             temperature: 0.9,
-            stream: true
+            stream: false
         });
 
         // 🔧 正文标准化：确保 ch.content 永远是字符串
