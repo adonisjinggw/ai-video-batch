@@ -7089,7 +7089,10 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
             return false;
         }
 
-        // 2. 检查用户是否登录（同步检查localStorage）
+        // 2. 等待一下，确保DOM加载完成
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // 3. 检查用户是否登录
         const userId = localStorage.getItem('user_id') || localStorage.getItem('sb_user_id');
         const userInfo = localStorage.getItem('sb_user_info');
         const isLoggedIn = userId || userInfo;
@@ -7101,23 +7104,24 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
 
         console.log('🎬 用户已登录，检查是否在欢迎页...');
 
-        // 3. 检查URL参数（有 logged_in=1 或 skip_welcome=1 参数通常是登录后的跳转）
-        const urlParams = new URLSearchParams(window.location.search);
-        const hasLoggedInParam = urlParams.has('logged_in') && urlParams.get('logged_in') === '1';
-        const hasSkipWelcomeParam = urlParams.has('skip_welcome') && urlParams.get('skip_welcome') === '1';
-
         // 4. 检查是否有欢迎屏幕元素且可见
         const welcomeScreen = document.getElementById('welcomeScreen');
-        const isWelcomeVisible = welcomeScreen && window.getComputedStyle(welcomeScreen).display !== 'none';
+        if (welcomeScreen) {
+            const style = window.getComputedStyle(welcomeScreen);
+            if (style.display !== 'none' && style.visibility !== 'hidden') {
+                console.log('🎬 欢迎屏幕可见，不显示小卷');
+                return false;
+            }
+        }
 
         // 5. 检查主容器是否被隐藏
         const mainContainer = document.querySelector('.app-container');
-        const isMainHidden = mainContainer && window.getComputedStyle(mainContainer).display === 'none';
-
-        // 判断：如果欢迎页可见 或 主容器被隐藏 → 不显示
-        if (isWelcomeVisible || isMainHidden) {
-            console.log('🎬 当前在欢迎页，不显示小卷');
-            return false;
+        if (mainContainer) {
+            const containerStyle = window.getComputedStyle(mainContainer);
+            if (containerStyle.display === 'none' || containerStyle.visibility === 'hidden') {
+                console.log('🎬 主容器被隐藏，不显示小卷');
+                return false;
+            }
         }
 
         // 用户已登录且不在欢迎页 → 显示
