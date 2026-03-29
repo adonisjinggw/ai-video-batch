@@ -7074,58 +7074,33 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
     
     // 检查当前页面是否应该显示小卷助手
     async function shouldShowAssistant() {
-        // 只在主功能页（index.html 且已登录）显示
         const currentPath = window.location.pathname;
 
-        // 1. 检查是否在 index.html
-        const isIndexPage = currentPath.endsWith('/') ||
-                           currentPath.endsWith('/index.html') ||
-                           currentPath === '/' ||
-                           currentPath.endsWith('ai-video-batch') ||
-                           currentPath.endsWith('ai-video-batch/');
-
+        // 1. 只在 index.html 显示
+        const isIndexPage = currentPath.endsWith('/') || currentPath.endsWith('/index.html') || currentPath === '/';
         if (!isIndexPage) {
-            console.log('🎬 不是index.html页面，不显示小卷');
+            console.log('🎬 不是index.html，不显示小卷');
             return false;
         }
 
-        // 2. 等待一下，确保DOM加载完成
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 2. 等待DOM加载
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // 3. 检查用户是否登录
+        // 3. 检查登录状态
         const userId = localStorage.getItem('user_id') || localStorage.getItem('sb_user_id');
-        const userInfo = localStorage.getItem('sb_user_info');
-        const isLoggedIn = userId || userInfo;
-
-        if (!isLoggedIn) {
-            console.log('🎬 用户未登录，不显示小卷');
+        if (!userId) {
+            console.log('🎬 未登录，不显示小卷');
             return false;
         }
 
-        console.log('🎬 用户已登录，检查是否在欢迎页...');
-
-        // 4. 检查是否有欢迎屏幕元素且可见
-        const welcomeScreen = document.getElementById('welcomeScreen');
-        if (welcomeScreen) {
-            const style = window.getComputedStyle(welcomeScreen);
-            if (style.display !== 'none' && style.visibility !== 'hidden') {
-                console.log('🎬 欢迎屏幕可见，不显示小卷');
-                return false;
-            }
-        }
-
-        // 5. 检查主容器是否被隐藏
+        // 4. 检查主容器是否可见（如果主容器隐藏说明在欢迎页）
         const mainContainer = document.querySelector('.app-container');
-        if (mainContainer) {
-            const containerStyle = window.getComputedStyle(mainContainer);
-            if (containerStyle.display === 'none' || containerStyle.visibility === 'hidden') {
-                console.log('🎬 主容器被隐藏，不显示小卷');
-                return false;
-            }
+        if (!mainContainer || window.getComputedStyle(mainContainer).display === 'none') {
+            console.log('🎬 主容器不可见，不显示小卷');
+            return false;
         }
 
-        // 用户已登录且不在欢迎页 → 显示
-        console.log('🎬 检测通过，应该显示小卷助手');
+        console.log('🎬 ✅ 显示小卷助手');
         return true;
     }
 
