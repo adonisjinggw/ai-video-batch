@@ -7083,20 +7083,26 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
             return false;
         }
 
-        // 2. 等待DOM加载
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // 2. 等待DOM和页面完全加载（增加延迟避免检测太早）
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // 3. 检查登录状态
+        // 3. 先检查登录状态（最重要）
         const userId = localStorage.getItem('user_id') || localStorage.getItem('sb_user_id');
         if (!userId) {
             console.log('🎬 未登录，不显示小卷');
             return false;
         }
 
-        // 4. 检查主容器是否可见（如果主容器隐藏说明在欢迎页）
+        // 4. 检查主容器是否可见
         const mainContainer = document.querySelector('.app-container');
-        if (!mainContainer || window.getComputedStyle(mainContainer).display === 'none') {
-            console.log('🎬 主容器不可见，不显示小卷');
+        if (!mainContainer) {
+            console.log('🎬 找不到主容器，稍后重试');
+            return false;
+        }
+
+        const containerStyle = window.getComputedStyle(mainContainer);
+        if (containerStyle.display === 'none') {
+            console.log('🎬 主容器隐藏（欢迎页），不显示小卷');
             return false;
         }
 
