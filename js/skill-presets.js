@@ -6581,48 +6581,140 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
 
     // ==================== AI小助手系统 ====================
     console.log('🎬 RollRoll（小卷）系统模块开始定义...');
-    
-    // 角色形象配置
+
+    // 🎨 顶级设计师风格 - 角色形象配置
     const CharacterConfig = {
         avatarStyle: {
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #FF6B9D 0%, #C44569 50%, #F8B500 100%)',
+            width: '64px',
+            height: '64px',
+            borderRadius: '20px',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: '0 6px 25px rgba(196, 69, 105, 0.5), 0 0 0 4px rgba(255, 255, 255, 0.1)',
-            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)',
+            transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.6)'
         },
-        avatarSVG: `<svg width="50" height="50" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 35 L10 10 L35 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/>
-            <path d="M80 35 L90 10 L65 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/>
-            <ellipse cx="50" cy="55" rx="35" ry="30" fill="#FFE4E1" stroke="#C44569" stroke-width="2"/>
-            <ellipse cx="38" cy="50" rx="8" ry="10" fill="#4A4A4A"/>
-            <ellipse cx="62" cy="50" rx="8" ry="10" fill="#4A4A4A"/>
-            <circle cx="40" cy="48" r="3" fill="white"/>
-            <circle cx="64" cy="48" r="3" fill="white"/>
-            <ellipse cx="25" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/>
-            <ellipse cx="75" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/>
-            <path d="M47 58 L53 58 L50 62 Z" fill="#FF6B9D"/>
-            <path d="M45 65 Q50 70 55 65" stroke="#C44569" stroke-width="2" fill="none"/>
-            <line x1="15" y1="55" x2="30" y2="58" stroke="#C44569" stroke-width="1.5"/>
-            <line x1="15" y1="62" x2="30" y2="62" stroke="#C44569" stroke-width="1.5"/>
-            <line x1="85" y1="55" x2="70" y2="58" stroke="#C44569" stroke-width="1.5"/>
-            <line x1="85" y1="62" x2="70" y2="62" stroke="#C44569" stroke-width="1.5"/>
-            <path d="M30 30 Q50 20 70 30" stroke="#C44569" stroke-width="3" fill="none"/>
-            <path d="M35 28 Q50 15 65 28" stroke="#FF6B9D" stroke-width="2" fill="none"/>
+        // 🌸 精致渐变光晕
+        avatarGlow: {
+            content: '""',
+            position: 'absolute',
+            top: '-50%',
+            left: '-50%',
+            width: '200%',
+            height: '200%',
+            background: 'conic-gradient(from 0deg, transparent, rgba(255,107,157,0.15), transparent, rgba(99,102,241,0.15), transparent)',
+            animation: 'rotate 8s linear infinite'
+        },
+        avatarSVG: `<svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="catGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#FF6B9D"/>
+                    <stop offset="100%" style="stop-color:#C44569"/>
+                </linearGradient>
+                <linearGradient id="earGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#FFB6C1"/>
+                    <stop offset="100%" style="stop-color:#FF6B9D"/>
+                </linearGradient>
+                <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+            <!-- 耳朵 - 更优雅的曲线 -->
+            <path d="M22 32 Q15 12 28 20 Q32 24 30 32" fill="url(#earGradient)" stroke="#C44569" stroke-width="2" filter="url(#softShadow)"/>
+            <path d="M78 32 Q85 12 72 20 Q68 24 70 32" fill="url(#earGradient)" stroke="#C44569" stroke-width="2" filter="url(#softShadow)"/>
+            <!-- 脸部 - 柔和的椭圆 -->
+            <ellipse cx="50" cy="52" rx="32" ry="28" fill="#FFF5F7" stroke="#FFE4E1" stroke-width="2"/>
+            <!-- 眼睛 - 更有神采 -->
+            <ellipse cx="40" cy="48" rx="7" ry="9" fill="#2D2D2D"/>
+            <ellipse cx="60" cy="48" rx="7" ry="9" fill="#2D2D2D"/>
+            <circle cx="42" cy="46" r="3" fill="white"/>
+            <circle cx="62" cy="46" r="3" fill="white"/>
+            <circle cx="43" cy="47" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="63" cy="47" r="1.5" fill="white" opacity="0.8"/>
+            <!-- 腮红 - 更自然 -->
+            <ellipse cx="30" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+            <ellipse cx="70" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+            <!-- 鼻子 -->
+            <path d="M48 54 L52 54 L50 58 Z" fill="#FF6B9D" opacity="0.8"/>
+            <!-- 嘴巴 - 微笑 -->
+            <path d="M43 62 Q50 68 57 62" stroke="#C44569" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <!-- 胡须 - 精细线条 -->
+            <line x1="18" y1="52" x2="32" y2="54" stroke="#C44569" stroke-width="1.2" opacity="0.6"/>
+            <line x1="18" y1="57" x2="32" y2="57" stroke="#C44569" stroke-width="1.2" opacity="0.6"/>
+            <line x1="82" y1="52" x2="68" y2="54" stroke="#C44569" stroke-width="1.2" opacity="0.6"/>
+            <line x1="82" y1="57" x2="68" y2="57" stroke="#C44569" stroke-width="1.2" opacity="0.6"/>
         </svg>`,
+        // 表情 SVG - 统一风格
         expressions: {
-            happy: `<svg width="50" height="50" viewBox="0 0 100 100" fill="none"><path d="M20 35 L10 10 L35 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/><path d="M80 35 L90 10 L65 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/><ellipse cx="50" cy="55" rx="35" ry="30" fill="#FFE4E1" stroke="#C44569" stroke-width="2"/><path d="M30 50 Q38 42 46 50" stroke="#4A4A4A" stroke-width="3" fill="none"/><path d="M54 50 Q62 42 70 50" stroke="#4A4A4A" stroke-width="3" fill="none"/><ellipse cx="25" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/><ellipse cx="75" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/><path d="M47 58 L53 58 L50 62 Z" fill="#FF6B9D"/><path d="M40 68 Q50 78 60 68" stroke="#C44569" stroke-width="2.5" fill="none"/></svg>`,
-            thinking: `<svg width="50" height="50" viewBox="0 0 100 100" fill="none"><path d="M20 35 L10 10 L35 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/><path d="M80 35 L90 10 L65 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/><ellipse cx="50" cy="55" rx="35" ry="30" fill="#FFE4E1" stroke="#C44569" stroke-width="2"/><circle cx="38" cy="50" r="6" fill="#4A4A4A"/><circle cx="62" cy="50" r="6" fill="#4A4A4A"/><circle cx="40" cy="48" r="2" fill="white"/><circle cx="64" cy="48" r="2" fill="white"/><ellipse cx="25" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/><ellipse cx="75" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/><path d="M47 60 L53 60" stroke="#FF6B9D" stroke-width="2"/><circle cx="85" cy="25" r="8" fill="white" stroke="#C44569" stroke-width="1.5"/><circle cx="92" cy="15" r="5" fill="white" stroke="#C44569" stroke-width="1.5"/><text x="82" y="28" font-size="8" fill="#C44569">?</text></svg>`,
-            working: `<svg width="50" height="50" viewBox="0 0 100 100" fill="none"><path d="M20 35 L10 10 L35 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/><path d="M80 35 L90 10 L65 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/><ellipse cx="50" cy="55" rx="35" ry="30" fill="#FFE4E1" stroke="#C44569" stroke-width="2"/><ellipse cx="38" cy="50" rx="8" ry="3" fill="#4A4A4A"/><ellipse cx="62" cy="50" rx="8" ry="3" fill="#4A4A4A"/><ellipse cx="25" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/><ellipse cx="75" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/><path d="M47 60 L53 60" stroke="#FF6B9D" stroke-width="2"/><path d="M78 35 Q82 30 85 35 Q85 42 78 42 Q75 38 78 35" fill="#87CEEB" stroke="#4682B4" stroke-width="1"/></svg>`,
-            reminding: `<svg width="50" height="50" viewBox="0 0 100 100" fill="none"><path d="M20 35 L10 10 L35 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/><path d="M80 35 L90 10 L65 25" fill="#FF6B9D" stroke="#C44569" stroke-width="3"/><ellipse cx="50" cy="55" rx="35" ry="30" fill="#FFE4E1" stroke="#C44569" stroke-width="2"/><circle cx="38" cy="48" r="10" fill="#4A4A4A"/><circle cx="62" cy="48" r="10" fill="#4A4A4A"/><circle cx="40" cy="46" r="4" fill="white"/><circle cx="64" cy="46" r="4" fill="white"/><ellipse cx="25" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/><ellipse cx="75" cy="58" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/><ellipse cx="50" cy="65" rx="6" ry="8" fill="#FF6B9D"/><text x="85" y="30" font-size="20" fill="#FFD700" font-weight="bold">!</text></svg>`,
-            error: `<svg width="50" height="50" viewBox="0 0 100 100" fill="none"><path d="M20 35 L10 10 L35 25" fill="#999" stroke="#666" stroke-width="3"/><path d="M80 35 L90 10 L65 25" fill="#999" stroke="#666" stroke-width="3"/><ellipse cx="50" cy="55" rx="35" ry="30" fill="#E8E8E8" stroke="#999" stroke-width="2"/><path d="M30 50 Q38 55 46 50" stroke="#666" stroke-width="3" fill="none"/><path d="M54 50 Q62 55 70 50" stroke="#666" stroke-width="3" fill="none"/><ellipse cx="25" cy="58" rx="6" ry="4" fill="#CCC" opacity="0.6"/><ellipse cx="75" cy="58" rx="6" ry="4" fill="#CCC" opacity="0.6"/><path d="M47 62 L53 62" stroke="#999" stroke-width="2"/><path d="M42 70 Q50 65 58 70" stroke="#666" stroke-width="2" fill="none"/></svg>`
+            happy: `<svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 32 Q15 12 28 20 Q32 24 30 32" fill="#FFB6C1" stroke="#FF6B9D" stroke-width="2"/>
+                <path d="M78 32 Q85 12 72 20 Q68 24 70 32" fill="#FFB6C1" stroke="#FF6B9D" stroke-width="2"/>
+                <ellipse cx="50" cy="52" rx="32" ry="28" fill="#FFF5F7"/>
+                <path d="M38 46 Q42 42 46 46" stroke="#2D2D2D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <path d="M54 46 Q58 42 62 46" stroke="#2D2D2D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <ellipse cx="30" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+                <ellipse cx="70" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+                <path d="M48 54 L52 54 L50 58 Z" fill="#FF6B9D" opacity="0.8"/>
+                <path d="M42 64 Q50 72 58 64" stroke="#FF6B9D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            </svg>`,
+            thinking: `<svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 32 Q15 12 28 20 Q32 24 30 32" fill="#FFB6C1" stroke="#FF6B9D" stroke-width="2"/>
+                <path d="M78 32 Q85 12 72 20 Q68 24 70 32" fill="#FFB6C1" stroke="#FF6B9D" stroke-width="2"/>
+                <ellipse cx="50" cy="52" rx="32" ry="28" fill="#FFF5F7"/>
+                <circle cx="40" cy="48" r="5" fill="#2D2D2D"/>
+                <circle cx="60" cy="48" r="5" fill="#2D2D2D"/>
+                <circle cx="41" cy="47" r="1.5" fill="white"/>
+                <circle cx="61" cy="47" r="1.5" fill="white"/>
+                <ellipse cx="30" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+                <ellipse cx="70" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+                <path d="M48 56 L52 56" stroke="#FF6B9D" stroke-width="2"/>
+                <circle cx="82" cy="22" r="7" fill="white" stroke="#FF6B9D" stroke-width="1.5"/>
+                <text x="79" y="26" font-size="10" fill="#FF6B9D" font-weight="bold">?</text>
+            </svg>`,
+            working: `<svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 32 Q15 12 28 20 Q32 24 30 32" fill="#FFB6C1" stroke="#FF6B9D" stroke-width="2"/>
+                <path d="M78 32 Q85 12 72 20 Q68 24 70 32" fill="#FFB6C1" stroke="#FF6B9D" stroke-width="2"/>
+                <ellipse cx="50" cy="52" rx="32" ry="28" fill="#FFF5F7"/>
+                <ellipse cx="40" cy="48" rx="6" ry="2.5" fill="#2D2D2D"/>
+                <ellipse cx="60" cy="48" rx="6" ry="2.5" fill="#2D2D2D"/>
+                <ellipse cx="30" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+                <ellipse cx="70" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+                <path d="M48 56 L52 56" stroke="#FF6B9D" stroke-width="2"/>
+                <path d="M75 38 Q78 34 82 38 Q82 44 75 44 Q72 40 75 38" fill="#6366F1" opacity="0.6"/>
+            </svg>`,
+            reminding: `<svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 32 Q15 12 28 20 Q32 24 30 32" fill="#FFB6C1" stroke="#FF6B9D" stroke-width="2"/>
+                <path d="M78 32 Q85 12 72 20 Q68 24 70 32" fill="#FFB6C1" stroke="#FF6B9D" stroke-width="2"/>
+                <ellipse cx="50" cy="52" rx="32" ry="28" fill="#FFF5F7"/>
+                <circle cx="40" cy="46" r="7" fill="#2D2D2D"/>
+                <circle cx="60" cy="46" r="7" fill="#2D2D2D"/>
+                <circle cx="42" cy="44" r="2.5" fill="white"/>
+                <circle cx="62" cy="44" r="2.5" fill="white"/>
+                <ellipse cx="30" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+                <ellipse cx="70" cy="55" rx="6" ry="3.5" fill="#FFB6C1" opacity="0.5"/>
+                <ellipse cx="50" cy="62" rx="5" ry="7" fill="#FF6B9D"/>
+                <circle cx="84" cy="26" r="6" fill="#FBBF24" stroke="#F59E0B" stroke-width="1"/>
+                <text x="81" y="30" font-size="12" fill="white" font-weight="bold">!</text>
+            </svg>`,
+            error: `<svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 32 Q15 12 28 20 Q32 24 30 32" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="2"/>
+                <path d="M78 32 Q85 12 72 20 Q68 24 70 32" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="2"/>
+                <ellipse cx="50" cy="52" rx="32" ry="28" fill="#F3F4F6"/>
+                <path d="M38 50 Q42 54 46 50" stroke="#6B7280" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <path d="M54 50 Q58 54 62 50" stroke="#6B7280" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <ellipse cx="30" cy="55" rx="6" ry="3.5" fill="#D1D5DB" opacity="0.6"/>
+                <ellipse cx="70" cy="55" rx="6" ry="3.5" fill="#D1D5DB" opacity="0.6"/>
+                <path d="M48 57 L52 57" stroke="#9CA3AF" stroke-width="2"/>
+                <path d="M44 66 Q50 62 56 66" stroke="#6B7280" stroke-width="2" fill="none" stroke-linecap="round"/>
+                <path d="M70 35 L74 31 M70 31 L74 35" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>`
         }
     };
 
@@ -6685,9 +6777,9 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
         createBubble() {
             this.bubble = document.createElement('div');
             this.bubble.id = 'ai-assistant-bubble';
-            this.bubble.style.cssText = 'position: absolute; bottom: 80px; right: 0; max-width: 280px; padding: 14px 18px; background: white; border-radius: 20px; box-shadow: 0 6px 25px rgba(0,0,0,0.2); font-size: 14px; line-height: 1.6; color: #333; opacity: 0; transform: translateY(10px) scale(0.9); transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); pointer-events: none; word-wrap: break-word; border: 2px solid #FF6B9D;';
+            this.bubble.style.cssText = 'position: absolute; bottom: 80px; right: 0; max-width: 280px; padding: 14px 18px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04); font-size: 14px; line-height: 1.6; color: #333; opacity: 0; transform: translateY(10px) scale(0.9); transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; word-wrap: break-word; border: 1px solid rgba(255,255,255,0.8);';
             const arrow = document.createElement('div');
-            arrow.style.cssText = 'position: absolute; bottom: -10px; right: 25px; width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid #FF6B9D;';
+            arrow.style.cssText = 'position: absolute; bottom: -8px; right: 25px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid rgba(255,255,255,0.95);';
             this.bubble.appendChild(arrow);
             this.container.appendChild(this.bubble);
         }
@@ -6695,31 +6787,31 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
         createPanel() {
             this.panel = document.createElement('div');
             this.panel.id = 'ai-assistant-panel';
-            this.panel.style.cssText = 'position: absolute; bottom: 80px; right: 0; width: 340px; max-height: 520px; background: white; border-radius: 24px; box-shadow: 0 15px 50px rgba(0,0,0,0.25); overflow: hidden; opacity: 0; transform: translateY(20px) scale(0.95); transition: all 0.3s ease; pointer-events: none; display: flex; flex-direction: column; border: 2px solid #FF6B9D;';
+            this.panel.style.cssText = 'position: absolute; bottom: 80px; right: 0; width: 340px; max-height: 520px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 24px; box-shadow: 0 15px 50px rgba(0,0,0,0.12), 0 3px 12px rgba(0,0,0,0.08); overflow: hidden; opacity: 0; transform: translateY(20px) scale(0.95); transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,0.8);';
             this.panel.innerHTML = `
-                <div style="padding: 18px; background: linear-gradient(135deg, #FF6B9D 0%, #C44569 100%); color: white; display: flex; align-items: center; justify-content: space-between;">
+                <div style="padding: 18px; background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,240,245,0.95) 100%); color: white; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,107,157,0.1);">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 44px; height: 44px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">🐱</div>
-                        <div><div style="font-weight: 600; font-size: 16px;">RollRoll</div><div style="font-size: 12px; opacity: 0.9;">你的AI创作伙伴小卷</div></div>
+                        <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #FF6B9D 0%, #C44569 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(255,107,157,0.3);">🐱</div>
+                        <div><div style="font-weight: 600; font-size: 16px; color: #2D2D2D;">RollRoll</div><div style="font-size: 12px; color: #8B8B8B;">你的AI创作伙伴小卷</div></div>
                     </div>
-                    <button id="ai-assistant-close" style="background: none; border: none; color: white; cursor: pointer; font-size: 24px; padding: 4px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">×</button>
+                    <button id="ai-assistant-close" style="background: rgba(0,0,0,0.05); border: none; color: #666; cursor: pointer; font-size: 24px; padding: 4px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.2s;">×</button>
                 </div>
                 <div id="ai-assistant-content" style="flex: 1; overflow-y: auto; padding: 18px;">
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px;">
-                        <button class="ai-assistant-shortcut" data-action="hot-video" style="padding: 16px 12px; border: 2px solid #f0f0f0; border-radius: 16px; background: white; cursor: pointer; transition: all 0.2s; text-align: center;"><div style="font-size: 28px;">🔥</div><div style="font-size: 12px; margin-top: 6px; color: #666;">热点视频</div></button>
-                        <button class="ai-assistant-shortcut" data-action="batch-image" style="padding: 16px 12px; border: 2px solid #f0f0f0; border-radius: 16px; background: white; cursor: pointer; transition: all 0.2s; text-align: center;"><div style="font-size: 28px;">🖼️</div><div style="font-size: 12px; margin-top: 6px; color: #666;">批量生图</div></button>
-                        <button class="ai-assistant-shortcut" data-action="write-copy" style="padding: 16px 12px; border: 2px solid #f0f0f0; border-radius: 16px; background: white; cursor: pointer; transition: all 0.2s; text-align: center;"><div style="font-size: 28px;">✍️</div><div style="font-size: 12px; margin-top: 6px; color: #666;">写文案</div></button>
+                        <button class="ai-assistant-shortcut" data-action="hot-video" style="padding: 16px 12px; border: 1px solid rgba(0,0,0,0.06); border-radius: 16px; background: white; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 28px;">🔥</div><div style="font-size: 12px; margin-top: 6px; color: #666;">热点视频</div></button>
+                        <button class="ai-assistant-shortcut" data-action="batch-image" style="padding: 16px 12px; border: 1px solid rgba(0,0,0,0.06); border-radius: 16px; background: white; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 28px;">🖼️</div><div style="font-size: 12px; margin-top: 6px; color: #666;">批量生图</div></button>
+                        <button class="ai-assistant-shortcut" data-action="write-copy" style="padding: 16px 12px; border: 1px solid rgba(0,0,0,0.06); border-radius: 16px; background: white; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 28px;">✍️</div><div style="font-size: 12px; margin-top: 6px; color: #666;">写文案</div></button>
                     </div>
                     <div id="ai-assistant-tasks">
-                        <div style="font-weight: 600; margin-bottom: 14px; color: #333; font-size: 15px;">✨ 当前任务</div>
+                        <div style="font-weight: 600; margin-bottom: 14px; color: #2D2D2D; font-size: 15px;">✨ 当前任务</div>
                         <div id="ai-assistant-task-list" style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="text-align: center; color: #999; padding: 24px; font-size: 14px; background: #f8f9fa; border-radius: 12px;"><div style="font-size: 32px; margin-bottom: 8px;">🐱</div>暂无进行中的任务</div>
+                            <div style="text-align: center; color: #999; padding: 24px; font-size: 14px; background: rgba(248,249,250,0.8); border-radius: 12px; border: 1px solid rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 8px;">🐱</div>暂无进行中的任务</div>
                         </div>
                     </div>
                 </div>
-                <div style="padding: 14px 18px; border-top: 1px solid #eee; display: flex; gap: 10px; align-items: center; background: #fafafa;">
-                    <input type="text" id="ai-assistant-input" placeholder="告诉小卷你想做什么..." style="flex: 1; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 25px; font-size: 14px; outline: none;">
-                    <button id="ai-assistant-send" style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #FF6B9D 0%, #C44569 100%); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <div style="padding: 14px 18px; border-top: 1px solid rgba(0,0,0,0.06); display: flex; gap: 10px; align-items: center; background: rgba(250,250,250,0.8);">
+                    <input type="text" id="ai-assistant-input" placeholder="告诉小卷你想做什么..." style="flex: 1; padding: 12px 16px; border: 1px solid rgba(0,0,0,0.08); border-radius: 25px; font-size: 14px; outline: none; background: white; transition: all 0.2s;">
+                    <button id="ai-assistant-send" style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #FF6B9D 0%, #C44569 100%); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(255,107,157,0.3); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     </button>
                 </div>
@@ -6749,20 +6841,24 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
             
             const shortcuts = this.panel.querySelectorAll('.ai-assistant-shortcut');
             shortcuts.forEach(btn => {
-                btn.addEventListener('mouseenter', () => { btn.style.borderColor = '#FF6B9D'; btn.style.transform = 'translateY(-3px)'; btn.style.boxShadow = '0 6px 20px rgba(255,107,157,0.2)'; });
-                btn.addEventListener('mouseleave', () => { btn.style.borderColor = '#f0f0f0'; btn.style.transform = 'translateY(0)'; btn.style.boxShadow = 'none'; });
+                btn.addEventListener('mouseenter', () => { btn.style.borderColor = 'rgba(255,107,157,0.3)'; btn.style.transform = 'translateY(-3px)'; btn.style.boxShadow = '0 8px 25px rgba(255,107,157,0.15)'; });
+                btn.addEventListener('mouseleave', () => { btn.style.borderColor = 'rgba(0,0,0,0.06)'; btn.style.transform = 'translateY(0)'; btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; });
                 btn.addEventListener('click', () => this.handleShortcut(btn.dataset.action));
             });
-            
+
             const sendBtn = this.panel.querySelector('#ai-assistant-send');
             const input = this.panel.querySelector('#ai-assistant-input');
             sendBtn.addEventListener('click', () => {
                 const text = input.value.trim();
                 if (text) { this.handleUserInput(text); input.value = ''; }
             });
-            input.addEventListener('focus', () => input.style.borderColor = '#FF6B9D');
-            input.addEventListener('blur', () => input.style.borderColor = '#e0e0e0');
+            input.addEventListener('focus', () => input.style.borderColor = 'rgba(255,107,157,0.3)');
+            input.addEventListener('blur', () => input.style.borderColor = 'rgba(0,0,0,0.08)');
             input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendBtn.click(); });
+
+            const closeBtn = this.panel.querySelector('#ai-assistant-close');
+            closeBtn.addEventListener('mouseenter', () => closeBtn.style.background = 'rgba(0,0,0,0.1)');
+            closeBtn.addEventListener('mouseleave', () => closeBtn.style.background = 'rgba(0,0,0,0.05)');
         }
 
         startDrag(e) {
@@ -6921,6 +7017,12 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
     // 初始化小助手（登录后才显示）
     async function initAIAssistant() {
         console.log('🎬 RollRoll（小卷）初始化开始...');
+
+        // 检查是否应该在当前页面显示
+        if (!shouldShowAssistant()) {
+            console.log('🎬 当前页面不需要显示小卷助手');
+            return;
+        }
         
         // 检查AssistantUI类是否可用
         if (typeof AssistantUI === 'undefined') {
@@ -6969,6 +7071,57 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
         }
     }
     
+    // 检查当前页面是否应该显示小卷助手
+    function shouldShowAssistant() {
+        // 只在主功能页（index.html 且已登录跳转后）显示
+        const currentPath = window.location.pathname;
+
+        // 1. 检查是否在 index.html
+        const isIndexPage = currentPath.endsWith('/') ||
+                           currentPath.endsWith('/index.html') ||
+                           currentPath === '/' ||
+                           currentPath.endsWith('ai-video-batch') ||
+                           currentPath.endsWith('ai-video-batch/');
+
+        if (!isIndexPage) {
+            console.log('🎬 不是index.html页面，不显示小卷');
+            return false;
+        }
+
+        // 2. 检查URL参数（有 logged_in=1 或 skip_welcome=1 才是功能页）
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasLoggedInParam = urlParams.has('logged_in') && urlParams.get('logged_in') === '1';
+        const hasSkipWelcomeParam = urlParams.has('skip_welcome') && urlParams.get('skip_welcome') === '1';
+
+        if (!hasLoggedInParam && !hasSkipWelcomeParam) {
+            console.log('🎬 没有登录跳转参数，可能是欢迎页，不显示小卷');
+            return false;
+        }
+
+        // 3. 检查是否有欢迎屏幕元素且可见
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        if (welcomeScreen) {
+            const style = window.getComputedStyle(welcomeScreen);
+            if (style.display !== 'none' && style.visibility !== 'hidden') {
+                console.log('🎬 欢迎屏幕可见，不显示小卷');
+                return false;
+            }
+        }
+
+        // 4. 检查主容器是否被隐藏
+        const mainContainer = document.querySelector('.app-container');
+        if (mainContainer) {
+            const containerStyle = window.getComputedStyle(mainContainer);
+            if (containerStyle.display === 'none' || containerStyle.visibility === 'hidden') {
+                console.log('🎬 主容器被隐藏，不显示小卷');
+                return false;
+            }
+        }
+
+        console.log('🎬 检测通过，应该显示小卷助手');
+        return true;
+    }
+
     // 检查用户登录状态
     async function checkUserLogin() {
         try {

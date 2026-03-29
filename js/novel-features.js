@@ -1780,21 +1780,45 @@ async function novelGenerateSceneImage(chapterIdx) {
     var genre = '';
     try { genre = document.getElementById('novelGenreSelect').value; } catch (e) { }
     var title = ch.title || '第' + (chapterIdx + 1) + '章';
-    // 从章节内容提取场景关键词（取前300字的环境描写）
-    var content = (ch.content || '').substring(0, 300);
+    var isShortDrama = !!(novelState && (novelState.novelType === 'short' || genre === '短剧'));
+    var aspectRatio = isShortDrama ? '9:16' : '16:9';
+    var panelHint = isShortDrama ? '竖版4-6格短剧分镜板' : '横版4-6格电影分镜板';
 
-    var prompt = '小说场景插画，电影级概念艺术，' + (genre || '奇幻') + '风格。\n' +
-        '章节：「' + title + '」\n' +
-        '场景描写：' + content + '\n' +
-        '画面要求：宏大场景氛围图，电影级光影构图，环境渲染细腻，' +
-        '画面右下角小字白色标注「' + title + '」，' +
-        '高品质数字绘画，16:9宽屏构图，色彩丰富有层次，适合小说插图';
+    var rawContent = '';
+    if (typeof ch.content === 'string') rawContent = ch.content;
+    else if (Array.isArray(ch.content)) rawContent = ch.content.join('\n');
+    else if (ch.content && typeof ch.content === 'object') rawContent = ch.content.text || ch.content.content || ch.content.script || ch.content.dialogue || '';
+    else rawContent = String(ch.content || '');
+
+    var content = rawContent.replace(/\s+/g, ' ').trim().slice(0, 260);
+    var chars = ((novelState && novelState.characters) || []).slice(0, 6);
+    var charSummary = chars.map(function (c) {
+        return [c.name || '未命名角色', c.description || c.prompt || c.profile || ''].filter(Boolean).join('：');
+    }).join('\n').slice(0, 500);
+    var refImages = chars.map(function (c) { return c.imageUrl; }).filter(Boolean).slice(0, 4);
+
+    var prompt = [
+        '创建一张' + panelHint + '，不是单一大场景图，而是一张图中包含多个独立分镜格。',
+        '每个分镜格都是独立完整画面，按阅读顺序展示同一章节的连续剧情。',
+        '不要把一张完整大图切块，必须是真正的多格故事板构图。',
+        '整体统一风格、统一角色外观、统一色调与电影级光影。',
+        '参考风格：多角色串场漫画、九宫格叙事、电影故事板。',
+        '题材风格：' + (genre || '通用剧情'),
+        '章节标题：' + title,
+        '章节内容摘要：' + (content || '无'),
+        '主要角色：' + (charSummary || '无明确角色信息'),
+        '一致性要求：同一角色在所有分镜中保持脸型、发型、服装和体态一致，只允许姿态、表情、镜头远近变化。',
+        '画面要求：使用细白边或清晰分隔线区分分镜格，电影级构图，叙事连贯，细节丰富，不要额外UI、水印、字幕、二维码或说明文字。',
+        '输出为高质量数字插画，适合小说或短剧场景展示。'
+    ].join('\n');
 
     try {
-        var imageUrl = await callBanana2ImageAPI(prompt, {
+        var imageOptions = {
             model: 'gemini-3.1-flash-image-preview-4k',
-            aspectRatio: '16:9'
-        });
+            aspectRatio: aspectRatio
+        };
+        if (refImages.length > 0) imageOptions.refImages = refImages;
+        var imageUrl = await callBanana2ImageAPI(prompt, imageOptions);
         ch._sceneImageUrl = imageUrl;
         ch._sceneGenerating = false;
         _novelRenderChapterList();
@@ -2258,7 +2282,7 @@ function _novelRenderChapterListEnhanced() {
                 <button onclick="event.stopPropagation();novelOpenReader(${i})">👁️ 阅读</button>
                 <button onclick="event.stopPropagation();if(confirm('为第${i + 1}章生成配音？将消耗胶片'))novelTTSChapter(${i})">🎤 配音</button>
                 <button onclick="event.stopPropagation();novelShowVoiceSelector()">🎙️ 换音色</button>
-                <button onclick="event.stopPropagation();novelStoryboardFullPipeline(${i})">🖼️ 场景</button>
+                <button onclick="event.stopPropagation();novelGenerateSceneImage(${i})">🖼️ 场景</button>
                 <button onclick="event.stopPropagation();if(confirm('对第${i + 1}章进行去AI化润色？将消耗胶片'))novelDeAIChapter(${i})">🧹 去AI</button>
             </div>${storyboardHtml}${sceneHtml}${audioHtml}` : ch.status === 'error' ? `
             <div class="ch-actions">
@@ -2423,7 +2447,14 @@ async function novelGenerateStoryboards(chapterIdx) {
     try {
         var layout = _novelGetStoryboardLayout(chapterIdx);
         var wordCount = ch.wordCount || (ch.content || '').length || 300;
-        var sceneCount = Math.max(3, Math.min(Math.ceil(wordCount / (layout.ratio === '9:16' ? 100 : 200)), 8));
+
+        // 🔧 优化分镜数量计算：更稳定的范围，避免过多或过少
+        // 短剧（9:16）：6-9格，稳定范围
+        // 小说（16:9）：6-9格，稳定范围
+        var baseCount = layout.ratio === '9:16'
+            ? Math.max(6, Math.min(Math.ceil(wordCount / 100), 9))  // 短剧：每100字1格，6-9格
+            : Math.max(6, Math.min(Math.ceil(wordCount / 200), 9)); // 小说：每200字1格，6-9格
+        var sceneCount = baseCount;
 
         var charInfo = '';
         if (novelState.characters && novelState.characters.length > 0) {
