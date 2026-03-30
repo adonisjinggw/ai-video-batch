@@ -246,7 +246,8 @@ async function fetchWithFallback(requestBody, isGemini3Native = false, geminiMod
     const isSeedream = model.includes('seedream') || model.includes('doubao') || model.includes('openrouter:bytedance-seed/seedream');
     // 🔧 统一超时设置：与生图页面(banana.html)保持一致
     // Gemini模型90秒，其他模型根据类型调整
-    const baseTimeoutMs = isGemini3Native ? 90000 : (isJimeng ? 90000 : (isSeedream ? 120000 : 90000));
+    // 🔧 4K大图生成耗时更长：云雾API生成+下载可能超过90s
+    const baseTimeoutMs = isGemini3Native ? (is4k ? 150000 : 120000) : (isJimeng ? 90000 : (isSeedream ? 120000 : 90000));
 
     // 🔧 全局时间守卫：防止总时间超过 Cloudflare 100s 代理超时
     // 4K大图需要额外时间上传Supabase Storage，所以留30秒给后处理
@@ -273,7 +274,7 @@ async function fetchWithFallback(requestBody, isGemini3Native = false, geminiMod
     }
 
     const url = `${endpoint}${apiPath}`;
-    console.log(`[banana2] ☁️ 请求主端点: ${endpoint} (超时60s)`);
+    console.log(`[banana2] ☁️ 请求主端点: ${endpoint} (超时${baseTimeoutMs/1000}s)`);
 
     try {
         const response = await fetchWithTimeout(url, {
@@ -1193,10 +1194,10 @@ module.exports = async function handler(req, res) {
             throw new Error(`图片生成失败 (${response.status}): ${errorDetail || '未知错误'}`);
         }
 
-        // 🔧 body读取超时：4K大图base64可能很大，设60s上限
+        // 🔧 body读取超时：4K大图base64可能很大（30MB+），设180s上限
         const data = await Promise.race([
             response.json(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('响应体读取超时(60s)，图片数据过大或网络慢')), 60000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('响应体读取超时(180s)，图片数据过大或网络慢')), 180000))
         ]);
 
         // 🔧 调试：输出原始返回格式

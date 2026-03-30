@@ -519,6 +519,66 @@ module.exports = async function handler(req, res) {
     }
     // ============================================================
 
+    // ==================== 🐟 MiroFish 群体智能预测接口 ====================
+    const mirofishAction = requestBody?.action_mirofish || req.query?.action_mirofish;
+    if (mirofishAction) {
+        console.log('[mirofish] 收到请求:', mirofishAction);
+
+        // 需要用户认证
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'UNAUTHORIZED',
+                message: '需要用户认证'
+            });
+        }
+
+        const token = authHeader.split(' ')[1];
+        let userId;
+
+        // 验证 Supabase token
+        try {
+            const verifyRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'apikey': SUPABASE_SERVICE_KEY
+                }
+            });
+
+            if (!verifyRes.ok) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'INVALID_TOKEN',
+                    message: '无效的认证令牌'
+                });
+            }
+
+            const user = await verifyRes.json();
+            userId = user.id;
+        } catch (error) {
+            console.error('[mirofish] 用户认证失败:', error);
+            return res.status(401).json({
+                success: false,
+                error: 'AUTH_FAILED',
+                message: '用户认证失败'
+            });
+        }
+
+        try {
+            const result = await handleMiroFish(mirofishAction, req, res, userId);
+            return res.json(result);
+        } catch (error) {
+            console.error('[mirofish] 处理失败:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'MIROFISH_ERROR',
+                message: error.message
+            });
+        }
+    }
+    // ============================================================
+
     // ==================== 🆕 对外公开API ====================
     if (type === 'public-api') {
         const action = requestBody?.action || req.query?.action;
@@ -676,7 +736,7 @@ module.exports = async function handler(req, res) {
                 return res.json({
                     success: true,
                     message: 'AI Video Batch API is running',
-                    version: '8.6.6',
+                    version: '9.2.0',
                     timestamp: Date.now(),
                     quotaRemaining: apiKey ? authResult.quota_remaining : undefined
                 });
@@ -780,7 +840,7 @@ module.exports = async function handler(req, res) {
                     success: true,
                     data: {
                         name: 'ai-video-batch',
-                        version: '9.0.0',
+                        version: '9.2.0',
                         description: 'RollRoll AI - 手机版完整功能集',
 
                         // 手机版独立功能页面
@@ -1002,6 +1062,8 @@ module.exports = async function handler(req, res) {
                     quotaRemaining: authResult.quota_remaining - 1
                 });
             }
+
+
 
 
 
@@ -1619,4 +1681,336 @@ async function fetchRequest(url, method, headers, body) {
     }
 
     return { status: response.status, data };
+}
+
+// ==================== MiroFish 群体智能预测功能 ====================
+/**
+ * 处理 MiroFish 相关的 API 请求
+ * 支持的操作: collect, predict, history, quota
+ * 返回结果对象，不直接发送响应
+ */
+async function handleMiroFish(action, req, res, userId) {
+    switch (action) {
+        case 'collect':
+            // 数据采集
+            const { taskType, params } = req.body;
+            const data = await collectMiroFishData(taskType, params);
+            return data;
+
+        case 'predict':
+            // 发起预测
+            const { taskType, params: predictParams } = req.body;
+
+            // 检查配额
+            const quotaInfo = await checkMiroFishQuota(userId);
+            if (!quotaInfo.allowed) {
+                return {
+                    success: false,
+                    error: '今日预测次数已用完，请明天再试'
+                };
+            }
+
+            // 采集数据
+            const predictionData = await collectMiroFishData(taskType, predictParams);
+
+            // 保存任务记录
+            await saveMiroFishTask(userId, taskType, predictParams, predictionData);
+
+            return {
+                success: true,
+                data: predictionData,
+                message: '预测任务完成'
+            };
+
+        case 'history':
+            // 获取历史记录
+            const { limit = 10 } = req.query;
+            const history = await getMiroFishHistory(userId, limit);
+            return { success: true, history };
+
+        case 'quota':
+            // 检查配额
+            const quotaCheck = await checkMiroFishQuota(userId);
+            return {
+                success: true,
+                hasQuota: quotaCheck.allowed,
+                maxDaily: 10,
+                used: quotaCheck.used || 0
+            };
+
+        default:
+            return {
+                success: false,
+                error: '未知的操作类型'
+            };
+    }
+}
+
+/**
+ * MiroFish 数据采集
+ */
+async function collectMiroFishData(taskType, params) {
+    switch (taskType) {
+        case 'crypto':
+            return await collectCryptoData(params);
+        case 'weather':
+            return await collectWeatherData(params);
+        case 'stock':
+            return await collectStockData(params);
+        case 'trend':
+            return await collectTrendData(params);
+        default:
+            return { success: false, error: `不支持的预测类型: ${taskType}` };
+    }
+}
+
+/**
+ * 加密货币数据采集
+ */
+async function collectCryptoData(params) {
+    const { symbol = 'bitcoin' } = params;
+
+    try {
+        // 使用 Coingecko API (免费)
+        const priceUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${symbol}&vs_currencies=usd`;
+        const priceRes = await fetch(priceUrl);
+        const priceData = await priceRes.json();
+
+        if (priceData.error) {
+            throw new Error(priceData.error);
+        }
+
+        // 获取市场数据
+        const marketUrl = `https://api.coingecko.com/api/v3/coins/${symbol}/market_chart?vs_currency=usd&days=7`;
+        const marketRes = await fetch(marketUrl);
+        const marketData = await marketRes.json();
+
+        return {
+            success: true,
+            type: 'crypto',
+            symbol,
+            currentPrice: priceData[symbol]?.usd || 0,
+            marketData: marketData.prices || [],
+            timestamp: Date.now()
+        };
+    } catch (error) {
+        console.error('[MiroFish] Coingecko API error:', error);
+        return { success: false, error: '数据采集失败，请稍后重试' };
+    }
+}
+
+/**
+ * 天气数据采集
+ */
+async function collectWeatherData(params) {
+    const { location = 'Beijing' } = params;
+
+    try {
+        // 地理编码
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`;
+        const geoRes = await fetch(geoUrl);
+        const geoData = await geoRes.json();
+
+        if (!geoData.results || geoData.results.length === 0) {
+            return { success: false, error: '未找到该位置' };
+        }
+
+        const { latitude, longitude, name } = geoData.results[0];
+
+        // 天气预报
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
+        const weatherRes = await fetch(weatherUrl);
+        const weatherData = await weatherRes.json();
+
+        return {
+            success: true,
+            type: 'weather',
+            location: name,
+            latitude,
+            longitude,
+            forecast: weatherData.daily?.time?.map((time, i) => ({
+                date: time,
+                maxTemp: weatherData.daily.temperature_2m_max[i],
+                minTemp: weatherData.daily.temperature_2m_min[i],
+                precipitation: weatherData.daily.precipitation_sum[i]
+            })) || [],
+            timestamp: Date.now()
+        };
+    } catch (error) {
+        console.error('[MiroFish] Weather API error:', error);
+        return { success: false, error: '天气数据采集失败' };
+    }
+}
+
+/**
+ * 股票数据采集 (使用 Alpha Vantage 或免费备选)
+ */
+async function collectStockData(params) {
+    const { symbol = 'AAPL' } = params;
+
+    try {
+        // 使用 Alpha Vantage (demo key) 或 Yahoo Finance
+        const apiKey = process.env.ALPHA_VANTAGE_API_KEY || 'demo';
+        const apiUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+
+        if (data['Note']) {
+            return { success: false, error: 'API调用频率超限，请稍后重试' };
+        }
+
+        const quote = data['Global Quote'] || {};
+
+        return {
+            success: true,
+            type: 'stock',
+            symbol,
+            price: parseFloat(quote['05. price'] || '0'),
+            change: parseFloat(quote['09. change'] || '0'),
+            changePercent: quote['10. change percent'] || '0%',
+            timestamp: Date.now()
+        };
+    } catch (error) {
+        console.error('[MiroFish] Stock API error:', error);
+        return { success: false, error: '股票数据采集失败' };
+    }
+}
+
+/**
+ * 趋势数据采集 (使用 Tavily 或降级方案)
+ */
+async function collectTrendData(params) {
+    const { keyword = 'AI' } = params;
+
+    try {
+        // 尝试使用 Tavily Search
+        if (process.env.TAVILY_API_KEY) {
+            const tavilyUrl = 'https://api.tavily.com/search';
+            const tavilyRes = await fetch(tavilyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.TAVILY_API_KEY}`
+                },
+                body: JSON.stringify({
+                    query: keyword,
+                    max_results: 5,
+                    search_depth: 'basic'
+                })
+            });
+
+            if (tavilyRes.ok) {
+                const tavilyData = await tavilyRes.json();
+                return {
+                    success: true,
+                    type: 'trend',
+                    keyword,
+                    results: tavilyData.results || [],
+                    timestamp: Date.now()
+                };
+            }
+        }
+
+        // 降级方案：返回模拟数据
+        return {
+            success: true,
+            type: 'trend',
+            keyword,
+            degraded: true,
+            message: '建议配置 Tavily API 获取更详细的趋势分析',
+            results: [{
+                title: `${keyword} 趋势分析`,
+                url: `https://www.google.com/search?q=${encodeURIComponent(keyword)}`,
+                content: `请手动搜索 "${keyword}" 获取最新趋势信息`
+            }],
+            timestamp: Date.now()
+        };
+    } catch (error) {
+        console.error('[MiroFish] Trend API error:', error);
+        return { success: false, error: '趋势数据采集失败' };
+    }
+}
+
+/**
+ * 检查用户每日预测配额
+ */
+async function checkMiroFishQuota(userId) {
+    if (!userId) return { allowed: true, used: 0 };
+
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const quotaUrl = `${SUPABASE_URL}/rest/v1/prediction_tasks?user_id=eq.${userId}&created_at=gte.${today}T00:00:00Z&select=count`;
+        const quotaRes = await fetch(quotaUrl, {
+            headers: {
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+            }
+        });
+
+        if (quotaRes.ok) {
+            const result = await quotaRes.json();
+            const used = result[0]?.count || 0;
+            return { allowed: used < 10, used };
+        }
+
+        return { allowed: true, used: 0 };
+    } catch (error) {
+        console.error('[MiroFish] Quota check error:', error);
+        return { allowed: true, used: 0 }; // 失败时允许继续
+    }
+}
+
+/**
+ * 保存预测任务
+ */
+async function saveMiroFishTask(userId, taskType, params, result) {
+    try {
+        const saveUrl = `${SUPABASE_URL}/rest/v1/prediction_tasks`;
+        const saveRes = await fetch(saveUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                task_type: taskType,
+                input_params: params,
+                status: 'completed',
+                result: result
+            })
+        });
+
+        return saveRes.ok;
+    } catch (error) {
+        console.error('[MiroFish] Save task error:', error);
+        return false;
+    }
+}
+
+/**
+ * 获取用户历史预测记录
+ */
+async function getMiroFishHistory(userId, limit = 10) {
+    if (!userId) return [];
+
+    try {
+        const historyUrl = `${SUPABASE_URL}/rest/v1/prediction_tasks?user_id=eq.${userId}&order=created_at.desc&limit=${limit}`;
+        const historyRes = await fetch(historyUrl, {
+            headers: {
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+            }
+        });
+
+        if (historyRes.ok) {
+            return await historyRes.json();
+        }
+
+        return [];
+    } catch (error) {
+        console.error('[MiroFish] Get predictions error:', error);
+        return [];
+    }
 }

@@ -17,6 +17,7 @@ const FILM_COST = {
     'grok-video-3-15s': 12,
     'veo3': 30,
     'veo3.1': 30,
+    'veo3.1-4k': 30,
     'veo3.1-components-4k': 30,
     'veo_3_1-fast-4K': 25,
     'veo_3_1-fast-components-4K': 28,
@@ -665,9 +666,9 @@ async function fetchWithFallback(requestBody, action) {
         // 🆕 允许前端指定格式优先级：api_format = 'openai' | 'unified' | 'auto'
         let formats = API_FORMATS.slice();
         const prefer = String(requestBody.api_format || '').toLowerCase();
-        
-        // 🎬 4个Veo模型默认使用OpenAI格式
-        const veoModels = ['veo3.1-components-4k', 'veo_3_1-fast-4K', 'veo_3_1-fast-components-4K', 'veo_3_1-components-4K'];
+
+        // 🎬 Veo模型默认使用OpenAI格式（包括前端实际使用的模型名）
+        const veoModels = ['veo3', 'veo3.1', 'veo3.1-4k', 'veo3.1-components-4k', 'veo_3_1-fast-4K', 'veo_3_1-fast-components-4K', 'veo_3_1-components-4K'];
         const modelName = String(requestBody.model || '').toLowerCase();
         const isVeoModel = veoModels.some(m => m.toLowerCase() === modelName);
         

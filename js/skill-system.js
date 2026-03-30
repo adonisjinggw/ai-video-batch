@@ -888,7 +888,8 @@
                 video: '视频',
                 image: '图像',
                 content: '内容',
-                automation: '自动化'
+                automation: '自动化',
+                tool: '工具'
             };
 
             return `

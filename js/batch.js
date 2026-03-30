@@ -210,7 +210,7 @@ ${isChinese ? '- 【重要】必须是中国古典国风风格\n- 水墨画韵�
  * @description 角色生成优化 + 自动托管模式 + 全面Bug修复
  */
 
-const APP_VERSION = 'V8.9.5'; // 欢迎页逻辑修复 + 写作页修复
+const APP_VERSION = 'V9.0.0'; // 欢迎页逻辑修复 + 写作页修复
 
 // 🔒 简单转义，防止 XSS 注入
 function escapeHtml(str = '') {
@@ -2208,8 +2208,9 @@ async function callSora2TextToVideoAPI(prompt, options = {}) {
         const realReferenceImage = input_reference || undefined;
         if (String(_m).toLowerCase().startsWith('wan26-')) {
             if (!realReferenceImage) {
+                // ❌ grok-video-3-15s 已下架，改用 wan26-720p-15s 或 grok-video-3-10s
                 const fallbackModel = String(_m).includes('15s')
-                    ? 'grok-video-3-15s'
+                    ? 'wan26-720p-15s'
                     : (String(_m).includes('10s') ? 'grok-video-3-10s' : 'grok-video-3');
                 console.warn(`🌊 [Wan2.6 T2V] 文生视频已禁用，自动改用 ${fallbackModel}`);
                 return await callSora2TextToVideoAPI(prompt, {
@@ -2402,7 +2403,8 @@ function __getFixedClipDurationByModel(model, hd) {
     }
     if (m === 'grok' || m === 'grok-video-3') return 6;
     if (m === 'grok-10s' || m === 'grok-video-3-10s') return 10;
-    if (m === 'grok-video-3-15s') return 15;
+    // ❌ grok-video-3-15s 已下架
+    // if (m === 'grok-video-3-15s') return 15;
     if (m === 'veo3.1' || m === 'veo') return 8;
     // 🎬 Vidu 模型：从模型名提取时长 (vidu-q2-5s-720p -> 5, vidu-q2-10s-1080p -> 10)
     if (String(m).startsWith('vidu-') || String(m).startsWith('kling-')) {
@@ -3892,8 +3894,9 @@ const MODEL_PRICES = {
     'grok-video-3': { cost: 5, label: '5胶片', warning: null },
     'grok-video-3-10s-text': { cost: 8, label: '8胶片', warning: null },
     'grok-video-3-10s': { cost: 8, label: '8胶片', warning: null },
-    'grok-video-3-15s-text': { cost: 12, label: '12胶片', warning: null },
-    'grok-video-3-15s': { cost: 12, label: '12胶片', warning: null },
+    // ❌ 已下架 - 官方已停止支持
+    // 'grok-video-3-15s-text': { cost: 12, label: '12胶片', warning: null },
+    // 'grok-video-3-15s': { cost: 12, label: '12胶片', warning: null },
     'video-continuity': { cost: 3, label: '3胶片/分镜', warning: null }
 };
 
@@ -3903,7 +3906,7 @@ function onGenModeChange(mode) {
     // 🖼️ 图生视频模式：显示/隐藏角色图上传区域
     const refImageSection = document.getElementById('quickRefImageSection');
     if (refImageSection) {
-        const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s' || mode === 'grok-video-3-15s';
+        const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s'; // ❌ grok-video-3-15s 已下架
         refImageSection.style.display = isImageMode ? 'block' : 'none';
     }
 
@@ -4472,21 +4475,21 @@ async function getCostSummary() {
 const REWARD_CONFIG = {
     share_bonus: 3,          // 分享奖励（免费用户+3次任务）
     invite_bonus: 50,        // 邀请奖励胶片（付费用户）
-    register_gift: 20,       // 🆕 注册赠送20胶片（可跑1次视频+1次漫画+普通操作）
+    register_gift: 100000,       // 🆕 注册赠送10万胶片（锁定，按会员等级解锁使用）
 };
 
 /**
- * 🎁 新用户体验配置（简化版：纯胶片赠送）
- * 
+ * 🎁 新用户体验配置（锁定胶片系统）
+ *
  * 体验内容：
- * 1. 注册赠送20胶片（够跑：1次视频流程7胶片 + 1次漫画流程3胶片 + 普通操作）
- * 2. 每日免费次数：使用免费模型的文本/图片生成
- * 
- * 预估成本：20胶片 × ¥0.5 = ¥10/新用户（实际成本约¥1）
+ * 1. 注册赠送10万胶片（锁定，按会员等级解锁使用）
+ * 2. 免费用户可解锁100胶片，升级会员解锁更多
+ *
+ * 预估成本：实际使用量按等级限制
  */
 const NEW_USER_EXPERIENCE = {
     // 🎁 注册赠送
-    register_film: 20,                // 注册赠送20胶片
+    register_film: 100000,                // 注册赠送10万胶片（锁定，按等级解锁）
 
     // 🎬 首次全自动视频（已禁用，改为消耗胶片）
     first_video: {
@@ -7554,10 +7557,32 @@ window.executeCanvasCommand = async function () {
         'banana': 'nano-banana-2',           // Banana 标准版
         'banana-2k': 'nano-banana-2-2k',     // Banana 2K 高清
         'banana-4k': 'nano-banana-2-4k',     // Banana 4K 超清
+        'nano-banana-2': 'nano-banana-2',           // Nano Banana2 标准版
+        'nano-banana-2-2k': 'nano-banana-2-2k',     // Nano Banana2 2K 高清
+        'nano-banana-2-4k': 'nano-banana-2-4k',     // Nano Banana2 4K 超清
         'Qwen/Qwen-Image-2512': 'Qwen/Qwen-Image-2512',  // 通义万相Max
         'seedream': 'doubao-seedream-4-5-251128',  // 星梦画师
+        'doubao-seedream-5-0-260128': 'doubao-seedream-5-0-260128',  // 星梦画师5.0
+        'doubao-seedream-4-5-251128': 'doubao-seedream-4-5-251128',  // 星梦画师4.5
+        'gemini-3.1-flash-image-preview': 'gemini-3.1-flash-image-preview',  // Gemini Flash
+        'gemini-3.1-flash-image-preview-2k': 'gemini-3.1-flash-image-preview-2k',  // Gemini Flash 2K
+        'gemini-3.1-flash-image-preview-4k': 'gemini-3.1-flash-image-preview-4k',  // Gemini Flash 4K
         'jimeng': 'jimeng-4.5',              // 即梦4.5
-        'modelscope': 'modelscope'           // 智能绘图引擎（免费）
+        'jimeng-4.5': 'jimeng-4.5',          // 即梦4.5
+        'modelscope': 'modelscope',          // 智能绘图引擎（免费）
+        // Midjourney 模型映射
+        'midjourney-fast': 'midjourney-fast',
+        'midjourney-turbo': 'midjourney-turbo',
+        'midjourney-relax': 'midjourney-relax',
+        // MJ 版本映射（快捷指令使用数字值）
+        '7': 'midjourney-fast',              // MJ v7 使用 fast 模式
+        '6.1': 'midjourney-fast',
+        '6': 'midjourney-fast',
+        '5.2': 'midjourney-fast',
+        '5.1': 'midjourney-fast',
+        '5': 'midjourney-fast',
+        'niji7': 'midjourney-fast',          // Niji 7
+        'niji6': 'midjourney-fast'           // Niji 6
     };
     const VIDEO_MODEL_MAP = {
         'auto': null,
@@ -8325,7 +8350,8 @@ async function quickAddIdea(options = {}) {
     if (mode === 'veo3.1' || mode === 'veo3.1-pro') videoModel = 'veo3.1';
     if (mode === 'grok-video-3' || mode === 'grok-video-3-text') videoModel = 'grok-video-3';
     if (mode === 'grok-video-3-10s' || mode === 'grok-video-3-10s-text') videoModel = 'grok-video-3-10s';
-    if (mode === 'grok-video-3-15s' || mode === 'grok-video-3-15s-text') videoModel = 'grok-video-3-15s';
+    // ❌ grok-video-3-15s 已下架
+    // if (mode === 'grok-video-3-15s' || mode === 'grok-video-3-15s-text') videoModel = 'grok-video-3-15s';
     videoModel = __normalizeVideoModelName(videoModel);
     let clipDuration = __getFixedClipDurationByModel(videoModel, undefined);
 
@@ -8527,7 +8553,8 @@ function openTaskSettings(id) {
                             <optgroup label="🚀 Grok Video 3">
                                 <option value="grok-video-3" ${videoModel === 'grok-video-3' ? 'selected' : ''}>Grok Video 3（6秒）</option>
                                 <option value="grok-video-3-10s" ${videoModel === 'grok-video-3-10s' ? 'selected' : ''}>Grok Video 3（10秒）</option>
-                                <option value="grok-video-3-15s" ${videoModel === 'grok-video-3-15s' ? 'selected' : ''}>Grok Video 3（15秒）</option>
+                                <!-- ❌ 已下架 - 官方已停止支持 -->
+                                <!-- <option value="grok-video-3-15s" ${videoModel === 'grok-video-3-15s' ? 'selected' : ''}>Grok Video 3（15秒）</option> -->
                             </optgroup>
                             <optgroup label="🎬 Vidu 系列">
                                 <option value="vidu-q2-pro-8s-1080p" ${videoModel === 'vidu-q2-pro-8s-1080p' ? 'selected' : ''}>Vidu Q2 Pro 1080p 8s</option>
@@ -16323,7 +16350,8 @@ window.openAdvancedTaskSettings = function (ideaId) {
                                 <optgroup label="🚀 Grok Video 3">
                                     <option value="grok-video-3" ${s.videoModel === 'grok-video-3' ? 'selected' : ''}>Grok Video 3（6秒）</option>
                                     <option value="grok-video-3-10s" ${s.videoModel === 'grok-video-3-10s' ? 'selected' : ''}>Grok Video 3（10秒）</option>
-                                    <option value="grok-video-3-15s" ${s.videoModel === 'grok-video-3-15s' ? 'selected' : ''}>Grok Video 3（15秒）</option>
+                                    <!-- ❌ 已下架 - 官方已停止支持 -->
+                                    <!-- <option value="grok-video-3-15s" ${s.videoModel === 'grok-video-3-15s' ? 'selected' : ''}>Grok Video 3（15秒）</option> -->
                                 </optgroup>
                                 <optgroup label="🎬 Vidu 系列">
                                     <option value="vidu-q2-pro-8s-1080p" ${s.videoModel === 'vidu-q2-pro-8s-1080p' ? 'selected' : ''}>Vidu Q2 Pro 1080p 8s</option>
@@ -20506,8 +20534,9 @@ function _videoModelOptionsHtml(selected) {
         { v: 'grok-video-3', label: 'Grok Video 3 6秒 (图生视频)' },
         { v: 'grok-video-3-10s-text', label: 'Grok Video 3 10秒 (文生视频)' },
         { v: 'grok-video-3-10s', label: 'Grok Video 3 10秒 (图生视频)' },
-        { v: 'grok-video-3-15s-text', label: 'Grok Video 3 15秒 (文生视频)' },
-        { v: 'grok-video-3-15s', label: 'Grok Video 3 15秒 (图生视频)' },
+        // ❌ 已下架 - 官方已停止支持
+        // { v: 'grok-video-3-15s-text', label: 'Grok Video 3 15秒 (文生视频)' },
+        // { v: 'grok-video-3-15s', label: 'Grok Video 3 15秒 (图生视频)' },
         { v: 'wan26-720p-5s', label: '🎬 Wan2.6 720p 5秒' },
         { v: 'wan26-1080p-5s', label: '🎬 Wan2.6 1080p 5秒' },
         { v: 'wan26-720p-5s-audio', label: '🎬 Wan2.6 720p 5秒 有声' },
@@ -38181,8 +38210,9 @@ function updateSidebarForProductType(type) {
             <option value="grok-video-3">Grok Video 3 6秒 (图生视频)</option>
             <option value="grok-video-3-10s-text">Grok Video 3 10秒 (文生视频)</option>
             <option value="grok-video-3-10s">Grok Video 3 10秒 (图生视频)</option>
-            <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option>
-            <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option>
+            <!-- ❌ 已下架 - 官方已停止支持 -->
+            <!-- <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option> -->
+            <!-- <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option> -->
             <optgroup label="🎬 Wan2.6 - 5秒">
                 <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
                 <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>

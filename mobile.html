@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V8.12.0</title>
+    <title>RollRoll 移动版 V9.2.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -45,6 +45,9 @@
     <script src="/js/skill-system.js?v=20260225d&t=20260315b"></script>
     <script src="/js/skill-presets.js?v=20260315a&t=20260315b"></script>
     <script src="/js/mv-merge.js?v=20260306a&t=20260315b"></script>
+    <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
+    <script src="/js/assistant-xj2.js?v=20260331a"></script>
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=20260331a">
     <style>
         * {
             margin: 0;
@@ -2675,8 +2678,10 @@
                 <!-- 填空输入区域 -->
                 <div id="fillBlanksContainer" style="margin-top:10px;"></div>
                 <!-- 模板预览 -->
-                <div id="fillPreview"
-                    style="display:none; margin-top:10px; padding:12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; font-size:13px; color:#a78bfa; white-space:pre-wrap; word-break:break-word;">
+                <div id="fillPreview" onclick="copyFillPreviewText()"
+                    style="display:none; margin-top:10px; padding:12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; font-size:13px; color:#a78bfa; white-space:pre-wrap; word-break:break-word; cursor:pointer; position:relative;"
+                    title="点击复制提示词">
+                    <span style="position:absolute;top:8px;right:10px;font-size:11px;color:rgba(167,139,250,0.5);">📋 点击复制</span>
                 </div>
 
                 <!-- 🎤 台词输入（可选） -->
@@ -2784,8 +2789,9 @@
                         <option value="grok-video-3">Grok Video 3 6秒 (图生视频)</option>
                         <option value="grok-video-3-10s-text">Grok Video 3 10秒 (文生视频)</option>
                         <option value="grok-video-3-10s">Grok Video 3 10秒 (图生视频)</option>
-                        <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option>
-                        <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option>
+                        <!-- ❌ 已下架 - 官方已停止支持 -->
+                        <!-- <option value="grok-video-3-15s-text">Grok Video 3 15秒 (文生视频)</option> -->
+                        <!-- <option value="grok-video-3-15s">Grok Video 3 15秒 (图生视频)</option> -->
                         <optgroup label="🎬 Wan2.6 - 5秒">
                             <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
                             <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
@@ -3162,6 +3168,73 @@
         </a>
     </nav>
 
+    <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
+    <div class="xj2-container" id="xj2Container">
+        <!-- 主面板 -->
+        <div class="xj2-panel" id="xj2Panel">
+            <!-- 头部 -->
+            <div class="xj2-panel-header">
+                <span class="xj2-panel-title">小卷助手 V2</span>
+                <button class="xj2-panel-close" id="xj2PanelClose">&times;</button>
+            </div>
+
+            <!-- 预测快捷入口 -->
+            <div class="xj2-quick-prediction">
+                <div class="xj2-quick-prediction-title">🐟 群体智能预测</div>
+                <div class="xj2-prediction-cards" id="xj2PredictionCards">
+                    <!-- 由 JS 动态生成 -->
+                </div>
+            </div>
+
+            <!-- 消息区域 -->
+            <div class="xj2-messages" id="xj2Messages">
+                <div class="xj2-message assistant">
+                    👋 你好！我是小卷助手 V2。有什么我可以帮你的吗？
+                </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="xj2-input-area">
+                <input type="text" class="xj2-input" id="xj2Input" placeholder="输入消息...">
+                <button class="xj2-btn xj2-btn-voice" id="xj2VoiceBtn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                </button>
+                <button class="xj2-btn xj2-btn-send" id="xj2SendBtn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 头像按钮 -->
+        <div class="xj2-avatar-btn" id="xj2AvatarBtn">
+            <div class="xj2-avatar-inner">
+                <svg viewBox="0 0 100 100" width="100%" height="100%">
+                    <!-- 头部 -->
+                    <circle cx="50" cy="30" r="18" fill="white"/>
+                    <!-- 身体 -->
+                    <ellipse cx="50" cy="75" rx="25" ry="22" fill="white"/>
+                    <!-- 眼睛 -->
+                    <circle cx="43" cy="28" r="3" fill="#333"/>
+                    <circle cx="57" cy="28" r="3" fill="#333"/>
+                    <!-- 嘴巴 -->
+                    <path d="M 43 35 Q 50 40 57 35" stroke="#333" stroke-width="2" fill="none"/>
+                    <!-- 腮红 -->
+                    <ellipse cx="38" cy="34" rx="4" ry="2" fill="#ffb3ba" opacity="0.6"/>
+                    <ellipse cx="62" cy="34" rx="4" ry="2" fill="#ffb3ba" opacity="0.6"/>
+                </svg>
+            </div>
+            <div class="xj2-status" id="xj2Status"></div>
+        </div>
+    </div>
+
     <!-- 加载状态 -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
@@ -3192,6 +3265,7 @@
                     内容</button>
                 <button class="skill-cat-btn" data-cat="automation" onclick="mobileSkillSetCategory('automation')">⚙️
                     自动化</button>
+                <button class="skill-cat-btn" data-cat="prediction" onclick="mobileSkillSetCategory('prediction')">🔮 预测</button>
                 <button class="skill-cat-btn" data-cat="history" onclick="mobileSkillShowHistory()"
                     style="margin-left:auto;">📂 历史</button>
             </div>
@@ -3721,6 +3795,18 @@
             updateThemeFromBlanks();
         }
 
+        // 📋 点击复制填空预览提示词
+        function copyFillPreviewText() {
+            const el = document.getElementById('fillPreview');
+            if (el && el.textContent && el.style.display !== 'none') {
+                navigator.clipboard.writeText(el.textContent).then(() => {
+                    showToast('✅ 提示词已复制到剪贴板', 2000);
+                }).catch(() => {
+                    showToast('复制失败，请手动选择复制', 2000);
+                });
+            }
+        }
+
         function updateThemeFromBlanks() {
             if (!fillCurrentKey) return;
             const tpl = fillTemplates[fillCurrentKey]?.template || '';
@@ -4172,6 +4258,9 @@
             userQuota = 0;
             updateQuotaDisplay(null); // 显示 "--"
 
+            // 隐藏小卷助手
+            setAssistantVisible(false);
+
             // 隐藏胶片显示区域
             const quotaDisplayEl = document.getElementById('quotaDisplay');
             if (quotaDisplayEl) {
@@ -4248,11 +4337,15 @@
                         }
                         // 🔧 修复：同时处理 INITIAL_SESSION（Supabase v2 首次订阅时触发）
                         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
+                            // 🛡️ 防御：欢迎页时不处理助手显示
+                            const urlParams3 = new URLSearchParams(window.location.search);
+                            const isWelcomePage = !urlParams3.has('logged_in') && !urlParams3.has('skip_welcome');
                             const u = session?.user;
-                            if (u) {
+                            if (u && !isWelcomePage) {
                                 console.log('[mobile] 监听器检测到登录:', u.email, 'event:', event);
                                 isLoggedIn = true;
                                 await loadUserProfile(u);
+                                setAssistantVisible(true); // 登录后显示助手
                             } else if (event !== 'INITIAL_SESSION') {
                                 // session.user 可能不同步，兆底再取一次（INITIAL_SESSION 无session时不需要兆底）
                                 try {
@@ -4369,6 +4462,9 @@
                     onGenModeChange(sel.value);
                 }
             } catch (e) { }
+
+            // 12. 🤖 初始化小卷助手
+            initAssistant();
 
             console.log('[mobile] 初始化完成，isLoggedIn:', isLoggedIn, 'userQuota:', userQuota);
         });
@@ -4940,6 +5036,294 @@
             showToast('下载完成!');
         }
 
+        // ==================== 🤖 小卷助手 ====================
+        let assistantPanelOpen = false;
+        let isRecordingVoice = false;
+
+        // 显示/隐藏助手容器
+        async function setAssistantVisible(visible) {
+            // 如果要显示，先验证用户是否真正登录
+            if (visible) {
+                try {
+                    const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
+                    if (!session?.user) {
+                        console.log('[小助手 V2] 用户未登录，不显示助手');
+                        return; // 未登录，不显示
+                    }
+                } catch (e) {
+                    console.warn('[小助手 V2] 检查登录状态失败:', e);
+                    return;
+                }
+            }
+
+            // XJ2 助手使用 CSS 控制显示，无需操作 visibility/opacity
+            const container = document.getElementById('xj2Container');
+            if (container) {
+                if (visible) {
+                    container.style.display = 'block';
+                } else {
+                    container.style.display = 'none';
+                }
+            }
+        }
+
+        async function initAssistant() {
+            try {
+                // 检查用户是否登录（更严格的检查：验证 session 是否有效）
+                let actuallyLoggedIn = false;
+                if (isLoggedIn && __mobileSupabaseClient) {
+                    try {
+                        const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
+                        actuallyLoggedIn = !!session?.user;
+                    } catch (e) {
+                        actuallyLoggedIn = false;
+                    }
+                }
+
+                // 只有真正登录时才显示助手
+                if (actuallyLoggedIn) {
+                    setAssistantVisible(true);
+                }
+
+                console.log('[小助手 V2] 初始化完成，actuallyLoggedIn:', actuallyLoggedIn);
+            } catch (e) {
+                console.warn('[小助手 V2] 初始化失败:', e);
+            }
+        }
+
+        function toggleAssistantPanel() {
+            const panel = document.getElementById('assistantPanel');
+            const bubbles = document.getElementById('assistantBubbles');
+
+            assistantPanelOpen = !assistantPanelOpen;
+
+            if (assistantPanelOpen) {
+                panel.classList.add('active');
+                bubbles.classList.remove('active');
+            } else {
+                panel.classList.remove('active');
+            }
+        }
+
+        function quickAction(action) {
+            switch(action) {
+                case 'prediction':
+                    // 打开技能面板并定位到预测技能
+                    openSkillPanel();
+                    setTimeout(() => {
+                        mobileSkillSetCategory('prediction');
+                    }, 100);
+                    break;
+                case 'history':
+                    // 显示记忆历史
+                    showMemoryHistory();
+                    break;
+                case 'clear':
+                    // 清空对话
+                    const panelContent = document.getElementById('assistantPanelContent');
+                    panelContent.innerHTML = '<div class="assistant-bubble assistant">对话已清空</div>';
+                    break;
+            }
+        }
+
+        function showMemoryHistory() {
+            if (!window.AssistantMemory) {
+                addAssistantBubble('assistant', '记忆系统暂不可用');
+                return;
+            }
+
+            const memories = window.AssistantMemory.getByType('preference');
+            if (memories.length === 0) {
+                addAssistantBubble('assistant', '暂无记忆记录');
+                return;
+            }
+
+            let memoryText = '📋 你的偏好记忆:\n';
+            memories.forEach(m => {
+                memoryText += `• ${m.key}: ${m.value}\n`;
+            });
+            addAssistantBubble('assistant', memoryText);
+        }
+
+        async function sendAssistantMessage() {
+            const input = document.getElementById('assistantInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // 添加用户消息气泡
+            addAssistantBubble('user', message);
+            input.value = '';
+
+            // 显示正在输入状态
+            if (window.AssistantAiri) {
+                window.AssistantAiri.setStatus('thinking');
+            }
+
+            // 显示正在输入
+            const typingId = showTypingIndicator();
+
+            // 简单回复逻辑
+            setTimeout(() => {
+                removeTypingIndicator(typingId);
+
+                // 记忆用户偏好
+                if (window.AssistantMemory) {
+                    window.AssistantMemory.setPreference('last_topic', message);
+                }
+
+                // 根据关键词回复（带情绪）
+                let response = '';
+                let emotion = 'neutral';
+
+                if (message.includes('预测') || message.includes('miro')) {
+                    response = '🔮 我可以帮你进行群体智能预测！点击下方"预测"按钮进入预测页面。';
+                    emotion = 'happy';
+                } else if (message.includes('记忆') || message.includes('历史')) {
+                    response = '📋 我会记住你的使用偏好，让你下次使用更方便！';
+                    emotion = 'happy';
+                } else if (message.includes('帮助') || message.includes('help')) {
+                    response = '💡 我可以帮你:\n• 进行群体智能预测\n• 记住你的使用偏好\n• 语音对话(点击麦克风图标)';
+                    emotion = 'happy';
+                } else {
+                    response = '我收到了：' + message + '\n\n💡 我会记住你的偏好，让你下次使用更方便！';
+                    emotion = 'neutral';
+                }
+
+                addAssistantBubble('assistant', response, { emotion });
+
+                // 恢复状态
+                if (window.AssistantAiri) {
+                    window.AssistantAiri.setStatus('idle');
+                }
+            }, 500);
+        }
+
+        function addAssistantBubble(type, content, options = {}) {
+            const bubblesContainer = document.getElementById('assistantBubbles');
+            const panelContent = document.getElementById('assistantPanelContent');
+
+            const bubble = document.createElement('div');
+            bubble.className = `assistant-bubble ${type}`;
+            bubble.textContent = content;
+
+            if (!assistantPanelOpen) {
+                bubblesContainer.appendChild(bubble);
+                bubblesContainer.classList.add('active');
+                // 3秒后自动隐藏气泡
+                setTimeout(() => {
+                    bubblesContainer.classList.remove('active');
+                    setTimeout(() => bubblesContainer.innerHTML = '', 300);
+                }, 3000);
+            }
+
+            panelContent.appendChild(bubble);
+            panelContent.scrollTop = panelContent.scrollHeight;
+
+            // AIRI 增强：如果是助手的回复，显示浮动气泡和情绪
+            if (type === 'assistant' && window.AssistantAiri && window.AssistantAiri.isActive) {
+                const emotion = options.emotion || detectEmotion(content);
+                window.AssistantAiri.showDialogue(content, { emotion, duration: 4000 });
+            }
+        }
+
+        /**
+         * 检测消息中的情绪（预留）
+         */
+        function detectEmotion(text) {
+            if (!text) return 'neutral';
+
+            const lowerText = text.toLowerCase();
+
+            if (lowerText.includes('🔮') || lowerText.includes('预测') || lowerText.includes('神奇')) {
+                return 'happy';
+            }
+            if (lowerText.includes('❌') || lowerText.includes('失败') || lowerText.includes('抱歉')) {
+                return 'sad';
+            }
+            if (lowerText.includes('⚠️') || lowerText.includes('注意')) {
+                return 'surprised';
+            }
+
+            return 'neutral';
+        }
+
+        function showTypingIndicator() {
+            const panelContent = document.getElementById('assistantPanelContent');
+            const typing = document.createElement('div');
+            typing.className = 'assistant-typing';
+            typing.id = 'typing-' + Date.now();
+            typing.innerHTML = `
+                <div class="assistant-typing-dot"></div>
+                <div class="assistant-typing-dot"></div>
+                <div class="assistant-typing-dot"></div>
+            `;
+            panelContent.appendChild(typing);
+            panelContent.scrollTop = panelContent.scrollHeight;
+            return typing.id;
+        }
+
+        function removeTypingIndicator(id) {
+            const element = document.getElementById(id);
+            if (element) element.remove();
+        }
+
+        async function toggleVoiceRecording() {
+            const btn = document.getElementById('assistantVoiceBtn');
+            const status = document.getElementById('assistantStatus');
+
+            if (!isRecordingVoice) {
+                // 开始录音
+                if (window.AssistantVoice) {
+                    const hasPermission = await window.AssistantVoice.checkMicrophonePermission();
+                    if (!hasPermission) {
+                        const granted = await window.AssistantVoice.requestMicrophonePermission();
+                        if (!granted) {
+                            showToast('请允许麦克风权限');
+                            return;
+                        }
+                    }
+
+                    btn.classList.add('recording');
+                    status.classList.add('listening');
+                    isRecordingVoice = true;
+                    showToast('正在录音...');
+
+                    // AIRI 增强：设置监听状态
+                    if (window.AssistantAiri) {
+                        window.AssistantAiri.setStatus('speaking');
+                    }
+
+                    // 开始语音识别
+                    try {
+                        const text = await window.AssistantVoice.listen();
+                        document.getElementById('assistantInput').value = text;
+                        if (text) sendAssistantMessage();
+                    } catch (e) {
+                        showToast('语音识别失败: ' + e.message);
+                    }
+
+                    // AIRI 增强：恢复状态
+                    if (window.AssistantAiri) {
+                        window.AssistantAiri.setStatus('idle');
+                    }
+                }
+            } else {
+                // 停止录音
+                if (window.AssistantVoice) {
+                    window.AssistantVoice.stopRecording();
+                }
+                btn.classList.remove('recording');
+                status.classList.remove('listening');
+                isRecordingVoice = false;
+
+                // AIRI 增强：恢复状态
+                if (window.AssistantAiri) {
+                    window.AssistantAiri.setStatus('idle');
+                }
+            }
+        }
+
         // ==================== 手势操作 ====================
         let contextMenuTargetId = null;
         let pullStartY = 0;
@@ -5357,7 +5741,8 @@
             } else {
                 if (videoOptions) videoOptions.style.display = 'none';
                 if (comicOptions) comicOptions.style.display = 'block';
-                if (imageUpload) imageUpload.style.display = 'none';
+                // 漫画模式也需要参考图上传（generateComic 已支持参考图）
+                if (imageUpload) imageUpload.style.display = 'block';
             }
         }
 
@@ -5426,9 +5811,10 @@
 
             const imageUploadSection = document.getElementById('imageUploadSection');
             if (imageUploadSection) {
-                // 🔧 修复：添加 banana-grid-to-video（网格图多镜头）模式支持
+                // 🔧 修复：漫画模式始终显示上传区域；视频模式按 genMode 类型决定
+                const isComicMode = currentMode === 'comic';
                 const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s' || mode === 'grok-video-3-15s' || mode === 'banana-grid-to-video';
-                imageUploadSection.style.display = isImageMode ? 'block' : 'none';
+                imageUploadSection.style.display = isComicMode ? 'block' : (isImageMode ? 'block' : 'none');
             }
 
             // 💰 显示价格提示
@@ -8326,8 +8712,9 @@ ${idea.theme}${characterPrompt}
                     panelPrompt = `manga panel, ${stylePrompt}, ${panel.description}${characterImagePrompt}, ${idea.theme}, detailed`;
                 }
 
-                // 🎨 传入角色参考图（如果有）
-                const result = await generateImageWithModel(panelPrompt, comicModel, '1:1', idea.userId, 3, characterRefImage);
+                // 🎨 传入参考图：优先用角色参考图，其次用上传的参考图（非MJ模型支持图生图）
+                const comicRefImage = characterRefImage || (!isMidjourney && i2vImageDataList[0]) || null;
+                const result = await generateImageWithModel(panelPrompt, comicModel, '1:1', idea.userId, 3, comicRefImage);
 
                 // 🔧 确保获取正确的图片URL（MJ已在generateImageWithModel中处理选择）
                 let imgUrl = result.url;
@@ -8354,8 +8741,9 @@ ${idea.theme}${characterPrompt}
                 coverPrompt = `comic book cover${characterImagePrompt}, ${idea.theme}, ${stylePrompt}, vibrant colors, professional`;
             }
 
-            // 🎨 传入角色参考图（如果有）
-            const coverResult = await generateImageWithModel(coverPrompt, comicModel, '3:4', idea.userId, 3, characterRefImage);
+            // 🎨 传入参考图：优先用角色参考图，其次用上传的参考图（非MJ模型支持图生图）
+            const coverRefImage = characterRefImage || (!isMidjourney && i2vImageDataList[0]) || null;
+            const coverResult = await generateImageWithModel(coverPrompt, comicModel, '3:4', idea.userId, 3, coverRefImage);
 
             // 🔧 封面URL（MJ已在generateImageWithModel中处理选择）
             let coverUrl = coverResult.url;
@@ -11142,6 +11530,20 @@ ${idea.theme}${characterPrompt}
                 return;
             }
 
+            // 🔮 预测分类：使用 miro_prediction 技能（内联执行，不跳转页面）
+            if (_mobileSkillCat === 'prediction') {
+                // 直接显示 miro_prediction 技能卡片，点击后打开参数配置
+                grid.innerHTML = `
+                    <div class="skill-card-m" onclick="mobileSkillOpen('miro_prediction')">
+                        <div class="skill-card-m-icon">🐟</div>
+                        <div class="skill-card-m-name">MiroFish 群体智能预测</div>
+                        <div class="skill-card-m-desc">多 AI 智能体协作，LLM 驱动预测分析</div>
+                        <span class="skill-card-m-tag">🔮 预测</span>
+                    </div>
+                `;
+                return;
+            }
+
             if (typeof SkillManager === 'undefined') {
                 console.warn('[mobile] SkillManager 未定义');
                 return;
@@ -11151,7 +11553,7 @@ ${idea.theme}${characterPrompt}
             const favorites = SkillManager.getFavorites();
             skills.sort((a, b) => (favorites.includes(a.id) ? 0 : 1) - (favorites.includes(b.id) ? 0 : 1));
 
-            const catLabels = { video: '🎬 视频', image: '🖼️ 图像', content: '✍️ 内容', automation: '⚙️ 自动化', audio: '🍜 音频', design: '🎨 设计', tool: '🔧 工具' };
+            const catLabels = { video: '🎬 视频', image: '🖼️ 图像', content: '✍️ 内容', automation: '⚙️ 自动化', audio: '🍜 音频', design: '🎨 设计', tool: '🔧 工具', prediction: '🔮 预测' };
 
             if (skills.length === 0) {
                 grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:40px 0;color:#666;">🔍 未找到匹配的技能</div>';
@@ -14674,6 +15076,13 @@ ${story}
                     __mobileSupabaseClient.auth.onAuthStateChange(async (event, session) => {
                         console.log('🎬 认证状态变化:', event);
                         if (event === 'SIGNED_IN' && session?.user) {
+                            // 🛡️ 防御：欢迎页时不创建小卷（欢迎页不需要助手）
+                            const urlParams2 = new URLSearchParams(window.location.search);
+                            const isWelcome = !urlParams2.has('logged_in') && !urlParams2.has('skip_welcome');
+                            if (isWelcome) {
+                                console.log('🎬 欢迎页期间收到 SIGNED_IN，忽略');
+                                return;
+                            }
                             // 登录后延迟创建，等待页面跳转和主内容区显示
                             console.log('🎬 登录成功，延迟创建小卷');
                             setTimeout(() => window._createRollRoll(), 2000);
