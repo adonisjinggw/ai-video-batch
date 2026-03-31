@@ -3186,6 +3186,15 @@
                 </div>
             </div>
 
+            <!-- 快捷功能按钮 -->
+            <div style="display:flex;gap:8px;padding:8px 12px;flex-wrap:wrap;">
+                <button onclick="xj2QuickAction('video')" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">🎬 视频</button>
+                <button onclick="xj2QuickAction('image')" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">🎨 图片</button>
+                <button onclick="xj2QuickAction('writing')" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">✍️ 文案</button>
+                <button onclick="xj2QuickAction('search')" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">🔍 搜索</button>
+                <button onclick="window.location.href='chat.html'" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">💬 完整对话</button>
+            </div>
+
             <!-- 消息区域 -->
             <div class="xj2-messages" id="xj2Messages">
                 <div class="xj2-message assistant">
@@ -5086,20 +5095,50 @@
                 }
 
                 console.log('[小助手 V2] 初始化完成，actuallyLoggedIn:', actuallyLoggedIn);
+
+                // 绑定 XJ2 按钮事件
+                const avatarBtn = document.getElementById('xj2AvatarBtn');
+                const sendBtn = document.getElementById('xj2SendBtn');
+                const voiceBtn = document.getElementById('xj2VoiceBtn');
+                const closeBtn = document.getElementById('xj2PanelClose');
+                const inputEl = document.getElementById('xj2Input');
+
+                if (avatarBtn) avatarBtn.addEventListener('click', toggleAssistantPanel);
+                if (sendBtn) sendBtn.addEventListener('click', sendAssistantMessage);
+                if (voiceBtn) voiceBtn.addEventListener('click', toggleVoiceRecording);
+                if (closeBtn) closeBtn.addEventListener('click', () => {
+                    assistantPanelOpen = true;
+                    toggleAssistantPanel();
+                });
+                if (inputEl) inputEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') sendAssistantMessage();
+                });
+
+                // 监听认证状态变化
+                if (__mobileSupabaseClient) {
+                    __mobileSupabaseClient.auth.onAuthStateChange((event, session) => {
+                        if (event === 'SIGNED_IN' && session?.user) {
+                            const urlParams2 = new URLSearchParams(window.location.search);
+                            const isWelcome = !urlParams2.has('logged_in') && !urlParams2.has('skip_welcome');
+                            if (!isWelcome) setAssistantVisible(true);
+                        } else if (event === 'SIGNED_OUT') {
+                            setAssistantVisible(false);
+                        }
+                    });
+                }
             } catch (e) {
                 console.warn('[小助手 V2] 初始化失败:', e);
             }
         }
 
         function toggleAssistantPanel() {
-            const panel = document.getElementById('assistantPanel');
-            const bubbles = document.getElementById('assistantBubbles');
+            const panel = document.getElementById('xj2Panel');
+            if (!panel) return;
 
             assistantPanelOpen = !assistantPanelOpen;
 
             if (assistantPanelOpen) {
                 panel.classList.add('active');
-                bubbles.classList.remove('active');
             } else {
                 panel.classList.remove('active');
             }
@@ -5120,10 +5159,27 @@
                     break;
                 case 'clear':
                     // 清空对话
-                    const panelContent = document.getElementById('assistantPanelContent');
-                    panelContent.innerHTML = '<div class="assistant-bubble assistant">对话已清空</div>';
+                    const panelContent = document.getElementById('xj2Messages');
+                    if (panelContent) panelContent.innerHTML = '<div class="xj2-message assistant">对话已清空 ✨</div>';
                     break;
             }
+        }
+
+        function xj2QuickAction(action) {
+            const prompts = {
+                video: '帮我生成一个视频，主题是：',
+                image: '帮我画一张图，内容是：',
+                writing: '帮我写一篇文案，关于：',
+                search: '搜索：'
+            };
+            const input = document.getElementById('xj2Input');
+            if (input) {
+                input.value = prompts[action] || '';
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+            // 打开面板
+            if (!assistantPanelOpen) toggleAssistantPanel();
         }
 
         function showMemoryHistory() {
@@ -5146,7 +5202,7 @@
         }
 
         async function sendAssistantMessage() {
-            const input = document.getElementById('assistantInput');
+            const input = document.getElementById('xj2Input');
             const message = input.value.trim();
 
             if (!message) return;
@@ -5154,71 +5210,108 @@
             // 添加用户消息气泡
             addAssistantBubble('user', message);
             input.value = '';
+            input.disabled = true;
 
             // 显示正在输入状态
-            if (window.AssistantAiri) {
-                window.AssistantAiri.setStatus('thinking');
-            }
-
-            // 显示正在输入
+            if (window.AssistantAiri) window.AssistantAiri.setStatus('thinking');
             const typingId = showTypingIndicator();
 
-            // 简单回复逻辑
-            setTimeout(() => {
-                removeTypingIndicator(typingId);
+            // 记忆用户偏好
+            if (window.AssistantMemory) window.AssistantMemory.setPreference('last_topic', message);
 
-                // 记忆用户偏好
-                if (window.AssistantMemory) {
-                    window.AssistantMemory.setPreference('last_topic', message);
-                }
+            // 意图识别
+            let intent = 'chat';
+            const selectedIntentLocal = typeof selectedIntent !== 'undefined' ? selectedIntent : null;
+            if (selectedIntentLocal) {
+                intent = selectedIntentLocal;
+            } else {
+                if (/搜索|查询|找.*资料|帮我找|最新|新闻/i.test(message)) intent = 'search';
+                else if (/视频|短视频|生成视频|制作视频|分镜|video/i.test(message)) intent = 'video';
+                else if (/^(画|生成图片|作图|帮我画|画一张|画个|帮我生成|生成.*图|画.*图)/i.test(message)) intent = 'image';
+                else if (/文案|写.*文章|写.*脚本|写.*剧本|帮我写|创作|故事|写.*文案/i.test(message)) intent = 'writing';
+                else if (/预测|miro/i.test(message)) intent = 'prediction';
+            }
 
-                // 根据关键词回复（带情绪）
-                let response = '';
-                let emotion = 'neutral';
-
-                if (message.includes('预测') || message.includes('miro')) {
-                    response = '🔮 我可以帮你进行群体智能预测！点击下方"预测"按钮进入预测页面。';
-                    emotion = 'happy';
-                } else if (message.includes('记忆') || message.includes('历史')) {
-                    response = '📋 我会记住你的使用偏好，让你下次使用更方便！';
-                    emotion = 'happy';
-                } else if (message.includes('帮助') || message.includes('help')) {
-                    response = '💡 我可以帮你:\n• 进行群体智能预测\n• 记住你的使用偏好\n• 语音对话(点击麦克风图标)';
-                    emotion = 'happy';
+            try {
+                if (intent === 'prediction') {
+                    removeTypingIndicator(typingId);
+                    addAssistantBubble('assistant', '🔮 正在打开预测面板...', { emotion: 'happy' });
+                    openSkillPanel();
+                    setTimeout(() => mobileSkillSetCategory('prediction'), 100);
+                } else if (intent === 'video') {
+                    removeTypingIndicator(typingId);
+                    addAssistantBubble('assistant', '🎬 正在提交视频生成任务...', { emotion: 'happy' });
+                    try {
+                        await generateVideoFromText(message);
+                        addAssistantBubble('assistant', '🎬 视频生成任务已提交！请在视频列表中查看进度 ✅', { emotion: 'happy' });
+                    } catch (e) {
+                        addAssistantBubble('assistant', '❌ 视频生成失败：' + (e.message || '未知错误'), { emotion: 'sad' });
+                    }
+                } else if (intent === 'image') {
+                    removeTypingIndicator(typingId);
+                    addAssistantBubble('assistant', '🎨 正在生成图片...', { emotion: 'happy' });
+                    try {
+                        await generateImageFromText(message);
+                    } catch (e) {
+                        addAssistantBubble('assistant', '❌ 图片生成失败：' + (e.message || '未知错误'), { emotion: 'sad' });
+                    }
+                } else if (intent === 'writing') {
+                    removeTypingIndicator(typingId);
+                    addAssistantBubble('assistant', '✍️ 正在生成文案...', { emotion: 'happy' });
+                    try {
+                        const writingResult = await generateWritingFromText(message);
+                        if (writingResult) addAssistantBubble('assistant', writingResult, { emotion: 'happy' });
+                    } catch (e) {
+                        addAssistantBubble('assistant', '❌ 文案生成失败：' + (e.message || '未知错误'), { emotion: 'sad' });
+                    }
                 } else {
-                    response = '我收到了：' + message + '\n\n💡 我会记住你的偏好，让你下次使用更方便！';
-                    emotion = 'neutral';
-                }
+                    // 调用真实AI（search 或 chat）
+                    const model = intent === 'search' ? 'grok-4-fast' : 'grok-4-fast';
+                    const systemPrompt = intent === 'search'
+                        ? '你是一个专业的搜索助手，可以联网搜索最新信息。请根据用户的问题提供准确、有用、最新的信息。'
+                        : '你是小卷助手，一个活泼可爱的AI助手。用简洁友好的语气回复用户，适当使用emoji。';
 
-                addAssistantBubble('assistant', response, { emotion });
+                    const userId = (await NVAuth?.getCurrentUser?.())?.id || 'anonymous';
+                    const resp = await fetch('/api/writer-llm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model,
+                            messages: [
+                                { role: 'system', content: systemPrompt },
+                                { role: 'user', content: message }
+                            ],
+                            userId
+                        })
+                    });
 
-                // 恢复状态
-                if (window.AssistantAiri) {
-                    window.AssistantAiri.setStatus('idle');
+                    removeTypingIndicator(typingId);
+
+                    if (!resp.ok) throw new Error('请求失败 ' + resp.status);
+                    const data = await resp.json();
+                    const reply = data.content || data.message || '（无回复）';
+                    addAssistantBubble('assistant', reply, { emotion: detectEmotion(reply) });
                 }
-            }, 500);
+            } catch (e) {
+                removeTypingIndicator(typingId);
+                addAssistantBubble('assistant', '❌ 出错了：' + (e.message || '未知错误'), { emotion: 'sad' });
+            } finally {
+                input.disabled = false;
+                if (window.AssistantAiri) window.AssistantAiri.setStatus('idle');
+            }
         }
 
         function addAssistantBubble(type, content, options = {}) {
-            const bubblesContainer = document.getElementById('assistantBubbles');
-            const panelContent = document.getElementById('assistantPanelContent');
+            const panelContent = document.getElementById('xj2Messages');
 
             const bubble = document.createElement('div');
-            bubble.className = `assistant-bubble ${type}`;
+            bubble.className = `xj2-message ${type}`;
             bubble.textContent = content;
 
-            if (!assistantPanelOpen) {
-                bubblesContainer.appendChild(bubble);
-                bubblesContainer.classList.add('active');
-                // 3秒后自动隐藏气泡
-                setTimeout(() => {
-                    bubblesContainer.classList.remove('active');
-                    setTimeout(() => bubblesContainer.innerHTML = '', 300);
-                }, 3000);
+            if (panelContent) {
+                panelContent.appendChild(bubble);
+                panelContent.scrollTop = panelContent.scrollHeight;
             }
-
-            panelContent.appendChild(bubble);
-            panelContent.scrollTop = panelContent.scrollHeight;
 
             // AIRI 增强：如果是助手的回复，显示浮动气泡和情绪
             if (type === 'assistant' && window.AssistantAiri && window.AssistantAiri.isActive) {
@@ -5249,7 +5342,7 @@
         }
 
         function showTypingIndicator() {
-            const panelContent = document.getElementById('assistantPanelContent');
+            const panelContent = document.getElementById('xj2Messages');
             const typing = document.createElement('div');
             typing.className = 'assistant-typing';
             typing.id = 'typing-' + Date.now();
@@ -5269,8 +5362,8 @@
         }
 
         async function toggleVoiceRecording() {
-            const btn = document.getElementById('assistantVoiceBtn');
-            const status = document.getElementById('assistantStatus');
+            const btn = document.getElementById('xj2VoiceBtn');
+            const status = document.getElementById('xj2Status');
 
             if (!isRecordingVoice) {
                 // 开始录音
@@ -5297,7 +5390,7 @@
                     // 开始语音识别
                     try {
                         const text = await window.AssistantVoice.listen();
-                        document.getElementById('assistantInput').value = text;
+                        document.getElementById('xj2Input').value = text;
                         if (text) sendAssistantMessage();
                     } catch (e) {
                         showToast('语音识别失败: ' + e.message);
@@ -14357,750 +14450,6 @@ ${story}
         const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
         return session?.user || null;
     }
-    </script>
-
-    <!-- 🎬 RollRoll 小助手 (小卷) - 登录后才显示 -->
-    <script>
-    (function() {
-        'use strict';
-        console.log('🎬 小卷助手：等待登录...');
-        
-        let assistantContainer = null;
-        let _createRetries = 0;
-        const MAX_CREATE_RETRIES = 15; // 最多重试15次（15秒）
-        
-        // 暴露到全局，供调试和页面检测使用
-        window._verifyLogin = async function() {
-            try {
-                if (typeof __mobileSupabaseClient === 'undefined' || !__mobileSupabaseClient) {
-                    console.log('🎬 登录验证：Supabase 客户端未初始化');
-                    return false;
-                }
-                const { data: { session }, error: sessionError } = await __mobileSupabaseClient.auth.getSession();
-                if (sessionError) {
-                    console.log('🎬 登录验证：获取 session 失败', sessionError.message);
-                    return false;
-                }
-                // 必须同时有 session 和 user
-                if (!session || !session.user) {
-                    console.log('🎬 登录验证：session 或 user 不存在');
-                    return false;
-                }
-                console.log('🎬 登录验证成功:', session.user.email);
-                return true;
-            } catch (e) {
-                console.error('🎬 登录验证失败:', e);
-                return false;
-            }
-        };
-        
-        // 创建小助手
-        window._createRollRoll = async function() {
-            // 再次安全检查
-            const isLoggedIn = await window._verifyLogin();
-            if (!isLoggedIn) {
-                console.log('🎬 createRollRoll 安全检查失败：未登录');
-                return;
-            }
-            
-            // 检查主内容区是否可见（欢迎页时 main.main 是隐藏的）
-            const mainEl = document.querySelector('main.main');
-            if (mainEl) {
-                const mainStyle = getComputedStyle(mainEl);
-                const isMainVisible = mainStyle.display !== 'none' && mainStyle.visibility !== 'hidden' && mainStyle.opacity !== '0';
-                if (!isMainVisible) {
-                    _createRetries++;
-                    if (_createRetries <= MAX_CREATE_RETRIES) {
-                        console.log('🎬 主内容区不可见，1秒后重试(' + _createRetries + '/' + MAX_CREATE_RETRIES + ')...');
-                        setTimeout(() => window._createRollRoll(), 1000);
-                    } else {
-                        console.log('🎬 主内容区持续不可见，放弃创建小卷');
-                    }
-                    return;
-                }
-                _createRetries = 0;
-            }
-            
-            if (document.getElementById('rollroll-assistant')) {
-                return;
-            }
-            
-            console.log('🎬 创建小卷助手...');
-            
-            // 创建容器
-            const container = document.createElement('div');
-            container.id = 'rollroll-assistant';
-            container.style.cssText = 'position:fixed;bottom:100px;right:20px;z-index:99999;width:70px;height:70px;cursor:grab;touch-action:none;user-select:none;display:block !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;';
-            
-            // 创建头像按钮
-            const avatar = document.createElement('div');
-            avatar.id = 'rollroll-avatar';
-            avatar.style.cssText = 'width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#FF6B9D 0%,#C44569 50%,#F8B500 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 25px rgba(196,69,105,0.5);transition:transform 0.3s;pointer-events:none;overflow:hidden;';
-            avatar.innerHTML = `
-                <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="25" cy="25" r="24" fill="white"/>
-                    <path d="M15 20 C15 12 35 12 35 20" stroke="#FF6B9D" stroke-width="3" stroke-linecap="round"/>
-                    <circle cx="20" cy="20" r="3" fill="#333"/>
-                    <circle cx="30" cy="20" r="3" fill="#333"/>
-                    <path d="M20 28 Q25 32 30 28" stroke="#333" stroke-width="2" stroke-linecap="round" fill="none"/>
-                    <path d="M10 25 L15 22" stroke="#FF6B9D" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M40 25 L35 22" stroke="#FF6B9D" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            `;
-            
-            // 创建气泡
-            const bubble = document.createElement('div');
-            bubble.id = 'rollroll-bubble';
-            bubble.style.cssText = 'position:absolute;bottom:80px;right:0;background:#FF6B9D;color:white;padding:12px 16px;border-radius:16px;font-size:14px;max-width:240px;box-shadow:0 4px 15px rgba(0,0,0,0.2);display:none;animation:rollroll-pop 0.3s ease;pointer-events:none;word-wrap:break-word;line-height:1.4;';
-            
-            // 添加动画样式
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes rollroll-pop { 0% { transform:scale(0);opacity:0; } 100% { transform:scale(1);opacity:1; } }
-                @keyframes rollroll-bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-10px); } }
-                #rollroll-assistant:active { cursor:grabbing; }
-                #rollroll-assistant.dragging { animation:none !important; }
-                #rollroll-assistant:not(.dragging) { animation:rollroll-bounce 2s infinite; }
-                #rollroll-assistant:not(.dragging):hover { transform:scale(1.1); }
-            `;
-            document.head.appendChild(style);
-            
-            // 拖拽功能
-            let isDragging = false;
-            let startX, startY, startLeft, startTop;
-            let hasMoved = false;
-            
-            function onPointerDown(e) {
-                isDragging = true;
-                hasMoved = false;
-                startX = e.clientX || e.touches[0].clientX;
-                startY = e.clientY || e.touches[0].clientY;
-                const rect = container.getBoundingClientRect();
-                startLeft = rect.left;
-                startTop = rect.top;
-                container.classList.add('dragging');
-                e.preventDefault();
-            }
-            
-            function onPointerMove(e) {
-                if (!isDragging) return;
-                const x = e.clientX || (e.touches && e.touches[0].clientX);
-                const y = e.clientY || (e.touches && e.touches[0].clientY);
-                if (!x || !y) return;
-                
-                const dx = x - startX;
-                const dy = y - startY;
-                
-                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                    hasMoved = true;
-                }
-                
-                container.style.left = (startLeft + dx) + 'px';
-                container.style.top = (startTop + dy) + 'px';
-                container.style.right = 'auto';
-                container.style.bottom = 'auto';
-                e.preventDefault();
-            }
-            
-            // 创建对话框
-            let dialog = null;
-            // 用户选择的意图（按钮点击时设置，sendMessage 内使用后清除）
-            let selectedIntent = null;
-            
-            function createDialog() {
-                if (dialog) return;
-                
-                dialog = document.createElement('div');
-                dialog.id = 'rollroll-dialog';
-                dialog.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:99998;opacity:0;transition:opacity 0.3s;visibility:visible !important;pointer-events:auto !important;';
-                
-                const dialogContent = document.createElement('div');
-                dialogContent.style.cssText = 'background:#1a1a2a;border:2px solid #FF6B9D;border-radius:20px;padding:24px;max-width:320px;width:90%;transform:scale(0.9);transition:transform 0.3s;';
-                
-                const header = document.createElement('div');
-                header.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:16px;';
-                header.innerHTML = `
-                    <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FF6B9D 0%,#C44569 50%,#F8B500 100%);display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                        <svg width="28" height="28" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="25" cy="25" r="24" fill="white"/>
-                            <path d="M15 20 C15 12 35 12 35 20" stroke="#FF6B9D" stroke-width="3" stroke-linecap="round"/>
-                            <circle cx="20" cy="20" r="3" fill="#333"/>
-                            <circle cx="30" cy="20" r="3" fill="#333"/>
-                            <path d="M20 28 Q25 32 30 28" stroke="#333" stroke-width="2" stroke-linecap="round" fill="none"/>
-                            <path d="M10 25 L15 22" stroke="#FF6B9D" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M40 25 L35 22" stroke="#FF6B9D" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <div style="font-size:18px;font-weight:700;color:#FF6B9D;">小卷助手</div>
-                `;
-                
-                const options = [
-                    { label: '🎬 生成短视频', action: 'video' },
-                    { label: '🖼️ 画一张图片', action: 'image' },
-                    { label: '✍️ 写一篇文案', action: 'writing' },
-                    { label: '🔍 搜索资料', action: 'search' },
-                    { label: '💬 进入完整对话', action: 'full_chat' }
-                ];
-                
-                const inputArea = document.createElement('div');
-                inputArea.style.cssText = 'margin-bottom:16px;';
-                
-                // 聊天消息区域（可滚动）
-                const chatContainer = document.createElement('div');
-                chatContainer.id = 'rollroll-chat';
-                chatContainer.style.cssText = 'max-height:250px;min-height:100px;overflow-y:auto;margin-bottom:12px;padding:8px;background:rgba(0,0,0,0.3);border-radius:8px;';
-                
-                // 多样化对话框欢迎语库
-                const dialogGreetings = [
-                    '👋 你来啦！今天想做什么呢？生成视频、图片还是文案？',
-                    '✨ 嘿！需要我帮你创作点什么吗？',
-                    '🎨 哈喽！想画张图、写个文案还是生成视频？',
-                    '🎬 嗨！今天有什么创意想法？告诉我吧～',
-                    '🌟 你好呀！想试试哪个功能？随时告诉我！',
-                    '💡 来啦！需要AI帮你做什么呢？',
-                    '🎯 哈喽！今天想创作点什么内容？',
-                    '🌈 你好！有什么我能帮你的吗？尽管说～'
-                ];
-                
-                // 随机选择欢迎消息
-                const randomDialogGreeting = dialogGreetings[Math.floor(Math.random() * dialogGreetings.length)];
-                
-                // 欢迎消息（显示为AI消息样式）
-                const welcomeMsg = document.createElement('div');
-                welcomeMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
-                welcomeMsg.textContent = '🤖 ' + randomDialogGreeting;
-                chatContainer.appendChild(welcomeMsg);
-                
-                // 历史消息（用于上下文记忆，最多保留20条）
-                const MAX_HISTORY = 20;
-                let chatHistory = [
-                    { role: 'system', content: '你是小卷助手，一个友好、热情、有帮助的AI助手。用中文回复，保持简洁有趣。' },
-                    { role: 'assistant', content: randomDialogGreeting }
-                ];
-
-                // 预编译正则表达式（性能优化）
-                const INTENT_PATTERNS = {
-                    search: /搜索|查询|找.*资料|帮我找|search/i,
-                    video: /视频|短视频|生成视频|制作视频|帮我生成视频|分镜|镜头.*镜头/i,
-                    image: /^(画|生成图片|作图|帮我画|画一张|画个)/i,
-                    writing: /文案|写|文章|脚本|剧本|帮我写/i
-                };
-                const WEB_KEYWORDS_REGEX = /最新|现在|今天|今年|2026|实时|当前|新闻|天气|股票|汇率|比分/i;
-
-                // 辅助函数：添加用户消息
-                function addUserMessage(text) {
-                    const msg = document.createElement('div');
-                    msg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.2);border-radius:8px;font-size:13px;color:#FF6B9D;';
-                    msg.textContent = '👤 ' + text;
-                    chatContainer.appendChild(msg);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-
-                // 辅助函数：添加错误消息
-                function addErrorMessage(message) {
-                    const msg = document.createElement('div');
-                    msg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,0,0,0.2);border-radius:8px;font-size:13px;color:#ff6b6b;';
-                    msg.textContent = '❌ ' + message;
-                    chatContainer.appendChild(msg);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-
-                // 辅助函数：限制历史记录大小
-                function addToHistory(role, content) {
-                    chatHistory.push({ role, content });
-                    // 保留系统消息，限制其他消息数量
-                    if (chatHistory.length > MAX_HISTORY) {
-                        chatHistory = [
-                            chatHistory[0], // 保留系统消息
-                            ...chatHistory.slice(-MAX_HISTORY + 1)
-                        ];
-                    }
-                }
-                
-                // 输入区域
-                const inputWrapper = document.createElement('div');
-                inputWrapper.innerHTML = `
-                    <textarea id="rollroll-input" placeholder="告诉我你想做什么..." style="width:100%;height:60px;padding:12px;background:#0a0a15;border:1px solid rgba(255,107,157,0.3);border-radius:12px;color:#fff;font-size:14px;resize:none;outline:none;box-sizing:border-box;"></textarea>
-                    <button id="rollroll-send" style="width:100%;margin-top:8px;padding:10px;background:linear-gradient(135deg,#FF6B9D,#C44569);border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;">发送 ✈️</button>
-                `;
-                
-                // 按正确顺序添加所有元素
-                inputArea.appendChild(chatContainer);
-                inputArea.appendChild(inputWrapper);
-                
-                const optionsContainer = document.createElement('div');
-                optionsContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;max-height:150px;overflow-y:auto;';
-                
-                options.forEach(opt => {
-                    const btn = document.createElement('button');
-                    btn.style.cssText = 'width:100%;padding:12px 16px;background:linear-gradient(135deg,#2a2a4a,#1a1a2a);border:1px solid rgba(255,107,157,0.3);border-radius:12px;color:#fff;font-size:14px;cursor:pointer;transition:all 0.2s;text-align:left;';
-                    btn.textContent = opt.label;
-                    btn.onclick = () => handleOptionClick(opt.action);
-                    btn.onmouseenter = () => { btn.style.borderColor = '#FF6B9D'; btn.style.transform = 'translateX(5px)'; };
-                    btn.onmouseleave = () => { btn.style.borderColor = 'rgba(255,107,157,0.3)'; btn.style.transform = 'translateX(0)'; };
-                    optionsContainer.appendChild(btn);
-                });
-                
-                const closeBtn = document.createElement('button');
-                closeBtn.style.cssText = 'width:100%;padding:10px;margin-top:12px;background:transparent;border:1px dashed rgba(255,107,157,0.3);border-radius:12px;color:#888;font-size:12px;cursor:pointer;';
-                closeBtn.textContent = '关闭';
-                closeBtn.onclick = closeDialog;
-                
-                dialogContent.appendChild(header);
-                dialogContent.appendChild(inputArea);
-                dialogContent.appendChild(optionsContainer);
-                dialogContent.appendChild(closeBtn);
-                dialog.appendChild(dialogContent);
-                document.body.appendChild(dialog);
-                
-                setTimeout(() => {
-                    dialog.style.opacity = '1';
-                    dialogContent.style.transform = 'scale(1)';
-                }, 10);
-                
-                // 输入框发送功能
-                setTimeout(() => {
-                    const input = document.getElementById('rollroll-input');
-                    const sendBtn = document.getElementById('rollroll-send');
-                    if (input && sendBtn) {
-                        const sendMessage = async () => {
-                            const text = input.value.trim();
-                            if (!text) return;
-
-                            // 显示加载状态
-                            sendBtn.textContent = '处理中...';
-                            sendBtn.disabled = true;
-                            input.disabled = true;
-
-                            // 意图识别：优先使用按钮选择的意图，否则从文本识别
-                            let intent = selectedIntent || 'chat';
-
-                            // 如果没有按钮选择，则从文本识别意图
-                            if (!selectedIntent) {
-                                // 优先匹配搜索（联网查询）
-                                if (/搜索|查询|找.*资料|帮我找|search|最新|新闻|天气|股票/i.test(text)) {
-                                    intent = 'search';
-                                }
-                                // 优先匹配视频（更宽松的匹配，覆盖更多口语化表达）
-                                else if (/视频|短视频|生成视频|制作视频|帮我生成视频|分镜|镜头.*镜头|发个视频|拍.*视频|我要视频|来个视频|做个视频|video/i.test(text)) {
-                                    intent = 'video';
-                                }
-                                // 然后匹配图片（避免误判）
-                                else if (/^(画|生成图片|作图|帮我画|画一张|画个|画个|帮我生成|生成.*图|画.*图)/i.test(text)) {
-                                    intent = 'image';
-                                }
-                                // 文案生成（中文创作，更宽松的匹配）
-                                else if (/文案|写.*文章|写.*脚本|写.*剧本|帮我写|创作|小说|故事|写.*文案|帮我.*写|写.*内容|写.*稿/i.test(text)) {
-                                    intent = 'writing';
-                                }
-                            }
-
-                            console.log('[小卷] 意图识别:', intent, '按钮选择:', selectedIntent, '输入:', text);
-
-                            // 清除选中的意图（用完即清）
-                            selectedIntent = null;
-
-                            try {
-                                if (intent === 'search') {
-                                    // 联网搜索 - 使用 grok-4-fast（有联网能力）
-                                    sendBtn.textContent = '🔍 正在搜索...';
-                                    addUserMessage(text);
-
-                                    try {
-                                        // 提取搜索关键词
-                                        let query = text.replace(/搜索|查询|找.*资料|帮我找/i, '').trim();
-                                        if (!query) query = text;
-
-                                        // 调用搜索API - 使用 grok-4-fast 模型（有联网能力）
-                                        const response = await fetch('/api/writer-llm', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                                model: 'grok-4-fast',
-                                                messages: [
-                                                    { role: 'system', content: '你是一个专业的搜索助手，可以联网搜索最新信息。请根据用户的问题提供准确、有用、最新的信息。' },
-                                                    { role: 'user', content: query }
-                                                ],
-                                                userId: (await getCurrentUser())?.id || 'anonymous'
-                                            })
-                                        });
-
-                                        if (!response.ok) throw new Error('搜索失败');
-
-                                        const data = await response.json();
-                                        if (data.content) {
-                                            // 显示搜索结果（安全转义）
-                                            const searchMsg = document.createElement('div');
-                                            searchMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
-
-                                            const title = document.createElement('div');
-                                            title.style.cssText = 'color:#FF6B9D;margin-bottom:8px;';
-                                            title.textContent = '🔍 搜索结果 (grok-4-fast)';
-
-                                            const content = document.createElement('div');
-                                            content.style.cssText = 'margin-bottom:8px;';
-                                            content.textContent = data.content;
-
-                                            const btn = document.createElement('button');
-                                            btn.style.cssText = 'padding:6px 12px;background:#FF6B9D;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;';
-                                            btn.textContent = '复制结果';
-                                            btn.onclick = () => navigator.clipboard.writeText(data.content).then(() => alert('已复制到剪贴板'));
-
-                                            searchMsg.appendChild(title);
-                                            searchMsg.appendChild(content);
-                                            searchMsg.appendChild(btn);
-                                            chatContainer.appendChild(searchMsg);
-                                            chatContainer.scrollTop = chatContainer.scrollHeight;
-
-                                            // 添加到对话历史
-                                            addToHistory('user', text);
-                                            addToHistory('assistant', data.content);
-                                        } else {
-                                            throw new Error('未返回搜索结果');
-                                        }
-                                    } catch (e) {
-                                        addErrorMessage('搜索失败: ' + e.message);
-                                    }
-                                } else if (intent === 'image') {
-                                    // 调用图片生成
-                                    sendBtn.textContent = '🎨 正在生成图片...';
-                                    addUserMessage(text);
-
-                                    try {
-                                        await generateImageFromText(text);
-                                    } catch (e) {
-                                        addErrorMessage('图片生成失败: ' + e.message);
-                                    }
-                                } else if (intent === 'video') {
-                                    // 调用视频生成
-                                    sendBtn.textContent = '🎬 正在生成视频...';
-                                    addUserMessage(text);
-
-                                    try {
-                                        await generateVideoFromText(text);
-                                        // 显示成功消息
-                                        const successMsg = document.createElement('div');
-                                        successMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;color:#fff;';
-                                        successMsg.textContent = '🎬 视频生成任务已提交！请在视频列表中查看进度';
-                                        chatContainer.appendChild(successMsg);
-                                        chatContainer.scrollTop = chatContainer.scrollHeight;
-                                    } catch (e) {
-                                        addErrorMessage('视频生成失败: ' + e.message);
-                                    }
-                                } else if (intent === 'writing') {
-                                    // 调用文案生成 - 使用 qwen3.5-plus（擅长中文创作）
-                                    sendBtn.textContent = '✍️ 正在生成文案...';
-                                    addUserMessage(text);
-
-                                    try {
-                                        // 提取文案主题
-                                        let prompt = text.replace(/写.*文案|生成.*文案|帮我写/i, '').trim();
-                                        if (!prompt) prompt = text;
-
-                                        // 使用 qwen3.5-plus 生成文案
-                                        const response = await fetch('/api/writer-llm', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                                model: 'qwen3.5-plus',
-                                                prompt: prompt,
-                                                userId: (await getCurrentUser())?.id || 'anonymous'
-                                            })
-                                        });
-
-                                        if (!response.ok) throw new Error('文案生成失败');
-
-                                        const data = await response.json();
-                                        const result = data.content || data.result;
-                                        if (result) {
-                                            // 在对话框内显示文案（安全转义）
-                                            const writingMsg = document.createElement('div');
-                                            writingMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
-
-                                            const title = document.createElement('div');
-                                            title.style.cssText = 'color:#FF6B9D;margin-bottom:8px;';
-                                            title.textContent = '✍️ 文案生成成功！(qwen3.5-plus)';
-
-                                            const content = document.createElement('div');
-                                            content.style.cssText = 'margin-bottom:8px;';
-                                            content.textContent = result;
-
-                                            const btn = document.createElement('button');
-                                            btn.style.cssText = 'padding:6px 12px;background:#FF6B9D;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;';
-                                            btn.textContent = '复制文案';
-                                            btn.onclick = () => navigator.clipboard.writeText(result).then(() => alert('已复制到剪贴板'));
-
-                                            writingMsg.appendChild(title);
-                                            writingMsg.appendChild(content);
-                                            writingMsg.appendChild(btn);
-                                            chatContainer.appendChild(writingMsg);
-                                            chatContainer.scrollTop = chatContainer.scrollHeight;
-                                        } else {
-                                            throw new Error('未返回文案内容');
-                                        }
-                                    } catch (e) {
-                                        addErrorMessage('文案生成失败: ' + e.message);
-                                    }
-                                } else {
-                                    // 其他情况：智能对话
-                                    sendBtn.textContent = '🤖 思考中...';
-                                    console.log('[小卷] 开始调用writer-llm, text:', text);
-
-                                    // 添加用户消息到历史和显示
-                                    addToHistory('user', text);
-                                    addUserMessage(text);
-
-                                    // 智能选择模型
-                                    let selectedModel = 'qwen3.5-plus'; // 默认：中文对话
-                                    let modelTag = '';
-
-                                    // 1. 需要联网/最新信息 → grok-4-fast
-                                    if (/最新|现在|今天|今年|2026|实时|当前|新闻|天气|股票|汇率|比分/i.test(text)) {
-                                        selectedModel = 'grok-4-fast';
-                                        modelTag = ' (联网)';
-                                        console.log('[小卷] 检测到需要最新信息，使用 grok-4-fast');
-                                    }
-                                    // 2. 多模态任务（图片理解、视觉分析）→ gemini-2.0-flash-exp
-                                    else if (/看图|识别图片|分析图片|图片.*什么|这张图|看看这个|图像识别/i.test(text)) {
-                                        selectedModel = 'gemini-2.0-flash-exp';
-                                        modelTag = ' (多模态)';
-                                        console.log('[小卷] 检测到多模态任务，使用 gemini-2.0-flash-exp');
-                                    }
-                                    // 3. 默认：qwen3.5-plus（中文对话、推理）
-                                    else {
-                                        console.log('[小卷] 普通对话，使用 qwen3.5-plus');
-                                    }
-
-                                    // 调用LLM回复
-                                    const response = await fetch('/api/writer-llm', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            model: selectedModel,
-                                            messages: chatHistory,
-                                            userId: (await getCurrentUser())?.id || 'anonymous'
-                                        })
-                                    });
-                                    console.log('[小卷] writer-llm响应状态:', response.status, '使用模型:', selectedModel);
-                                    const data = await response.json();
-                                    console.log('[小卷] writer-llm返回:', JSON.stringify(data).substring(0, 200));
-                                    if (data.content) {
-                                        console.log('[小卷] 准备显示回复');
-
-                                        // 显示AI回复（安全转义）
-                                        const replyDiv = document.createElement('div');
-                                        replyDiv.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
-
-                                        const icon = document.createElement('span');
-                                        icon.textContent = '🤖';
-
-                                        if (modelTag) {
-                                            const tag = document.createElement('span');
-                                            tag.style.cssText = 'font-size:10px;color:#888;';
-                                            tag.textContent = modelTag;
-                                            icon.appendChild(tag);
-                                        }
-
-                                        const contentText = document.createTextNode(' ' + data.content);
-                                        replyDiv.appendChild(icon);
-                                        replyDiv.appendChild(contentText);
-                                        chatContainer.appendChild(replyDiv);
-                                        chatContainer.scrollTop = chatContainer.scrollHeight;
-
-                                        // 添加AI回复到历史
-                                        addToHistory('assistant', data.content);
-                                        console.log('[小卷] 已添加回复到DOM');
-                                    } else {
-                                        throw new Error(data.message || 'API返回格式错误');
-                                    }
-                                }
-
-                                // 清空输入框
-                                input.value = '';
-                            } catch (e) {
-                                console.error('[小卷] 处理失败:', e);
-                                addErrorMessage('处理失败: ' + (e.message || '未知错误'));
-                            } finally {
-                                // 无论成功失败都恢复按钮
-                                sendBtn.textContent = '发送 ✈️';
-                                sendBtn.disabled = false;
-                                input.disabled = false;
-                            }
-                        };
-                        sendBtn.onclick = sendMessage;
-                        input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
-                    }
-                }, 100);
-            }
-            
-            function closeDialog() {
-                if (!dialog) return;
-                dialog.style.opacity = '0';
-                const dialogContent = dialog.querySelector('div');
-                if (dialogContent) {
-                    dialogContent.style.transform = 'scale(0.9)';
-                }
-                setTimeout(() => {
-                    if (dialog && dialog.parentNode) {
-                        dialog.remove();
-                    }
-                    dialog = null;
-                }, 300);
-            }
-            
-            function handleOptionClick(action) {
-                // 快捷操作：根据action直接执行对应处理
-                if (action === 'full_chat') {
-                    // 跳转到完整对话页面
-                    closeDialog();
-                    window.location.href = 'chat.html';
-                    return;
-                }
-
-                const prompts = {
-                    video: '帮我生成一个视频：',
-                    image: '帮我画一张图片：',
-                    search: '帮我搜索：',
-                    writing: '帮我写一篇文案：'
-                };
-
-                // 预设意图
-                selectedIntent = action;
-
-                // 在输入框中填入引导文本，用户直接修改补充后发送
-                const input = document.getElementById('rollroll-input');
-                if (input) {
-                    input.value = prompts[action] || '';
-                    input.focus();
-                    // 光标移到末尾
-                    input.setSelectionRange(input.value.length, input.value.length);
-                }
-            }
-            
-            function onPointerUp(e) {
-                if (!isDragging) return;
-                isDragging = false;
-                container.classList.remove('dragging');
-                
-                // 如果没有移动，视为点击
-                if (!hasMoved) {
-                    createDialog();
-                }
-            }
-            
-            // 绑定事件
-            container.addEventListener('mousedown', onPointerDown);
-            container.addEventListener('touchstart', onPointerDown, {passive: false});
-            document.addEventListener('mousemove', onPointerMove);
-            document.addEventListener('touchmove', onPointerMove, {passive: false});
-            document.addEventListener('mouseup', onPointerUp);
-            document.addEventListener('touchend', onPointerUp);
-            
-            // 组装
-            container.appendChild(avatar);
-            container.appendChild(bubble);
-            document.body.appendChild(container);
-            
-            assistantContainer = container;
-            
-            console.log('🎬 小卷已创建并显示');
-            
-            // 多样化欢迎语库
-            const greetings = [
-                '👋 哈喽！我是小卷～今天想做什么呢？',
-                '✨ 你好呀！需要帮你生成点什么吗？',
-                '🎨 嗨！想画张图还是写个文案？',
-                '🎬 来啦！生成视频、图片还是文案？',
-                '🌟 嘿！有什么我能帮你的吗？',
-                '💡 哈喽！今天有什么创意想法？',
-                '🎯 你来啦！想试试什么功能？',
-                '🌈 你好！需要AI帮你创作吗？'
-            ];
-            
-            // 显示欢迎气泡
-            setTimeout(function() {
-                const hour = new Date().getHours();
-                let timeGreeting = '';
-                if (hour < 12) timeGreeting = '早上好';
-                else if (hour < 18) timeGreeting = '下午好';
-                else timeGreeting = '晚上好';
-                
-                // 随机选择欢迎语
-                const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-                bubble.textContent = randomGreeting;
-                bubble.style.display = 'block';
-                
-                // 8秒后隐藏
-                setTimeout(function() {
-                    bubble.style.display = 'none';
-                }, 8000);
-            }, 500);
-        }
-        
-        // 移除小助手
-        function removeRollRoll() {
-            const assistant = document.getElementById('rollroll-assistant');
-            if (assistant) {
-                console.log('🎬 移除小卷助手');
-                assistant.remove();
-            }
-            assistantContainer = null;
-            _createRetries = 0;
-        }
-        
-        // 等待 Supabase 客户端就绪并设置监听
-        function setupAuthListener() {
-            const checkSupabase = setInterval(async () => {
-                if (typeof __mobileSupabaseClient !== 'undefined' && __mobileSupabaseClient) {
-                    clearInterval(checkSupabase);
-                    console.log('🎬 Supabase 客户端就绪，设置认证监听');
-                    
-                    // 🆕 检查是否在欢迎页（通过 URL 参数判断）
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const isWelcomePage = !urlParams.has('logged_in') && !urlParams.has('skip_welcome');
-                    
-                    // 先检查当前登录状态
-                    const isLoggedIn = await window._verifyLogin();
-                    if (isLoggedIn) {
-                        if (isWelcomePage) {
-                            console.log('🎬 检测到已登录但在欢迎页，等待页面跳转...');
-                        } else {
-                            console.log('🎬 检测到已登录且不在欢迎页，创建小卷');
-                            window._createRollRoll();
-                        }
-                    } else {
-                        console.log('🎬 用户未登录，等待登录...');
-                    }
-                    
-                    // 监听认证状态变化
-                    __mobileSupabaseClient.auth.onAuthStateChange(async (event, session) => {
-                        console.log('🎬 认证状态变化:', event);
-                        if (event === 'SIGNED_IN' && session?.user) {
-                            // 🛡️ 防御：欢迎页时不创建小卷（欢迎页不需要助手）
-                            const urlParams2 = new URLSearchParams(window.location.search);
-                            const isWelcome = !urlParams2.has('logged_in') && !urlParams2.has('skip_welcome');
-                            if (isWelcome) {
-                                console.log('🎬 欢迎页期间收到 SIGNED_IN，忽略');
-                                return;
-                            }
-                            // 登录后延迟创建，等待页面跳转和主内容区显示
-                            console.log('🎬 登录成功，延迟创建小卷');
-                            setTimeout(() => window._createRollRoll(), 2000);
-                        } else if (event === 'SIGNED_OUT') {
-                            removeRollRoll();
-                        }
-                    });
-                }
-            }, 500);
-        }
-        
-        // 启动
-        if (document.readyState === 'complete') {
-            setupAuthListener();
-        } else {
-            window.addEventListener('load', setupAuthListener);
-        }
-    })();
     </script>
 </body>
 
