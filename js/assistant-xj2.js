@@ -107,7 +107,12 @@
 
         _initDrag() {
             const container = this.container;
-            if (!container) return;
+            if (!container) {
+                console.warn('[XJ2 拖拽] container 未找到');
+                return;
+            }
+
+            console.log('[XJ2 拖拽] 初始化拖拽功能');
 
             let isDragging = false;
             let hasMoved = false;
@@ -116,7 +121,11 @@
             const onDown = (e) => {
                 // 只响应头像按钮上的拖拽，避免面板内操作受影响
                 const avatarBtn = document.getElementById('xj2AvatarBtn');
-                if (!avatarBtn || !avatarBtn.contains(e.target)) return;
+                if (!avatarBtn || !avatarBtn.contains(e.target)) {
+                    console.log('[XJ2 拖拽] onDown 触发但不在头像按钮上');
+                    return;
+                }
+                console.log('[XJ2 拖拽] 开始拖拽');
                 isDragging = true;
                 hasMoved = false;
                 const touch = e.touches ? e.touches[0] : e;
@@ -131,6 +140,7 @@
 
             const onMove = (e) => {
                 if (!isDragging) return;
+                console.log('[XJ2 拖拽] onMove 触发');
                 const touch = e.touches ? e.touches[0] : e;
                 const dx = touch.clientX - startX;
                 const dy = touch.clientY - startY;
@@ -149,6 +159,7 @@
 
             const onUp = (e) => {
                 if (!isDragging) return;
+                console.log('[XJ2 拖拽] onUp 触发，hasMoved:', hasMoved);
                 isDragging = false;
                 container.style.transition = '';
                 if (hasMoved) {
@@ -158,6 +169,7 @@
                 }
             };
 
+            console.log('[XJ2 拖拽] 绑定事件监听器');
             container.addEventListener('mousedown', onDown);
             container.addEventListener('touchstart', onDown, { passive: false });
             document.addEventListener('mousemove', onMove);

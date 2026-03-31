@@ -5051,6 +5051,8 @@
 
         // 显示/隐藏助手容器
         async function setAssistantVisible(visible) {
+            console.log('[小助手 V2] setAssistantVisible 调用，visible:', visible);
+
             // 如果要显示，先验证用户是否真正登录
             if (visible) {
                 try {
@@ -5059,6 +5061,7 @@
                         console.log('[小助手 V2] 用户未登录，不显示助手');
                         return; // 未登录，不显示
                     }
+                    console.log('[小助手 V2] Session 验证通过，用户:', session.user.email);
                 } catch (e) {
                     console.warn('[小助手 V2] 检查登录状态失败:', e);
                     return;
@@ -5066,31 +5069,44 @@
             }
 
             const container = document.getElementById('xj2Container');
+            console.log('[小助手 V2] container 元素:', !!container);
             if (container) {
                 if (visible) {
                     container.classList.add('xj2-visible');
+                    console.log('[小助手 V2] 已添加 xj2-visible 类，当前 classes:', container.className);
                 } else {
                     container.classList.remove('xj2-visible');
+                    console.log('[小助手 V2] 已移除 xj2-visible 类，当前 classes:', container.className);
                 }
+            } else {
+                console.warn('[小助手 V2] xj2Container 元素未找到！');
             }
         }
 
         async function initAssistant() {
             try {
+                console.log('[小助手 V2] 开始初始化，isLoggedIn:', isLoggedIn);
+
                 // 检查用户是否登录（更严格的检查：验证 session 是否有效）
                 let actuallyLoggedIn = false;
                 if (isLoggedIn && __mobileSupabaseClient) {
                     try {
                         const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
                         actuallyLoggedIn = !!session?.user;
+                        console.log('[小助手 V2] Session 检查结果:', actuallyLoggedIn, 'session:', session);
                     } catch (e) {
+                        console.warn('[小助手 V2] Session 检查失败:', e);
                         actuallyLoggedIn = false;
                     }
                 }
 
                 // 只有真正登录时才显示助手
                 if (actuallyLoggedIn) {
+                    console.log('[小助手 V2] 用户已登录，显示助手');
                     setAssistantVisible(true);
+                } else {
+                    console.log('[小助手 V2] 用户未登录，隐藏助手');
+                    setAssistantVisible(false);
                 }
 
                 console.log('[小助手 V2] 初始化完成，actuallyLoggedIn:', actuallyLoggedIn);

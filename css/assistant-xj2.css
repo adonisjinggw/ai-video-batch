@@ -29,9 +29,6 @@
     z-index: 10000;
     font-family: var(--font-body);
     display: none !important; /* 默认隐藏，登录后通过 JS 显示 */
-    touch-action: none;
-    -webkit-user-select: none;
-    user-select: none;
 }
 
 .xj2-container.xj2-visible {
@@ -48,13 +45,21 @@
         0 0 20px rgba(0, 212, 255, 0.4),
         0 0 40px rgba(124, 58, 237, 0.2),
         inset 0 0 20px rgba(255, 255, 255, 0.1);
-    cursor: pointer;
+    cursor: move;
+    cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     animation: xj2-breathe 3s ease-in-out infinite;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.xj2-avatar-btn:active {
+    cursor: grabbing;
 }
 
 .xj2-avatar-btn:hover {
