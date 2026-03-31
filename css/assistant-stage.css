@@ -1,0 +1,355 @@
+/* ==================== AIRI 风格 Stage UI 样式 ==================== */
+
+/* 舞台容器 */
+.assistant-stage {
+    position: fixed;
+    z-index: 9998; /* 低于旧版 assistant-container 的 10000 */
+    pointer-events: none; /* 让鼠标事件穿透到下方元素 */
+}
+
+.assistant-stage > * {
+    pointer-events: auto; /* 恢复子元素的鼠标事件 */
+}
+
+/* 位置变体 */
+/* 放在左侧，避免与旧版浮动按钮（右下角）冲突 */
+.assistant-stage.stage-bottom-right {
+    bottom: 20px;
+    right: 100px; /* 向左偏移，避免遮挡旧版按钮 */
+}
+
+.assistant-stage.stage-bottom-left {
+    bottom: 20px;
+    left: 20px;
+}
+
+.assistant-stage.stage-top-right {
+    top: 20px;
+    right: 20px;
+}
+
+.assistant-stage.stage-top-left {
+    top: 20px;
+    left: 20px;
+}
+
+/* ==================== 角色容器 ==================== */
+.assistant-character-container {
+    position: relative;
+    width: 280px;
+    height: 280px;
+}
+
+.assistant-character-canvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 20px;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.05) 0%, transparent 70%);
+    transition: transform 0.3s ease;
+}
+
+.assistant-character-canvas:hover {
+    transform: scale(1.05);
+}
+
+/* 加载器 */
+.assistant-character-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 20px;
+}
+
+.loader-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #fbbf24;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loader-text {
+    margin-top: 12px;
+    color: #fff;
+    font-size: 13px;
+}
+
+/* ==================== 对话气泡 ==================== */
+.assistant-dialogue-bubble {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    max-width: 320px;
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.assistant-dialogue-bubble.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* 气泡内部 */
+.dialogue-bubble-inner {
+    position: relative;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+}
+
+.dialogue-bubble-content {
+    color: #fff;
+    font-size: 15px;
+    line-height: 1.6;
+    word-wrap: break-word;
+}
+
+/* 情绪变体 */
+.assistant-dialogue-bubble[data-emotion="happy"] .dialogue-bubble-inner {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.assistant-dialogue-bubble[data-emotion="sad"] .dialogue-bubble-inner {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.assistant-dialogue-bubble[data-emotion="angry"] .dialogue-bubble-inner {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.assistant-dialogue-bubble[data-emotion="surprised"] .dialogue-bubble-inner {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
+/* 气泡尾巴 */
+.dialogue-bubble-tail {
+    position: absolute;
+    bottom: -8px;
+    right: 30px;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    transform: rotate(45deg);
+    border-radius: 0 0 4px 0;
+}
+
+/* 情绪指示器 */
+.dialogue-emotion-indicator {
+    position: absolute;
+    top: -8px;
+    left: 20px;
+    width: 32px;
+    height: 32px;
+    background: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease;
+}
+
+.assistant-dialogue-bubble.show .dialogue-emotion-indicator {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ==================== 音频可视化器 ==================== */
+.assistant-audio-visualizer {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 3px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 20px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.assistant-audio-visualizer.active {
+    opacity: 1;
+}
+
+.visualizer-bar {
+    width: 3px;
+    background: linear-gradient(to top, #667eea, #764ba2);
+    border-radius: 2px;
+    transition: height 0.05s ease;
+}
+
+/* ==================== 深色模式适配 ==================== */
+@media (prefers-color-scheme: dark) {
+    .dialogue-bubble-inner {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+
+    .dialogue-bubble-tail {
+        background: #16213e;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+}
+
+/* ==================== 移动端适配 ==================== */
+@media (max-width: 480px) {
+    /* 移动端：Stage UI 放在左侧，避免与旧版按钮冲突 */
+    .assistant-stage.stage-bottom-right {
+        bottom: 16px !important;
+        right: auto !important;
+        left: 16px !important;
+    }
+
+    .assistant-character-container {
+        width: 160px;
+        height: 160px;
+    }
+
+    .assistant-character-canvas {
+        width: 160px;
+        height: 160px;
+    }
+
+    .assistant-dialogue-bubble {
+        max-width: 240px;
+        right: auto;
+        left: 0;
+    }
+
+    .dialogue-bubble-inner {
+        padding: 12px 16px;
+    }
+
+    .dialogue-bubble-content {
+        font-size: 14px;
+    }
+
+    .dialogue-bubble-tail {
+        right: auto;
+        left: 15px;
+    }
+}
+
+/* ==================== 浮动动画 ==================== */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.assistant-character-canvas {
+    animation: float 4s ease-in-out infinite;
+}
+
+/* ==================== 光晕效果 ==================== */
+.assistant-character-container::before {
+    content: '';
+    position: absolute;
+    inset: -20px;
+    background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: -1;
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+/* ==================== 点击波纹效果 ==================== */
+.assistant-character-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.assistant-character-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.5s ease;
+}
+
+.assistant-character-container:active::after {
+    opacity: 1;
+    transform: scale(1.5);
+    transition: 0s;
+}
+
+/* ==================== 状态指示器 ==================== */
+.assistant-status-indicator {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 12px;
+    height: 12px;
+    background: #10B981;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.assistant-status-indicator.thinking {
+    background: #F59E0B;
+    animation: blink 1s infinite;
+}
+
+.assistant-status-indicator.speaking {
+    background: #6366F1;
+    animation: pulse-fast 0.5s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes pulse-fast {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+/* ==================== 隐藏旧版助手样式 ==================== */
+/* 保留原有的 assistant-container 用于对话面板，但添加新样式兼容 */
+.assistant-container {
+    /* 保持原有样式不变 */
+}
+
+/* 新增：Stage 模式下的隐藏 */
+.assistant-container.stage-mode .assistant-avatar-btn {
+    display: none;
+}
+
+.assistant-container.stage-mode .assistant-panel {
+    /* 面板保持可用 */
+}

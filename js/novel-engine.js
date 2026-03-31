@@ -1153,7 +1153,8 @@ async function novelFixChapter(idx) {
             ...evaluation.repetitions.map(r => `避免重复：${r.content}`)
         ];
 
-        const fixPrompt = `请重写第${idx + 1}章，修正以下问题：\n${issues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}\n\n原章节内容：\n${ch.content.substring(0, 500)}...\n\n要求：\n1. 保持故事情节连贯\n2. 避免上述所有问题\n3. 字数保持在${ch.content.length}字左右\n4. 减少AI痕迹词汇的使用\n5. 增加对话和细节描写`;
+        const chContentFix = typeof ch.content === 'string' ? ch.content : '';
+        const fixPrompt = `请重写第${idx + 1}章，修正以下问题：\n${issues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}\n\n原章节内容：\n${chContentFix.substring(0, 500)}...\n\n要求：\n1. 保持故事情节连贯\n2. 避免上述所有问题\n3. 字数保持在${chContentFix.length}字左右\n4. 减少AI痕迹词汇的使用\n5. 增加对话和细节描写`;
 
         // 调用LLM重写
         const newContent = await _novelLLM([
@@ -1629,7 +1630,8 @@ async function novelEvaluateAllWithModel(model) {
  */
 async function novelEvaluateChapterWithModel(idx, model) {
     const ch = novelState.chapters[idx];
-    if (!ch || !ch.content || ch.status !== 'done') {
+    const chContent = typeof ch?.content === 'string' ? ch.content : '';
+    if (!ch || !chContent || ch.status !== 'done') {
         return { score: 0, issues: ['章节未完成'], repetitions: [], errors: [] };
     }
 
@@ -1646,7 +1648,7 @@ async function novelEvaluateChapterWithModel(idx, model) {
 
 章节标题：${ch.title}
 章节内容：
-${ch.content.substring(0, 3000)}${ch.content.length > 3000 ? '...(内容过长已截断)' : ''}
+${chContent.substring(0, 3000)}${chContent.length > 3000 ? '...(内容过长已截断)' : ''}
 
 请从以下维度评估并打分（每项0-20分，总分100分）：
 1. 情节连贯性

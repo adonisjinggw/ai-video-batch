@@ -1,0 +1,462 @@
+/* ==================== AIRI 风格助手 UI ==================== */
+
+/* 浮动容器 */
+.assistant-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 助手头像按钮 */
+.assistant-avatar-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.assistant-avatar-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 30px rgba(102, 126, 234, 0.6);
+}
+
+.assistant-avatar-btn:active {
+    transform: scale(0.95);
+}
+
+/* 头像内部 */
+.assistant-avatar-inner {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: float 3s ease-in-out infinite;
+}
+
+.assistant-avatar-inner svg {
+    width: 100%;
+    height: 100%;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+/* 状态指示器 */
+.assistant-status {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #10B981;
+    border: 2px solid white;
+    transition: background 0.3s;
+}
+
+.assistant-status.listening {
+    background: #F59E0B;
+    animation: pulse 1s infinite;
+}
+
+.assistant-status.speaking {
+    background: #6366F1;
+    animation: pulse 0.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* 对话气泡容器 */
+.assistant-bubbles {
+    position: absolute;
+    bottom: 80px;
+    right: 0;
+    width: 350px;
+    max-height: 500px;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.assistant-bubbles.active {
+    display: flex;
+}
+
+/* 单个气泡 */
+.assistant-bubble {
+    padding: 12px 16px;
+    border-radius: 18px;
+    max-width: 100%;
+    word-wrap: break-word;
+    animation: bubbleIn 0.3s ease;
+}
+
+@keyframes bubbleIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 用户气泡 */
+.assistant-bubble.user {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+/* 助手气泡 */
+.assistant-bubble.assistant {
+    background: white;
+    color: #1F2937;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 系统消息 */
+.assistant-bubble.system {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6B7280;
+    align-self: center;
+    font-size: 12px;
+    text-align: center;
+    padding: 8px 16px;
+}
+
+/* 快捷操作栏 */
+.assistant-actions {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-top: 8px;
+}
+
+.assistant-action-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #F3F4F6;
+    color: #374151;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.assistant-action-btn:hover {
+    background: #E5E7EB;
+}
+
+.assistant-action-btn:active {
+    transform: scale(0.95);
+}
+
+.assistant-action-btn.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.assistant-action-btn.danger {
+    background: #EF4444;
+    color: white;
+}
+
+/* 输入框区域 */
+.assistant-input-area {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-top: 8px;
+}
+
+.assistant-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.assistant-input:focus {
+    border-color: #667eea;
+}
+
+.assistant-send-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.assistant-send-btn:hover {
+    transform: scale(1.05);
+}
+
+.assistant-send-btn:active {
+    transform: scale(0.95);
+}
+
+/* 语音录制按钮 */
+.assistant-voice-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: #F3F4F6;
+    color: #374151;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.assistant-voice-btn.recording {
+    background: #EF4444;
+    color: white;
+    animation: pulse 1s infinite;
+}
+
+.assistant-voice-btn:hover:not(.recording) {
+    background: #E5E7EB;
+}
+
+/* 加载动画 */
+.assistant-typing {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+}
+
+.assistant-typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #9CA3AF;
+    animation: typing 1.4s infinite;
+}
+
+.assistant-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.assistant-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-10px); }
+}
+
+/* 主面板 */
+.assistant-panel {
+    position: absolute;
+    bottom: 80px;
+    right: 0;
+    width: 400px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+    animation: panelIn 0.3s ease;
+}
+
+.assistant-panel.active {
+    display: flex;
+}
+
+@keyframes panelIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 面板头部 */
+.assistant-panel-header {
+    padding: 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.assistant-panel-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.assistant-panel-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.assistant-panel-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 面板内容 */
+.assistant-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    max-height: 400px;
+}
+
+/* 面板底部 */
+.assistant-panel-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #E5E7EB;
+}
+
+/* 记忆卡片 */
+.assistant-memory-card {
+    padding: 12px;
+    background: #F9FAFB;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.assistant-memory-card-label {
+    font-size: 12px;
+    color: #6B7280;
+    margin-bottom: 4px;
+}
+
+.assistant-memory-card-value {
+    font-size: 14px;
+    color: #1F2937;
+}
+
+/* 滚动条样式 */
+.assistant-bubbles::-webkit-scrollbar,
+.assistant-panel-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.assistant-bubbles::-webkit-scrollbar-track,
+.assistant-panel-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.assistant-bubbles::-webkit-scrollbar-thumb,
+.assistant-panel-content::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 2px;
+}
+
+/* 移动端适配 */
+@media (max-width: 480px) {
+    .assistant-container {
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .assistant-avatar-btn {
+        width: 56px;
+        height: 56px;
+    }
+
+    .assistant-bubbles,
+    .assistant-panel {
+        width: calc(100vw - 32px);
+        right: 0;
+    }
+
+    .assistant-panel {
+        bottom: 80px;
+        right: 16px;
+    }
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+    .assistant-bubble.assistant {
+        background: #1F2937;
+        color: #F9FAFB;
+    }
+
+    .assistant-actions,
+    .assistant-input-area,
+    .assistant-panel {
+        background: #1F2937;
+    }
+
+    .assistant-input {
+        background: #374151;
+        border-color: #4B5563;
+        color: #F9FAFB;
+    }
+
+    .assistant-action-btn {
+        background: #374151;
+        color: #F9FAFB;
+    }
+
+    .assistant-action-btn:hover {
+        background: #4B5563;
+    }
+
+    .assistant-memory-card {
+        background: #374151;
+    }
+
+    .assistant-memory-card-value {
+        color: #F9FAFB;
+    }
+}

@@ -138,14 +138,6 @@
         { value: 'midjourney-relax', label: '🐢 MJ Relax（2胶片）' }
     ];
 
-    // 📝 通用文本/LLM 模型选项
-    const TEXT_MODEL_OPTIONS = [
-        { value: 'auto', label: '🧠 智能自动 (根据内容选模型)' },
-        { value: 'roll', label: '⚡ Roll 系统 (默认)' },
-        { value: 'qwen3.5-plus', label: '💎 通义千问 Plus (推荐)' },
-        { value: 'gemini-3.1-pro-preview', label: '🌟 Gemini Pro (高质量)' }
-    ];
-
     // 🎬 通用视频模型选项（完整列表，与 mobile.html 保持一致）
     const VIDEO_MODEL_OPTIONS = [
         // === 智能自动 ===
@@ -154,11 +146,9 @@
         { value: 'image-to-video', label: 'Flux + Grok-3 (图生视频)' },
         { value: 'banana-image-to-video', label: 'Gemini-3 + Grok-3 (图生视频)' },
         { value: 'banana-grid-to-video', label: '🎯 网格图省费版 (1图切N分镜)' },
-
         // === Veo 3.1 系列 ===
         { value: 'veo3.1', label: '🎬 Veo 3.1 (有声/推荐 8s 30胶片)' },
         { value: 'veo3.1-4K', label: '🎬 Veo 3.1 4K (超清⚠️暂不稳定 8s 30胶片)' },
-
         // === Vidu 系列 - 5秒 ===
         { value: 'vidu-q2-5s-720p', label: '🎬 Vidu q2 5秒 720P (25胶片)' },
         { value: 'vidu-q2-5s-1080p', label: '🎬 Vidu q2 5秒 1080P (36胶片)' },
@@ -168,7 +158,6 @@
         { value: 'vidu-q2-turbo-5s-1080p', label: '🎬 Vidu q2-turbo 5秒 1080P (36胶片)' },
         { value: 'vidu-q3-pro-5s-720p', label: '🎬 Vidu q3-pro 5秒 720P (72胶片/顶级)' },
         { value: 'vidu-q3-pro-5s-1080p', label: '🎬 Vidu q3-pro 5秒 1080P (77胶片/顶级)' },
-
         // === Vidu 系列 - 10秒 ===
         { value: 'vidu-q2-10s-720p', label: '🎬 Vidu q2 10秒 720P (50胶片)' },
         { value: 'vidu-q2-10s-1080p', label: '🎬 Vidu q2 10秒 1080P (72胶片)' },
@@ -178,57 +167,47 @@
         { value: 'vidu-q2-turbo-10s-1080p', label: '🎬 Vidu q2-turbo 10秒 1080P (72胶片)' },
         { value: 'vidu-q3-pro-10s-720p', label: '🎬 Vidu q3-pro 10秒 720P (144胶片/顶级)' },
         { value: 'vidu-q3-pro-10s-1080p', label: '🎬 Vidu q3-pro 10秒 1080P (154胶片/顶级)' },
-
         // === 海螺 Hailuo - 6秒 ===
         { value: 'hailuo-02-768p-6s', label: '🐚 海螺 02 6秒 768P (7胶片)' },
         { value: 'hailuo-02-1080p-6s', label: '🐚 海螺 02 6秒 1080P (12胶片)' },
         { value: 'hailuo-fast-768p-6s', label: '🐚 海螺 fast 6秒 768P (5胶片)' },
         { value: 'hailuo-fast-1080p-6s', label: '🐚 海螺 fast 6秒 1080P (8胶片)' },
-
         // === 海螺 Hailuo - 10秒 ===
         { value: 'hailuo-02-768p-10s', label: '🐚 海螺 02 10秒 768P (11胶片)' },
         { value: 'hailuo-02-1080p-10s', label: '🐚 海螺 02 10秒 1080P (20胶片)' },
         { value: 'hailuo-fast-768p-10s', label: '🐚 海螺 fast 10秒 768P (8胶片)' },
         { value: 'hailuo-fast-1080p-10s', label: '🐚 海螺 fast 10秒 1080P (13胶片)' },
-
         // === 可灵 Kling O1 - 5秒 ===
         { value: 'kling-o1-720p-5s', label: '⚡ 可灵 O1 5秒 720P (15胶片)' },
         { value: 'kling-o1-1080p-5s', label: '⚡ 可灵 O1 5秒 1080P (20胶片)' },
-
         // === 可灵 Kling O1 - 10秒 ===
         { value: 'kling-o1-720p-10s', label: '⚡ 可灵 O1 10秒 720P (31胶片)' },
         { value: 'kling-o1-1080p-10s', label: '⚡ 可灵 O1 10秒 1080P (41胶片)' },
-
         // === Grok Video 3 ===
         { value: 'grok-video-3-text', label: '🌟 Grok Video 3 6秒 (文生视频)' },
         { value: 'grok-video-3', label: '🌟 Grok Video 3 6秒 (图生视频)' },
         { value: 'grok-video-3-10s-text', label: '🌟 Grok Video 3 10秒 (文生视频)' },
         { value: 'grok-video-3-10s', label: '🌟 Grok Video 3 10秒 (图生视频)' },
-
         // === Wan2.6 - 5秒 ===
         { value: 'wan26-720p-5s', label: '🎬 Wan2.6 720p 5秒 (3胶片)' },
         { value: 'wan26-1080p-5s', label: '🎬 Wan2.6 1080p 5秒 (5胶片)' },
         { value: 'wan26-720p-5s-audio', label: '🎬 Wan2.6 720p 5秒 有声 (4胶片)' },
         { value: 'wan26-1080p-5s-audio', label: '🎬 Wan2.6 1080p 5秒 有声 (7胶片)' },
-
         // === Wan2.6 - 10秒 ===
         { value: 'wan26-720p-10s', label: '🎬 Wan2.6 720p 10秒 (5胶片)' },
         { value: 'wan26-1080p-10s', label: '🎬 Wan2.6 1080p 10秒 (9胶片)' },
         { value: 'wan26-720p-10s-audio', label: '🎬 Wan2.6 720p 10秒 有声 (7胶片)' },
         { value: 'wan26-1080p-10s-audio', label: '🎬 Wan2.6 1080p 10秒 有声 (14胶片)' },
-
         // === Wan2.6 - 15秒 ===
         { value: 'wan26-720p-15s', label: '🌟 Wan2.6 720p 15秒 (7胶片/15s性价比优先)' },
         { value: 'wan26-1080p-15s', label: '⚠️ Wan2.6 1080p 15秒 (13胶片/高价慎用)' },
         { value: 'wan26-720p-15s-audio', label: '🎬 Wan2.6 720p 15秒 有声 (11胶片)' },
         { value: 'wan26-1080p-15s-audio', label: '⚠️ Wan2.6 1080p 15秒 有声 (21胶片/高价慎用)' },
-
         // === LTX-Video ===
         { value: 'ltx-video-5s', label: '🎬 LTX-Video 5秒 (4胶片/快速)' },
         { value: 'ltx-video-10s', label: '🎬 LTX-Video 10秒 (7胶片)' },
         { value: 'ltx-video-15s', label: '🎬 LTX-Video 15秒 (10胶片)' },
         { value: 'ltx-video-custom', label: '🎬 LTX-Video 自定义时长 (12胶片)' },
-
         // === 其他 ===
         { value: 'runninghub-video', label: '🏃 RunningHub 10s (8胶片/MV备选)' },
         { value: 'video-continuity', label: '🎬 连续性视频 (逐帧衔接)' }
@@ -640,7 +619,7 @@
         const wantShort = (dur > 0 && dur <= 5) || /短视频|短片|快速|简短|预告|片头|logo|封面/.test(topic);
 
         if (needMusic) {
-            // ❌ grok-video-3-15s 已下架，改用 wan26-720p-15s 或其他
+            // ❌ grok-video-3-15s 已下架，改用 wan26-720p-15s
             if (wantLong) return 'wan26-720p-15s-audio';
             return 'grok-video-3';
         }
@@ -649,7 +628,7 @@
         if (needAudio) return 'veo3.1';
 
         // 无音频需求 → 按时长偏好选 Grok（性价比最高）
-        // ❌ grok-video-3-15s 已下架，改用 wan26-720p-15s
+        // ❌ grok-video-3-15s 已下架
         if (wantLong) return 'wan26-720p-15s';
         if (wantShort) return 'grok-video-3';
 
@@ -3174,7 +3153,7 @@ ${script.substring(0, 4000)}
                         key: 'videoModel',
                         label: '视频模型',
                         type: 'select',
-                        default: 'grok-video-3-10s', // ❌ grok-video-3-15s 已下架
+                        default: 'grok-video-3-15s',
                         options: VIDEO_MODEL_OPTIONS
                     },
                     {
@@ -4197,7 +4176,7 @@ ${colorPref ? '色彩偏好：' + colorPref : ''}
                         key: 'videoModel',
                         label: '视频模型',
                         type: 'select',
-                        default: 'grok-video-3-10s', // ❌ grok-video-3-15s 已下架
+                        default: 'grok-video-3-15s',
                         options: VIDEO_MODEL_OPTIONS
                     },
                     {
@@ -4374,7 +4353,7 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                                 const videoUrl = await callSora2ImageToVideoAPI(
                                     panel.imageUrl,
                                     motionDesc,
-                                    { model: videoModel || 'grok-video-3-10s', duration: 5, aspectRatio: '16:9' } // ❌ grok-video-3-15s 已下架
+                                    { model: videoModel || 'grok-video-3-15s', duration: 5, aspectRatio: '16:9' }
                                 );
                                 doneVids++;
                                 const pct = 55 + Math.round((doneVids / successPanels.length) * 40);
@@ -6646,829 +6625,6 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
             }
         };
 
-        // ========== 🐟 群体智能预测 (重写版) ==========
-        // 多智能体协作，真正调用 AI 模型进行预测分析
-        presetSkills.push({
-            id: 'miro_prediction',
-            name: '群体智能预测',
-            icon: '🔮',
-            category: 'tool',
-            description: '🐟 群体智能预测平台：多个 AI 智能体分工协作，对加密货币、股票、天气、趋势等进行综合预测分析。使用真正的 LLM 模型生成分析结果。',
-            parameters: [
-                {
-                    key: 'type',
-                    label: '预测类型',
-                    type: 'select',
-                    default: 'crypto',
-                    options: [
-                        { value: 'crypto', label: '加密货币' },
-                        { value: 'stock', label: '股票' },
-                        { value: 'weather', label: '天气' },
-                        { value: 'trend', label: '趋势分析' }
-                    ]
-                },
-                {
-                    key: 'topic',
-                    label: '预测主题',
-                    type: 'text',
-                    required: true,
-                    placeholder: '例如：BTC、ETH、黄金、AI概念股...'
-                },
-                {
-                    key: 'model',
-                    label: 'AI 模型',
-                    type: 'select',
-                    default: 'auto',
-                    options: TEXT_MODEL_OPTIONS
-                }
-            ],
-            // 胶片消耗：每个智能体约 1-2 胶片，共 5 个智能体 + 综合分析
-            estimateCost: (params) => {
-                const model = params?.model || 'auto';
-                // 5 个智能体 + 1 次综合分析 = 6 次 LLM 调用
-                // 每次约 1-2 胶片
-                return { film: 8, time: '约 1-2 分钟' };
-            },
-            execute: async (params, callbacks) => {
-                const { type, topic, model } = params;
-
-                // 确保 callWriterLLM 可用
-                if (typeof callWriterLLM !== 'function') {
-                    throw new Error('LLM 调用功能不可用，请刷新页面重试');
-                }
-
-                callbacks.onProgress?.('初始化', 5, '🐟 启动群体智能预测...');
-
-                // ========== 智能体定义 ==========
-                const AGENTS = [
-                    {
-                        id: 'analyst',
-                        name: '分析师',
-                        role: '数据解读专家',
-                        emoji: '📊',
-                        color: '#FF6B9D',
-                        systemPrompt: `你是一位资深的数据分析师，擅长从数据中提取关键信息，用简洁专业的语言给出客观分析。你的分析应该基于事实数据，提供有力的数据支撑。`
-                    },
-                    {
-                        id: 'skeptic',
-                        name: '怀疑者',
-                        role: '风险提示专家',
-                        emoji: '🤔',
-                        color: '#6366F1',
-                        systemPrompt: `你是一位风险控制专家，擅长识别潜在风险和问题。你总是从最坏的情况出发，指出可能的不利因素和风险点，帮助用户做好充分准备。`
-                    },
-                    {
-                        id: 'optimist',
-                        name: '乐观派',
-                        role: '趋势看多专家',
-                        emoji: '📈',
-                        color: '#10B981',
-                        systemPrompt: `你是一位乐观的趋势分析师，擅长发现机会和积极因素。你总是看到事情好的一面，分析可能上涨的因素和利好消息，给用户信心。`
-                    },
-                    {
-                        id: 'realist',
-                        name: '现实派',
-                        role: '客观评估专家',
-                        emoji: '⚖️',
-                        color: '#F59E0B',
-                        systemPrompt: `你是一位客观的现实主义者，擅长平衡利弊给出中肯评价。你既不盲目乐观也不过度悲观，而是基于实际情况给出最可能的评估。`
-                    },
-                    {
-                        id: 'strategist',
-                        name: '战略家',
-                        role: '综合策略专家',
-                        emoji: '🎯',
-                        color: '#8B5CF6',
-                        systemPrompt: `你是一位战略规划专家，擅长综合各方观点给出最佳策略建议。你会考虑不同角度的分析，最终给出一个平衡风险和收益的可执行建议。`
-                    }
-                ];
-
-                // ========== 根据预测类型构建分析提示词 ==========
-                const typePrompts = {
-                    crypto: {
-                        context: `用户想要了解【${topic}】(加密货币)的走势预测。请从技术分析、市场情绪、宏观因素等角度进行专业分析。`,
-                        analystFocus: '从价格走势、成交量、市场深度等数据分析切入',
-                        skepticFocus: '识别可能的暴跌风险、泡沫迹象、监管风险',
-                        optimistFocus: '发现可能的暴涨机会、利好因素、机构动向',
-                        realistFocus: '给出最可能的价格区间和概率评估',
-                        strategistFocus: '综合分析，给出具体可操作的买入/卖出/观望建议'
-                    },
-                    stock: {
-                        context: `用户想要了解【${topic}】(股票)的走势预测。请从基本面、技术面、行业趋势等角度进行专业分析。`,
-                        analystFocus: '从财务报表、估值指标、业绩增长等数据切入',
-                        skepticFocus: '识别可能的业绩下滑、行业衰退、政策风险',
-                        optimistFocus: '发现可能的业绩爆发、行业景气、并购重组等机会',
-                        realistFocus: '给出最可能的股价区间和概率评估',
-                        strategistFocus: '综合分析，给出具体可操作的交易建议'
-                    },
-                    weather: {
-                        context: `用户想要了解【${topic}】的天气预报。请从气象数据、历史规律、季节特征等角度进行专业分析。`,
-                        analystFocus: '从气压、湿度、风向等气象数据切入',
-                        skepticFocus: '识别可能的极端天气、预报不确定性',
-                        optimistFocus: '发现适合户外活动的好天气时段',
-                        realistFocus: '给出最可能的天气预报和准确概率',
-                        strategistFocus: '综合分析，给出具体的生活/出行建议'
-                    },
-                    trend: {
-                        context: `用户想要了解【${topic}】(趋势)的分析和预测。请从数据趋势、舆论走向、行为模式等角度进行专业分析。`,
-                        analystFocus: '从搜索热度、社交讨论、媒体曝光等数据切入',
-                        skepticFocus: '识别可能的虚假热度、短期泡沫、逆转信号',
-                        optimistFocus: '发现持续增长的趋势、潜在的爆发点',
-                        realistFocus: '给出最可能的发展轨迹和持续时间',
-                        strategistFocus: '综合分析，给出具体的参与时机和方式建议'
-                    }
-                };
-
-                const promptConfig = typePrompts[type] || typePrompts.trend;
-
-                // ========== 并行调用各智能体分析 ==========
-                const agentResults = {};
-                const totalAgents = AGENTS.length;
-                const progressBase = 10;
-                const progressPerAgent = Math.floor(60 / totalAgents);
-
-                // 串行调用各智能体，避免并发过高导致失败
-                for (let index = 0; index < AGENTS.length; index++) {
-                    const agent = AGENTS[index];
-                    try {
-                        callbacks.onProgress?.(
-                            `智能体 ${agent.name}`,
-                            progressBase + index * progressPerAgent,
-                            `${agent.emoji} ${agent.name} 分析中...`
-                        );
-
-                        // 构建该智能体的 prompt
-                        const focusKey = `${agent.id}Focus`;
-                        const focusText = promptConfig[focusKey] || '';
-
-                        const messages = [
-                            { role: 'system', content: `${agent.systemPrompt}\n\n当前预测主题：${topic}\n预测类型：${type === 'crypto' ? '加密货币' : type === 'stock' ? '股票' : type === 'weather' ? '天气' : '趋势分析'}\n\n${promptConfig.context}\n\n你的分析重点：${focusText}\n\n请用简洁专业的语言输出你的分析，字数控制在 100-200 字左右。` },
-                            { role: 'user', content: `请分析 ${topic} 的${type === 'crypto' ? '走势' : type === 'stock' ? '股价' : type === 'weather' ? '天气' : '发展趋势'}，给出你的专业判断。` }
-                        ];
-
-                        // 调用 LLM
-                        const modelToUse = model === 'auto' ? 'qwen3.5-plus' : model;
-                        const response = await callWriterLLM(messages, {
-                            model: modelToUse,
-                            temperature: 0.7,
-                            max_tokens: 500,
-                            useMemory: false // 预测任务不需要用户记忆
-                        });
-
-                        agentResults[agent.id] = {
-                            name: agent.name,
-                            emoji: agent.emoji,
-                            role: agent.role,
-                            color: agent.color,
-                            content: response,
-                            sentiment: 'neutral'
-                        };
-
-                        callbacks.onProgress?.(
-                            `智能体 ${agent.name}`,
-                            progressBase + (index + 1) * progressPerAgent,
-                            `✅ ${agent.name} 完成`
-                        );
-                    } catch (error) {
-                        console.error(`[miro_prediction] 智能体 ${agent.id} 失败:`, error);
-                        agentResults[agent.id] = {
-                            name: agent.name,
-                            emoji: agent.emoji,
-                            role: agent.role,
-                            color: agent.color,
-                            content: `分析暂时不可用: ${error.message}`,
-                            sentiment: 'neutral'
-                        };
-                    }
-                }
-
-                // ========== 综合预测 ==========
-                callbacks.onProgress?.('综合分析', 75, '🎯 生成最终预测...');
-
-                try {
-                    const summaryMessages = [
-                        { role: 'system', content: `你是一位群体智能预测专家，负责综合多个专业智能体的分析意见，生成最终的预测结论。
-
-请根据以下各智能体的分析意见，综合给出：
-1. 一个简短的总结（1-2句话）
-2. 一个情绪判断（positive/negative/neutral）
-3. 一个置信度评分（0-100）
-4. 2-3条具体的操作建议
-
-请用 JSON 格式输出：
-{
-  "summary": "总结文字",
-  "sentiment": "positive/negative/neutral",
-  "confidence": 75,
-  "recommendations": ["建议1", "建议2", "建议3"]
-}
-
-预测主题：${topic}
-预测类型：${type === 'crypto' ? '加密货币' : type === 'stock' ? '股票' : type === 'weather' ? '天气' : '趋势分析'}` },
-                        { role: 'user', content: `各智能体分析结果如下：
-
-📊 分析师: ${agentResults.analyst?.content || '无数据'}
-🤔 怀疑者: ${agentResults.skeptic?.content || '无数据'}
-📈 乐观派: ${agentResults.optimist?.content || '无数据'}
-⚖️ 现实派: ${agentResults.realist?.content || '无数据'}
-🎯 战略家: ${agentResults.strategist?.content || '无数据'}
-
-请综合以上分析，给出最终预测结论。` }
-                    ];
-
-                    const modelToUse = model === 'auto' ? 'qwen3.5-plus' : model;
-                    const summaryResponse = await callWriterLLM(summaryMessages, {
-                        model: modelToUse,
-                        temperature: 0.5,
-                        max_tokens: 800,
-                        useMemory: false
-                    });
-
-                    // 尝试解析 JSON
-                    let prediction = {
-                        summary: summaryResponse,
-                        sentiment: 'neutral',
-                        confidence: 70,
-                        recommendations: ['综合各智能体意见，请谨慎决策']
-                    };
-
-                    try {
-                        // 尝试提取 JSON
-                        const jsonMatch = summaryResponse.match(/\{[\s\S]*\}/);
-                        if (jsonMatch) {
-                            const parsed = JSON.parse(jsonMatch[0]);
-                            prediction = { ...prediction, ...parsed };
-                        }
-                    } catch (e) {
-                        console.warn('[miro_prediction] 解析预测 JSON 失败，使用原始文本');
-                    }
-
-                    callbacks.onProgress?.('完成', 100, '🎉 预测完成！');
-
-                    // 构建用于展示的文本结果
-                    const agentText = Object.values(agentResults).map(a =>
-                        `${a.emoji} ${a.name}（${a.role}）:\n${a.content}`
-                    ).join('\n\n');
-
-                    const result = `🐟 群体智能预测结果
-
-📌 主题：${topic}
-📊 类型：${type === 'crypto' ? '加密货币' : type === 'stock' ? '股票' : type === 'weather' ? '天气' : '趋势分析'}
-🤖 模型：${modelToUse}
-
-═══ 各智能体分析 ═══
-
-${agentText}
-
-═══ 综合预测 ═══
-
-📝 ${prediction.summary}
-
-💚 情绪：${prediction.sentiment === 'positive' ? '偏多' : prediction.sentiment === 'negative' ? '偏空' : '中性'}
-📈 置信度：${prediction.confidence}%
-
-💡 操作建议：
-${(prediction.recommendations || []).map((r, i) => `${i + 1}. ${r}`).join('\n')}
-
-⏰ ${new Date().toLocaleString('zh-CN')}`;
-
-                    return {
-                        success: true,
-                        result, // 用于移动端展示
-                        type,
-                        topic,
-                        model: modelToUse,
-                        agents: agentResults,
-                        prediction,
-                        timestamp: Date.now()
-                    };
-                } catch (error) {
-                    console.error('[miro_prediction] 综合预测失败:', error);
-                    callbacks.onProgress?.('完成', 100, '⚠️ 部分预测完成');
-
-                    // 即使综合失败，也返回各智能体结果
-                    const agentText = Object.values(agentResults).map(a =>
-                        `${a.emoji} ${a.name}（${a.role}）:\n${a.content}`
-                    ).join('\n\n');
-
-                    const result = `🐟 群体智能预测结果（部分）
-
-📌 主题：${topic}
-📊 类型：${type === 'crypto' ? '加密货币' : type === 'stock' ? '股票' : type === 'weather' ? '天气' : '趋势分析'}
-🤖 模型：${model === 'auto' ? 'qwen3.5-plus' : model}
-
-═══ 各智能体分析 ═══
-
-${agentText}
-
-⚠️ 综合预测暂时不可用，请参考各智能体单独分析结果
-
-⏰ ${new Date().toLocaleString('zh-CN')}`;
-
-                    return {
-                        success: true,
-                        result, // 用于移动端展示
-                        type,
-                        topic,
-                        model: model === 'auto' ? 'qwen3.5-plus' : model,
-                        agents: agentResults,
-                        prediction: {
-                            summary: '各智能体分析已完成，综合预测暂时不可用',
-                            sentiment: 'neutral',
-                            confidence: 50,
-                            recommendations: ['请参考各智能体单独分析结果']
-                        },
-                        timestamp: Date.now()
-                    };
-                }
-            }
-        });
-
-        // ═══════════════════════════════════════════════════════════
-        // 🎬 短剧创作大师 - 基于 drama-creator 专业方法论
-        // ═══════════════════════════════════════════════════════════
-        presetSkills.push({
-            id: 'short_drama_master',
-            name: '短剧创作大师',
-            icon: '🎬',
-            category: 'content',
-            description: '专业竖屏短剧剧本创作，支持大纲设计、剧本撰写、打脸场景、悬念钩子',
-            parameters: [
-                {
-                    id: 'task_type',
-                    name: '任务类型',
-                    type: 'select',
-                    required: true,
-                    options: [
-                        { value: 'outline', label: '📋 故事大纲 - 设计整体结构' },
-                        { value: 'script', label: '📜 单集剧本 - 撰写具体剧本' },
-                        { value: 'twist', label: '🔥 打脸场景 - 构思爽点场景' },
-                        { value: 'hook', label: '🎣 悬念钩子 - 设计吸引力结尾' }
-                    ],
-                    default: 'outline'
-                },
-                {
-                    id: 'genre',
-                    name: '题材类型',
-                    type: 'select',
-                    required: true,
-                    options: [
-                        { value: 'urban', label: '都市情感' },
-                        { value: 'rural', label: '乡村情感' },
-                        { value: 'horror', label: '民俗恐怖' },
-                        { value: 'scifi', label: '科幻末世' },
-                        { value: 'historical', label: '古装穿越' },
-                        { value: ' suspense', label: '悬疑推理' }
-                    ],
-                    default: 'urban'
-                },
-                {
-                    id: 'premise',
-                    name: '创作素材',
-                    type: 'textarea',
-                    required: true,
-                    placeholder: '输入你的创意：一句话灵感、故事大纲、人物设定...'
-                }
-            ],
-            estimateCost() { return 8; },
-            async execute(params, callbacks) {
-                const { task_type, genre, premise } = params;
-                const genreMap = {
-                    'urban': '都市情感', 'rural': '乡村情感', 'horror': '民俗恐怖',
-                    'scifi': '科幻末世', 'historical': '古装穿越', ' suspense': '悬疑推理'
-                };
-                const genreName = genreMap[genre] || '都市情感';
-
-                callbacks.onProgress?.('准备中', 5, '🎬 金牌剧作官正在构思...');
-
-                // 构建专业 system prompt（基于 drama-creator 方法论）
-                const systemPrompt = `你是"金牌剧作官"，短剧行业内以"节奏魔法师"和"台词手术刀"闻名的顶尖编剧。
-
-【核心特质】
-- 冷静：保持客观理性的创作视角，不受个人情绪影响
-- 精准：每一句台词、每一个情节都精确到位，不浪费一个字
-- 犀利：对拖沓、无效的情节和对话"零容忍"，敢于指出问题
-
-【情绪弹簧理论】
-这是短剧剧本的灵魂！每一集剧本（1-2分钟）的存在价值只有两个："压弹簧"或"放弹簧"。
-- 压弹簧：通过制造误会、主角被压制、反派嚣张、危机降临等情节，积蓄观众负面情绪
-- 放弹簧：通过主角反转、打脸反派、揭露真相、化解危机等情节，释放情绪提供爽感
-- 硬性指标：每一集要么"压弹簧"，要么"放弹簧"，不存在中间状态
-
-【创作方法论】
-1. 钩子-反转-再钩子：开篇钩子5秒，中段反转30-45秒，结尾再钩子
-2. 信息前置废话后置：台词功能性，直白抛出身份、冲突、目标
-3. 动作可视化：用强视觉冲击力的"动作"代替无力的"形容词"
-
-【格式规范】
-场次编号. 场景地点 时间 内外景
-人物动作和状态描写。
-人物A：（情绪/动作）台词内容。
-[动作/转换描写]
-
-【单集硬性规定】
-- 字数：不超过800字
-- 时长：控制在2分钟以内
-- 节奏：要么压弹簧，要么放弹簧
-
-【口头禅】
-- "观众的情绪是根弹簧，我的任务就是把它压到最紧，再瞬间松开。"
-- "这个场景，砍掉一半的台词，爽感能提升一倍。"
-- "每场戏要么压弹簧，要么放弹簧，没有中间状态。"`;
-
-                // 根据任务类型构建不同的 user prompt
-                let userPrompt = '';
-                switch (task_type) {
-                    case 'outline':
-                        userPrompt = `【宏观建构任务 - 故事大纲设计】
-
-请根据以下素材，设计一个完整的短剧故事大纲。
-
-题材：${genreName}
-素材：${premise}
-
-请输出：
-1. 核心人物小传（2-3个主要人物的身份、目标、冲突）
-2. 故事主线（起承转合，每部分用3-5句话概括）
-3. 核心爽点布局（至少5个高能反转点，标注集数）
-4. 情绪曲线设计（标注哪些集"压弹簧"，哪些集"放弹簧"）
-5. 付费卡点建议（哪些节点适合设置付费点）`;
-                        callbacks.onProgress?.('设计大纲', 30, '📋 构思故事结构...');
-                        break;
-
-                    case 'script':
-                        userPrompt = `【剧本创作任务 - 单集剧本撰写】
-
-请根据以下素材，撰写一集完整的短剧剧本。
-
-题材：${genreName}
-素材：${premise}
-
-要求：
-- 严格遵循"情绪弹簧理论"，本集必须是"压弹簧"或"放弹簧"之一
-- 开篇5秒内建立微型冲突或悬念
-- 对话极简，每句不超过20字
-- 结尾必须留悬念，抛出更强的悬念或未完成的"打脸"动作
-- 大量使用动作和换行制造节奏感
-- 禁止内心独白和抒情`;
-                        callbacks.onProgress?.('撰写剧本', 30, '📜 创作剧本中...');
-                        break;
-
-                    case 'twist':
-                        userPrompt = `【创意发想任务 - 打脸场景设计】
-
-请根据以下素材，构思一个极致的"放弹簧"打脸场景。
-
-题材：${genreName}
-素材：${premise}
-
-请设计：
-1. 场景设定（地点、时间、人物关系）
-2. 反派嚣张点（让反派先得志，制造"压抑"感）
-3. 主角隐藏身份/实力（等待时机揭露）
-4. 打脸时刻（身份揭露的具体方式，要震撼、要爽）
-5. 收尾动作（打脸后的余韵，让人想看下一集）
-
-参考模板：
-【分析：这是一个"放弹簧"场景，需要极致的爽感释放】
-
-1. 高档餐厅 日 内
-女主苏雅正在和朋友聚餐，前男友带着新女友走进餐厅。
-前男友：（嘲讽）哟，这不是苏雅吗？怎么，一个人在这儿吃啊？
-男主顾言穿着服务员的制服走过来倒水。
-女友：这服务员怎么这样，水都倒不干净。
-顾言低头道歉：对不起，对不起。
-前男友得寸进尺：就是，叫你们经理出来！
-餐厅经理匆匆赶来，看到顾言后，直接鞠躬90度。
-经理：顾……顾总，您怎么在这里？
-前男友愣住：什么顾总？
-经理：这位先生，我们集团董事长顾言先生亲自为您服务。
-顾言缓缓站直身体。
-顾言：经理，把这两位请出去，列入黑名单，顾氏集团旗下所有产业永不接待。
-前男友和女友狼狈地被赶出餐厅。`;
-                        callbacks.onProgress?.('构思打脸', 30, '🔥 设计打脸场景...');
-                        break;
-
-                    case 'hook':
-                        userPrompt = `【创意发想任务 - 悬念钩子设计】
-
-请根据以下素材，设计一个让人"忍不住看下一集"的悬念钩子。
-
-题材：${genreName}
-素材：${premise}
-
-请设计：
-1. 本集结尾的状态（主角正处于什么危机/冲突中）
-2. 悬念类型选择：
-   - 身份悬念：谁是TA？TA的真实身份是什么？
-   - 关系悬念：TA和TA是什么关系？
-   - 命运悬念：TA会遭遇什么？
-   - 真相悬念：发生了什么？原因是什么？
-3. 钩子设计（具体说什么/做什么，让观众心跳加速）
-4. 下一集预告（暗示接下来会发生什么）
-
-格式：
-【悬念类型】：xxx
-【本集结尾】：xxx
-【钩子设计】：xxx
-【下集预告】：xxx`;
-                        callbacks.onProgress?.('设计悬念', 30, '🎣 构思悬念钩子...');
-                        break;
-                }
-
-                callbacks.onProgress?.('生成中', 60, '✨ 金牌剧作官挥笔创作...');
-
-                try {
-                    const messages = [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ];
-                    const result = await callWriterLLM(messages, {
-                        max_tokens: task_type === 'outline' ? 2000 : 1500,
-                        temperature: 0.8
-                    });
-
-                    callbacks.onProgress?.('完成', 100, '✅ 创作完成！');
-                    return {
-                        success: true,
-                        result,
-                        taskType: task_type,
-                        genre: genreName,
-                        timestamp: Date.now()
-                    };
-                } catch (error) {
-                    console.error('[short_drama_master] 生成失败:', error);
-                    throw error;
-                }
-            }
-        });
-
-        // ═══════════════════════════════════════════════════════════
-        // 🔍 内容审核员 - 实时规则 + 智能意图识别
-        // ═══════════════════════════════════════════════════════════
-        presetSkills.push({
-            id: 'content_auditor',
-            name: '内容审核员',
-            icon: '🔍',
-            category: 'content',
-            description: '实时识别内容意图并应用平台最新规则审核，提供清晰报告和具体修改建议',
-            parameters: [
-                {
-                    id: 'content',
-                    name: '待审核内容',
-                    type: 'textarea',
-                    required: true,
-                    placeholder: '输入任何需要审核的内容（短剧剧本/文案/评论/标题/话题等）'
-                },
-                {
-                    id: 'target_platform',
-                    name: '目标平台',
-                    type: 'select',
-                    required: false,
-                    options: [
-                        { value: 'auto', label: '🔮 自动识别（推荐）' },
-                        { value: 'douyin', label: '🎵 抖音' },
-                        { value: 'kuaishou', label: '📹 快手' },
-                        { value: 'xiaohongshu', label: '📖 小红书' },
-                        { value: 'weishi', label: '👁️ 微信视频号' },
-                        { value: 'bilibili', label: '📺 B站' },
-                        { value: 'multi', label: '🌐 全平台通用' }
-                    ],
-                    default: 'auto'
-                },
-                {
-                    id: 'intent_hint',
-                    name: '你的审核目的',
-                    type: 'textarea',
-                    required: false,
-                    placeholder: '可选：告诉我你这段内容的用途，比如"要发抖音推广产品"、"写小说章节"等，我会针对性地审核'
-                },
-                {
-                    id: 'use_latest_rules',
-                    name: '使用最新规则',
-                    type: 'checkbox',
-                    required: false,
-                    default: false,
-                    description: '勾选后会实时搜索平台最新审核规则（耗时更长但更准确）'
-                }
-            ],
-            estimateCost(params) {
-                // 基础审核 10 胶片，勾选最新规则额外 +5（需搜索）
-                return params?.use_latest_rules ? 15 : 10;
-            },
-            async execute(params, callbacks) {
-                const { content, target_platform, intent_hint, use_latest_rules } = params;
-
-                const platformMap = {
-                    'auto': '自动识别',
-                    'douyin': '抖音',
-                    'kuaishou': '快手',
-                    'xiaohongshu': '小红书',
-                    'weishi': '微信视频号',
-                    'bilibili': 'B站',
-                    'multi': '全平台'
-                };
-
-                // ===== 步骤0：如果勾选最新规则，先联网搜索 =====
-                let latestRules = '';
-                if (use_latest_rules) {
-                    callbacks.onProgress?.('联网搜索', 5, '🌐 正在搜索平台最新规则...');
-
-                    const platformName = platformMap[target_platform] || '短视频平台';
-                    const searchPrompt = `请搜索并总结${platformName}最新的内容审核规则和违禁词列表（2026年最新）。
-重点关注：
-1. 最新的违禁词和敏感词
-2. 新增的审核规则（如AI生成内容标注要求）
-3. 限流处罚的最新标准
-4. 特殊行业（医疗/金融/美妆）的最新要求
-
-请用简洁的条目列出核心规则。`;
-
-                    try {
-                        // 调用 yunwu.js 的 web_search 功能
-                        const searchRes = await fetch('/api/yunwu', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                messages: [{ role: 'user', content: searchPrompt }],
-                                model: 'qwen3-235b',
-                                enableSearch: true,
-                                max_tokens: 1000
-                            })
-                        });
-
-                        if (searchRes.ok) {
-                            const searchData = await searchRes.json();
-                            latestRules = searchData.choices?.[0]?.message?.content || '';
-                            console.log('[content_auditor] 搜索到最新规则:', latestRules.substring(0, 200) + '...');
-                        }
-                    } catch (e) {
-                        console.warn('[content_auditor] 规则搜索失败，使用内置规则:', e);
-                    }
-
-                    callbacks.onProgress?.('意图识别', 15, '🔍 识别内容类型和审核意图...');
-                } else {
-                    callbacks.onProgress?.('意图识别', 10, '🔍 识别内容类型和审核意图...');
-                }
-
-                // ===== 步骤1：意图识别 =====
-
-                const intentPrompt = `你是一个内容策划助手。请分析以下内容，告诉我：
-1. 这是什么类型的内容？（如：短剧剧本、视频文案、评论、标题、话题tag、公众号文章等）
-2. 发布者可能想达到什么目的？（如：涨粉、带货、品牌宣传、娱乐观众等）
-3. 内容涉及哪些行业/领域？（如：美妆、金融、医疗、游戏、美食等）
-4. 内容中哪些部分最可能被平台判定为违规？
-
-内容：
-${content}
-${intent_hint ? `\n用户补充意图：${intent_hint}` : ''}
-
-请用简洁的几句话回答，我会根据这些信息调用平台规则进行精准审核。`;
-
-                let intentResult = '';
-                try {
-                    const intentMessages = [
-                        { role: 'system', content: '你是内容策划助手，擅长分析内容类型和发布意图。回答要简洁、专业，3-5句话内。' },
-                        { role: 'user', content: intentPrompt }
-                    ];
-                    intentResult = await callWriterLLM(intentMessages, { max_tokens: 300, temperature: 0.3 });
-                } catch (e) {
-                    console.warn('[content_auditor] 意图识别失败，继续审核:', e);
-                    intentResult = '无法识别，将进行通用审核';
-                }
-
-                callbacks.onProgress?.('规则获取', 30, '📡 正在应用平台规则...');
-
-                // ===== 步骤2：动态规则审核（基于识别的意图） =====
-                const systemPrompt = `你是"内容审核员"，专为内容创作者服务，帮助他们规避平台审核风险。
-
-【你的工作方式】
-不要用死规则生硬套用。请先理解用户内容的意图和上下文，然后用各大平台最新审核标准灵活判断。
-如果某类内容在平台上有争议，标注为"有风险但可能通过"并给出安全建议。
-
-【各大平台核心规则】（请用你最新的知识库判断）
-
-🎵 抖音：
-- 禁止：血腥暴力、低俗色情、政治敏感、虚假广告、违禁品（毒品/赌博/武器）、封建迷信
-- 重点打击：诱导线下交易、夸大功效（普通食品宣传医疗效果）、伪造数据（买粉买赞）
-- 敏感领域：金融（需资质）、医疗健康（需资质）、美妆（禁用词：最好/第一/根治等）
-- 近期重点：AI生成内容需标注"疑似AI生成"；未成年人保护；虚假摆拍
-
-📹 快手：
-- 与抖音类似，但更严格：地方方言骂人算违规
-- 社区调性：更接地气，但低俗内容（软色情、卖惨、恶意炒作）打击更狠
-- 电商：保健品、医疗器械需资质；食品宣扬功效需谨慎
-
-📖 小红书：
-- 禁止：医美推广（无资质）、虚假种草、政治内容、侵权盗版
-- 笔记规范：图片必须高清，文字必须有价值，拒绝纯广告（AD需标注）
-- 虚假种草认定：未真实使用而推荐、好物推荐与实际不符
-- 近期：严厉打击素人铺量、MCN机构批量造假
-
-👁️ 微信视频号：
-- 禁止：诱导关注/分享/下载外部App、外部联系方式（微信/QQ/手机号）
-- 营销限流：硬广（电话号码、二维码）直接限流
-- 医疗健康：需要资质，科普内容也不能提及具体药品
-- 特别注意：视频中不能说"微信"这个词
-
-📺 B站：
-- 禁止：时政敏感内容（今年更严格）、引战言论、盗版影视资源
-- 番剧/影视剪辑：必须有版权或做二创改编
-- 弹幕规范：禁止人身攻击、阴阳怪气
-- 近期重点：虚拟主播内容规范、未成年人保护
-
-【输出格式——必须严格按此格式输出】
-
-## 📋 审核结果概览
-- **内容类型**：[识别出的类型]
-- **目标平台**：[平台名或"多平台"]
-- **风险等级**：[🟢安全 / 🟡注意 / 🟠警告 / 🔴高危]，后附1-10分评分
-- **能否发布**：[✅可以 / ⚠️需修改 / ❌不建议]
-
----
-
-## 1️⃣ 合规部分 ✅
-（内容中通过审核的要点，说明为什么合规）
-
----
-
-## 2️⃣ 风险点 ⚠️
-按风险从高到低列出，每条格式：
-> **风险[高/中/低]**：[具体内容摘录]
-> 触发原因：[哪条规则]
-> 被处罚风险：[限流/删除/封号]
-
----
-
-## 3️⃣ 修改建议 💡
-每条建议格式：
-> 🔸 建议[序号]：[具体操作]
-> 例如：删除"月入十万"改为"努力赚取收入"
-> 原因：[对应平台规则]
-
----
-
-## 4️⃣ 平台适配 🏷️
-[如果选了具体平台，给出该平台的特别提示]
-[如果选"全平台"，给出最小公约数修改方案]
-
----
-
-## 5️⃣ 快速修改版 ✍️
-[给出一段修改后的安全版本内容，用【】标注修改处]
-
----
-
-【重要原则】
-- 遇到灰色地带时，给出"有风险但可能过"的判断和"如果想安全怎么做"的建议
-- 如果内容触及政治/色情/虚假广告底线，直接标🔴高危
-- 修改建议要具体可操作，不要说"注意合规"这种空话`;
-
-                callbacks.onProgress?.('审核中', 50, '🔎 深度分析内容风险...');
-
-                const userPrompt = `请审核以下内容：
-
-【用户意图补充】${intent_hint || '（用户未提供，将自动识别）'}
-${intent_hint ? '' : `\n【自动识别结果】\n${intentResult}\n`}
-平台：${platformMap[target_platform] || '自动识别'}
-${latestRules ? `\n【最新规则（联网搜索结果）】\n${latestRules}\n` : ''}
-=== 待审核内容 ===
-${content}
-
-=== 审核要求 ===
-1. 先理解内容是做什么的、发布目的是什么
-2. ${latestRules ? '优先使用上面【最新规则】中的内容判断' : '用平台规则灵活判断，不要死规则套用'}
-3. 找出所有可能的风险点
-4. 给出具体可操作的修改建议
-5. 如果是多平台，给出能过所有平台的最保守方案`;
-
-                callbacks.onProgress?.('生成报告', 80, '📝 整理审核报告...');
-
-                try {
-                    const messages = [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: `【第一步识别结果】\n${intentResult}\n\n【第二步正式审核】\n${userPrompt}` }
-                    ];
-                    const result = await callWriterLLM(messages, {
-                        max_tokens: 2000,
-                        temperature: 0.3
-                    });
-
-                    callbacks.onProgress?.('完成', 100, '✅ 审核完成！');
-                    return {
-                        success: true,
-                        result,
-                        intentAnalysis: intentResult,
-                        platform: platformMap[target_platform] || '自动识别',
-                        timestamp: Date.now()
-                    };
-                } catch (error) {
-                    console.error('[content_auditor] 审核失败:', error);
-                    throw error;
-                }
-            }
-        });
-
         // 注册所有预置 Skills
         SkillManager.registerAll(presetSkills);
 
@@ -7913,25 +7069,64 @@ ${content}
     async function initAIAssistant() {
         console.log('🎬 RollRoll（小卷）初始化开始...');
 
-        // 检查登录状态
+        // ⚠️ 修复：移除阻塞调用，改为非阻塞方式
         const userId = localStorage.getItem('user_id') || localStorage.getItem('sb_user_id');
         if (userId) {
-            console.log('🎬 用户已登录，显示小卷助手');
-            setTimeout(() => createAssistant(), 500);
+            // 已登录，延迟1秒后检查是否应该显示助手（非阻塞）
+            setTimeout(() => checkAndShowAssistant(), 1000);
         } else {
+            // 未登录，监听登录状态变化
             listenForLogin();
             console.log('🎬 RollRoll（小卷）等待用户登录...');
         }
     }
 
+    // 非阻塞检查并显示助手
+    function checkAndShowAssistant() {
+        console.log('🎬 checkAndShowAssistant 被调用');
+        const currentPath = window.location.pathname;
+        console.log('🎬 当前路径:', currentPath);
+
+        // 1. 只在 index.html 显示
+        const isIndexPage = currentPath.endsWith('/') || currentPath.endsWith('/index.html') || currentPath === '/';
+        console.log('🎬 是否为index页:', isIndexPage);
+        if (!isIndexPage) {
+            console.log('🎬 不是index.html，不显示小卷');
+            return;
+        }
+
+        // 2. 检查主容器是否可见
+        const mainContainer = document.querySelector('.app-container');
+        console.log('🎬 主容器元素:', mainContainer);
+        if (!mainContainer) {
+            console.log('🎬 找不到主容器，1秒后重试');
+            setTimeout(checkAndShowAssistant, 1000);
+            return;
+        }
+
+        const containerStyle = window.getComputedStyle(mainContainer);
+        console.log('🎬 主容器display属性:', containerStyle.display);
+        if (containerStyle.display === 'none') {
+            console.log('🎬 主容器隐藏（欢迎页），1秒后重试');
+            setTimeout(checkAndShowAssistant, 1000);
+            return;
+        }
+
+        // 3. 主容器已可见，创建助手
+        console.log('🎬 所有条件满足，开始创建助手');
+        createAssistant();
+    }
+
     // 创建助手实例
     function createAssistant() {
+        console.log('🎬 createAssistant 被调用');
         // 检查AssistantUI类是否可用
         if (typeof AssistantUI === 'undefined') {
             console.log('🎬 AssistantUI类未定义，500ms后重试...');
             setTimeout(createAssistant, 500);
             return;
         }
+        console.log('🎬 AssistantUI类已定义');
 
         // 防止重复初始化
         if (window.assistantUI) {
@@ -7962,45 +7157,6 @@ ${content}
         } catch (e) {
             console.error('🎬 RollRoll（小卷）初始化失败:', e);
         }
-    }
-        
-    
-    // 检查当前页面是否应该显示小卷助手
-    async function shouldShowAssistant() {
-        const currentPath = window.location.pathname;
-
-        // 1. 只在 index.html 显示
-        const isIndexPage = currentPath.endsWith('/') || currentPath.endsWith('/index.html') || currentPath === '/';
-        if (!isIndexPage) {
-            console.log('🎬 不是index.html，不显示小卷');
-            return false;
-        }
-
-        // 2. 等待DOM和页面完全加载（增加延迟避免检测太早）
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // 3. 先检查登录状态（最重要）
-        const userId = localStorage.getItem('user_id') || localStorage.getItem('sb_user_id');
-        if (!userId) {
-            console.log('🎬 未登录，不显示小卷');
-            return false;
-        }
-
-        // 4. 检查主容器是否可见
-        const mainContainer = document.querySelector('.app-container');
-        if (!mainContainer) {
-            console.log('🎬 找不到主容器，稍后重试');
-            return false;
-        }
-
-        const containerStyle = window.getComputedStyle(mainContainer);
-        if (containerStyle.display === 'none') {
-            console.log('🎬 主容器隐藏（欢迎页），不显示小卷');
-            return false;
-        }
-
-        console.log('🎬 ✅ 显示小卷助手');
-        return true;
     }
 
     // 检查用户登录状态

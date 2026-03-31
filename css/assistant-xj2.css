@@ -1,0 +1,665 @@
+/* ==================== 小卷助手 V2 - 霓虹灵魂 (Neon Soul) ==================== */
+/* 融合 AIRI 对话 + MiroFish 预测的统一浮动助手 */
+
+:root {
+    /* 霓虹配色 */
+    --neon-primary: #00d4ff;
+    --neon-secondary: #7c3aed;
+    --neon-accent: #f472b6;
+    --neon-success: #10b981;
+    --neon-warning: #f59e0b;
+    --neon-danger: #ef4444;
+
+    /* 玻璃态 */
+    --glass-bg: rgba(20, 20, 25, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+    /* 字体 */
+    --font-display: 'Orbitron', 'SF Pro Display', -apple-system, sans-serif;
+    --font-body: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+}
+
+/* ==================== 主容器 ==================== */
+.xj2-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 10000;
+    font-family: var(--font-body);
+    display: none !important; /* 默认隐藏，登录后通过 JS 显示 */
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.xj2-container.xj2-visible {
+    display: block !important;
+}
+
+/* ==================== 头像按钮 ==================== */
+.xj2-avatar-btn {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--neon-primary) 0%, var(--neon-secondary) 50%, var(--neon-accent) 100%);
+    box-shadow:
+        0 0 20px rgba(0, 212, 255, 0.4),
+        0 0 40px rgba(124, 58, 237, 0.2),
+        inset 0 0 20px rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: xj2-breathe 3s ease-in-out infinite;
+}
+
+.xj2-avatar-btn:hover {
+    transform: scale(1.12);
+    box-shadow:
+        0 0 30px rgba(0, 212, 255, 0.6),
+        0 0 60px rgba(124, 58, 237, 0.4),
+        inset 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.xj2-avatar-btn:active {
+    transform: scale(0.95);
+}
+
+@keyframes xj2-breathe {
+    0%, 100% {
+        box-shadow:
+            0 0 20px rgba(0, 212, 255, 0.4),
+            0 0 40px rgba(124, 58, 237, 0.2),
+            inset 0 0 20px rgba(255, 255, 255, 0.1);
+    }
+    50% {
+        box-shadow:
+            0 0 30px rgba(0, 212, 255, 0.6),
+            0 0 60px rgba(124, 58, 237, 0.4),
+            inset 0 0 25px rgba(255, 255, 255, 0.15);
+    }
+}
+
+/* 头像内部 */
+.xj2-avatar-inner {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    animation: xj2-avatar-float 4s ease-in-out infinite;
+}
+
+@keyframes xj2-avatar-float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-3px) rotate(1deg); }
+    75% { transform: translateY(2px) rotate(-1deg); }
+}
+
+.xj2-avatar-inner svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+/* 状态指示器 */
+.xj2-status {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--neon-success);
+    border: 3px solid var(--bg-dark);
+    box-shadow: 0 0 10px var(--neon-success);
+    transition: all 0.3s ease;
+}
+
+.xj2-status.thinking {
+    background: var(--neon-warning);
+    box-shadow: 0 0 10px var(--neon-warning);
+    animation: xj2-pulse 1s infinite;
+}
+
+.xj2-status.speaking {
+    background: var(--neon-primary);
+    box-shadow: 0 0 15px var(--neon-primary);
+    animation: xj2-pulse 0.5s infinite;
+}
+
+@keyframes xj2-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+/* ==================== 主面板 ==================== */
+.xj2-panel {
+    position: fixed;
+    bottom: 100px;
+    right: 16px;
+    width: min(360px, calc(100vw - 32px));
+    max-height: 70vh;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: var(--glass-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: bottom right;
+}
+
+.xj2-panel.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+/* 面板头部 */
+.xj2-panel-header {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.xj2-panel-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--neon-primary);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.xj2-panel-title::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: var(--neon-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--neon-primary);
+    animation: xj2-pulse 2s infinite;
+}
+
+.xj2-panel-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.xj2-panel-close:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: white;
+}
+
+/* ==================== 预测快捷入口 ==================== */
+.xj2-quick-prediction {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(244, 114, 182, 0.2) 100%);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.xj2-quick-prediction-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.xj2-prediction-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.xj2-prediction-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.xj2-prediction-card:hover {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.xj2-prediction-card:active {
+    transform: scale(0.95);
+}
+
+.xj2-prediction-card-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.xj2-prediction-card-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+}
+
+/* ==================== 对话区域 ==================== */
+.xj2-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.xj2-messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.xj2-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.xj2-messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+/* 消息气泡 */
+.xj2-message {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.5;
+    animation: xj2-msg-in 0.3s ease;
+}
+
+@keyframes xj2-msg-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.xj2-message.assistant {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    color: #fff;
+    align-self: flex-start;
+    border-bottom-left-radius: 6px;
+}
+
+.xj2-message.user {
+    background: linear-gradient(135deg, var(--neon-primary) 0%, var(--neon-secondary) 100%);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 6px;
+}
+
+.xj2-message.system {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
+    align-self: center;
+    font-size: 12px;
+    text-align: center;
+    padding: 8px 16px;
+    border-radius: 12px;
+}
+
+/* 预测结果消息 */
+.xj2-message.prediction {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    padding: 0;
+    overflow: hidden;
+}
+
+.xj2-prediction-result {
+    padding: 14px 16px;
+}
+
+.xj2-prediction-result-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.xj2-prediction-result-icon {
+    font-size: 24px;
+}
+
+.xj2-prediction-result-info {
+    flex: 1;
+}
+
+.xj2-prediction-result-topic {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--neon-primary);
+}
+
+.xj2-prediction-result-type {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.xj2-prediction-summary {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.xj2-prediction-metrics {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.xj2-prediction-metric {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+}
+
+.xj2-prediction-metric-value {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--neon-primary);
+}
+
+.xj2-prediction-metric-value.positive { color: var(--neon-success); }
+.xj2-prediction-metric-value.negative { color: var(--neon-danger); }
+.xj2-prediction-metric-value.neutral { color: var(--neon-warning); }
+
+.xj2-prediction-metric-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 2px;
+}
+
+.xj2-prediction-recommendations {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.xj2-prediction-recommendations li {
+    margin: 4px 0;
+    padding-left: 12px;
+    position: relative;
+}
+
+.xj2-prediction-recommendations li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--neon-accent);
+}
+
+/* ==================== 输入区域 ==================== */
+.xj2-input-area {
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 1px solid var(--glass-border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.xj2-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 10px 16px;
+    color: white;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.xj2-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.xj2-input:focus {
+    border-color: var(--neon-primary);
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+}
+
+.xj2-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+}
+
+.xj2-btn-send {
+    background: linear-gradient(135deg, var(--neon-primary) 0%, var(--neon-secondary) 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+}
+
+.xj2-btn-send:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.6);
+}
+
+.xj2-btn-send:active {
+    transform: scale(0.95);
+}
+
+.xj2-btn-voice {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.xj2-btn-voice:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+.xj2-btn-voice.recording {
+    background: var(--neon-danger);
+    color: white;
+    animation: xj2-pulse 0.5s infinite;
+}
+
+/* ==================== 预测执行中动画 ==================== */
+.xj2-predicting {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.xj2-predicting-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.xj2-predicting-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--neon-primary) 0%, var(--neon-secondary) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    animation: xj2-breathe 2s ease-in-out infinite;
+}
+
+.xj2-predicting-info {
+    flex: 1;
+}
+
+.xj2-predicting-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+}
+
+.xj2-predicting-status {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 2px;
+}
+
+.xj2-agents-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+
+.xj2-agent-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 10px 6px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.xj2-agent-card.active {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.5);
+}
+
+.xj2-agent-card.done {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.xj2-agent-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.xj2-agent-name {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+}
+
+.xj2-agent-card.done .xj2-agent-name {
+    color: var(--neon-success);
+}
+
+/* ==================== 进度条 ==================== */
+.xj2-progress {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.xj2-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--neon-primary) 0%, var(--neon-secondary) 50%, var(--neon-accent) 100%);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    animation: xj2-progress-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes xj2-progress-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ==================== 移动端适配 ==================== */
+@media (max-width: 768px) {
+    .xj2-container {
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .xj2-panel {
+        width: calc(100vw - 32px);
+        right: 16px;
+        max-height: 65vh;
+    }
+
+    .xj2-avatar-btn {
+        width: 60px;
+        height: 60px;
+    }
+
+    .xj2-avatar-inner {
+        width: 52px;
+        height: 52px;
+    }
+
+    .xj2-prediction-cards {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+
+    .xj2-prediction-card {
+        padding: 8px 4px;
+    }
+
+    .xj2-prediction-card-icon {
+        font-size: 18px;
+    }
+
+    .xj2-prediction-card-label {
+        font-size: 9px;
+    }
+}
+
+/* ==================== 暗色主题强化 ==================== */
+@media (prefers-color-scheme: dark) {
+    .xj2-panel {
+        background: rgba(10, 10, 15, 0.95);
+    }
+}

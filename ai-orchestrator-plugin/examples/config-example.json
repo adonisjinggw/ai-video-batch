@@ -1,0 +1,66 @@
+{
+  "alice.aiServices": [
+    {
+      "id": "openai-gpt4",
+      "name": "OpenAI GPT-4",
+      "type": "openai",
+      "apiKey": "your-openai-api-key-here",
+      "baseUrl": "https://api.openai.com",
+      "model": "gpt-4",
+      "capabilities": [
+        "code_generation",
+        "code_review",
+        "code_optimization",
+        "text_generation"
+      ],
+      "priority": 10
+    },
+    {
+      "id": "claude-3",
+      "name": "Claude 3 Opus",
+      "type": "claude",
+      "apiKey": "your-anthropic-api-key-here",
+      "baseUrl": "https://api.anthropic.com",
+      "model": "claude-3-opus-20240229",
+      "capabilities": [
+        "code_generation",
+        "code_explanation",
+        "documentation",
+        "text_generation"
+      ],
+      "priority": 9
+    },
+    {
+      "id": "local-llama",
+      "name": "Local Llama 2",
+      "type": "ollama",
+      "apiKey": "",
+      "baseUrl": "http://localhost:11434",
+      "model": "llama2",
+      "capabilities": [
+        "code_completion",
+        "text_generation"
+      ],
+      "priority": 5
+    },
+    {
+      "id": "custom-proxy",
+      "name": "Custom API Proxy",
+      "type": "custom",
+      "apiKey": "your-proxy-key",
+      "baseUrl": "https://your-custom-proxy.com/v1/chat/completions",
+      "model": "gpt-4-turbo",
+      "capabilities": [
+        "code_generation",
+        "bug_fix",
+        "test_generation"
+      ],
+      "priority": 8,
+      "customHeaders": {
+        "X-Proxy-Id": "your-proxy-id"
+      },
+      "responsePath": "choices[0].message.content"
+    }
+  ],
+  "alice.safetyMode": true
+}
