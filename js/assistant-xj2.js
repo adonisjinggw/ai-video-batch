@@ -93,19 +93,8 @@
                 closeBtn.addEventListener('click', () => this.close());
             }
 
-            if (this.inputEl) {
-                this.inputEl.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        this.sendMessage();
-                    }
-                });
-            }
-
-            const sendBtn = document.getElementById('xj2SendBtn');
-            if (sendBtn) {
-                sendBtn.addEventListener('click', () => this.sendMessage());
-            }
+            // 发送按钮和Enter键由 mobile.html 的 initAssistant 绑定（真实AI调用）
+            // 不在这里绑定，避免冲突
 
             const voiceBtn = document.getElementById('xj2VoiceBtn');
             if (voiceBtn) {
