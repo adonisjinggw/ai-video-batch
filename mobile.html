@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.2.1</title>
+    <title>RollRoll 移动版 V9.0.0.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js?v=20260211a&t=20260315b"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=20260306a&t=20260315b"></script>
+    <script src="/js/api-core.js?v=20260404a&t=20260404a"></script>
     <script src="/js/user-memory.js?v=20260210c&t=20260315b"></script>
     <script src="/js/writing-vault.js?v=20260210c&t=20260315b"></script>
     <!-- 🧩 Skill 技能系统 -->
@@ -46,8 +46,9 @@
     <script src="/js/skill-presets.js?v=20260315a&t=20260315b"></script>
     <script src="/js/mv-merge.js?v=20260306a&t=20260315b"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-xj2.js?v=20260331a"></script>
-    <link rel="stylesheet" href="/css/assistant-xj2.css?v=20260331a">
+    <script src="/js/assistant-voice.js?v=20260331a"></script>
+    <script src="/js/assistant-xj2.js?v=20260401a"></script>
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=20260401b">
     <style>
         * {
             margin: 0;
@@ -2480,7 +2481,7 @@
             _showIntro = true;
             var style = document.createElement('style');
             style.id = 'cinemaIntroInjectedStyle';
-            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar{display:none!important;opacity:0;visibility:hidden}';
+            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar,.xj2-container{display:none!important;opacity:0;visibility:hidden}';
             document.head.appendChild(style);
             _introStyleTag = style;
         })();
@@ -2612,15 +2613,21 @@
                 <span style="font-size:24px;margin-bottom:4px;">🎤</span>
                 <span style="font-size:11px;color:var(--text-dim);">配音</span>
             </a>
-            <a href="javascript:void(0)" onclick="openMobileSora2CharacterPanel()" class="tool-item"
+            <!-- ❌ Sora2 已全面停用 -->
+            <!-- <a href="javascript:void(0)" onclick="openMobileSora2CharacterPanel()" class="tool-item"
                 style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(212,175,55,0.2), rgba(255,215,0,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(212,175,55,0.3);">
                 <span style="font-size:24px;margin-bottom:4px;">🎭</span>
                 <span style="font-size:11px;color:var(--text-dim);">Sora2角色</span>
-            </a>
+            </a> -->
             <a href="javascript:void(0)" onclick="openMobileSkillPanel()" class="tool-item"
                 style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(251,191,36,0.2), rgba(245,158,11,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(251,191,36,0.3);">
                 <span style="font-size:24px;margin-bottom:4px;">🧩</span>
                 <span style="font-size:11px;color:var(--text-dim);">技能</span>
+            </a>
+            <a href="javascript:void(0)" onclick="quickInspiration()" class="tool-item"
+                style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(16,185,129,0.3);">
+                <span style="font-size:24px;margin-bottom:4px;">💡</span>
+                <span style="font-size:11px;color:var(--text-dim);">灵感</span>
             </a>
         </div>
 
@@ -2816,6 +2823,11 @@
                             <option value="ltx-video-15s">LTX-Video 15秒 (10胶片)</option>
                             <option value="ltx-video-custom">LTX-Video 自定义时长</option>
                         </optgroup>
+                        <optgroup label="🌟 Seedance 2.0 (RunningHub·LV10+)">
+                            <option value="seedance-t2v">Seedance 2.0 文生视频 (8胶片)</option>
+                            <option value="seedance-i2v">Seedance 2.0 图生视频 (10胶片)</option>
+                            <option value="seedance-ref">Seedance 2.0 全能参考视频 (12胶片)</option>
+                        </optgroup>
                         <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
                     </select>
                 </div>
@@ -2876,10 +2888,11 @@
                 <div class="option-group" style="flex:1;">
                     <label>🎭 角色一致性</label>
                     <div style="display:flex; gap:8px;">
-                        <button onclick="openMobileSora2CharacterPanel()"
+                        <!-- ❌ Sora2 已停用 -->
+                        <!-- <button onclick="openMobileSora2CharacterPanel()"
                             style="flex:1; padding:10px; background:linear-gradient(135deg, rgba(212,175,55,0.2), rgba(255,215,0,0.1)); border:1px solid rgba(212,175,55,0.4); border-radius:8px; color:#d4af37; font-size:13px; cursor:pointer;">
                             🎭 选择角色
-                        </button>
+                        </button> -->
                         <button onclick="openMobileCharacterLibrary()"
                             style="flex:1; padding:10px; background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(168,85,247,0.1)); border:1px solid rgba(139,92,246,0.4); border-radius:8px; color:#a78bfa; font-size:13px; cursor:pointer;">
                             👤 角色库
@@ -3041,7 +3054,8 @@
                         <option value="grid" selected>⬜ 网格排列</option>
                     </select>
                 </div>
-                <div style="margin-top:8px; font-size:11px; color:#666;">Sora-2 会将多张图片合并为一张参考图生成视频</div>
+                <!-- ❌ Sora2 已停用 -->
+                <!-- <div style="margin-top:8px; font-size:11px; color:#666;">Sora-2 会将多张图片合并为一张参考图生成视频</div> -->
             </div>
         </div>
 
@@ -3167,6 +3181,9 @@
             我的
         </a>
     </nav>
+
+    <!-- 遮罩层：小助手全屏时模糊主页 -->
+    <div class="xj2-backdrop" id="xj2Backdrop"></div>
 
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
     <div class="xj2-container" id="xj2Container">
@@ -4004,9 +4021,10 @@
         // 🎬 视频生成费用配置（与 video-tools.html 完全对齐）
         const VIDEO_COST = {
             'modelscope-video': 0,
-            'sora-2-vip-all': 7,
-            'sora-2-all': 7,
-            'sora-2-pro-all': 14,
+            // ❌ Sora-2 已全面停用
+            // 'sora-2-vip-all': 7,
+            // 'sora-2-all': 7,
+            // 'sora-2-pro-all': 14,
             // Veo 3.1 系列
             'veo3.1': 30,
             'veo3.1-4K': 30,
@@ -4053,7 +4071,11 @@
             'kling-2.0-720p-5s': 7,
             'kling-2.0-720p-10s': 14,
             'kling-2.0-1080p-5s': 12,
-            'kling-2.0-1080p-10s': 24
+            'kling-2.0-1080p-10s': 24,
+            // Seedance 2.0 (RunningHub)
+            'seedance-t2v': 8,
+            'seedance-i2v': 10,
+            'seedance-ref': 12
         };
 
         // 🧠 智能视频模型选择：根据用户输入内容自动选择最合适的模型+时长
@@ -4101,6 +4123,7 @@
             if (m.includes('grok') && m.includes('10')) return 'grok-video-3-10s';
             if (m.includes('grok')) return 'grok-video-3';
             if (m.includes('veo')) return 'veo3';
+            if (m.includes('seedance')) return model; // 保持原值，由后端判断
             if (m.includes('sora')) return 'grok-video-3-15s';
             return 'grok-video-3-15s';
         }
@@ -5085,31 +5108,30 @@
 
         async function initAssistant() {
             try {
-                console.log('[小助手 V2] 开始初始化，isLoggedIn:', isLoggedIn);
+                // 🛡️ 用 _showIntro 判断欢迎页（login 跳转后为 false，欢迎页为 true）
+                const isWelcomePage = (_showIntro === true);
+                console.log('[小助手 V2] 开始初始化，isLoggedIn:', isLoggedIn, '_showIntro:', _showIntro, 'isWelcomePage:', isWelcomePage);
 
-                // 检查用户是否登录（更严格的检查：验证 session 是否有效）
-                let actuallyLoggedIn = false;
+                if (isWelcomePage) {
+                    console.log('[小助手 V2] 欢迎页，跳过初始化');
+                    setAssistantVisible(false);
+                    return;
+                }
+
+                // 🛡️ 通过 session 验证决定是否显示
+                let shouldShow = false;
                 if (isLoggedIn && __mobileSupabaseClient) {
                     try {
                         const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
-                        actuallyLoggedIn = !!session?.user;
-                        console.log('[小助手 V2] Session 检查结果:', actuallyLoggedIn, 'session:', session);
+                        shouldShow = !!session?.user;
+                        console.log('[小助手 V2] Session 检查结果:', shouldShow, 'session:', session);
                     } catch (e) {
                         console.warn('[小助手 V2] Session 检查失败:', e);
-                        actuallyLoggedIn = false;
                     }
                 }
 
-                // 只有真正登录时才显示助手
-                if (actuallyLoggedIn) {
-                    console.log('[小助手 V2] 用户已登录，显示助手');
-                    setAssistantVisible(true);
-                } else {
-                    console.log('[小助手 V2] 用户未登录，隐藏助手');
-                    setAssistantVisible(false);
-                }
-
-                console.log('[小助手 V2] 初始化完成，actuallyLoggedIn:', actuallyLoggedIn);
+                setAssistantVisible(shouldShow);
+                console.log('[小助手 V2] 初始化完成，shouldShow:', shouldShow);
 
                 // 绑定 XJ2 按钮事件
                 const avatarBtn = document.getElementById('xj2AvatarBtn');
@@ -5148,14 +5170,24 @@
 
         function toggleAssistantPanel() {
             const panel = document.getElementById('xj2Panel');
+            const backdrop = document.getElementById('xj2Backdrop');
+            const container = document.getElementById('xj2Container');
             if (!panel) return;
 
             assistantPanelOpen = !assistantPanelOpen;
 
             if (assistantPanelOpen) {
-                panel.classList.add('active');
+                panel.classList.add('open');
+                if (backdrop) backdrop.classList.add('active');
+                container.classList.add('xj2-panel-mode');
+                // 禁止背景滚动
+                document.body.style.overflow = 'hidden';
             } else {
-                panel.classList.remove('active');
+                panel.classList.remove('open');
+                if (backdrop) backdrop.classList.remove('active');
+                container.classList.remove('xj2-panel-mode');
+                // 恢复背景滚动
+                document.body.style.overflow = '';
             }
         }
 
@@ -5910,7 +5942,10 @@
             'grok-video-3-10s': { cost: 8, label: '8胶片', warning: null },
             'grok-video-3-15s-text': { cost: 12, label: '12胶片', warning: null },
             'grok-video-3-15s': { cost: 12, label: '12胶片', warning: null },
-            'video-continuity': { cost: 3, label: '3胶片/分镜', warning: null }
+            'video-continuity': { cost: 3, label: '3胶片/分镜', warning: null },
+            'seedance-t2v': { cost: 8, label: '8胶片', warning: '🌟 Seedance 2.0 仅对 LV10+ 用户开放' },
+            'seedance-i2v': { cost: 10, label: '10胶片', warning: '🌟 Seedance 2.0 仅对 LV10+ 用户开放' },
+            'seedance-ref': { cost: 12, label: '12胶片', warning: '🌟 Seedance 2.0 仅对 LV10+ 用户开放' }
         };
 
         function onGenModeChange(mode) {
@@ -5921,7 +5956,7 @@
             if (imageUploadSection) {
                 // 🔧 修复：漫画模式始终显示上传区域；视频模式按 genMode 类型决定
                 const isComicMode = currentMode === 'comic';
-                const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s' || mode === 'grok-video-3-15s' || mode === 'banana-grid-to-video';
+                const isImageMode = mode === 'image-to-video' || mode === 'banana-image-to-video' || mode === 'grok-video-3' || mode === 'grok-video-3-10s' || mode === 'grok-video-3-15s' || mode === 'banana-grid-to-video' || mode === 'seedance-i2v' || mode === 'seedance-ref';
                 imageUploadSection.style.display = isComicMode ? 'block' : (isImageMode ? 'block' : 'none');
             }
 
@@ -7877,6 +7912,48 @@ ${panelDescriptions.join('\n')}
                     baseRequestBody.skip_first_panel = true;
                     baseRequestBody.start_panel_index = 1;  // 0-indexed，从第2格开始
                     break;
+                // 🌟 Seedance 2.0 模型
+                case 'seedance-t2v':
+                    apiEndpoint = '/api/yunwu';
+                    baseRequestBody = {
+                        action: 'seedance-t2v',
+                        prompt: '', // 将在循环中填充
+                        duration: clipDuration || 5,
+                        ratio: '16:9',
+                        resolution: '720p',
+                        skip_billing: true
+                    };
+                    console.log(`[mobile] 使用 Seedance 2.0 文生视频`);
+                    break;
+                case 'seedance-i2v':
+                    apiEndpoint = '/api/yunwu';
+                    baseRequestBody = {
+                        action: 'seedance-i2v',
+                        prompt: '', // 将在循环中填充
+                        firstFrameImage: finalImageData,
+                        duration: clipDuration || 5,
+                        ratio: '16:9',
+                        resolution: '720p',
+                        realPersonMode: false,
+                        skip_billing: true
+                    };
+                    console.log(`[mobile] 使用 Seedance 2.0 图生视频, hasRef=${hasReferenceImage}`);
+                    break;
+                case 'seedance-ref':
+                    apiEndpoint = '/api/yunwu';
+                    baseRequestBody = {
+                        action: 'seedance-ref',
+                        prompt: '', // 将在循环中填充
+                        refImage1: i2vImageDataList[0] || '',
+                        refImage2: i2vImageDataList[1] || '',
+                        refImage3: i2vImageDataList[2] || '',
+                        duration: clipDuration || 5,
+                        ratio: '16:9',
+                        resolution: '720p',
+                        skip_billing: true
+                    };
+                    console.log(`[mobile] 使用 Seedance 2.0 全能参考视频, refImages=${i2vImageDataList.filter(Boolean).length}`);
+                    break;
                 default:
                     // 🎬 检查是否是 LTX-Video 模型
                     if (genMode && genMode.startsWith('ltx-video')) {
@@ -8123,6 +8200,10 @@ ${scriptLine}
                         requestBody.image_url = panelImageForThisTask;
                         requestBody.action = 'image-to-video';
                     }
+                    // 🌟 Seedance 图生视频：设置 firstFrameImage
+                    if (genMode === 'seedance-i2v' && panelImageForThisTask) {
+                        requestBody.firstFrameImage = panelImageForThisTask;
+                    }
                     // 🧩 仅当走 /api/sora2 时传入首选格式
                     if (apiEndpoint === '/api/sora2' && apiFormat !== 'auto') {
                         requestBody.api_format = apiFormat;
@@ -8200,8 +8281,10 @@ ${scriptLine}
 
         // ==================== 视频轮询等待 ====================
         async function pollVideoCompletion(taskId, apiEndpoint, _source, _endpoint, currentScene, totalScenes, genMode) {
-            const maxAttempts = 120;
+            // 默认轮询最长约 10 分钟（120 * 5s），但 Seedance/T2V 15s 需要更贴合的等待窗口
+            const maxAttempts = 150;
             const pollInterval = 5000;
+
             let consecutiveNetworkErrors = 0;  // 网络错误计数
             let consecutiveParseErrors = 0;    // 解析错误计数
             const MAX_NETWORK_ERRORS = 10;     // 最大网络错误容忍次数
@@ -8228,6 +8311,9 @@ ${scriptLine}
                     } else if (apiEndpoint === '/api/yunwu' && pollAction === 'poll') {
                         if (genMode && genMode.startsWith('ltx-video')) {
                             pollRequestBody._source = 'ltx';
+                            pollRequestBody._endpoint = 'runninghub';
+                        } else if (genMode && genMode.startsWith('seedance-')) {
+                            pollRequestBody._source = 'seedance';
                             pollRequestBody._endpoint = 'runninghub';
                         } else {
                             pollRequestBody.model = 'veo3';
@@ -11100,7 +11186,8 @@ ${idea.theme}${characterPrompt}
                 'wan26-1080p-5s': 5, 'wan26-1080p-10s': 9, 'wan26-1080p-15s': 13,
                 'wan26-720p-5s-audio': 4, 'wan26-720p-10s-audio': 7, 'wan26-720p-15s-audio': 10,
                 'wan26-1080p-5s-audio': 7, 'wan26-1080p-10s-audio': 14, 'wan26-1080p-15s-audio': 20,
-                'veo3.1': 30, 'veo3.1-4K': 30
+                'veo3.1': 30, 'veo3.1-4K': 30,
+                'seedance-t2v': 8, 'seedance-i2v': 10, 'seedance-ref': 12
             };
             // 图片模型每张成本
             const iCosts = {
@@ -11458,6 +11545,28 @@ ${idea.theme}${characterPrompt}
             }
             sheet.classList.add('show');
             renderMobileSkillGrid();
+        }
+
+        // 快速获取灵感 - 打开即自动加载，无需手动执行
+        function quickInspiration() {
+            // 打开技能面板
+            openMobileSkillPanel();
+
+            // 延迟后自动选中并执行灵感技能
+            setTimeout(() => {
+                const skill = SkillManager.getById('get_inspiration');
+                if (skill) {
+                    // 打开技能配置页
+                    mobileSkillOpen('get_inspiration');
+                    // 再延迟后自动执行（默认参数：video / 5个）
+                    setTimeout(() => {
+                        mobileSkillExecute();
+                    }, 500);
+                } else {
+                    console.warn('[mobile] 获取灵感技能未找到');
+                    showToast('灵感技能加载中...');
+                }
+            }, 400);
         }
 
         function closeMobileSkillPanel() {
@@ -12377,6 +12486,45 @@ ${idea.theme}${characterPrompt}
                 }
             }
 
+            // 💡 灵感结果（获取灵感技能）
+            if (result.inspirations && Array.isArray(result.inspirations) && result.inspirations.length > 0) {
+                const _inspSource = result.source || 'Reddit';
+                const _inspCategory = result.category || '';
+                html += '<div class="skill-result-item">'
+                    + '<div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:12px;">💡 创意灵感（来源: ' + _inspSource + '）</div>'
+                    + '<div style="display:flex;flex-direction:column;gap:10px;">';
+                for (let _ii = 0; _ii < result.inspirations.length; _ii++) {
+                    const _insp = result.inspirations[_ii];
+                    const _imgHtml = _insp.imageUrl && _isValid(_insp.imageUrl)
+                        ? '<img src="' + _insp.imageUrl + '" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:8px;" onclick="openImageViewer(this.src)" style="cursor:pointer;">'
+                        : '';
+                    const _descHtml = _insp.description
+                        ? '<div style="font-size:12px;color:#999;margin-top:4px;line-height:1.4;max-height:60px;overflow:hidden;">' + (_insp.description.length > 120 ? _insp.description.substring(0, 120) + '...' : _insp.description) + '</div>'
+                        : '';
+                    const _linkHtml = _insp.url
+                        ? '<a href="' + _insp.url + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:4px 10px;background:#222;border:1px solid #333;border-radius:6px;color:#10b981;font-size:11px;text-decoration:none;">🔗 查看原文</a>'
+                        : '';
+                    const _scoreHtml = _insp.score
+                        ? '<span style="font-size:11px;color:#f59e0b;">👍 ' + _insp.score + '</span>'
+                        : '';
+                    const _scenarioHtml = _insp.scenario
+                        ? '<span style="font-size:11px;color:#666;margin-left:6px;">' + _insp.scenario + '</span>'
+                        : '';
+                    html += '<div style="background:#111;border-radius:10px;padding:12px;border:1px solid #222;">'
+                        + _imgHtml
+                        + '<div style="font-size:14px;color:#fff;font-weight:600;line-height:1.3;">' + (_ii + 1) + '. ' + (_insp.title || '无标题') + '</div>'
+                        + _descHtml
+                        + '<div style="display:flex;align-items:center;margin-top:6px;">'
+                        + _scoreHtml + _scenarioHtml
+                        + '</div>'
+                        + _linkHtml
+                        + '</div>';
+                }
+                html += '</div>'
+                    + '<button onclick="quickInspiration()" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2));border:1px solid rgba(16,185,129,0.3);border-radius:8px;color:#10b981;font-size:13px;cursor:pointer;">🔄 换一批灵感</button>'
+                    + '</div>';
+            }
+
             // 🧊 3D模型文件（混元生3D等）
             if (result.model3dFiles && result.model3dFiles.length > 0) {
                 var _3dItemsHtml = '';
@@ -13059,9 +13207,17 @@ ${idea.theme}${characterPrompt}
 
         function showToast(message, duration = 2500) {
             const toast = document.getElementById('toast');
+            if (!toast) return;
             toast.textContent = message;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
+            // 清除之前的隐藏定时器，防止快速切换时上一个 toast 卡住
+            if (toast._hideTimeout) {
+                clearTimeout(toast._hideTimeout);
+            }
+            toast._hideTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+                toast._hideTimeout = null;
+            }, duration);
         }
 
         // ==================== 🎨 Midjourney 图片选择器 ====================
