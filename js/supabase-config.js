@@ -1429,9 +1429,10 @@ async function getRechargeHistory(limit = 20) {
 
 // 全局导出
 window.NVAuth = {
-    // 配置
     SUPABASE_URL,
     getSupabase,
+
+    authReady: () => __nvAuthReadyPromise || Promise.resolve(true),
 
     // 认证
     signUpWithEmail,

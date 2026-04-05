@@ -28,7 +28,7 @@
         // 📖 加载 novel-engine.js（在 novelState 定义之后）
     </script>
     <script src="/js/novel-engine.js?v=8.21.1"></script>
-    <script src="/js/novel-features.js?v=8.21.1"></script>
+    <script src="/js/novel-features.js?v=8.22.0"></script>
     <script>
         // 🔄 显示版本号（从 script src 自动读取）
         // 注意：verBadge 在 body 中，head 中的脚本执行时 DOM 未就绪，必须用 DOMContentLoaded
@@ -2173,6 +2173,7 @@
         function pushBatchToImageGen() {
             const selected = getSelectedBatchResults();
             if (!selected) return;
+            if (!confirm('确定要跳转到批量生图页面吗？')) return;
 
             const transferData = {
                 prompts: selected.map(r => r.result),  // 完整内容
@@ -2240,6 +2241,7 @@
                 showToast('请先生成写作内容');
                 return;
             }
+            if (!confirm('确定要跳转到配音页面吗？')) return;
 
             // 保存数据到 localStorage
             const transferData = {
@@ -2265,6 +2267,7 @@
         function pushBatchToVoice() {
             const selected = getSelectedBatchResults();
             if (!selected) return;
+            if (!confirm('确定要跳转到批量配音页面吗？')) return;
 
             const transferData = {
                 scripts: selected.map(r => ({ content: r.result, input: r.input })),
@@ -2439,6 +2442,7 @@
                 showToast('请先生成写作内容');
                 return;
             }
+            if (!confirm('确定要跳转到AI生图页面吗？')) return;
 
             // 从文本中提取场景描述（按段落分割）
             const paragraphs = currentResult.split(/\n+/).filter(p => p.trim().length > 10);
@@ -2786,7 +2790,8 @@
             const done = novelState.chapters.filter(c => c.status === 'done').length;
             const total = novelState.chapters.length;
             const pct = total > 0 ? Math.round(done / total * 100) : 0;
-            document.getElementById('novelProgressLabel').textContent = novelState.writing ? `正在生成第 ${done + 1} 章...` : (done >= total ? '全部完成！' : `已完成 ${done}/${total} 章`);
+            const progressLabel = novelState.genre === '短剧' ? '集' : '章';
+            document.getElementById('novelProgressLabel').textContent = novelState.writing ? `正在生成第 ${done + 1}${progressLabel}...` : (done >= total ? '全部完成！' : `已完成 ${done}/${total}${progressLabel}`);
             document.getElementById('novelProgressPercent').textContent = pct + '%';
             document.getElementById('novelProgressFill').style.width = pct + '%';
             document.getElementById('novelTotalWords').textContent = novelState.totalWords.toLocaleString();
@@ -2806,7 +2811,8 @@
                 const cls = ch.status === 'done' ? 'done' : ch.status === 'generating' ? 'generating' : ch.status === 'error' ? 'error' : '';
                 const activeCls = i === novelState.currentIdx ? ' active' : '';
                 const meta = ch.status === 'done' ? `${ch.wordCount}字` : ch.status === 'generating' ? '生成中...' : ch.status === 'error' ? '失败' : '待生成';
-                return `<div class="novel-chapter-item ${cls}${activeCls}" onclick="novelViewChapter(${i})"><div class="ch-title">第${i + 1}章 ${ch.title}</div><div class="ch-meta">${meta}</div></div>`;
+                const chLabel = novelState.genre === '短剧' ? '集' : '章';
+                return `<div class="novel-chapter-item ${cls}${activeCls}" onclick="novelViewChapter(${i})"><div class="ch-title">第${i + 1}${chLabel} ${ch.title}</div><div class="ch-meta">${meta}</div></div>`;
             }).join('');
         }
 
@@ -2815,7 +2821,8 @@
             const ch = novelState.chapters[idx];
             const contentEl = document.getElementById('novelChapterContent');
             if (ch && ch.content) {
-                contentEl.textContent = `第${idx + 1}章 ${ch.title}\n\n${ch.content}`;
+                const viewChLabel = novelState.genre === '短剧' ? '集' : '章';
+                contentEl.textContent = `第${idx + 1}${viewChLabel} ${ch.title}\n\n${ch.content}`;
                 contentEl.style.display = 'block';
             } else {
                 contentEl.textContent = '暂无内容';
@@ -2965,7 +2972,7 @@
 
                 // 若总章节≤100，骨架中可能已包含章节大纲，尝试直接解析
                 if (chapterCount <= BATCH_SIZE) {
-                    _updateMsg(' 🧠 正在生成' + chapterCount + chapterLabel + '详细大纲...');
+                    _updateMsg(' 🧠 正在生成详细' + chapterLabel + '大纲...');
                     let detailPrompt;
                     if (isShortDrama) {
                         detailPrompt = `/no_think\n以下是短剧的全局骨架：\n${skeletonText}\n\n请根据以上骨架，列出全部${chapterCount}集的集数标题和一句话大纲。\n格式：\n第1集 标题：【压弹簧】一句话大纲（压抑感/危机/反派得志）\n第2集 标题：【放弹簧】一句话大纲（反转/打脸/爽感释放）\n...\n\n每集目标${sdEpLen}字（约${Math.round(parseInt(sdEpLen) / 5)}秒），风格：${sdStyle || '都市情感'}。严格遵循"压弹簧/放弹簧"节奏，每1-2集必须有情绪释放点，节奏极快。`;
@@ -2987,14 +2994,14 @@
                         const from = batchIdx * BATCH_SIZE;
                         const batchSize = Math.min(BATCH_SIZE, chapterCount - from);
                         const stepNum = batchIdx + 2;
-                        _updateMsg(' 🧠 第' + stepNum + '/' + (totalBatches + 1) + '步：生成第' + (from + 1) + '~' + (from + batchSize) + '章大纲...');
+                        _updateMsg(' 🧠 第' + stepNum + '/' + (totalBatches + 1) + '步：生成第' + (from + 1) + '~' + (from + batchSize) + chapterLabel + '大纲...');
 
                         // 拼接上下文：骨架 + 上一批最后5章（衔接）
                         let prevContext = '';
                         if (batchIdx > 0) {
                             const lastFew = novelState.chapters.slice(-5).map(function (c, i) {
                                 const idx = novelState.chapters.length - 5 + i;
-                                return '第' + (idx + 1) + '章 ' + c.title + '：' + c.outline;
+                                return '第' + (idx + 1) + chapterLabel + ' ' + c.title + '：' + c.outline;
                             }).join('\n');
                             prevContext = '\n\n【前文衔接】最近章节：\n' + lastFew;
                         }
@@ -3019,7 +3026,7 @@
                         document.getElementById('novelStats').style.display = '';
                         _novelRenderChapterList();
                         _novelUpdateProgress();
-                        console.log('[novel] 第' + stepNum + '步完成，已有' + novelState.chapters.length + '章');
+                        console.log('[novel] 第' + stepNum + '步完成，已有' + novelState.chapters.length + chapterLabel);
                     }
                 }
 
@@ -3060,8 +3067,8 @@
             const lines = text.match(/第\d+[章节集]\s+[^\n]+/g) || [];
             for (let j = 0; j < expectedCount; j++) {
                 const line = lines[j] || '';
-                const titleMatch = line.match(/第\d+章\s+(.+)/);
-                const rawTitle = titleMatch ? titleMatch[1] : '第' + (fromIdx + j + 1) + '章';
+                const titleMatch = line.match(/第\d+[章节集]\s+(.+)/);
+                const rawTitle = titleMatch ? titleMatch[1] : '第' + (fromIdx + j + 1) + chapterLabel;
                 const parts = rawTitle.split(/[：:]/);
                 novelState.chapters.push({
                     title: parts[0].trim(),
@@ -3082,12 +3089,20 @@
             _novelRenderChapterList();
             _novelUpdateProgress();
 
-            const chapterLen = document.getElementById('novelChapterLength').value;
             const genreSelect = document.getElementById('novelGenreSelect');
             let genre = genreSelect.value;
             if (genre === 'custom') {
                 const customGenre = document.getElementById('customGenreInput').value.trim();
                 genre = customGenre || '自定义';
+            }
+            const isShortDrama = genre === '短剧';
+            const chapterLabel = isShortDrama ? '集' : '章';
+            // 短剧用短剧集数字数，长篇用章节字数
+            let chapterLen;
+            if (isShortDrama) {
+                chapterLen = document.getElementById('shortDramaEpisodeLength')?.value || '2000';
+            } else {
+                chapterLen = document.getElementById('novelChapterLength').value;
             }
 
             // 优先使用增强版上下文构建（novel-engine.js），否则本地构建
@@ -3103,7 +3118,7 @@
                     const prev = novelState.chapters[idx - 1];
                     if (prev && prev.content) {
                         const tail = prev.content.length > 2500 ? '...' + prev.content.slice(-2500) : prev.content;
-                        context += `\n[第${idx}章「${prev.title}」末尾（请紧密承接）]\n${tail}\n`;
+                        context += `\n[第${idx}${chapterLabel}「${prev.title}」末尾（请紧密承接）]\n${tail}\n`;
                     }
                 }
                 // 前后章节大纲走向
@@ -3112,7 +3127,7 @@
                     const c = novelState.chapters[i];
                     if (c) {
                         const marker = i === idx ? '→ 当前' : (i < idx ? '已写' : '待写');
-                        outlines.push(`[${marker}] 第${i + 1}章「${c.title}」：${c.outline || '无大纲'}`);
+                        outlines.push(`[${marker}] 第${i + 1}${chapterLabel}「${c.title}」：${c.outline || '无大纲'}`);
                     }
                 }
                 if (outlines.length > 0) context += '\n[章节大纲走向]\n' + outlines.join('\n') + '\n';
@@ -3123,21 +3138,24 @@
             const dynamicMaxTokens = Math.min(16384, Math.max(4096, Math.ceil(targetLen * 1.8)));
 
             const prevChTitle = idx > 0 ? novelState.chapters[idx - 1]?.title : '';
-            const sysPrompt = `你是一位顶级${genre}网络小说作家。你正在创作一部长篇连载${genre}小说，现在写第${idx + 1}章。
+            const sysPrompt = `你是一位顶级${genre}网络小说作家。你正在创作一部长篇连载${genre}小说，现在写第${idx + 1}${chapterLabel}。
 核心要求：
 - 直接输出正文，禁止输出章节标题、写作说明、元评论
-- 每章必须有独特的核心事件/冲突，严禁与前文重复相似的情节和对话
-- 紧密承接前一章末尾的场景和情绪，开头自然过渡不要重新铺垫
+- 每${chapterLabel}必须有独特的核心事件/冲突，严禁与前文重复相似的情节和对话
+- 紧密承接前一${chapterLabel}末尾的场景和情绪，开头自然过渡不要重新铺垫
 - 人物语言要符合各自性格，不同角色说话风格有明显区别
-- 章节末尾制造悬念或转折点`;
+- ${chapterLabel}节末尾制造悬念或转折点`;
 
-            const userPrompt = `/no_think\n${context}\n\n=== 写作任务 ===\n第${idx + 1}章「${ch.title}」\n大纲：${ch.outline}\n目标字数：约${chapterLen}字\n\n特别注意：\n- 开头必须紧接前章${prevChTitle ? '「' + prevChTitle + '」' : ''}的最后一个场景，不要跳跃\n- 本章核心事件必须围绕大纲展开，不要偏离\n- 严禁出现与前文雷同的对话、场景描写或情节走向\n- 章节结尾要为下一章埋下伏笔`;
+            const userPrompt = `/no_think\n${context}\n\n=== 写作任务 ===\n第${idx + 1}${chapterLabel}「${ch.title}」\n大纲：${ch.outline}\n目标字数：约${chapterLen}字\n\n特别注意：\n- 开头必须紧接前${chapterLabel}${prevChTitle ? '「' + prevChTitle + '」' : ''}的最后一个场景，不要跳跃\n- 本${chapterLabel}核心事件必须围绕大纲展开，不要偏离\n- 严禁出现与前文雷同的对话、场景描写或情节走向\n- ${chapterLabel}节结尾要为下一${chapterLabel}埋下伏笔`;
 
             try {
-                const content = await _novelLLM([
+                const result = await _novelLLM([
                     { role: 'system', content: sysPrompt },
                     { role: 'user', content: userPrompt }
-                ], { maxTokens: dynamicMaxTokens, temperature: 0.9, useMemory: false });
+                ], { maxTokens: dynamicMaxTokens, temperature: 0.9, useMemory: false, stream: true });
+
+                // 流式返回纯字符串，非流式返回 {content, billed, tokens}
+                const content = typeof result === 'string' ? result : (result.content || '');
 
                 ch.content = content;
                 ch.wordCount = content.length;
@@ -3168,7 +3186,9 @@
                 try { localStorage.setItem('novel_state', JSON.stringify(novelState)); } catch (e) { }
             } catch (e) {
                 ch.status = 'error';
-                console.error(`[novel] 第${idx + 1}章生成失败:`, e.message);
+                console.error(`[novel] 第${idx + 1}${chapterLabel}生成失败:`, e.message);
+                // 📱 界面上显示通用提示，不暴露技术细节
+                showToast(`第${idx + 1}${chapterLabel}生成失败，请重试`);
             }
 
             _novelRenderChapterList();
@@ -3241,7 +3261,7 @@
 
             const nextBtn = document.getElementById('novelNextBtn');
             nextBtn.disabled = true;
-            nextBtn.textContent = `⏳ 正在写第${nextIdx + 1}章...`;
+            nextBtn.textContent = `⏳ 正在写第${nextIdx + 1}${chapterLabel}...`;
 
             await _novelGenerateChapter(nextIdx);
             novelViewChapter(nextIdx);
@@ -3264,13 +3284,15 @@
 
         // 📋 复制全部
         function novelCopyAll() {
-            const text = novelState.chapters.filter(c => c.status === 'done').map((c, i) => `第${i + 1}章 ${c.title}\n\n${c.content}`).join('\n\n' + '='.repeat(40) + '\n\n');
+            const copyLabel = novelState.genre === '短剧' ? '集' : '章';
+            const text = novelState.chapters.filter(c => c.status === 'done').map((c, i) => `第${i + 1}${copyLabel} ${c.title}\n\n${c.content}`).join('\n\n' + '='.repeat(40) + '\n\n');
             navigator.clipboard.writeText(text).then(() => showToast('已复制全部章节'));
         }
 
         // 💾 下载TXT
         function novelDownloadTxt() {
-            const text = novelState.chapters.filter(c => c.status === 'done').map((c, i) => `第${i + 1}章 ${c.title}\n\n${c.content}`).join('\n\n' + '='.repeat(40) + '\n\n');
+            const copyLabel = novelState.genre === '短剧' ? '集' : '章';
+            const text = novelState.chapters.filter(c => c.status === 'done').map((c, i) => `第${i + 1}${copyLabel} ${c.title}\n\n${c.content}`).join('\n\n' + '='.repeat(40) + '\n\n');
             const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -3283,8 +3305,9 @@
         // 📄 复制当前章
         function novelCopyChapter() {
             const ch = novelState.chapters[novelState.currentIdx];
+            const copyLabel = novelState.genre === '短剧' ? '集' : '章';
             if (ch && ch.content) {
-                navigator.clipboard.writeText(`第${novelState.currentIdx + 1}章 ${ch.title}\n\n${ch.content}`).then(() => showToast('已复制当前章'));
+                navigator.clipboard.writeText(`第${novelState.currentIdx + 1}${copyLabel} ${ch.title}\n\n${ch.content}`).then(() => showToast('已复制当前章节'));
             }
         }
 

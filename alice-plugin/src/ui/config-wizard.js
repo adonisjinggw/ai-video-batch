@@ -218,18 +218,22 @@ class ConfigWizard {
                     return { success: false, message: '未知的服务类型' };
             }
 
-            const fetch = require('node-fetch');
             const options = {
                 method: testBody ? 'POST' : 'GET',
-                headers,
-                timeout: 10000
+                headers
             };
 
             if (testBody) {
                 options.body = JSON.stringify(testBody);
             }
 
-            const response = await fetch(testUrl, options);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            try {
+                var response = await fetch(testUrl, { ...options, signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
 
             if (response.ok) {
                 return {

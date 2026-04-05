@@ -947,7 +947,7 @@ module.exports = async function handler(req, res) {
                             { id: 'banana-grid-to-video', name: '网格图省费版 (1图切N分镜)', series: 'Sora' },
                             { id: 'veo3.1-components-4k', name: 'Veo 3.1 4K (推荐)', series: 'Veo' },
                             { id: 'veo_3_1-fast-4K', name: 'Veo 3.1 Fast 4K (快速)', series: 'Veo' },
-                            { id: 'veo_3_1-fast-components-4K', name: 'Veo 3.1 Fast Components', series: 'Veo' },
+                            { id: 'veo_3_1-fast-components-4K', name: 'veo_3_1-fast-components-4K', series: 'Veo' },
                             { id: 'vidu-q2-5s-720p', name: 'Vidu q2 5秒 720P (25胶片)', series: 'Vidu', duration: '5s' },
                             { id: 'vidu-q2-5s-1080p', name: 'Vidu q2 5秒 1080P (36胶片)', series: 'Vidu', duration: '5s' },
                             { id: 'vidu-q2-pro-5s-720p', name: 'Vidu q2-pro 5秒 720P (27胶片)', series: 'Vidu', duration: '5s' },
@@ -1699,7 +1699,7 @@ async function handleMiroFish(action, req, res, userId) {
 
         case 'predict':
             // 发起预测
-            const { taskType, params: predictParams } = req.body;
+            const { taskType: predictTaskType, params: predictParams } = req.body;
 
             // 检查配额
             const quotaInfo = await checkMiroFishQuota(userId);
@@ -1711,10 +1711,10 @@ async function handleMiroFish(action, req, res, userId) {
             }
 
             // 采集数据
-            const predictionData = await collectMiroFishData(taskType, predictParams);
+            const predictionData = await collectMiroFishData(predictTaskType, predictParams);
 
             // 保存任务记录
-            await saveMiroFishTask(userId, taskType, predictParams, predictionData);
+            await saveMiroFishTask(userId, predictTaskType, predictParams, predictionData);
 
             return {
                 success: true,

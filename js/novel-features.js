@@ -7,6 +7,7 @@
 // 内存缓存：配音数据保存在 novelState 中，跟图片一样随 JSON 导出/导入
 // localStorage 保存时剥离 data URL 音频（因为超 5MB 限制），用内存缓存保持播放
 var _novelAudioCache = {}; // key: projectId_chIdx -> { audioUrl, audioSegments }
+var _novelSceneCache = {}; // key: projectId_chIdx -> { sceneImageUrl, storyboards }
 
 // localStorage 保存前：剥离章节中的 data URL 音频，存入内存缓存
 function _novelStripAudioForLocalSave(projectId, chapters) {
@@ -34,6 +35,25 @@ function _novelStripAudioForLocalSave(projectId, chapters) {
             }
         }
         if (hasAudio) ch._hasAudioCache = true;
+
+        // 剥离场景图和分镜数据到内存缓存（防止 localStorage 5MB 超限）
+        var hasScene = false;
+        if (ch._sceneImageUrl) {
+            if (!_novelSceneCache[cacheKey]) _novelSceneCache[cacheKey] = {};
+            _novelSceneCache[cacheKey].sceneImageUrl = ch._sceneImageUrl;
+            ch._sceneImageUrl = null;
+            ch._hasSceneCache = true;
+            hasScene = true;
+        }
+        // 剥离分镜数据（可能含大量视频URL）
+        if (ch._storyboards && ch._storyboards.length > 0) {
+            if (!_novelSceneCache[cacheKey]) _novelSceneCache[cacheKey] = {};
+            _novelSceneCache[cacheKey].storyboards = ch._storyboards.slice();
+            ch._storyboards = null;
+            ch._hasSceneCache = true;
+            hasScene = true;
+        }
+        if (hasScene) ch._hasSceneCache = true;
     }
 }
 
@@ -63,6 +83,26 @@ function _novelRestoreAudioFromCache(projectId, chapters) {
             }
         }
         delete ch._hasAudioCache;
+    }
+}
+
+// localStorage 加载后：从内存缓存还原场景图和分镜
+function _novelRestoreSceneFromCache(projectId, chapters) {
+    if (!chapters || !projectId) return;
+    for (var i = 0; i < chapters.length; i++) {
+        var ch = chapters[i];
+        if (!ch._hasSceneCache) continue;
+        var cacheKey = projectId + '_ch' + i;
+        var cached = _novelSceneCache[cacheKey];
+        if (cached) {
+            if (!ch._sceneImageUrl && cached.sceneImageUrl) {
+                ch._sceneImageUrl = cached.sceneImageUrl;
+            }
+            if (!ch._storyboards && cached.storyboards) {
+                ch._storyboards = cached.storyboards;
+            }
+        }
+        delete ch._hasSceneCache;
     }
 }
 
@@ -225,6 +265,8 @@ async function novelLoadProject(id) {
             document.getElementById('novelStats').style.display = '';
             // 从内存缓存还原音频数据
             _novelRestoreAudioFromCache(id, novelState.chapters);
+            // 从内存缓存还原场景图和分镜数据
+            _novelRestoreSceneFromCache(id, novelState.chapters);
             _novelRenderChapterList();
             _novelUpdateProgress();
         }
@@ -1419,6 +1461,85 @@ async function novelGenerateAllCharImages() {
     }
 }
 
+function _novelToggleCharForScene(idx) {
+    var chars = novelState.characters || [];
+    var ch = chars[idx];
+    if (!ch || !ch.imageUrl) return;
+    ch._useForScene = ch._useForScene === false ? true : false;
+    _novelRenderCharCards();
+    try { novelSaveCurrentProject(); } catch (e) {}
+    showToast(ch._useForScene ? '✅ ' + ch.name + ' 已标记用于场景' : '⏭️ ' + ch.name + ' 已排除场景参考');
+}
+
+function _novelMatchCharsToChapter(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch) return [];
+    var chars = novelState.characters || [];
+    var rawContent = '';
+    if (typeof ch.content === 'string') rawContent = ch.content;
+    else if (Array.isArray(ch.content)) rawContent = ch.content.join('\n');
+    else if (ch.content && typeof ch.content === 'object') rawContent = ch.content.text || ch.content.content || '';
+    else rawContent = String(ch.content || '');
+    var contentLower = rawContent.toLowerCase();
+    return chars.filter(function (c) {
+        if (!c.imageUrl) return false;
+        if (c._useForScene === false) return false;
+        var name = (c.name || '').toLowerCase();
+        return contentLower.indexOf(name) >= 0;
+    }).map(function (c) { return c.name; });
+}
+
+function _novelToggleChapterChar(chapterIdx, charName) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch) return;
+    if (!ch._sceneChars) ch._sceneChars = {};
+    if (ch._sceneChars[charName]) {
+        delete ch._sceneChars[charName];
+    } else {
+        ch._sceneChars[charName] = true;
+    }
+    _novelRenderChapterList();
+    try { novelSaveCurrentProject(); } catch (e) {}
+}
+
+function _novelGetChapterSelectedChars(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch) return [];
+    if (ch._sceneChars && Object.keys(ch._sceneChars).length > 0) {
+        return Object.keys(ch._sceneChars).filter(function (n) { return ch._sceneChars[n]; });
+    }
+    return _novelMatchCharsToChapter(chapterIdx);
+}
+
+function _novelGetCharImageUrls(chapterIdx) {
+    if (!novelState.characters || !Array.isArray(novelState.characters)) return [];
+    var selectedNames = (chapterIdx !== undefined && chapterIdx !== null)
+        ? _novelGetChapterSelectedChars(chapterIdx)
+        : [];
+    var candidates = novelState.characters.filter(function (c) {
+        if (!c.imageUrl) return false;
+        if (c._useForScene === false) return false;
+        return true;
+    });
+    if (selectedNames.length > 0) {
+        var selectedSet = new Set(selectedNames);
+        var selected = candidates.filter(function (c) { return selectedSet.has(c.name); });
+        var rest = candidates.filter(function (c) { return !selectedSet.has(c.name); });
+        candidates = selected.concat(rest);
+    } else if (chapterIdx !== undefined && chapterIdx !== null) {
+        var autoNames = _novelMatchCharsToChapter(chapterIdx);
+        if (autoNames.length > 0) {
+            var autoSet = new Set(autoNames);
+            var autoMatched = candidates.filter(function (c) { return autoSet.has(c.name); });
+            var autoRest = candidates.filter(function (c) { return !autoSet.has(c.name); });
+            candidates = autoMatched.concat(autoRest);
+        }
+    }
+    return candidates.map(function (c) { return c.imageUrl; }).slice(0, 4);
+}
+
+var _novelSceneGeneratingChapter = null;
+
 // 渲染角色卡片
 function _novelRenderCharCards() {
     const container = document.getElementById('novelCharCards');
@@ -1434,11 +1555,18 @@ function _novelRenderCharCards() {
         const btnText = char._generating ? '✨ 生成中...' : '🎨 生成角色图';
         const btnClass = char._generating ? 'char-gen-btn loading' : 'char-gen-btn';
 
+        var sceneBtnHtml = '';
+        if (char.imageUrl) {
+            const isActive = char._useForScene !== false;
+            sceneBtnHtml = `<button class="char-scene-btn ${isActive ? 'active' : ''}" onclick="_novelToggleCharForScene(${idx})" style="margin-top:4px;padding:3px 8px;font-size:10px;border:1px solid ${isActive ? '#10b981' : '#555'};background:${isActive ? '#10b98120' : 'transparent'};color:${isActive ? '#10b981' : '#888'};border-radius:4px;cursor:pointer;width:100%;">${isActive ? '✅' : '⏭️'} 场景参考${isActive ? '（已启用）' : '（已排除）'}</button>`;
+        }
+
         return `<div class="novel-char-card">
             <div class="char-name">🎭 ${char.name}</div>
             <div class="char-desc">${char.desc}</div>
             ${imgHtml}
             <button class="${btnClass}" onclick="novelGenerateCharImage(${idx})">${btnText}</button>
+            ${sceneBtnHtml}
         </div>`;
     }).join('');
 }
@@ -1775,6 +1903,7 @@ async function novelGenerateSceneImage(chapterIdx) {
     }
 
     ch._sceneGenerating = true;
+    _novelSceneGeneratingChapter = chapterIdx;
     _novelRenderChapterList();
 
     var genre = '';
@@ -1792,25 +1921,46 @@ async function novelGenerateSceneImage(chapterIdx) {
 
     var content = rawContent.replace(/\s+/g, ' ').trim().slice(0, 260);
     var chars = ((novelState && novelState.characters) || []).slice(0, 6);
-    var charSummary = chars.map(function (c) {
-        return [c.name || '未命名角色', c.description || c.prompt || c.profile || ''].filter(Boolean).join('：');
-    }).join('\n').slice(0, 500);
-    var refImages = chars.map(function (c) { return c.imageUrl; }).filter(Boolean).slice(0, 4);
+    var charAppearance = chars.map(function (c) {
+        var name = c.name || '未命名角色';
+        var desc = c.description || c.prompt || c.profile || '';
+        return name + '：' + desc;
+    }).join('\n').slice(0, 600);
+    var charSummary = chars.map(function (c) { return c.name || '未命名角色'; }).join('、');
+
+    var gridSpec = isShortDrama
+        ? '3列×3行=9格（3×3九宫格），每格为独立完整小画面'
+        : '3列×2行=6格（16:9横版分镜），每格为独立完整小画面';
 
     var prompt = [
         '创建一张' + panelHint + '，不是单一大场景图，而是一张图中包含多个独立分镜格。',
-        '每个分镜格都是独立完整画面，按阅读顺序展示同一章节的连续剧情。',
-        '不要把一张完整大图切块，必须是真正的多格故事板构图。',
-        '整体统一风格、统一角色外观、统一色调与电影级光影。',
-        '参考风格：多角色串场漫画、九宫格叙事、电影故事板。',
-        '题材风格：' + (genre || '通用剧情'),
-        '章节标题：' + title,
-        '章节内容摘要：' + (content || '无'),
-        '主要角色：' + (charSummary || '无明确角色信息'),
-        '一致性要求：同一角色在所有分镜中保持脸型、发型、服装和体态一致，只允许姿态、表情、镜头远近变化。',
-        '画面要求：使用细白边或清晰分隔线区分分镜格，电影级构图，叙事连贯，细节丰富，不要额外UI、水印、字幕、二维码或说明文字。',
-        '输出为高质量数字插画，适合小说或短剧场景展示。'
+        '【布局规格】' + gridSpec + '，各格按阅读顺序（H1→H2→H3→H4...）排列。',
+        '【分隔线】分镜格之间用2-3像素白色实线分隔，分隔线必须清晰笔直。',
+        '【风格统一】整体统一视觉风格、角色外观、色彩色调、电影级光影。',
+        '【角色一致性】主要角色：' + (charSummary || '无') + '。这些角色在所有分镜格中必须保持：相同脸型、发型、服装/铠甲/袍子、体态特征。只允许姿态、表情、镜头远近变化。',
+        '【角色外貌详细描述】：\n' + (charAppearance || '（无角色描述）'),
+        '【题材】' + (genre || '通用剧情') + '风格，章节标题：' + title,
+        '【剧情】' + (content || '（无内容摘要）'),
+        '【禁止】不要额外UI、水印、字幕、二维码、台词文字或说明文字。',
+        '【输出】高质量数字插画，多格故事板构图，各格独立完整、叙事连贯。'
     ].join('\n');
+
+    // 智能获取章节匹配的角色参考图
+    var refImages = [];
+    var matchedCharNames = [];
+    if (typeof _novelGetCharImageUrls === 'function') {
+        try {
+            refImages = _novelGetCharImageUrls(chapterIdx) || [];
+            matchedCharNames = _novelGetChapterSelectedChars(chapterIdx);
+        } catch (e) { refImages = []; }
+    }
+
+    if (refImages.length > 0) {
+        var charLabel = matchedCharNames.length > 0 ? matchedCharNames.join('、') : ('全部' + refImages.length + '个角色');
+        showToast('🖼️ 场景生成中... 使用参考角色: ' + charLabel);
+    } else {
+        showToast('🖼️ 第' + (chapterIdx + 1) + '章场景图生成中...');
+    }
 
     try {
         var imageOptions = {
@@ -1821,13 +1971,62 @@ async function novelGenerateSceneImage(chapterIdx) {
         var imageUrl = await callBanana2ImageAPI(prompt, imageOptions);
         ch._sceneImageUrl = imageUrl;
         ch._sceneGenerating = false;
+        _novelSceneGeneratingChapter = null;
         _novelRenderChapterList();
         try { novelSaveCurrentProject(); } catch (e) { }
-        showToast('✅ 第' + (chapterIdx + 1) + '章场景图已生成');
+        showToast('✅ 第' + (chapterIdx + 1) + '章场景图已生成' + (refImages.length > 0 ? '（含' + matchedCharNames.length + '个角色参考）' : ''));
     } catch (e) {
-        ch._sceneGenerating = false;
-        _novelRenderChapterList();
-        showToast('场景图生成失败: ' + e.message);
+        console.warn('[novel-scene] 首次尝试失败:', e.message);
+        if (refImages.length > 1 && /500|Internal Server Error|API_ERROR|timeout|413/i.test(e.message || '')) {
+            var reducedCount = Math.max(1, Math.floor(refImages.length / 2));
+            var reducedImages = refImages.slice(0, reducedCount);
+            showToast('⚠️ 参考图过多导致失败，减少至' + reducedCount + '张重试...');
+            try {
+                var retryUrl = await callBanana2ImageAPI(prompt, {
+                    model: 'gemini-3.1-flash-image-preview-4k',
+                    aspectRatio: aspectRatio,
+                    refImages: reducedImages
+                });
+                ch._sceneImageUrl = retryUrl;
+                ch._sceneGenerating = false;
+                _novelSceneGeneratingChapter = null;
+                _novelRenderChapterList();
+                try { novelSaveCurrentProject(); } catch (e) { }
+                showToast('✅ 第' + (chapterIdx + 1) + '章场景图已生成（' + reducedCount + '个角色参考）');
+            } catch (retryErr) {
+                if (reducedImages.length > 1 && /500|Internal Server Error|API_ERROR|timeout|413/i.test(retryErr.message || '')) {
+                    showToast('⚠️ 继续减少至1张关键角色参考图...');
+                    try {
+                        var singleUrl = await callBanana2ImageAPI(prompt, {
+                            model: 'gemini-3.1-flash-image-preview-4k',
+                            aspectRatio: aspectRatio,
+                            refImages: [refImages[0]]
+                        });
+                        ch._sceneImageUrl = singleUrl;
+                        ch._sceneGenerating = false;
+                        _novelSceneGeneratingChapter = null;
+                        _novelRenderChapterList();
+                        try { novelSaveCurrentProject(); } catch (e) { }
+                        showToast('✅ 第' + (chapterIdx + 1) + '章场景图已生成（1个核心角色参考）');
+                    } catch (singleErr) {
+                        ch._sceneGenerating = false;
+                        _novelSceneGeneratingChapter = null;
+                        _novelRenderChapterList();
+                        showToast('❌ 场景图生成失败（参考图模式全部失败）: ' + singleErr.message);
+                    }
+                } else {
+                    ch._sceneGenerating = false;
+                    _novelSceneGeneratingChapter = null;
+                    _novelRenderChapterList();
+                    showToast('❌ 场景图生成失败: ' + retryErr.message);
+                }
+            }
+        } else {
+            ch._sceneGenerating = false;
+            _novelSceneGeneratingChapter = null;
+            _novelRenderChapterList();
+            showToast('❌ 场景图生成失败: ' + e.message);
+        }
     }
 }
 
@@ -1859,6 +2058,69 @@ async function novelSaveImageToPhone(encodedUrl, encodedName) {
     } catch (e) {
         window.open(url, '_blank');
         showToast('请长按图片保存到手机');
+    }
+}
+
+/**
+ * 切割场景图为九宫格/六宫格
+ * @param {number} chapterIdx - 章节索引
+ */
+async function novelSplitSceneGrid(chapterIdx) {
+    var ch = novelState.chapters[chapterIdx];
+    if (!ch || !ch._sceneImageUrl) {
+        showToast('请先生成场景图'); return;
+    }
+    if (ch._splittingGrid) { showToast('正在切割中…'); return; }
+
+    // 判断是竖屏(3×3)还是横屏(3×2)
+    var genre = '';
+    try { genre = document.getElementById('novelGenreSelect').value; } catch (e) {}
+    var isShortDrama = !!(novelState && (novelState.novelType === 'short' || genre === '短剧'));
+    var cols = 3;
+    var rows = isShortDrama ? 3 : 2;
+
+    ch._splittingGrid = true;
+    ch._splitImages = null; // 清空旧数据
+    _novelRenderChapterList();
+
+    try {
+        showToast('正在切割场景图…');
+        var response = await fetch(ch._sceneImageUrl);
+        if (!response.ok) throw new Error('图片加载失败: ' + response.status);
+        var blob = await response.blob();
+
+        var img = await new Promise(function(resolve, reject) {
+            var imgEl = new Image();
+            imgEl.onload = function() { resolve(imgEl); };
+            imgEl.onerror = function() { reject(new Error('图片解析失败')); };
+            imgEl.src = URL.createObjectURL(blob);
+        });
+
+        var cellW = Math.floor(img.width / cols);
+        var cellH = Math.floor(img.height / rows);
+        var splits = [];
+
+        for (var r = 0; r < rows; r++) {
+            for (var c = 0; c < cols; c++) {
+                var canvas = document.createElement('canvas');
+                canvas.width = cellW;
+                canvas.height = cellH;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, c * cellW, r * cellH, cellW, cellH, 0, 0, cellW, cellH);
+                splits.push(canvas.toDataURL('image/png', 0.95));
+            }
+        }
+
+        ch._splitImages = splits;
+        ch._splitCols = cols;
+        ch._splitRows = rows;
+        delete ch._splittingGrid;
+        _novelRenderChapterList();
+        showToast('✅ 切割完成，共 ' + splits.length + ' 张');
+    } catch (e) {
+        delete ch._splittingGrid;
+        _novelRenderChapterList();
+        showToast('切割失败: ' + e.message);
     }
 }
 
@@ -2258,12 +2520,38 @@ function _novelRenderChapterListEnhanced() {
         // 场景图区域
         var sceneHtml = '';
         if (ch._sceneImageUrl) {
+            // 切割进度/结果
+            var splitResultHtml = '';
+            if (ch._splittingGrid) {
+                splitResultHtml = '<div style="text-align:center;padding:8px;color:#888;font-size:12px;">🔪 切割中...</div>';
+            } else if (ch._splitImages && ch._splitImages.length > 0) {
+                var cols2 = ch._splitCols || 3;
+                var gridStyle = 'display:grid;grid-template-columns:repeat(' + cols2 + ',1fr);gap:2px;margin-top:6px;';
+                var splitThumbs = ch._splitImages.map(function(img, idx) {
+                    var encodedUrl = encodeURIComponent(img);
+                    var encodedName = encodeURIComponent('\u7B2C' + (i + 1) + '\u7AE0\u573A\u666F' + (idx + 1));
+                    var onclickAttr = 'event.stopPropagation();novelSaveImageToPhone(\'' + encodedUrl + '\',\'' + encodedName + '\')';
+                    return '<div style="position:relative;cursor:pointer;" onclick="' + onclickAttr + '"><img src="' + img + '" style="width:100%;display:block;border-radius:4px;" alt="\u5206\u955C' + (idx + 1) + '"><span style="position:absolute;bottom:2px;right:4px;font-size:10px;color:#fff;background:#00000080;padding:1px 3px;border-radius:3px;">' + (idx + 1) + '</span></div>';
+                }).join('');
+                splitResultHtml = '<div style="' + gridStyle + '">' + splitThumbs + '</div>' +
+                    '<div style="display:flex;gap:4px;margin-top:4px;">' +
+                    '<button onclick="event.stopPropagation();novelSplitSceneGrid(' + i + ')" style="flex:1;padding:4px;font-size:11px;background:#666;color:#fff;border:none;border-radius:4px;">🔄 重新切割</button>' +
+                    '</div>';
+            }
+            var sceneEncodedUrl = encodeURIComponent(ch._sceneImageUrl);
+            var sceneEncodedName = encodeURIComponent('\u7B2C' + (i + 1) + '\u7AE0\u573A\u666F\u56FE');
+            var sceneOnclick = 'event.stopPropagation();novelSaveImageToPhone(\'' + sceneEncodedUrl + '\',\'' + sceneEncodedName + '\')';
+            var regenOnclick = 'event.stopPropagation();if(confirm(\'\u91CD\u65B0\u751F\u6210\u573A\u666F\u56FE\uFF1F\'))novelGenerateSceneImage(' + i + ')';
+            var splitOnclick = 'event.stopPropagation();novelSplitSceneGrid(' + i + ')';
             sceneHtml = '<div class="ch-scene-wrap" style="margin:6px 0;">' +
-                '<img src="' + ch._sceneImageUrl + '" alt="场景图" style="width:100%;border-radius:8px;max-height:200px;object-fit:cover;">' +
+                '<img src="' + ch._sceneImageUrl + '" alt="\u573A\u666F\u56FE" style="width:100%;border-radius:8px;max-height:200px;object-fit:cover;">' +
                 '<div style="display:flex;gap:4px;margin-top:4px;">' +
-                '<button class="ch-scene-btn" onclick="event.stopPropagation();novelSaveImageToPhone(\'' + encodeURIComponent(ch._sceneImageUrl) + '\',\'' + encodeURIComponent('第' + (i + 1) + '章_场景图') + '\')" style="flex:1;padding:4px;font-size:11px;background:#2a6;color:#fff;border:none;border-radius:4px;">💾 保存场景图</button>' +
-                '<button class="ch-scene-btn" onclick="event.stopPropagation();novelGenerateSceneImage(' + i + ')" style="flex:1;padding:4px;font-size:11px;background:#36a;color:#fff;border:none;border-radius:4px;">🔄 重新生成</button>' +
-                '</div></div>';
+                '<button class="ch-scene-btn" onclick="' + sceneOnclick + '" style="flex:1;padding:4px;font-size:11px;background:#2a6;color:#fff;border:none;border-radius:4px;">💾 保存</button>' +
+                '<button class="ch-scene-btn" onclick="' + regenOnclick + '" style="flex:1;padding:4px;font-size:11px;background:#36a;color:#fff;border:none;border-radius:4px;">🔄 重生成</button>' +
+                '<button class="ch-scene-btn" onclick="' + splitOnclick + '" style="flex:1;padding:4px;font-size:11px;background:#9b59b6;color:#fff;border:none;border-radius:4px;">🔪 切割</button>' +
+                '</div>' +
+                splitResultHtml +
+                '</div>';
         } else if (ch._sceneGenerating) {
             sceneHtml = '<div class="ch-scene-wrap" style="margin:6px 0;text-align:center;color:#888;font-size:12px;">🖼️ 场景图生成中...</div>';
         }
@@ -2282,15 +2570,42 @@ function _novelRenderChapterListEnhanced() {
                 <button onclick="event.stopPropagation();novelOpenReader(${i})">👁️ 阅读</button>
                 <button onclick="event.stopPropagation();if(confirm('为第${i + 1}章生成配音？将消耗胶片'))novelTTSChapter(${i})">🎤 配音</button>
                 <button onclick="event.stopPropagation();novelShowVoiceSelector()">🎙️ 换音色</button>
-                <button onclick="event.stopPropagation();novelGenerateSceneImage(${i})">🖼️ 场景</button>
+                <button onclick="event.stopPropagation();if(confirm('生成场景图？'))novelGenerateSceneImage(${i})">🖼️ 场景</button>
                 <button onclick="event.stopPropagation();if(confirm('对第${i + 1}章进行去AI化润色？将消耗胶片'))novelDeAIChapter(${i})">🧹 去AI</button>
             </div>${storyboardHtml}${sceneHtml}${audioHtml}` : ch.status === 'error' ? `
             <div class="ch-actions">
                 <button onclick="event.stopPropagation();novelRetryChapter(${i})">🔄 重试</button>
             </div>` : '';
 
+        var charTagHtml = '';
+        if (ch.status === 'done' && novelState.characters && novelState.characters.length > 0) {
+            var allChars = novelState.characters;
+            var chSelected = _novelGetChapterSelectedChars(i);
+            var selectedSet = new Set(chSelected);
+            var autoMatched = _novelMatchCharsToChapter(i);
+            var autoSet = new Set(autoMatched);
+            var charTags = allChars.filter(function (c) { return c.name; }).map(function (c) {
+                var hasImg = !!c.imageUrl;
+                var isSel = selectedSet.has(c.name);
+                var isAuto = autoSet.has(c.name);
+                if (!hasImg && !isSel) return '';
+                var bg = isSel ? '#10b98120' : 'transparent';
+                var border = isSel ? '#10b981' : '#444';
+                var color = isSel ? '#10b981' : '#888';
+                var icon = isSel ? '✓' : '○';
+                var cursor = hasImg ? 'pointer' : 'default';
+                var onclick = hasImg ? '_novelToggleChapterChar(' + i + ', \'' + c.name.replace(/'/g, "\\'") + '\')' : '';
+                var title = hasImg ? (isSel ? '点击排除' : '点击用于场景') : '（未生成角色图）';
+                return '<span onclick="event.stopPropagation();' + onclick + '" style="display:inline-block;padding:1px 6px;margin:1px 3px;font-size:10px;border:1px solid ' + border + ';background:' + bg + ';color:' + color + ';border-radius:8px;cursor:' + cursor + ';white-space:nowrap;" title="' + title + '">' + icon + ' ' + c.name + '</span>';
+            }).filter(function (t) { return t; });
+            if (charTags.length > 0) {
+                charTagHtml = '<div style="padding:3px 8px 4px;display:flex;flex-wrap:wrap;gap:2px;align-items:center;font-size:10px;color:#666;">🎭 <span style="font-size:9px;color:#888;margin-right:2px;">场景角色:</span>' + charTags.join('') + '</div>';
+            }
+        }
+
         return `<div class="novel-chapter-item" onclick="novelViewChapter(${i})" style="cursor:pointer;">
             <span>${icon} ${_novelDisplayTitle(ch, i)} ${wordInfo}</span>
+            ${charTagHtml}
             ${actionsHtml}
         </div>`;
     }).join('');

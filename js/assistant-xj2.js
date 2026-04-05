@@ -1,5 +1,5 @@
 /**
- * ==================== 小卷助手 V2 - 霓虹灵魂 (Neon Soul) ====================
+ * ==================== 小卷助手 V9.0.0.1 - 霓虹灵魂 (Neon Soul) ====================
  * 合并 AIRI 对话 + MiroFish 预测的统一助手
  * 保留旧版所有功能：记忆、语音、关键词回复、情绪检测
  */
@@ -49,6 +49,7 @@
             this.isRecordingVoice = false;
             this.currentTopic = '';
             this.currentType = '';
+            this.pendingPredictionType = null; // 待处理的预测类型（用户输入主题后执行）
         }
 
         /**
@@ -103,6 +104,9 @@
 
             // 拖拽功能
             this._initDrag();
+
+            // 阻止面板内部滚动穿透到页面
+            this._initScrollLock();
         }
 
         _initDrag() {
@@ -135,7 +139,7 @@
                 startLeft = rect.left;
                 startTop = rect.top;
                 container.style.transition = 'none';
-                e.preventDefault();
+                // 不在这里 preventDefault，让 click 事件能正常触发
             };
 
             const onMove = (e) => {
@@ -144,7 +148,7 @@
                 const touch = e.touches ? e.touches[0] : e;
                 const dx = touch.clientX - startX;
                 const dy = touch.clientY - startY;
-                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) hasMoved = true;
                 if (!hasMoved) return;
 
                 const newLeft = Math.max(0, Math.min(window.innerWidth - 70, startLeft + dx));
@@ -154,7 +158,7 @@
                 container.style.top = newTop + 'px';
                 container.style.right = 'auto';
                 container.style.bottom = 'auto';
-                e.preventDefault();
+                e.preventDefault(); // 只有真正拖拽时才阻止
             };
 
             const onUp = (e) => {
@@ -167,6 +171,7 @@
                     const block = (ev) => { ev.stopPropagation(); };
                     document.getElementById('xj2AvatarBtn')?.addEventListener('click', block, { once: true, capture: true });
                 }
+                // 点击（hasMoved=false）时不阻止，让 click 事件自然触发
             };
 
             console.log('[XJ2 拖拽] 绑定事件监听器');
@@ -176,6 +181,44 @@
             document.addEventListener('touchmove', onMove, { passive: false });
             document.addEventListener('mouseup', onUp);
             document.addEventListener('touchend', onUp);
+        }
+
+        /**
+         * 阻止面板内部滚动穿透到页面
+         * 当用户在面板内滑动时，阻止事件冒泡到主页
+         */
+        _initScrollLock() {
+            if (!this.panel || !this.messagesEl) return;
+
+            let touchStartY = 0;
+            let scrollTop = 0;
+
+            // 消息区域：最内层，阻止 touchmove 冒泡
+            this.messagesEl.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+                scrollTop = this.messagesEl.scrollTop;
+            }, { passive: true });
+
+            this.messagesEl.addEventListener('touchmove', (e) => {
+                // 如果消息区域还没滚到头或末尾，禁止冒泡
+                const el = this.messagesEl;
+                const atTop = el.scrollTop <= 0;
+                const atBottom = el.scrollTop >= el.scrollHeight - el.clientHeight - 1;
+                const movingUp = e.touches[0].clientY > touchStartY;
+                const movingDown = e.touches[0].clientY < touchStartY;
+
+                // 到达边界且继续往边界外滑，阻止冒泡
+                if ((atTop && movingUp) || (atBottom && movingDown)) {
+                    e.stopPropagation();
+                }
+            }, { passive: true });
+
+            // 面板整体：如果面板在顶部/底部，阻止冒泡
+            this.panel.addEventListener('touchmove', (e) => {
+                e.stopPropagation();
+            }, { passive: true });
+
+            console.log('[XJ2 滚动锁定] 已初始化');
         }
 
         /**
@@ -284,7 +327,10 @@
             `;
 
             this.messagesEl.appendChild(msgEl);
-            this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+            // 强制滚动确保内容可见
+            requestAnimationFrame(() => {
+                this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+            });
         }
 
         /**
@@ -395,16 +441,22 @@
         }
 
         /**
-         * 开始预测
+         * 开始预测（通过输入框收集主题）
          */
         async startPrediction(type) {
-            const topic = prompt('请输入预测主题（如：BTC、ETH、黄金）：');
-            if (!topic || !topic.trim()) return;
+            // 存储待执行的预测类型
+            this.pendingPredictionType = type;
 
+            // 关闭面板再打开，确保输入框可见
             this.close();
             setTimeout(() => {
                 this.open();
-                this._executePrediction(type, topic.trim());
+                if (this.inputEl) {
+                    // 清空输入框并设置提示文字
+                    this.inputEl.value = '';
+                    this.inputEl.placeholder = `请输入${CONFIG.predictionTypes.find(t => t.id === type)?.label || '预测'}主题...`;
+                    this.inputEl.focus();
+                }
             }, 300);
         }
 
@@ -550,7 +602,7 @@
         }
 
         /**
-         * 发送消息（完整版，包含关键词回复）
+         * 发送消息（完整版，包含关键词回复和预测处理）
          */
         sendMessage() {
             const message = this.inputEl?.value.trim();
@@ -558,6 +610,21 @@
 
             this.addMessage(message, 'user');
             this.inputEl.value = '';
+
+            // 如果有待执行的预测，直接执行预测
+            if (this.pendingPredictionType) {
+                const type = this.pendingPredictionType;
+                this.pendingPredictionType = null; // 清除待处理状态
+                this.inputEl.placeholder = '说点什么...';
+
+                // 关闭面板，执行预测
+                this.close();
+                setTimeout(() => {
+                    this.open();
+                    this._executePrediction(type, message);
+                }, 300);
+                return;
+            }
 
             this.setStatus('thinking');
             this.showTyping();

@@ -1095,7 +1095,8 @@ module.exports = async function handler(req, res) {
                 success: true,
                 quotaBalance: currentBalance,
                 quotaUsed: currentUsed,
-                membershipType: currentMembershipType
+                membershipType: currentMembershipType,
+                membershipLevel: profileRow?.membership_level || 0
             });
             return;
         }

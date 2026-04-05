@@ -24,18 +24,28 @@
 }
 
 .connection-line {
-    stroke: var(--accent-gold);
-    stroke-width: 2px;
+    stroke: rgba(255, 215, 0, 0.7);
+    stroke-width: 2.5px;
     fill: none;
-    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.5));
-    transition: stroke 0.2s, stroke-width 0.2s;
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.35));
+    transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
+}
+
+.conn-endpoint {
+    filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.5));
+    transition: all 0.2s ease;
+}
+
+.conn-arrow {
+    filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.4));
+    transition: all 0.2s ease;
 }
 
 /* 🔧 连线交互样式 */
 .connection-group:hover .connection-line {
-    stroke: #ef4444;
-    stroke-width: 3px;
-    filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+    stroke: rgba(239, 68, 68, 0.9);
+    stroke-width: 3.5px;
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.45));
 }
 
 .connection-hit-area {
@@ -1451,17 +1461,28 @@ html.sidebar-open .rr-minimap {
     position: absolute;
     right: 18px;
     bottom: 18px;
-    width: 220px;
-    height: 150px;
-    background: rgba(0, 0, 0, 0.65);
-    border: 1px solid rgba(255, 215, 0, 0.25);
-    border-radius: 10px;
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
+    width: 240px;
+    height: 160px;
+    background: linear-gradient(160deg, rgba(18,18,24,0.92) 0%, rgba(12,12,18,0.95) 100%);
+    border: 1px solid rgba(255, 215, 0, 0.15);
+    border-radius: 12px;
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    backdrop-filter: blur(12px) saturate(1.2);
     z-index: 120;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 1px 0 rgba(255, 255, 255, 0.06) inset;
     overflow: hidden;
     user-select: none;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.rr-minimap:hover {
+    border-color: rgba(255, 215, 0, 0.3);
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.55),
+        0 0 20px rgba(255, 215, 0, 0.05);
 }
 
 .rr-minimap.hidden {
@@ -1472,11 +1493,12 @@ html.sidebar-open .rr-minimap {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    color: #ddd;
-    font-size: 12px;
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #bbb;
+    font-size: 11px;
     cursor: move;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
 }
 
 .rr-minimap.dragging {
@@ -1498,23 +1520,30 @@ html.sidebar-open .rr-minimap {
 .rr-minimap-actions button {
     width: 24px;
     height: 24px;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
+    background: rgba(255, 255, 255, 0.04);
+    color: #999;
     cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
 }
 
 .rr-minimap-actions button:hover {
-    background: rgba(251, 191, 36, 0.18);
+    background: rgba(251, 191, 36, 0.15);
     color: var(--accent-gold);
+    border-color: rgba(251, 191, 36, 0.25);
 }
 
 .rr-minimap-canvas {
     width: 100%;
-    height: calc(100% - 37px);
+    height: calc(100% - 38px);
     display: block;
     cursor: crosshair;
+    border-radius: 0 0 12px 12px;
 }
 
 .zoom-level {
@@ -1713,6 +1742,27 @@ html.sidebar-open .rr-minimap {
     padding: 0 4px;
 }
 
+.agent-quick-commands.collapsed .quick-label,
+.agent-quick-commands.collapsed .quick-cmd-btn:not(.quick-toggle-btn) {
+    display: none !important;
+}
+
+.quick-toggle-btn {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 8px !important;
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+    color: #666 !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: auto;
+}
+.quick-toggle-btn:hover {
+    background: rgba(255,255,255,0.1) !important;
+    color: #aaa !important;
+}
+
 .agent-quick-commands .quick-label {
     font-size: 12px;
     color: #888;
@@ -1874,20 +1924,33 @@ html.sidebar-open .rr-minimap {
 /* 结果卡片 */
 .result-card {
     width: 450px;
-    /* 稍微加宽 */
-    background: #222;
-    border: 1px solid #333;
+    background: linear-gradient(145deg, #1e1e22 0%, #18181c 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 0;
     flex-shrink: 0;
     overflow: hidden;
     resize: both;
+    will-change: transform;
+    contain: layout style;
+    transform: translateZ(0);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+    box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.result-card:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+        0 8px 28px rgba(0, 0, 0, 0.45),
+        0 0 16px rgba(100, 120, 200, 0.04);
 }
 
 .result-card-header {
     padding: 15px 20px;
-    background: #2a2a2a;
-    border-bottom: 1px solid #333;
+    background: linear-gradient(135deg, #252528 0%, #1e1e22 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2605,10 +2668,13 @@ html.sidebar-open .rr-minimap {
 /* ================= Sketch Board (Banana Node) Styles ================= */
 .banana-node {
     position: absolute;
-    background: #1a1a1a;
-    border: 1px solid var(--accent-gold);
-    border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(145deg, #1a1a1e 0%, #16161a 100%);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    border-radius: 12px;
+    box-shadow:
+        0 4px 24px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+        0 1px 0 rgba(255, 255, 255, 0.05) inset;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2617,6 +2683,26 @@ html.sidebar-open .rr-minimap {
     max-width: 800px;
     max-height: none;
     z-index: 10;
+    will-change: transform;
+    contain: layout style;
+    transform: translateZ(0);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.banana-node:hover {
+    border-color: rgba(255, 215, 0, 0.45);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(255, 215, 0, 0.06),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.banana-node.dragging {
+    z-index: 100;
+    box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.6),
+        0 0 30px rgba(255, 215, 0, 0.1);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .banana-node .node-content {
@@ -2647,12 +2733,18 @@ html.sidebar-open .rr-minimap {
 
 .banana-node-header {
     padding: 8px 12px;
-    background: #2a2a2a;
-    border-bottom: 1px solid #333;
+    background: linear-gradient(135deg, #252528 0%, #1e1e22 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: grab;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.banana-node-header:hover {
+    background: linear-gradient(135deg, #2a2a2e 0%, #232327 100%);
 }
 
 .banana-node-header:active {
@@ -2685,11 +2777,10 @@ html.sidebar-open .rr-minimap {
     display: flex;
     flex-direction: column;
     padding: 10px;
-    background: #111;
+    background: linear-gradient(180deg, #141418 0%, #111115 100%);
     gap: 10px;
     overflow: auto;
     min-height: 0;
-    /* 允许flex子元素收缩 */
 }
 
 /* 优化下拉菜单显示，防止截断 */

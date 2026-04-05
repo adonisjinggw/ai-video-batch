@@ -1,11 +1,20 @@
 /**
  * AI服务管理器 - 管理多个AI服务的配置和调用
+ * 使用 Node.js 内置 fetch (无需外部依赖)
  */
-
-const axios = require('axios');
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timeoutId);
+    }
 }
 
 async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000) {
@@ -33,7 +42,7 @@ class AIServiceManager {
 
     registerService(config) {
         const { id, name, type, apiKey, baseUrl, model, capabilities, priority = 0 } = config;
-        
+
         this.services.set(id, {
             id,
             name,
@@ -111,36 +120,38 @@ class AIServiceManager {
 
     async callOpenAI(service, messages, options) {
         const url = this.buildUrl(service.baseUrl, 'https://api.openai.com', '/v1/chat/completions');
-        const response = await axios.post(
-            url,
-            {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${service.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 model: service.model || 'gpt-4',
                 messages,
                 temperature: options.temperature || 0.7,
                 max_tokens: options.maxTokens || 4000,
                 ...options
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${service.apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 60000
-            }
-        );
+            })
+        }, 60000);
 
+        if (!response.ok) {
+            throw new Error(`OpenAI API 错误: ${response.status} ${await response.text()}`);
+        }
+
+        const data = await response.json();
         return {
-            content: response.data.choices[0].message.content,
-            usage: response.data.usage
+            content: data.choices[0].message.content,
+            usage: data.usage
         };
     }
 
     async callClaude(service, messages, options) {
         const url = this.buildUrl(service.baseUrl, 'https://api.anthropic.com', '/v1/messages');
-        
+
         let systemPrompt = '';
         const claudeMessages = [];
-        
+
         for (const msg of messages) {
             if (msg.role === 'system') {
                 systemPrompt = msg.content;
@@ -161,26 +172,35 @@ class AIServiceManager {
             requestBody.system = systemPrompt;
         }
 
-        const response = await axios.post(url, requestBody, {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
             headers: {
                 'x-api-key': service.apiKey,
                 'anthropic-version': '2023-06-01',
                 'Content-Type': 'application/json'
             },
-            timeout: 60000
-        });
+            body: JSON.stringify(requestBody)
+        }, 60000);
 
+        if (!response.ok) {
+            throw new Error(`Claude API 错误: ${response.status} ${await response.text()}`);
+        }
+
+        const data = await response.json();
         return {
-            content: response.data.content[0].text,
-            usage: response.data.usage
+            content: data.content[0].text,
+            usage: data.usage
         };
     }
 
     async callOllama(service, messages, options) {
         const url = this.buildUrl(service.baseUrl, 'http://localhost:11434', '/api/chat');
-        const response = await axios.post(
-            url,
-            {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 model: service.model || 'llama2',
                 messages,
                 stream: false,
@@ -189,45 +209,48 @@ class AIServiceManager {
                     num_predict: options.maxTokens || 4000,
                     ...options
                 }
-            },
-            {
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                timeout: 120000
-            }
-        );
+            })
+        }, 120000);
 
+        if (!response.ok) {
+            throw new Error(`Ollama API 错误: ${response.status} ${await response.text()}`);
+        }
+
+        const data = await response.json();
         return {
-            content: response.data.message.content,
-            usage: response.data.usage || {}
+            content: data.message.content,
+            usage: data.usage || {}
         };
     }
 
     async callCustom(service, messages, options) {
-        const response = await axios.post(
-            service.baseUrl,
-            {
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(service.apiKey ? { 'Authorization': `Bearer ${service.apiKey}` } : {}),
+            ...service.customHeaders
+        };
+
+        const response = await fetchWithTimeout(service.baseUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
                 model: service.model,
                 messages,
                 ...options
-            },
-            {
-                headers: {
-                    'Authorization': service.apiKey ? `Bearer ${service.apiKey}` : undefined,
-                    'Content-Type': 'application/json',
-                    ...service.customHeaders
-                },
-                timeout: 60000
-            }
-        );
+            })
+        }, 60000);
 
+        if (!response.ok) {
+            throw new Error(`自定义API错误: ${response.status} ${await response.text()}`);
+        }
+
+        const data = await response.json();
         const contentPath = service.responsePath || 'choices[0].message.content';
-        const content = this.getNestedValue(response.data, contentPath);
+        const content = this.getNestedValue(data, contentPath);
 
         return {
             content,
-            usage: response.data.usage || {}
+            usage: data.usage || {}
         };
     }
 

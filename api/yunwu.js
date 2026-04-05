@@ -21,6 +21,7 @@ const FILM_COST = {
     'grok-video-3-10s': 8,   // Grok Video 3 10秒
     'grok-video-3-15s': 12,  // Grok Video 3 15秒
     'create-character': 5,   // 创建角色
+    'hunyuan3d': 30,        // 混元生3D（GLB模型）
     // Vidu 视频模型 - 按分辨率和版本计费（70%利润，按秒计费，默认5秒）
     'vidu-q2-720p': 25,       // ¥0.288/秒 × 5秒 / 0.59 = ¥2.45
     'vidu-q2-1080p': 36,      // ¥0.423/秒 × 5秒 / 0.59 = ¥3.60
@@ -89,7 +90,11 @@ const FILM_COST = {
     'ltx-video-5s': 4,             // LTX-Video 5秒 (低成本快速生成)
     'ltx-video-10s': 7,            // LTX-Video 10秒
     'ltx-video-15s': 10,           // LTX-Video 15秒
-    'ltx-video-custom': 12         // LTX-Video 自定义时长 (默认12胶片)
+    'ltx-video-custom': 12,        // LTX-Video 自定义时长 (默认12胶片)
+    // Seedance 2.0 视频模型 - RunningHub
+    'seedance-t2v': 8,             // Seedance 2.0 文生视频
+    'seedance-i2v': 10,            // Seedance 2.0 图生视频
+    'seedance-ref': 12             // Seedance 2.0 全能参考视频 (多参考图)
 };
 
 // ========== Wan2.6 默认绿幕图 (用于文生视频) ==========
@@ -273,6 +278,36 @@ async function __billing(billingAction, userId, amount, description) {
     }
 }
 
+/**
+ * 检查用户会员等级
+ * @param {string} userId
+ * @param {number} requiredLevel 所需等级
+ * @returns {{ isEnough: boolean, level: number }}
+ */
+async function checkUserLevel(userId, requiredLevel) {
+    // membership_level: 数字字段，0-10
+    // membership_type: 'free'=0, 'creator'=1, 'vip'=2, 'pro'=3, 'studio'=4
+    const LEVEL_MAP = { 'free': 0, 'creator': 1, 'vip': 2, 'pro': 3, 'studio': 4, 'partner': 5 };
+    try {
+        const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : 'https://www.rollroll.art';
+
+        const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getProfile', userId })
+        });
+        const data = await res.json().catch(() => ({}));
+        // 优先使用 membership_level 字段，否则从 membership_type 推算
+        let level = Number(data?.membership_level || LEVEL_MAP[data?.membershipType?.toLowerCase()] || 0);
+        return { isEnough: level >= requiredLevel, level };
+    } catch (e) {
+        console.warn('[yunwu] checkUserLevel 异常:', e.message);
+        return { isEnough: false, level: 0 };
+    }
+}
+
 const YUNWU_API_KEYS = (() => {
     const keys = [];
     const key1 = (process.env.YUNWU_API_KEY || process.env.YUNMENG_API_KEY || '').trim();
@@ -316,6 +351,62 @@ const YUNWU_ENDPOINTS = [
 
 // 默认使用第一个（国内最快）
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
+
+// ========== 腾讯混元3D API 配置 ==========
+// 混元3D使用腾讯云官方API（国内版 ai3d.tencentcloudapi.com），需TC3-HMAC-SHA256签名
+const HUNYUAN3D_SECRET_ID = process.env.HUNYUAN3D_SECRET_ID || '';
+const HUNYUAN3D_SECRET_KEY = process.env.HUNYUAN3D_SECRET_KEY || '';
+const HUNYUAN3D_BASE_URL = 'https://ai3d.tencentcloudapi.com';
+const HUNYUAN3D_SERVICE = 'ai3d';
+const HUNYUAN3D_VERSION = '2025-05-13';
+const HUNYUAN3D_REGION = 'ap-guangzhou';
+
+/**
+ * TC3-HMAC-SHA256 签名（腾讯云API 3.0）
+ * @param {string} action - API Action
+ * @param {object} payload - 请求体
+ * @returns {Promise<{headers: object}>}
+ */
+async function _tc3Sign(action, payload) {
+    const crypto = await import('crypto');
+    const timestamp = Math.floor(Date.now() / 1000);
+    const date = new Date(timestamp * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+    const payloadStr = JSON.stringify(payload);
+    const hashedPayload = crypto.createHash('sha256').update(payloadStr).digest('hex');
+
+    // 规范请求串
+    const httpMethod = 'POST';
+    const canonicalUri = '/';
+    const canonicalQueryString = '';
+    const contentType = 'application/json; charset=utf-8';
+    const host = 'ai3d.tencentcloudapi.com';
+    const canonicalHeaders = `content-type:${contentType}\nhost:${host}\nx-tc-action:${action.toLowerCase()}\n`;
+    const signedHeaders = 'content-type;host;x-tc-action';
+
+    const canonicalRequest = [httpMethod, canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaders, hashedPayload].join('\n');
+
+    // 待签名字符串
+    const credentialScope = `${date}/${HUNYUAN3D_SERVICE}/tc3_request`;
+    const stringToSign = ['TC3-HMAC-SHA256', String(timestamp), credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
+
+    // 计算签名
+    const secretDate = crypto.createHmac('sha256', 'TC3' + HUNYUAN3D_SECRET_KEY).update(date).digest();
+    const secretService = crypto.createHmac('sha256', secretDate).update(HUNYUAN3D_SERVICE).digest();
+    const secretSigning = crypto.createHmac('sha256', secretService).update('tc3_request').digest();
+    const signature = crypto.createHmac('sha256', secretSigning).update(stringToSign).digest('hex');
+
+    return {
+        headers: {
+            'Authorization': `TC3-HMAC-SHA256 Credential=${HUNYUAN3D_SECRET_ID}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+            'Content-Type': contentType,
+            'Host': host,
+            'X-TC-Action': action,
+            'X-TC-Version': HUNYUAN3D_VERSION,
+            'X-TC-Region': HUNYUAN3D_REGION,
+            'X-TC-Timestamp': String(timestamp)
+        }
+    };
+}
 
 // ========== Wan2.6 阿里云百炼 API 配置 ==========
 // 优先使用专用的WAN26_API_KEY，否则使用云雾API的key
@@ -1740,70 +1831,86 @@ module.exports = async function handler(req, res) {
             }
 
             try {
-                // 🌟 使用 OpenAI 格式 /v1/chat/completions API
-                // 构建消息内容
-                const messageContent = [];
-                
-                // 添加文本提示词
-                messageContent.push({
-                    type: 'text',
-                    text: prompt || '让图片动起来，平滑过渡'
-                });
-                
-                // 如果有图片参考，添加图片
+                // 🌟 使用 OpenAI /v1/videos 视频生成 API（multipart/form-data）
+                // 官方规范：POST https://yunwu.ai/v1/videos
+                // 必填：model, prompt, seconds, size
+                // 选填：input_reference（垫图/参考图）
+                // ⚠️ size 必须是像素尺寸（如 1920x1080），不是比例（如 16x9）！
+                // ⚠️ seconds Veo 3.1 标准支持 4/6/8 秒，默认用 8
+
+                const rawDuration = body.duration || body.seconds || 8;
+                const durationSeconds = String(Math.max(rawDuration, 8));  // 最低8秒
+
+                // 🌟 size 转换为像素尺寸（云雾要求格式如 1920x720）
+                let size = '1280x720';  // 默认 720p
+                if (aspect_ratio === '9:16') {
+                    size = '720x1280';
+                } else if (aspect_ratio === '1:1') {
+                    size = '720x720';
+                } else {
+                    size = '1280x720';   // 16:9 默认 720p（4K 用 1920x1080 但云雾可能不支持）
+                }
+
+                // 构建 multipart/form-data
+                const formData = new FormData();
+
+                // 🌟 model 原样传递（前端传什么就发什么，不修改）
+                formData.append('model', actualModel);
+                console.log(`[yunwu] Veo model: ${actualModel}, size=${size}, seconds=${durationSeconds}`);
+
+                formData.append('prompt', prompt || '高质量视频生成');
+                formData.append('seconds', durationSeconds);
+                formData.append('size', size);
+
+                // 如果有参考图片，作为 input_reference 上传
                 if (image_url) {
                     if (image_url.startsWith('data:')) {
-                        // base64 图片直接传递
-                        messageContent.push({
-                            type: 'image_url',
-                            image_url: { url: image_url }
-                        });
-                    } else {
-                        // URL 图片
-                        messageContent.push({
-                            type: 'image_url',
-                            image_url: { url: image_url }
-                        });
+                        // base64 → Blob
+                        const [header, base64Data] = image_url.split(',');
+                        const mimeMatch = header.match(/data:(.*?);base64/);
+                        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+                        const byteChars = atob(base64Data);
+                        const byteArray = new Uint8Array(byteChars.length);
+                        for (let i = 0; i < byteChars.length; i++) {
+                            byteArray[i] = byteChars.charCodeAt(i);
+                        }
+                        const blob = new Blob([byteArray], { type: mime });
+                        formData.append('input_reference', blob, `reference.${mime.split('/')[1] || 'png'}`);
+                    } else if (image_url.startsWith('http://') || image_url.startsWith('https://')) {
+                        // URL → fetch 为 Blob
+                        try {
+                            const imgRes = await fetch(image_url);
+                            if (imgRes.ok) {
+                                const imgBlob = await imgRes.blob();
+                                formData.append('input_reference', imgBlob, 'reference.png');
+                            }
+                        } catch (e) {
+                            console.warn('[yunwu] Veo下载参考图失败，跳过:', e.message);
+                        }
                     }
                 }
-                
-                // OpenAI 格式请求体
-                const requestBody = {
-                    model: actualModel,
-                    messages: [{
-                        role: 'user',
-                        content: messageContent
-                    }],
-                    // 视频生成特定参数
-                    aspect_ratio: aspect_ratio,
-                    enhance_prompt: true
-                };
-                
-                // 🧲 图生视频一致性增强参数
-                if (image_url) {
-                    requestBody.preserve_subject = true;
-                    requestBody.image_weight = (body.image_weight != null) ? Number(body.image_weight) : 0.95;
-                    requestBody.motion_intensity = body.motion_intensity || 'medium';
-                    requestBody.style_consistency = true;
-                    console.log(`[yunwu] 🧲 Veo图生视频一致性参数: image_weight=${requestBody.image_weight}`);
-                }
 
-                console.log('[yunwu] Veo OpenAI格式请求体:', JSON.stringify(requestBody).substring(0, 500));
+                console.log(`[yunwu] Veo /v1/videos 请求: model=${actualModel}, seconds=${durationSeconds}, size=${size}, hasImage=${!!image_url}`);
 
-                // 使用 OpenAI 格式端点
-                const response = await fetchWithFallbackWithTimeout(`/v1/chat/completions`, {
+                // 🌟 Veo 使用 yunwu.ai 的 /v1/videos 端点（完整 URL，不走 _tryAllEndpoints 避免重复拼接）
+                const veoUrl = `https://yunwu.ai/v1/videos`;
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 120000);
+                
+                const response = await fetch(veoUrl, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Authorization': `Bearer ${YUNWU_API_KEY}`
+                        // Content-Type 由 FormData 自动设置（含 boundary）
                     },
-                    body: JSON.stringify(requestBody)
-                }, 120000);  // 120秒超时
+                    body: formData,
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('[yunwu] Veo错误:', response.status, errorText);
+                    console.error('[yunwu] Veo /videos 错误:', response.status, errorText);
 
                     let errorDetail = '';
                     try {
@@ -1813,11 +1920,10 @@ module.exports = async function handler(req, res) {
                         errorDetail = errorText.substring(0, 200);
                     }
 
-                    // 🔄 API失败退款
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, 'VeoAPI失败退款');
                     }
-                    json(500, {
+                    json(response.status >= 400 && response.status < 500 ? response.status : 500, {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
@@ -1829,15 +1935,25 @@ module.exports = async function handler(req, res) {
 
                 const data = await response.json();
 
-                // ✅ 任务提交成功：保存记录并返回
-                const taskId = data?.task_id || data?.id || '';
+                // 返回格式：{ id, object: "video", model, status, progress, created_at, seconds, size }
+                const taskId = data?.id || data?.task_id || '';
+                console.log(`[yunwu] ✨ Veo /v1/videos 任务已提交: ${taskId}, status=${data?.status}`);
+
                 await __saveGenerationRecord(userId, 'video', `task:${taskId}`, prompt, veoModel, filmCost, { aspect_ratio });
 
-                json(200, { success: true, ...data, billed: billingSuccess ? filmCost : 0 });
+                json(200, {
+                    success: true,
+                    task_id: taskId,
+                    id: taskId,
+                    _source: 'veo',
+                    _type: hasImage ? 'i2v' : 't2v',
+                    status: data?.status || 'queued',
+                    ...data,
+                    billed: billingSuccess ? filmCost : 0
+                });
                 return;
             } catch (err) {
                 console.error('[yunwu] Veo异常:', err);
-                // 🔄 异常退款
                 if (billingSuccess) {
                     await __billing('refund', userId, filmCost, 'Veo异常退款');
                 }
@@ -2746,11 +2862,320 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        // ========== LTX-Video/RunningHub 任务轮询 ==========
+        // ========== Seedance 2.0 文生视频 ==========
+        if (action === 'seedance-t2v' || action === 'seedance') {
+            const RUNNINGHUB_API_KEY = process.env.RUNNINGHUB_API_KEY;
+            if (!RUNNINGHUB_API_KEY) {
+                json(500, { success: false, error: 'RUNNINGHUB_NOT_CONFIGURED', message: 'RUNNINGHUB_API_KEY 未配置' });
+                return;
+            }
+
+            const { prompt, duration = 5, ratio = 'adaptive', resolution = '720p', isLv10 = false } = body;
+            if (!prompt) {
+                json(400, { success: false, error: 'MISSING_PROMPT', message: '缺少提示词' });
+                return;
+            }
+
+            // LV10 权限检查
+            if (!isLv10 && userId) {
+                const lvCheck = await checkUserLevel(userId, 10);
+                if (!lvCheck.isEnough) {
+                    json(403, { success: false, error: 'LEVEL_REQUIRED', message: 'Seedance 2.0 仅对 LV10+ 用户开放' });
+                    return;
+                }
+            }
+
+            const filmCost = FILM_COST['seedance-t2v'] || 8;
+            let billingSuccess = false;
+
+            console.log('[yunwu] Seedance 2.0 文生视频:', { promptLen: prompt?.length, duration, ratio, resolution });
+
+            if (!skipBilling && filmCost > 0 && userId) {
+                const billingResult = await __billing('consume', userId, filmCost, `Seedance2.0-T2V:${duration}s`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                    return;
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            } else if (skipBilling) {
+                console.log(`[yunwu] 💰 Seedance 2.0 文生视频跳过扣费: 前端已处理`);
+            }
+
+            try {
+                // 🌟 Seedance 2.0 文生视频 - RunningHub AI App 官方格式
+                // 文档：POST /task/openapi/ai-app/run
+                // Body 必须包含 webappId, apiKey, nodeInfoList
+                const SEEDANCE_APP_ID = process.env.RUNNINGHUB_SEEDANCE_APP_ID || '2037034628481028098';
+
+                const nodeInfoList = [
+                    { nodeId: "1", fieldName: "duration", fieldValue: String(duration) },
+                    { nodeId: "1", fieldName: "ratio", fieldValue: String(ratio) },
+                    { nodeId: "1", fieldName: "resolution", fieldValue: String(resolution) },
+                    { nodeId: "1", fieldName: "prompt", fieldValue: String(prompt) }
+                ];
+
+                console.log(`[yunwu] 🌱 Seedance T2V RunningHub 请求: appId=${SEEDANCE_APP_ID}, nodeInfoList=`, JSON.stringify(nodeInfoList));
+
+                const response = await fetch(`https://www.runninghub.cn/task/openapi/ai-app/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`,
+                        'Host': 'www.runninghub.cn'
+                    },
+                    body: JSON.stringify({
+                        webappId: SEEDANCE_APP_ID,
+                        apiKey: RUNNINGHUB_API_KEY,
+                        nodeInfoList
+                    })
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || (data.code !== 0 && data.code !== undefined && !data.taskId)) {
+                    // 按需求：RunningHub 后台生成失败/提交失败不退胶片。
+                    json(response.status || 500, { success: false, error: 'SUBMIT_FAILED', message: data.errorMessage || data.msg || 'Seedance 2.0 文生视频提交失败' });
+                    return;
+                }
+
+                const taskId = data.taskId;
+                console.log(`[yunwu] ✨ Seedance 2.0 文生视频任务已提交: ${taskId}`);
+                json(200, {
+                    success: true,
+                    task_id: taskId,
+                    id: taskId,
+                    _source: 'seedance',
+                    _type: 't2v',
+                    billed: billingSuccess ? filmCost : 0
+                });
+                return;
+            } catch (err) {
+                // 按需求：RunningHub 后台生成失败/提交异常不退胶片。
+                json(500, { success: false, error: 'API_ERROR', error_code: 'API_ERROR', message: err.message, billed: 0 });
+                return;
+            }
+        }
+
+        // ========== Seedance 2.0 图生视频 ==========
+        if (action === 'seedance-i2v') {
+            const RUNNINGHUB_API_KEY = process.env.RUNNINGHUB_API_KEY;
+            if (!RUNNINGHUB_API_KEY) {
+                json(500, { success: false, error: 'RUNNINGHUB_NOT_CONFIGURED', message: 'RUNNINGHUB_API_KEY 未配置' });
+                return;
+            }
+
+            const { prompt, firstFrameImage, lastFrameImage, duration = 5, ratio = '16:9', resolution = '720p', realPersonMode = false, isLv10 = false } = body;
+            if (!prompt || !firstFrameImage) {
+                json(400, { success: false, error: 'MISSING_PARAMS', message: '缺少提示词或首帧图片' });
+                return;
+            }
+
+            // LV10 权限检查
+            if (!isLv10 && userId) {
+                const lvCheck = await checkUserLevel(userId, 10);
+                if (!lvCheck.isEnough) {
+                    json(403, { success: false, error: 'LEVEL_REQUIRED', message: 'Seedance 2.0 仅对 LV10+ 用户开放' });
+                    return;
+                }
+            }
+
+            const filmCost = FILM_COST['seedance-i2v'] || 10;
+            let billingSuccess = false;
+
+            console.log('[yunwu] Seedance 2.0 图生视频:', { promptLen: prompt?.length, hasFirstFrame: !!firstFrameImage, hasLastFrame: !!lastFrameImage, duration, ratio, resolution, realPersonMode });
+
+            if (!skipBilling && filmCost > 0 && userId) {
+                const billingResult = await __billing('consume', userId, filmCost, `Seedance2.0-I2V:${duration}s`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                    return;
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            } else if (skipBilling) {
+                console.log(`[yunwu] 💰 Seedance 2.0 图生视频跳过扣费: 前端已处理`);
+            }
+
+            try {
+                // 🌟 Seedance 2.0 图生视频 - RunningHub AI App 官方格式
+                const SEEDANCE_I2V_APP_ID = process.env.RUNNINGHUB_SEEDANCE_I2V_APP_ID || '2037048798156951553';
+
+                const nodeInfoList = [];
+
+                // 首帧图片（支持 base64 或 COS URL）
+                if (firstFrameImage.startsWith('data:') || firstFrameImage.startsWith('http')) {
+                    nodeInfoList.push({ nodeId: "2", fieldName: "image", fieldValue: firstFrameImage });
+                } else {
+                    // 已经是 COS key 或其他格式，直接使用
+                    nodeInfoList.push({ nodeId: "2", fieldName: "image", fieldValue: firstFrameImage });
+                }
+
+                // 尾帧图片（可选）
+                if (lastFrameImage) {
+                    if (lastFrameImage.startsWith('data:') || lastFrameImage.startsWith('http')) {
+                        nodeInfoList.push({ nodeId: "3", fieldName: "image", fieldValue: lastFrameImage });
+                    } else {
+                        nodeInfoList.push({ nodeId: "3", fieldName: "image", fieldValue: lastFrameImage });
+                    }
+                }
+
+                nodeInfoList.push(
+                    { nodeId: "1", fieldName: "real_person_mode", fieldValue: String(realPersonMode) },
+                    { nodeId: "1", fieldName: "duration", fieldValue: String(duration) },
+                    { nodeId: "1", fieldName: "ratio", fieldValue: String(ratio) },
+                    { nodeId: "1", fieldName: "resolution", fieldValue: String(resolution) },
+                    { nodeId: "1", fieldName: "prompt", fieldValue: String(prompt) }
+                );
+
+                console.log(`[yunwu] 🌱 Seedance I2V RunningHub 请求: appId=${SEEDANCE_I2V_APP_ID}, nodeInfoList=`, JSON.stringify(nodeInfoList));
+
+                const response = await fetch(`https://www.runninghub.cn/task/openapi/ai-app/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`,
+                        'Host': 'www.runninghub.cn'
+                    },
+                    body: JSON.stringify({
+                        webappId: SEEDANCE_I2V_APP_ID,
+                        apiKey: RUNNINGHUB_API_KEY,
+                        nodeInfoList
+                    })
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || (data.code !== 0 && data.code !== undefined && !data.taskId)) {
+                    // 按需求：RunningHub 后台生成失败/提交失败不退胶片。
+                    json(response.status || 500, { success: false, error: 'SUBMIT_FAILED', message: data.errorMessage || data.msg || 'Seedance 2.0 图生视频提交失败' });
+                    return;
+                }
+
+                const taskId = data.taskId;
+                console.log(`[yunwu] ✨ Seedance 2.0 图生视频任务已提交: ${taskId}`);
+                json(200, {
+                    success: true,
+                    task_id: taskId,
+                    id: taskId,
+                    _source: 'seedance',
+                    _type: 'i2v',
+                    billed: billingSuccess ? filmCost : 0
+                });
+                return;
+            } catch (err) {
+                // 按需求：RunningHub 后台生成失败/提交异常不退胶片。
+                json(500, { success: false, error: 'API_ERROR', error_code: 'API_ERROR', message: err.message, billed: 0 });
+                return;
+            }
+        }
+
+        // ========== Seedance 2.0 全能参考视频 ==========
+        if (action === 'seedance-ref') {
+            const RUNNINGHUB_API_KEY = process.env.RUNNINGHUB_API_KEY;
+            if (!RUNNINGHUB_API_KEY) {
+                json(500, { success: false, error: 'RUNNINGHUB_NOT_CONFIGURED', message: 'RUNNINGHUB_API_KEY 未配置' });
+                return;
+            }
+
+            const { prompt, refImage1, refImage2, refImage3, videoFile, audioFile, duration = 5, ratio = 'adaptive', resolution = '720p', isLv10 = false } = body;
+            if (!prompt) {
+                json(400, { success: false, error: 'MISSING_PROMPT', message: '缺少提示词' });
+                return;
+            }
+            if (!refImage1 && !refImage2 && !refImage3) {
+                json(400, { success: false, error: 'MISSING_REF_IMAGE', message: '至少需要上传一张参考图' });
+                return;
+            }
+
+            // LV10 权限检查
+            if (!isLv10 && userId) {
+                const lvCheck = await checkUserLevel(userId, 10);
+                if (!lvCheck.isEnough) {
+                    json(403, { success: false, error: 'LEVEL_REQUIRED', message: 'Seedance 2.0 仅对 LV10+ 用户开放' });
+                    return;
+                }
+            }
+
+            const filmCost = FILM_COST['seedance-ref'] || 12;
+            let billingSuccess = false;
+
+            console.log('[yunwu] Seedance 2.0 全能参考视频:', { promptLen: prompt?.length, hasRef1: !!refImage1, hasRef2: !!refImage2, hasRef3: !!refImage3, hasVideo: !!videoFile, hasAudio: !!audioFile, duration, ratio, resolution });
+
+            if (!skipBilling && filmCost > 0 && userId) {
+                const billingResult = await __billing('consume', userId, filmCost, `Seedance2.0-Ref:${duration}s`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                    return;
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            } else if (skipBilling) {
+                console.log(`[yunwu] 💰 Seedance 2.0 全能参考视频跳过扣费: 前端已处理`);
+            }
+
+            try {
+                // 🌟 Seedance 2.0 全能参考视频 - RunningHub AI App 官方格式
+                const SEEDANCE_REF_APP_ID = process.env.RUNNINGHUB_SEEDANCE_REF_APP_ID || '2037365179167543298';
+
+                // 构建 nodeInfoList（只包含有值的字段）
+                const nodeInfoList = [];
+                // 参考图（支持最多3张）
+                if (refImage1) nodeInfoList.push({ nodeId: "12", fieldName: "image", fieldValue: String(refImage1) });
+                if (refImage2) nodeInfoList.push({ nodeId: "17", fieldName: "image", fieldValue: String(refImage2) });
+                if (refImage3) nodeInfoList.push({ nodeId: "18", fieldName: "image", fieldValue: String(refImage3) });
+                // 可选视频
+                if (videoFile) nodeInfoList.push({ nodeId: "16", fieldName: "file", fieldValue: String(videoFile) });
+                // 可选音频
+                if (audioFile) nodeInfoList.push({ nodeId: "19", fieldName: "audio", fieldValue: String(audioFile) });
+                // 必填参数
+                nodeInfoList.push({ nodeId: "15", fieldName: "duration", fieldValue: String(duration) });
+                nodeInfoList.push({ nodeId: "15", fieldName: "ratio", fieldValue: String(ratio) });
+                nodeInfoList.push({ nodeId: "15", fieldName: "resolution", fieldValue: String(resolution) });
+                nodeInfoList.push({ nodeId: "15", fieldName: "prompt", fieldValue: String(prompt) });
+
+                console.log(`[yunwu] 🌱 Seedance Ref RunningHub 请求: appId=${SEEDANCE_REF_APP_ID}, nodeInfoList=`, JSON.stringify(nodeInfoList));
+
+                const response = await fetch(`https://www.runninghub.cn/task/openapi/ai-app/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`,
+                        'Host': 'www.runninghub.cn'
+                    },
+                    body: JSON.stringify({
+                        webappId: SEEDANCE_REF_APP_ID,
+                        apiKey: RUNNINGHUB_API_KEY,
+                        nodeInfoList
+                    })
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || (data.code !== 0 && data.code !== undefined && !data.taskId)) {
+                    // 按需求：RunningHub 后台生成失败/提交失败不退胶片。
+                    json(response.status || 500, { success: false, error: 'SUBMIT_FAILED', message: data.errorMessage || data.msg || 'Seedance 2.0 全能参考视频提交失败' });
+                    return;
+                }
+
+                const taskId = data.taskId;
+                console.log(`[yunwu] ✨ Seedance 2.0 全能参考视频任务已提交: ${taskId}`);
+                json(200, {
+                    success: true,
+                    task_id: taskId,
+                    id: taskId,
+                    _source: 'seedance',
+                    _type: 'ref',
+                    billed: billingSuccess ? filmCost : 0
+                });
+                return;
+            } catch (err) {
+                    // 按需求：RunningHub 后台生成失败/提交失败不退胶片。
+                    json(500, { success: false, error: 'API_ERROR', error_code: 'API_ERROR', message: err.message, billed: 0 });
+                    return;
+            }
+        }
+
+        // ========== LTX-Video / Seedance RunningHub 任务轮询 ==========
         if (action === 'poll') {
             const { task_id: taskId, source, _source, _endpoint } = body;
             
             if (source === 'ltx' || _source === 'ltx' || _endpoint === 'runninghub') {
+                // ========== LTX-Video 轮询（走 /openapi/v2/query）==========
                 const RUNNINGHUB_API_KEY = process.env.RUNNINGHUB_API_KEY;
                 if (!RUNNINGHUB_API_KEY) {
                     json(500, { success: false, error: 'RUNNINGHUB_NOT_CONFIGURED', message: 'RUNNINGHUB_API_KEY 未配置' });
@@ -2815,6 +3240,81 @@ module.exports = async function handler(req, res) {
                 } catch (err) {
                     console.warn('[yunwu] LTX-Video轮询异常:', err.message);
                     json(200, { success: false, status: 'PENDING', error: `轮询异常: ${err.message}` });
+                    return;
+                }
+            }
+
+            // 🌟 Seedance RunningHub 专用轮询（走 /task/openapi/... 新版AI App接口）
+            if (source === 'seedance' || _source === 'seedance') {
+                console.log(`[yunwu] 🌱 Seedance RunningHub 轮询: ${taskId}`);
+
+                try {
+                    const RH_API_KEY = process.env.RUNNINGHUB_API_KEY || '';
+                    if (!RH_API_KEY) {
+                        json(500, { success: false, status: 'FAILED', error: 'RunningHub API Key 未配置' });
+                        return;
+                    }
+
+                    // 步骤1: 查询任务输出结果（直接查 outputs，简化流程）
+                    const outputRes = await fetch('https://www.runninghub.cn/task/openapi/outputs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ apiKey: RH_API_KEY, taskId: taskId })
+                    });
+                    const outputData = await outputRes.json().catch(() => ({}));
+                    console.log(`[yunwu] Seedance 结果查询:`, JSON.stringify(outputData).substring(0, 500));
+
+                    // 如果状态查询报错
+                    if (outputData.code !== 0 && outputData.code !== undefined) {
+                        // 再试查一次状态确认是否失败了
+                        const statusRes = await fetch('https://www.runninghub.cn/task/openapi/status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ apiKey: RH_API_KEY, taskId: taskId })
+                        });
+                        const statusData = await statusRes.json().catch(() => ({}));
+                        
+                        // 如果 status 也报错，说明任务可能已失败
+                        if (statusData.code !== 0 && statusData.code !== undefined) {
+                            json(200, { success: false, status: 'FAILED', error: statusData.msg || statusData.errorMessage || 'Seedance 任务失败' });
+                            return;
+                        }
+                        // 否则还在运行中
+                        json(200, { success: true, status: 'PENDING', progress: 50 });
+                        return;
+                    }
+
+                    // data 为数组，每项有 fileUrl
+                    const outputs = outputData.data || [];
+                    if (outputs.length === 0) {
+                        json(200, { success: true, status: 'PENDING', progress: 70 });
+                        return;
+                    }
+
+                    // 找到视频文件
+                    const videoOutput = outputs.find(o =>
+                        o.fileType === 'mp4' || o.fileType === 'webm' || o.fileType === 'mov' ||
+                        (o.fileUrl && /\.(mp4|webm|mov)(\?|$)/i.test(o.fileUrl))
+                    ) || outputs[0];
+
+                    if (videoOutput && videoOutput.fileUrl) {
+                        console.log(`[yunwu] ✅ Seedance 视频生成成功: ${videoOutput.fileUrl.substring(0, 80)}`);
+                        json(200, {
+                            success: true,
+                            status: 'COMPLETED',
+                            video_url: videoOutput.fileUrl,
+                            output_url: videoOutput.fileUrl,
+                            _source: 'seedance'
+                        });
+                        return;
+                    }
+
+                    json(200, { success: true, status: 'PENDING', progress: 85 });
+                    return;
+
+                } catch (err) {
+                    console.error('[yunwu] Seedance 轮询异常:', err);
+                    json(200, { success: false, status: 'PENDING', error: err.message });
                     return;
                 }
             }
@@ -3371,7 +3871,7 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
-            // ✅ 轮询应更短，避免占用函数执行时间
+            // ✅ Veo 等走云雾 /v1/videos 轮询
             const response = await fetchWithFallbackWithTimeout(`/v1/videos/${task_id}`, {
                 method: 'GET',
                 headers: {
@@ -4480,6 +4980,158 @@ module.exports = async function handler(req, res) {
                     json(500, { success: false, error: 'UPLOAD_ERROR', message: err.message });
                     return;
                 }
+            }
+        }
+
+        // ========== 🧊 混元生3D（腾讯Hunyuan 3D模型） ==========
+        if (action === 'hunyuan3d-submit') {
+            console.log('[yunwu] 🧊 混元生3D提交开始');
+            const { prompt, imageUrl, imageBase64 } = body;
+
+            if (!prompt && !imageUrl && !imageBase64) {
+                json(400, { success: false, error: 'MISSING_INPUT', message: '需要提供 prompt 或图片' });
+                return;
+            }
+
+            // 🔐 检查混元3D密钥配置
+            if (!HUNYUAN3D_SECRET_ID || !HUNYUAN3D_SECRET_KEY) {
+                json(500, { success: false, error: 'HUNYUAN3D_NOT_CONFIGURED', message: '混元3D API未配置（需要HUNYUAN3D_SECRET_ID和HUNYUAN3D_SECRET_KEY）' });
+                return;
+            }
+
+            const filmCost = FILM_COST['hunyuan3d'] || 30;
+            let billingSuccess = false;
+
+            try {
+                if (!skipBilling && filmCost > 0 && userId) {
+                    const billingResult = await __billing('consume', userId, filmCost, '混元生3D');
+                    if (!billingResult.success && !billingResult.skipped) {
+                        json(400, { success: false, error: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                        return;
+                    }
+                    billingSuccess = billingResult.success && !billingResult.skipped;
+                }
+
+                // 🔧 构造请求体（腾讯云API 3.0格式）
+                const requestBody = {};
+                if (prompt) requestBody.Prompt = prompt;
+                if (imageUrl) requestBody.ImageUrl = imageUrl;
+                if (imageBase64) requestBody.ImageBase64 = imageBase64;
+
+                console.log('[yunwu] 🧊 提交3D任务到腾讯云:', { hasPrompt: !!prompt, hasImage: !!imageUrl || !!imageBase64, action: 'SubmitHunyuanTo3DProJob' });
+
+                // TC3-HMAC-SHA256签名
+                const { headers } = await _tc3Sign('SubmitHunyuanTo3DProJob', requestBody);
+
+                const response = await fetch(`${HUNYUAN3D_BASE_URL}/`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(requestBody),
+                    signal: AbortSignal.timeout(60000)
+                });
+
+                const data = await response.json().catch(() => ({}));
+                console.log('[yunwu] 🧊 3D提交响应:', JSON.stringify(data).substring(0, 500));
+
+                // 腾讯云API错误在Response.Error中
+                const apiError = data?.Response?.Error;
+                if (apiError) {
+                    if (billingSuccess) await __billing('refund', userId, filmCost, '混元3D失败退款');
+                    json(500, {
+                        success: false,
+                        error: 'SUBMIT_FAILED',
+                        message: apiError.Message || `提交失败(${apiError.Code || 'unknown'})`
+                    });
+                    return;
+                }
+
+                if (!response.ok) {
+                    if (billingSuccess) await __billing('refund', userId, filmCost, '混元3D失败退款');
+                    json(response.status === 400 ? 400 : 500, {
+                        success: false,
+                        error: 'SUBMIT_FAILED',
+                        message: `提交失败(${response.status})`
+                    });
+                    return;
+                }
+
+                const jobId = data?.Response?.JobId;
+                if (!jobId) {
+                    if (billingSuccess) await __billing('refund', userId, filmCost, '混元3D无JobId退款');
+                    json(500, { success: false, error: 'SUBMIT_FAILED', message: '腾讯云未返回JobId', rawData: JSON.stringify(data).substring(0, 300) });
+                    return;
+                }
+
+                json(200, { success: true, jobId });
+                return;
+            } catch (err) {
+                console.error('[yunwu] 🧊 混元3D提交异常:', err.message);
+                if (billingSuccess) await __billing('refund', userId, filmCost, '混元3D异常退款').catch(() => {});
+                json(500, { success: false, error: 'SUBMIT_ERROR', message: err.message });
+                return;
+            }
+        }
+
+        if (action === 'hunyuan3d-query') {
+            console.log('[yunwu] 🧊 混元3D轮询');
+            const { jobId } = body;
+            if (!jobId) {
+                json(400, { success: false, error: 'MISSING_JOB_ID', message: '缺少 jobId' });
+                return;
+            }
+
+            // 🔐 检查混元3D密钥配置
+            if (!HUNYUAN3D_SECRET_ID || !HUNYUAN3D_SECRET_KEY) {
+                json(500, { success: false, error: 'HUNYUAN3D_NOT_CONFIGURED', message: '混元3D API未配置' });
+                return;
+            }
+
+            try {
+                // TC3-HMAC-SHA256签名
+                const { headers } = await _tc3Sign('QueryHunyuanTo3DProJob', { JobId: jobId });
+
+                const response = await fetch(`${HUNYUAN3D_BASE_URL}/`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ JobId: jobId }),
+                    signal: AbortSignal.timeout(30000)
+                });
+
+                const data = await response.json().catch(() => ({}));
+                const resp = data?.Response || {};
+                const taskStatus = String(resp.Status || 'WAIT').toUpperCase();
+
+                // 腾讯云状态：WAIT=等待, RUN=运行中, FAIL=失败, DONE=成功
+                let done = false, failed = false;
+                if (taskStatus === 'DONE') done = true;
+                else if (taskStatus === 'FAIL') failed = true;
+
+                const files = [];
+                if (done && resp.ResultFile3Ds && resp.ResultFile3Ds.length > 0) {
+                    for (const f of resp.ResultFile3Ds) {
+                        files.push({
+                            type: (f.Type || 'glb').toLowerCase(),
+                            url: f.Url || '',
+                            name: `model_${jobId}.${(f.Type || 'glb').toLowerCase()}`,
+                            previewUrl: f.PreviewImageUrl || ''
+                        });
+                    }
+                }
+
+                console.log(`[yunwu] 🧊 3D轮询结果: status=${taskStatus}, done=${done}, failed=${failed}, files=${files.length}`);
+                json(200, {
+                    success: true,
+                    status: taskStatus,
+                    done,
+                    failed,
+                    errorMessage: failed ? (resp.ErrorMessage || resp.ErrorCode || '生成失败') : undefined,
+                    files
+                });
+                return;
+            } catch (err) {
+                console.warn('[yunwu] 🧊 混元3D轮询异常:', err.message);
+                json(200, { success: false, status: 'WAIT', done: false, failed: false, error: err.message });
+                return;
             }
         }
 

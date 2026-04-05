@@ -6545,6 +6545,158 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
             }
         });
 
+        // ═══════════════════════════════════════════════════════════
+        // 💡 获取灵感 - 实时创意灵感（从Reddit等平台直接获取）
+        // ═══════════════════════════════════════════════════════════
+        presetSkills.push({
+            id: 'get_inspiration',
+            name: '获取灵感',
+            icon: '💡',
+            category: 'content',
+            description: '实时获取创意灵感，从Reddit热门社区获取最新创意内容',
+            parameters: [
+                {
+                    key: 'category',
+                    label: '灵感类型',
+                    type: 'select',
+                    required: true,
+                    default: 'video',
+                    options: [
+                        { value: 'video', label: '🎬 视频创意' },
+                        { value: 'writing', label: '✍️ 写作灵感' },
+                        { value: 'art', label: '🎨 艺术设计' },
+                        { value: 'character', label: '👤 角色设计' },
+                        { value: 'all', label: '🌟 全部' }
+                    ]
+                },
+                {
+                    key: 'count',
+                    label: '灵感数量',
+                    type: 'select',
+                    required: false,
+                    default: '5',
+                    options: [
+                        { value: '3', label: '3个' },
+                        { value: '5', label: '5个' },
+                        { value: '10', label: '10个' }
+                    ]
+                }
+            ],
+            estimateCost: () => {
+                // 实时灵感免费
+                return { film: 0, time: '秒开' };
+            },
+            execute: async (params, callbacks) => {
+                const { category, count } = params;
+                const numCount = parseInt(count) || 5;
+
+                callbacks.onProgress?.('获取灵感', 20, `正在从创意平台获取最新灵感...`);
+
+                // Reddit子版块映射
+                const subreddits = {
+                    video: ['scripts', 'Screenwriting', 'filmmakers', 'VideoEditing'],
+                    writing: ['writing', 'creativewriting', 'WriteStuffLE', 'PromptOfTheDay'],
+                    art: ['Art', 'drawing', 'DigitalPainting', 'characterdrawing'],
+                    character: ['characterdrawing', 'OC', 'drawing', 'OriginalCharacters'],
+                    all: ['all', 'popular', 'trending']
+                };
+
+                const targetSubs = subreddits[category] || subreddits.all;
+
+                // 使用CORS代理或者直接调用Reddit JSON API
+                const fetchRedditPosts = async (subreddit, limit) => {
+                    try {
+                        // Reddit公共JSON API
+                        const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`;
+                        const response = await fetch(url);
+                        if (!response.ok) return [];
+
+                        const data = await response.json();
+                        const posts = data.data?.children || [];
+
+                        return posts
+                            .filter(post => post.data && !post.data.over_18)
+                            .map(post => ({
+                                id: `reddit_${post.data.id}`,
+                                source: 'Reddit',
+                                subreddit: post.data.subreddit,
+                                title: post.data.title,
+                                description: post.data.selftext || '',
+                                url: `https://www.reddit.com${post.data.permalink}`,
+                                imageUrl: post.data.url_overridden_by_dest || post.data.url || '',
+                                score: post.data.score,
+                                comments: post.data.num_comments,
+                                createdAt: new Date(post.data.created_utc * 1000).toISOString()
+                            }));
+                    } catch (e) {
+                        console.warn(`获取 r/${subreddit} 失败:`, e.message);
+                        return [];
+                    }
+                };
+
+                try {
+                    const allPosts = [];
+                    const limitPerSub = Math.ceil(numCount / Math.min(targetSubs.length, 2));
+
+                    // 并行获取多个子版块的数据
+                    for (const sub of targetSubs.slice(0, 2)) {
+                        const posts = await fetchRedditPosts(sub, limitPerSub);
+                        allPosts.push(...posts);
+                    }
+
+                    // 按分数排序
+                    allPosts.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+                    // 取前N个
+                    const topPosts = allPosts.slice(0, numCount);
+
+                    const inspirations = topPosts.map((item, index) => {
+                        callbacks.onStepComplete?.(`灵感${index + 1}`, { title: item.title });
+                        return {
+                            title: item.title,
+                            description: item.description || item.url || '',
+                            scenario: `r/${item.subreddit} (${item.score || 0}👍)`,
+                            url: item.url,
+                            imageUrl: item.imageUrl,
+                            score: item.score,
+                            status: 'success',
+                            source: item.source
+                        };
+                    });
+
+                    callbacks.onProgress?.('完成', 100, `已获取 ${inspirations.length} 个灵感`);
+
+                    return {
+                        inspirations,
+                        category,
+                        source: 'Reddit',
+                        total: inspirations.length
+                    };
+
+                } catch (error) {
+                    console.warn('灵感获取失败，使用备用数据:', error.message);
+
+                    // 备用预设灵感
+                    const fallbackInspirations = [
+                        { title: '时间循环日常', description: '主角每天醒来都在同一天', scenario: '备用创意', status: 'success' },
+                        { title: '物品拟人吐槽', description: '让身边的物品开口说话', scenario: '备用创意', status: 'success' },
+                        { title: '反套路剧情', description: '开头是霸总剧，中间突然变成科幻片', scenario: '备用创意', status: 'success' },
+                        { title: '数字生命日记', description: '以AI视角记录与人类的互动', scenario: '备用创意', status: 'success' },
+                        { title: '跨时空对话', description: '现代人用手机与10年前的自己对话', scenario: '备用创意', status: 'success' }
+                    ];
+
+                    callbacks.onProgress?.('完成', 100, `使用备用灵感数据`);
+
+                    return {
+                        inspirations: fallbackInspirations.slice(0, numCount),
+                        category: 'fallback',
+                        source: '备用',
+                        total: fallbackInspirations.length
+                    };
+                }
+            }
+        });
+
         // 记忆系统（集成到对话系统，不作为独立技能）
         // 这些函数会被对话系统自动调用，用于提取和加载记忆
         window.MemorySystem = {
@@ -6630,7 +6782,7 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
         // 注册所有预置 Skills
         SkillManager.registerAll(presetSkills);
 
-        console.log('🧩 预置 Skills 注册完成（36 个技能）+ MemorySystem 集成');
+        console.log('🧩 预置 Skills 注册完成（37 个技能）+ MemorySystem 集成');
     }
 
     // ==================== AI小助手系统 ====================

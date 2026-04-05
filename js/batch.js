@@ -2511,7 +2511,7 @@ function __applyFixedVideoTimingToIdea(idea) {
     idea.settings = idea.settings || {};
     const s = idea.settings;
 
-    const rawModel = s.videoModel || idea.videoModel || 'sora-2';
+    const rawModel = s.videoModel || idea.videoModel || 'veo3.1'; // Sora2已停用，默认Veo3.1
     const model = __normalizeVideoModelName(rawModel);
     const hd = __getVideoHdFlag(s);
     const clipDuration = __getFixedClipDurationByModel(model, hd);
@@ -2643,11 +2643,11 @@ async function callSora2ImageToVideoAPI(imageUrl, prompt, options = {}) {
 }
 
 async function callSora2TextToVideo(prompt, model, options = {}) {
-    return await callSora2TextToVideoAPI(prompt, { ...(options || {}), model: model || options.model || 'sora-2' });
+    return await callSora2TextToVideoAPI(prompt, { ...(options || {}), model: model || options.model || 'veo3.1' });
 }
 
 async function callSora2ImageToVideo(prompt, lastFrameUrl, model, options = {}) {
-    return await callSora2ImageToVideoAPI(lastFrameUrl, prompt, { ...(options || {}), model: model || options.model || 'sora-2' });
+    return await callSora2ImageToVideoAPI(lastFrameUrl, prompt, { ...(options || {}), model: model || options.model || 'veo3.1' });
 }
 
 function getPluginDetectionIssues() {
@@ -2766,8 +2766,12 @@ window.getCanvasTranslate = function () {
     const canvas = document.getElementById('taskCanvas');
     if (!canvas) return { x: 0, y: 0 };
     const st = canvas.style.transform;
-    const m = st.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
-    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
+    // 🔧 修复：匹配 translate3d(x, y, 0) 格式
+    const m = st.match(/translate3d\(([-\d.]+)px,\s*([-\d.]+)px,\s*([-\d.]+)px\)/);
+    if (m) return { x: parseFloat(m[1]), y: parseFloat(m[2]) };
+    // 兼容旧的 translate(x, y) 格式
+    const m2 = st.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    return m2 ? { x: parseFloat(m2[1]), y: parseFloat(m2[2]) } : { x: 0, y: 0 };
 };
 
 // 版本日志
@@ -3676,7 +3680,7 @@ let deletedTaskIds = []; // 🔧 跟踪已删除的任务ID，用于云端同步
 let currentEditingId = null;
 let isGenerating = false;
 let totalGenerated = 0;
-let autoMode = 'sora-2'; // Note: This variable name is reused for radio group value in onModeChange
+let autoMode = 'veo3.1'; // Sora2已停用，默认Veo3.1
 let maxConcurrentTasks = 3;
 
 const __taskScheduler = {
@@ -7256,7 +7260,7 @@ async function batchCreateImageNodes(count, prompt, options = {}) {
  * @param {object} options - 配置选项
  */
 async function batchCreateVideoTasks(count, prompt, options = {}) {
-    const { autoRun = false, videoModel = 'sora-2', connectTasks = true } = options;
+    const { autoRun = false, videoModel = 'veo3.1', connectTasks = true } = options; // Sora2已停用
 
     if (count <= 0 || count > 50) {
         alert('批量生成数量需要在1-50之间');
@@ -7612,7 +7616,11 @@ window.executeCanvasCommand = async function () {
         'vidu-q2-pro-720p': 'vidu-q2-pro-5s-720p',
         'vidu-q2-pro-1080p': 'vidu-q2-pro-5s-1080p',
         'vidu-q2-turbo-720p': 'vidu-q2-turbo-5s-720p',
-        'vidu-q2-turbo-1080p': 'vidu-q2-turbo-5s-1080p'
+        'vidu-q2-turbo-1080p': 'vidu-q2-turbo-5s-1080p',
+        // 🌟 Seedance 2.0 系列
+        'seedance-t2v': 'seedance-t2v',
+        'seedance-i2v': 'seedance-i2v',
+        'seedance-ref': 'seedance-ref'
     };
     // 兼容旧的映射
     const MODEL_MAP = { ...IMAGE_MODEL_MAP, ...VIDEO_MODEL_MAP };
@@ -7795,6 +7803,16 @@ window.fillQuickCommand = function (command, forceModel) {
         // executeCanvasCommand(); // 已移除自动执行
         console.log('[QuickCommand] 已填充命令，按回车执行:', command);
     }
+};
+
+// 📌 切换快捷指令栏显示/隐藏
+window.toggleQuickCommands = function () {
+    const bar = document.getElementById('agentQuickCommands');
+    const btn = document.getElementById('toggleQuickCmdsBtn');
+    if (!bar || !btn) return;
+    bar.classList.toggle('collapsed');
+    btn.textContent = bar.classList.contains('collapsed') ? '▼' : '▲';
+    btn.title = bar.classList.contains('collapsed') ? '展开快捷指令' : '收起快捷指令';
 };
 
 // ============================================================================
@@ -8346,7 +8364,7 @@ async function quickAddIdea(options = {}) {
     let scenes = scInput === '' ? 0 : parseInt(scInput);
 
     // 🔧 先根据生成模式设置正确的视频模型 + 固定分镜时长（用于总时长↔分镜换算）
-    let videoModel = 'sora-2';
+    let videoModel = 'veo3.1'; // Sora2已停用，默认Veo3.1
     if (mode === 'veo3.1' || mode === 'veo3.1-pro') videoModel = 'veo3.1';
     if (mode === 'grok-video-3' || mode === 'grok-video-3-text') videoModel = 'grok-video-3';
     if (mode === 'grok-video-3-10s' || mode === 'grok-video-3-10s-text') videoModel = 'grok-video-3-10s';
@@ -8510,7 +8528,7 @@ function openTaskSettings(id) {
     console.log('✅ 找到任务:', idea.theme);
 
     // 默认值（统一模型→固定时长映射 + 自动换算分镜）
-    const videoModel = __normalizeVideoModelName(idea?.settings?.videoModel || idea.videoModel || 'sora-2');
+    const videoModel = __normalizeVideoModelName(idea?.settings?.videoModel || idea.videoModel || 'veo3.1'); // Sora2已停用
     const videoHd = __getVideoHdFlag(idea?.settings);
     const isVeo = (videoModel === 'veo3.1');
     const isGrok = (videoModel === 'grok-video-3');
@@ -8548,32 +8566,99 @@ function openTaskSettings(id) {
                     <div class="setting-row" style="margin-bottom: 15px;">
                         <label style="display:block; margin-bottom:5px; color:#aaa;">🎥 视频模型</label>
                         <select id="taskVideoModel" onchange="window.onTaskVideoModelChange()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #444; background:#1a1a2e; color:#fff;">
-                            <option value="sora-2-vip-all" ${videoModel === 'sora-2-vip-all' || videoModel === 'sora-2' || videoModel === 'sora-2-hd' || videoModel === 'sora-2-characters' ? 'selected' : ''}>Sora-2 VIP（过渡10秒）</option>
-                            <option value="veo3.1" ${videoModel === 'veo3.1' ? 'selected' : ''}>🎬 Veo 3.1 4K（超清8秒）</option>
+                            <!-- ❌ Sora-2 已全面停用 -->
+                            <!-- <option value="sora-2-vip-all" ${videoModel === 'sora-2-vip-all' || videoModel === 'sora-2' || videoModel === 'sora-2-hd' || videoModel === 'sora-2-characters' ? 'selected' : ''}>Sora-2 VIP（过渡10秒）</option> -->
+                            <optgroup label="🎬 Veo 3.1 系列">
+                                <option value="veo3.1" ${videoModel === 'veo3.1' || (!videoModel || videoModel.startsWith('sora')) ? 'selected' : ''}>🎬 Veo 3.1 (有声/推荐)</option>
+                                <option value="veo3.1-4K" ${videoModel === 'veo3.1-4K' ? 'selected' : ''}>Veo 3.1 4K (有声/超清⚠️暂不稳定)</option>
+                            </optgroup>
                             <optgroup label="🚀 Grok Video 3">
-                                <option value="grok-video-3" ${videoModel === 'grok-video-3' ? 'selected' : ''}>Grok Video 3（6秒）</option>
-                                <option value="grok-video-3-10s" ${videoModel === 'grok-video-3-10s' ? 'selected' : ''}>Grok Video 3（10秒）</option>
+                                <option value="grok-video-3-text" ${videoModel === 'grok-video-3-text' ? 'selected' : ''}>Grok Video 3 6秒 (文生视频)</option>
+                                <option value="grok-video-3" ${videoModel === 'grok-video-3' ? 'selected' : ''}>Grok Video 3 6秒 (图生视频)</option>
+                                <option value="grok-video-3-10s-text" ${videoModel === 'grok-video-3-10s-text' ? 'selected' : ''}>Grok Video 3 10秒 (文生视频)</option>
+                                <option value="grok-video-3-10s" ${videoModel === 'grok-video-3-10s' ? 'selected' : ''}>Grok Video 3 10秒 (图生视频)</option>
                                 <!-- ❌ 已下架 - 官方已停止支持 -->
-                                <!-- <option value="grok-video-3-15s" ${videoModel === 'grok-video-3-15s' ? 'selected' : ''}>Grok Video 3（15秒）</option> -->
+                                <!-- <option value="grok-video-3-15s-text" ${videoModel === 'grok-video-3-15s-text' ? 'selected' : ''}>Grok Video 3 15秒 (文生视频)</option> -->
+                                <!-- <option value="grok-video-3-15s" ${videoModel === 'grok-video-3-15s' ? 'selected' : ''}>Grok Video 3 15秒 (图生视频)</option> -->
                             </optgroup>
-                            <optgroup label="🎬 Vidu 系列">
-                                <option value="vidu-q2-pro-8s-1080p" ${videoModel === 'vidu-q2-pro-8s-1080p' ? 'selected' : ''}>Vidu Q2 Pro 1080p 8s</option>
-                                <option value="vidu-q3-pro-8s-1080p" ${videoModel === 'vidu-q3-pro-8s-1080p' ? 'selected' : ''}>Vidu Q3 Pro 1080p 8s</option>
+                            <optgroup label="🎬 Vidu 系列 - 5秒">
+                                <option value="vidu-q2-5s-720p" ${videoModel === 'vidu-q2-5s-720p' ? 'selected' : ''}>Vidu q2 5秒 720P</option>
+                                <option value="vidu-q2-5s-1080p" ${videoModel === 'vidu-q2-5s-1080p' ? 'selected' : ''}>Vidu q2 5秒 1080P</option>
+                                <option value="vidu-q2-pro-5s-720p" ${videoModel === 'vidu-q2-pro-5s-720p' ? 'selected' : ''}>Vidu q2-pro 5秒 720P</option>
+                                <option value="vidu-q2-pro-5s-1080p" ${videoModel === 'vidu-q2-pro-5s-1080p' ? 'selected' : ''}>Vidu q2-pro 5秒 1080P</option>
+                                <option value="vidu-q2-turbo-5s-720p" ${videoModel === 'vidu-q2-turbo-5s-720p' ? 'selected' : ''}>Vidu q2-turbo 5秒 720P (最快)</option>
+                                <option value="vidu-q2-turbo-5s-1080p" ${videoModel === 'vidu-q2-turbo-5s-1080p' ? 'selected' : ''}>Vidu q2-turbo 5秒 1080P</option>
+                                <option value="vidu-q3-pro-5s-720p" ${videoModel === 'vidu-q3-pro-5s-720p' ? 'selected' : ''}>Vidu q3-pro 5秒 720P (顶级)</option>
+                                <option value="vidu-q3-pro-5s-1080p" ${videoModel === 'vidu-q3-pro-5s-1080p' ? 'selected' : ''}>Vidu q3-pro 5秒 1080P (顶级)</option>
                             </optgroup>
-                            <optgroup label="✨ 可灵 Kling">
-                                <option value="kling-2.5-720p-5s" ${videoModel === 'kling-2.5-720p-5s' ? 'selected' : ''}>可灵 2.5 720p 5s</option>
-                                <option value="kling-2.5-1080p-5s" ${videoModel === 'kling-2.5-1080p-5s' ? 'selected' : ''}>可灵 2.5 1080p 5s</option>
+                            <optgroup label="🎬 Vidu 系列 - 10秒">
+                                <option value="vidu-q2-10s-720p" ${videoModel === 'vidu-q2-10s-720p' ? 'selected' : ''}>Vidu q2 10秒 720P</option>
+                                <option value="vidu-q2-10s-1080p" ${videoModel === 'vidu-q2-10s-1080p' ? 'selected' : ''}>Vidu q2 10秒 1080P</option>
+                                <option value="vidu-q2-pro-10s-720p" ${videoModel === 'vidu-q2-pro-10s-720p' ? 'selected' : ''}>Vidu q2-pro 10秒 720P</option>
+                                <option value="vidu-q2-pro-10s-1080p" ${videoModel === 'vidu-q2-pro-10s-1080p' ? 'selected' : ''}>Vidu q2-pro 10秒 1080P</option>
+                                <option value="vidu-q2-turbo-10s-720p" ${videoModel === 'vidu-q2-turbo-10s-720p' ? 'selected' : ''}>Vidu q2-turbo 10秒 720P</option>
+                                <option value="vidu-q2-turbo-10s-1080p" ${videoModel === 'vidu-q2-turbo-10s-1080p' ? 'selected' : ''}>Vidu q2-turbo 10秒 1080P</option>
+                                <option value="vidu-q3-pro-10s-720p" ${videoModel === 'vidu-q3-pro-10s-720p' ? 'selected' : ''}>Vidu q3-pro 10秒 720P (顶级)</option>
+                                <option value="vidu-q3-pro-10s-1080p" ${videoModel === 'vidu-q3-pro-10s-1080p' ? 'selected' : ''}>Vidu q3-pro 10秒 1080P (顶级)</option>
                             </optgroup>
-                            <optgroup label="🐚 海螺 Hailuo">
-                                <option value="hailuo-02-768p-6s" ${videoModel === 'hailuo-02-768p-6s' ? 'selected' : ''}>海螺 02 768p 6s</option>
-                                <option value="hailuo-fast-768p-6s" ${videoModel === 'hailuo-fast-768p-6s' ? 'selected' : ''}>海螺 Fast 768p 6s</option>
+                            <optgroup label="🐚 海螺 Hailuo - 6秒">
+                                <option value="hailuo-02-768p-6s" ${videoModel === 'hailuo-02-768p-6s' ? 'selected' : ''}>海螺 02 6秒 768P</option>
+                                <option value="hailuo-02-1080p-6s" ${videoModel === 'hailuo-02-1080p-6s' ? 'selected' : ''}>海螺 02 6秒 1080P</option>
+                                <option value="hailuo-fast-768p-6s" ${videoModel === 'hailuo-fast-768p-6s' ? 'selected' : ''}>海螺 Fast 6秒 768P (最快)</option>
+                                <option value="hailuo-fast-1080p-6s" ${videoModel === 'hailuo-fast-1080p-6s' ? 'selected' : ''}>海螺 Fast 6秒 1080P</option>
                             </optgroup>
-                            <optgroup label="🌐 Wan2.6">
-                                <option value="wan26-720p-5s" ${videoModel === 'wan26-720p-5s' ? 'selected' : ''}>Wan2.6 720p 5s</option>
-                                <option value="wan26-1080p-5s" ${videoModel === 'wan26-1080p-5s' ? 'selected' : ''}>Wan2.6 1080p 5s</option>
-                                <option value="wan26-720p-10s" ${videoModel === 'wan26-720p-10s' ? 'selected' : ''}>Wan2.6 720p 10s</option>
-                                <option value="wan26-720p-15s" ${videoModel === 'wan26-720p-15s' ? 'selected' : ''}>Wan2.6 720p 15s</option>
+                            <optgroup label="🐚 海螺 Hailuo - 10秒">
+                                <option value="hailuo-02-768p-10s" ${videoModel === 'hailuo-02-768p-10s' ? 'selected' : ''}>海螺 02 10秒 768P</option>
+                                <option value="hailuo-02-1080p-10s" ${videoModel === 'hailuo-02-1080p-10s' ? 'selected' : ''}>海螺 02 10秒 1080P</option>
+                                <option value="hailuo-fast-768p-10s" ${videoModel === 'hailuo-fast-768p-10s' ? 'selected' : ''}>海螺 Fast 10秒 768P</option>
+                                <option value="hailuo-fast-1080p-10s" ${videoModel === 'hailuo-fast-1080p-10s' ? 'selected' : ''}>海螺 Fast 10秒 1080P</option>
                             </optgroup>
+                            <optgroup label="✨ 可灵 Kling - 5秒">
+                                <option value="kling-2.5-720p-5s" ${videoModel === 'kling-2.5-720p-5s' ? 'selected' : ''}>可灵 2.5 5秒 720P</option>
+                                <option value="kling-2.5-1080p-5s" ${videoModel === 'kling-2.5-1080p-5s' ? 'selected' : ''}>可灵 2.5 5秒 1080P</option>
+                                <option value="kling-2.0-720p-5s" ${videoModel === 'kling-2.0-720p-5s' ? 'selected' : ''}>可灵 2.0 5秒 720P</option>
+                                <option value="kling-2.0-1080p-5s" ${videoModel === 'kling-2.0-1080p-5s' ? 'selected' : ''}>可灵 2.0 5秒 1080P</option>
+                                <option value="kling-o1-720p-5s" ${videoModel === 'kling-o1-720p-5s' ? 'selected' : ''}>可灵 O1 5秒 720P (顶级)</option>
+                                <option value="kling-o1-1080p-5s" ${videoModel === 'kling-o1-1080p-5s' ? 'selected' : ''}>可灵 O1 5秒 1080P (顶级)</option>
+                            </optgroup>
+                            <optgroup label="✨ 可灵 Kling - 10秒">
+                                <option value="kling-2.5-720p-10s" ${videoModel === 'kling-2.5-720p-10s' ? 'selected' : ''}>可灵 2.5 10秒 720P</option>
+                                <option value="kling-2.5-1080p-10s" ${videoModel === 'kling-2.5-1080p-10s' ? 'selected' : ''}>可灵 2.5 10秒 1080P</option>
+                                <option value="kling-2.0-720p-10s" ${videoModel === 'kling-2.0-720p-10s' ? 'selected' : ''}>可灵 2.0 10秒 720P</option>
+                                <option value="kling-2.0-1080p-10s" ${videoModel === 'kling-2.0-1080p-10s' ? 'selected' : ''}>可灵 2.0 10秒 1080P</option>
+                                <option value="kling-o1-720p-10s" ${videoModel === 'kling-o1-720p-10s' ? 'selected' : ''}>可灵 O1 10秒 720P (顶级)</option>
+                                <option value="kling-o1-1080p-10s" ${videoModel === 'kling-o1-1080p-10s' ? 'selected' : ''}>可灵 O1 10秒 1080P (顶级)</option>
+                            </optgroup>
+                            <optgroup label="🌐 Wan2.6 - 5秒">
+                                <option value="wan26-720p-5s" ${videoModel === 'wan26-720p-5s' ? 'selected' : ''}>Wan2.6 720p 5秒</option>
+                                <option value="wan26-1080p-5s" ${videoModel === 'wan26-1080p-5s' ? 'selected' : ''}>Wan2.6 1080p 5秒</option>
+                                <option value="wan26-720p-5s-audio" ${videoModel === 'wan26-720p-5s-audio' ? 'selected' : ''}>Wan2.6 720p 5秒 有声</option>
+                                <option value="wan26-1080p-5s-audio" ${videoModel === 'wan26-1080p-5s-audio' ? 'selected' : ''}>Wan2.6 1080p 5秒 有声</option>
+                            </optgroup>
+                            <optgroup label="🌐 Wan2.6 - 10秒">
+                                <option value="wan26-720p-10s" ${videoModel === 'wan26-720p-10s' ? 'selected' : ''}>Wan2.6 720p 10秒</option>
+                                <option value="wan26-1080p-10s" ${videoModel === 'wan26-1080p-10s' ? 'selected' : ''}>Wan2.6 1080p 10秒</option>
+                                <option value="wan26-720p-10s-audio" ${videoModel === 'wan26-720p-10s-audio' ? 'selected' : ''}>Wan2.6 720p 10秒 有声</option>
+                                <option value="wan26-1080p-10s-audio" ${videoModel === 'wan26-1080p-10s-audio' ? 'selected' : ''}>Wan2.6 1080p 10秒 有声</option>
+                            </optgroup>
+                            <optgroup label="🌐 Wan2.6 - 15秒">
+                                <option value="wan26-720p-15s" ${videoModel === 'wan26-720p-15s' ? 'selected' : ''}>Wan2.6 720p 15秒</option>
+                                <option value="wan26-1080p-15s" ${videoModel === 'wan26-1080p-15s' ? 'selected' : ''}>Wan2.6 1080p 15秒</option>
+                                <option value="wan26-720p-15s-audio" ${videoModel === 'wan26-720p-15s-audio' ? 'selected' : ''}>Wan2.6 720p 15秒 有声</option>
+                                <option value="wan26-1080p-15s-audio" ${videoModel === 'wan26-1080p-15s-audio' ? 'selected' : ''}>Wan2.6 1080p 15秒 有声</option>
+                            </optgroup>
+                            <optgroup label="🎬 LTX-Video (Lightricks)">
+                                <option value="ltx-video-5s" ${videoModel === 'ltx-video-5s' ? 'selected' : ''}>LTX-Video 5秒 (快速)</option>
+                                <option value="ltx-video-10s" ${videoModel === 'ltx-video-10s' ? 'selected' : ''}>LTX-Video 10秒</option>
+                                <option value="ltx-video-15s" ${videoModel === 'ltx-video-15s' ? 'selected' : ''}>LTX-Video 15秒</option>
+                                <option value="ltx-video-custom" ${videoModel === 'ltx-video-custom' ? 'selected' : ''}>LTX-Video 自定义时长</option>
+                            </optgroup>
+                            <optgroup label="🌟 Seedance 2.0 (RunningHub)">
+                                <option value="seedance-t2v" ${videoModel === 'seedance-t2v' ? 'selected' : ''}>Seedance 2.0 文生视频</option>
+                                <option value="seedance-i2v" ${videoModel === 'seedance-i2v' ? 'selected' : ''}>Seedance 2.0 图生视频</option>
+                                <option value="seedance-ref" ${videoModel === 'seedance-ref' ? 'selected' : ''}>Seedance 2.0 全能参考视频</option>
+                            </optgroup>
+                            <option value="video-continuity" ${videoModel === 'video-continuity' ? 'selected' : ''}>🎬 连续性视频 (逐帧衔接)</option>
                         </select>
                     </div>
                     
@@ -8736,7 +8821,7 @@ function saveTaskSettings(id) {
 
     // 保存到任务主属性
     idea.theme = document.getElementById('taskTheme').value || idea.theme;
-    const rawModel = document.getElementById('taskVideoModel').value || 'sora-2';
+    const rawModel = document.getElementById('taskVideoModel').value || 'veo3.1';
     const model = __normalizeVideoModelName(rawModel);
     const clipIn = parseInt(document.getElementById('taskClipDuration').value);
     const totalIn = parseInt(document.getElementById('taskTotalDuration').value);
@@ -8958,7 +9043,7 @@ function autoCalcScenes() {
 
     if (!totalDurationEl || !clipDurationEl || !sceneCountEl) return;
 
-    const model = __normalizeVideoModelName(document.getElementById('set-videoModel')?.value || 'sora-2');
+    const model = __normalizeVideoModelName(document.getElementById('set-videoModel')?.value || 'veo3.1');
     const totalDuration = parseInt(totalDurationEl.value) || 60;
 
     let clipDuration = parseInt(clipDurationEl.value) || 15;
@@ -8991,7 +9076,7 @@ function updateTotalDuration() {
 
     if (!totalDurationEl || !clipDurationEl || !sceneCountEl) return;
 
-    const model = __normalizeVideoModelName(document.getElementById('set-videoModel')?.value || 'sora-2');
+    const model = __normalizeVideoModelName(document.getElementById('set-videoModel')?.value || 'veo3.1');
     let sceneCount = parseInt(sceneCountEl.value) || 4;
     sceneCount = Math.min(Math.max(sceneCount, 1), 20);
 
@@ -9194,8 +9279,8 @@ async function executeContinuityVideoGeneration(task) {
                 let videoUrl;
 
                 // ✅ 统一模型/HD：非 Sora2 家族不支持该流程，强制回退 sora-2
-                let _m = __normalizeVideoModelName(task?.settings?.videoModel || task.videoModel || 'sora-2');
-                if (!__isSora2Family(_m)) _m = 'sora-2';
+                let _m = __normalizeVideoModelName(task?.settings?.videoModel || task.videoModel || 'veo3.1');
+                if (!__isSora2Family(_m)) _m = 'veo3.1'; // Sora2已停用，回退到Veo3.1
                 const _hd = (_m === 'sora-2-pro') ? ((typeof task?.settings?.videoHD === 'undefined') ? true : !!task.settings.videoHD) : false;
 
                 if (i === 0) {
@@ -9561,7 +9646,7 @@ async function processIdea(idea) {
             // ✅ 直接视频模式也统一固定时长/分镜规则
             try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
             const s = idea.settings || {};
-            const vm = s.videoModel || idea.videoModel || 'sora-2';
+            const vm = s.videoModel || idea.videoModel || 'veo3.1';
             const vh = __getVideoHdFlag(s);
             const clipDur = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(vm), vh);
             const videoModel = vm;
@@ -9992,7 +10077,7 @@ ${videoPrompts.map((p, i) => `场景${i + 1}：${p.slice(0, 100)}`).join('\n')}
 
                 // ✂️ 运行时安全收敛：限制每条提示词长度与台词长度，避免超过15秒承载
                 try {
-                    const cd = __getFixedClipDurationByModel(__normalizeVideoModelName(idea.settings?.videoModel || idea.videoModel || 'sora-2'), __getVideoHdFlag(idea.settings));
+                    const cd = __getFixedClipDurationByModel(__normalizeVideoModelName(idea.settings?.videoModel || idea.videoModel || 'veo3.1'), __getVideoHdFlag(idea.settings));
                     const maxChars = 180; // 与提示规则一致
                     const maxDialogueChars = Math.floor((cd - 2) * 3.5); // 台词上限
                     const limitDialogue = (t) => {
@@ -10101,7 +10186,7 @@ ${videoPrompts.map((p, i) => `场景${i + 1}：${p.slice(0, 100)}`).join('\n')}
                 addStepLog(idea, '━━━ 📝 Sora2优化后的提示词（带@标记） ━━━', 'info');
                 videoPrompts.forEach((prompt, idx) => {
                     try {
-                        const cd = __getFixedClipDurationByModel(__normalizeVideoModelName(idea.settings?.videoModel || idea.videoModel || 'sora-2'), __getVideoHdFlag(idea.settings));
+                        const cd = __getFixedClipDurationByModel(__normalizeVideoModelName(idea.settings?.videoModel || idea.videoModel || 'veo3.1'), __getVideoHdFlag(idea.settings));
                         const dens = __estimatePromptTimingDensity(prompt, cd);
                         const badge = dens > 1 ? ` [密度${dens.toFixed(2)}⚠️]` : ` [密度${dens.toFixed(2)}]`;
                         addStepLog(idea, `【第${idx + 1}镜】${prompt}${badge}`, 'info');
@@ -10125,7 +10210,7 @@ ${videoPrompts.map((p, i) => `场景${i + 1}：${p.slice(0, 100)}`).join('\n')}
 
         // 🚀 第五步B：Grok 15s 提示词优化（Sora2 优化后的补充）
         // 当用户选择 Grok 15s 模型时，额外生成一套英文自然语言提示词
-        const _videoModelForGrok = __normalizeVideoModelName(idea.settings?.videoModel || idea.videoModel || 'sora-2');
+        const _videoModelForGrok = __normalizeVideoModelName(idea.settings?.videoModel || idea.videoModel || 'veo3.1');
         const _isGrok15s = (String(idea.settings?.videoModel || idea.videoModel || '').includes('grok-video-3-15s') || _videoModelForGrok === 'grok-video-3-15s');
         if (_isGrok15s && videoPrompts && videoPrompts.length > 0 && (!idea.grokVideoPrompts || idea.grokVideoPrompts.length === 0)) {
             await checkPauseState();
@@ -10757,7 +10842,7 @@ async function generateOneClipWithRetry(idea, idx, prompt, totalCount, opts = {}
 
     try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
     const _s = idea?.settings || {};
-    const _vm = _s.videoModel || idea?.videoModel || 'sora-2';
+    const _vm = _s.videoModel || idea?.videoModel || 'veo3.1';
     const _vh = __getVideoHdFlag(_s);
     const clipDur = _s.clipDuration || idea?.clipDuration || idea?.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(_vm), _vh);
     const videoModel = _vm;
@@ -10825,7 +10910,7 @@ async function generateOneClipWithRetry(idea, idx, prompt, totalCount, opts = {}
             } else {
                 // 使用用户选择的视频模型（分镜直出、直接视频等模式都走这里）
                 // ❗不要做“白名单覆盖”，否则会把 sora-2-pro / sora-2-characters 等合法模型误改成 sora-2
-                const modelId = videoModel || 'sora-2';
+                const modelId = videoModel || 'veo3.1';
 
                 // 🧑 锁角色：多人多角色，给后端传 usernames 直接注入（避免每次都重新创建角色）
                 // 🔧 改进：无论选择什么模型，只要有角色ID都可以使用角色功能
@@ -10921,7 +11006,7 @@ async function generateClipsConcurrently(idea, prompts) {
                 // 🔧 退还配额（免费用户退次数，付费用户退胶片）
                 try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
                 const _s = idea.settings || {};
-                const _vm = _s.videoModel || idea.videoModel || 'sora-2';
+                const _vm = _s.videoModel || idea.videoModel || 'veo3.1';
                 const _vh = __getVideoHdFlag(_s);
                 const clipDur = _s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(_vm), _vh);
                 const filmCost = __estimateSoraVideoFilmCost(_vm, clipDur, _vh);
@@ -11310,7 +11395,7 @@ async function generateClipsTwoPhase(idea, prompts, startTime, forceGridMode = f
     const aspectRatio = idea.settings?.aspectRatio || idea.aspectRatio || '16:9';
     try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
     const _s = idea?.settings || {};
-    const videoModel = _s.videoModel || idea?.videoModel || 'sora-2';
+    const videoModel = _s.videoModel || idea?.videoModel || 'veo3.1';
     const videoHd = __getVideoHdFlag(_s);
     const clipDur = _s.clipDuration || idea?.clipDuration || __getFixedClipDurationByModel(__normalizeVideoModelName(videoModel), videoHd);
 
@@ -12071,7 +12156,7 @@ async function mergeWithMediaRecorder(videoUrls) {
 function generateScriptPrompt(idea) {
     try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
     const s = idea?.settings || {};
-    const cd = s.clipDuration || idea?.clipDuration || idea?.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea?.videoModel || 'sora-2'), __getVideoHdFlag(s));
+    const cd = s.clipDuration || idea?.clipDuration || idea?.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea?.videoModel || 'veo3.1'), __getVideoHdFlag(s));
     const totalSeconds = idea.totalDuration || (s.totalDuration) || ((idea.scenes || 4) * cd) || 60;
     return `你是一位专业的故事作家。请根据用户的创意，创作一个完整连贯的故事叙述。
 
@@ -12104,7 +12189,7 @@ function generateNormalStoryboardRequest(idea, script, charContext) {
     try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
     const sceneCount = idea.scenes || 4;
     const s = idea?.settings || {};
-    const clipDuration = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea.videoModel || 'sora-2'), __getVideoHdFlag(s));
+    const clipDuration = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea.videoModel || 'veo3.1'), __getVideoHdFlag(s));
     const videoStyle = idea.videoStyle || idea.settings?.videoStyle || 'cinematic';
     const contentType = idea.contentType || idea.settings?.contentType || 'story';
 
@@ -13054,7 +13139,7 @@ function buildFusedVideoPrompts(normalStoryboards, generatedVideoPrompts, idea) 
 
         // ✂️ 安全长度限制与台词上限：保证15秒内能完整表达
         try {
-            const cd = __getFixedClipDurationByModel(__normalizeVideoModelName(idea?.settings?.videoModel || idea?.videoModel || 'sora-2'), __getVideoHdFlag(idea?.settings));
+            const cd = __getFixedClipDurationByModel(__normalizeVideoModelName(idea?.settings?.videoModel || idea?.videoModel || 'veo3.1'), __getVideoHdFlag(idea?.settings));
             const maxChars = 180; // 与生成阶段一致
             const maxDialogueChars = Math.floor((cd - 2) * 3.5);
             const limitDialogue = (t) => {
@@ -13405,7 +13490,7 @@ async function _repairStoryboardOne(idea, storyboardText, index, eraProfile) {
     const eraLock = eraProfile?.eraLock ? eraProfile.eraLock : '';
     try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
     const s = idea?.settings || {};
-    const clipDuration = s.clipDuration || idea?.clipDuration || idea?.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea?.videoModel || 'sora-2'), __getVideoHdFlag(s));
+    const clipDuration = s.clipDuration || idea?.clipDuration || idea?.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea?.videoModel || 'veo3.1'), __getVideoHdFlag(s));
     const charCtx = buildCharacterContext(idea.characterSheets, idea.characterDescriptions || []);
     const req =
         `你是资深影视分镜导演。下面这个分镜出现了“时代漂移/穿越”错误。\n` +
@@ -14434,6 +14519,9 @@ function renderCanvas() {
             } else if (node.type === 'video-i2v') {
                 nodeEl.classList.add('video-i2v-node');
                 nodeEl.innerHTML = getVideoI2VNodeHTML(node);
+            } else if (node.type === 'video-seedance-ref') {
+                nodeEl.classList.add('video-seedance-ref-node');
+                nodeEl.innerHTML = getVideoSeedanceRefNodeHTML(node);
             } else if (node.type === 'sticker') {
                 nodeEl.classList.add('sticker-node');
                 nodeEl.innerHTML = getStickerNodeHTML(node);
@@ -15356,7 +15444,7 @@ async function _repairGenerateClipSilent(idea, idx, prompt, total) {
     try {
         try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
         const s = idea?.settings || {};
-        const _vm = s.videoModel || idea.videoModel || 'sora-2';
+        const _vm = s.videoModel || idea.videoModel || 'veo3.1';
         const _vh = __getVideoHdFlag(s);
         const clipDur = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(_vm), _vh);
         const filmCost = __estimateSoraVideoFilmCost(_vm, clipDur, _vh);
@@ -15441,7 +15529,7 @@ window.oneClickRepairCurrentTask = async function () {
 
         // 统一场景数（优先使用 settings）
         const s = idea.settings || {};
-        const clipDur = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea.videoModel || 'sora-2'), __getVideoHdFlag(s));
+        const clipDur = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea.videoModel || 'veo3.1'), __getVideoHdFlag(s));
         const scenesFromSettings = s.sceneCount || s.scenes;
         let target = _clampInt(scenesFromSettings || idea.scenes || 0, 1, 20, 0);
         if (!target) {
@@ -15584,7 +15672,7 @@ function renderIdeasList() {
 
         // 🎯 获取配置信息用于显示（优先从settings读取，保持同步）
         const s = idea.settings || {};
-        const vm = s.videoModel || idea.videoModel || 'sora-2';
+        const vm = s.videoModel || idea.videoModel || 'veo3.1';
         const videoModel = vm.includes('veo') ? 'Veo3' : 'Sora2';
         const clipDur = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(vm), __getVideoHdFlag(s));
         const scenes = s.sceneCount || idea.scenes || 4;
@@ -16214,555 +16302,153 @@ window.toggleCharacterSelection = function (username) {
  * 打开高级任务设置面板
  */
 window.openAdvancedTaskSettings = function (ideaId) {
-    // 关闭右键菜单
-    const ctxMenu = document.getElementById('taskContextMenu');
-    if (ctxMenu) ctxMenu.remove();
-
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) {
-        alert('❌ 找不到任务');
-        return;
-    }
-
-    // ✍️ 写作任务使用专用设置面板
-    if (idea.type === 'writing') {
-        openWritingTaskSettings(ideaId);
-        return;
-    }
-
-    // 初始化设置（如果没有）
-    idea.settings = idea.settings || {};
-    const s = idea.settings;
-
-    // ✅ 统一应用固定时长 + 自动换算分镜（确保面板打开即为正确值）
-    try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
-
-    // 移除已有面板
-    const existing = document.getElementById('advancedSettingsPanel');
-    if (existing) existing.remove();
-
-    const panel = document.createElement('div');
-    panel.id = 'advancedSettingsPanel';
-    panel.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.85);
-        z-index: 10001;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        backdrop-filter: blur(10px);
-    `;
-
-    panel.innerHTML = `
-        <div class="settings-container" style="
-            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
-            border: 1px solid var(--accent-gold);
-            border-radius: 20px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,215,0,0.1);
-        ">
-            <!-- 头部 -->
-            <div style="
-                padding: 24px;
-                border-bottom: 1px solid rgba(255,215,0,0.2);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                background: linear-gradient(90deg, rgba(255,215,0,0.1) 0%, transparent 100%);
-            ">
-                <div>
-                    <h2 style="margin: 0; color: var(--accent-gold); font-size: 20px;">⚙️ 任务详细设置</h2>
-                    <p style="margin: 5px 0 0; color: #888; font-size: 13px;">${idea.theme.substring(0, 50)}${idea.theme.length > 50 ? '...' : ''}</p>
-                </div>
-                <button onclick="closeAdvancedSettings()" style="
-                    background: none;
-                    border: none;
-                    color: #888;
-                    font-size: 28px;
-                    cursor: pointer;
-                    padding: 0;
-                    line-height: 1;
-                ">×</button>
-            </div>
-            
-            <!-- 设置内容 -->
-            <div style="padding: 24px;">
-                <!-- 🚀 生成模式 -->
-                <div class="settings-section" style="margin-bottom: 24px; background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,165,0,0.05) 100%); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,215,0,0.3);">
-                    <h3 style="color: var(--accent-gold); font-size: 16px; margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
-                        <span>🚀</span> 生成模式
-                    </h3>
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">选择生成模式</label>
-                            <select id="set-generationMode" style="width: 100%; padding: 12px; background: #222; border: 1px solid var(--accent-gold); border-radius: 8px; color: #fff; font-size: 14px;">
-                                <option value="text-to-video" ${idea.generationMode === 'text-to-video' || !idea.generationMode ? 'selected' : ''}>🎬 完整（AI改编）</option>
-                                <option value="storyboard-direct" ${idea.generationMode === 'storyboard-direct' ? 'selected' : ''}>⚡ 直出（跳过改编）</option>
-                                <option value="video-direct" ${idea.generationMode === 'video-direct' ? 'selected' : ''}>🎞️ 直接视频</option>
-                                <option value="image-direct" ${idea.generationMode === 'image-direct' ? 'selected' : ''}>🖼️ 直接图片</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 📹 视频设置 -->
-                <div class="settings-section" style="margin-bottom: 24px;" id="section-video">
-                    <h3 style="color: var(--accent-gold); font-size: 16px; margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
-                        <span>📹</span> 视频生成设置
-                    </h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">视频风格</label>
-                            <select id="set-videoStyle" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="cinematic" ${s.videoStyle === 'cinematic' ? 'selected' : ''}>🎬 电影感</option>
-                                <option value="anime" ${s.videoStyle === 'anime' ? 'selected' : ''}>🎨 动漫风</option>
-                                <option value="realistic" ${s.videoStyle === 'realistic' ? 'selected' : ''}>📷 写实风</option>
-                                <option value="cartoon" ${s.videoStyle === 'cartoon' ? 'selected' : ''}>🖌️ 卡通风</option>
-                                <option value="watercolor" ${s.videoStyle === 'watercolor' ? 'selected' : ''}>🎨 水彩风</option>
-                                <option value="3d" ${s.videoStyle === '3d' ? 'selected' : ''}>🎮 3D渲染</option>
-                                <option value="ecommerce" ${s.videoStyle === 'ecommerce' ? 'selected' : ''}>🛒 电商带货</option>
-                                <option value="livestream" ${s.videoStyle === 'livestream' ? 'selected' : ''}>📺 直播风格</option>
-                                <option value="vintage" ${s.videoStyle === 'vintage' ? 'selected' : ''}>📼 复古胶片</option>
-                                <option value="custom" ${s.videoStyle === 'custom' ? 'selected' : ''}>✏️ 自定义</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">视频比例</label>
-                            <select id="set-aspectRatio" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="16:9" ${s.aspectRatio === '16:9' ? 'selected' : ''}>16:9 横屏（YouTube/B站）</option>
-                                <option value="9:16" ${s.aspectRatio === '9:16' ? 'selected' : ''}>9:16 竖屏（抖音/快手）</option>
-                                <option value="1:1" ${s.aspectRatio === '1:1' ? 'selected' : ''}>1:1 方形（小红书）</option>
-                                <option value="4:3" ${s.aspectRatio === '4:3' ? 'selected' : ''}>4:3 传统比例</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">🎥 视频模型</label>
-                            <select id="set-videoModel" onchange="updateClipDurationOptions()" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="sora-2-vip-all" ${s.videoModel === 'sora-2-vip-all' || s.videoModel === 'sora-2' || s.videoModel === 'sora-2-hd' || s.videoModel === 'sora-2-characters' || !s.videoModel ? 'selected' : ''}>Sora-2 VIP（过渡10秒）</option>
-                                <option value="veo3.1" ${__normalizeVideoModelName(s.videoModel) === 'veo3.1' ? 'selected' : ''}>🎬 Veo 3.1 4K（超清8秒）</option>
-                                <optgroup label="🚀 Grok Video 3">
-                                    <option value="grok-video-3" ${s.videoModel === 'grok-video-3' ? 'selected' : ''}>Grok Video 3（6秒）</option>
-                                    <option value="grok-video-3-10s" ${s.videoModel === 'grok-video-3-10s' ? 'selected' : ''}>Grok Video 3（10秒）</option>
-                                    <!-- ❌ 已下架 - 官方已停止支持 -->
-                                    <!-- <option value="grok-video-3-15s" ${s.videoModel === 'grok-video-3-15s' ? 'selected' : ''}>Grok Video 3（15秒）</option> -->
-                                </optgroup>
-                                <optgroup label="🎬 Vidu 系列">
-                                    <option value="vidu-q2-pro-8s-1080p" ${s.videoModel === 'vidu-q2-pro-8s-1080p' ? 'selected' : ''}>Vidu Q2 Pro 1080p 8s</option>
-                                    <option value="vidu-q3-pro-8s-1080p" ${s.videoModel === 'vidu-q3-pro-8s-1080p' ? 'selected' : ''}>Vidu Q3 Pro 1080p 8s</option>
-                                    <option value="vidu-q2-turbo-4s-720p" ${s.videoModel === 'vidu-q2-turbo-4s-720p' ? 'selected' : ''}>Vidu Q2 Turbo 720p 4s</option>
-                                    <option value="vidu-q2-4s-720p" ${s.videoModel === 'vidu-q2-4s-720p' ? 'selected' : ''}>Vidu Q2 720p 4s</option>
-                                </optgroup>
-                                <optgroup label="✨ 可灵 Kling">
-                                    <option value="kling-2.5-720p-5s" ${s.videoModel === 'kling-2.5-720p-5s' ? 'selected' : ''}>可灵 2.5 720p 5s</option>
-                                    <option value="kling-2.5-1080p-5s" ${s.videoModel === 'kling-2.5-1080p-5s' ? 'selected' : ''}>可灵 2.5 1080p 5s</option>
-                                    <option value="kling-o1-720p-5s" ${s.videoModel === 'kling-o1-720p-5s' ? 'selected' : ''}>可灵 O1 720p 5s</option>
-                                </optgroup>
-                                <optgroup label="🐚 海螺 Hailuo">
-                                    <option value="hailuo-02-768p-6s" ${s.videoModel === 'hailuo-02-768p-6s' ? 'selected' : ''}>海螺 02 768p 6s</option>
-                                    <option value="hailuo-02-768p-10s" ${s.videoModel === 'hailuo-02-768p-10s' ? 'selected' : ''}>海螺 02 768p 10s</option>
-                                    <option value="hailuo-fast-768p-6s" ${s.videoModel === 'hailuo-fast-768p-6s' ? 'selected' : ''}>海螺 Fast 768p 6s</option>
-                                </optgroup>
-                                <optgroup label="🌐 Wan2.6">
-                                    <option value="wan26-720p-5s" ${s.videoModel === 'wan26-720p-5s' ? 'selected' : ''}>Wan2.6 720p 5s</option>
-                                    <option value="wan26-1080p-5s" ${s.videoModel === 'wan26-1080p-5s' ? 'selected' : ''}>Wan2.6 1080p 5s</option>
-                                    <option value="wan26-720p-10s" ${s.videoModel === 'wan26-720p-10s' ? 'selected' : ''}>Wan2.6 720p 10s</option>
-                                    <option value="wan26-720p-15s" ${s.videoModel === 'wan26-720p-15s' ? 'selected' : ''}>Wan2.6 720p 15s</option>
-                                    <option value="wan26-720p-5s-audio" ${s.videoModel === 'wan26-720p-5s-audio' ? 'selected' : ''}>Wan2.6 720p 5s 有声</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">⏱️ 分镜时长</label>
-                            <select id="set-clipDuration" onchange="autoCalcScenes()" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="6" ${s.clipDuration == 6 ? 'selected' : ''}>6秒（Grok）</option>
-                                <option value="15" ${s.clipDuration == 15 || (!s.clipDuration && __normalizeVideoModelName(s.videoModel) !== 'grok-video-3') || s.clipDuration == 10 ? 'selected' : ''}>15秒（Sora2）</option>
-                                <option value="25" ${s.clipDuration == 25 ? 'selected' : ''}>25秒（Sora2 Pro 720p）</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">🎞️ 总时长（秒）</label>
-                            <input type="number" id="set-totalDuration" value="${s.totalDuration || 60}" min="5" max="300" onchange="autoCalcScenes()" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                            <div style="font-size: 10px; color: #666; margin-top: 4px;">输入目标总时长，自动计算分镜数</div>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">🎬 分镜数量 <span id="sceneCalcHint" style="color:#fbbf24; font-size:10px;"></span></label>
-                            <input type="number" id="set-sceneCount" value="${s.sceneCount || 4}" min="1" max="20" onchange="updateTotalDuration()" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 🎨 角色设置 -->
-                <div class="settings-section" style="margin-bottom: 24px;" id="section-char">
-                    <h3 style="color: var(--accent-gold); font-size: 16px; margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
-                        <span>🎨</span> 角色生成设置
-                    </h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">角色风格</label>
-                            <select id="set-charStyle" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="anime" ${s.charStyle === 'anime' ? 'selected' : ''}>🎨 日系动漫</option>
-                                <option value="chinese" ${s.charStyle === 'chinese' ? 'selected' : ''}>🏮 国风古典</option>
-                                <option value="realistic" ${s.charStyle === 'realistic' ? 'selected' : ''}>📷 写实人物</option>
-                                <option value="cartoon" ${s.charStyle === 'cartoon' ? 'selected' : ''}>🖌️ 欧美卡通</option>
-                                <option value="chibi" ${s.charStyle === 'chibi' ? 'selected' : ''}>🎀 Q版萌系</option>
-                                <option value="pixel" ${s.charStyle === 'pixel' ? 'selected' : ''}>👾 像素风格</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">设计图格式</label>
-                            <select id="set-charSheetType" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="full" ${s.charSheetType === 'full' || !s.charSheetType ? 'selected' : ''}>完整设定（三视图+表情+动作）</option>
-                                <option value="simple" ${s.charSheetType === 'simple' ? 'selected' : ''}>简化设定（正面+侧面）</option>
-                                <option value="portrait" ${s.charSheetType === 'portrait' ? 'selected' : ''}>仅立绘（单图）</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">角色设定图模型</label>
-                            <select id="set-charImageModel" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="auto" ${(s.charImageModel || 'auto') === 'auto' ? 'selected' : ''}>🤖 自动（默认）</option>
-                                <option value="banana2-4k" ${(s.charImageModel || '') === 'banana2-4k' ? 'selected' : ''}>💎 Banana2 4K（高清一致性）</option>
-                                <option value="seedream" ${(s.charImageModel || '') === 'seedream' ? 'selected' : ''}>✨ 星梦 Seedream（文字/线稿更强）</option>
-                                <option value="modelscope" ${(s.charImageModel || '') === 'modelscope' ? 'selected' : ''}>🆓 造梦/魔塔（更稳但画质一般）</option>
-                            </select>
-                            <div style="font-size: 10px; color: #666; margin-top: 4px;">仅影响“角色设定图”，不影响视频模型/分镜</div>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 13px; cursor: pointer;">
-                                <input type="checkbox" id="set-enableCharSheet" ${s.enableCharSheet !== false && !s.enableSoraCharacterLock ? 'checked' : ''} onchange="window.onCharMethodChange('banana')" style="width: 18px; height: 18px; accent-color: var(--accent-gold);">
-                                🍌 启用Banana2角色设定图
-                            </label>
-                            <div style="font-size: 10px; color: #666; margin-top: 4px;">使用 Banana2 生成角色三视图，费用较低</div>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 13px; cursor: pointer;">
-                                <input type="checkbox" id="set-enableSoraCharacterLock" ${s.enableSoraCharacterLock ? 'checked' : ''} onchange="window.onCharMethodChange('sora')" style="width: 18px; height: 18px; accent-color: var(--accent-gold);">
-                                🧬 启用Sora-2角色一致性（官方Character功能）
-                            </label>
-                            <div style="font-size: 10px; color: #666; margin-top: 4px;">OpenAI官方角色锁定：先生成15秒锚定视频→提取1-3秒片段创建@username→后续视频使用该角色</div>
-                            <div style="font-size: 10px; color: #d4a574; margin-top: 2px;">💡 适合需要高度角色一致性的多镜头视频，每个角色需额外消耗1个视频配额</div>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 13px; cursor: pointer;">
-                                <input type="checkbox" id="set-enableCharVideo" ${s.enableCharVideo ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--accent-gold);">
-                                自动生成角色动效
-                            </label>
-                        </div>
-                        <div class="setting-item" style="grid-column: span 2;">
-                            <label style="display: flex; align-items: center; gap: 8px; color: #c4b5fd; font-size: 13px; cursor: pointer; padding: 12px; background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(236,72,153,0.1)); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px;">
-                                <input type="checkbox" id="set-autoCreateSora2Characters" ${s.autoCreateSora2Characters ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #8b5cf6;">
-                                🤖 自动从故事创建Sora-2固定角色（AI提取+生成视频+创建角色）
-                            </label>
-                            <div style="font-size: 10px; color: #888; margin-top: 6px; line-height: 1.5;">
-                                ✅ AI自动从故事中提取所有主要角色<br>
-                                ✅ 为每个角色生成参考视频（5秒）<br>
-                                ✅ 自动创建Sora-2固定角色供后续视频使用<br>
-                                ⚠️ 每个角色需额外1个视频配额，预计3-10分钟
-                            </div>
-                        </div>
-                        <!-- 🎭 选择已有角色 -->
-                        <div class="setting-item" style="grid-column: span 2;">
-                            <label style="display: block; color: #a78bfa; font-size: 14px; margin-bottom: 8px; font-weight: 600;">
-                                🎭 使用已创建的角色（在这个故事里复用）
-                            </label>
-                            <div id="existingCharactersContainer" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; padding: 12px;">
-                                ${generateExistingCharactersList(s.selectedCharacters || [])}
-                            </div>
-                            <div style="font-size: 10px; color: #888; margin-top: 6px; line-height: 1.5;">
-                                💡 选中的角色会被添加到所有视频生成中（通过@username引用）<br>
-                                📌 如果没看到角色，请先在左侧侧边栏「🎭 角色管理」中创建
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 📝 内容设置 -->
-                <div class="settings-section" style="margin-bottom: 24px;" id="section-content">
-                    <h3 style="color: var(--accent-gold); font-size: 16px; margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
-                        <span>📝</span> 内容生成设置
-                    </h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">故事语言</label>
-                            <select id="set-storyLang" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="zh" ${s.storyLang === 'zh' || !s.storyLang ? 'selected' : ''}>🇨🇳 中文</option>
-                                <option value="en" ${s.storyLang === 'en' ? 'selected' : ''}>🇺🇸 English</option>
-                                <option value="ja" ${s.storyLang === 'ja' ? 'selected' : ''}>🇯🇵 日本語</option>
-                                <option value="auto" ${s.storyLang === 'auto' ? 'selected' : ''}>🌐 自动检测</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">内容类型</label>
-                            <select id="set-contentType" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="story" ${s.contentType === 'story' || !s.contentType ? 'selected' : ''}>📖 故事/剧情</option>
-                                <option value="ad" ${s.contentType === 'ad' ? 'selected' : ''}>📢 广告/宣传</option>
-                                <option value="tutorial" ${s.contentType === 'tutorial' ? 'selected' : ''}>📚 教程/说明</option>
-                                <option value="vlog" ${s.contentType === 'vlog' ? 'selected' : ''}>📹 Vlog/日常</option>
-                                <option value="ecommerce" ${s.contentType === 'ecommerce' ? 'selected' : ''}>🛒 电商带货</option>
-                                <option value="livestream" ${s.contentType === 'livestream' ? 'selected' : ''}>📺 直播带货</option>
-                                <option value="music" ${s.contentType === 'music' ? 'selected' : ''}>🎵 音乐MV</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">故事长度</label>
-                            <select id="set-storyLength" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="short" ${s.storyLength === 'short' ? 'selected' : ''}>短篇（200-500字）</option>
-                                <option value="medium" ${s.storyLength === 'medium' || !s.storyLength ? 'selected' : ''}>中篇（500-1000字）</option>
-                                <option value="long" ${s.storyLength === 'long' ? 'selected' : ''}>长篇（1000-2000字）</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">剧本生成引擎</label>
-                            <select id="set-scriptProvider" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="gemini3" ${s.scriptProvider === 'gemini3' || !s.scriptProvider ? 'selected' : ''}>Gemini 3（高级引擎）</option>
-                                <option value="motaverse" ${s.scriptProvider === 'motaverse' ? 'selected' : ''}>智能文本引擎</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">情感基调</label>
-                            <select id="set-mood" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff;">
-                                <option value="auto" ${s.mood === 'auto' || !s.mood ? 'selected' : ''}>🎭 自动匹配</option>
-                                <option value="happy" ${s.mood === 'happy' ? 'selected' : ''}>😊 欢快明朗</option>
-                                <option value="sad" ${s.mood === 'sad' ? 'selected' : ''}>😢 忧伤感人</option>
-                                <option value="tense" ${s.mood === 'tense' ? 'selected' : ''}>😰 紧张刺激</option>
-                                <option value="romantic" ${s.mood === 'romantic' ? 'selected' : ''}>💕 浪漫温馨</option>
-                                <option value="epic" ${s.mood === 'epic' ? 'selected' : ''}>⚔️ 史诗恢弘</option>
-                                <option value="horror" ${s.mood === 'horror' ? 'selected' : ''}>👻 恐怖悬疑</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 🎯 高级设置 -->
-                <div class="settings-section" style="margin-bottom: 24px;">
-                    <h3 style="color: var(--accent-gold); font-size: 16px; margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
-                        <span>🎯</span> 高级设置
-                    </h3>
-                    <div style="margin-bottom: 16px;">
-                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">自定义风格描述（可选）</label>
-                        <textarea id="set-customStyle" placeholder="例如：赛博朋克风格，霓虹灯光，雨夜城市..." style="width: 100%; height: 80px; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff; resize: vertical;">${s.customStyle || ''}</textarea>
-                    </div>
-                    <div style="margin-bottom: 16px;">
-                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">负面提示词（不想出现的元素）</label>
-                        <textarea id="set-negativePrompt" placeholder="例如：模糊, 低质量, 变形..." style="width: 100%; height: 60px; padding: 10px; background: #222; border: 1px solid #444; border-radius: 8px; color: #fff; resize: vertical;">${s.negativePrompt || ''}</textarea>
-                    </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-                        <div class="setting-item">
-                            <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 13px; cursor: pointer;">
-                                <input type="checkbox" id="set-useFusedPromptsForVideo" ${s.useFusedPromptsForVideo ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--accent-gold);">
-                                使用融合提示词生成视频（实验）
-                            </label>
-                            <div style="font-size: 10px; color: #666; margin-top: 4px;">开启后：视频生成使用“融合提示词”列；关闭则保持原提示词</div>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 13px; cursor: pointer;">
-                                <input type="checkbox" id="set-autoPublish" ${s.autoPublish ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--accent-gold);">
-                                完成后自动发布
-                            </label>
-                        </div>
-                        <div class="setting-item">
-                            <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 13px; cursor: pointer;">
-                                <input type="checkbox" id="set-addWatermark" ${s.addWatermark ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--accent-gold);">
-                                添加水印
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 底部按钮 -->
-            <div style="
-                padding: 20px 24px;
-                border-top: 1px solid rgba(255,215,0,0.2);
-                display: flex;
-                justify-content: flex-end;
-                gap: 12px;
-                background: rgba(0,0,0,0.3);
-            ">
-                <button onclick="closeAdvancedSettings()" style="
-                    padding: 12px 24px;
-                    background: #333;
-                    border: 1px solid #555;
-                    border-radius: 8px;
-                    color: #fff;
-                    cursor: pointer;
-                    font-size: 14px;
-                ">取消</button>
-                <button onclick="saveAdvancedSettings(${ideaId})" style="
-                    padding: 12px 32px;
-                    background: linear-gradient(135deg, var(--accent-gold) 0%, #FFA500 100%);
-                    border: none;
-                    border-radius: 8px;
-                    color: #000;
-                    cursor: pointer;
-                    font-size: 14px;
-                    font-weight: bold;
-                ">💾 保存设置</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(panel);
-    panel.dataset.ideaId = ideaId; // 🔖 储存 ideaId 供角色选择使用
-
     try {
-        updateClipDurationOptions();
-    } catch (e) { }
+        var _ctxMenu = document.getElementById('taskContextMenu');
+        if (_ctxMenu) _ctxMenu.remove();
 
-    // 点击背景关闭
-    panel.addEventListener('click', (e) => {
-        if (e.target === panel) closeAdvancedSettings();
-    });
+        var _idea = ideas.find(function (i) { return i.id === ideaId; });
+        if (!_idea) { alert('❌ 找不到任务'); return; }
+
+        if (_idea.type === 'writing') { openWritingTaskSettings(ideaId); return; }
+
+        _idea.settings = _idea.settings || {};
+        var _s = _idea.settings;
+
+        try { __applyFixedVideoTimingToIdea(_idea); } catch (_e) {}
+
+        var _existing = document.getElementById('advancedSettingsPanel');
+        if (_existing) _existing.remove();
+
+        var _cineOl = document.getElementById('cinematicOverlay');
+        var _wasCineVisible = false;
+        if (_cineOl && _cineOl.style.display !== 'none') {
+            _wasCineVisible = true;
+            _cineOl.style.display = 'none';
+        }
+
+        var _panel = document.createElement('div');
+        _panel.id = 'advancedSettingsPanel';
+        _panel.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:10090;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(10px);';
+        _panel.dataset.wasCineVisible = String(_wasCineVisible);
+
+        var _safeTheme = (typeof _idea.theme === 'string') ? _idea.theme : '';
+        var _themeDisplay = _safeTheme.length > 50 ? _safeTheme.substring(0, 50) + '...' : _safeTheme;
+
+        _panel.innerHTML = '<div class="settings-container" style="background:linear-gradient(135deg,#1a1a2e 0%,#0f0f1a 100%);border:1px solid var(--accent-gold);border-radius:20px;width:90%;max-width:800px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 40px rgba(255,215,0,0.1);"><div style="padding:24px;border-bottom:1px solid rgba(255,215,0,0.2);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(90deg,rgba(255,215,0,0.1) 0%,transparent 100%);"><div><h2 style="margin:0;color:var(--accent-gold);font-size:20px;">⚙️ 任务详细设置</h2><p style="margin:5px 0 0;color:#888;font-size:13px;"></p></div><button onclick="closeAdvancedSettings()" style="background:none;border:none;color:#888;font-size:28px;cursor:pointer;padding:0;line-height:1;">×</button></div><div style="padding:24px;" id="advSettingsBody"><div style="text-align:center;color:#888;padding:40px;">⏳ 加载中...</div></div></div>';
+
+        var _titleP = _panel.querySelector('p');
+        if (_titleP) _titleP.textContent = _themeDisplay;
+
+        document.body.appendChild(_panel);
+
+        setTimeout(function () {
+            try {
+                __renderAdvSettingsBody(_panel, _idea, _s);
+            } catch (_err) {
+                console.error('❌ 设置面板渲染失败:', _err);
+                var _body = _panel.querySelector('#advSettingsBody');
+                if (_body) _body.innerHTML = '<div style="text-align:center;color:#f44336;padding:40px;">❌ 设置面板加载失败</div>';
+            }
+        }, 0);
+
+        _panel.addEventListener('click', function (_e) {
+            if (_e.target === _panel) closeAdvancedSettings();
+        });
+    } catch (_outerErr) {
+        console.error('❌ openAdvancedTaskSettings 异常:', _outerErr);
+        alert('❌ 打开设置失败: ' + (_outerErr.message || '未知错误'));
+    }
 };
+
+function __renderAdvSettingsBody(_panel, _idea, _s) {
+    var _body = _panel.querySelector('#advSettingsBody');
+    if (!_body) return;
+    var _gm = _idea.generationMode || '';
+    var _vs = _s.videoStyle || 'cinematic';
+    var _ar = _s.aspectRatio || '16:9';
+    var _hd = (typeof _s.videoHD === 'undefined') ? true : !!_s.videoHD;
+    var _vm = __normalizeVideoModelName(_s.videoModel || _idea.videoModel || '');
+    var _sc = (_s.sceneCount != null) ? Number(_s.sceneCount) : 0;
+    var _td = (_s.totalDuration != null) ? Number(_s.totalDuration) : 0;
+    var _cs = _idea.scenes || 0;
+    var _cd = _idea.clipDuration || 10;
+    var _ct = _idea.contentMode || 'auto';
+    var _st = _idea.scriptType || 'auto';
+    var _ch = _idea.charStyle || 'consistent';
+    var _ec = !!_s.enableCharSheet;
+    var _ecv = !!_s.enableCharVideo;
+    var _escl = !!_s.enableSoraCharacterLock;
+    var _lang = _idea.language || '中文';
+    var _len = _idea.targetLength || 'medium';
+    var _mood = _idea.mood || 'cinematic';
+    var _sp = _idea.scriptPrompt || '';
+
+    _body.innerHTML = '<div class="settings-section" style="margin-bottom:24px;background:linear-gradient(135deg,rgba(255,215,0,0.1) 0%,rgba(255,165,0,0.05) 100%);padding:16px;border-radius:12px;border:1px solid rgba(255,215,0,0.3);"><h3 style="color:var(--accent-gold);font-size:16px;margin:0 0 16px;display:flex;align-items:center;gap:8px;"><span>🚀</span> 生成模式</h3><div style="display:grid;grid-template-columns:1fr;gap:12px;"><div class="setting-item"><label style="display:block;color:#aaa;font-size:12px;margin-bottom:6px;">选择生成模式</label><select id="set-generationMode" style="width:100%;padding:12px;background:#222;border:1px solid var(--accent-gold);border-radius:8px;color:#fff;font-size:14px;"><option value="text-to-video"' + (_gm === 'text-to-video' || !_gm ? ' selected' : '') + '>🎬 完整（AI改编）</option><option value="storyboard-direct"' + (_gm === 'storyboard-direct' ? ' selected' : '') + '>⚡ 直出（跳过改编）</option><option value="video-direct"' + (_gm === 'video-direct' ? ' selected' : '') + '>🎞️ 直接视频</option><option value="image-direct"' + (_gm === 'image-direct' ? ' selected' : '') + '>🖼️ 直接图片</option></select></div></div></div>';
+
+    setTimeout(function () { try { updateClipDurationOptions(); } catch (_e2) {} }, 50);
+}
 
 /**
  * 关闭高级设置面板
  */
 window.closeAdvancedSettings = function () {
-    const panel = document.getElementById('advancedSettingsPanel');
-    if (panel) panel.remove();
-};
-
-/**
- * 🔄 角色生成方式互斥切换
- * 选择 Banana2 时禁用 Sora-2 角色锁定，反之亦然
- */
-window.onCharMethodChange = function (method) {
-    const bananaCheck = document.getElementById('set-enableCharSheet');
-    const soraCheck = document.getElementById('set-enableSoraCharacterLock');
-
-    if (!bananaCheck || !soraCheck) return;
-
-    if (method === 'banana' && bananaCheck.checked) {
-        // 选择 Banana2，禁用 Sora-2 角色锁定
-        soraCheck.checked = false;
-        console.log('🍌 切换到 Banana2 角色设定图模式');
-    } else if (method === 'sora' && soraCheck.checked) {
-        // 选择 Sora-2 角色锁定，禁用 Banana2
-        bananaCheck.checked = false;
-        console.log('🧬 切换到 Sora-2 角色一致性模式');
+    var _panel = document.getElementById('advancedSettingsPanel');
+    if (_panel) {
+        if (_panel.dataset.wasCineVisible === 'true') {
+            var _cineOl = document.getElementById('cinematicOverlay');
+            if (_cineOl) _cineOl.style.display = 'flex';
+        }
+        _panel.remove();
     }
 };
 
-/**
- * 切换生成模式时更新UI和提示
- */
-window.toggleModeSettings = function () {
-    const mode = document.getElementById('set-generationMode')?.value || 'full';
-    const hint = document.getElementById('mode-hint');
-    const sectionVideo = document.getElementById('section-video');
-    const sectionChar = document.getElementById('section-char');
-    const sectionContent = document.getElementById('section-content');
-
-    // 更新提示信息
-    const hints = {
-        'full': '💡 <strong>完整模式</strong>：AI自动改编内容，生成角色设定和分镜，适合故事创作',
-        'storyboard-direct': '⚡ <strong>分镜直出（跳过改编）</strong>：输入内容直接作为分镜；<b>仍会提取角色并生成角色设定图</b>，保证全片一致性',
-        'video-direct': '🎞️ <strong>直接视频</strong>：输入的内容将直接作为Sora2/Veo3提示词生成视频',
-        'image-direct': '🖼️ <strong>直接图片</strong>：输入的内容将直接作为Banana2提示词生成图片'
-    };
-    if (hint) hint.innerHTML = hints[mode] || hints['full'];
-
-    // 根据模式显示/隐藏相关设置区块
-    if (sectionChar) {
-        sectionChar.style.display = (mode === 'full') ? 'block' : 'none';
-    }
-    if (sectionContent) {
-        sectionContent.style.display = (mode === 'full' || mode === 'storyboard-direct') ? 'block' : 'none';
-    }
-    if (sectionVideo) {
-        sectionVideo.style.display = (mode === 'image-direct') ? 'none' : 'block';
-    }
-};
-
-/**
- * 保存高级设置
- */
 window.saveAdvancedSettings = function (ideaId) {
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
-
-    const _rawModel = document.getElementById('set-videoModel')?.value || 'sora-2';
-    const _model = __normalizeVideoModelName(_rawModel);
-    const _clipIn = parseInt(document.getElementById('set-clipDuration')?.value);
-    const _clipFallback = __getFixedClipDurationByModel(_model, (_model === 'sora-2-pro') ? true : undefined);
-
-    idea.settings = {
-        // 生成模式
-        generationMode: document.getElementById('set-generationMode')?.value || idea.generationMode || 'text-to-video',
-
-        // 视频设置
-        videoStyle: document.getElementById('set-videoStyle')?.value || 'cinematic',
-        aspectRatio: document.getElementById('set-aspectRatio')?.value || '16:9',
+    var _idea = ideas.find(function (i) { return i.id === ideaId; });
+    if (!_idea) return;
+    var _rawModel = (document.getElementById('set-videoModel') && document.getElementById('set-videoModel').value) || 'veo3.1';
+    var _model = __normalizeVideoModelName(_rawModel);
+    var _clipIn = parseInt(document.getElementById('set-clipDuration') ? document.getElementById('set-clipDuration').value : null);
+    var _clipFallback = __getFixedClipDurationByModel(_model, (_model === 'sora-2-pro') ? true : undefined);
+    _idea.settings = {
+        generationMode: (document.getElementById('set-generationMode') && document.getElementById('set-generationMode').value) || _idea.generationMode || 'text-to-video',
+        videoStyle: (document.getElementById('set-videoStyle') && document.getElementById('set-videoStyle').value) || 'cinematic',
+        aspectRatio: (document.getElementById('set-aspectRatio') && document.getElementById('set-aspectRatio').value) || '16:9',
         videoModel: _model,
         clipDuration: Number.isFinite(Number(_clipIn)) ? Number(_clipIn) : _clipFallback,
-        sceneCount: parseInt(document.getElementById('set-sceneCount')?.value) || 4,
-        totalDuration: parseInt(document.getElementById('set-totalDuration')?.value) || 60,
-
-        // 角色设置
-        charStyle: document.getElementById('set-charStyle')?.value || 'anime',
-        charSheetType: document.getElementById('set-charSheetType')?.value || 'full',
-        charImageModel: document.getElementById('set-charImageModel')?.value || (idea.settings?.charImageModel || 'auto'),
-        enableCharSheet: document.getElementById('set-enableCharSheet')?.checked !== false,
-        enableSoraCharacterLock: document.getElementById('set-enableSoraCharacterLock')?.checked || false,
-        enableCharVideo: document.getElementById('set-enableCharVideo')?.checked || false,
-        autoCreateSora2Characters: document.getElementById('set-autoCreateSora2Characters')?.checked || false,
-
-        // 内容设置
-        storyLang: document.getElementById('set-storyLang')?.value || 'zh',
-        contentType: document.getElementById('set-contentType')?.value || 'story',
-        storyLength: document.getElementById('set-storyLength')?.value || 'medium',
-        scriptProvider: document.getElementById('set-scriptProvider')?.value || 'gemini3',
-        mood: document.getElementById('set-mood')?.value || 'auto',
-
-        // 高级设置
-        customStyle: document.getElementById('set-customStyle')?.value || '',
-        negativePrompt: document.getElementById('set-negativePrompt')?.value || '',
-        useFusedPromptsForVideo: document.getElementById('set-useFusedPromptsForVideo')?.checked || false,
-        autoPublish: document.getElementById('set-autoPublish')?.checked || false,
-        addWatermark: document.getElementById('set-addWatermark')?.checked || false
+        sceneCount: parseInt(document.getElementById('set-sceneCount') ? document.getElementById('set-sceneCount').value : null) || 4,
+        totalDuration: parseInt(document.getElementById('set-totalDuration') ? document.getElementById('set-totalDuration').value : null) || 60,
+        charStyle: (document.getElementById('set-charStyle') && document.getElementById('set-charStyle').value) || 'anime',
+        charSheetType: (document.getElementById('set-charSheetType') && document.getElementById('set-charSheetType').value) || 'full',
+        charImageModel: (document.getElementById('set-charImageModel') && document.getElementById('set-charImageModel').value) || (_idea.settings && _idea.settings.charImageModel) || 'auto',
+        enableCharSheet: (document.getElementById('set-enableCharSheet') && document.getElementById('set-enableCharSheet').checked) !== false,
+        enableSoraCharacterLock: (document.getElementById('set-enableSoraCharacterLock') && document.getElementById('set-enableSoraCharacterLock').checked) || false,
+        enableCharVideo: (document.getElementById('set-enableCharVideo') && document.getElementById('set-enableCharVideo').checked) || false,
+        autoCreateSora2Characters: (document.getElementById('set-autoCreateSora2Characters') && document.getElementById('set-autoCreateSora2Characters').checked) || false,
+        storyLang: (document.getElementById('set-storyLang') && document.getElementById('set-storyLang').value) || 'zh',
+        contentType: (document.getElementById('set-contentType') && document.getElementById('set-contentType').value) || 'story',
+        storyLength: (document.getElementById('set-storyLength') && document.getElementById('set-storyLength').value) || 'medium',
+        scriptProvider: (document.getElementById('set-scriptProvider') && document.getElementById('set-scriptProvider').value) || 'gemini3',
+        mood: (document.getElementById('set-mood') && document.getElementById('set-mood').value) || 'auto',
+        customStyle: (document.getElementById('set-customStyle') && document.getElementById('set-customStyle').value) || '',
+        negativePrompt: (document.getElementById('set-negativePrompt') && document.getElementById('set-negativePrompt').value) || '',
+        useFusedPromptsForVideo: (document.getElementById('set-useFusedPromptsForVideo') && document.getElementById('set-useFusedPromptsForVideo').checked) || false,
+        autoPublish: (document.getElementById('set-autoPublish') && document.getElementById('set-autoPublish').checked) || false,
+        addWatermark: (document.getElementById('set-addWatermark') && document.getElementById('set-addWatermark').checked) || false
     };
-
-    // sora-2-pro：用 15/25 选择隐式表达 HD/720p
-    if (idea.settings.videoModel === 'sora-2-pro') {
-        idea.settings.videoHD = (_clipIn === 25) ? false : true;
-    }
-
-    // ✅ 统一应用固定时长 + 自动换算分镜（确保各种入口一致）
-    try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
-
-    // 🔄 同步到任务主属性（用于列表显示和角色生成）
-    idea.videoModel = idea.settings.videoModel;
-    idea.clipDuration = idea.settings.clipDuration;
-    idea.scenes = idea.settings.sceneCount;
-    idea.totalDuration = idea.settings.totalDuration;
-    idea.generationMode = idea.settings.generationMode;
-    idea.charStyle = idea.settings.charStyle;  // 🎨 同步角色风格到主属性
-    idea.videoStyle = idea.settings.videoStyle; // 🎬 同步视频风格到主属性
-
-    // ✅ 避免历史“融合提示词占位/旧数据”污染：保存设置时如果 Sora2 提示词未就绪，清空融合提示词
-    if (!Array.isArray(idea.generatedVideoPrompts) || idea.generatedVideoPrompts.length === 0) {
-        idea.fusedVideoPrompts = [];
-    }
-
-    // 🔀 融合提示词（实验）不要在“保存设置”时提前构建：
-    // - 此时分镜/Sora2提示词通常还没生成，提前构建只会落到占位兜底，导致“融合提示词错误/覆盖”
-    // - 正确时机：Sora2提示词生成完成后，或用户手动编辑分镜/提示词后再重建
-
+    if (_idea.settings.videoModel === 'sora-2-pro') { _idea.settings.videoHD = (_clipIn === 25) ? false : true; }
+    try { __applyFixedVideoTimingToIdea(_idea); } catch (_e2) { }
+    _idea.videoModel = _idea.settings.videoModel;
+    _idea.clipDuration = _idea.settings.clipDuration;
+    _idea.scenes = _idea.settings.sceneCount;
+    _idea.totalDuration = _idea.settings.totalDuration;
+    _idea.generationMode = _idea.settings.generationMode;
+    _idea.charStyle = _idea.settings.charStyle;
+    _idea.videoStyle = _idea.settings.videoStyle;
+    if (!Array.isArray(_idea.generatedVideoPrompts) || _idea.generatedVideoPrompts.length === 0) { _idea.fusedVideoPrompts = []; }
     saveIdeasToHistory();
     closeAdvancedSettings();
-
-    // 🔄 实时刷新任务列表显示
     renderIdeasList();
-
     alert('✅ 设置已保存！');
-    console.log('📋 任务设置已保存:', idea.settings);
 };
 
 // ==================== Infinite Canvas & Dragging ====================
@@ -18287,6 +17973,17 @@ function setupInfiniteCanvas(containerId, contentId) {
     let dragOffsetX = 0;
     let dragOffsetY = 0;
 
+    var _rafId = 0;
+    var _rafConnId = 0;
+    var _lastMoveTime = 0;
+    var _lastX = 0, _lastY = 0;
+    var _velX = 0, _velY = 0;
+    var _inertiaId = 0;
+    var _pendingTX = 0, _pendingTY = 0;
+    var _pendingNodeX = 0, _pendingNodeY = 0;
+    var _pendingDragItem = null;
+    var _connDirty = false;
+
     // 更新画布变换
     function updateCanvasTransform() {
         // 🔧 取整坐标，避免亚像素渲染导致的抖动和模糊
@@ -18450,7 +18147,8 @@ function setupInfiniteCanvas(containerId, contentId) {
         const zoomDisplay = document.querySelector('.zoom-level');
         if (zoomDisplay) zoomDisplay.textContent = Math.round(scale * 100) + '%';
 
-        if (typeof renderConnections === 'function') renderConnections(); // 重绘连线
+        if (typeof renderConnections === 'function') renderConnections();
+        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
     }
 
     // 右键菜单 (Context Menu) - 支持PC和移动端
@@ -18562,7 +18260,7 @@ function setupInfiniteCanvas(containerId, contentId) {
             const nodeHeader = target.closest('.banana-node-header') || target.closest('.sticker-node-header') || target.closest('.knolling-node-header') || target.closest('.prompt-template-node-header') || target.closest('.sketchpad-header');
             const resultCardHeader = target.closest('.result-card-header');
             if (nodeHeader || resultCardHeader) {
-                touchDragItem = (nodeHeader ? (nodeHeader.closest('.banana-node') || nodeHeader.closest('.sticker-node') || nodeHeader.closest('.knolling-node') || nodeHeader.closest('.prompt-template-node') || nodeHeader.closest('.video-ref-node') || nodeHeader.closest('.video-t2v-node') || nodeHeader.closest('.video-i2v-node') || nodeHeader.closest('.sketchpad-node')) : null)
+                touchDragItem = (nodeHeader ? (nodeHeader.closest('.banana-node') || nodeHeader.closest('.sticker-node') || nodeHeader.closest('.knolling-node') || nodeHeader.closest('.prompt-template-node') || nodeHeader.closest('.video-ref-node') || nodeHeader.closest('.video-t2v-node') || nodeHeader.closest('.video-i2v-node') || nodeHeader.closest('.video-seedance-ref-node') || nodeHeader.closest('.sketchpad-node')) : null)
                     || (resultCardHeader ? resultCardHeader.closest('.result-card') : null);
                 if (touchDragItem) {
                     // 🔒 检查节点是否被锁定
@@ -18620,8 +18318,9 @@ function setupInfiniteCanvas(containerId, contentId) {
             const containerRect = container.getBoundingClientRect();
             const newX = (touch.clientX - containerRect.left - translateX) / scale - touchDragOffsetX;
             const newY = (touch.clientY - containerRect.top - translateY) / scale - touchDragOffsetY;
-            touchDragItem.style.left = `${newX}px`;
-            touchDragItem.style.top = `${newY}px`;
+            touchDragItem.style.left = newX + 'px';
+            touchDragItem.style.top = newY + 'px';
+            touchDragItem.classList.add('dragging');
             if (typeof renderConnections === 'function') renderConnections();
             return;
         }
@@ -18798,35 +18497,46 @@ function setupInfiniteCanvas(containerId, contentId) {
         startY = e.clientY - translateY;
     });
 
-    // 鼠标移动
+    // 鼠标移动 — rAF节流优化
     document.addEventListener('mousemove', (e) => {
-        if (isNodeDragging && dragItem) {
-            // 拖拽节点逻辑（考虑画布平移和缩放）
-            e.preventDefault();
-            const containerRect = container.getBoundingClientRect();
-            // 计算相对于画布的坐标（考虑 translate 和 scale）
-            let newX = (e.clientX - containerRect.left - translateX) / scale - dragOffsetX;
-            let newY = (e.clientY - containerRect.top - translateY) / scale - dragOffsetY;
-
-            dragItem.style.left = `${newX}px`;
-            dragItem.style.top = `${newY}px`;
-
-            if (typeof renderConnections === 'function') renderConnections(); // 拖拽时重绘连线
-        } else if (isDragging) {
-            // 拖拽画布逻辑（真正的无限画布，使用 transform translate）
-            e.preventDefault();
-            translateX = e.clientX - startX;
-            translateY = e.clientY - startY;
-            updateCanvasTransform();
-        }
-
-        // 处理连线绘制预览（考虑画布平移和缩放）
-        if (tempConnection) {
-            const rect = container.getBoundingClientRect();
-            tempConnection.currentX = (e.clientX - rect.left - translateX) / scale;
-            tempConnection.currentY = (e.clientY - rect.top - translateY) / scale;
-            if (typeof renderConnections === 'function') renderConnections(); // 更新临时连线
-        }
+        if (_rafId) return;
+        _rafId = requestAnimationFrame(function () {
+            _rafId = 0;
+            var now = performance.now();
+            var dt = now - _lastMoveTime;
+            if (isNodeDragging && dragItem) {
+                e.preventDefault();
+                const containerRect = container.getBoundingClientRect();
+                let newX = (e.clientX - containerRect.left - translateX) / scale - dragOffsetX;
+                let newY = (e.clientY - containerRect.top - translateY) / scale - dragOffsetY;
+                dragItem.style.left = newX + 'px';
+                dragItem.style.top = newY + 'px';
+                dragItem.classList.add('dragging');
+                _connDirty = true;
+            } else if (isDragging) {
+                e.preventDefault();
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateCanvasTransform();
+                if (dt > 0 && dt < 50) {
+                    _velX = (e.clientX - _lastX) / dt * 16;
+                    _velY = (e.clientY - _lastY) / dt * 16;
+                }
+            }
+            if (tempConnection) {
+                const rect = container.getBoundingClientRect();
+                tempConnection.currentX = (e.clientX - rect.left - translateX) / scale;
+                tempConnection.currentY = (e.clientY - rect.top - translateY) / scale;
+                _connDirty = true;
+            }
+            _lastMoveTime = now;
+            _lastX = e.clientX;
+            _lastY = e.clientY;
+            if (_connDirty) {
+                _connDirty = false;
+                if (typeof renderConnections === 'function') renderConnections();
+            }
+        });
     });
 
     // 鼠标松开 - 🔧 修复：始终在最前面清除拖拽状态，防止任何情况下鼠标松不开
@@ -18838,8 +18548,28 @@ function setupInfiniteCanvas(containerId, contentId) {
         // 🔧 立即清除拖拽状态（放在最前面，确保无论如何都会执行）
         isDragging = false;
         isNodeDragging = false;
+
+        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
+
+        if (wasDragItem) wasDragItem.classList.remove('dragging');
         dragItem = null;
         container.classList.remove('grabbing');
+
+        var speed = Math.sqrt(_velX * _velX + _velY * _velY);
+        if (speed > 0.8 && !wasNodeDragging) {
+            (function inertiaLoop() {
+                _inertiaId = requestAnimationFrame(function () {
+                    translateX += _velX;
+                    translateY += _velY;
+                    _velX *= 0.92;
+                    _velY *= 0.92;
+                    updateCanvasTransform();
+                    if (Math.sqrt(_velX * _velX + _velY * _velY) > 0.15) {
+                        inertiaLoop();
+                    } else { _inertiaId = 0; }
+                });
+            })();
+        }
 
         if (wasNodeDragging && wasDragItem) {
             // 保存节点/卡片位置
@@ -18882,13 +18612,22 @@ function setupInfiniteCanvas(containerId, contentId) {
                     window.resolveTaskWindowOverlaps({ fixedId: String(ideaId) });
                 }
             }
+            // 🔧 修复V9.0.0.1: 节点拖拽结束后重新渲染连线，防止连线断开
+            if (typeof renderConnections === 'function') {
+                renderConnections();
+            }
         }
 
         // 处理连线结束
         if (tempConnection) {
             console.log('🔗 连线结束，检查目标...');
-            // 检查是否释放到了目标上
-            const targetNode = e.target.closest('.banana-node') || e.target.closest('.result-card');
+            // 🔧 修复V9.0.0.2: 支持所有节点类型的连线目标检测
+            const targetNode = e.target.closest('.banana-node') || e.target.closest('.result-card')
+                || e.target.closest('.sticker-node') || e.target.closest('.knolling-node')
+                || e.target.closest('.video-ref-node') || e.target.closest('.video-t2v-node')
+                || e.target.closest('.video-i2v-node') || e.target.closest('.sketchpad-node')
+                || e.target.closest('.text-input-node') || e.target.closest('.writing-node')
+                || e.target.closest('.music-node') || e.target.closest('.prompt-template-node');
             if (targetNode) {
                 // 🔧 完成连线逻辑
                 const targetId = targetNode.id.replace('node-', '').replace('card-', '');
@@ -18927,6 +18666,19 @@ function setupInfiniteCanvas(containerId, contentId) {
             return;
         }
     });
+
+    function forceReleaseDrag() {
+        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
+        if (_inertiaId) { cancelAnimationFrame(_inertiaId); _inertiaId = 0; }
+        isDragging = false;
+        isNodeDragging = false;
+        if (dragItem) { dragItem.classList.remove('dragging'); dragItem = null; }
+        container.classList.remove('grabbing');
+    }
+
+    window.addEventListener('blur', forceReleaseDrag);
+    window.addEventListener('mouseleave', function (e) { if (e.relatedTarget === null) forceReleaseDrag(); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) forceReleaseDrag(); });
 
     // 暴露给全局以便其他函数调用（从 DOM 读取实时值）
     window.getCurrentScale = () => {
@@ -19029,7 +18781,7 @@ function ensureMinimapEl() {
                     <button onclick="toggleMinimap(false)" title="关闭 (M)">×</button>
                 </div>
             </div>
-            <canvas class="rr-minimap-canvas" id="rrMinimapCanvas" width="220" height="113"></canvas>
+            <canvas class="rr-minimap-canvas" id="rrMinimapCanvas" width="240" height="122"></canvas>
         `;
         // 防止事件穿透影响画布拖拽/缩放
         mm.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
@@ -19234,14 +18986,26 @@ function collectWorldItems() {
         w: el.offsetWidth || 1100,
         h: el.offsetHeight || 550,
     }));
-    const nodes = Array.from(document.querySelectorAll('.banana-node, .sticker-node, .knolling-node, .prompt-template-node, .sketchpad-node')).map(el => ({
-        kind: 'node',
-        x: parseFloat(el.style.left) || 0,
-        y: parseFloat(el.style.top) || 0,
-        w: el.offsetWidth || 320,
-        h: el.offsetHeight || 240,
-    }));
-    return [...cards, ...nodes];
+    var nodeMap = {
+        '.video-ref-node': 'video', '.video-t2v-node': 'video', '.video-i2v-node': 'video',
+        '.video-seedance-ref-node': 'video',
+        '.music-node': 'music',
+        '.writing-node': 'text', '.text-input-node': 'text'
+    };
+    var allNodeSels = '.banana-node, .sticker-node, .knolling-node, .prompt-template-node, .sketchpad-node, '
+        + Object.keys(nodeMap).join(', ');
+    var nodes = Array.from(document.querySelectorAll(allNodeSels)).map(function (el) {
+        var kind = 'node';
+        for (var sel in nodeMap) { if (el.matches(sel)) { kind = nodeMap[sel]; break; } }
+        return {
+            kind: kind,
+            x: parseFloat(el.style.left) || 0,
+            y: parseFloat(el.style.top) || 0,
+            w: el.offsetWidth || 320,
+            h: el.offsetHeight || 240
+        };
+    });
+    return cards.concat(nodes);
 }
 
 window.updateMinimap = function () {
@@ -19304,42 +19068,72 @@ window.updateMinimap = function () {
     const sx = W / worldW;
     const sy = H / worldH;
 
-    // 背景
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+
+    ctx.fillStyle = 'rgba(255,255,255,0.02)';
     ctx.fillRect(0, 0, W, H);
 
-    // 元素 - 使用固定大小，不随画布缩放变化
-    const FIXED_NODE_W = 12;  // 小地图中节点固定宽度（像素）
-    const FIXED_NODE_H = 8;   // 小地图中节点固定高度（像素）
-    for (const it of items) {
-        // 位置仍然按比例计算，但尺寸固定
-        const x = (it.x - minX) * sx;
-        const y = (it.y - minY) * sy;
-        const w = FIXED_NODE_W;
-        const h = FIXED_NODE_H;
-        if (it.kind === 'task') {
-            ctx.fillStyle = 'rgba(96, 165, 250, 0.35)'; // blue
-            ctx.strokeStyle = 'rgba(96, 165, 250, 0.65)';
-        } else {
-            ctx.fillStyle = 'rgba(52, 211, 153, 0.28)'; // green
-            ctx.strokeStyle = 'rgba(52, 211, 153, 0.55)';
-        }
-        ctx.fillRect(x, y, w, h);
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+    var gridStep = 20 * dpr;
+    if (gridStep < 8) gridStep = 8;
+    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    ctx.lineWidth = 0.5;
+    for (var gx = 0; gx < W; gx += gridStep) {
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+    }
+    for (var gy = 0; gy < H; gy += gridStep) {
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
     }
 
-    // 视口框
-    const vx = (vp.x - minX) * sx;
-    const vy = (vp.y - minY) * sy;
-    const vw = vp.w * sx;
-    const vh = vp.h * sy;
-    ctx.strokeStyle = 'rgba(251,191,36,0.95)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(vx + 0.5, vy + 0.5, vw, vh);
-    ctx.fillStyle = 'rgba(251,191,36,0.08)';
-    ctx.fillRect(vx, vy, vw, vh);
+    var NODE_W = 14 * dpr;
+    var NODE_H = 9 * dpr;
+    var NODE_R = 2.5 * dpr;
+
+    var kindStyles = {
+        task:  { fill: 'rgba(96,165,250,0.45)', stroke: 'rgba(96,165,250,0.75)', glow: 'rgba(96,165,250,0.12)' },
+        node:  { fill: 'rgba(52,211,153,0.38)', stroke: 'rgba(52,211,153,0.65)', glow: 'rgba(52,211,153,0.10)' },
+        video: { fill: 'rgba(251,146,60,0.40)', stroke: 'rgba(251,146,60,0.70)', glow: 'rgba(251,146,60,0.10)' },
+        music: { fill: 'rgba(167,139,250,0.40)', stroke: 'rgba(167,139,250,0.70)', glow: 'rgba(167,139,250,0.10)' },
+        text:  { fill: 'rgba(244,114,182,0.38)', stroke: 'rgba(244,114,182,0.65)', glow: 'rgba(244,114,182,0.10)' }
+    };
+
+    for (const it of items) {
+        const x = (it.x - minX) * sx;
+        const y = (it.y - minY) * sy;
+        const w = NODE_W;
+        const h = NODE_H;
+        var ks = kindStyles[it.kind] || kindStyles.node;
+
+        ctx.shadowColor = ks.glow;
+        ctx.shadowBlur = 6 * dpr;
+        ctx.fillStyle = ks.fill;
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, NODE_R);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = ks.stroke;
+        ctx.lineWidth = 1 * dpr;
+        ctx.beginPath();
+        ctx.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, NODE_R);
+        ctx.stroke();
+    }
+
+    var vx = (vp.x - minX) * sx;
+    var vy = (vp.y - minY) * sy;
+    var vw = vp.w * sx;
+    var vh = vp.h * sy;
+
+    var cl = Math.min(8 * dpr, Math.max(3 * dpr, Math.min(vw, vh) * 0.25));
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1.2 * dpr;
+
+    [[vx, vy, 1, 1], [vx + vw, vy, -1, 1], [vx, vy + vh, 1, -1], [vx + vw, vy + vh, -1, -1]].forEach(function (c) {
+        ctx.beginPath();
+        ctx.moveTo(c[0], c[1] + c[3] * cl);
+        ctx.lineTo(c[0], c[1]);
+        ctx.lineTo(c[0] + c[2] * cl, c[1]);
+        ctx.stroke();
+    });
 };
 
 function minimapPanToClientPoint(clientX, clientY) {
@@ -20032,26 +19826,22 @@ window.startConnection = function (e, sourceId) {
     e.stopPropagation();
     e.preventDefault();
 
-    const containerEl = document.getElementById('taskCanvasContainer');
-    const canvasEl = document.getElementById('taskCanvas');
-    const rect = containerEl.getBoundingClientRect();
-    const scale = window.getCurrentScale();
-    const translate = window.getCanvasTranslate();
-
-    // 计算相对于画布的坐标（考虑 translate 和 scale）
-    const startX = (e.clientX - rect.left - translate.x) / scale;
-    const startY = (e.clientY - rect.top - translate.y) / scale;
+    // 🔧 修复V9.0.0.2: 使用getHandlePosition获取output-handle的精确中心坐标，而非鼠标点击位置
+    const handlePos = getHandlePosition(sourceId);
+    if (!handlePos) {
+        console.warn('[连线] 无法获取output-handle位置，sourceId:', sourceId);
+        return;
+    }
 
     tempConnection = {
         sourceId: sourceId,
-        startX: startX,
-        startY: startY,
-        currentX: startX,
-        currentY: startY
+        startX: handlePos.x,
+        startY: handlePos.y,
+        currentX: handlePos.x,
+        currentY: handlePos.y
     };
 
-    // 监听全局鼠标移动更新临时线
-    // (已在 setupInfiniteCanvas mousemove 中处理)
+    _connDirty = true;
 }
 
 /**
@@ -20061,26 +19851,27 @@ window.startConnectionTouch = function (e, sourceId) {
     e.stopPropagation();
     e.preventDefault();
 
-    if (!e.touches || e.touches.length === 0) return;
-    const touch = e.touches[0];
+    // 🔧 修复V9.0.0.2: 使用getHandlePosition获取output-handle的精确中心坐标
+    const handlePos = getHandlePosition(sourceId);
+    if (!handlePos) {
+        console.warn('[连线] 无法获取output-handle位置，sourceId:', sourceId);
+        return;
+    }
 
+    tempConnection = {
+        sourceId: sourceId,
+        startX: handlePos.x,
+        startY: handlePos.y,
+        currentX: handlePos.x,
+        currentY: handlePos.y
+    };
+
+    // 添加触摸移动和结束监听
     const containerEl = document.getElementById('taskCanvasContainer');
     const rect = containerEl.getBoundingClientRect();
     const scale = window.getCurrentScale();
     const translate = window.getCanvasTranslate();
 
-    const startX = (touch.clientX - rect.left - translate.x) / scale;
-    const startY = (touch.clientY - rect.top - translate.y) / scale;
-
-    tempConnection = {
-        sourceId: sourceId,
-        startX: startX,
-        startY: startY,
-        currentX: startX,
-        currentY: startY
-    };
-
-    // 添加触摸移动和结束监听
     const onTouchMove = (ev) => {
         if (!ev.touches || ev.touches.length === 0) return;
         ev.preventDefault();
@@ -20100,7 +19891,13 @@ window.startConnectionTouch = function (e, sourceId) {
         const endTouch = ev.changedTouches && ev.changedTouches[0];
         if (endTouch) {
             const targetEl = document.elementFromPoint(endTouch.clientX, endTouch.clientY);
-            const targetNode = targetEl && (targetEl.closest('.banana-node') || targetEl.closest('.sticker-node') || targetEl.closest('.knolling-node') || targetEl.closest('.result-card'));
+            // 🔧 修复V9.0.0.2: 支持所有节点类型的连线目标检测
+            const targetNode = targetEl && (targetEl.closest('.banana-node') || targetEl.closest('.result-card')
+                || targetEl.closest('.sticker-node') || targetEl.closest('.knolling-node')
+                || targetEl.closest('.video-ref-node') || targetEl.closest('.video-t2v-node')
+                || targetEl.closest('.video-i2v-node') || targetEl.closest('.sketchpad-node')
+                || targetEl.closest('.text-input-node') || targetEl.closest('.writing-node')
+                || targetEl.closest('.music-node') || targetEl.closest('.prompt-template-node'));
 
             if (targetNode) {
                 const targetId = targetNode.id.replace('node-', '').replace('card-', '');
@@ -20147,29 +19944,62 @@ function renderConnections() {
         const endPos = getNodePosition(conn.target); // 目标通常是节点的左侧或顶部
 
         if (startPos && endPos) {
-            // 🔧 新增：创建可点击的连线组
             const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             group.setAttribute('class', 'connection-group');
             group.setAttribute('data-conn-id', conn.id);
             group.style.cursor = 'pointer';
 
-            // 绘制实际连线
             const path = drawBezierCurvePath(startPos.x, startPos.y, endPos.x, endPos.y);
             path.setAttribute('class', 'connection-line');
             path.setAttribute('stroke', 'var(--accent-gold)');
-            path.setAttribute('stroke-width', '2');
+            path.setAttribute('stroke-width', '2.5');
             path.setAttribute('fill', 'none');
-            path.setAttribute('stroke-dasharray', '5,5');
             path.style.pointerEvents = 'none';
 
-            // 🔧 新增：创建更宽的透明点击区域
             const hitArea = drawBezierCurvePath(startPos.x, startPos.y, endPos.x, endPos.y);
             hitArea.setAttribute('class', 'connection-hit-area');
             hitArea.setAttribute('stroke', 'transparent');
-            hitArea.setAttribute('stroke-width', '20'); // 更宽的点击区域
+            hitArea.setAttribute('stroke-width', '20');
             hitArea.setAttribute('fill', 'none');
             hitArea.style.cursor = 'pointer';
             hitArea.style.pointerEvents = 'stroke';
+
+            // 🔧 端点圆点 - 消除断联假象
+            const startDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            startDot.setAttribute('cx', startPos.x);
+            startDot.setAttribute('cy', startPos.y);
+            startDot.setAttribute('r', '4.5');
+            startDot.setAttribute('fill', '#fbbf24');
+            startDot.setAttribute('stroke', '#fff');
+            startDot.setAttribute('stroke-width', '1.5');
+            startDot.style.pointerEvents = 'none';
+            startDot.classList.add('conn-endpoint');
+
+            const endDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            endDot.setAttribute('cx', endPos.x);
+            endDot.setAttribute('cy', endPos.y);
+            endDot.setAttribute('r', '4.5');
+            endDot.setAttribute('fill', '#fbbf24');
+            endDot.setAttribute('stroke', '#fff');
+            endDot.setAttribute('stroke-width', '1.5');
+            endDot.style.pointerEvents = 'none';
+            endDot.classList.add('conn-endpoint');
+
+            // 🔧 目标端箭头
+            const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
+            const arrowSize = 8;
+            const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            const ax = endPos.x - 6;
+            const ay = endPos.y;
+            const points = [
+                `${ax + arrowSize * Math.cos(angle)},${ay + arrowSize * Math.sin(angle)}`,
+                `${ax + arrowSize * 0.5 * Math.cos(angle - 2.5)},${ay + arrowSize * 0.5 * Math.sin(angle - 2.5)}`,
+                `${ax + arrowSize * 0.5 * Math.cos(angle + 2.5)},${ay + arrowSize * 0.5 * Math.sin(angle + 2.5)}`
+            ].join(' ');
+            arrow.setAttribute('points', points);
+            arrow.setAttribute('fill', '#fbbf24');
+            arrow.style.pointerEvents = 'none';
+            arrow.classList.add('conn-arrow');
 
             // 🔧 新增：添加删除按钮（在连线中点）
             const midX = (startPos.x + endPos.x) / 2;
@@ -20204,13 +20034,23 @@ function renderConnections() {
             group.addEventListener('mouseenter', () => {
                 deleteBtn.style.opacity = '1';
                 path.setAttribute('stroke', '#ef4444');
-                path.setAttribute('stroke-width', '3');
+                path.setAttribute('stroke-width', '3.5');
+                startDot.setAttribute('fill', '#ef4444');
+                startDot.setAttribute('r', '6');
+                endDot.setAttribute('fill', '#ef4444');
+                endDot.setAttribute('r', '6');
+                arrow.setAttribute('fill', '#ef4444');
             });
 
             group.addEventListener('mouseleave', () => {
                 deleteBtn.style.opacity = '0';
                 path.setAttribute('stroke', 'var(--accent-gold)');
-                path.setAttribute('stroke-width', '2');
+                path.setAttribute('stroke-width', '2.5');
+                startDot.setAttribute('fill', '#fbbf24');
+                startDot.setAttribute('r', '4.5');
+                endDot.setAttribute('fill', '#fbbf24');
+                endDot.setAttribute('r', '4.5');
+                arrow.setAttribute('fill', '#fbbf24');
             });
 
             // 点击删除按钮断开连线
@@ -20229,6 +20069,9 @@ function renderConnections() {
 
             group.appendChild(hitArea);
             group.appendChild(path);
+            group.appendChild(arrow);
+            group.appendChild(startDot);
+            group.appendChild(endDot);
             group.appendChild(deleteBtn);
             svg.appendChild(group);
         }
@@ -20253,8 +20096,11 @@ function renderConnections() {
  */
 function drawBezierCurvePath(x1, y1, x2, y2) {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    const dx = Math.abs(x2 - x1);
-    const controlOffset = Math.min(dx * 0.5, 100);
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    const controlOffset = Math.max(Math.min(dist * 0.45, 150), 40);
 
     const d = `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
     path.setAttribute('d', d);
@@ -20394,6 +20240,7 @@ function showContextMenu(x, y) {
         <div class="menu-item" data-action="video-ref">🔗 视频参考/克隆${lockIcon}</div>
         <div class="menu-item" data-action="video-t2v">🎬 文生视频节点${lockIcon}</div>
         <div class="menu-item" data-action="video-i2v">🖼️🎬 图生视频节点${lockIcon}</div>
+        <div class="menu-item" data-action="video-seedance-ref">🌟 Seedance全能参考(多图)${lockIcon}</div>
         <div class="menu-item" data-action="sticker">😀 表情包生成器${lockIcon}</div>
         <div class="menu-item" data-action="sketchpad">✏️ 手绘画板</div>
     `;
@@ -20457,6 +20304,13 @@ function showContextMenu(x, y) {
             renderCanvas();
             try { window.__rrFocusCanvasOnNode && window.__rrFocusCanvasOnNode(node, { animate: false }); } catch (e) { }
             saveIdeasToHistory();
+        } else if (action === 'video-seedance-ref') {
+            const node = createVideoSeedanceRefNodeData(p.x, p.y);
+            flowNodes.push(node);
+            try { window.__rrSuppressAutoFocusTaskWindow && window.__rrSuppressAutoFocusTaskWindow(1200); } catch (e) { }
+            renderCanvas();
+            try { window.__rrFocusCanvasOnNode && window.__rrFocusCanvasOnNode(node, { animate: false }); } catch (e) { }
+            saveIdeasToHistory();
         } else if (action === 'sticker') {
             addStickerNodeAt(x, y);
         } else if (action === 'sketchpad') {
@@ -20482,17 +20336,17 @@ function closeContextMenu() {
 // ==================== Video Nodes (Canvas) ====================
 
 function _videoModelOptionsHtml(selected) {
-    const v = __normalizeVideoModelName(String(selected || 'sora-2'));
+    const v = __normalizeVideoModelName(String(selected || 'veo3.1'));
     const opts = [
         { v: 'modelscope-video', label: '🆓 魔塔视频（免费）' },
-        { v: 'sora-2-vip-all', label: 'Sora-2 VIP 过渡 (10秒)' },
-        { v: 'text-to-video', label: 'Sora-2 (文生视频)' },
-        { v: 'image-to-video', label: 'Flux + Sora-2 (图生视频)' },
-        { v: 'banana-image-to-video', label: 'Gemini-3 + Sora-2 (图生视频)' },
+        // { v: 'sora-2-vip-all', label: 'Sora-2 VIP 过渡 (10秒)' },  ❌ 已停用
+        { v: 'text-to-video', label: '🌟 Grok-3 文生视频' },
+        { v: 'image-to-video', label: 'Flux + Grok-3 (图生视频)' },
+        { v: 'banana-image-to-video', label: 'Gemini-3 + Grok-3 (图生视频)' },
         { v: 'banana-grid-to-video', label: '🎯 网格图省费版 (1图切N分镜)' },
         { v: 'veo3.1-components-4k', label: '🎬 Veo 3.1 4K (推荐)' },
         { v: 'veo_3_1-fast-4K', label: '🎬 Veo 3.1 Fast 4K (快速)' },
-        { v: 'veo_3_1-fast-components-4K', label: '🎬 Veo 3.1 Fast Components' },
+        { v: 'veo_3_1-fast-components-4K', label: '🎬 veo_3_1-fast-components-4K' },
         { v: 'veo_3_1-components-4K', label: '🎬 Veo 3.1 Components 4K' },
         { v: 'vidu-q2-5s-720p', label: '🎬 Vidu q2 5秒 720P' },
         { v: 'vidu-q2-5s-1080p', label: '🎬 Vidu q2 5秒 1080P' },
@@ -20580,7 +20434,7 @@ function createVideoRefNodeData(x, y) {
 
             // ✅ 自带克隆：无需下游节点
             clonePromptText: '',
-            cloneModel: 'sora-2',
+            cloneModel: 'veo3.1', // Sora2已停用
             cloneAspectRatio: '16:9',
             cloneDuration: 15,
             cloneHD: true,
@@ -20638,6 +20492,37 @@ function createVideoI2VNodeData(x, y) {
     };
 }
 
+function createVideoSeedanceRefNodeData(x, y) {
+    return {
+        id: 'vseedref_' + Date.now(),
+        type: 'video-seedance-ref',
+        x,
+        y,
+        width: 420,
+        height: 620,
+        data: {
+            model: 'seedance-ref',
+            aspectRatio: '16:9',
+            duration: 5,
+            hd: false,
+            promptText: '',
+            // 本地参考图（最多3张）
+            imageUrl1: '',
+            imageDataUrl1: '',
+            imageFileName1: '',
+            imageUrl2: '',
+            imageDataUrl2: '',
+            imageFileName2: '',
+            imageUrl3: '',
+            imageDataUrl3: '',
+            imageFileName3: '',
+            status: 'idle',
+            results: [],
+            lastRunAt: ''
+        }
+    };
+}
+
 function getVideoRefNodeHTML(node) {
     const d = node.data || {};
     const refType = String(d.refType || 'pid');
@@ -20647,7 +20532,7 @@ function getVideoRefNodeHTML(node) {
     const out = d.videoRefOutput ? escapeHtml(JSON.stringify(d.videoRefOutput)) : '';
     const nodeLocked = node.locked || false;
     const clonePromptText = escapeHtml(String(d.clonePromptText || ''));
-    const cloneModel = String(d.cloneModel || 'sora-2');
+    const cloneModel = String(d.cloneModel || 'veo3.1');
     const cloneAR = String(d.cloneAspectRatio || '16:9');
     const cloneHD = (typeof d.cloneHD === 'undefined') ? true : !!d.cloneHD;
     const cloneDur = __getFixedClipDurationByModel(__normalizeVideoModelName(cloneModel), cloneHD);
@@ -20840,7 +20725,7 @@ function getVideoRefNodeHTML(node) {
 
 function getVideoT2VNodeHTML(node) {
     const d = node.data || {};
-    const model = String(d.model || 'sora-2');
+    const model = String(d.model || 'veo3.1');
     const ar = String(d.aspectRatio || '16:9');
     const dur = Number(d.duration || 15);
     const hd = !!d.hd;
@@ -20930,7 +20815,7 @@ function getVideoT2VNodeHTML(node) {
 
 function getVideoI2VNodeHTML(node) {
     const d = node.data || {};
-    const model = String(d.model || 'sora-2');
+    const model = String(d.model || 'veo3.1');
     const ar = String(d.aspectRatio || '16:9');
     const dur = Number(d.duration || 15);
     const hd = !!d.hd;
@@ -21035,6 +20920,138 @@ function getVideoI2VNodeHTML(node) {
     `;
 }
 
+function getVideoSeedanceRefNodeHTML(node) {
+    const d = node.data || {};
+    const model = String(d.model || 'seedance-ref');
+    const ar = String(d.aspectRatio || '16:9');
+    const dur = Number(d.duration || 5);
+    const status = String(d.status || 'idle');
+    const results = Array.isArray(d.results) ? d.results : [];
+    const promptText = escapeHtml(String(d.promptText || ''));
+    const nodeLocked = node.locked || false;
+
+    // 本地参考图
+    const img1Url = escapeHtml(String(d.imageUrl1 || ''));
+    const img1Data = String(d.imageDataUrl1 || '');
+    const img1Name = escapeHtml(String(d.imageFileName1 || ''));
+    const img2Url = escapeHtml(String(d.imageUrl2 || ''));
+    const img2Data = String(d.imageDataUrl2 || '');
+    const img2Name = escapeHtml(String(d.imageFileName2 || ''));
+    const img3Url = escapeHtml(String(d.imageUrl3 || ''));
+    const img3Data = String(d.imageDataUrl3 || '');
+    const img3Name = escapeHtml(String(d.imageFileName3 || ''));
+
+    // 上游参考图（通过连线获取）
+    const upstreamImages = collectUpstreamRefImagesForNode(node.id);
+    const upstreamCount = upstreamImages.length;
+    const hasAnyImage = img1Data || img2Data || img3Data || upstreamImages.length > 0;
+
+    const rHtml = results.map((r, rIdx) => {
+        const p = escapeHtml(String(r.prompt || '').slice(0, 200));
+        const hdStatus = r.hdStatus || '';
+        const hdBtnHtml = r.url ? `<button onclick="event.stopPropagation(); vnodeUpscaleVideo('${node.id}', ${rIdx}, '${r.url}')"
+            style="background: linear-gradient(135deg, #10b981, #059669); color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; ${hdStatus === 'processing' ? 'opacity:0.6; cursor:wait;' : ''}"
+            ${hdStatus === 'processing' ? 'disabled' : ''}>
+            ${hdStatus === 'processing' ? '⏳ 高清中...' : hdStatus === 'done' ? '✅ 已高清' : '✨ 高清'}
+        </button>` : '';
+        if (r.url) {
+            return `<div class="flow-card" style="margin-bottom:8px;">
+                <div class="card-header"><span>✅ ${r.index + 1}</span></div>
+                <div style="color:#aaa; font-size:12px; white-space:pre-wrap;">${p}</div>
+                <div style="margin-top:8px;">
+                    <video controls preload="metadata" playsinline
+                           onmousedown="event.stopPropagation()"
+                           style="width:100%; max-height:180px; border-radius:10px; border:1px solid #333; background:#000;">
+                        <source src="${r.url}">
+                    </video>
+                </div>
+                <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <a href="${r.url}" target="_blank" style="color:#fbbf24;">打开</a>
+                    <a href="${r.url}" download style="color:#aaa;">下载</a>
+                    ${hdBtnHtml}
+                </div>
+            </div>`;
+        }
+        return `<div class="flow-card" style="margin-bottom:8px;">
+            <div class="card-header"><span>⚠️ ${r.index + 1}</span></div>
+            <div style="color:#aaa; font-size:12px; white-space:pre-wrap;">${p}</div>
+            <div style="margin-top:6px; color:#ef4444; font-size:12px;">${escapeHtml(String(r.error || '失败'))}</div>
+        </div>`;
+    }).join('');
+
+    return `
+        <div class="input-handle" onmouseup="endConnection(event, '${node.id}')" title="输入连接点（支持多图）"></div>
+        <div class="banana-node-header">
+            <span>🌟 Seedance全能参考 ${nodeLocked ? '<span style="margin-left:4px;" title="节点已固定">🔒</span>' : ''}</span>
+            <div style="display:flex;gap:4px;">
+                <button class="btn-lock-node" onclick="toggleNodeLock('${node.id}')" title="${nodeLocked ? '解锁节点' : '固定节点'}" style="background:${nodeLocked ? '#ef4444' : '#3b82f6'};padding:2px 8px;border-radius:4px;color:#fff;border:none;cursor:pointer;font-size:12px;">${nodeLocked ? '🔓' : '🔒'}</button>
+                <button class="btn-close-node" onclick="removeNode('${node.id}')">×</button>
+            </div>
+        </div>
+        <div class="node-content" style="padding:10px;">
+            <div style="margin-top:0; color:#fbbf24; font-size:12px;">🌟 支持最多3张参考图（连接上游图节点 或 本地上传）</div>
+            ${upstreamCount > 0 ? `<div style="margin-top:4px; color:#10b981; font-size:12px;">📎 已连接 ${upstreamCount} 张上游参考图</div>` : ''}
+
+            <!-- 参考图1 -->
+            <div style="margin-top:8px; color:#aaa; font-size:12px;">参考图1 ${img1Data ? '✅' : ''}</div>
+            <div style="display:flex; gap:6px; margin-top:4px; align-items:center;">
+                <input type="text" placeholder="URL" value="${img1Url}" oninput="vnodeSetSeedanceRefImageUrl('${node.id}', 1, this.value)" onmousedown="event.stopPropagation()"
+                       style="flex:1; background:#111; border:1px solid #333; color:#ddd; padding:6px; border-radius:6px; font-size:11px;">
+                <button class="btn-xs" onclick="vnodeTriggerSeedanceRefUpload('${node.id}', 1)" style="background:#444; color:#fff;">📎</button>
+                <input type="file" id="vsr-upload-${node.id}-1" accept="image/*" style="display:none" onchange="vnodeHandleSeedanceRefUpload('${node.id}', 1, this)">
+            </div>
+            ${img1Data ? `<div style="margin-top:4px;"><img src="${img1Data}" style="max-width:100%; max-height:60px; border-radius:6px; border:1px solid #333; object-fit:contain;" /></div>` : ''}
+
+            <!-- 参考图2 -->
+            <div style="margin-top:8px; color:#aaa; font-size:12px;">参考图2 ${img2Data ? '✅' : '(可选)'}</div>
+            <div style="display:flex; gap:6px; margin-top:4px; align-items:center;">
+                <input type="text" placeholder="URL" value="${img2Url}" oninput="vnodeSetSeedanceRefImageUrl('${node.id}', 2, this.value)" onmousedown="event.stopPropagation()"
+                       style="flex:1; background:#111; border:1px solid #333; color:#ddd; padding:6px; border-radius:6px; font-size:11px;">
+                <button class="btn-xs" onclick="vnodeTriggerSeedanceRefUpload('${node.id}', 2)" style="background:#444; color:#fff;">📎</button>
+                <input type="file" id="vsr-upload-${node.id}-2" accept="image/*" style="display:none" onchange="vnodeHandleSeedanceRefUpload('${node.id}', 2, this)">
+            </div>
+            ${img2Data ? `<div style="margin-top:4px;"><img src="${img2Data}" style="max-width:100%; max-height:60px; border-radius:6px; border:1px solid #333; object-fit:contain;" /></div>` : ''}
+
+            <!-- 参考图3 -->
+            <div style="margin-top:8px; color:#aaa; font-size:12px;">参考图3 ${img3Data ? '✅' : '(可选)'}</div>
+            <div style="display:flex; gap:6px; margin-top:4px; align-items:center;">
+                <input type="text" placeholder="URL" value="${img3Url}" oninput="vnodeSetSeedanceRefImageUrl('${node.id}', 3, this.value)" onmousedown="event.stopPropagation()"
+                       style="flex:1; background:#111; border:1px solid #333; color:#ddd; padding:6px; border-radius:6px; font-size:11px;">
+                <button class="btn-xs" onclick="vnodeTriggerSeedanceRefUpload('${node.id}', 3)" style="background:#444; color:#fff;">📎</button>
+                <input type="file" id="vsr-upload-${node.id}-3" accept="image/*" style="display:none" onchange="vnodeHandleSeedanceRefUpload('${node.id}', 3, this)">
+            </div>
+            ${img3Data ? `<div style="margin-top:4px;"><img src="${img3Data}" style="max-width:100%; max-height:60px; border-radius:6px; border:1px solid #333; object-fit:contain;" /></div>` : ''}
+
+            <div style="margin-top:10px; color:#aaa; font-size:12px;">提示词</div>
+            <textarea placeholder="描述视频内容..."
+                      oninput="vnodeSetPromptText('${node.id}', this.value)" onmousedown="event.stopPropagation()"
+                      style="width:100%; height:60px; margin-top:4px; background:#111; border:1px solid #333; color:#ddd; padding:8px; border-radius:8px; font-size:12px; resize:vertical;">${promptText}</textarea>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                <label style="color:#aaa; font-size:12px;">比例</label>
+                <select onchange="vnodeSetAspect('${node.id}', this.value)" onmousedown="event.stopPropagation()"
+                        style="flex:1; background:#222; border:1px solid #444; color:#fff; padding:6px; border-radius:6px; font-size:12px;">
+                    <option value="16:9" ${ar === '16:9' ? 'selected' : ''}>16:9</option>
+                    <option value="9:16" ${ar === '9:16' ? 'selected' : ''}>9:16</option>
+                    <option value="1:1" ${ar === '1:1' ? 'selected' : ''}>1:1</option>
+                    <option value="adaptive" ${ar === 'adaptive' ? 'selected' : ''}>自适应</option>
+                </select>
+                <label style="color:#aaa; font-size:12px;">时长</label>
+                <input type="number" min="5" max="15" value="${dur}" oninput="vnodeSetDuration('${node.id}', this.value)"
+                       onmousedown="event.stopPropagation()" style="width:70px; background:#222; border:1px solid #444; color:#fff; padding:6px; border-radius:6px; font-size:12px;">
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                <div style="flex:1;"></div>
+                <button class="btn-xs" onclick="vnodeRunSeedanceRef('${node.id}')" style="background: linear-gradient(135deg, #f59e0b, #d97706); color:#000; font-weight:700; padding:8px 16px;">⚡ 生成</button>
+                <button class="btn-xs" onclick="vnodeClearResults('${node.id}')" style="background:#444; color:#fff;">🧹</button>
+            </div>
+            <div style="margin-top:8px; color:#aaa; font-size:12px;">状态：${escapeHtml(status)}</div>
+            <div style="margin-top:6px; max-height:280px; overflow:auto;">${rHtml || '<div class="empty-state-text">暂无结果</div>'}</div>
+        </div>
+        <div class="output-handle" onmousedown="startConnection(event, '${node.id}')" ontouchstart="startConnectionTouch(event, '${node.id}')" title="输出连接点"></div>
+        <div class="resize-handle" onmousedown="startNodeResize(event, '${node.id}')" title="拖拽调整大小"></div>
+    `;
+}
+
 function initVideoRefNodeUI(node) {
     const el = document.getElementById(`node-${node.id}`);
     if (!el) return;
@@ -21113,7 +21130,7 @@ window.vrSetClonePrompt = function (nodeId, text) {
 window.vrSetCloneModel = function (nodeId, model) {
     const node = flowNodes.find(n => n.id === nodeId);
     if (!node) return;
-    const m = __normalizeVideoModelName(String(model || 'sora-2'));
+    const m = __normalizeVideoModelName(String(model || 'veo3.1'));
     node.data.cloneModel = m;
     if (typeof node.data.cloneHD === 'undefined') node.data.cloneHD = true;
     node.data.cloneDuration = __getFixedClipDurationByModel(m, (typeof node.data.cloneHD === 'undefined') ? true : !!node.data.cloneHD);
@@ -21129,7 +21146,7 @@ window.vrSetCloneDuration = function (nodeId, dur) {
     const node = flowNodes.find(n => n.id === nodeId);
     if (!node) return;
     // ✅ 固定时长：忽略手动输入，按模型强制
-    const m = __normalizeVideoModelName(String(node.data.cloneModel || 'sora-2'));
+    const m = __normalizeVideoModelName(String(node.data.cloneModel || 'veo3.1'));
     const hd = (typeof node.data.cloneHD === 'undefined') ? true : !!node.data.cloneHD;
     node.data.cloneDuration = __getFixedClipDurationByModel(m, hd);
     saveIdeasToHistory();
@@ -21138,7 +21155,7 @@ window.vrSetCloneHD = function (nodeId, hd) {
     const node = flowNodes.find(n => n.id === nodeId);
     if (!node) return;
     node.data.cloneHD = !!hd;
-    const m = __normalizeVideoModelName(String(node.data.cloneModel || 'sora-2'));
+    const m = __normalizeVideoModelName(String(node.data.cloneModel || 'veo3.1'));
     node.data.cloneDuration = __getFixedClipDurationByModel(m, (typeof node.data.cloneHD === 'undefined') ? true : !!node.data.cloneHD);
     saveIdeasToHistory();
 };
@@ -21160,7 +21177,7 @@ window.vrRunClone = async function (nodeId) {
     const ref = node.data.videoRefOutput;
     const t = String(node.data.refType || '');
 
-    const model = __normalizeVideoModelName(String(node.data.cloneModel || 'sora-2'));
+    const model = __normalizeVideoModelName(String(node.data.cloneModel || 'veo3.1'));
     const aspectRatio = String(node.data.cloneAspectRatio || '16:9');
     const hd = (typeof node.data.cloneHD === 'undefined') ? true : !!node.data.cloneHD;
     const duration = __getFixedClipDurationByModel(model, hd);
@@ -21501,7 +21518,7 @@ async function _pollRemixResult(nodeId, resultIndex, remixIndex, newVideoId) {
 window.vnodeSetModel = function (nodeId, model) {
     const node = flowNodes.find(n => n.id === nodeId);
     if (!node) return;
-    const m = __normalizeVideoModelName(String(model || 'sora-2'));
+    const m = __normalizeVideoModelName(String(model || 'veo3.1'));
     node.data.model = m;
     // sora-2-pro：默认高清（15s）
     if (m === 'sora-2-pro') {
@@ -21522,7 +21539,7 @@ window.vnodeSetDuration = function (nodeId, dur) {
     const node = flowNodes.find(n => n.id === nodeId);
     if (!node) return;
     // ✅ 固定时长：忽略手动输入，按模型强制
-    const m = __normalizeVideoModelName(String(node.data.model || 'sora-2'));
+    const m = __normalizeVideoModelName(String(node.data.model || 'veo3.1'));
     const hd = (m === 'sora-2-pro') ? ((typeof node.data.hd === 'undefined') ? true : !!node.data.hd) : !!node.data.hd;
     node.data.duration = __getFixedClipDurationByModel(m, hd);
     saveIdeasToHistory();
@@ -21532,7 +21549,7 @@ window.vnodeSetHD = function (nodeId, hd) {
     if (!node) return;
     node.data.hd = !!hd;
     // ✅ 切换 HD 时同步固定时长（sora-2-pro: 15/25）
-    const m = __normalizeVideoModelName(String(node.data.model || 'sora-2'));
+    const m = __normalizeVideoModelName(String(node.data.model || 'veo3.1'));
     const hdf = (m === 'sora-2-pro') ? ((typeof node.data.hd === 'undefined') ? true : !!node.data.hd) : !!node.data.hd;
     node.data.duration = __getFixedClipDurationByModel(m, hdf);
     saveIdeasToHistory();
@@ -21592,28 +21609,60 @@ window.vnodeHandleImageUpload = function (nodeId, input) {
     reader.readAsDataURL(file);
 };
 
-window.vnodeRunT2V = async function (nodeId) {
+// 🌟 Seedance Ref 节点辅助函数
+window.vnodeSetSeedanceRefImageUrl = function (nodeId, index, url) {
+    const node = flowNodes.find(n => n.id === nodeId);
+    if (!node) return;
+    node.data['imageUrl' + index] = String(url || '').trim();
+    saveIdeasToHistory();
+};
+
+window.vnodeTriggerSeedanceRefUpload = function (nodeId, index) {
+    const el = document.getElementById(`vsr-upload-${nodeId}-${index}`);
+    if (el) el.click();
+};
+
+window.vnodeHandleSeedanceRefUpload = function (nodeId, index, input) {
+    const node = flowNodes.find(n => n.id === nodeId);
+    if (!node) return;
+    const file = input?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        node.data['imageDataUrl' + index] = String(reader.result || '');
+        node.data['imageFileName' + index] = file.name || 'upload';
+        saveIdeasToHistory();
+        renderCanvas();
+        input.value = '';
+    };
+    reader.onerror = () => {
+        alert('读取图片失败，请重试');
+        input.value = '';
+    };
+    reader.readAsDataURL(file);
+};
+
+window.vnodeRunSeedanceRef = async function (nodeId) {
     const node = flowNodes.find(n => n.id === nodeId);
     if (!node) return;
 
     // 🔧 立即更新按钮状态为"正在生成"
     const nodeEl = document.getElementById(`node-${nodeId}`);
-    const generateBtn = nodeEl?.querySelector('.btn-xs[onclick*="vnodeRunT2V"]');
+    const generateBtn = nodeEl?.querySelector('.btn-xs[onclick*="vnodeRunSeedanceRef"]');
     if (generateBtn) {
         generateBtn.disabled = true;
-        generateBtn.innerHTML = '⏳ 正在生成...';
+        generateBtn.innerHTML = '⏳ 生成中...';
         generateBtn.style.opacity = '0.7';
         generateBtn.style.cursor = 'wait';
     }
 
+    // 收集提示词
     const upstreamPrompts = _getVideoNodePromptList(nodeId);
     const localText = String(node.data.promptText || '').trim();
-    // ✅ 有上游用上游；没上游用本地输入
-    const prompts = (upstreamPrompts && upstreamPrompts.length > 0)
-        ? upstreamPrompts
-        : (localText ? localText.split('\n').map(s => s.trim()).filter(s => s.length > 0) : []);
-    if (!prompts || prompts.length === 0) {
-        // 恢复按钮状态
+    const prompt = (upstreamPrompts && upstreamPrompts.length > 0)
+        ? upstreamPrompts[0]
+        : localText;
+    if (!prompt) {
         if (generateBtn) {
             generateBtn.disabled = false;
             generateBtn.innerHTML = '⚡ 生成';
@@ -21623,60 +21672,113 @@ window.vnodeRunT2V = async function (nodeId) {
         return alert('请输入提示词（或连接上游提示词节点）');
     }
 
-    const ref = collectUpstreamVideoRef(nodeId, new Set());
-    // ✅ 固定时长兜底：无论UI输入多少，都按模型固定
-    const m = __normalizeVideoModelName(node.data.model || 'sora-2');
-    const hd = (m === 'sora-2-pro') ? ((typeof node.data.hd === 'undefined') ? true : !!node.data.hd) : !!node.data.hd;
-    const dur = __getFixedClipDurationByModel(m, hd);
-    node.data.model = m;
-    node.data.duration = dur;
-    const opts = {
-        model: m,
-        aspectRatio: node.data.aspectRatio || '16:9',
-        duration: dur,
-        hd: !!hd
-    };
-    if (ref?.type === 'pid' && ref.key_value) opts.key_value = ref.key_value;
-    if (ref?.type === 'url' && ref.video_url) opts.video_url = ref.video_url;
+    // 收集参考图：优先本地3张，其次上游节点
+    const upstreamImages = collectUpstreamRefImagesForNode(nodeId);
+    const localImg1 = node.data.imageDataUrl1 || node.data.imageUrl1 || '';
+    const localImg2 = node.data.imageDataUrl2 || node.data.imageUrl2 || '';
+    const localImg3 = node.data.imageDataUrl3 || node.data.imageUrl3 || '';
 
-    node.data.status = `正在生成 (${prompts.length}个)...`;
+    // 最多3张：优先本地，其次上游
+    let refImage1 = localImg1 || (upstreamImages[0] || '');
+    let refImage2 = localImg2 || (upstreamImages[1] || '');
+    let refImage3 = localImg3 || (upstreamImages[2] || '');
+
+    if (!refImage1 && !refImage2 && !refImage3) {
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '⚡ 生成';
+            generateBtn.style.opacity = '1';
+            generateBtn.style.cursor = 'pointer';
+        }
+        return alert('请提供参考图片（连接上游图片节点 或 在本节点上传/粘贴URL）');
+    }
+
+    const dur = Number(node.data.duration) || 5;
+    const ratio = node.data.aspectRatio || 'adaptive';
+    const resolution = ratio === '9:16' ? '720p' : (ratio === '1:1' ? '720p' : '720p');
+
+    node.data.status = '正在提交任务...';
     node.data.results = [];
     saveIdeasToHistory();
     renderCanvas();
 
-    const limit = 2;
-    const tasks = prompts.slice(0, 12).map((p, idx) => ({ p, idx }));
-    const settled = await (async () => {
-        const ret = [];
-        const executing = [];
-        for (const t of tasks) {
-            const pr = Promise.resolve().then(async () => {
-                try {
-                    const url = await callSora2TextToVideoAPI(t.p, opts);
-                    return { ok: true, idx: t.idx, prompt: t.p, url };
-                } catch (e) {
-                    return { ok: false, idx: t.idx, prompt: t.p, error: e?.message || String(e) };
-                }
-            });
-            ret.push(pr);
-            executing.push(pr);
-            const clean = () => {
-                const i = executing.indexOf(pr);
-                if (i >= 0) executing.splice(i, 1);
-            };
-            pr.then(clean).catch(clean);
-            if (executing.length >= limit) await Promise.race(executing);
-        }
-        return Promise.all(ret);
-    })();
+    try {
+        // 调用 Seedance Ref API
+        const result = await callSeedanceRefVideoAPI(prompt, {
+            refImage1,
+            refImage2,
+            refImage3,
+            duration: dur,
+            ratio,
+            resolution
+        });
 
-    node.data.results = settled.map(r => ({ index: r.idx, prompt: r.prompt, url: r.url || '', error: r.error || '' })).sort((a, b) => a.index - b.index);
-    node.data.status = '✅ 完成';
+        const taskId = result.task_id || result.id;
+        console.log(`🌟 [Seedance Ref] 任务已提交: ${taskId}`);
+
+        if (!taskId) {
+            throw new Error('未返回任务ID');
+        }
+
+        node.data.status = '正在生成视频...';
+        saveIdeasToHistory();
+        renderCanvas();
+
+        // 轮询获取结果（使用 yunwu poll 接口，_source=seedance）
+        const maxAttempts = 200; // 最多轮询200次（约10分钟）
+        for (let i = 0; i < maxAttempts; i++) {
+            await new Promise(r => setTimeout(r, 3000)); // 每3秒轮询
+
+            try {
+                const pollRes = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'poll',
+                        task_id: taskId,
+                        source: 'seedance',
+                        _source: 'seedance'
+                    })
+                });
+                const pollData = await pollRes.json().catch(() => ({}));
+
+                if (pollData.status === 'SUCCESS' || pollData.status === 'COMPLETED' || pollData.status === 'DONE') {
+                    const videoUrl = pollData.video_url || pollData.url || '';
+                    if (videoUrl) {
+                        node.data.results = [{ index: 0, prompt, url: videoUrl, error: '' }];
+                        node.data.status = '✅ 完成';
+                        saveIdeasToHistory();
+                        renderCanvas();
+                        return;
+                    }
+                }
+
+                if (pollData.status === 'FAILED' || pollData.status === 'FAILURE' || pollData.status === 'ERROR') {
+                    throw new Error(pollData.errorMessage || '生成失败');
+                }
+
+                // 更新状态
+                node.data.status = `生成中... (${Math.floor((i + 1) * 3 / 60)}分钟)`;
+                saveIdeasToHistory();
+                renderCanvas();
+            } catch (pollErr) {
+                console.warn(`[Seedance Ref] 轮询异常: ${pollErr.message}`);
+            }
+        }
+
+        // 超时
+        node.data.results = [{ index: 0, prompt, url: '', error: '生成超时（10分钟）' }];
+        node.data.status = '❌ 超时';
+
+    } catch (e) {
+        console.error('[Seedance Ref] 生成失败:', e);
+        node.data.results = [{ index: 0, prompt, url: '', error: e?.message || String(e) }];
+        node.data.status = '❌ 失败';
+    }
+
     node.data.lastRunAt = new Date().toISOString();
     saveIdeasToHistory();
     renderCanvas();
-
-    // 🔧 生成完成后按钮会随renderCanvas重新渲染，无需手动恢复
 };
 
 window.vnodeRunI2V = async function (nodeId) {
@@ -21713,7 +21815,7 @@ window.vnodeRunI2V = async function (nodeId) {
 
     const ref = collectUpstreamVideoRef(nodeId, new Set());
     // ✅ 固定时长兜底：无论UI输入多少，都按模型固定
-    const m = __normalizeVideoModelName(node.data.model || 'sora-2');
+    const m = __normalizeVideoModelName(node.data.model || 'veo3.1');
     const hd = (m === 'sora-2-pro') ? ((typeof node.data.hd === 'undefined') ? true : !!node.data.hd) : !!node.data.hd;
     const dur = __getFixedClipDurationByModel(m, hd);
     node.data.model = m;
@@ -24240,11 +24342,15 @@ function openMVGenerator() {
                 <div>
                     <label style="display:block; color:#a78bfa; font-size:13px; margin-bottom:6px;">🎬 视频模型</label>
                     <select id="mvVideoModel" onchange="updateMVCostEstimate()" style="width:100%; padding:12px; background:#0d0d1a; border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
-                        <option value="sora-2-vip-all">Sora-2 VIP 过渡 (8胶片/片段)</option>
-                        <!-- <option value="sora-2-all">Sora-2（已停用）</option> -->
-                        <!-- <option value="sora-2-pro-all">Sora-2 Pro（已停用）</option> -->
-                        <option value="veo3.1">Veo 3.1 (10胶片/片段)</option>
-                        <option value="grok-video-3">Grok Video 3 (6胶片/片段)</option>
+                        <!-- ❌ Sora-2 已停用 -->
+                        <!-- <option value="sora-2-vip-all">Sora-2 VIP 过渡 (8胶片/片段)</option> -->
+                        <option value="veo3.1">🎬 Veo 3.1 (有声/推荐 10胶片)</option>
+                        <option value="grok-video-3">Grok Video 3 (6胶片)</option>
+                        <option value="grok-video-3-text">Grok Video 3 文生 (6胶片)</option>
+                        <option value="vidu-q2-pro-5s-1080p">Vidu Q2 Pro 5s 1080P</option>
+                        <option value="kling-2.5-1080p-5s">可灵 2.5 5s 1080P</option>
+                        <option value="hailuo-fast-1080p-6s">海螺 Fast 6s 1080P</option>
+                        <option value="wan26-1080p-5s-audio">Wan2.6 5s 有声</option>
                     </select>
                 </div>
 
@@ -24557,102 +24663,59 @@ function calculateNewTaskPosition() {
  * @returns {{x: number, y: number}} 调整后的坐标
  */
 function findNonOverlappingPosition(baseX, baseY, nodeWidth = 400, nodeHeight = 500) {
-    const padding = 25; // 节点间距（适度紧凑）
-    const gridCols = 3; // 网格列数
+    const padding = 25;
     const cellWidth = nodeWidth + padding;
     const cellHeight = nodeHeight + padding;
-    const startX = 50; // 网格起始X
-    const startY = 50; // 网格起始Y
 
-    // 获取所有现有节点和任务卡片的位置
-    const existingRects = [];
-
-    // 添加流程节点
-    flowNodes.forEach(node => {
-        existingRects.push({
-            x: node.x,
-            y: node.y,
-            width: node.width || 400,
-            height: node.height || 500
-        });
+    var existingRects = [];
+    flowNodes.forEach(function (node) {
+        existingRects.push({ x: node.x, y: node.y, width: node.width || 400, height: node.height || 500 });
     });
-
-    // 添加任务卡片（🔧 修正：使用正确的任务卡片尺寸 950x600）
-    const taskCardWidth = 950;
-    const taskCardHeight = 600;
-    ideas.forEach(idea => {
+    var taskCardWidth = 950, taskCardHeight = 600;
+    ideas.forEach(function (idea) {
         if (idea.canvasX !== undefined && idea.canvasY !== undefined) {
-            existingRects.push({
-                x: idea.canvasX,
-                y: idea.canvasY,
-                width: taskCardWidth,
-                height: taskCardHeight
-            });
+            existingRects.push({ x: idea.canvasX, y: idea.canvasY, width: taskCardWidth, height: taskCardHeight });
         }
-        // 也检查x,y属性（任务卡片的另一种存储方式）
         if (idea.x !== undefined && idea.y !== undefined) {
-            existingRects.push({
-                x: idea.x,
-                y: idea.y,
-                width: taskCardWidth,
-                height: taskCardHeight
-            });
+            existingRects.push({ x: idea.x, y: idea.y, width: taskCardWidth, height: taskCardHeight });
         }
     });
 
-    // 检查是否重叠
     function isOverlapping(x, y) {
-        for (const rect of existingRects) {
-            const overlapX = x < rect.x + rect.width + padding && x + nodeWidth + padding > rect.x;
-            const overlapY = y < rect.y + rect.height + padding && y + nodeHeight + padding > rect.y;
-            if (overlapX && overlapY) return true;
+        for (var i = 0; i < existingRects.length; i++) {
+            var r = existingRects[i];
+            if (x < r.x + r.width + padding && x + nodeWidth + padding > r.x &&
+                y < r.y + r.height + padding && y + nodeHeight + padding > r.y) return true;
         }
         return false;
     }
 
-    // 如果基础位置不重叠，直接返回
-    if (!isOverlapping(baseX, baseY)) {
-        return { x: baseX, y: baseY };
+    if (!isOverlapping(baseX, baseY)) return { x: baseX, y: baseY };
+
+    var offsets = [
+        [cellWidth, 0], [-cellWidth, 0], [0, cellHeight], [0, -cellHeight],
+        [cellWidth, cellHeight], [cellWidth, -cellHeight], [-cellWidth, cellHeight], [-cellWidth, -cellHeight],
+        [cellWidth * 2, 0], [-cellWidth * 2, 0], [0, cellHeight * 2], [0, -cellHeight * 2],
+        [cellWidth * 2, cellHeight], [cellWidth * 2, -cellHeight], [-cellWidth * 2, cellHeight], [-cellWidth * 2, -cellHeight],
+        [cellWidth, cellHeight * 2], [-cellWidth, cellHeight * 2], [cellWidth, -cellHeight * 2], [-cellWidth, -cellHeight * 2]
+    ];
+    for (var j = 0; j < offsets.length; j++) {
+        var tx = baseX + offsets[j][0];
+        var ty = baseY + offsets[j][1];
+        if (tx > 10 && ty > 10 && !isOverlapping(tx, ty)) return { x: tx, y: ty };
     }
 
-    // 🎯 优先使用网格布局查找空位
-    const maxGridCells = 30; // 最多检查30个网格位置
-    for (let i = 0; i < maxGridCells; i++) {
-        const col = i % gridCols;
-        const row = Math.floor(i / gridCols);
-        const gridX = startX + col * cellWidth;
-        const gridY = startY + row * cellHeight;
-
-        if (!isOverlapping(gridX, gridY)) {
-            return { x: gridX, y: gridY };
-        }
+    var spiralStep = 50;
+    var angle = 0, radius = spiralStep;
+    for (var k = 0; k < 40; k++) {
+        var sx = baseX + radius * Math.cos(angle);
+        var sy = baseY + radius * Math.sin(angle);
+        if (!isOverlapping(sx, sy) && sx > 20 && sy > 20) return { x: sx, y: sy };
+        angle += Math.PI / 6;
+        if (angle >= Math.PI * 2) { angle = 0; radius += spiralStep; }
     }
 
-    // 🔄 网格满了，使用紧凑螺旋搜索（步长更小）
-    const spiralStep = 50; // 更小的步长，位置更紧凑
-    let angle = 0;
-    let radius = spiralStep;
-
-    for (let i = 0; i < 40; i++) {
-        const testX = baseX + radius * Math.cos(angle);
-        const testY = baseY + radius * Math.sin(angle);
-
-        if (!isOverlapping(testX, testY) && testX > 20 && testY > 20) {
-            return { x: testX, y: testY };
-        }
-
-        angle += Math.PI / 6; // 每次旋转30度（更密集搜索）
-        if (angle >= Math.PI * 2) {
-            angle = 0;
-            radius += spiralStep;
-        }
-    }
-
-    // 最后备选：在基础位置附近找个位置
-    return {
-        x: Math.max(50, baseX + padding),
-        y: Math.max(50, baseY + padding)
-    };
+    return { x: Math.max(50, baseX + padding), y: Math.max(50, baseY + padding) };
 }
 
 /**
@@ -29966,10 +30029,19 @@ function getBananaModelOptions(currentModel) {
     options.push(`<option value="nano-banana-2-4k" ${currentModel === 'nano-banana-2-4k' ? 'selected' : ''}>💎 Banana 4K 超清 (1.2胶片)</option>`);
 
     // 星梦画师（豆包） - 高质量文生图和图生图
-    options.push(`<option value="doubao-seedream-4-5-251128" ${currentModel === 'doubao-seedream-4-5-251128' ? 'selected' : ''}>✨ 星梦画师（文/图生图）</option>`);
+    options.push(`<option value="doubao-seedream-5-0-260128" ${currentModel === 'doubao-seedream-5-0-260128' ? 'selected' : ''}>🌟 星梦画师5.0 生图/改图 (7胶片)</option>`);
+    options.push(`<option value="doubao-seedream-4-5-251128" ${currentModel === 'doubao-seedream-4-5-251128' ? 'selected' : ''}>✨ 星梦画师4.5 (7胶片)</option>`);
+
+    // OpenRouter 免费 - Seedream 4.5
+    options.push(`<option value="openrouter:bytedance-seed/seedream-4.5" ${currentModel === 'openrouter:bytedance-seed/seedream-4.5' ? 'selected' : ''}>🆓 Seedream 4.5 (免费)</option>`);
 
     // 即梦4.5 - 高质量图像生成
     options.push(`<option value="jimeng-4.5" ${currentModel === 'jimeng-4.5' ? 'selected' : ''}>🎨 即梦4.5（文/图生图 0.6胶片）</option>`);
+
+    // Gemini Flash 系列
+    options.push(`<option value="gemini-3.1-flash-image-preview" ${currentModel === 'gemini-3.1-flash-image-preview' ? 'selected' : ''}>⚡ Gemini Flash (4胶片)</option>`);
+    options.push(`<option value="gemini-3.1-flash-image-preview-2k" ${currentModel === 'gemini-3.1-flash-image-preview-2k' ? 'selected' : ''}>⚡ Gemini Flash 2K (4胶片)</option>`);
+    options.push(`<option value="gemini-3.1-flash-image-preview-4k" ${currentModel === 'gemini-3.1-flash-image-preview-4k' ? 'selected' : ''}>💎 Gemini Flash 4K (7胶片)</option>`);
 
     // 通义万相Max - 阿里云高质量图像生成
     options.push(`<option value="Qwen/Qwen-Image-2512" ${currentModel === 'Qwen/Qwen-Image-2512' ? 'selected' : ''}>🎭 通义万相Max (8胶片)</option>`);
@@ -30032,11 +30104,20 @@ function getStickerEngineOptions(currentBackend) {
     // Banana 4K - 所有用户可用，消耗体验胶片 (1.2胶片)
     options.push(`<option value="nano-banana-2-4k" ${currentBackend === 'nano-banana-2-4k' ? 'selected' : ''}>💎 Banana 4K 超清 (1.2胶片)</option>`);
 
-    // 星梦画师（豆包） - 高质量文生图和图生图 (0.7胶片)
-    options.push(`<option value="doubao-seedream-4-5-251128" ${currentBackend === 'doubao-seedream-4-5-251128' ? 'selected' : ''}>✨ 星梦画师 (0.7胶片)</option>`);
+    // 星梦画师（豆包） - 高质量文生图和图生图
+    options.push(`<option value="doubao-seedream-5-0-260128" ${currentBackend === 'doubao-seedream-5-0-260128' ? 'selected' : ''}>🌟 星梦画师5.0 (7胶片)</option>`);
+    options.push(`<option value="doubao-seedream-4-5-251128" ${currentBackend === 'doubao-seedream-4-5-251128' ? 'selected' : ''}>✨ 星梦画师4.5 (7胶片)</option>`);
+
+    // OpenRouter 免费 - Seedream 4.5
+    options.push(`<option value="openrouter:bytedance-seed/seedream-4.5" ${currentBackend === 'openrouter:bytedance-seed/seedream-4.5' ? 'selected' : ''}>🆓 Seedream 4.5 (免费)</option>`);
 
     // 即梦4.5 - 高质量图像生成 (0.6胶片)
     options.push(`<option value="jimeng-4.5" ${currentBackend === 'jimeng-4.5' ? 'selected' : ''}>🎨 即梦4.5 (0.6胶片)</option>`);
+
+    // Gemini Flash 系列
+    options.push(`<option value="gemini-3.1-flash-image-preview" ${currentBackend === 'gemini-3.1-flash-image-preview' ? 'selected' : ''}>⚡ Gemini Flash (4胶片)</option>`);
+    options.push(`<option value="gemini-3.1-flash-image-preview-2k" ${currentBackend === 'gemini-3.1-flash-image-preview-2k' ? 'selected' : ''}>⚡ Gemini Flash 2K (4胶片)</option>`);
+    options.push(`<option value="gemini-3.1-flash-image-preview-4k" ${currentBackend === 'gemini-3.1-flash-image-preview-4k' ? 'selected' : ''}>💎 Gemini Flash 4K (7胶片)</option>`);
 
     return options.join('');
 }
@@ -31831,7 +31912,7 @@ CRITICAL REQUIREMENTS:
         }
         btn.innerText = '生成中...';
 
-        let _m = 'sora-2';
+        let _m = 'veo3.1'; // Sora2已停用
         let _hd = true;
         let _dur = __getFixedClipDurationByModel(_m, _hd);
 
@@ -32288,7 +32369,7 @@ async function generateNormalStoryboardsForIdea(idea, reason = 'primary') {
         // 🔧 反重复兜底：按“剧情锚点”补齐，避免用上一镜做参考导致台词/场景重复
         try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
         const s = idea?.settings || {};
-        const cd = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea.videoModel || 'sora-2'), __getVideoHdFlag(s));
+        const cd = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(s.videoModel || idea.videoModel || 'veo3.1'), __getVideoHdFlag(s));
         const anchors = buildSceneAnchors(idea.generatedScript || sbText || idea.theme || '', target);
         while (normalStoryboards.length < target) {
             const idx = normalStoryboards.length + 1;
@@ -32721,7 +32802,7 @@ async function retryVideo(id, idx) {
     const { errorDetail, refundReason } = result || {};
     try { __applyFixedVideoTimingToIdea(idea); } catch (e) { }
     const s = idea?.settings || {};
-    const _vm = s.videoModel || idea.videoModel || 'sora-2';
+    const _vm = s.videoModel || idea.videoModel || 'veo3.1';
     const _vh = __getVideoHdFlag(s);
     const clipDur = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(_vm), _vh);
     const filmCost = __estimateSoraVideoFilmCost(_vm, clipDur, _vh);
@@ -34121,8 +34202,8 @@ CRITICAL REQUIREMENTS:
         console.log('💬 角色台词:', characterLine);
         console.log('📷 使用图片:', finalImageUrl);
 
-        let _m = __normalizeVideoModelName(idea?.settings?.videoModel || idea?.videoModel || 'sora-2');
-        if (!__isSora2Family(_m)) _m = 'sora-2';
+        let _m = __normalizeVideoModelName(idea?.settings?.videoModel || idea?.videoModel || 'veo3.1');
+        if (!__isSora2Family(_m)) _m = 'veo3.1'; // Sora2已停用，回退到Veo3.1
         let _hd = (_m === 'sora-2-pro') ? ((typeof idea?.settings?.videoHD === 'undefined') ? true : !!idea.settings.videoHD) : false;
         let _dur = __getFixedClipDurationByModel(_m, _hd);
         const result = await callSora2ImageToVideoAPI(finalImageUrl, prompt, { model: _m, hd: _hd, duration: _dur, aspectRatio: '9:16' });
@@ -34185,7 +34266,7 @@ CRITICAL REQUIREMENTS:
 
         // 🔧 退还配额（动效视频15秒）
         const s = idea?.settings || {};
-        const _vm = s.videoModel || idea.videoModel || 'sora-2';
+        const _vm = s.videoModel || idea.videoModel || 'veo3.1';
         const _vh = __getVideoHdFlag(s);
         const clipDur = s.clipDuration || idea.clipDuration || idea.duration || __getFixedClipDurationByModel(__normalizeVideoModelName(_vm), _vh);
         const filmCost = __estimateSoraVideoFilmCost(_vm, clipDur, _vh) || (QUOTA_COSTS.video_sora2_15s || 2);
@@ -35842,7 +35923,6 @@ async function checkWelcomeScreen() {
     const isLoggedInRedirect = urlParams.has('logged_in') || urlParams.has('skip_welcome');
 
     if (isLoggedInRedirect) {
-        // 清理 URL 参数
         try {
             const cleanUrl = window.location.pathname;
             history.replaceState({}, '', cleanUrl);
@@ -35851,7 +35931,6 @@ async function checkWelcomeScreen() {
         if (welcomeScreen) welcomeScreen.style.display = 'none';
         console.log('🏠 跳过欢迎页（从登录页/功能页返回）');
 
-        // 🔄 后台同步数据
         try {
             if (typeof NVAuth !== 'undefined' && NVAuth && typeof NVAuth.getCurrentUser === 'function') {
                 (async () => {
@@ -35873,39 +35952,23 @@ async function checkWelcomeScreen() {
         return false;
     }
 
-    // 2. 🔧 检查用户是否已登录 - 已登录用户直接跳过欢迎页
+    // 2. 🔧 检查用户是否已登录 - 页面刷新时必须重新登录
     try {
-        if (typeof NVAuth !== 'undefined' && NVAuth && typeof NVAuth.getCurrentUser === 'function') {
+        const navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+        const isReload = (navEntry && navEntry.type === 'reload') || (performance.navigation && performance.navigation.type === 1);
+
+        if (isReload) {
+            console.log('🏠 页面刷新，需要重新登录');
+        } else if (typeof NVAuth !== 'undefined' && NVAuth && typeof NVAuth.getCurrentUser === 'function') {
             let user = null;
-            // 轮询等待 session 就绪（最多等待1.5秒）
             for (let i = 0; i < 5; i++) {
-                try {
-                    user = await NVAuth.getCurrentUser();
-                    if (user) break;
-                } catch (e) { }
+                try { user = await NVAuth.getCurrentUser(); if (user) break; } catch (e) { }
                 try { await sleep(300); } catch (e) { }
             }
 
             if (user) {
-                // 已登录用户，跳过欢迎页
-                console.log('🏠 已登录用户，跳过欢迎页，直接进入工作区');
+                console.log('🏠 已登录用户，跳过欢迎页');
                 if (welcomeScreen) welcomeScreen.style.display = 'none';
-
-                // 🔄 后台同步数据
-                (async () => {
-                    try {
-                        console.log('🔄 [已登录刷新] 开始同步云端数据...');
-                        if (typeof syncDataFromCloud === 'function') {
-                            await syncDataFromCloud();
-                        } else if (typeof refreshFilmBalanceFromCloud === 'function') {
-                            await refreshFilmBalanceFromCloud(true);
-                        }
-                        console.log('✅ [已登录刷新] 数据同步完成');
-                    } catch (e) {
-                        console.warn('⚠️ [已登录刷新] 同步失败:', e?.message);
-                    }
-                })();
-
                 return false;
             }
         }
@@ -35913,8 +35976,8 @@ async function checkWelcomeScreen() {
         console.warn('🏠 检查登录状态失败:', e?.message);
     }
 
-    // 3. 未登录用户，显示欢迎页
-    console.log('🏠 未登录用户，显示欢迎页');
+    // 3. 显示欢迎页
+    console.log('🏠 显示欢迎页');
     if (welcomeScreen) {
         try {
             welcomeScreen.style.display = 'flex';
@@ -38760,13 +38823,58 @@ window.oneSentenceVideo = async function (options = {}) {
         if (!val) return alert('请输入创意内容');
 
         // 创建任务（强制全自动 & 不走 quickAddIdea 默认的“延迟 toggle 选中”）
-        const task = await window.quickAddIdea?.({
+        var task = await window.quickAddIdea?.({
             returnIdea: true,
             selectIdea: false,
             clearInput: true,
             automationLevelOverride: 'full-auto'
         });
-        if (!task) return;
+
+        // 🔧 兜底：如果 quickAddIdea 因 parseSmartPrompt 误判（图片/多图）返回空，
+        //    直接手动创建视频任务，避免出现"画板节点"而非"视频任务"
+        if (!task) {
+            console.warn('⚠️ [视频] quickAddIdea 返回空（可能被 parseSmartPrompt 误判为图片），强制创建视频任务');
+            const input2 = document.getElementById('quickIdeaInput');
+            const val2 = input2?.value?.trim() || val;
+            if (val2) { try { input2.value = ''; } catch(e){} }
+
+            var mode = document.getElementById('quickGenMode')?.value || 'sora-2-vip-all';
+            var vModel = 'veo3.1'; // Sora2已停用，默认Veo3.1
+            if (mode === 'veo3.1' || mode === 'veo3.1-pro') vModel = 'veo3.1';
+            if (mode.indexOf('grok-video-3') === 0) vModel = mode.replace('-text', '');
+            vModel = typeof __normalizeVideoModelName === 'function' ? __normalizeVideoModelName(vModel) : vModel;
+            var clipDur = typeof __getFixedClipDurationByModel === 'function' ? __getFixedClipDurationByModel(vModel, undefined) : 5;
+
+            var uniqueId = Date.now() + Math.floor(Math.random() * 10000);
+            task = {
+                id: uniqueId,
+                theme: val2,
+                type: mode === 'video-continuity' ? 'continuity' : 'video',
+                status: 'pending',
+                automationLevel: 'full-auto',
+                progress: 0, logs: [], stepLogs: [],
+                videoResults: [], characterSheets: [], characterDescriptions: [],
+                generatedScript: null, normalStoryboards: [], generatedVideoPrompts: [],
+                generationMode: mode, videoModel: vModel,
+                clipDuration: clipDur, duration: clipDur,
+                totalDuration: clipDur * 3, scenes: 3,
+                selected: false, forceRestart: true
+            };
+            task.settings = {
+                automationLevel: 'full-auto', videoModel: vModel,
+                clipDuration: clipDur, sceneCount: 3, totalDuration: task.totalDuration,
+                generationMode: mode, allowTimeTravel: false,
+                enableCharSheet: typeof loadSettings === 'function' ? loadSettings().characterSheetEnabled !== false : true
+            };
+            if (typeof __applyFixedVideoTimingToIdea === 'function') { try { __applyFixedVideoTimingToIdea(task); } catch(e){} }
+            var pos = typeof calculateNewTaskPosition === 'function' ? calculateNewTaskPosition() : { x: 80, y: 80 };
+            task.x = pos.x; task.y = pos.y;
+            ideas.push(task);
+            saveIdeasToHistory();
+            renderIdeasList();
+            renderCanvas();
+            console.log('✅ [视频] 兜底创建视频任务:', task.theme);
+        }
 
         // 📷 注入左侧面板上传的参考图（🆕 支持多图合并）
         if (window._videoRefImageList && window._videoRefImageList.length > 1) {
@@ -43706,6 +43814,9 @@ window.openComicSettings = function (ideaId) {
                     <option value="qwen" ${currentImageModel === 'qwen' ? 'selected' : ''}>🎭 通义万象Max (8胶片)</option>
                     <option value="seedream5" ${currentImageModel === 'seedream5' ? 'selected' : ''}>⭐ 星梦画师5.0 生图/改图 (7胶片)</option>
                     <option value="seedream" ${currentImageModel === 'seedream' ? 'selected' : ''}>✨ 星梦画师4.5 (7胶片)</option>
+                    <optgroup label="🆓 OpenRouter 免费">
+                        <option value="openrouter:bytedance-seed/seedream-4.5" ${currentImageModel === 'openrouter:bytedance-seed/seedream-4.5' ? 'selected' : ''}>🆓 Seedream 4.5</option>
+                    </optgroup>
                     <option value="gemini-flash" ${currentImageModel === 'gemini-flash' ? 'selected' : ''}>⚡ Gemini Flash (4胶片)</option>
                     <option value="gemini-flash-2k" ${currentImageModel === 'gemini-flash-2k' ? 'selected' : ''}>⚡ Gemini Flash 2K (4胶片)</option>
                     <option value="gemini-flash-4k" ${currentImageModel === 'gemini-flash-4k' ? 'selected' : ''}>💎 Gemini Flash 4K (7胶片)</option>

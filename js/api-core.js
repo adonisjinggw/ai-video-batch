@@ -193,6 +193,7 @@
         if (ml === 'grok3' || ml === 'grok-video-3' || ml === 'grok-video-3-text' || ml === 'grok-video-3-hd') return 'grok-video-3';
         if (ml.startsWith('vidu-') || ml.startsWith('hailuo-') || ml.startsWith('kling-')) return m;
         if (ml.startsWith('wan26-')) return m;
+        if (ml.startsWith('seedance-')) return m; // 🌟 Seedance 模型保持原值
         return m;
     }
 
@@ -218,6 +219,9 @@
         if (String(m).startsWith('wan26-')) {
             const durationMatch = String(m).match(/-(\d+)s/i);
             return durationMatch ? parseInt(durationMatch[1]) : 5;
+        }
+        if (String(m).startsWith('seedance-')) {
+            return 5; // 🌟 Seedance 默认5秒
         }
         if (String(m).startsWith('sora-2')) return 10;
         return 15;
@@ -619,7 +623,10 @@
             skip_billing: _billingSessionCount > 0 || undefined
         };
         if (refImagesArr && Array.isArray(refImagesArr) && refImagesArr.length > 0) {
-            body.image_urls = refImagesArr;
+            // 过滤 data URI 和超长 URL，防止 413
+            body.image_urls = refImagesArr.filter(function (u) {
+                return u && typeof u === 'string' && !u.startsWith('data:') && u.length <= 2000;
+            }).slice(0, 4);
         } else if (refImageUrl) {
             body.image_url = refImageUrl;
         }
@@ -963,7 +970,31 @@
             throw new Error('Veo未返回视频URL或task_id');
         }
 
-        // �🌊 Wan2.6 文生视频（专用 alibailian API）
+        // 🌟 Seedance 2.0 文生视频
+        if (_m && _m === 'seedance-t2v') {
+            console.log(`🌟 [Seedance T2V] 使用 yunwu API, model=${_m}`);
+            const res = await _videoFetchWithRetry('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'seedance-t2v',
+                    prompt,
+                    aspect_ratio: aspectRatio,
+                    duration: parseInt(_dur) || 5,
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Seedance失败: ${res.status}`);
+            if (data.url || data.video_url) return data.url || data.video_url;
+            if (data.task_id || data.id) {
+                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint });
+            }
+            throw new Error('Seedance未返回视频URL或task_id');
+        }
+
+        // 🌊 Wan2.6 文生视频（专用 alibailian API）
         if (__isWan26Model(_m)) {
             const wan26Params = __parseWan26Model(_m);
             const realReferenceImage = input_reference || undefined;
@@ -1024,6 +1055,48 @@
                 return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint });
             }
             throw new Error('未返回视频URL或task_id');
+        }
+
+        // 🌟 Seedance 2.0 模型
+        if (_m && String(_m).startsWith('seedance-')) {
+            const seedanceModel = String(_m);
+            let actionName = 'seedance-t2v';
+            let bodyExtra = {};
+            if (seedanceModel === 'seedance-i2v' || seedanceModel === 'seedance-ref') {
+                // 图生视频/全能参考视频，需要 input_reference
+                if (!input_reference) {
+                    throw new Error('Seedance 图生视频/全能参考视频需要上传参考图');
+                }
+                actionName = seedanceModel;
+                if (seedanceModel === 'seedance-i2v') {
+                    bodyExtra = { firstFrameImage: input_reference };
+                } else if (seedanceModel === 'seedance-ref') {
+                    // 全能参考视频：最多3张，但PC批次只传1张参考图
+                    bodyExtra = { refImage1: input_reference };
+                }
+            }
+            console.log(`🌟 [Seedance ${seedanceModel}] 使用 yunwu API`);
+            const res = await _videoFetchWithRetry('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: actionName,
+                    prompt,
+                    duration: parseInt(_dur) || 5,
+                    ratio: String(aspectRatio).replace(':', '/'),
+                    resolution: '720p',
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined,
+                    ...bodyExtra
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Seedance失败: ${res.status}`);
+            if (data.error === 'LEVEL_REQUIRED') throw new Error('Seedance 2.0 仅对 LV10+ 用户开放');
+            if (!data.success && !data.task_id) throw new Error(data.message || data.error || 'Seedance提交失败');
+            const taskId = data.task_id || data.id;
+            console.log(`🌟 [Seedance ${seedanceModel}] 任务已提交: ${taskId}`);
+            return await pollSora2Task(taskId, { _source: 'seedance', _endpoint: 'runninghub' });
         }
 
         // 默认 Sora2
@@ -1181,6 +1254,32 @@
             if (data.url || data.video_url) return data.url || data.video_url;
             if (data.task_id || data.id) {
                 return await pollVodTask(data.task_id || data.id);
+            }
+            throw new Error('未返回视频URL或task_id');
+        }
+
+        // 🌟 Seedance 2.0 图生视频 / 全能参考视频
+        if (_m && String(_m).startsWith('seedance')) {
+            const isRef = _m === 'seedance-ref';
+            console.log(`🌟 [Seedance I2V] 使用 yunwu API, model=${_m}, isRef=${isRef}`);
+            const res = await _videoFetchWithRetry('/api/yunwu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: isRef ? 'seedance-ref' : 'seedance-i2v',
+                    prompt: enhancedPrompt,
+                    image_url: imageUrl,
+                    aspect_ratio: aspectRatio,
+                    duration: parseInt(_dur) || 5,
+                    userId,
+                    skip_billing: _billingSessionCount > 0 || undefined
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Seedance失败: ${res.status}`);
+            if (data.url || data.video_url) return data.url || data.video_url;
+            if (data.task_id || data.id) {
+                return await pollSora2Task(data.task_id || data.id, { _source: data._source || 'yunwu', _endpoint: data._endpoint });
             }
             throw new Error('未返回视频URL或task_id');
         }
@@ -2233,6 +2332,136 @@ Example of a good LTX prompt:
         throw new Error('混元3D生成超时（5分钟）');
     }
 
+    // ==================== 🌟 Seedance 2.0 视频生成 ====================
+
+    /**
+     * 🌟 Seedance 2.0 文生视频
+     * @param {string} prompt - 提示词
+     * @param {object} options - { duration, ratio, resolution, skipBilling }
+     * @returns {Promise<{taskId, id, billed}>}
+     */
+    async function callSeedanceTextToVideoAPI(prompt, options = {}) {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('请先登录');
+
+        const { duration = 5, ratio = 'adaptive', resolution = '720p', skipBilling: skip } = options;
+
+        const res = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'seedance-t2v',
+                prompt,
+                duration,
+                ratio,
+                resolution,
+                userId,
+                skip_billing: _billingSessionCount > 0 || skip
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            if (data.error === 'LEVEL_REQUIRED') throw new Error('Seedance 2.0 仅对 LV10+ 用户开放');
+            throw new Error(data.message || data.error || 'Seedance 2.0 文生视频提交失败');
+        }
+        console.log(`🌟 [Seedance2.0 T2V] 任务已提交: ${data.task_id}`);
+        return data;
+    }
+
+    /**
+     * 🌟 Seedance 2.0 图生视频
+     * @param {string} prompt - 提示词
+     * @param {string} firstFrameImage - 首帧图片（base64 data URI 或 COS URL）
+     * @param {object} options - { lastFrameImage, duration, ratio, resolution, realPersonMode }
+     * @returns {Promise<{taskId, id, billed}>}
+     */
+    async function callSeedanceImageToVideoAPI(prompt, firstFrameImage, options = {}) {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('请先登录');
+
+        const {
+            lastFrameImage = '',
+            duration = 5,
+            ratio = '16:9',
+            resolution = '720p',
+            realPersonMode = false,
+            skipBilling: skip
+        } = options;
+
+        const res = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'seedance-i2v',
+                prompt,
+                firstFrameImage,
+                lastFrameImage,
+                duration,
+                ratio,
+                resolution,
+                realPersonMode,
+                userId,
+                skip_billing: _billingSessionCount > 0 || skip
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            if (data.error === 'LEVEL_REQUIRED') throw new Error('Seedance 2.0 仅对 LV10+ 用户开放');
+            throw new Error(data.message || data.error || 'Seedance 2.0 图生视频提交失败');
+        }
+        console.log(`🌟 [Seedance2.0 I2V] 任务已提交: ${data.task_id}`);
+        return data;
+    }
+
+    /**
+     * 🌟 Seedance 2.0 全能参考视频
+     * @param {string} prompt - 提示词
+     * @param {object} options - { refImage1, refImage2, refImage3, videoFile, audioFile, duration, ratio, resolution }
+     * @returns {Promise<{taskId, id, billed}>}
+     */
+    async function callSeedanceRefVideoAPI(prompt, options = {}) {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('请先登录');
+
+        const {
+            refImage1 = '',
+            refImage2 = '',
+            refImage3 = '',
+            videoFile = '',
+            audioFile = '',
+            duration = 5,
+            ratio = 'adaptive',
+            resolution = '720p',
+            skipBilling: skip
+        } = options;
+
+        const res = await fetch('/api/yunwu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'seedance-ref',
+                prompt,
+                refImage1,
+                refImage2,
+                refImage3,
+                videoFile,
+                audioFile,
+                duration,
+                ratio,
+                resolution,
+                userId,
+                skip_billing: _billingSessionCount > 0 || skip
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            if (data.error === 'LEVEL_REQUIRED') throw new Error('Seedance 2.0 仅对 LV10+ 用户开放');
+            throw new Error(data.message || data.error || 'Seedance 2.0 全能参考视频提交失败');
+        }
+        console.log(`🌟 [Seedance2.0 Ref] 任务已提交: ${data.task_id}`);
+        return data;
+    }
+
     // ==================== 📤 导出到全局 ====================
 
     // 核心 API 函数
@@ -2260,6 +2489,11 @@ Example of a good LTX prompt:
     global.callRunningHubQuery = callRunningHubQuery;
     global.callRunningHubUpload = callRunningHubUpload;
     global.callRunningHubWorkflow = callRunningHubWorkflow;
+
+    // 🌟 Seedance 2.0 视频
+    global.callSeedanceTextToVideoAPI = callSeedanceTextToVideoAPI;
+    global.callSeedanceImageToVideoAPI = callSeedanceImageToVideoAPI;
+    global.callSeedanceRefVideoAPI = callSeedanceRefVideoAPI;
     global.enhanceLTXPrompt = enhanceLTXPrompt;
 
     // 🎤 音频/音乐 API

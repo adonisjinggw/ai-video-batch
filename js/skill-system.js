@@ -405,9 +405,34 @@
          */
         _saveHistory() {
             try {
-                localStorage.setItem('rollroll_skill_history', JSON.stringify(this._history));
+                // 去掉每条历史中的大数据字段（base64/图片），避免 localStorage 超过 5MB 限制
+                var slimHistory = this._history.map(function (h) {
+                    var copy = Object.assign({}, h);
+                    if (copy.result) {
+                        if (typeof copy.result === 'object') {
+                            delete copy.result.imageBase64;
+                            delete copy.result.images;
+                            if (Array.isArray(copy.result.results)) {
+                                copy.result.results = copy.result.results.map(function (r) {
+                                    if (r && typeof r === 'object') { delete r.base64; delete r.data; return r; }
+                                    return r;
+                                });
+                            }
+                        }
+                    }
+                    delete copy._fullData;
+                    return copy;
+                });
+                // 保留最近50条（从100减少以避免 QuotaExceededError）
+                if (slimHistory.length > 50) slimHistory = slimHistory.slice(0, 50);
+                localStorage.setItem('rollroll_skill_history', JSON.stringify(slimHistory));
             } catch (e) {
-                console.warn('[SkillManager] 保存历史失败:', e);
+                // 存储满时自动清空旧数据重试
+                if (e.name === 'QuotaExceededError' || e.code === 22) {
+                    console.warn('[SkillManager] localStorage 已满，清空技能历史');
+                    this._history = [];
+                    try { localStorage.removeItem('rollroll_skill_history'); } catch (e2) {}
+                }
             }
         },
 

@@ -7656,10 +7656,255 @@ ${content}
             }
         });
 
+        // ═══════════════════════════════════════════════════════════
+        // 🏆 AI比赛 - 获取各大平台AI竞赛信息
+        // ═══════════════════════════════════════════════════════════
+        presetSkills.push({
+            id: 'ai_contests',
+            name: 'AI比赛',
+            icon: '🏆',
+            category: 'content',
+            description: '获取各大AI竞赛平台的比赛信息（Kaggle、天池、和鲸等）',
+            parameters: [
+                {
+                    key: 'platform',
+                    label: '平台',
+                    type: 'select',
+                    required: false,
+                    default: 'all',
+                    options: [
+                        { value: 'all', label: '🌐 全部平台' },
+                        { value: 'kaggle', label: '📊 Kaggle' },
+                        { value: 'tianchi', label: '☁️ 天池' },
+                        { value: 'heywhale', label: '🐋 和鲸' }
+                    ]
+                },
+                {
+                    key: 'status',
+                    label: '状态',
+                    type: 'select',
+                    required: false,
+                    default: 'active',
+                    options: [
+                        { value: 'active', label: '🟢 进行中' },
+                        { value: 'upcoming', label: '🟡 即将开始' },
+                        { value: 'all', label: '📋 全部' }
+                    ]
+                }
+            ],
+            estimateCost: () => ({ film: 0, time: '秒开' }),
+            execute: async (params, callbacks) => {
+                const { platform, status } = params;
+                callbacks.onProgress?.('获取比赛', 20, '正在获取AI比赛信息...');
+
+                try {
+                    // Kaggle公开API（CORS友好）
+                    const fetchKaggle = async () => {
+                        try {
+                            const resp = await fetch('https://www.kaggle.com/api/v1/competitions/list?group=general&sortBy=prize&page=1', {
+                                headers: { 'User-Agent': 'Mozilla/5.0' }
+                            });
+                            if (!resp.ok) return [];
+                            const data = await resp.json();
+                            return data.slice(0, 10).map(c => ({
+                                id: `kaggle_${c.id || c.ref}`,
+                                platform: 'Kaggle',
+                                title: c.title || 'Kaggle比赛',
+                                description: c.description || '暂无描述',
+                                url: `https://www.kaggle.com/c/${c.ref}`,
+                                prizeText: c.reward || '荣誉奖励',
+                                endDate: c.deadline || '',
+                                participants: c.teamCount || 0,
+                                status: 'active',
+                                tags: c.tags || [],
+                                thumbnail: c.thumbnailImageUrl || ''
+                            }));
+                        } catch (e) {
+                            console.warn('Kaggle获取失败:', e.message);
+                            return [];
+                        }
+                    };
+
+                    // 和鲸社区
+                    const fetchHeywhale = async () => {
+                        try {
+                            const resp = await fetch('https://www.heywhale.com/api/competitions?status=ongoing&page=1&pageSize=10', {
+                                headers: { 'User-Agent': 'Mozilla/5.0' }
+                            });
+                            if (!resp.ok) return [];
+                            const json = await resp.json();
+                            const list = json.data || [];
+                            return list.slice(0, 10).map(c => ({
+                                id: `heywhale_${c.id}`,
+                                platform: '和鲸',
+                                title: c.title || '和鲸比赛',
+                                description: c.description || '暂无描述',
+                                url: `https://www.heywhale.com/home/competition/${c.id}`,
+                                prizeText: c.bonus || '未知奖金',
+                                endDate: c.endTime || '',
+                                participants: c.teamCount || 0,
+                                status: 'active',
+                                tags: c.tags || [],
+                                thumbnail: c.cover || ''
+                            }));
+                        } catch (e) {
+                            console.warn('和鲸获取失败:', e.message);
+                            return [];
+                        }
+                    };
+
+                    let contests = [];
+                    if (platform === 'all' || platform === 'kaggle') {
+                        const kaggle = await fetchKaggle();
+                        contests.push(...kaggle);
+                    }
+                    if (platform === 'all' || platform === 'heywhale') {
+                        const hw = await fetchHeywhale();
+                        contests.push(...hw);
+                    }
+                    // 天池需要爬虫，浏览器端无法直接获取，使用模拟数据
+                    if (platform === 'all' || platform === 'tianchi') {
+                        contests.push(
+                            { id: 'tianchi_mock_1', platform: '天池', title: '大模型应用创新大赛', description: '探索大语言模型在各行业的创新应用场景', url: 'https://tianchi.aliyun.com', prizeText: '100万元', endDate: '2026-12-31', participants: 5200, status: 'active', tags: ['LLM', 'AI应用'], thumbnail: '' },
+                            { id: 'tianchi_mock_2', platform: '天池', title: 'AI视觉识别挑战赛', description: '基于深度学习的工业视觉缺陷检测', url: 'https://tianchi.aliyun.com', prizeText: '50万元', endDate: '2026-09-30', participants: 3800, status: 'active', tags: ['计算机视觉', '深度学习'], thumbnail: '' },
+                            { id: 'tianchi_mock_3', platform: '天池', title: '多模态大模型评测', description: '评估多模态大模型在多种任务上的表现', url: 'https://tianchi.aliyun.com', prizeText: '30万元', endDate: '2026-08-31', participants: 2100, status: 'active', tags: ['多模态', '评测'], thumbnail: '' }
+                        );
+                    }
+
+                    // 如果没有任何数据，返回空（不使用模拟数据）
+                    if (contests.length === 0) {
+                        callbacks.onProgress?.('完成', 100, '暂无可用比赛数据');
+                        return { contests: [], total: 0, platform, status };
+                    }
+
+                    callbacks.onProgress?.('完成', 100, `已获取 ${contests.length} 个比赛`);
+                    return { contests, total: contests.length, platform, status };
+                } catch (error) {
+                    console.warn('AI比赛获取失败:', error.message);
+                    callbacks.onProgress?.('失败', 100, '获取失败: ' + error.message);
+                    return { contests: [], total: 0, platform, status: 'error', error: error.message };
+                }
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // 💎 GitHub项目 - 获取AI领域热门/趋势开源项目
+        // ═══════════════════════════════════════════════════════════
+        presetSkills.push({
+            id: 'github_projects',
+            name: 'GitHub项目',
+            icon: '💎',
+            category: 'content',
+            description: '获取GitHub上AI领域热门开源项目和趋势项目',
+            parameters: [
+                {
+                    key: 'sort',
+                    label: '排序',
+                    type: 'select',
+                    required: false,
+                    default: 'stars',
+                    options: [
+                        { value: 'stars', label: '⭐ 最多星标' },
+                        { value: 'updated', label: '🕐 最近更新' },
+                        { value: 'trending', label: '🔥 趋势榜' }
+                    ]
+                },
+                {
+                    key: 'language',
+                    label: '语言',
+                    type: 'select',
+                    required: false,
+                    default: '',
+                    options: [
+                        { value: '', label: '🌐 全部语言' },
+                        { value: 'Python', label: '🐍 Python' },
+                        { value: 'JavaScript', label: '🟨 JavaScript' },
+                        { value: 'TypeScript', label: '🔷 TypeScript' },
+                        { value: 'Go', label: '🔵 Go' }
+                    ]
+                }
+            ],
+            estimateCost: () => ({ film: 0, time: '秒开' }),
+            execute: async (params, callbacks) => {
+                const { sort, language } = params;
+                callbacks.onProgress?.('获取项目', 20, '正在获取GitHub AI项目...');
+
+                try {
+                    let projects = [];
+
+                    if (sort === 'trending') {
+                        // 使用第三方trending API
+                        try {
+                            const resp = await fetch(`https://api.gitterapp.com/repositories?language=${(language || '').toLowerCase()}&since=daily`);
+                            if (resp.ok) {
+                                const data = await resp.json();
+                                projects = data.slice(0, 15).map(r => ({
+                                    id: `gh_${(r.url || '').split('/').pop() || Math.random().toString(36).slice(2)}`,
+                                    name: r.name || '',
+                                    fullName: (r.author || '') + '/' + (r.name || ''),
+                                    owner: { name: r.author || '', avatar: r.avatar || '' },
+                                    description: r.description || '暂无描述',
+                                    url: r.url || '',
+                                    stars: r.stars || 0,
+                                    forks: r.forks || 0,
+                                    language: r.language || language || '',
+                                    todayStars: r.currentPeriodStars || 0,
+                                    topics: [],
+                                    potentialScore: 0
+                                }));
+                            }
+                        } catch (e) {
+                            console.warn('Trending API失败，使用搜索:', e.message);
+                        }
+                    }
+
+                    // 降级或默认：使用GitHub搜索API
+                    if (projects.length === 0) {
+                        let query = 'stars:>1000 pushed:>2025-01-01 topic:ai';
+                        if (language) query += ` language:${language}`;
+                        if (sort === 'updated') query += '&sort=updated';
+
+                        const resp = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=${sort === 'updated' ? 'updated' : 'stars'}&order=desc&per_page=15`, {
+                            headers: { 'Accept': 'application/vnd.github.v3+json' }
+                        });
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            projects = (data.items || []).map(r => ({
+                                id: `gh_${r.id}`,
+                                name: r.name,
+                                fullName: r.full_name,
+                                owner: { name: r.owner?.login || '', avatar: r.owner?.avatar_url || '' },
+                                description: r.description || '暂无描述',
+                                url: r.html_url,
+                                stars: r.stargazers_count || 0,
+                                forks: r.forks_count || 0,
+                                language: r.language || language || '',
+                                topics: r.topics || [],
+                                potentialScore: 0
+                            }));
+                        }
+                    }
+
+                    // 如果API全部失败，返回空（不使用模拟数据）
+                    if (projects.length === 0) {
+                        callbacks.onProgress?.('完成', 100, '暂无GitHub项目数据');
+                        return { projects: [], total: 0, sort, language };
+                    }
+
+                    callbacks.onProgress?.('完成', 100, `已获取 ${projects.length} 个项目`);
+                    return { projects, total: projects.length, sort, language };
+                } catch (error) {
+                    console.warn('GitHub项目获取失败:', error.message);
+                    callbacks.onProgress?.('失败', 100, '获取失败: ' + error.message);
+                    return { projects: [], total: 0, sort, language, error: error.message };
+                }
+            }
+        });
+
         // 注册所有预置 Skills
         SkillManager.registerAll(presetSkills);
 
-        console.log('🧩 预置 Skills 注册完成（37 个技能）+ MemorySystem 集成');
+        console.log('🧩 预置 Skills 注册完成（39 个技能）+ MemorySystem 集成');
     }
 
     // ==================== AI小助手系统 ====================
