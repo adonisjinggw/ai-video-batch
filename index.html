@@ -29,6 +29,7 @@
         })();
     </script>
     <link rel="stylesheet" href="css/style.css?v=8.11.0">
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.0.1">
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Supabase SDK （本地域名代理，避免被插件拦截） -->
@@ -2822,418 +2823,37 @@
         })();
     </script>
 
-    <!-- 🎬 RollRoll 小助手 (小卷) - 电脑版 -->
+    <!-- 🎬 RollRoll 小助手 (小卷) V9.0.0.1 - 电脑版 -->
+    <script src="/js/assistant-xj2.js?v=9.0.0.1"></script>
     <script>
     (function() {
         'use strict';
-        console.log('🎬 小卷助手：初始化...');
-
-        let assistantContainer = null;
-        let dialog = null;
-        let selectedIntent = null;
-        let chatHistory = [];
-
-        // 创建小助手（电脑版无需登录检查）
-        window._createRollRoll = function() {
-            if (document.getElementById('rollroll-assistant')) {
-                return;
-            }
-
-            console.log('🎬 创建小卷助手...');
-
-            // 创建容器
-            const container = document.createElement('div');
-            container.id = 'rollroll-assistant';
-            container.style.cssText = 'position:fixed;bottom:100px;right:20px;z-index:99999;width:70px;height:70px;cursor:grab;touch-action:none;user-select:none;display:block !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;';
-
-            // 创建头像按钮
-            const avatar = document.createElement('div');
-            avatar.id = 'rollroll-avatar';
-            avatar.style.cssText = 'width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#FF6B9D 0%,#C44569 50%,#F8B500 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 25px rgba(196,69,105,0.5);transition:transform 0.3s;pointer-events:none;overflow:hidden;';
-            avatar.innerHTML = `
-                <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="25" cy="25" r="24" fill="white"/>
-                    <path d="M15 20 C15 12 35 12 35 20" stroke="#FF6B9D" stroke-width="3" stroke-linecap="round"/>
-                    <circle cx="20" cy="20" r="3" fill="#333"/>
-                    <circle cx="30" cy="20" r="3" fill="#333"/>
-                    <path d="M20 28 Q25 32 30 28" stroke="#333" stroke-width="2" stroke-linecap="round" fill="none"/>
-                    <path d="M10 25 L15 22" stroke="#FF6B9D" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M40 25 L35 22" stroke="#FF6B9D" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            `;
-
-            // 创建气泡
-            const bubble = document.createElement('div');
-            bubble.id = 'rollroll-bubble';
-            bubble.style.cssText = 'position:absolute;bottom:80px;right:0;background:#FF6B9D;color:white;padding:12px 16px;border-radius:16px;font-size:14px;max-width:240px;box-shadow:0 4px 15px rgba(0,0,0,0.2);display:none;animation:rollroll-pop 0.3s ease;pointer-events:none;word-wrap:break-word;line-height:1.4;';
-
-            // 添加动画样式
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes rollroll-pop { 0% { transform:scale(0);opacity:0; } 100% { transform:scale(1);opacity:1; } }
-                @keyframes rollroll-bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-10px); } }
-                #rollroll-assistant:active { cursor:grabbing; }
-                #rollroll-assistant.dragging { animation:none !important; }
-                #rollroll-assistant:not(.dragging) { animation:rollroll-bounce 2s infinite; }
-                #rollroll-assistant:not(.dragging):hover { transform:scale(1.1); }
-            `;
-            document.head.appendChild(style);
-
-            // 拖拽功能
-            let isDragging = false;
-            let startX, startY, startLeft, startTop;
-            let hasMoved = false;
-
-            function onPointerDown(e) {
-                isDragging = true;
-                hasMoved = false;
-                startX = e.clientX || (e.touches && e.touches[0].clientX);
-                startY = e.clientY || (e.touches && e.touches[0].clientY);
-                const rect = container.getBoundingClientRect();
-                startLeft = rect.left;
-                startTop = rect.top;
-                container.classList.add('dragging');
-                e.preventDefault();
-            }
-
-            function onPointerMove(e) {
-                if (!isDragging) return;
-                const x = e.clientX || (e.touches && e.touches[0].clientX);
-                const y = e.clientY || (e.touches && e.touches[0].clientY);
-                if (!x || !y) return;
-
-                const dx = x - startX;
-                const dy = y - startY;
-
-                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                    hasMoved = true;
-                }
-
-                container.style.left = (startLeft + dx) + 'px';
-                container.style.top = (startTop + dy) + 'px';
-                container.style.right = 'auto';
-                container.style.bottom = 'auto';
-                e.preventDefault();
-            }
-
-            function onPointerUp(e) {
-                if (!isDragging) return;
-                isDragging = false;
-                container.classList.remove('dragging');
-
-                if (!hasMoved) {
-                    createDialog();
-                }
-            }
-
-            function createDialog() {
-                if (dialog) return;
-
-                dialog = document.createElement('div');
-                dialog.id = 'rollroll-dialog';
-                dialog.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:99998;opacity:0;transition:opacity 0.3s;visibility:visible !important;pointer-events:auto !important;';
-
-                const dialogContent = document.createElement('div');
-                dialogContent.style.cssText = 'background:#1a1a2a;border:2px solid #FF6B9D;border-radius:20px;padding:24px;max-width:320px;width:90%;transform:scale(0.9);transition:transform 0.3s;';
-
-                const header = document.createElement('div');
-                header.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:16px;justifyify-content:space-between;';
-                header.innerHTML = `
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FF6B9D 0%,#C44569 50%,#F8B500 100%);display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                            <svg width="28" height="28" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="25" cy="25" r="24" fill="white"/>
-                                <path d="M15 20 C15 12 35 12 35 20" stroke="#FF6B9D" stroke-width="3" stroke-linecap="round"/>
-                                <circle cx="20" cy="20" r="3" fill="#333"/>
-                                <circle cx="30" cy="20" r="3" fill="#333"/>
-                                <path d="M20 28 Q25 32 30 28" stroke="#333" stroke-width="2" stroke-linecap="round" fill="none"/>
-                                <path d="M10 25 L15 22" stroke="#FF6B9D" stroke-width="2" stroke-linecap="round"/>
-                                <path d="M40 25 L35 22" stroke="#FF6B9D" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
-                        </div>
-                        <div style="font-size:18px;font-weight:700;color:#FF6B9D;">小卷助手</div>
-                    </div>
-                    <button id="rollroll-close-dialog" style="background:transparent;border:none;color:#888;font-size:24px;cursor:pointer;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">&times;</button>
-                `;
-
-                const options = [
-                    { label: '🎬 生成短视频', action: 'video' },
-                    { label: '🖼️ 画一张图片', action: 'image' },
-                    { label: '✍️ 写一篇文案', action: 'writing' },
-                    { label: '🔍 搜索资料', action: 'search' },
-                    { label: '💬 进入完整对话', action: 'full_chat' }
-                ];
-
-                const inputArea = document.createElement('div');
-                inputArea.style.cssText = 'margin-bottom:16px;';
-
-                const chatContainer = document.createElement('div');
-                chatContainer.id = 'rollroll-chat';
-                chatContainer.style.cssText = 'max-height:250px;min-height:100px;overflow-y:auto;margin-bottom:12px;padding:8px;background:rgba(0,0,0,0.3);border-radius:8px;';
-
-                const dialogGreetings = [
-                    '👋 你来啦！今天想做什么呢？生成视频、图片还是文案？',
-                    '✨ 嘿！需要我帮你创作点什么吗？',
-                    '🎨 哈喽！想画张图、写个文案还是生成视频？',
-                    '🎬 嗨！今天有什么创意想法？告诉我吧～',
-                    '🌟 你好呀！想试试哪个功能？随时告诉我！',
-                    '💡 来啦！需要AI帮你做什么呢？',
-                    '🎯 哈喽！今天想创作点什么内容？',
-                    '🌈 你好！有什么我能帮你的吗？尽管说～'
-                ];
-
-                const randomDialogGreeting = dialogGreetings[Math.floor(Math.random() * dialogGreetings.length)];
-
-                const welcomeMsg = document.createElement('div');
-                welcomeMsg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
-                welcomeMsg.textContent = '🤖 ' + randomDialogGreeting;
-                chatContainer.appendChild(welcomeMsg);
-
-                chatHistory = [
-                    { role: 'system', content: '你是小卷助手，一个友好、热情、有帮助的AI助手。用中文回复，保持简洁有趣。' },
-                    { role: 'assistant', content: randomDialogGreeting }
-                ];
-
-                function addUserMessage(text) {
-                    const msg = document.createElement('div');
-                    msg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.2);border-radius:8px;font-size:13px;color:#FF6B9D;';
-                    msg.textContent = '👤 ' + text;
-                    chatContainer.appendChild(msg);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-
-                function addAssistantMessage(text) {
-                    const msg = document.createElement('div');
-                    msg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,107,157,0.1);border-radius:8px;font-size:13px;line-height:1.5;color:#fff;white-space:pre-wrap;word-break:break-word;';
-                    msg.textContent = '🤖 ' + text;
-                    chatContainer.appendChild(msg);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-
-                function addErrorMessage(message) {
-                    const msg = document.createElement('div');
-                    msg.style.cssText = 'margin:8px 0;padding:8px;background:rgba(255,0,0,0.2);border-radius:8px;font-size:13px;color:#ff6b6b;';
-                    msg.textContent = '❌ ' + message;
-                    chatContainer.appendChild(msg);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-
-                const MAX_HISTORY = 20;
-                function addToHistory(role, content) {
-                    chatHistory.push({ role, content });
-                    if (chatHistory.length > MAX_HISTORY) {
-                        chatHistory = [
-                            chatHistory[0],
-                            ...chatHistory.slice(-MAX_HISTORY + 1)
-                        ];
-                    }
-                }
-
-                const inputWrapper = document.createElement('div');
-                inputWrapper.innerHTML = `
-                    <textarea id="rollroll-input" placeholder="告诉我你想做什么..." style="width:100%;height:60px;padding:12px;background:#0a0a15;border:1px solid rgba(255,107,157,0.3);border-radius:12px;color:#fff;font-size:14px;resize:none;outline:none;box-sizing:border-box;"></textarea>
-                    <button id="rollroll-send" style="width:100%;margin-top:8px;padding:10px;background:linear-gradient(135deg,#FF6B9D,#C44569);border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;">发送 ✈️</button>
-                `;
-
-                inputArea.appendChild(chatContainer);
-                inputArea.appendChild(inputWrapper);
-
-                const optionsContainer = document.createElement('div');
-                optionsContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;max-height:150px;overflow-y:auto;';
-
-                options.forEach(opt => {
-                    const btn = document.createElement('button');
-                    btn.style.cssText = 'width:100%;padding:12px 16px;background:linear-gradient(135deg,#2a2a4a,#1a1a2a);border:1px solid rgba(255,107,157,0.3);border-radius:12px;color:#fff;font-size:14px;cursor:pointer;transition:all 0.2s;text-align:left;';
-                    btn.textContent = opt.label;
-                    btn.onclick = () => handleOptionClick(opt.action);
-                    btn.onmouseenter = () => { btn.style.borderColor = '#FF6B9D'; btn.style.transform = 'translateX(5px)'; };
-                    btn.onmouseleave = () => { btn.style.borderColor = 'rgba(255,107,157,0.3)'; btn.style.transform = 'translateX(0)'; };
-                    optionsContainer.appendChild(btn);
-                });
-
-                const closeBtn = document.createElement('button');
-                closeBtn.style.cssText = 'width:100%;padding:10px;margin-top:12px;background:transparent;border:1px dashed rgba(255,107,157,0.3);border-radius:12px;color:#888;font-size:12px;cursor:pointer;';
-                closeBtn.textContent = '关闭';
-                closeBtn.onclick = closeDialog;
-
-                dialogContent.appendChild(header);
-                dialogContent.appendChild(inputArea);
-                dialogContent.appendChild(optionsContainer);
-                dialogContent.appendChild(closeBtn);
-                dialog.appendChild(dialogContent);
-                document.body.appendChild(dialog);
-
-                // 绑定关闭按钮
-                document.getElementById('rollroll-close-dialog').onclick = closeDialog;
-
-                setTimeout(() => {
-                    dialog.style.opacity = '1';
-                    dialogContent.style.transform = 'scale(1)';
-                }, 10);
-
-                setTimeout(() => {
-                    const input = document.getElementById('rollroll-input');
-                    const sendBtn = document.getElementById('rollroll-send');
-                    if (input && sendBtn) {
-                        const sendMessage = async () => {
-                            const text = input.value.trim();
-                            if (!text) return;
-
-                            sendBtn.textContent = '处理中...';
-                            sendBtn.disabled = true;
-                            input.disabled = true;
-
-                            let intent = selectedIntent || 'chat';
-
-                            if (!selectedIntent) {
-                                if (/搜索|查询|找.*资料|帮我找|search|最新|新闻|天气|股票/i.test(text)) {
-                                    intent = 'search';
-                                } else if (/视频|短视频|生成视频|制作视频|帮我生成视频|分镜|镜头.*镜头|发个视频|拍.*视频|我要视频|来个视频|做个视频|video/i.test(text)) {
-                                    intent = 'video';
-                                } else if (/^(画|生成图片|作图|帮我画|画一张|画个|画个|帮我生成|生成.*图|画.*图)/i.test(text)) {
-                                    intent = 'image';
-                                } else if (/文案|写.*文章|写.*脚本|写.*剧本|帮我写|创作|小说|故事|写.*文案|帮我.*写|写.*内容|写.*稿/i.test(text)) {
-                                    intent = 'writing';
-                                }
-                            }
-
-                            console.log('[小卷] 意图识别:', intent, '按钮选择:', selectedIntent, '输入:', text);
-                            selectedIntent = null;
-
-                            try {
-                                addToHistory('user', text);
-                                addUserMessage(text);
-
-                                // 简化处理：显示提示并跳转
-                                if (intent === 'video') {
-                                    addAssistantMessage('🎬 视频生成功能请在主界面使用哦～');
-                                } else if (intent === 'image') {
-                                    addAssistantMessage('🎨 图片生成功能请在主界面使用哦～');
-                                } else if (intent === 'writing') {
-                                    addAssistantMessage('✍️ 文案生成功能请在主界面使用哦～');
-                                } else if (intent === 'search') {
-                                    addAssistantMessage('🔍 搜索功能请在完整对话页面使用～');
-                                } else {
-                                    // 默认对话提示
-                                    addAssistantMessage('💡 更多功能请使用完整对话页面 chat.html～');
-                                }
-
-                                input.value = '';
-                            } catch (e) {
-                                console.error('[小卷] 处理失败:', e);
-                                addErrorMessage('处理失败: ' + (e.message || '未知错误'));
-                            } finally {
-                                sendBtn.textContent = '发送 ✈️';
-                                sendBtn.disabled = false;
-                                input.disabled = false;
-                            }
-                        };
-                        sendBtn.onclick = sendMessage;
-                        input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
-                    }
-                }, 100);
-            }
-
-            function closeDialog() {
-                if (!dialog) return;
-                dialog.style.opacity = '0';
-                const dialogContent = dialog.querySelector('div');
-                if (dialogContent) {
-                    dialogContent.style.transform = 'scale(0.9)';
-                }
-                setTimeout(() => {
-                    if (dialog && dialog.parentNode) {
-                        dialog.remove();
-                    }
-                    dialog = null;
-                }, 300);
-            }
-
-            function handleOptionClick(action) {
-                if (action === 'full_chat') {
-                    closeDialog();
-                    window.location.href = 'chat.html';
-                    return;
-                }
-
-                const prompts = {
-                    video: '帮我生成一个视频：',
-                    image: '帮我画一张图片：',
-                    search: '帮我搜索：',
-                    writing: '帮我写一篇文案：'
-                };
-
-                selectedIntent = action;
-
-                const input = document.getElementById('rollroll-input');
-                if (input) {
-                    input.value = prompts[action] || '';
-                    input.focus();
-                    input.setSelectionRange(input.value.length, input.value.length);
-                }
-            }
-
-            // 绑定事件
-            container.addEventListener('mousedown', onPointerDown);
-            container.addEventListener('touchstart', onPointerDown, {passive: false});
-            document.addEventListener('mousemove', onPointerMove);
-            document.addEventListener('touchmove', onPointerMove, {passive: false});
-            document.addEventListener('mouseup', onPointerUp);
-            document.addEventListener('touchend', onPointerUp);
-
-            // 组装
-            container.appendChild(avatar);
-            container.appendChild(bubble);
-            document.body.appendChild(container);
-
-            assistantContainer = container;
-
-            console.log('🎬 小卷已创建并显示');
-
-            // 显示欢迎气泡
-            const greetings = [
-                '👋 哈喽！我是小卷～今天想做什么呢？',
-                '✨ 你好呀！需要帮你生成点什么吗？',
-                '🎨 嗨！想画张图还是写个文案？',
-                '🎬 来啦！生成视频、图片还是文案？',
-                '🌟 嘿！有什么我能帮你的吗？',
-                '💡 哈喽！今天有什么创意想法？',
-                '🎯 你来啦！想试试什么功能？',
-                '🌈 你好！需要AI帮你创作吗？'
-            ];
-
-            setTimeout(function() {
-                const hour = new Date().getHours();
-                let timeGreeting = '';
-                if (hour < 12) timeGreeting = '早上好';
-                else if (hour < 18) timeGreeting = '下午好';
-                else timeGreeting = '晚上好';
-
-                const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-                bubble.textContent = timeGreeting + '！' + randomGreeting;
-                bubble.style.display = 'block';
-
-                setTimeout(function() {
-                    bubble.style.display = 'none';
-                }, 8000);
-            }, 500);
-        };
-
-        // 启动（电脑版需要登录检查）
+        // PC版小助手启动 - 需要登录检查
         function checkAndCreateRollRoll() {
             if (typeof window.checkLoginStatus === 'function') {
                 const isLogin = window.checkLoginStatus();
                 if (isLogin) {
-                    window._createRollRoll();
+                    // 已登录，初始化小助手
+                    if (typeof window.XJ2 === 'undefined') {
+                        window.XJ2 = new AssistantXJ2();
+                        window.XJ2.init();
+                    }
                 } else {
-                    // 监听登录事件
-                    window.addEventListener('user-login', window._createRollRoll, { once: true });
+                    // 未登录，监听登录事件
+                    window.addEventListener('user-login', function() {
+                        if (typeof window.XJ2 === 'undefined') {
+                            window.XJ2 = new AssistantXJ2();
+                            window.XJ2.init();
+                        }
+                    }, { once: true });
                 }
             } else {
                 // 降级：延迟创建
-                setTimeout(() => {
-                    if (document.getElementById('rollroll-assistant')) return;
-                    window._createRollRoll();
+                setTimeout(function() {
+                    if (typeof window.XJ2 === 'undefined') {
+                        window.XJ2 = new AssistantXJ2();
+                        window.XJ2.init();
+                    }
                 }, 3000);
             }
         }
