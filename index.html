@@ -2823,45 +2823,298 @@
         })();
     </script>
 
-    <!-- 🎬 RollRoll 小助手 (小卷) V9.0.0.1 - 电脑版 -->
-    <script src="/js/assistant-xj2.js?v=9.0.0.1"></script>
+    <!-- 🎬 RollRoll 小助手 (小卷) - 电脑版 -->
     <script>
     (function() {
         'use strict';
-        // PC版小助手启动 - 需要登录检查
-        function checkAndCreateRollRoll() {
-            if (typeof window.checkLoginStatus === 'function') {
-                const isLogin = window.checkLoginStatus();
-                if (isLogin) {
-                    // 已登录，初始化小助手
-                    if (typeof window.XJ2 === 'undefined') {
-                        window.XJ2 = new AssistantXJ2();
-                        window.XJ2.init();
-                    }
-                } else {
-                    // 未登录，监听登录事件
-                    window.addEventListener('user-login', function() {
-                        if (typeof window.XJ2 === 'undefined') {
-                            window.XJ2 = new AssistantXJ2();
-                            window.XJ2.init();
-                        }
-                    }, { once: true });
-                }
-            } else {
-                // 降级：延迟创建
-                setTimeout(function() {
-                    if (typeof window.XJ2 === 'undefined') {
-                        window.XJ2 = new AssistantXJ2();
-                        window.XJ2.init();
-                    }
-                }, 3000);
-            }
-        }
+        console.log('🎬 小卷助手：初始化...');
 
+        let assistantContainer = null;
+        let dialog = null;
+        let selectedIntent = null;
+        let chatHistory = [];
+
+        // 创建小助手（电脑版无需登录检查）
+        window._createRollRoll = function() {
+            if (document.getElementById('rollroll-assistant')) {
+                return;
+            }
+
+            console.log('🎬 创建小卷助手...');
+
+            // 创建容器
+            const container = document.createElement('div');
+            container.id = 'rollroll-assistant';
+            container.style.cssText = 'position:fixed;bottom:100px;right:20px;z-index:99999;width:70px;height:70px;cursor:grab;touch-action:none;user-select:none;display:block !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;';
+
+            // 创建头像按钮
+            const avatar = document.createElement('div');
+            avatar.id = 'rollroll-avatar';
+            avatar.style.cssText = 'width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#FF6B9D 0%,#C44569 50%,#F8B500 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 25px rgba(196,69,105,0.5);transition:transform 0.3s;pointer-events:none;overflow:hidden;';
+            avatar.innerHTML = `
+                <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="25" cy="25" r="24" fill="white"/>
+                    <circle cx="25" cy="20" r="8" fill="#FF6B9D"/>
+                    <path d="M12 40 Q25 25 38 40" stroke="#FF6B9D" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    <circle cx="18" cy="18" r="2" fill="#333"/>
+                    <circle cx="32" cy="18" r="2" fill="#333"/>
+                </svg>
+            `;
+
+            container.appendChild(avatar);
+            document.body.appendChild(container);
+            assistantContainer = container;
+
+            // 提示气泡
+            const bubble = document.createElement('div');
+            bubble.style.cssText = 'position:absolute;bottom:80px;right:0;background:linear-gradient(135deg,#1a1a2e,#16162a);color:#fff;padding:12px 18px;border-radius:18px;font-size:13px;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.4);border:1px solid rgba(255,107,157,0.3);opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;';
+            bubble.textContent = '👋 我是AI小卷，点我聊天～';
+            container.appendChild(bubble);
+
+            setTimeout(() => {
+                bubble.style.opacity = '1';
+                bubble.style.transform = 'translateY(0)';
+            }, 500);
+
+            setTimeout(() => {
+                bubble.style.opacity = '0';
+                setTimeout(() => bubble.style.display = 'none', 300);
+            }, 8000);
+
+            // 点击头像打开对话框
+            avatar.onclick = function(e) {
+                e.stopPropagation();
+                openDialog();
+            };
+
+            // 拖拽功能
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+
+            function onPointerDown(e) {
+                if (e.target.closest('#rollroll-avatar')) {
+                    isDragging = true;
+                    const point = e.touches ? e.touches[0] : e;
+                    startX = point.clientX;
+                    startY = point.clientY;
+                    const rect = container.getBoundingClientRect();
+                    initialX = rect.left;
+                    initialY = rect.top;
+                    container.style.cursor = 'grabbing';
+                    container.style.transition = 'none';
+                }
+            }
+
+            function onPointerMove(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                const point = e.touches ? e.touches[0] : e;
+                const dx = point.clientX - startX;
+                const dy = point.clientY - startY;
+                container.style.left = (initialX + dx) + 'px';
+                container.style.top = (initialY + dy) + 'px';
+                container.style.right = 'auto';
+                container.style.bottom = 'auto';
+            }
+
+            function onPointerUp() {
+                if (isDragging) {
+                    isDragging = false;
+                    container.style.cursor = 'grab';
+                    container.style.transition = '';
+                }
+            }
+
+            container.addEventListener('mousedown', onPointerDown);
+            container.addEventListener('touchstart', onPointerDown, {passive: false});
+            document.addEventListener('mousemove', onPointerMove);
+            document.addEventListener('touchmove', onPointerMove, {passive: false});
+            document.addEventListener('mouseup', onPointerUp);
+            document.addEventListener('touchend', onPointerUp);
+
+            function openDialog() {
+                if (dialog) return;
+
+                dialog = document.createElement('div');
+                dialog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);z-index:999998;width:90%;max-width:400px;background:linear-gradient(135deg,#1a1a2e,#16162a);border-radius:24px;padding:24px;box-shadow:0 10px 60px rgba(0,0,0,0.6);border:1px solid rgba(255,107,157,0.3);opacity:0;transition:all 0.3s;';
+
+                const dialogContent = document.createElement('div');
+                dialogContent.style.cssText = 'display:flex;flex-direction:column;gap:16px;';
+
+                const header = document.createElement('div');
+                header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+                header.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#FF6B9D,#C44569);display:flex;align-items:center;justify-content:center;">
+                            <svg width="30" height="30" viewBox="0 0 50 50" fill="none">
+                                <circle cx="25" cy="20" r="8" fill="white"/>
+                                <path d="M12 40 Q25 25 38 40" stroke="white" stroke-width="4" fill="none"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div style="font-weight:600;font-size:16px;">🤖 AI小卷</div>
+                            <div style="font-size:12px;color:#888;">智能创作助手</div>
+                        </div>
+                    </div>
+                    <button id="rollroll-close-dialog" style="background:none;border:none;color:#888;font-size:24px;cursor:pointer;">&times;</button>
+                `;
+
+                const inputArea = document.createElement('div');
+                inputArea.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
+
+                const chatContainer = document.createElement('div');
+                chatContainer.id = 'rollroll-chat';
+                chatContainer.style.cssText = 'max-height:200px;overflow-y:auto;padding:8px;background:#0a0a15;border-radius:12px;font-size:13px;';
+                inputArea.appendChild(chatContainer);
+
+                const inputWrapper = document.createElement('div');
+                inputWrapper.innerHTML = `
+                    <textarea id="rollroll-input" placeholder="告诉我你想做什么..." style="width:100%;height:60px;padding:12px;background:#0a0a15;border:1px solid rgba(255,107,157,0.3);border-radius:12px;color:#fff;font-size:14px;resize:none;outline:none;box-sizing:border-box;"></textarea>
+                    <button id="rollroll-send" style="width:100%;margin-top:8px;padding:10px;background:linear-gradient(135deg,#FF6B9D,#C44569);border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;">发送 ✈️</button>
+                `;
+
+                inputArea.appendChild(inputWrapper);
+
+                const optionsContainer = document.createElement('div');
+                optionsContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+                const options = [
+                    { label: '🎬 生成视频', action: 'video' },
+                    { label: '🎨 画一张图', action: 'image' },
+                    { label: '✍️ 写文案', action: 'writing' },
+                    { label: '💬 陪我聊天', action: 'chat' }
+                ];
+
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.style.cssText = 'width:100%;padding:12px;background:linear-gradient(135deg,#2a2a4a,#1a1a2a);border:1px solid rgba(255,107,157,0.3);border-radius:12px;color:#fff;font-size:14px;cursor:pointer;text-align:left;';
+                    btn.textContent = opt.label;
+                    btn.onclick = () => handleOptionClick(opt.action);
+                    optionsContainer.appendChild(btn);
+                });
+
+                dialogContent.appendChild(header);
+                dialogContent.appendChild(inputArea);
+                dialogContent.appendChild(optionsContainer);
+                dialog.appendChild(dialogContent);
+                document.body.appendChild(dialog);
+
+                document.getElementById('rollroll-close-dialog').onclick = closeDialog;
+
+                setTimeout(() => {
+                    dialog.style.opacity = '1';
+                    dialogContent.style.transform = 'scale(1)';
+                }, 10);
+
+                setTimeout(() => {
+                    const input = document.getElementById('rollroll-input');
+                    const sendBtn = document.getElementById('rollroll-send');
+                    if (input && sendBtn) {
+                        const sendMessage = async () => {
+                            const text = input.value.trim();
+                            if (!text) return;
+
+                            sendBtn.textContent = '处理中...';
+                            sendBtn.disabled = true;
+                            input.disabled = true;
+
+                            try {
+                                addUserMessage(text);
+
+                                // 简化处理：显示提示
+                                addAssistantMessage('💡 更多功能请使用完整对话页面 chat.html～');
+
+                                input.value = '';
+                            } catch (e) {
+                                console.error('[小卷] 处理失败:', e);
+                                addErrorMessage('处理失败: ' + (e.message || '未知错误'));
+                            } finally {
+                                sendBtn.textContent = '发送 ✈️';
+                                sendBtn.disabled = false;
+                                input.disabled = false;
+                            }
+                        };
+                        sendBtn.onclick = sendMessage;
+                        input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+                        input.focus();
+                    }
+                }, 100);
+            }
+
+            function closeDialog() {
+                if (!dialog) return;
+                dialog.style.opacity = '0';
+                const dialogContent = dialog.querySelector('div');
+                if (dialogContent) {
+                    dialogContent.style.transform = 'scale(0.9)';
+                }
+                setTimeout(() => {
+                    if (dialog && dialog.parentNode) {
+                        dialog.remove();
+                    }
+                    dialog = null;
+                }, 300);
+            }
+
+            function handleOptionClick(action) {
+                if (action === 'full_chat') {
+                    closeDialog();
+                    window.location.href = 'chat.html';
+                    return;
+                }
+
+                const prompts = {
+                    video: '帮我生成一个视频：',
+                    image: '帮我画一张图片：',
+                    writing: '帮我写一篇文案：'
+                };
+
+                selectedIntent = action;
+
+                const input = document.getElementById('rollroll-input');
+                if (input) {
+                    input.value = prompts[action] || '';
+                    input.focus();
+                    input.setSelectionRange(input.value.length, input.value.length);
+                }
+            }
+
+            function addUserMessage(text) {
+                const chatContainer = document.getElementById('rollroll-chat');
+                if (!chatContainer) return;
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:right;margin:8px 0;';
+                msg.innerHTML = `<div style="display:inline-block;background:#FF6B9D;color:#fff;padding:8px 12px;border-radius:12px;max-width:80%;">${text}</div>`;
+                chatContainer.appendChild(msg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function addAssistantMessage(text) {
+                const chatContainer = document.getElementById('rollroll-chat');
+                if (!chatContainer) return;
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:left;margin:8px 0;';
+                msg.innerHTML = `<div style="display:inline-block;background:#2a2a4a;color:#fff;padding:8px 12px;border-radius:12px;max-width:80%;">${text}</div>`;
+                chatContainer.appendChild(msg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function addErrorMessage(text) {
+                const chatContainer = document.getElementById('rollroll-chat');
+                if (!chatContainer) return;
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:left;margin:8px 0;';
+                msg.innerHTML = `<div style="display:inline-block;background:rgba(239,68,68,0.2);color:#ef4444;padding:8px 12px;border-radius:12px;max-width:80%;">${text}</div>`;
+                chatContainer.appendChild(msg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        };
+
+        // 启动（电脑版直接创建，无需登录检查）
         if (document.readyState === 'complete') {
-            checkAndCreateRollRoll();
+            window._createRollRoll();
         } else {
-            window.addEventListener('load', checkAndCreateRollRoll);
+            window.addEventListener('load', window._createRollRoll);
         }
     })();
     </script>
