@@ -351,7 +351,7 @@ async function callQwenImageMaxViaYunwu(prompt, options = {}) {
                 body: JSON.stringify({
                     model: modelName,
                     prompt,
-                    image: imageUrl
+                    image_url: imageUrl
                 })
             },
             120000

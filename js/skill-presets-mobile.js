@@ -4481,7 +4481,7 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                     ]
                 }
             ],
-            estimateCost: () => ({ film: calculateImageCost('qwen-image-max') * 3, time: '约1-2分钟' }),
+            estimateCost: () => ({ film: calculateImageCost('qwen-image-max') * 1, time: '约30秒' }),
             execute: async (params, callbacks) => {
                 const { portrait, style, sceneDesc, aspectRatio } = params;
                 const refs = await resolveRefImages(portrait);
@@ -4497,15 +4497,17 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                 const scenePrompt = sceneDesc ? `, scene: ${sceneDesc}` : '';
                 const prompt = `Professional portrait of the same person from the reference image. ${styleMap[style] || styleMap.fashion}${scenePrompt}. Keep face and identity consistent with reference. Ultra high quality 8K`;
                 const opts = { imageUrl: refs.first, aspectRatio: aspectRatio || '3:4', model: 'qwen-image-max' };
-                callbacks.onProgress?.('生成写真', 10, '并行生成3张写真...');
-                let done = 0;
-                const results = await Promise.all([1, 2, 3].map(i =>
-                    callBanana2ImageAPI(prompt, opts)
-                        .then(url => { done++; callbacks.onProgress?.(`完成${done}/3`, done * 30 + 10, `✅ 写真${i}`); callbacks.onStepComplete?.(`写真${i}`, { imageUrl: url }); return { subject: `写真${i}`, imageUrl: url, status: 'success' }; })
-                        .catch(e => { done++; return { subject: `写真${i}`, error: e.message, status: 'failed' }; })
-                ));
-                callbacks.onProgress?.('完成', 100, `生成 ${results.filter(r => r.status === 'success').length}/3 张写真`);
-                return { images: results };
+                callbacks.onProgress?.('生成写真', 10, '正在生成写真...');
+                try {
+                    const url = await callBanana2ImageAPI(prompt, opts);
+                    callbacks.onProgress?.('完成', 100, '✅ 写真生成完成');
+                    callbacks.onStepComplete?.('写真', { imageUrl: url });
+                    return {
+                        images: [{ subject: '写真', imageUrl: url, status: 'success' }]
+                    };
+                } catch (e) {
+                    throw new Error(`写真生成失败: ${e.message}`);
+                }
             }
         });
 

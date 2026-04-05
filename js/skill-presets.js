@@ -231,7 +231,12 @@
 
         // === 其他 ===
         { value: 'runninghub-video', label: '🏃 RunningHub 10s (8胶片/MV备选)' },
-        { value: 'video-continuity', label: '🎬 连续性视频 (逐帧衔接)' }
+        { value: 'video-continuity', label: '🎬 连续性视频 (逐帧衔接)' },
+
+        // === Seedance 2.0 (RunningHub·仅LV10+) ===
+        { value: 'seedance-t2v', label: '🌟 Seedance 2.0 文生视频 (8胶片/LV10+)' },
+        { value: 'seedance-i2v', label: '🌟 Seedance 2.0 图生视频 (10胶片/LV10+)' },
+        { value: 'seedance-ref', label: '🌟 Seedance 2.0 全能参考视频 (12胶片/LV10+)' }
     ];
 
     const VIDEO_STYLE_OPTIONS = [
@@ -4502,7 +4507,7 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                     ]
                 }
             ],
-            estimateCost: () => ({ film: calculateImageCost('qwen-image-max') * 3, time: '约1-2分钟' }),
+            estimateCost: () => ({ film: calculateImageCost('qwen-image-max') * 1, time: '约30秒' }),
             execute: async (params, callbacks) => {
                 const { portrait, style, sceneDesc, aspectRatio } = params;
                 const refs = await resolveRefImages(portrait);
@@ -4518,15 +4523,17 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                 const scenePrompt = sceneDesc ? `, scene: ${sceneDesc}` : '';
                 const prompt = `Professional portrait of the same person from the reference image. ${styleMap[style] || styleMap.fashion}${scenePrompt}. Keep face and identity consistent with reference. Ultra high quality 8K`;
                 const opts = { imageUrl: refs.first, aspectRatio: aspectRatio || '3:4', model: 'qwen-image-max' };
-                callbacks.onProgress?.('生成写真', 10, '并行生成3张写真...');
-                let done = 0;
-                const results = await Promise.all([1, 2, 3].map(i =>
-                    callBanana2ImageAPI(prompt, opts)
-                        .then(url => { done++; callbacks.onProgress?.(`完成${done}/3`, done * 30 + 10, `✅ 写真${i}`); callbacks.onStepComplete?.(`写真${i}`, { imageUrl: url }); return { subject: `写真${i}`, imageUrl: url, status: 'success' }; })
-                        .catch(e => { done++; return { subject: `写真${i}`, error: e.message, status: 'failed' }; })
-                ));
-                callbacks.onProgress?.('完成', 100, `生成 ${results.filter(r => r.status === 'success').length}/3 张写真`);
-                return { images: results };
+                callbacks.onProgress?.('生成写真', 10, '正在生成写真...');
+                try {
+                    const url = await callBanana2ImageAPI(prompt, opts);
+                    callbacks.onProgress?.('完成', 100, '✅ 写真生成完成');
+                    callbacks.onStepComplete?.('写真', { imageUrl: url });
+                    return {
+                        images: [{ subject: '写真', imageUrl: url, status: 'success' }]
+                    };
+                } catch (e) {
+                    throw new Error(`写真生成失败: ${e.message}`);
+                }
             }
         });
 
@@ -5881,18 +5888,26 @@ ${textToSummarize.substring(0, 6000)}
 
                 callbacks.onProgress?.('优化提示词', 10, '正在生成专业提示词...');
 
-                const optimizationPrompt = `你是专业的视频提示词优化专家。请将以下简单描述优化成适合 Grok Video 3-15s 模型的高质量提示词。
+                // Grok Video 优化：基于官方最佳实践
+                const optimizationPrompt = `你是一位AI视频创作专家。请将用户的简单描述优化成适合 Grok Video（3-15秒短片）的专业提示词。
 
-基础描述：${basicPrompt}
+用户原始描述："${basicPrompt}"
+
+请严格按照以下结构优化（LTX Video 官方推荐结构）：
+
+1. 确立镜头：使用摄影术语，如 ${cameraMap[cameraMovement] || 'cinematic shot'}
+2. 设定场景：光线(${moodMap[mood] || 'cinematic lighting'})、色彩、氛围
+3. 描述动作：用现在时动词描述主体动作和运动
+4. 定义角色：通过肢体语言而非抽象标签表达情感
+5. 摄像机运动：${cameraMap[cameraMovement] || 'cinematic camera movement'}
+6. 风格标记：${qualityMap[qualityLevel] || 'high quality'}
 
 要求：
-1. 生成纯英文提示词（200-400单词）
-2. 包含详细的场景描述、角色动作、镜头语言
-3. 确保视觉吸引力强，适合AI视频生成
-4. 不要任何Markdown格式、不要标题、不要加粗、不要列表
-5. 直接输出纯文本提示词，不要任何解释或说明
-
-请直接输出优化后的完整提示词。`;
+- 写成1个流畅的英文段落，4-8个描述性句子
+- 保留原意，不要添加未描述的内容
+- 强调动态感，Grok Video 擅长捕捉动态场景
+- 不要 Markdown、不要标题、不要列表
+- 直接输出提示词正文，不要解释`;
 
                 let optimizedPrompt = '';
                 try {
@@ -6280,18 +6295,26 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
 
                 callbacks.onProgress?.('优化提示词', 10, '正在生成专业提示词...');
 
-                const optimizationPrompt = `你是专业的视频提示词优化专家。请将以下简单描述优化成适合 LTX-Video (Lightricks) 模型的高质量提示词。
+                // LTX-Video 优化：基于官方最佳实践（docs.ltx.video）
+                const optimizationPrompt = `你是一位AI视频创作专家。请将用户的简单描述优化成适合 LTX-Video（Lightricks，擅长电影级光影和流畅运动）的专业提示词。
 
-基础描述：${basicPrompt}
+用户原始描述："${basicPrompt}"
 
-要求：
-1. 生成纯英文提示词（200-400单词）
-2. 包含详细的场景描述、角色动作、镜头语言
-3. 确保视觉吸引力强，适合AI视频生成
-4. 不要任何Markdown格式、不要标题、不要加粗、不要列表
-5. 直接输出纯文本提示词，不要任何解释或说明
+请严格按照 LTX Video 官方六要素结构优化：
 
-请直接输出优化后的完整提示词。`;
+1. **确立镜头**：使用摄影术语，如 ${cameraMap[cameraMovement] || 'cinematic shot'}（大远景/中景/特写/静态帧）
+2. **设定场景**：光线(${moodMap[mood] || 'cinematic lighting'})、色彩调色板、表面纹理、氛围
+3. **描述动作**：用现在时动词写成自然序列，从开始流向结束
+4. **定义角色**：通过肢体提示而非"悲伤/开心"等抽象标签表达情感
+5. **明确摄像机运动**：${cameraMap[cameraMovement] || 'cinematic camera movement'}，描述运动后主体的状态
+6. **风格标记**：${qualityMap[qualityLevel] || 'cinematic quality'}
+
+LTX Video 最佳实践：
+- 目标4-8个描述性句子，写成1个流畅段落
+- 优先描述光线、色彩、氛围等视觉元素
+- 避免内部情感状态、避免文字标识、避免冲突光照
+- 保留原意，不要添加未描述内容
+- 直接输出纯英文提示词，不要任何解释或格式`;
 
                 let optimizedPrompt = '';
                 try {
@@ -6494,19 +6517,31 @@ ${userSeedImage ? '用户已上传种子图像，需要保持图像的核心特�
 
                 callbacks.onProgress?.('优化提示词', 10, '正在为 Veo 3.1 生成专业提示词...');
 
-                const optimizationPrompt = `你是专业的视频提示词优化专家。请将以下简单描述优化成适合 Google Veo 3.1 模型的高质量提示词。
+                // Veo 3 优化：基于官方最佳实践
+                const optimizationPrompt = `You are an AI video creative expert. Optimize the user's simple description into a professional prompt for Google Veo 3.1.
 
-基础描述：${basicPrompt}
+User's original description: "${basicPrompt}"
 
-要求：
-1. 生成纯英文提示词（200-400单词）
-2. 包含详细的场景描述、角色动作、镜头语言
-3. 确保视觉吸引力强，适合AI视频生成
-4. 强调自然流畅的运动和逼真的物理效果
-5. 不要任何Markdown格式、不要标题、不要加粗、不要列表
-6. 直接输出纯文本提示词，不要任何解释或说明
+Please follow Veo 3 official best practices structure:
 
-请直接输出优化后的完整提示词。`;
+1. **Concept & Style**: Define the visual style: ${moodMap[mood] || 'natural cinematic'}
+2. **Main Subject**: Describe the primary subject with specific details - appearance, positioning, key actions
+3. **Environment/Setting**: Specify the setting: lighting(${moodMap[mood] || 'natural lighting'}), color palette, atmosphere
+4. **Camera/Shot**: ${cameraMap[cameraMovement] || 'cinematic camera movement'}
+5. **Movement**: Describe dynamic motion - Veo 3 excels at natural movement and realistic physics
+6. **Quality**: ${qualityMap[qualityLevel] || 'high quality, 4K cinematic'}
+
+Veo 3 strengths:
+- Natural, realistic motion and physics
+- High-quality cinematic visuals
+- Accurate physics simulation
+- Authentic camera movement
+
+Requirements:
+- Write as one flowing English paragraph, 4-8 descriptive sentences
+- Keep user intent intact, don't add undescribed content
+- Prioritize natural motion description
+- Plain text only, no Markdown, no explanations`;
 
                 let optimizedPrompt = '';
                 try {

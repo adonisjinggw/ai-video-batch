@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RollRoll - 让创意转动 V8.10.2</title>
+    <title>RollRoll - 让创意转动 V9.0.0.1</title>
     <!-- 📱 手机端自动跳转 -->
     <script>
         (function () {
@@ -28,7 +28,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="css/style.css?v=8.10.2">
+    <link rel="stylesheet" href="css/style.css?v=8.11.0">
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Supabase SDK （本地域名代理，避免被插件拦截） -->
@@ -769,10 +769,6 @@
                             <label for="quickGenMode">模式</label>
                             <select id="quickGenMode" title="选择生成模式" onchange="onGenModeChange(this.value)">
                                 <option value="modelscope-video">🆓 魔塔视频（免费）</option>
-                                <option value="sora-2-vip-all">⭐ Sora-2 VIP (10秒)</option>
-                                <option value="text-to-video">Sora-2 (文生视频)</option>
-                                <option value="image-to-video">Flux + Sora-2 (图生视频)</option>
-                                <option value="banana-image-to-video">Gemini-3 + Sora-2 (图生视频)</option>
                                 <option value="banana-grid-to-video">🎯 网格图省费版 (1图切N分镜)</option>
                                 <optgroup label="🎬 Veo 3.1 系列">
                                     <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
@@ -1249,9 +1245,10 @@
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('画1张赛博朋克风格的城市夜景')">🌆 赛博</button>
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1张日系治愈风格的插画')">🌸 日系</button>
                         <button class="quick-cmd-btn" onclick="fillQuickCommand('画1张游戏角色立绘')">🎮 角色</button>
-                        <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1个短视频', 'sora-2-all')">🎬 视频</button>
+                        <button class="quick-cmd-btn" onclick="fillQuickCommand('生成1个短视频', 'veo3.1')">🎬 视频</button>
                         <button class="quick-cmd-btn" onclick="openMVGenerator()"
                             style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">🎵 音乐MV</button>
+                        <button id="toggleQuickCmdsBtn" onclick="toggleQuickCommands()" title="收起/展开快捷指令" class="quick-toggle-btn">▲</button>
                     </div>
                     <!-- 📎 参考图/视频预览区 -->
                     <div class="command-ref-preview" id="commandRefPreview" style="display:none;">
@@ -1328,8 +1325,6 @@
                             </optgroup>
                             <optgroup label="🎬 视频模型">
                                 <option value="modelscope-video">🆓 魔塔视频（免费）</option>
-                                <option value="sora-2-all">🎬 Sora-2</option>
-                                <option value="sora-2-pro-all">⭐ Sora-2 Pro</option>
                                 <option value="veo">🎬 Veo 3.1</option>
                                 <option value="grok">🚀 Grok Video 3 (6秒)</option>
                                 <option value="grok-10s">🚀 Grok Video 3 (10秒)</option>
@@ -1950,7 +1945,7 @@
                     <ul style="margin: 0; padding-left: 20px;">
                         <li>免费体验 <strong>500</strong> → LV10 解锁全部 <strong>10万</strong></li>
                         <li>🖼️ <strong>1.6胶片/张</strong> 高清AI图片</li>
-                        <li>🎬 <strong>3胶片/个</strong> Sora2视频（15秒）</li>
+                        <li>🎬 <strong>3胶片/个</strong> AI视频（15秒）</li>
                         <li>📝 <strong>0.25胶片/次</strong> AI文案/剧本</li>
                     </ul>
                     <p style="margin: 10px 0 0 0; font-size: 12px; color: #aaa;">
@@ -1961,7 +1956,7 @@
                 <h4>🚀 核心功能介绍</h4>
                 <p><strong>1. 智能批量生成：</strong> 输入一个创意，AI 自动完成"写剧本 -> 绘分镜 -> 生成视频 -> 剪辑"全流程。</p>
                 <p><strong>2. 角色一致性 (Banana2)：</strong> 开启"角色设定图"功能，AI 会先设计角色三视图，确保分镜中人物长相统一。</p>
-                <p><strong>3. 交互式画板 (Sketch)：</strong> 在画布上右键创建"绘图节点"，手绘草图或上传参考图，连线到任务卡片，精准控制画面构图。</p>
+                <p><strong>3. 交互式画板 (Sketch)：</strong> 在画布上右键创建"绘��节点"，手绘草图或上传参考图，连线到任务卡片，精准控制画面构图。</p>
                 <p><strong>4. 自动发布 (会员)：</strong> 支持一键将生成的视频发布到抖音、B站、小红书等平台。</p>
 
                 <h4>🖱️ 画布操作指南</h4>
@@ -1973,7 +1968,7 @@
 
                 <h4>💎 付费用户权益</h4>
                 <ul>
-                    <li>✅ 无限使用 Banana2/Sora2/Gemini3</li>
+                    <li>✅ 无限使用 Banana2/Gemini3/Veo等AI模型</li>
                     <li>✅ 全自动模式（一键出片）</li>
                     <li>✅ 4K 高清画质</li>
                     <li>✅ 优先队列，更快生成</li>
@@ -2185,7 +2180,7 @@
     <!-- 🧩 Skill 技能系统 - 用户可选择不同技能完成任务 -->
     <script src="js/skill-system.js?v=1.0.2"></script>
     <script src="js/skill-presets.js?v=1.0.2"></script>
-    <script src="js/batch.js?v=8.10.2&t=202603311928"></script>
+    <script src="js/batch.js?v=8.11.0&t=202604051500"></script>
     <script src="js/help_modal.js"></script>
 
     <!-- 视频编辑器模态框 -->
@@ -2825,7 +2820,7 @@
                 navigator.clipboard.writeText(url).then(function () { alert('链接已复制'); }).catch(function (e) { console.error('复制链接:', url, e); });
             };
         })();
-    })();
+    </script>
 
     <!-- 🎬 RollRoll 小助手 (小卷) - 电脑版 -->
     <script>
@@ -3224,11 +3219,29 @@
             }, 500);
         };
 
-        // 启动（电脑版直接创建，无需登录检查）
+        // 启动（电脑版需要登录检查）
+        function checkAndCreateRollRoll() {
+            if (typeof window.checkLoginStatus === 'function') {
+                const isLogin = window.checkLoginStatus();
+                if (isLogin) {
+                    window._createRollRoll();
+                } else {
+                    // 监听登录事件
+                    window.addEventListener('user-login', window._createRollRoll, { once: true });
+                }
+            } else {
+                // 降级：延迟创建
+                setTimeout(() => {
+                    if (document.getElementById('rollroll-assistant')) return;
+                    window._createRollRoll();
+                }, 3000);
+            }
+        }
+
         if (document.readyState === 'complete') {
-            window._createRollRoll();
+            checkAndCreateRollRoll();
         } else {
-            window.addEventListener('load', window._createRollRoll);
+            window.addEventListener('load', checkAndCreateRollRoll);
         }
     })();
     </script>
