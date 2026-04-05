@@ -353,11 +353,9 @@ const YUNWU_ENDPOINTS = [
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
 
 // ========== 腾讯混元3D API 配置 ==========
-// 混元3D使用腾讯云官方API（国内版 ai3d.tencentcloudapi.com）
+// 混元3D使用腾讯云OpenAI兼容接口
 const HUNYUAN3D_API_KEY = process.env.HUNYUAN3D_API_KEY || '';
-const HUNYUAN3D_BASE_URL = 'https://ai3d.tencentcloudapi.com';
-const HUNYUAN3D_VERSION = '2025-05-13';
-const HUNYUAN3D_REGION = 'ap-guangzhou';
+const HUNYUAN3D_BASE_URL = 'https://api.ai3d.cloud.tencent.com';
 
 // ========== Wan2.6 阿里云百炼 API 配置 ==========
 // 优先使用专用的WAN26_API_KEY，否则使用云雾API的key
@@ -4969,16 +4967,13 @@ module.exports = async function handler(req, res) {
                 if (imageUrl) requestBody.ImageUrl = imageUrl;
                 if (imageBase64) requestBody.ImageBase64 = imageBase64;
 
-                console.log('[yunwu] 🧊 提交3D任务到腾讯云:', { hasPrompt: !!prompt, hasImage: !!imageUrl || !!imageBase64, action: 'SubmitHunyuanTo3DProJob' });
+                console.log('[yunwu] 🧊 提交3D任务到腾讯云OpenAI兼容接口:', { hasPrompt: !!prompt, hasImage: !!imageUrl || !!imageBase64 });
 
-                const response = await fetch(`${HUNYUAN3D_BASE_URL}/`, {
+                const response = await fetch(`${HUNYUAN3D_BASE_URL}/v1/ai3d/submit`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${HUNYUAN3D_API_KEY}`,
-                        'Content-Type': 'application/json',
-                        'X-TC-Action': 'SubmitHunyuanTo3DProJob',
-                        'X-TC-Version': HUNYUAN3D_VERSION,
-                        'X-TC-Region': HUNYUAN3D_REGION
+                        'Authorization': HUNYUAN3D_API_KEY,
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(requestBody),
                     signal: AbortSignal.timeout(60000)
@@ -5041,14 +5036,11 @@ module.exports = async function handler(req, res) {
             }
 
             try {
-                const response = await fetch(`${HUNYUAN3D_BASE_URL}/`, {
+                const response = await fetch(`${HUNYUAN3D_BASE_URL}/v1/ai3d/query`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${HUNYUAN3D_API_KEY}`,
-                        'Content-Type': 'application/json',
-                        'X-TC-Action': 'QueryHunyuanTo3DProJob',
-                        'X-TC-Version': HUNYUAN3D_VERSION,
-                        'X-TC-Region': HUNYUAN3D_REGION
+                        'Authorization': HUNYUAN3D_API_KEY,
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ JobId: jobId }),
                     signal: AbortSignal.timeout(30000)
