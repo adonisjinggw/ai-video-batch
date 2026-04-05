@@ -353,60 +353,11 @@ const YUNWU_ENDPOINTS = [
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
 
 // ========== 腾讯混元3D API 配置 ==========
-// 混元3D使用腾讯云官方API（国内版 ai3d.tencentcloudapi.com），需TC3-HMAC-SHA256签名
-const HUNYUAN3D_SECRET_ID = process.env.HUNYUAN3D_SECRET_ID || '';
-const HUNYUAN3D_SECRET_KEY = process.env.HUNYUAN3D_SECRET_KEY || '';
+// 混元3D使用腾讯云官方API（国内版 ai3d.tencentcloudapi.com）
+const HUNYUAN3D_API_KEY = process.env.HUNYUAN3D_API_KEY || '';
 const HUNYUAN3D_BASE_URL = 'https://ai3d.tencentcloudapi.com';
-const HUNYUAN3D_SERVICE = 'ai3d';
 const HUNYUAN3D_VERSION = '2025-05-13';
 const HUNYUAN3D_REGION = 'ap-guangzhou';
-
-/**
- * TC3-HMAC-SHA256 签名（腾讯云API 3.0）
- * @param {string} action - API Action
- * @param {object} payload - 请求体
- * @returns {Promise<{headers: object}>}
- */
-async function _tc3Sign(action, payload) {
-    const crypto = await import('crypto');
-    const timestamp = Math.floor(Date.now() / 1000);
-    const date = new Date(timestamp * 1000).toISOString().slice(0, 10).replace(/-/g, '');
-    const payloadStr = JSON.stringify(payload);
-    const hashedPayload = crypto.createHash('sha256').update(payloadStr).digest('hex');
-
-    // 规范请求串
-    const httpMethod = 'POST';
-    const canonicalUri = '/';
-    const canonicalQueryString = '';
-    const contentType = 'application/json; charset=utf-8';
-    const host = 'ai3d.tencentcloudapi.com';
-    const canonicalHeaders = `content-type:${contentType}\nhost:${host}\nx-tc-action:${action.toLowerCase()}\n`;
-    const signedHeaders = 'content-type;host;x-tc-action';
-
-    const canonicalRequest = [httpMethod, canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaders, hashedPayload].join('\n');
-
-    // 待签名字符串
-    const credentialScope = `${date}/${HUNYUAN3D_SERVICE}/tc3_request`;
-    const stringToSign = ['TC3-HMAC-SHA256', String(timestamp), credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
-
-    // 计算签名
-    const secretDate = crypto.createHmac('sha256', 'TC3' + HUNYUAN3D_SECRET_KEY).update(date).digest();
-    const secretService = crypto.createHmac('sha256', secretDate).update(HUNYUAN3D_SERVICE).digest();
-    const secretSigning = crypto.createHmac('sha256', secretService).update('tc3_request').digest();
-    const signature = crypto.createHmac('sha256', secretSigning).update(stringToSign).digest('hex');
-
-    return {
-        headers: {
-            'Authorization': `TC3-HMAC-SHA256 Credential=${HUNYUAN3D_SECRET_ID}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
-            'Content-Type': contentType,
-            'Host': host,
-            'X-TC-Action': action,
-            'X-TC-Version': HUNYUAN3D_VERSION,
-            'X-TC-Region': HUNYUAN3D_REGION,
-            'X-TC-Timestamp': String(timestamp)
-        }
-    };
-}
 
 // ========== Wan2.6 阿里云百炼 API 配置 ==========
 // 优先使用专用的WAN26_API_KEY，否则使用云雾API的key
@@ -4993,9 +4944,9 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
-            // 🔐 检查混元3D密钥配置
-            if (!HUNYUAN3D_SECRET_ID || !HUNYUAN3D_SECRET_KEY) {
-                json(500, { success: false, error: 'HUNYUAN3D_NOT_CONFIGURED', message: '混元3D API未配置（需要HUNYUAN3D_SECRET_ID和HUNYUAN3D_SECRET_KEY）' });
+            // 🔐 检查混元3D API Key
+            if (!HUNYUAN3D_API_KEY) {
+                json(500, { success: false, error: 'HUNYUAN3D_NOT_CONFIGURED', message: '混元3D API未配置' });
                 return;
             }
 
@@ -5020,12 +4971,15 @@ module.exports = async function handler(req, res) {
 
                 console.log('[yunwu] 🧊 提交3D任务到腾讯云:', { hasPrompt: !!prompt, hasImage: !!imageUrl || !!imageBase64, action: 'SubmitHunyuanTo3DProJob' });
 
-                // TC3-HMAC-SHA256签名
-                const { headers } = await _tc3Sign('SubmitHunyuanTo3DProJob', requestBody);
-
                 const response = await fetch(`${HUNYUAN3D_BASE_URL}/`, {
                     method: 'POST',
-                    headers,
+                    headers: {
+                        'Authorization': `Bearer ${HUNYUAN3D_API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'X-TC-Action': 'SubmitHunyuanTo3DProJob',
+                        'X-TC-Version': HUNYUAN3D_VERSION,
+                        'X-TC-Region': HUNYUAN3D_REGION
+                    },
                     body: JSON.stringify(requestBody),
                     signal: AbortSignal.timeout(60000)
                 });
@@ -5080,19 +5034,22 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
-            // 🔐 检查混元3D密钥配置
-            if (!HUNYUAN3D_SECRET_ID || !HUNYUAN3D_SECRET_KEY) {
+            // 🔐 检查混元3D API Key
+            if (!HUNYUAN3D_API_KEY) {
                 json(500, { success: false, error: 'HUNYUAN3D_NOT_CONFIGURED', message: '混元3D API未配置' });
                 return;
             }
 
             try {
-                // TC3-HMAC-SHA256签名
-                const { headers } = await _tc3Sign('QueryHunyuanTo3DProJob', { JobId: jobId });
-
                 const response = await fetch(`${HUNYUAN3D_BASE_URL}/`, {
                     method: 'POST',
-                    headers,
+                    headers: {
+                        'Authorization': `Bearer ${HUNYUAN3D_API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'X-TC-Action': 'QueryHunyuanTo3DProJob',
+                        'X-TC-Version': HUNYUAN3D_VERSION,
+                        'X-TC-Region': HUNYUAN3D_REGION
+                    },
                     body: JSON.stringify({ JobId: jobId }),
                     signal: AbortSignal.timeout(30000)
                 });
