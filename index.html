@@ -3110,11 +3110,21 @@
             }
         };
 
-        // 启动（电脑版直接创建，无需登录检查）
+        // 启动（电脑版检查登录状态：_showIntro=false 表示已登录）
+        function tryCreateRollRoll() {
+            if (typeof _showIntro !== 'undefined' && !_showIntro) {
+                // 已登录（从auth.html跳转回来，URL带logged_in=1）
+                window._createRollRoll();
+            } else {
+                // 未登录，等待登录后重试（auth.html登录后刷新本页）
+                console.log('🎬 小卷助手：等待用户登录...');
+            }
+        }
+
         if (document.readyState === 'complete') {
-            window._createRollRoll();
+            tryCreateRollRoll();
         } else {
-            window.addEventListener('load', window._createRollRoll);
+            window.addEventListener('load', tryCreateRollRoll);
         }
     })();
     </script>
