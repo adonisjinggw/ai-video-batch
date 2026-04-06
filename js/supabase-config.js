@@ -187,6 +187,22 @@ function getSupabase() {
                 supabaseClient.auth.getSession().then(({ data }) => {
                     __nvCachedSession = data?.session || null;
                     __nvCachedUser = data?.session?.user || null;
+                    // 🔧 如果有有效session但页面错误地显示了欢迎页/开场动画，直接跳过
+                    if (data?.session?.user && typeof _showIntro !== 'undefined' && _showIntro) {
+                        _showIntro = false;
+                        var _injStyle = document.getElementById('cinemaIntroInjectedStyle');
+                        if (_injStyle) _injStyle.remove();
+                        var _ci = document.getElementById('cinemaIntro');
+                        if (_ci) _ci.style.display = 'none';
+                        var _ws = document.getElementById('welcomeScreen');
+                        if (_ws) _ws.style.display = 'none';
+                        document.querySelectorAll('.app-container').forEach(function(el) {
+                            el.style.display = '';
+                            el.style.opacity = '';
+                            el.style.visibility = '';
+                        });
+                        console.log('[auth] 检测到有效session，跳过欢迎页');
+                    }
                     try { __nvAuthReadyResolve && __nvAuthReadyResolve(true); } catch (e) { }
                 }).catch(() => {
                     try { __nvAuthReadyResolve && __nvAuthReadyResolve(true); } catch (e) { }

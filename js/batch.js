@@ -18023,7 +18023,8 @@ function setupInfiniteCanvas(containerId, contentId) {
         // 更新缩放显示
         const zoomDisplay = document.querySelector('.zoom-level');
         if (zoomDisplay) zoomDisplay.textContent = Math.round(scale * 100) + '%';
-        if (typeof renderConnections === 'function') renderConnections();
+        // 🔧 优化：pan/zoom时不需要重绘连线（SVG在infinite-canvas内，自动跟随transform）
+        // 连线只在节点位置变化或连线增删时才需要重绘
         if (typeof window.updateMinimap === 'function') window.updateMinimap();
     };
 
@@ -18120,10 +18121,7 @@ function setupInfiniteCanvas(containerId, contentId) {
 
     // 🔧 抽取缩放逻辑为独立函数（跨浏览器兼容）
     function performZoom(e) {
-        // 获取当前缩放值
-        const currentTransform = content.style.transform;
-        const match = currentTransform.match(/scale\(([\d.]+)\)/);
-        scale = match ? parseFloat(match[1]) : 1;
+        // 🔧 优化：直接使用闭包内的scale变量，不需要正则解析DOM
 
         // 🔧 跨浏览器兼容：标准化 deltaY 值
         // Chrome/Edge: deltaY ~= 100-150, Firefox: deltaY ~= 3
@@ -18140,14 +18138,28 @@ function setupInfiniteCanvas(containerId, contentId) {
         const zoomFactor = normalizedDelta > 0 ? 0.92 : 1.08;
         const newScale = Math.min(Math.max(0.1, scale * zoomFactor), 5);
 
+        // 🔧 以鼠标位置为中心缩放（zoom to cursor）
+        const containerRect = container.getBoundingClientRect();
+        const mouseX = e.clientX - containerRect.left;
+        const mouseY = e.clientY - containerRect.top;
+
+        // 计算鼠标在世界坐标中的位置
+        const worldX = (mouseX - translateX) / scale;
+        const worldY = (mouseY - translateY) / scale;
+
         scale = newScale;
+
+        // 调整平移使鼠标位置保持不变
+        translateX = mouseX - worldX * scale;
+        translateY = mouseY - worldY * scale;
+
         updateCanvasTransform();
 
         // update zoom display
         const zoomDisplay = document.querySelector('.zoom-level');
         if (zoomDisplay) zoomDisplay.textContent = Math.round(scale * 100) + '%';
 
-        if (typeof renderConnections === 'function') renderConnections();
+        // 🔧 优化：缩放不需要重绘连线（SVG跟随transform）
         if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
     }
 
@@ -18339,7 +18351,7 @@ function setupInfiniteCanvas(containerId, contentId) {
             const zoomDisplay = document.querySelector('.zoom-level');
             if (zoomDisplay) zoomDisplay.textContent = Math.round(scale * 100) + '%';
 
-            if (typeof renderConnections === 'function') renderConnections();
+            // 🔧 优化：双指缩放不需要重绘连线
         } else if (e.touches.length === 1 && isTouchPanning && isInsideCanvas) {
             const touch = e.touches[0];
 
@@ -18362,7 +18374,7 @@ function setupInfiniteCanvas(containerId, contentId) {
             touchLastX = touch.clientX;
             touchLastY = touch.clientY;
 
-            if (typeof renderConnections === 'function') renderConnections();
+            // 🔧 优化：拖拽画布不需要重绘连线
         }
         // 其他情况：不阻止默认行为，允许页面正常滚动
     }, { passive: false });
@@ -18427,7 +18439,7 @@ function setupInfiniteCanvas(containerId, contentId) {
                 const zoomDisplay = document.querySelector('.zoom-level');
                 if (zoomDisplay) zoomDisplay.textContent = Math.round(scale * 100) + '%';
 
-                if (typeof renderConnections === 'function') renderConnections();
+                // 🔧 优化：双击缩放不需要重绘连线
             }
         }
 
@@ -18557,14 +18569,22 @@ function setupInfiniteCanvas(containerId, contentId) {
 
         var speed = Math.sqrt(_velX * _velX + _velY * _velY);
         if (speed > 0.8 && !wasNodeDragging) {
+            // 🔧 优化：基于时间的惯性衰减，更丝滑自然
+            var _inertiaStart = performance.now();
+            var _initVelX = _velX, _initVelY = _velY;
+            var _inertiaDuration = Math.min(speed * 120, 800); // 惯性持续时间(ms)，速度越快越长
             (function inertiaLoop() {
                 _inertiaId = requestAnimationFrame(function () {
+                    var elapsed = performance.now() - _inertiaStart;
+                    var t = Math.min(elapsed / _inertiaDuration, 1);
+                    // ease-out cubic 衰减曲线
+                    var ease = 1 - Math.pow(1 - t, 3);
                     translateX += _velX;
                     translateY += _velY;
-                    _velX *= 0.92;
-                    _velY *= 0.92;
+                    _velX = _initVelX * (1 - ease);
+                    _velY = _initVelY * (1 - ease);
                     updateCanvasTransform();
-                    if (Math.sqrt(_velX * _velX + _velY * _velY) > 0.15) {
+                    if (t < 1 && Math.sqrt(_velX * _velX + _velY * _velY) > 0.05) {
                         inertiaLoop();
                     } else { _inertiaId = 0; }
                 });
@@ -34994,7 +35014,6 @@ window.zoomIn = function () {
         canvas.style.transformOrigin = '0 0';
         const zoomDisplay = document.querySelector('.zoom-level');
         if (zoomDisplay) zoomDisplay.textContent = Math.round(newScale * 100) + '%';
-        if (typeof renderConnections === 'function') renderConnections();
     }
 };
 
@@ -35014,7 +35033,6 @@ window.zoomOut = function () {
         canvas.style.transformOrigin = '0 0';
         const zoomDisplay = document.querySelector('.zoom-level');
         if (zoomDisplay) zoomDisplay.textContent = Math.round(newScale * 100) + '%';
-        if (typeof renderConnections === 'function') renderConnections();
     }
 };
 
@@ -35031,7 +35049,6 @@ window.resetZoom = function () {
         canvas.style.transformOrigin = '0 0';
         const zoomDisplay = document.querySelector('.zoom-level');
         if (zoomDisplay) zoomDisplay.textContent = '100%';
-        if (typeof renderConnections === 'function') renderConnections();
     }
 };
 
