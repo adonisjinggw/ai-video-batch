@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.0.0.3</title>
+    <title>RollRoll 移动版 V9.0.0.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,19 +36,19 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.0.0.3"></script>
+    <script src="/js/supabase-config.js?v=20260211a&t=20260315b"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=9.0.0.3"></script>
-    <script src="/js/user-memory.js?v=9.0.0.3"></script>
-    <script src="/js/writing-vault.js?v=9.0.0.3"></script>
+    <script src="/js/api-core.js?v=20260404a&t=20260404a"></script>
+    <script src="/js/user-memory.js?v=20260210c&t=20260315b"></script>
+    <script src="/js/writing-vault.js?v=20260210c&t=20260315b"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=9.0.0.3"></script>
-    <script src="/js/skill-presets.js?v=9.0.0.3"></script>
-    <script src="/js/mv-merge.js?v=9.0.0.3"></script>
+    <script src="/js/skill-system.js?v=20260225d&t=20260315b"></script>
+    <script src="/js/skill-presets.js?v=20260315a&t=20260315b"></script>
+    <script src="/js/mv-merge.js?v=20260306a&t=20260315b"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-voice.js?v=9.0.0.3"></script>
-    <script src="/js/assistant-xj2.js?v=9.0.0.3"></script>
-    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.0.3">
+    <script src="/js/assistant-voice.js?v=20260331a"></script>
+    <script src="/js/assistant-xj2.js?v=20260401a"></script>
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=20260401b">
     <style>
         * {
             margin: 0;
@@ -6182,7 +6182,6 @@
                 if (imageUpload) imageUpload.style.display = 'block';
             }
         }
-        window.switchMode = switchMode;
 
         // ==================== 生成模式切换 ====================
         const MODEL_PRICES = {
@@ -6802,7 +6801,6 @@ Output must look like a frame from a Japanese anime series. The character should
                 console.warn('[mobile] 元素未找到: themeInput');
             }
         }
-        window.insertTag = insertTag;
 
         function useTemplate(type) {
             const input = document.getElementById('themeInput');
@@ -6813,7 +6811,6 @@ Output must look like a frame from a Japanese anime series. The character should
                 console.warn('[mobile] 元素未找到: themeInput');
             }
         }
-        window.useTemplate = useTemplate;
 
         function useFillTemplate() {
             const select = document.getElementById('fillTemplateSelect');
@@ -11118,7 +11115,6 @@ ${idea.theme}${characterPrompt}
             modal.addEventListener('click', (e) => { if (e.target === modal) closeMobileCharLib(); });
             renderMobileCharacterList();
         }
-        window.openMobileCharacterLibrary = openMobileCharacterLibrary;
 
         function closeMobileCharLib() {
             const modal = document.getElementById('mobileCharLibModal');
@@ -11279,7 +11275,6 @@ ${idea.theme}${characterPrompt}
             const modal = document.getElementById('addCharModal');
             if (modal) modal.style.display = 'none';
         }
-        window.closeAddCharModal = closeAddCharModal;
 
         function previewAddCharImage(input) {
             if (input.files && input.files[0]) {
@@ -11295,7 +11290,6 @@ ${idea.theme}${characterPrompt}
                 reader.readAsDataURL(input.files[0]);
             }
         }
-        window.openAddCharModal = openAddCharModal;
 
         function saveNewCharacter() {
             // 📱 移动端修复：先移除所有输入框焦点，防止焦点跳转
@@ -11326,7 +11320,6 @@ ${idea.theme}${characterPrompt}
             showToast('✅ 角色已添加');
             window.__addCharImage = null;
         }
-        window.saveNewCharacter = saveNewCharacter;
 
         // ==================== 🎵 音乐MV生成器 ====================
         function openMobileMVGenerator() {
@@ -11832,7 +11825,6 @@ ${idea.theme}${characterPrompt}
                 `;
             }
         }
-        window.openMobileMVGenerator = openMobileMVGenerator;
 
         // ==================== 🧩 手机版技能面板 ====================
         let _mobileSkillCat = 'all';
@@ -11873,7 +11865,6 @@ ${idea.theme}${characterPrompt}
                 }
             }, 400);
         }
-        window.openMobileSkillPanel = openMobileSkillPanel;
 
         // ==================== 🌟 创作者资源中心 ====================
         const CH_FAV_KEY = 'rollroll_ch_favorites';
@@ -11890,7 +11881,6 @@ ${idea.theme}${characterPrompt}
             if (tab) chSwitchTab(tab);
             else chSwitchTab(_chTab);
         }
-        window.openCreatorHub = openCreatorHub;
 
         function closeCreatorHub() {
             const sheet = document.getElementById('creatorHubSheet');
@@ -11899,7 +11889,6 @@ ${idea.theme}${characterPrompt}
             // 关闭详情弹窗
             closeChModal();
         }
-        window.closeCreatorHub = closeCreatorHub;
 
         function chSwitchTab(tab) {
             _chTab = tab;
@@ -12482,8 +12471,6 @@ ${idea.theme}${characterPrompt}
                 return dateStr;
             }
         }
-
-        function closeMobileSkillPanel() {
             const sheet = document.getElementById('skillSheet');
             if (sheet) {
                 sheet.classList.remove('show');
@@ -12506,7 +12493,6 @@ ${idea.theme}${characterPrompt}
                 console.warn('[mobile] 元素未找到: skillResultPage');
             }
         }
-        window.closeMobileSkillPanel = closeMobileSkillPanel;
 
         function mobileSkillSetCategory(cat) {
             _mobileSkillCat = cat;

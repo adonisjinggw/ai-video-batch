@@ -1442,21 +1442,44 @@
     </div>
 
     <script>
-        // 开场动画/欢迎页显示逻辑
+        // 开场动画/欢迎页显示逻辑（严格登录检查）
         var _showIntro = false;
         var _introStyleTag = null;
         (function () {
-            // URL带 logged_in=1 → 已登录（从auth.html跳转回来）
+            // 🔒 检查1：URL带 logged_in=1 → 已登录（从auth.html跳转回来）
             if (location.search.indexOf('logged_in=1') > -1) {
                 history.replaceState({}, '', location.pathname);
                 _showIntro = false;
                 return;
             }
-            // 没有登录标记 → 显示开场动画和欢迎页
+            // 🔒 检查2：本地缓存有有效session → 已登录（刷新页面时）
+            // supabase-config.js 尚未加载，但 isLoggedInFast 在它加载后才可用
+            // 所以这里用直接的 localStorage/cookie 检查
+            try {
+                var _cacheRaw = null;
+                try { _cacheRaw = localStorage.getItem('rollroll_auth_cache'); } catch(e) {}
+                if (!_cacheRaw) try { _cacheRaw = sessionStorage.getItem('rollroll_auth_cache'); } catch(e) {}
+                if (!_cacheRaw) {
+                    var _m = document.cookie.match(/(^| )rollroll_auth_cache=([^;]+)/);
+                    if (_m) _cacheRaw = decodeURIComponent(_m[2]);
+                }
+                if (_cacheRaw) {
+                    var _cache = JSON.parse(_cacheRaw);
+                    // 缓存未过期且有用户信息
+                    if (_cache && _cache.user && _cache.user.id && _cache.cachedAt && (Date.now() - _cache.cachedAt < 30 * 60 * 1000)) {
+                        // session过期时间也检查
+                        if (!_cache.expiresAt || _cache.expiresAt * 1000 > Date.now()) {
+                            _showIntro = false;
+                            return;
+                        }
+                    }
+                }
+            } catch(e) {}
+            // 没有登录标记 → 强制显示开场动画和欢迎页
             _showIntro = true;
             var style = document.createElement('style');
             style.id = 'cinemaIntroInjectedStyle';
-            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
+            style.textContent = '#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
             document.head.appendChild(style);
             _introStyleTag = style;
         })();
@@ -3076,16 +3099,9 @@
 
         async function initAssistant() {
             try {
-                const isWelcomePage = (_showIntro === true);
-                console.log('[小助手 V2] 开始初始化，_showIntro:', _showIntro, 'isWelcomePage:', isWelcomePage);
-
-                if (isWelcomePage) {
-                    console.log('[小助手 V2] 欢迎页，跳过初始化');
-                    setAssistantVisible(false);
-                    return;
-                }
-
                 const isLoggedIn = (typeof _showIntro !== 'undefined' && !_showIntro);
+                console.log('[小助手 V2] 开始初始化，_showIntro:', _showIntro, 'isLoggedIn:', isLoggedIn);
+
                 setAssistantVisible(isLoggedIn);
 
                 // 绑定按钮事件
@@ -3243,7 +3259,6 @@
                         ? '你是一个专业的搜索助手，可以联网搜索最新信息。请根据用户的问题提供准确、有用、最新的信息。'
                         : '你是小卷助手，一个活泼可爱的AI助手。用简洁友好的语气回复用户，适当使用emoji。';
 
-                    var userId = (typeof getCurrentUserId === 'function' ? await getCurrentUserId() : null) || 'anonymous';
                     var resp = await fetch('/api/writer-llm', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -3253,7 +3268,7 @@
                                 { role: 'system', content: systemPrompt },
                                 { role: 'user', content: message }
                             ],
-                            userId: userId
+                            userId: 'anonymous'
                         })
                     });
 

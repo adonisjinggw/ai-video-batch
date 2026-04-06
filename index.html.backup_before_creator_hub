@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RollRoll - 让创意转动 V9.0.0.3</title>
+    <title>RollRoll - 让创意转动 V9.0.0.1</title>
     <!-- 📱 手机端自动跳转 -->
     <script>
         (function () {
@@ -28,8 +28,8 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="css/style.css?v=9.0.0.3">
-    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.0.3">
+    <link rel="stylesheet" href="css/style.css?v=8.11.0">
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.0.1">
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Supabase SDK （本地域名代理，避免被插件拦截） -->
@@ -1096,7 +1096,6 @@
                 </button>
 
                 <div class="footer-links">
-                    <button class="btn-link" onclick="openCreatorHubPC()">🌟 创作者资源</button>
                     <button class="btn-link" onclick="openCharacterPanel()">🎭 角色管理</button>
                     <button class="btn-link" onclick="openSettingsModal()">⚙️ 设置</button>
                     <button class="btn-link" onclick="openMemberModal()">👑 会员</button>
@@ -1442,21 +1441,22 @@
     </div>
 
     <script>
-        // 开场动画/欢迎页显示逻辑
+        // 开场动画/欢迎页显示逻辑（登录后可以跳过，其他情况强制显示）
         var _showIntro = false;
         var _introStyleTag = null;
         (function () {
-            // URL带 logged_in=1 → 已登录（从auth.html跳转回来）
-            if (location.search.indexOf('logged_in=1') > -1) {
+            // 🔒 只有登录后跳转（logged_in=1 或 skip_welcome=1）才跳过
+            // 其他情况强制显示开场动画和欢迎页
+            if (location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1) {
                 history.replaceState({}, '', location.pathname);
                 _showIntro = false;
                 return;
             }
-            // 没有登录标记 → 显示开场动画和欢迎页
+            // 强制显示开场动画和欢迎页
             _showIntro = true;
             var style = document.createElement('style');
             style.id = 'cinemaIntroInjectedStyle';
-            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
+            style.textContent = '#welcomeScreen,.app-container{display:none!important;opacity:0;visibility:hidden}';
             document.head.appendChild(style);
             _introStyleTag = style;
         })();
@@ -2171,19 +2171,18 @@
         </div>
     </div>
 
-    <script src="js/supabase-config.js?v=9.0.0.3"></script>
-    <script src="js/free-api.js?v=9.0.0.3"></script>
+    <script src="js/supabase-config.js?v=1.0.3"></script>
+    <script src="js/free-api.js?v=1.0.2"></script>
     <script src="js/knolling-node.js"></script>
     <!-- 🎬 智能任务调度器 - 优先级队列、自动重试、断点续传 -->
-    <script src="js/task-orchestrator.js?v=9.0.0.3"></script>
+    <script src="js/task-orchestrator.js?v=1.0.2"></script>
     <!-- 🛡️ 弹性 API 网关 - 负载均衡、熔断降级、成本优化 -->
-    <script src="js/resilient-api.js?v=9.0.0.3"></script>
+    <script src="js/resilient-api.js?v=1.0.2"></script>
     <!-- 🧩 Skill 技能系统 - 用户可选择不同技能完成任务 -->
-    <script src="js/skill-system.js?v=9.0.0.3"></script>
-    <script src="js/skill-presets.js?v=9.0.0.3"></script>
-    <script src="js/batch.js?v=9.0.0.3&t=202604052100"></script>
+    <script src="js/skill-system.js?v=1.0.2"></script>
+    <script src="js/skill-presets.js?v=1.0.2"></script>
+    <script src="js/batch.js?v=8.11.0&t=202604051500"></script>
     <script src="js/help_modal.js"></script>
-    <script src="js/assistant-xj2.js?v=9.0.0.3"></script>
 
     <!-- 视频编辑器模态框 -->
     <div id="videoEditorModal" class="modal" style="display:none;">
@@ -2676,158 +2675,6 @@
             }
         }
     </style>
-    <!-- 🌟 PC版创作者资源中心 样式 -->
-    <style id="creatorHubPCStyle">
-        .ch-pc-overlay {
-            position: fixed; inset: 0; z-index: 9000;
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-            display: none; align-items: center; justify-content: center;
-        }
-        .ch-pc-overlay.show { display: flex; }
-        .ch-pc-panel {
-            width: 90vw; max-width: 1100px; height: 80vh;
-            background: #111; border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 20px; display: flex; flex-direction: column;
-            box-shadow: 0 50px 100px rgba(0,0,0,0.8);
-            animation: chPcZoomIn 0.3s ease;
-        }
-        @keyframes chPcZoomIn { from { opacity:0; transform: scale(0.95); } to { opacity:1; transform: scale(1); } }
-        .ch-pc-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .ch-pc-header-title { font-size: 20px; font-weight: 700; color: #fff; }
-        .ch-pc-close {
-            width: 36px; height: 36px; border-radius: 50%;
-            background: rgba(255,255,255,0.08); border: none;
-            color: #999; font-size: 20px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.3s;
-        }
-        .ch-pc-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
-        .ch-pc-tabs {
-            display: flex; gap: 4px; padding: 0 24px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .ch-pc-tab {
-            padding: 12px 20px; background: none; border: none;
-            border-bottom: 2px solid transparent;
-            color: #888; font-size: 14px; font-weight: 600;
-            cursor: pointer; transition: all 0.3s;
-        }
-        .ch-pc-tab:hover { color: #bbb; }
-        .ch-pc-tab.active { color: #6366f1; border-bottom-color: #6366f1; }
-        .ch-pc-search {
-            display: flex; gap: 10px; padding: 16px 24px;
-        }
-        .ch-pc-search-input {
-            flex: 1; padding: 10px 16px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px; color: #fff; font-size: 14px; outline: none;
-        }
-        .ch-pc-search-input::placeholder { color: #555; }
-        .ch-pc-search-input:focus { border-color: #6366f1; }
-        .ch-pc-search-btn {
-            padding: 10px 20px; border: none; border-radius: 12px;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
-        }
-        .ch-pc-filters {
-            display: flex; gap: 8px; padding: 0 24px 12px; flex-wrap: wrap;
-        }
-        .ch-pc-filter-chip {
-            padding: 6px 14px; border-radius: 20px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-            color: #999; font-size: 12px; cursor: pointer; transition: all 0.3s;
-        }
-        .ch-pc-filter-chip:hover { border-color: #6366f1; color: #bbb; }
-        .ch-pc-filter-chip.active { background: rgba(99,102,241,0.2); border-color: #6366f1; color: #a5b4fc; }
-        .ch-pc-body { flex: 1; overflow-y: auto; padding: 16px 24px; }
-        .ch-pc-loading { text-align: center; padding: 60px; color: #666; }
-        .ch-pc-spinner {
-            width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: #6366f1; border-radius: 50%;
-            margin: 0 auto 16px; animation: chPcSpin 0.8s linear infinite;
-        }
-        @keyframes chPcSpin { to { transform: rotate(360deg); } }
-        .ch-pc-empty { text-align: center; padding: 60px; color: #555; }
-        .ch-pc-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px;
-        }
-        .ch-pc-card {
-            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 14px; overflow: hidden; transition: all 0.3s; cursor: pointer;
-        }
-        .ch-pc-card:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); transform: translateY(-4px); }
-        .ch-pc-card-img { width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid rgba(255,255,255,0.04); }
-        .ch-pc-card-body { padding: 16px; }
-        .ch-pc-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .ch-pc-badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-        .ch-pc-badge-default { background: rgba(255,255,255,0.08); color: #999; }
-        .ch-pc-badge-success { background: rgba(16,185,129,0.15); color: #34d399; }
-        .ch-pc-badge-warning { background: rgba(245,158,11,0.15); color: #fbbf24; }
-        .ch-pc-badge-purple { background: rgba(99,102,241,0.15); color: #a5b4fc; }
-        .ch-pc-fav-btn {
-            background: none; border: none; font-size: 16px;
-            cursor: pointer; color: rgba(255,255,255,0.2); transition: all 0.3s;
-        }
-        .ch-pc-fav-btn:hover, .ch-pc-fav-btn.active { color: #ec4899; transform: scale(1.15); }
-        .ch-pc-card-title { font-size: 15px; font-weight: 600; color: #fff; line-height: 1.4; margin-bottom: 8px; }
-        .ch-pc-card-desc { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .ch-pc-card-meta { display: flex; gap: 12px; font-size: 11px; color: #555; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.04); }
-        .ch-pc-card-actions { display: flex; gap: 8px; margin-top: 10px; }
-        .ch-pc-btn-sm {
-            flex: 1; padding: 8px 12px; border: none; border-radius: 8px;
-            font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none;
-        }
-        .ch-pc-btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
-        .ch-pc-btn-primary:hover { opacity: 0.9; }
-        .ch-pc-btn-outline { background: rgba(255,255,255,0.05); color: #aaa; border: 1px solid rgba(255,255,255,0.1); }
-        .ch-pc-btn-outline:hover { background: rgba(255,255,255,0.1); }
-        .ch-pc-avatar { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.1); margin-right: 8px; }
-        .ch-pc-score-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .ch-pc-progress-track { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
-        .ch-pc-progress-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #ec4899); border-radius: 2px; }
-        .ch-pc-score-label { font-size: 11px; color: #a5b4fc; font-weight: 600; }
-        .ch-pc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-        .ch-pc-tag { padding: 3px 8px; border-radius: 6px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.15); color: #a5b4fc; font-size: 11px; }
-        .ch-pc-prize { display: inline-block; padding: 4px 10px; border-radius: 8px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); color: #fbbf24; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
-        .ch-pc-refresh-btn {
-            padding: 10px 20px; margin-top: 12px;
-            background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);
-            border-radius: 12px; color: #a5b4fc; font-size: 13px; font-weight: 600; cursor: pointer;
-        }
-        .ch-pc-refresh-btn:hover { background: rgba(99,102,241,0.2); }
-        /* 详情弹窗 */
-        .ch-pc-detail-overlay {
-            position: fixed; inset: 0; z-index: 10000;
-            background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
-            display: none; align-items: center; justify-content: center;
-        }
-        .ch-pc-detail-overlay.show { display: flex; }
-        .ch-pc-detail-panel {
-            max-width: 700px; width: 90vw; max-height: 80vh;
-            background: #151515; border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 20px; overflow-y: auto;
-            animation: chPcZoomIn 0.3s ease;
-        }
-        .ch-pc-detail-hero { width: 100%; height: 300px; object-fit: cover; }
-        .ch-pc-detail-body { padding: 28px; }
-        .ch-pc-detail-title { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 16px; line-height: 1.3; }
-        .ch-pc-detail-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: #888; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-        .ch-pc-detail-desc { font-size: 14px; color: #bbb; line-height: 1.7; margin-bottom: 20px; }
-        .ch-pc-detail-section { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-        .ch-pc-detail-section h4 { font-size: 13px; color: #fbbf24; font-weight: 700; margin-bottom: 10px; letter-spacing: 0.5px; }
-        .ch-pc-detail-close {
-            position: fixed; top: 20px; right: 20px;
-            width: 40px; height: 40px; border-radius: 50%;
-            background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
-            color: #fff; font-size: 20px; cursor: pointer; z-index: 10001;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .ch-pc-detail-close:hover { background: rgba(255,255,255,0.1); }
-    </style>
     <script>
         (function () {
             var h3dTab = 'text';
@@ -2976,573 +2823,309 @@
         })();
     </script>
 
-    <!-- 🤖 小卷助手 V2 - 霓虹灵魂 (电脑版) -->
-    <div class="xj2-backdrop" id="xj2Backdrop"></div>
-
-    <div class="xj2-container" id="xj2Container">
-        <!-- 主面板 -->
-        <div class="xj2-panel" id="xj2Panel">
-            <!-- 头部 -->
-            <div class="xj2-panel-header">
-                <span class="xj2-panel-title">小卷助手 V2</span>
-                <button class="xj2-panel-close" id="xj2PanelClose">&times;</button>
-            </div>
-
-            <!-- 预测快捷入口 -->
-            <div class="xj2-quick-prediction">
-                <div class="xj2-quick-prediction-title">🐟 群体智能预测</div>
-                <div class="xj2-prediction-cards" id="xj2PredictionCards"></div>
-            </div>
-
-            <!-- 快捷功能按钮 -->
-            <div style="display:flex;gap:8px;padding:8px 12px;flex-wrap:wrap;">
-                <button onclick="xj2QuickAction('video')" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">🎬 视频</button>
-                <button onclick="xj2QuickAction('image')" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">🎨 图片</button>
-                <button onclick="xj2QuickAction('writing')" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">✍️ 文案</button>
-                <button onclick="xj2QuickAction('search')" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">🔍 搜索</button>
-                <button onclick="window.location.href='chat.html'" style="flex:1;min-width:70px;padding:6px 4px;background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.4);border-radius:8px;color:#FF6B9D;font-size:12px;cursor:pointer;">💬 完整对话</button>
-            </div>
-
-            <!-- 消息区域 -->
-            <div class="xj2-messages" id="xj2Messages">
-                <div class="xj2-message assistant">
-                    👋 你好！我是小卷助手 V2。有什么我可以帮你的吗？
-                </div>
-            </div>
-
-            <!-- 输入区域 -->
-            <div class="xj2-input-area">
-                <input type="text" class="xj2-input" id="xj2Input" placeholder="输入消息...">
-                <button class="xj2-btn xj2-btn-voice" id="xj2VoiceBtn">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                        <line x1="12" y1="19" x2="12" y2="23" />
-                        <line x1="8" y1="23" x2="16" y2="23" />
-                    </svg>
-                </button>
-                <button class="xj2-btn xj2-btn-send" id="xj2SendBtn">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="22" y1="2" x2="11" y2="13" />
-                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <!-- 头像按钮 -->
-        <div class="xj2-avatar-btn" id="xj2AvatarBtn">
-            <div class="xj2-avatar-inner">
-                <svg viewBox="0 0 100 100" width="100%" height="100%">
-                    <circle cx="50" cy="30" r="18" fill="white"/>
-                    <ellipse cx="50" cy="75" rx="25" ry="22" fill="white"/>
-                    <circle cx="43" cy="28" r="3" fill="#333"/>
-                    <circle cx="57" cy="28" r="3" fill="#333"/>
-                    <path d="M 43 35 Q 50 40 57 35" stroke="#333" stroke-width="2" fill="none"/>
-                    <ellipse cx="38" cy="34" rx="4" ry="2" fill="#ffb3ba" opacity="0.6"/>
-                    <ellipse cx="62" cy="34" rx="4" ry="2" fill="#ffb3ba" opacity="0.6"/>
-                </svg>
-            </div>
-            <div class="xj2-status" id="xj2Status"></div>
-        </div>
-    </div>
-
+    <!-- 🎬 RollRoll 小助手 (小卷) - 电脑版 -->
     <script>
     (function() {
         'use strict';
-        console.log('🎬 小卷助手 V2：初始化...');
+        console.log('🎬 小卷助手：初始化...');
 
-        let assistantPanelOpen = false;
+        let assistantContainer = null;
+        let dialog = null;
+        let selectedIntent = null;
+        let chatHistory = [];
 
-        // 显示/隐藏助手容器
-        function setAssistantVisible(visible) {
-            console.log('[小助手 V2] setAssistantVisible, visible:', visible);
-            if (visible) {
-                // PC版：用 _showIntro 判断是否已登录
-                if (typeof _showIntro !== 'undefined' && _showIntro) {
-                    console.log('[小助手 V2] 未登录，不显示助手');
-                    return;
-                }
+        // 创建小助手（电脑版无需登录检查）
+        window._createRollRoll = function() {
+            if (document.getElementById('rollroll-assistant')) {
+                return;
             }
-            const container = document.getElementById('xj2Container');
-            if (container) {
-                if (visible) {
-                    container.classList.add('xj2-visible');
-                } else {
-                    container.classList.remove('xj2-visible');
-                }
-            }
-        }
 
-        async function initAssistant() {
-            try {
-                const isWelcomePage = (_showIntro === true);
-                console.log('[小助手 V2] 开始初始化，_showIntro:', _showIntro, 'isWelcomePage:', isWelcomePage);
+            console.log('🎬 创建小卷助手...');
 
-                if (isWelcomePage) {
-                    console.log('[小助手 V2] 欢迎页，跳过初始化');
-                    setAssistantVisible(false);
-                    return;
-                }
+            // 创建容器
+            const container = document.createElement('div');
+            container.id = 'rollroll-assistant';
+            container.style.cssText = 'position:fixed;bottom:100px;right:20px;z-index:99999;width:70px;height:70px;cursor:grab;touch-action:none;user-select:none;display:block !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;';
 
-                const isLoggedIn = (typeof _showIntro !== 'undefined' && !_showIntro);
-                setAssistantVisible(isLoggedIn);
+            // 创建头像按钮
+            const avatar = document.createElement('div');
+            avatar.id = 'rollroll-avatar';
+            avatar.style.cssText = 'width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#FF6B9D 0%,#C44569 50%,#F8B500 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 25px rgba(196,69,105,0.5);transition:transform 0.3s;pointer-events:none;overflow:hidden;';
+            avatar.innerHTML = `
+                <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="25" cy="25" r="24" fill="white"/>
+                    <circle cx="25" cy="20" r="8" fill="#FF6B9D"/>
+                    <path d="M12 40 Q25 25 38 40" stroke="#FF6B9D" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    <circle cx="18" cy="18" r="2" fill="#333"/>
+                    <circle cx="32" cy="18" r="2" fill="#333"/>
+                </svg>
+            `;
 
-                // 绑定按钮事件
-                const avatarBtn = document.getElementById('xj2AvatarBtn');
-                const sendBtn = document.getElementById('xj2SendBtn');
-                const voiceBtn = document.getElementById('xj2VoiceBtn');
-                const closeBtn = document.getElementById('xj2PanelClose');
-                const inputEl = document.getElementById('xj2Input');
+            container.appendChild(avatar);
+            document.body.appendChild(container);
+            assistantContainer = container;
 
-                if (avatarBtn) avatarBtn.addEventListener('click', toggleAssistantPanel);
-                if (sendBtn) sendBtn.addEventListener('click', sendAssistantMessage);
-                if (voiceBtn) voiceBtn.addEventListener('click', toggleVoiceRecording);
-                if (closeBtn) closeBtn.addEventListener('click', function() {
-                    assistantPanelOpen = true;
-                    toggleAssistantPanel();
-                });
-                if (inputEl) inputEl.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') sendAssistantMessage();
-                });
-
-                console.log('[小助手 V2] 初始化完成');
-            } catch (e) {
-                console.warn('[小助手 V2] 初始化失败:', e);
-            }
-        }
-
-        function toggleAssistantPanel() {
-            const panel = document.getElementById('xj2Panel');
-            const backdrop = document.getElementById('xj2Backdrop');
-            assistantPanelOpen = !assistantPanelOpen;
-            if (panel) panel.classList.toggle('show', assistantPanelOpen);
-            if (backdrop) backdrop.classList.toggle('show', assistantPanelOpen);
-            if (!assistantPanelOpen && window.AssistantAiri) window.AssistantAiri.setStatus('idle');
-        }
-
-        function xj2QuickAction(action) {
-            const prompts = {
-                video: '帮我生成一个视频，主题是：',
-                image: '帮我画一张图，内容是：',
-                writing: '帮我写一篇文案，关于：',
-                search: '搜索：'
-            };
-            const input = document.getElementById('xj2Input');
-            if (input) {
-                input.value = prompts[action] || '';
-                input.focus();
-                input.setSelectionRange(input.value.length, input.value.length);
-            }
-            if (!assistantPanelOpen) toggleAssistantPanel();
-        }
-        window.xj2QuickAction = xj2QuickAction;
-
-        function toggleVoiceRecording() {
-            if (window.AssistantVoice && window.AssistantVoice.toggle) {
-                window.AssistantVoice.toggle();
-            } else {
-                if (typeof showToast === 'function') showToast('语音功能暂不可用');
-            }
-        }
-
-        function showTypingIndicator() {
-            const panelContent = document.getElementById('xj2Messages');
-            if (!panelContent) return null;
-            const typing = document.createElement('div');
-            typing.className = 'xj2-message assistant typing-indicator';
-            typing.id = 'xj2Typing-' + Date.now();
-            typing.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
-            panelContent.appendChild(typing);
-            panelContent.scrollTop = panelContent.scrollHeight;
-            return typing.id;
-        }
-
-        function removeTypingIndicator(id) {
-            if (id) {
-                const el = document.getElementById(id);
-                if (el) el.remove();
-            }
-        }
-
-        function addAssistantBubble(type, content, options) {
-            const panelContent = document.getElementById('xj2Messages');
-            if (!panelContent) return;
+            // 提示气泡
             const bubble = document.createElement('div');
-            bubble.className = 'xj2-message ' + type;
-            bubble.textContent = content;
-            panelContent.appendChild(bubble);
-            panelContent.scrollTop = panelContent.scrollHeight;
+            bubble.style.cssText = 'position:absolute;bottom:80px;right:0;background:linear-gradient(135deg,#1a1a2e,#16162a);color:#fff;padding:12px 18px;border-radius:18px;font-size:13px;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.4);border:1px solid rgba(255,107,157,0.3);opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;';
+            bubble.textContent = '👋 我是AI小卷，点我聊天～';
+            container.appendChild(bubble);
 
-            if (type === 'assistant' && window.AssistantAiri && window.AssistantAiri.isActive) {
-                var emotion = (options && options.emotion) || detectEmotion(content);
-                window.AssistantAiri.showDialogue(content, { emotion: emotion, duration: 4000 });
-            }
-        }
+            setTimeout(() => {
+                bubble.style.opacity = '1';
+                bubble.style.transform = 'translateY(0)';
+            }, 500);
 
-        function detectEmotion(text) {
-            if (!text) return 'neutral';
-            if (/开心|高兴|哈哈|棒|好|太好了|成功|完成|✅|🎉/i.test(text)) return 'happy';
-            if (/难过|失败|错误|抱歉|❌|😢/i.test(text)) return 'sad';
-            if (/惊讶|哇|天哪|不可思议/i.test(text)) return 'surprised';
-            return 'neutral';
-        }
+            setTimeout(() => {
+                bubble.style.opacity = '0';
+                setTimeout(() => bubble.style.display = 'none', 300);
+            }, 8000);
 
-        function showMemoryHistory() {
-            if (!window.AssistantMemory) {
-                addAssistantBubble('assistant', '记忆系统暂不可用');
-                return;
-            }
-            var memories = window.AssistantMemory.getByType('preference');
-            if (memories.length === 0) {
-                addAssistantBubble('assistant', '暂无记忆记录');
-                return;
-            }
-            var memoryText = '📋 你的偏好记忆:\n';
-            memories.forEach(function(m) {
-                memoryText += '• ' + (m.content || m.key) + '\n';
-            });
-            addAssistantBubble('assistant', memoryText);
-        }
+            // 点击头像打开对话框
+            avatar.onclick = function(e) {
+                e.stopPropagation();
+                openDialog();
+            };
 
-        async function sendAssistantMessage() {
-            var input = document.getElementById('xj2Input');
-            var message = input.value.trim();
-            if (!message) return;
+            // 拖拽功能
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
 
-            addAssistantBubble('user', message);
-            input.value = '';
-            input.disabled = true;
-
-            if (window.AssistantAiri) window.AssistantAiri.setStatus('thinking');
-            var typingId = showTypingIndicator();
-
-            if (window.AssistantMemory) window.AssistantMemory.setPreference('last_topic', message);
-
-            // 意图识别
-            var intent = 'chat';
-            if (/搜索|查询|找.*资料|帮我找|最新|新闻/i.test(message)) intent = 'search';
-            else if (/视频|短视频|生成视频|制作视频|分镜|video/i.test(message)) intent = 'video';
-            else if (/^(画|生成图片|作图|帮我画|画一张|画个|帮我生成|生成.*图|画.*图)/i.test(message)) intent = 'image';
-            else if (/文案|写.*文章|写.*脚本|写.*剧本|帮我写|创作|故事|写.*文案/i.test(message)) intent = 'writing';
-
-            try {
-                if (intent === 'video') {
-                    removeTypingIndicator(typingId);
-                    addAssistantBubble('assistant', '🎬 请在左侧创作面板中输入创意来生成视频，支持批量生成哦～');
-                } else if (intent === 'image') {
-                    removeTypingIndicator(typingId);
-                    addAssistantBubble('assistant', '🎨 请在左侧创作面板选择"图片生成"模式来生成图片～');
-                } else if (intent === 'writing') {
-                    removeTypingIndicator(typingId);
-                    addAssistantBubble('assistant', '✍️ 请点击左侧"AI写作"标签进入写作编辑器～');
-                } else {
-                    // chat / search：调用AI
-                    var model = 'grok-4-fast';
-                    var systemPrompt = intent === 'search'
-                        ? '你是一个专业的搜索助手，可以联网搜索最新信息。请根据用户的问题提供准确、有用、最新的信息。'
-                        : '你是小卷助手，一个活泼可爱的AI助手。用简洁友好的语气回复用户，适当使用emoji。';
-
-                    var userId = (typeof getCurrentUserId === 'function' ? await getCurrentUserId() : null) || 'anonymous';
-                    var resp = await fetch('/api/writer-llm', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            model: model,
-                            messages: [
-                                { role: 'system', content: systemPrompt },
-                                { role: 'user', content: message }
-                            ],
-                            userId: userId
-                        })
-                    });
-
-                    removeTypingIndicator(typingId);
-
-                    if (!resp.ok) throw new Error('请求失败 ' + resp.status);
-                    var data = await resp.json();
-                    var reply = data.content || data.message || '（无回复）';
-                    addAssistantBubble('assistant', reply, { emotion: detectEmotion(reply) });
+            function onPointerDown(e) {
+                if (e.target.closest('#rollroll-avatar')) {
+                    isDragging = true;
+                    const point = e.touches ? e.touches[0] : e;
+                    startX = point.clientX;
+                    startY = point.clientY;
+                    const rect = container.getBoundingClientRect();
+                    initialX = rect.left;
+                    initialY = rect.top;
+                    container.style.cursor = 'grabbing';
+                    container.style.transition = 'none';
                 }
-            } catch (e) {
-                removeTypingIndicator(typingId);
-                addAssistantBubble('assistant', '❌ 出错了：' + (e.message || '未知错误'), { emotion: 'sad' });
-            } finally {
-                input.disabled = false;
-                if (window.AssistantAiri) window.AssistantAiri.setStatus('idle');
             }
-        }
-        window.sendAssistantMessage = sendAssistantMessage;
 
-        // 暴露到全局供 onclick 使用
-        window.toggleAssistantPanel = toggleAssistantPanel;
-        window.toggleVoiceRecording = toggleVoiceRecording;
-        window.showMemoryHistory = showMemoryHistory;
+            function onPointerMove(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                const point = e.touches ? e.touches[0] : e;
+                const dx = point.clientX - startX;
+                const dy = point.clientY - startY;
+                container.style.left = (initialX + dx) + 'px';
+                container.style.top = (initialY + dy) + 'px';
+                container.style.right = 'auto';
+                container.style.bottom = 'auto';
+            }
 
-        // 启动
-        if (typeof _showIntro !== 'undefined' && !_showIntro) {
-            if (document.readyState === 'complete') {
-                initAssistant();
+            function onPointerUp() {
+                if (isDragging) {
+                    isDragging = false;
+                    container.style.cursor = 'grab';
+                    container.style.transition = '';
+                }
+            }
+
+            container.addEventListener('mousedown', onPointerDown);
+            container.addEventListener('touchstart', onPointerDown, {passive: false});
+            document.addEventListener('mousemove', onPointerMove);
+            document.addEventListener('touchmove', onPointerMove, {passive: false});
+            document.addEventListener('mouseup', onPointerUp);
+            document.addEventListener('touchend', onPointerUp);
+
+            function openDialog() {
+                if (dialog) return;
+
+                dialog = document.createElement('div');
+                dialog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);z-index:999998;width:90%;max-width:400px;background:linear-gradient(135deg,#1a1a2e,#16162a);border-radius:24px;padding:24px;box-shadow:0 10px 60px rgba(0,0,0,0.6);border:1px solid rgba(255,107,157,0.3);opacity:0;transition:all 0.3s;';
+
+                const dialogContent = document.createElement('div');
+                dialogContent.style.cssText = 'display:flex;flex-direction:column;gap:16px;';
+
+                const header = document.createElement('div');
+                header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+                header.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#FF6B9D,#C44569);display:flex;align-items:center;justify-content:center;">
+                            <svg width="30" height="30" viewBox="0 0 50 50" fill="none">
+                                <circle cx="25" cy="20" r="8" fill="white"/>
+                                <path d="M12 40 Q25 25 38 40" stroke="white" stroke-width="4" fill="none"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div style="font-weight:600;font-size:16px;">🤖 AI小卷</div>
+                            <div style="font-size:12px;color:#888;">智能创作助手</div>
+                        </div>
+                    </div>
+                    <button id="rollroll-close-dialog" style="background:none;border:none;color:#888;font-size:24px;cursor:pointer;">&times;</button>
+                `;
+
+                const inputArea = document.createElement('div');
+                inputArea.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
+
+                const chatContainer = document.createElement('div');
+                chatContainer.id = 'rollroll-chat';
+                chatContainer.style.cssText = 'max-height:200px;overflow-y:auto;padding:8px;background:#0a0a15;border-radius:12px;font-size:13px;';
+                inputArea.appendChild(chatContainer);
+
+                const inputWrapper = document.createElement('div');
+                inputWrapper.innerHTML = `
+                    <textarea id="rollroll-input" placeholder="告诉我你想做什么..." style="width:100%;height:60px;padding:12px;background:#0a0a15;border:1px solid rgba(255,107,157,0.3);border-radius:12px;color:#fff;font-size:14px;resize:none;outline:none;box-sizing:border-box;"></textarea>
+                    <button id="rollroll-send" style="width:100%;margin-top:8px;padding:10px;background:linear-gradient(135deg,#FF6B9D,#C44569);border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;">发送 ✈️</button>
+                `;
+
+                inputArea.appendChild(inputWrapper);
+
+                const optionsContainer = document.createElement('div');
+                optionsContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+                const options = [
+                    { label: '🎬 生成视频', action: 'video' },
+                    { label: '🎨 画一张图', action: 'image' },
+                    { label: '✍️ 写文案', action: 'writing' },
+                    { label: '💬 陪我聊天', action: 'chat' }
+                ];
+
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.style.cssText = 'width:100%;padding:12px;background:linear-gradient(135deg,#2a2a4a,#1a1a2a);border:1px solid rgba(255,107,157,0.3);border-radius:12px;color:#fff;font-size:14px;cursor:pointer;text-align:left;';
+                    btn.textContent = opt.label;
+                    btn.onclick = () => handleOptionClick(opt.action);
+                    optionsContainer.appendChild(btn);
+                });
+
+                dialogContent.appendChild(header);
+                dialogContent.appendChild(inputArea);
+                dialogContent.appendChild(optionsContainer);
+                dialog.appendChild(dialogContent);
+                document.body.appendChild(dialog);
+
+                document.getElementById('rollroll-close-dialog').onclick = closeDialog;
+
+                setTimeout(() => {
+                    dialog.style.opacity = '1';
+                    dialogContent.style.transform = 'scale(1)';
+                }, 10);
+
+                setTimeout(() => {
+                    const input = document.getElementById('rollroll-input');
+                    const sendBtn = document.getElementById('rollroll-send');
+                    if (input && sendBtn) {
+                        const sendMessage = async () => {
+                            const text = input.value.trim();
+                            if (!text) return;
+
+                            sendBtn.textContent = '处理中...';
+                            sendBtn.disabled = true;
+                            input.disabled = true;
+
+                            try {
+                                addUserMessage(text);
+
+                                // 简化处理：显示提示
+                                addAssistantMessage('💡 更多功能请使用完整对话页面 chat.html～');
+
+                                input.value = '';
+                            } catch (e) {
+                                console.error('[小卷] 处理失败:', e);
+                                addErrorMessage('处理失败: ' + (e.message || '未知错误'));
+                            } finally {
+                                sendBtn.textContent = '发送 ✈️';
+                                sendBtn.disabled = false;
+                                input.disabled = false;
+                            }
+                        };
+                        sendBtn.onclick = sendMessage;
+                        input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+                        input.focus();
+                    }
+                }, 100);
+            }
+
+            function closeDialog() {
+                if (!dialog) return;
+                dialog.style.opacity = '0';
+                const dialogContent = dialog.querySelector('div');
+                if (dialogContent) {
+                    dialogContent.style.transform = 'scale(0.9)';
+                }
+                setTimeout(() => {
+                    if (dialog && dialog.parentNode) {
+                        dialog.remove();
+                    }
+                    dialog = null;
+                }, 300);
+            }
+
+            function handleOptionClick(action) {
+                if (action === 'full_chat') {
+                    closeDialog();
+                    window.location.href = 'chat.html';
+                    return;
+                }
+
+                const prompts = {
+                    video: '帮我生成一个视频：',
+                    image: '帮我画一张图片：',
+                    writing: '帮我写一篇文案：'
+                };
+
+                selectedIntent = action;
+
+                const input = document.getElementById('rollroll-input');
+                if (input) {
+                    input.value = prompts[action] || '';
+                    input.focus();
+                    input.setSelectionRange(input.value.length, input.value.length);
+                }
+            }
+
+            function addUserMessage(text) {
+                const chatContainer = document.getElementById('rollroll-chat');
+                if (!chatContainer) return;
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:right;margin:8px 0;';
+                msg.innerHTML = `<div style="display:inline-block;background:#FF6B9D;color:#fff;padding:8px 12px;border-radius:12px;max-width:80%;">${text}</div>`;
+                chatContainer.appendChild(msg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function addAssistantMessage(text) {
+                const chatContainer = document.getElementById('rollroll-chat');
+                if (!chatContainer) return;
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:left;margin:8px 0;';
+                msg.innerHTML = `<div style="display:inline-block;background:#2a2a4a;color:#fff;padding:8px 12px;border-radius:12px;max-width:80%;">${text}</div>`;
+                chatContainer.appendChild(msg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function addErrorMessage(text) {
+                const chatContainer = document.getElementById('rollroll-chat');
+                if (!chatContainer) return;
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:left;margin:8px 0;';
+                msg.innerHTML = `<div style="display:inline-block;background:rgba(239,68,68,0.2);color:#ef4444;padding:8px 12px;border-radius:12px;max-width:80%;">${text}</div>`;
+                chatContainer.appendChild(msg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        };
+
+        // 启动（电脑版检查登录状态：_showIntro=false 表示已登录）
+        function tryCreateRollRoll() {
+            if (typeof _showIntro !== 'undefined' && !_showIntro) {
+                // 已登录（从auth.html跳转回来，URL带logged_in=1）
+                window._createRollRoll();
             } else {
-                window.addEventListener('load', initAssistant);
+                // 未登录，等待登录后重试（auth.html登录后刷新本页）
+                console.log('🎬 小卷助手：等待用户登录...');
             }
+        }
+
+        if (document.readyState === 'complete') {
+            tryCreateRollRoll();
         } else {
-            console.log('🎬 小助手 V2：等待用户登录...');
+            window.addEventListener('load', tryCreateRollRoll);
         }
-    })();
-    </script>
-
-    <!-- 🌟 PC版创作者资源中心 HTML -->
-    <div class="ch-pc-overlay" id="chPcOverlay">
-        <div class="ch-pc-panel">
-            <div class="ch-pc-header">
-                <span class="ch-pc-header-title">🌟 AI创作者资源中心</span>
-                <button class="ch-pc-close" onclick="closeCreatorHubPC()">&times;</button>
-            </div>
-            <div class="ch-pc-tabs" id="chPcTabs">
-                <button class="ch-pc-tab active" data-tab="inspiration" onclick="chPcSwitchTab('inspiration')">💡 创意灵感</button>
-                <button class="ch-pc-tab" data-tab="contests" onclick="chPcSwitchTab('contests')">🏆 AI比赛</button>
-                <button class="ch-pc-tab" data-tab="github" onclick="chPcSwitchTab('github')">💎 GitHub项目</button>
-                <button class="ch-pc-tab" data-tab="favorites" onclick="chPcSwitchTab('favorites')">⭐ 我的收藏</button>
-            </div>
-            <div class="ch-pc-search">
-                <input type="text" class="ch-pc-search-input" id="chPcSearchInput" placeholder="搜索关键词..." onkeydown="if(event.key==='Enter')chPcSearch()">
-                <button class="ch-pc-search-btn" onclick="chPcSearch()">🔍 搜索</button>
-                <button class="ch-pc-refresh-btn" onclick="chPcLoadData()">🔄 刷新</button>
-            </div>
-            <div class="ch-pc-filters" id="chPcFilters"></div>
-            <div class="ch-pc-body" id="chPcBody">
-                <div class="ch-pc-loading" id="chPcLoading"><div class="ch-pc-spinner"></div><p>正在加载数据...</p></div>
-                <div id="chPcContent"></div>
-            </div>
-        </div>
-    </div>
-    <div class="ch-pc-detail-overlay" id="chPcDetailOverlay">
-        <button class="ch-pc-detail-close" onclick="closeChPcDetail()">&times;</button>
-        <div class="ch-pc-detail-panel" id="chPcDetailPanel"></div>
-    </div>
-
-    <script>
-    // ==================== PC版创作者资源中心 ====================
-    (function() {
-        const CHPC_FAV_KEY = 'rollroll_ch_favorites';
-        let _chpcTab = 'inspiration';
-        let _chpcData = [];
-        let _chpcFavorites = JSON.parse(localStorage.getItem(CHPC_FAV_KEY) || '[]');
-        let _chpcLoading = false;
-
-        window.openCreatorHubPC = function(tab) {
-            document.getElementById('chPcOverlay').classList.add('show');
-            if (tab) chPcSwitchTab(tab); else chPcSwitchTab(_chpcTab);
-        };
-
-        window.closeCreatorHubPC = function() {
-            document.getElementById('chPcOverlay').classList.remove('show');
-            closeChPcDetail();
-        };
-
-        window.chPcSwitchTab = function(tab) {
-            _chpcTab = tab;
-            document.querySelectorAll('.ch-pc-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-            const input = document.getElementById('chPcSearchInput');
-            const ph = { inspiration:'搜索灵感...', contests:'搜索比赛...', github:'搜索GitHub项目...', favorites:'搜索收藏...' };
-            if (input) { input.placeholder = ph[tab] || '搜索...'; input.value = ''; }
-            _chpcUpdateFilters();
-            chPcLoadData();
-        };
-
-        function _chpcUpdateFilters() {
-            const c = document.getElementById('chPcFilters');
-            if (!c) return;
-            if (_chpcTab === 'contests') {
-                c.innerHTML = '<button class="ch-pc-filter-chip active" data-val="all" onclick="_chpcFilter(this)">全部平台</button><button class="ch-pc-filter-chip" data-val="kaggle" onclick="_chpcFilter(this)">Kaggle</button><button class="ch-pc-filter-chip" data-val="tianchi" onclick="_chpcFilter(this)">天池</button><button class="ch-pc-filter-chip" data-val="heywhale" onclick="_chpcFilter(this)">和鲸</button>';
-            } else if (_chpcTab === 'github') {
-                c.innerHTML = '<button class="ch-pc-filter-chip active" data-val="stars" onclick="_chpcFilter(this)">⭐ 最多星标</button><button class="ch-pc-filter-chip" data-val="updated" onclick="_chpcFilter(this)">🔄 最近更新</button>';
-            } else { c.innerHTML = ''; }
-        }
-
-        window._chpcFilter = function(el) {
-            el.parentElement.querySelectorAll('.ch-pc-filter-chip').forEach(c => c.classList.remove('active'));
-            el.classList.add('active');
-            chPcLoadData();
-        };
-
-        window.chPcLoadData = async function() {
-            const loading = document.getElementById('chPcLoading');
-            const content = document.getElementById('chPcContent');
-            if (_chpcLoading) return;
-            _chpcLoading = true;
-            if (loading) loading.style.display = 'block';
-            if (content) content.innerHTML = '';
-            try {
-                if (_chpcTab === 'inspiration') await _chpcLoadInspiration();
-                else if (_chpcTab === 'contests') await _chpcLoadContests();
-                else if (_chpcTab === 'github') await _chpcLoadGithub();
-                else if (_chpcTab === 'favorites') _chpcDisplayFavorites();
-            } catch (err) {
-                console.error('[PC创作者资源中心]', err);
-                if (content) content.innerHTML = '<div class="ch-pc-empty">😔 加载失败，请重试</div>';
-            } finally {
-                if (loading) loading.style.display = 'none';
-                _chpcLoading = false;
-            }
-        };
-
-        async function _chpcLoadInspiration() {
-            const content = document.getElementById('chPcContent');
-            const skill = typeof SkillManager !== 'undefined' ? SkillManager.getById('get_inspiration') : null;
-            if (!skill) { if (content) content.innerHTML = '<div class="ch-pc-empty">💡 灵感技能加载中...</div>'; return; }
-            try {
-                const result = await skill.execute({ type: 'video', count: 12 }, { onProgress: (s,p,m) => { const l=document.getElementById('chPcLoading'); if(l) l.querySelector('p').textContent=m||'...'; }});
-                if (result && result.inspirations && result.inspirations.length > 0) {
-                    _chpcData = result.inspirations.map((insp,i) => ({ id:'insp_'+i, title:insp.title||insp.prompt?.substring(0,50)||'创意灵感', description:insp.prompt||insp.description||'', source:insp.source||'AI生成', author:'RollRoll AI', imageUrl:insp.imageUrl||'', createdAt:new Date().toISOString(), tags:insp.tags||[], prompt:insp.prompt||'' }));
-                    if (content) content.innerHTML = '<div class="ch-pc-grid">' + _chpcData.map(_chpcCreateInspCard).join('') + '</div>';
-                    _chpcAttachEvents();
-                } else { if (content) content.innerHTML = '<div class="ch-pc-empty">💡 暂无灵感</div>'; }
-            } catch(e) { if (content) content.innerHTML = '<div class="ch-pc-empty">💡 获取失败</div>'; }
-        }
-
-        async function _chpcLoadContests() {
-            const content = document.getElementById('chPcContent');
-            const af = document.querySelector('.ch-pc-filter-chip.active');
-            const platform = af ? af.dataset.val : 'all';
-            let contests = [];
-            const [kaggle, heywhale] = await Promise.all([
-                (async () => { try { const r=await fetch('https://www.kaggle.com/api/v1/competitions/list?group=general&sortBy=prize&page=1',{headers:{'User-Agent':'Mozilla/5.0'}}); if(!r.ok) return []; return (await r.json()).slice(0,12).map(c=>({id:'kaggle_'+(c.id||c.ref),platform:'Kaggle',title:c.title||'',description:c.description||'',url:'https://www.kaggle.com/c/'+c.ref,prizeText:c.reward||'荣誉奖励',endDate:c.deadline||'',participants:c.teamCount||0,status:c.enabled?'active':'ended',tags:c.tags||[],thumbnail:c.thumbnailImageUrl||''})); } catch(e){return[];} })(),
-                (async () => { try { const r=await fetch('https://www.heywhale.com/api/competitions?status=ongoing&page=1&pageSize=10',{headers:{'User-Agent':'Mozilla/5.0'}}); if(!r.ok) return []; const j=await r.json(); return (j.data||j.result||[]).slice(0,10).map(c=>({id:'heywhale_'+c.id,platform:'和鲸',title:c.title||'',description:c.description||c.intro||'',url:'https://www.heywhale.com/home/competition/'+c.id,prizeText:c.bonus||c.reward||'未知',endDate:c.endTime||'',participants:c.teamCount||c.participantCount||0,status:'active',tags:c.tags||[],thumbnail:c.cover||c.thumbnail||''})); } catch(e){return[];} })()
-            ]);
-            if (platform==='all'||platform==='kaggle') contests.push(...kaggle);
-            if (platform==='all'||platform==='heywhale') contests.push(...heywhale);
-            if (platform==='all'||platform==='tianchi') {
-                try { const r=await fetch('https://tianchi.aliyun.com/competition/proxy/api/competitions/list?pageNo=1&pageSize=10&status=1',{headers:{'User-Agent':'Mozilla/5.0','Content-Type':'application/json'}}); if(r.ok){const j=await r.json(); (j.data?.list||j.result||[]).slice(0,10).forEach(c=>{contests.push({id:'tianchi_'+c.competitionId,platform:'天池',title:c.name||c.title||'',description:c.description||c.brief||'',url:'https://tianchi.aliyun.com/competition/entrance/'+c.competitionId,prizeText:c.bonus||'未知',endDate:c.endDate||'',participants:c.currentTeamNumber||0,status:'active',tags:c.tags||[],thumbnail:c.logo||''});});} } catch(e){}
-            }
-            _chpcData = contests;
-            if (contests.length === 0) { if (content) content.innerHTML = '<div class="ch-pc-empty">🏆 暂无比赛数据</div>'; return; }
-            if (content) content.innerHTML = '<div class="ch-pc-grid">' + contests.map(_chpcCreateContestCard).join('') + '</div>';
-            _chpcAttachEvents();
-        }
-
-        async function _chpcLoadGithub() {
-            const content = document.getElementById('chPcContent');
-            const af = document.querySelector('.ch-pc-filter-chip.active');
-            const sortBy = af ? af.dataset.val : 'stars';
-            try {
-                const q = 'topic:ai OR topic:machine-learning OR topic:llm OR topic:stable-diffusion OR topic:comfyui';
-                const s = sortBy === 'updated' ? 'updated' : 'stars';
-                const r = await fetch('https://api.github.com/search/repositories?q='+encodeURIComponent(q)+'&sort='+s+'&order=desc&per_page=20',{headers:{'Accept':'application/vnd.github.v3+json'}});
-                if (!r.ok) throw new Error('GitHub API: '+r.status);
-                const j = await r.json();
-                const items = j.items || [];
-                if (items.length === 0) { if (content) content.innerHTML = '<div class="ch-pc-empty">💎 暂无数据</div>'; return; }
-                _chpcData = items.map(i=>({id:'gh_'+i.id,name:i.name,fullName:i.full_name,owner:{name:i.owner?.login||'',avatar:i.owner?.avatar_url||''},description:i.description||'',url:i.html_url,stars:i.stargazers_count||0,forks:i.forks_count||0,language:i.language||'',topics:i.topics||[],updatedAt:i.updated_at||i.pushed_at||'',potentialScore:Math.min(100,Math.round((i.stargazers_count||0)/(i.forks_count||1)*2+(i.stargazers_count||0)/1000))}));
-                if (content) content.innerHTML = '<div class="ch-pc-grid">' + _chpcData.map(_chpcCreateGithubCard).join('') + '</div>';
-                _chpcAttachEvents();
-            } catch(e) { if (content) content.innerHTML = '<div class="ch-pc-empty">💎 获取失败</div>'; }
-        }
-
-        function _chpcDisplayFavorites() {
-            const content = document.getElementById('chPcContent');
-            if (_chpcFavorites.length === 0) { if (content) content.innerHTML = '<div class="ch-pc-empty">⭐ 还没有收藏</div>'; return; }
-            _chpcData = _chpcFavorites;
-            if (content) content.innerHTML = '<div class="ch-pc-grid">' + _chpcFavorites.map(i => i.platform ? _chpcCreateContestCard(i) : i.fullName ? _chpcCreateGithubCard(i) : _chpcCreateInspCard(i)).join('') + '</div>';
-            _chpcAttachEvents();
-        }
-
-        function _chpcToggleFav(id) {
-            const idx = _chpcFavorites.findIndex(f=>f.id===id);
-            if (idx>-1) _chpcFavorites.splice(idx,1);
-            else { const item = _chpcData.find(d=>d.id===id); if(item) _chpcFavorites.push({...item,favoriteAt:new Date().toISOString()}); }
-            localStorage.setItem(CHPC_FAV_KEY, JSON.stringify(_chpcFavorites));
-            const btn = document.querySelector('.ch-pc-fav-btn[data-id="'+id+'"]');
-            if(btn){const isFav=_chpcFavorites.some(f=>f.id===id); btn.classList.toggle('active',isFav); btn.textContent=isFav?'⭐':'☆';}
-            if (_chpcTab==='favorites') _chpcDisplayFavorites();
-        }
-
-        window.chPcSearch = function() {
-            const input = document.getElementById('chPcSearchInput');
-            const kw = (input?.value||'').trim().toLowerCase();
-            if (!kw) { chPcLoadData(); return; }
-            const filtered = _chpcData.filter(i=>(i.title||'').toLowerCase().includes(kw)||(i.description||'').toLowerCase().includes(kw)||(i.platform||'').toLowerCase().includes(kw)||(i.fullName||'').toLowerCase().includes(kw));
-            const content = document.getElementById('chPcContent');
-            if (!content) return;
-            if (filtered.length===0) { content.innerHTML='<div class="ch-pc-empty">🔍 没有找到</div>'; return; }
-            if (_chpcTab==='contests') content.innerHTML='<div class="ch-pc-grid">'+filtered.map(_chpcCreateContestCard).join('')+'</div>';
-            else if (_chpcTab==='github') content.innerHTML='<div class="ch-pc-grid">'+filtered.map(_chpcCreateGithubCard).join('')+'</div>';
-            else content.innerHTML='<div class="ch-pc-grid">'+filtered.map(_chpcCreateInspCard).join('')+'</div>';
-            _chpcAttachEvents();
-        };
-
-        function _esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-        function _fNum(n){if(!n)return'0';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'k';return String(n);}
-        function _fDate(d){if(!d)return'未知';try{const dt=new Date(d);if(isNaN(dt))return d;const now=new Date(),diff=now-dt,days=Math.floor(diff/864e5);if(days===0)return'今天';if(days<7)return days+'天前';if(days<30)return Math.floor(days/7)+'周前';if(days<365)return Math.floor(days/30)+'个月前';return dt.toLocaleDateString('zh-CN');}catch(e){return d;}}
-
-        function _chpcCreateInspCard(item) {
-            const isFav = _chpcFavorites.some(f=>f.id===item.id);
-            return '<div class="ch-pc-card" data-id="'+item.id+'">'+(item.imageUrl?'<img src="'+item.imageUrl+'" alt="" class="ch-pc-card-img" onerror="this.style.display=\'none\'">':'')+'<div class="ch-pc-card-body"><div class="ch-pc-card-header"><span class="ch-pc-badge ch-pc-badge-purple">💡 '+_esc(item.source)+'</span><button class="ch-pc-fav-btn '+(isFav?'active':'')+'" data-id="'+item.id+'" onclick="event.stopPropagation();_chpcToggleFav(\''+item.id+'\')">'+(isFav?'⭐':'☆')+'</button></div><div class="ch-pc-card-title">'+_esc(item.title)+'</div><div class="ch-pc-card-desc">'+_esc(item.description)+'</div><div class="ch-pc-card-meta"><span>👤 '+_esc(item.author||'AI')+'</span></div><div class="ch-pc-card-actions"><button class="ch-pc-btn-sm ch-pc-btn-primary" onclick="event.stopPropagation();_chpcUseInsp(\''+item.id+'\')">使用灵感</button><button class="ch-pc-btn-sm ch-pc-btn-outline" onclick="event.stopPropagation();_chpcOpenDetail(\''+item.id+'\')">详情</button></div></div></div>';
-        }
-
-        function _chpcCreateContestCard(item) {
-            const isFav = _chpcFavorites.some(f=>f.id===item.id);
-            const sc = item.status==='active'?'ch-pc-badge-success':item.status==='upcoming'?'ch-pc-badge-warning':'ch-pc-badge-default';
-            const st = item.status==='active'?'进行中':item.status==='upcoming'?'即将开始':'已结束';
-            return '<div class="ch-pc-card" data-id="'+item.id+'">'+(item.thumbnail?'<img src="'+item.thumbnail+'" alt="" class="ch-pc-card-img" onerror="this.style.display=\'none\'">':'')+'<div class="ch-pc-card-body"><div class="ch-pc-card-header"><span class="ch-pc-badge ch-pc-badge-default">'+_esc(item.platform)+'</span><span class="ch-pc-badge '+sc+'">'+st+'</span><button class="ch-pc-fav-btn '+(isFav?'active':'')+'" data-id="'+item.id+'" onclick="event.stopPropagation();_chpcToggleFav(\''+item.id+'\')">'+(isFav?'⭐':'☆')+'</button></div><div class="ch-pc-card-title">'+_esc(item.title)+'</div><div class="ch-pc-card-desc">'+_esc(item.description)+'</div>'+(item.prizeText?'<div class="ch-pc-prize">💰 '+_esc(item.prizeText)+'</div>':'')+'<div class="ch-pc-card-meta"><span>👥 '+_fNum(item.participants)+' 参与</span>'+(item.endDate?'<span>📅 '+_fDate(item.endDate)+'</span>':'')+'</div><div class="ch-pc-card-actions">'+(item.url?'<a href="'+item.url+'" target="_blank" class="ch-pc-btn-sm ch-pc-btn-primary" onclick="event.stopPropagation()">参加比赛 →</a>':'')+'</div></div></div>';
-        }
-
-        function _chpcCreateGithubCard(item) {
-            const isFav = _chpcFavorites.some(f=>f.id===item.id);
-            return '<div class="ch-pc-card" data-id="'+item.id+'"><div class="ch-pc-card-body"><div class="ch-pc-card-header">'+(item.owner?.avatar?'<img src="'+item.owner.avatar+'" alt="" class="ch-pc-avatar" onerror="this.style.display=\'none\'">':'')+'<span class="ch-pc-badge ch-pc-badge-purple">'+_esc(item.language||'N/A')+'</span><button class="ch-pc-fav-btn '+(isFav?'active':'')+'" data-id="'+item.id+'" onclick="event.stopPropagation();_chpcToggleFav(\''+item.id+'\')">'+(isFav?'⭐':'☆')+'</button></div><div class="ch-pc-card-title">'+_esc(item.fullName||item.name)+'</div><div class="ch-pc-card-desc">'+_esc(item.description)+'</div>'+(item.potentialScore?'<div class="ch-pc-score-bar"><span class="ch-pc-score-label">潜力 '+item.potentialScore+'/100</span><div class="ch-pc-progress-track"><div class="ch-pc-progress-fill" style="width:'+item.potentialScore+'%"></div></div></div>':'')+'<div class="ch-pc-card-meta"><span>⭐ '+_fNum(item.stars)+'</span><span>🔱 '+_fNum(item.forks)+'</span><span>📅 '+_fDate(item.updatedAt)+'</span></div>'+(item.topics&&item.topics.length>0?'<div class="ch-pc-tags">'+item.topics.slice(0,4).map(t=>'<span class="ch-pc-tag">'+_esc(t)+'</span>').join('')+'</div>':'')+'<div class="ch-pc-card-actions">'+(item.url?'<a href="'+item.url+'" target="_blank" class="ch-pc-btn-sm ch-pc-btn-primary" onclick="event.stopPropagation()">查看仓库 →</a>':'')+'</div></div></div>';
-        }
-
-        window._chpcUseInsp = function(id) {
-            const item = _chpcData.find(d=>d.id===id)||_chpcFavorites.find(f=>f.id===id);
-            if(!item||!item.prompt){return;}
-            closeCreatorHubPC();
-            const ta = document.getElementById('promptInput')||document.getElementById('promptTextarea');
-            if(ta){ta.value=item.prompt;ta.dispatchEvent(new Event('input',{bubbles:true}));}
-        };
-
-        window._chpcOpenDetail = function(id) {
-            const item = _chpcData.find(d=>d.id===id)||_chpcFavorites.find(f=>f.id===id);
-            if(!item) return;
-            const overlay = document.getElementById('chPcDetailOverlay');
-            const panel = document.getElementById('chPcDetailPanel');
-            let html = '';
-            if(item.imageUrl) html+='<img src="'+item.imageUrl+'" alt="" class="ch-pc-detail-hero" onerror="this.style.display=\'none\'">';
-            html+='<div class="ch-pc-detail-body">';
-            html+='<div class="ch-pc-detail-title">'+_esc(item.title)+'</div>';
-            html+='<div class="ch-pc-detail-meta">';
-            if(item.source) html+='<span>来源: '+_esc(item.source)+'</span>';
-            if(item.platform) html+='<span>平台: '+_esc(item.platform)+'</span>';
-            if(item.language) html+='<span>语言: '+_esc(item.language)+'</span>';
-            if(item.stars) html+='<span>⭐ '+_fNum(item.stars)+'</span>';
-            html+='</div>';
-            html+='<div class="ch-pc-detail-desc">'+_esc(item.description)+'</div>';
-            if(item.prompt) html+='<div class="ch-pc-detail-section"><h4>💡 提示词</h4><div style="font-family:monospace;background:#000;border:1px solid rgba(255,255,255,0.1);padding:16px;border-radius:8px;color:#a5f3fc;white-space:pre-wrap;">'+_esc(item.prompt)+'</div></div>';
-            if(item.prizeText) html+='<div class="ch-pc-detail-section"><h4>💰 奖金</h4><p>'+_esc(item.prizeText)+'</p></div>';
-            if(item.topics&&item.topics.length>0) html+='<div class="ch-pc-detail-section"><h4>🏷️ 标签</h4><div class="ch-pc-tags">'+item.topics.map(t=>'<span class="ch-pc-tag">'+_esc(t)+'</span>').join('')+'</div></div>';
-            if(item.url) html+='<div style="margin-top:16px;"><a href="'+item.url+'" target="_blank" class="ch-pc-btn-sm ch-pc-btn-primary" style="display:inline-block;padding:12px 24px;">查看原链接 →</a></div>';
-            html+='</div>';
-            panel.innerHTML = html;
-            overlay.classList.add('show');
-        };
-
-        window.closeChPcDetail = function() {
-            document.getElementById('chPcDetailOverlay').classList.remove('show');
-        };
-
-        function _chpcAttachEvents() {
-            document.querySelectorAll('.ch-pc-card').forEach(card => {
-                card.onclick = () => _chpcOpenDetail(card.dataset.id);
-            });
-        }
-
-        // 点击overlay关闭
-        document.getElementById('chPcOverlay')?.addEventListener('click', function(e) {
-            if (e.target === this) closeCreatorHubPC();
-        });
-        document.getElementById('chPcDetailOverlay')?.addEventListener('click', function(e) {
-            if (e.target === this) closeChPcDetail();
-        });
     })();
     </script>
 </body>

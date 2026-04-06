@@ -47,6 +47,18 @@ cd ~/.claude/skills/gstack && ./setup
 - API：云雾API、OpenRouter、Midjourney等
 - 部署：Vercel
 
+## 项目维护规范（自动生效）
+
+**每次修改本项目代码时，必须自动遵循 `rollroll-maintainer` 技能的规范。** 在编辑任何文件之前，先阅读 `~/.claude/skills/rollroll-maintainer/skill.md` 中的维护规则。
+
+核心要求：
+
+- 修改前确认影响范围（PC版/手机版/两端共享）
+- 搜索函数/变量的所有引用后再修改
+- 修改后运行语法检查：`node -c "文件路径"`
+- 只提交修改的文件，禁止 `git add -A`
+- 更新 HTML 中的版本参数 `?v=xxx&t=xxx`
+
 ## 开发规范
 - 所有代码使用中文注释
 - API调用需要错误处理和超时设置

@@ -7565,12 +7565,9 @@ ${content}
                 // 使用CORS代理或者直接调用Reddit JSON API
                 const fetchRedditPosts = async (subreddit, limit) => {
                     try {
-                        // Reddit公共JSON API（5秒超时，国内可能无法访问）
-                        const controller = new AbortController();
-                        const timeout = setTimeout(() => controller.abort(), 5000);
+                        // Reddit公共JSON API
                         const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`;
-                        const response = await fetch(url, { signal: controller.signal });
-                        clearTimeout(timeout);
+                        const response = await fetch(url);
                         if (!response.ok) return [];
 
                         const data = await response.json();

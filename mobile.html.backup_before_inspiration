@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.0.0.3</title>
+    <title>RollRoll 移动版 V9.0.0.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,19 +36,19 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.0.0.3"></script>
+    <script src="/js/supabase-config.js?v=20260211a&t=20260315b"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=9.0.0.3"></script>
-    <script src="/js/user-memory.js?v=9.0.0.3"></script>
-    <script src="/js/writing-vault.js?v=9.0.0.3"></script>
+    <script src="/js/api-core.js?v=20260404a&t=20260404a"></script>
+    <script src="/js/user-memory.js?v=20260210c&t=20260315b"></script>
+    <script src="/js/writing-vault.js?v=20260210c&t=20260315b"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=9.0.0.3"></script>
-    <script src="/js/skill-presets.js?v=9.0.0.3"></script>
-    <script src="/js/mv-merge.js?v=9.0.0.3"></script>
+    <script src="/js/skill-system.js?v=20260225d&t=20260315b"></script>
+    <script src="/js/skill-presets.js?v=20260315a&t=20260315b"></script>
+    <script src="/js/mv-merge.js?v=20260306a&t=20260315b"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-voice.js?v=9.0.0.3"></script>
-    <script src="/js/assistant-xj2.js?v=9.0.0.3"></script>
-    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.0.3">
+    <script src="/js/assistant-voice.js?v=20260331a"></script>
+    <script src="/js/assistant-xj2.js?v=20260401a"></script>
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=20260401b">
     <style>
         * {
             margin: 0;
@@ -2385,270 +2385,6 @@
             }
         }
     </style>
-
-    <!-- 🌟 创作者资源中心 样式 -->
-    <style id="creatorHubCSS">
-        .creator-hub-sheet {
-            position: fixed; inset: 0; z-index: 9000;
-            display: none; flex-direction: column;
-            background: var(--bg-primary, #0a0a0a);
-        }
-        .creator-hub-sheet.show { display: flex; }
-        .ch-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 14px 16px;
-            background: rgba(15,15,15,0.95);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            position: sticky; top: 0; z-index: 10;
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-        }
-        .ch-header-title { font-size: 17px; font-weight: 700; color: #fff; }
-        .ch-close-btn {
-            width: 32px; height: 32px; border-radius: 50%;
-            background: rgba(255,255,255,0.08); border: none;
-            color: #999; font-size: 18px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .ch-tabs {
-            display: flex; gap: 0; padding: 0 12px;
-            background: rgba(15,15,15,0.9);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            overflow-x: auto; -webkit-overflow-scrolling: touch;
-        }
-        .ch-tabs::-webkit-scrollbar { display: none; }
-        .ch-tab {
-            flex: 1; min-width: 0; padding: 12px 8px;
-            background: none; border: none; border-bottom: 2px solid transparent;
-            color: #888; font-size: 13px; font-weight: 600;
-            cursor: pointer; transition: all 0.3s; white-space: nowrap;
-            text-align: center;
-        }
-        .ch-tab.active { color: #6366f1; border-bottom-color: #6366f1; }
-        .ch-tab:active { opacity: 0.7; }
-        .ch-search-bar {
-            display: flex; gap: 8px; padding: 12px 16px;
-            background: rgba(15,15,15,0.6);
-        }
-        .ch-search-input {
-            flex: 1; padding: 10px 16px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px; color: #fff; font-size: 14px; outline: none;
-        }
-        .ch-search-input::placeholder { color: #555; }
-        .ch-search-input:focus { border-color: #6366f1; background: rgba(255,255,255,0.08); }
-        .ch-search-btn {
-            padding: 10px 18px; border: none; border-radius: 12px;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
-        }
-        .ch-filters {
-            display: flex; gap: 8px; padding: 0 16px 12px;
-            overflow-x: auto; -webkit-overflow-scrolling: touch;
-        }
-        .ch-filters::-webkit-scrollbar { display: none; }
-        .ch-filter-chip {
-            padding: 6px 14px; border-radius: 20px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-            color: #999; font-size: 12px; cursor: pointer; white-space: nowrap;
-            transition: all 0.3s;
-        }
-        .ch-filter-chip.active {
-            background: rgba(99,102,241,0.2); border-color: #6366f1; color: #a5b4fc;
-        }
-        .ch-body { flex: 1; overflow-y: auto; padding: 12px 16px 100px; }
-        .ch-loading {
-            text-align: center; padding: 60px 20px; color: #666;
-        }
-        .ch-loading-spinner {
-            width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: #6366f1; border-radius: 50%;
-            margin: 0 auto 16px; animation: chSpin 0.8s linear infinite;
-        }
-        @keyframes chSpin { to { transform: rotate(360deg); } }
-        .ch-empty {
-            text-align: center; padding: 60px 20px; color: #555;
-        }
-        .ch-empty-icon { font-size: 48px; margin-bottom: 12px; }
-        /* Featured cards (top 3) */
-        .ch-featured {
-            display: grid; grid-template-columns: 1fr; gap: 12px;
-            margin-bottom: 20px;
-        }
-        .ch-featured-card {
-            position: relative; height: 200px; border-radius: 16px;
-            overflow: hidden; cursor: pointer;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.08);
-            transition: transform 0.3s;
-        }
-        .ch-featured-card:active { transform: scale(0.98); }
-        .ch-featured-img {
-            width: 100%; height: 100%; object-fit: cover;
-        }
-        .ch-featured-placeholder {
-            width: 100%; height: 100%;
-            background: linear-gradient(135deg, rgba(99,102,241,0.5), rgba(139,92,246,0.5));
-        }
-        .ch-featured-overlay {
-            position: absolute; inset: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 60%, transparent 100%);
-            padding: 20px; display: flex; flex-direction: column; justify-content: flex-end;
-        }
-        .ch-featured-badge {
-            position: absolute; top: 12px; left: 12px;
-            background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
-            padding: 4px 12px; border-radius: 20px;
-            font-size: 11px; font-weight: 600; color: #fff;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .ch-featured-title {
-            font-size: 16px; font-weight: 700; color: #fff;
-            line-height: 1.3; margin-bottom: 8px;
-        }
-        .ch-featured-meta {
-            display: flex; gap: 14px; font-size: 11px; color: rgba(255,255,255,0.7);
-        }
-        /* Content cards */
-        .ch-card-list { display: flex; flex-direction: column; gap: 12px; }
-        .ch-card {
-            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 14px; overflow: hidden;
-            transition: all 0.3s;
-        }
-        .ch-card:active { background: rgba(255,255,255,0.06); }
-        .ch-card-img {
-            width: 100%; height: 180px; object-fit: cover;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-        }
-        .ch-card-body { padding: 14px; }
-        .ch-card-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 10px;
-        }
-        .ch-badge {
-            padding: 3px 8px; border-radius: 6px;
-            font-size: 11px; font-weight: 600;
-        }
-        .ch-badge-default { background: rgba(255,255,255,0.08); color: #999; }
-        .ch-badge-success { background: rgba(16,185,129,0.15); color: #34d399; }
-        .ch-badge-warning { background: rgba(245,158,11,0.15); color: #fbbf24; }
-        .ch-badge-purple { background: rgba(99,102,241,0.15); color: #a5b4fc; }
-        .ch-fav-btn {
-            background: none; border: none; font-size: 18px;
-            cursor: pointer; color: rgba(255,255,255,0.2); transition: all 0.3s;
-            padding: 2px 4px;
-        }
-        .ch-fav-btn.active { color: #ec4899; transform: scale(1.15); }
-        .ch-card-title {
-            font-size: 15px; font-weight: 600; color: #fff;
-            line-height: 1.4; margin-bottom: 8px;
-            display: -webkit-box; -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical; overflow: hidden;
-        }
-        .ch-card-desc {
-            font-size: 13px; color: #888; line-height: 1.5;
-            margin-bottom: 10px;
-            display: -webkit-box; -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical; overflow: hidden;
-        }
-        .ch-card-meta {
-            display: flex; gap: 12px; font-size: 11px; color: #555;
-            padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.04);
-        }
-        .ch-card-actions {
-            display: flex; gap: 8px; margin-top: 10px;
-        }
-        .ch-btn-sm {
-            flex: 1; padding: 8px 12px; border: none; border-radius: 8px;
-            font-size: 12px; font-weight: 600; cursor: pointer; text-align: center;
-            text-decoration: none; display: block;
-        }
-        .ch-btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
-        }
-        .ch-btn-outline {
-            background: rgba(255,255,255,0.05); color: #aaa;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        /* GitHub specific */
-        .ch-avatar {
-            width: 32px; height: 32px; border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.1); margin-right: 8px;
-        }
-        .ch-score-bar {
-            display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-        }
-        .ch-progress-track {
-            flex: 1; height: 4px; background: rgba(255,255,255,0.08);
-            border-radius: 2px; overflow: hidden;
-        }
-        .ch-progress-fill {
-            height: 100%; background: linear-gradient(90deg, #6366f1, #ec4899);
-            border-radius: 2px; transition: width 0.5s;
-        }
-        .ch-score-label { font-size: 11px; color: #a5b4fc; font-weight: 600; }
-        .ch-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-        .ch-tag {
-            padding: 3px 8px; border-radius: 6px;
-            background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.15);
-            color: #a5b4fc; font-size: 11px;
-        }
-        /* Contest specific */
-        .ch-prize {
-            display: inline-block; padding: 4px 10px; border-radius: 8px;
-            background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2);
-            color: #fbbf24; font-size: 12px; font-weight: 600; margin-bottom: 8px;
-        }
-        /* Detail modal */
-        .ch-modal {
-            position: fixed; inset: 0; z-index: 10000;
-            background: rgba(0,0,0,0.92); backdrop-filter: blur(15px);
-            display: none; overflow-y: auto; padding: 0;
-        }
-        .ch-modal.show { display: block; }
-        .ch-modal-content {
-            max-width: 600px; margin: 0 auto;
-            background: #111; border-radius: 20px 20px 0 0;
-            min-height: 70vh; padding: 0;
-            animation: chSlideUp 0.35s ease;
-        }
-        @keyframes chSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .ch-modal-hero { width: 100%; height: 280px; object-fit: cover; border-radius: 20px 20px 0 0; }
-        .ch-modal-body { padding: 24px 20px; }
-        .ch-modal-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 16px; line-height: 1.3; }
-        .ch-modal-meta {
-            display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: #888;
-            margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .ch-modal-desc { font-size: 14px; color: #bbb; line-height: 1.7; margin-bottom: 20px; }
-        .ch-modal-section {
-            background: rgba(255,255,255,0.03); border-radius: 12px;
-            padding: 16px; margin-bottom: 16px;
-        }
-        .ch-modal-section h4 {
-            font-size: 13px; color: #fbbf24; font-weight: 700;
-            margin-bottom: 10px; letter-spacing: 0.5px;
-        }
-        .ch-modal-close {
-            position: fixed; top: 16px; right: 16px;
-            width: 36px; height: 36px; border-radius: 50%;
-            background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
-            color: #fff; font-size: 18px; cursor: pointer; z-index: 10001;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .ch-refresh-btn {
-            width: 100%; padding: 12px; margin-top: 12px;
-            background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);
-            border-radius: 12px; color: #a5b4fc; font-size: 14px;
-            font-weight: 600; cursor: pointer;
-        }
-        .ch-refresh-btn:active { background: rgba(99,102,241,0.2); }
-        /* Favorites tab */
-        .ch-fav-empty {
-            text-align: center; padding: 80px 20px; color: #555;
-        }
-        .ch-fav-empty-icon { font-size: 56px; margin-bottom: 12px; opacity: 0.4; }
-    </style>
 </head>
 
 <body>
@@ -2888,7 +2624,7 @@
                 <span style="font-size:24px;margin-bottom:4px;">🧩</span>
                 <span style="font-size:11px;color:var(--text-dim);">技能</span>
             </a>
-            <a href="javascript:void(0)" onclick="openCreatorHub('inspiration')" class="tool-item"
+            <a href="javascript:void(0)" onclick="quickInspiration()" class="tool-item"
                 style="display:flex;flex-direction:column;align-items:center;padding:12px 8px;background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2));border-radius:12px;text-decoration:none;color:var(--text);border:1px solid rgba(16,185,129,0.3);">
                 <span style="font-size:24px;margin-bottom:4px;">💡</span>
                 <span style="font-size:11px;color:var(--text-dim);">灵感</span>
@@ -3536,39 +3272,6 @@
 
     <!-- Toast提示 -->
     <div class="toast" id="toast"></div>
-
-    <!-- 🌟 创作者资源中心 (全屏面板) -->
-    <div class="creator-hub-sheet" id="creatorHubSheet">
-        <div class="ch-header">
-            <span class="ch-header-title">🌟 AI创作者资源中心</span>
-            <button class="ch-close-btn" onclick="closeCreatorHub()">&times;</button>
-        </div>
-        <div class="ch-tabs" id="chTabs">
-            <button class="ch-tab active" data-tab="inspiration" onclick="chSwitchTab('inspiration')">💡 创意灵感</button>
-            <button class="ch-tab" data-tab="contests" onclick="chSwitchTab('contests')">🏆 AI比赛</button>
-            <button class="ch-tab" data-tab="github" onclick="chSwitchTab('github')">💎 GitHub</button>
-            <button class="ch-tab" data-tab="favorites" onclick="chSwitchTab('favorites')">⭐ 收藏</button>
-        </div>
-        <div class="ch-search-bar" id="chSearchBar">
-            <input type="text" class="ch-search-input" id="chSearchInput" placeholder="搜索关键词..." onkeydown="if(event.key==='Enter')chSearch()">
-            <button class="ch-search-btn" onclick="chSearch()">🔍 搜索</button>
-        </div>
-        <div class="ch-filters" id="chFilters"></div>
-        <div class="ch-body" id="chBody">
-            <div class="ch-loading" id="chLoading">
-                <div class="ch-loading-spinner"></div>
-                <p>正在加载数据...</p>
-            </div>
-            <div id="chFeatured" style="display:none;"></div>
-            <div id="chContent"></div>
-        </div>
-    </div>
-
-    <!-- 🌟 创作者资源中心 详情弹窗 -->
-    <div class="ch-modal" id="chModal">
-        <button class="ch-modal-close" onclick="closeChModal()">&times;</button>
-        <div class="ch-modal-content" id="chModalContent"></div>
-    </div>
 
     <!-- 🧩 技能面板 (Bottom Sheet) -->
     <div class="skill-sheet" id="skillSheet">
@@ -6182,7 +5885,6 @@
                 if (imageUpload) imageUpload.style.display = 'block';
             }
         }
-        window.switchMode = switchMode;
 
         // ==================== 生成模式切换 ====================
         const MODEL_PRICES = {
@@ -6802,7 +6504,6 @@ Output must look like a frame from a Japanese anime series. The character should
                 console.warn('[mobile] 元素未找到: themeInput');
             }
         }
-        window.insertTag = insertTag;
 
         function useTemplate(type) {
             const input = document.getElementById('themeInput');
@@ -6813,7 +6514,6 @@ Output must look like a frame from a Japanese anime series. The character should
                 console.warn('[mobile] 元素未找到: themeInput');
             }
         }
-        window.useTemplate = useTemplate;
 
         function useFillTemplate() {
             const select = document.getElementById('fillTemplateSelect');
@@ -11118,7 +10818,6 @@ ${idea.theme}${characterPrompt}
             modal.addEventListener('click', (e) => { if (e.target === modal) closeMobileCharLib(); });
             renderMobileCharacterList();
         }
-        window.openMobileCharacterLibrary = openMobileCharacterLibrary;
 
         function closeMobileCharLib() {
             const modal = document.getElementById('mobileCharLibModal');
@@ -11279,7 +10978,6 @@ ${idea.theme}${characterPrompt}
             const modal = document.getElementById('addCharModal');
             if (modal) modal.style.display = 'none';
         }
-        window.closeAddCharModal = closeAddCharModal;
 
         function previewAddCharImage(input) {
             if (input.files && input.files[0]) {
@@ -11295,7 +10993,6 @@ ${idea.theme}${characterPrompt}
                 reader.readAsDataURL(input.files[0]);
             }
         }
-        window.openAddCharModal = openAddCharModal;
 
         function saveNewCharacter() {
             // 📱 移动端修复：先移除所有输入框焦点，防止焦点跳转
@@ -11326,7 +11023,6 @@ ${idea.theme}${characterPrompt}
             showToast('✅ 角色已添加');
             window.__addCharImage = null;
         }
-        window.saveNewCharacter = saveNewCharacter;
 
         // ==================== 🎵 音乐MV生成器 ====================
         function openMobileMVGenerator() {
@@ -11832,7 +11528,6 @@ ${idea.theme}${characterPrompt}
                 `;
             }
         }
-        window.openMobileMVGenerator = openMobileMVGenerator;
 
         // ==================== 🧩 手机版技能面板 ====================
         let _mobileSkillCat = 'all';
@@ -11852,635 +11547,18 @@ ${idea.theme}${characterPrompt}
             renderMobileSkillGrid();
         }
 
-        // 快速获取灵感 - 打开即自动加载，无需手动执行
+        // 快速获取灵感 - 直接打开获取灵感技能
         function quickInspiration() {
             // 打开技能面板
             openMobileSkillPanel();
 
-            // 延迟后自动选中并执行灵感技能
+            // 延迟后选择获取灵感技能
             setTimeout(() => {
-                const skill = SkillManager.getById('get_inspiration');
+                const skill = window.mobileSkills?.find(s => s.id === 'get_inspiration');
                 if (skill) {
-                    // 打开技能配置页
-                    mobileSkillOpen('get_inspiration');
-                    // 再延迟后自动执行（默认参数：video / 5个）
-                    setTimeout(() => {
-                        mobileSkillExecute();
-                    }, 500);
-                } else {
-                    console.warn('[mobile] 获取灵感技能未找到');
-                    showToast('灵感技能加载中...');
+                    mobileSkillSelect(skill);
                 }
-            }, 400);
-        }
-        window.openMobileSkillPanel = openMobileSkillPanel;
-
-        // ==================== 🌟 创作者资源中心 ====================
-        const CH_FAV_KEY = 'rollroll_ch_favorites';
-        let _chTab = 'inspiration';
-        let _chData = [];
-        let _chFavorites = JSON.parse(localStorage.getItem(CH_FAV_KEY) || '[]');
-        let _chLoading = false;
-
-        function openCreatorHub(tab) {
-            const sheet = document.getElementById('creatorHubSheet');
-            if (!sheet) return;
-            sheet.classList.add('show');
-            document.body.style.overflow = 'hidden';
-            if (tab) chSwitchTab(tab);
-            else chSwitchTab(_chTab);
-        }
-        window.openCreatorHub = openCreatorHub;
-
-        function closeCreatorHub() {
-            const sheet = document.getElementById('creatorHubSheet');
-            if (sheet) sheet.classList.remove('show');
-            document.body.style.overflow = '';
-            // 关闭详情弹窗
-            closeChModal();
-        }
-        window.closeCreatorHub = closeCreatorHub;
-
-        function chSwitchTab(tab) {
-            _chTab = tab;
-            // 更新标签按钮
-            document.querySelectorAll('.ch-tab').forEach(b => {
-                b.classList.toggle('active', b.dataset.tab === tab);
-            });
-            // 更新搜索框placeholder
-            const input = document.getElementById('chSearchInput');
-            if (input) {
-                const placeholders = {
-                    inspiration: '搜索灵感关键词...',
-                    contests: '搜索比赛名称...',
-                    github: '搜索GitHub项目...',
-                    favorites: '搜索收藏内容...'
-                };
-                input.placeholder = placeholders[tab] || '搜索...';
-                input.value = '';
-            }
-            // 更新筛选器
-            _chUpdateFilters();
-            // 加载数据
-            _chLoadData();
-        }
-
-        function _chUpdateFilters() {
-            const container = document.getElementById('chFilters');
-            if (!container) return;
-
-            if (_chTab === 'contests') {
-                container.innerHTML = `
-                    <button class="ch-filter-chip active" data-val="all" onclick="_chFilterClick(this,'platform')">全部平台</button>
-                    <button class="ch-filter-chip" data-val="kaggle" onclick="_chFilterClick(this,'platform')">Kaggle</button>
-                    <button class="ch-filter-chip" data-val="tianchi" onclick="_chFilterClick(this,'platform')">天池</button>
-                    <button class="ch-filter-chip" data-val="heywhale" onclick="_chFilterClick(this,'platform')">和鲸</button>
-                `;
-            } else if (_chTab === 'github') {
-                container.innerHTML = `
-                    <button class="ch-filter-chip active" data-val="stars" onclick="_chFilterClick(this,'sort')">⭐ 最多星标</button>
-                    <button class="ch-filter-chip" data-val="updated" onclick="_chFilterClick(this,'sort')">🔄 最近更新</button>
-                `;
-            } else {
-                container.innerHTML = '';
-            }
-        }
-
-        function _chFilterClick(el, type) {
-            el.parentElement.querySelectorAll('.ch-filter-chip').forEach(c => c.classList.remove('active'));
-            el.classList.add('active');
-            _chLoadData();
-        }
-
-        async function _chLoadData() {
-            const body = document.getElementById('chBody');
-            const loading = document.getElementById('chLoading');
-            const featured = document.getElementById('chFeatured');
-            const content = document.getElementById('chContent');
-
-            if (_chLoading) return;
-            _chLoading = true;
-
-            if (loading) loading.style.display = 'block';
-            if (featured) featured.style.display = 'none';
-            if (content) content.innerHTML = '';
-
-            try {
-                if (_chTab === 'inspiration') {
-                    await _chLoadInspiration();
-                } else if (_chTab === 'contests') {
-                    await _chLoadContests();
-                } else if (_chTab === 'github') {
-                    await _chLoadGithub();
-                } else if (_chTab === 'favorites') {
-                    _chDisplayFavorites();
-                }
-            } catch (err) {
-                console.error('[创作者资源中心] 加载失败:', err);
-                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">😔</div><p>加载失败，请重试</p></div>';
-            } finally {
-                if (loading) loading.style.display = 'none';
-                _chLoading = false;
-            }
-        }
-
-        // ---- 灵感标签页 ----
-        async function _chLoadInspiration() {
-            const content = document.getElementById('chContent');
-            const featured = document.getElementById('chFeatured');
-
-            // 使用技能系统获取灵感
-            const skill = typeof SkillManager !== 'undefined' ? SkillManager.getById('get_inspiration') : null;
-            if (!skill) {
-                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💡</div><p>灵感技能加载中...</p><button class="ch-refresh-btn" onclick="_chLoadInspiration()">🔄 重试</button></div>';
-                return;
-            }
-
-            try {
-                const result = await skill.execute(
-                    { type: 'video', count: 10 },
-                    {
-                        onProgress: (step, pct, msg) => {
-                            const loading = document.getElementById('chLoading');
-                            if (loading) loading.querySelector('p').textContent = msg || '加载中...';
-                        }
-                    }
-                );
-
-                if (result && result.inspirations && result.inspirations.length > 0) {
-                    _chData = result.inspirations.map((insp, i) => ({
-                        id: 'insp_' + i,
-                        title: insp.title || insp.prompt?.substring(0, 50) || '创意灵感',
-                        description: insp.prompt || insp.description || '',
-                        source: insp.source || 'AI生成',
-                        author: 'RollRoll AI',
-                        imageUrl: insp.imageUrl || '',
-                        createdAt: new Date().toISOString(),
-                        tags: insp.tags || [],
-                        prompt: insp.prompt || ''
-                    }));
-
-                    // 渲染热门灵感（前3个）
-                    if (featured && _chData.length >= 3) {
-                        featured.style.display = 'block';
-                        featured.innerHTML = _chData.slice(0, 3).map(item => _chCreateFeaturedCard(item)).join('');
-                        featured.querySelectorAll('.ch-featured-card').forEach(card => {
-                            card.onclick = () => _chOpenDetail(card.dataset.id);
-                        });
-                    }
-
-                    // 渲染列表
-                    if (content) content.innerHTML = '<div class="ch-card-list">' + _chData.slice(3).map(item => _chCreateInspirationCard(item)).join('') + '</div>';
-                    _chAttachCardEvents();
-                } else {
-                    if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💡</div><p>暂无灵感数据</p><button class="ch-refresh-btn" onclick="_chLoadInspiration()">🔄 换一批</button></div>';
-                }
-            } catch (err) {
-                console.error('[灵感] 获取失败:', err);
-                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💡</div><p>灵感获取失败</p><button class="ch-refresh-btn" onclick="_chLoadInspiration()">🔄 重试</button></div>';
-            }
-        }
-
-        // ---- 比赛标签页 ----
-        async function _chLoadContests() {
-            const content = document.getElementById('chContent');
-            const featured = document.getElementById('chFeatured');
-            if (featured) featured.style.display = 'none';
-
-            const activeFilter = document.querySelector('.ch-filter-chip.active');
-            const platform = activeFilter ? activeFilter.dataset.val : 'all';
-
-            let contests = [];
-
-            // 并行获取真实数据
-            const fetchKaggle = async () => {
-                try {
-                    const resp = await fetch('https://www.kaggle.com/api/v1/competitions/list?group=general&sortBy=prize&page=1', {
-                        headers: { 'User-Agent': 'Mozilla/5.0' }
-                    });
-                    if (!resp.ok) return [];
-                    const data = await resp.json();
-                    return data.slice(0, 12).map(c => ({
-                        id: 'kaggle_' + (c.id || c.ref),
-                        platform: 'Kaggle',
-                        title: c.title || 'Kaggle Competition',
-                        description: c.description || '',
-                        url: 'https://www.kaggle.com/c/' + c.ref,
-                        prizeText: c.reward || '荣誉奖励',
-                        endDate: c.deadline || '',
-                        participants: c.teamCount || 0,
-                        status: c.enabled ? 'active' : 'ended',
-                        tags: c.tags || [],
-                        thumbnail: c.thumbnailImageUrl || ''
-                    }));
-                } catch (e) {
-                    console.warn('[比赛] Kaggle获取失败:', e.message);
-                    return [];
-                }
-            };
-
-            const fetchHeywhale = async () => {
-                try {
-                    const resp = await fetch('https://www.heywhale.com/api/competitions?status=ongoing&page=1&pageSize=10', {
-                        headers: { 'User-Agent': 'Mozilla/5.0' }
-                    });
-                    if (!resp.ok) return [];
-                    const json = await resp.json();
-                    const list = json.data || json.result || [];
-                    return list.slice(0, 10).map(c => ({
-                        id: 'heywhale_' + c.id,
-                        platform: '和鲸',
-                        title: c.title || '和鲸比赛',
-                        description: c.description || c.intro || '',
-                        url: 'https://www.heywhale.com/home/competition/' + c.id,
-                        prizeText: c.bonus || c.reward || '未知',
-                        endDate: c.endTime || '',
-                        participants: c.teamCount || c.participantCount || 0,
-                        status: 'active',
-                        tags: c.tags || [],
-                        thumbnail: c.cover || c.thumbnail || ''
-                    }));
-                } catch (e) {
-                    console.warn('[比赛] 和鲸获取失败:', e.message);
-                    return [];
-                }
-            };
-
-            // 并行请求
-            const [kaggle, heywhale] = await Promise.all([fetchKaggle(), fetchHeywhale()]);
-
-            if (platform === 'all' || platform === 'kaggle') contests.push(...kaggle);
-            if (platform === 'all' || platform === 'heywhale') contests.push(...heywhale);
-
-            // 天池 - 使用公开的竞赛列表页面获取（CORS可能有限制）
-            if (platform === 'all' || platform === 'tianchi') {
-                try {
-                    const resp = await fetch('https://tianchi.aliyun.com/competition/proxy/api/competitions/list?pageNo=1&pageSize=10&status=1', {
-                        headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json' }
-                    });
-                    if (resp.ok) {
-                        const json = await resp.json();
-                        const list = json.data?.list || json.result || [];
-                        contests.push(...list.slice(0, 10).map(c => ({
-                            id: 'tianchi_' + c.competitionId,
-                            platform: '天池',
-                            title: c.name || c.title || '天池比赛',
-                            description: c.description || c.brief || '',
-                            url: 'https://tianchi.aliyun.com/competition/entrance/' + c.competitionId,
-                            prizeText: c.bonus || '未知',
-                            endDate: c.endDate || '',
-                            participants: c.currentTeamNumber || 0,
-                            status: 'active',
-                            tags: c.tags || [],
-                            thumbnail: c.logo || ''
-                        })));
-                    }
-                } catch (e) {
-                    console.warn('[比赛] 天池获取失败(CORS限制):', e.message);
-                }
-            }
-
-            _chData = contests;
-
-            if (contests.length === 0) {
-                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">🏆</div><p>暂无比赛数据<br><span style="font-size:12px;color:#666;">可能因网络限制无法获取</span></p><button class="ch-refresh-btn" onclick="_chLoadContests()">🔄 重试</button></div>';
-                return;
-            }
-
-            if (content) content.innerHTML = '<div class="ch-card-list">' + contests.map(item => _chCreateContestCard(item)).join('') + '</div>';
-            _chAttachCardEvents();
-        }
-
-        // ---- GitHub标签页 ----
-        async function _chLoadGithub() {
-            const content = document.getElementById('chContent');
-            const featured = document.getElementById('chFeatured');
-            if (featured) featured.style.display = 'none';
-
-            const activeFilter = document.querySelector('.ch-filter-chip.active');
-            const sortBy = activeFilter ? activeFilter.dataset.val : 'stars';
-
-            const query = 'topic:ai OR topic:machine-learning OR topic:llm OR topic:stable-diffusion OR topic:comfyui';
-            const sortParam = sortBy === 'updated' ? 'updated' : 'stars';
-
-            try {
-                const resp = await fetch('https://api.github.com/search/repositories?q=' + encodeURIComponent(query) + '&sort=' + sortParam + '&order=desc&per_page=20', {
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }
-                });
-
-                if (!resp.ok) throw new Error('GitHub API: ' + resp.status);
-                const json = await resp.json();
-                const items = json.items || [];
-
-                if (items.length === 0) {
-                    if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💎</div><p>暂无GitHub项目数据</p><button class="ch-refresh-btn" onclick="_chLoadGithub()">🔄 重试</button></div>';
-                    return;
-                }
-
-                _chData = items.map(item => ({
-                    id: 'gh_' + item.id,
-                    name: item.name,
-                    fullName: item.full_name,
-                    owner: { name: item.owner?.login || '', avatar: item.owner?.avatar_url || '' },
-                    description: item.description || '',
-                    url: item.html_url,
-                    stars: item.stargazers_count || 0,
-                    forks: item.forks_count || 0,
-                    language: item.language || '',
-                    topics: item.topics || [],
-                    updatedAt: item.updated_at || item.pushed_at || '',
-                    potentialScore: Math.min(100, Math.round((item.stargazers_count || 0) / (item.forks_count || 1) * 2 + (item.stargazers_count || 0) / 1000))
-                }));
-
-                if (content) content.innerHTML = '<div class="ch-card-list">' + _chData.map(item => _chCreateGithubCard(item)).join('') + '</div>';
-                _chAttachCardEvents();
-            } catch (err) {
-                console.error('[GitHub] 获取失败:', err);
-                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💎</div><p>GitHub数据获取失败</p><button class="ch-refresh-btn" onclick="_chLoadGithub()">🔄 重试</button></div>';
-            }
-        }
-
-        // ---- 收藏标签页 ----
-        function _chDisplayFavorites() {
-            const content = document.getElementById('chContent');
-            const featured = document.getElementById('chFeatured');
-            if (featured) featured.style.display = 'none';
-
-            if (_chFavorites.length === 0) {
-                if (content) content.innerHTML = '<div class="ch-fav-empty"><div class="ch-fav-empty-icon">⭐</div><p>还没有收藏内容</p><p style="font-size:12px;color:#555;margin-top:8px;">浏览灵感/比赛/GitHub项目时，点击⭐即可收藏</p></div>';
-                return;
-            }
-
-            _chData = _chFavorites;
-            if (content) content.innerHTML = '<div class="ch-card-list">' + _chFavorites.map(item => {
-                if (item.type === 'contest') return _chCreateContestCard(item);
-                if (item.type === 'github') return _chCreateGithubCard(item);
-                return _chCreateInspirationCard(item);
-            }).join('') + '</div>';
-            _chAttachCardEvents();
-        }
-
-        function _chToggleFavorite(id) {
-            const index = _chFavorites.findIndex(f => f.id === id);
-            if (index > -1) {
-                _chFavorites.splice(index, 1);
-            } else {
-                const item = _chData.find(d => d.id === id);
-                if (item) {
-                    _chFavorites.push({ ...item, favoriteAt: new Date().toISOString() });
-                }
-            }
-            localStorage.setItem(CH_FAV_KEY, JSON.stringify(_chFavorites));
-            // 更新收藏按钮状态
-            const btn = document.querySelector('.ch-fav-btn[data-id="' + id + '"]');
-            if (btn) {
-                const isFav = _chFavorites.some(f => f.id === id);
-                btn.classList.toggle('active', isFav);
-                btn.textContent = isFav ? '⭐' : '☆';
-            }
-            if (_chTab === 'favorites') _chDisplayFavorites();
-        }
-
-        // ---- 搜索功能 ----
-        function chSearch() {
-            const input = document.getElementById('chSearchInput');
-            const keyword = (input?.value || '').trim().toLowerCase();
-            if (!keyword) {
-                _chLoadData();
-                return;
-            }
-            const filtered = _chData.filter(item => {
-                return (item.title || '').toLowerCase().includes(keyword)
-                    || (item.description || '').toLowerCase().includes(keyword)
-                    || (item.platform || '').toLowerCase().includes(keyword)
-                    || (item.fullName || '').toLowerCase().includes(keyword)
-                    || (item.tags || []).some(t => t.toLowerCase().includes(keyword));
-            });
-            const content = document.getElementById('chContent');
-            if (!content) return;
-            if (filtered.length === 0) {
-                content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">🔍</div><p>没有找到匹配的内容</p></div>';
-                return;
-            }
-            if (_chTab === 'contests') {
-                content.innerHTML = '<div class="ch-card-list">' + filtered.map(_chCreateContestCard).join('') + '</div>';
-            } else if (_chTab === 'github') {
-                content.innerHTML = '<div class="ch-card-list">' + filtered.map(_chCreateGithubCard).join('') + '</div>';
-            } else {
-                content.innerHTML = '<div class="ch-card-list">' + filtered.map(_chCreateInspirationCard).join('') + '</div>';
-            }
-            _chAttachCardEvents();
-        }
-
-        // ---- 创建卡片 ----
-        function _chCreateFeaturedCard(item) {
-            const isFav = _chFavorites.some(f => f.id === item.id);
-            return `
-                <div class="ch-featured-card" data-id="${item.id}">
-                    ${item.imageUrl ? '<img src="' + item.imageUrl + '" alt="" class="ch-featured-img" onerror="this.style.display=\'none\'">' : '<div class="ch-featured-placeholder"></div>'}
-                    <div class="ch-featured-overlay">
-                        <span class="ch-featured-badge">${item.source || '热门'}</span>
-                        <div class="ch-featured-title">${_chEsc(item.title)}</div>
-                        <div class="ch-featured-meta">
-                            <span>💡 灵感</span>
-                            <button class="ch-fav-btn ${isFav ? 'active' : ''}" data-id="${item.id}" onclick="event.stopPropagation();_chToggleFavorite('${item.id}')">${isFav ? '⭐' : '☆'}</button>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        function _chCreateInspirationCard(item) {
-            const isFav = _chFavorites.some(f => f.id === item.id);
-            return `
-                <div class="ch-card" data-id="${item.id}">
-                    ${item.imageUrl ? '<img src="' + item.imageUrl + '" alt="" class="ch-card-img" onerror="this.style.display=\'none\'">' : ''}
-                    <div class="ch-card-body">
-                        <div class="ch-card-header">
-                            <span class="ch-badge ch-badge-purple">💡 ${item.source || '灵感'}</span>
-                            <button class="ch-fav-btn ${isFav ? 'active' : ''}" data-id="${item.id}" onclick="event.stopPropagation();_chToggleFavorite('${item.id}')">${isFav ? '⭐' : '☆'}</button>
-                        </div>
-                        <div class="ch-card-title">${_chEsc(item.title)}</div>
-                        <div class="ch-card-desc">${_chEsc(item.description)}</div>
-                        <div class="ch-card-meta">
-                            <span>👤 ${_chEsc(item.author || 'AI')}</span>
-                        </div>
-                        <div class="ch-card-actions">
-                            <button class="ch-btn-sm ch-btn-primary" onclick="event.stopPropagation();_chUseInspiration('${item.id}')">使用灵感</button>
-                            <button class="ch-btn-sm ch-btn-outline" onclick="event.stopPropagation();_chOpenDetail('${item.id}')">详情</button>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        function _chCreateContestCard(item) {
-            const isFav = _chFavorites.some(f => f.id === item.id);
-            const statusBadge = item.status === 'active' ? 'ch-badge-success' : item.status === 'upcoming' ? 'ch-badge-warning' : 'ch-badge-default';
-            const statusText = item.status === 'active' ? '进行中' : item.status === 'upcoming' ? '即将开始' : '已结束';
-            return `
-                <div class="ch-card" data-id="${item.id}">
-                    ${item.thumbnail ? '<img src="' + item.thumbnail + '" alt="" class="ch-card-img" onerror="this.style.display=\'none\'">' : ''}
-                    <div class="ch-card-body">
-                        <div class="ch-card-header">
-                            <span class="ch-badge ch-badge-default">${item.platform}</span>
-                            <span class="ch-badge ${statusBadge}">${statusText}</span>
-                            <button class="ch-fav-btn ${isFav ? 'active' : ''}" data-id="${item.id}" onclick="event.stopPropagation();_chToggleFavorite('${item.id}')">${isFav ? '⭐' : '☆'}</button>
-                        </div>
-                        <div class="ch-card-title">${_chEsc(item.title)}</div>
-                        <div class="ch-card-desc">${_chEsc(item.description)}</div>
-                        ${item.prizeText ? '<div class="ch-prize">💰 ' + _chEsc(item.prizeText) + '</div>' : ''}
-                        <div class="ch-card-meta">
-                            <span>👥 ${_chFormatNum(item.participants)} 参与</span>
-                            ${item.endDate ? '<span>📅 ' + _chFormatDate(item.endDate) + '</span>' : ''}
-                        </div>
-                        <div class="ch-card-actions">
-                            ${item.url ? '<a href="' + item.url + '" target="_blank" class="ch-btn-sm ch-btn-primary" onclick="event.stopPropagation()">参加比赛 →</a>' : ''}
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        function _chCreateGithubCard(item) {
-            const isFav = _chFavorites.some(f => f.id === item.id);
-            return `
-                <div class="ch-card" data-id="${item.id}">
-                    <div class="ch-card-body">
-                        <div class="ch-card-header">
-                            ${item.owner?.avatar ? '<img src="' + item.owner.avatar + '" alt="" class="ch-avatar" onerror="this.style.display=\'none\'">' : ''}
-                            <span class="ch-badge ch-badge-purple">${item.language || 'N/A'}</span>
-                            <button class="ch-fav-btn ${isFav ? 'active' : ''}" data-id="${item.id}" onclick="event.stopPropagation();_chToggleFavorite('${item.id}')">${isFav ? '⭐' : '☆'}</button>
-                        </div>
-                        <div class="ch-card-title">${_chEsc(item.fullName || item.name)}</div>
-                        <div class="ch-card-desc">${_chEsc(item.description)}</div>
-                        ${item.potentialScore ? '<div class="ch-score-bar"><span class="ch-score-label">潜力 ' + item.potentialScore + '/100</span><div class="ch-progress-track"><div class="ch-progress-fill" style="width:' + item.potentialScore + '%"></div></div></div>' : ''}
-                        <div class="ch-card-meta">
-                            <span>⭐ ${_chFormatNum(item.stars)}</span>
-                            <span>🔱 ${_chFormatNum(item.forks)}</span>
-                            <span>📅 ${_chFormatDate(item.updatedAt)}</span>
-                        </div>
-                        ${item.topics && item.topics.length > 0 ? '<div class="ch-tags">' + item.topics.slice(0, 4).map(t => '<span class="ch-tag">' + _chEsc(t) + '</span>').join('') + '</div>' : ''}
-                        <div class="ch-card-actions">
-                            ${item.url ? '<a href="' + item.url + '" target="_blank" class="ch-btn-sm ch-btn-primary" onclick="event.stopPropagation()">查看仓库 →</a>' : ''}
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        // ---- 详情弹窗 ----
-        function _chOpenDetail(id) {
-            const item = _chData.find(d => d.id === id) || _chFavorites.find(f => f.id === id);
-            if (!item) return;
-
-            const modal = document.getElementById('chModal');
-            const body = document.getElementById('chModalContent');
-            if (!modal || !body) return;
-
-            let html = '';
-            if (item.imageUrl) {
-                html += '<img src="' + item.imageUrl + '" alt="" class="ch-modal-hero" onerror="this.style.display=\'none\'">';
-            }
-            html += '<div class="ch-modal-body">';
-            html += '<div class="ch-modal-title">' + _chEsc(item.title) + '</div>';
-            html += '<div class="ch-modal-meta">';
-            if (item.source) html += '<span>来源: ' + _chEsc(item.source) + '</span>';
-            if (item.platform) html += '<span>平台: ' + _chEsc(item.platform) + '</span>';
-            if (item.author) html += '<span>作者: ' + _chEsc(item.author) + '</span>';
-            if (item.language) html += '<span>语言: ' + _chEsc(item.language) + '</span>';
-            if (item.stars) html += '<span>⭐ ' + _chFormatNum(item.stars) + '</span>';
-            html += '</div>';
-            html += '<div class="ch-modal-desc">' + _chEsc(item.description) + '</div>';
-
-            // 灵感专属：显示完整提示词
-            if (item.prompt) {
-                html += '<div class="ch-modal-section"><h4>💡 提示词</h4><div class="prompt-block">' + _chEsc(item.prompt).replace(/\n/g, '<br>') + '</div></div>';
-            }
-            // 比赛专属
-            if (item.prizeText) {
-                html += '<div class="ch-modal-section"><h4>💰 奖金</h4><p>' + _chEsc(item.prizeText) + '</p></div>';
-            }
-            if (item.endDate) {
-                html += '<div class="ch-modal-section"><h4>📅 截止日期</h4><p>' + _chFormatDate(item.endDate) + '</p></div>';
-            }
-            // GitHub专属
-            if (item.topics && item.topics.length > 0) {
-                html += '<div class="ch-modal-section"><h4>🏷️ 标签</h4><div class="ch-tags">' + item.topics.map(t => '<span class="ch-tag">' + _chEsc(t) + '</span>').join('') + '</div></div>';
-            }
-            // 操作按钮
-            if (item.url) {
-                html += '<div style="margin-top:16px;"><a href="' + item.url + '" target="_blank" class="ch-btn-sm ch-btn-primary" style="display:block;text-align:center;padding:12px;">查看原链接 →</a></div>';
-            }
-            if (item.prompt) {
-                html += '<button class="ch-refresh-btn" onclick="_chUseInspiration(\'' + item.id + '\');closeChModal();">💡 使用此灵感创作</button>';
-            }
-            html += '</div>';
-
-            body.innerHTML = html;
-            modal.classList.add('show');
-        }
-
-        function closeChModal() {
-            const modal = document.getElementById('chModal');
-            if (modal) modal.classList.remove('show');
-        }
-
-        // ---- 使用灵感 ----
-        function _chUseInspiration(id) {
-            const item = _chData.find(d => d.id === id) || _chFavorites.find(f => f.id === id);
-            if (!item || !item.prompt) {
-                showToast('无法使用此灵感');
-                return;
-            }
-            // 关闭创作者资源中心
-            closeCreatorHub();
-            // 将灵感提示词填入输入框
-            const textarea = document.getElementById('promptInput') || document.getElementById('promptTextarea');
-            if (textarea) {
-                textarea.value = item.prompt;
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                showToast('灵感已填入，可以开始创作');
-            } else {
-                showToast('请先进入创作页面');
-            }
-        }
-
-        // ---- 事件绑定 ----
-        function _chAttachCardEvents() {
-            document.querySelectorAll('.ch-card').forEach(card => {
-                card.onclick = () => _chOpenDetail(card.dataset.id);
-            });
-        }
-
-        // ---- 工具函数 ----
-        function _chEsc(str) {
-            if (!str) return '';
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        }
-
-        function _chFormatNum(num) {
-            if (!num) return '0';
-            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
-            return String(num);
-        }
-
-        function _chFormatDate(dateStr) {
-            if (!dateStr) return '未知';
-            try {
-                const d = new Date(dateStr);
-                if (isNaN(d.getTime())) return dateStr;
-                const now = new Date();
-                const diff = now - d;
-                const days = Math.floor(diff / 86400000);
-                if (days === 0) return '今天';
-                if (days === 1) return '昨天';
-                if (days < 7) return days + '天前';
-                if (days < 30) return Math.floor(days / 7) + '周前';
-                if (days < 365) return Math.floor(days / 30) + '个月前';
-                return d.toLocaleDateString('zh-CN');
-            } catch (e) {
-                return dateStr;
-            }
+            }, 300);
         }
 
         function closeMobileSkillPanel() {
@@ -12506,7 +11584,6 @@ ${idea.theme}${characterPrompt}
                 console.warn('[mobile] 元素未找到: skillResultPage');
             }
         }
-        window.closeMobileSkillPanel = closeMobileSkillPanel;
 
         function mobileSkillSetCategory(cat) {
             _mobileSkillCat = cat;
@@ -13399,45 +12476,6 @@ ${idea.theme}${characterPrompt}
                         </div>
                     </div>`;
                 }
-            }
-
-            // 💡 灵感结果（获取灵感技能）
-            if (result.inspirations && Array.isArray(result.inspirations) && result.inspirations.length > 0) {
-                const _inspSource = result.source || 'Reddit';
-                const _inspCategory = result.category || '';
-                html += '<div class="skill-result-item">'
-                    + '<div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:12px;">💡 创意灵感（来源: ' + _inspSource + '）</div>'
-                    + '<div style="display:flex;flex-direction:column;gap:10px;">';
-                for (let _ii = 0; _ii < result.inspirations.length; _ii++) {
-                    const _insp = result.inspirations[_ii];
-                    const _imgHtml = _insp.imageUrl && _isValid(_insp.imageUrl)
-                        ? '<img src="' + _insp.imageUrl + '" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:8px;" onclick="openImageViewer(this.src)" style="cursor:pointer;">'
-                        : '';
-                    const _descHtml = _insp.description
-                        ? '<div style="font-size:12px;color:#999;margin-top:4px;line-height:1.4;max-height:60px;overflow:hidden;">' + (_insp.description.length > 120 ? _insp.description.substring(0, 120) + '...' : _insp.description) + '</div>'
-                        : '';
-                    const _linkHtml = _insp.url
-                        ? '<a href="' + _insp.url + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:4px 10px;background:#222;border:1px solid #333;border-radius:6px;color:#10b981;font-size:11px;text-decoration:none;">🔗 查看原文</a>'
-                        : '';
-                    const _scoreHtml = _insp.score
-                        ? '<span style="font-size:11px;color:#f59e0b;">👍 ' + _insp.score + '</span>'
-                        : '';
-                    const _scenarioHtml = _insp.scenario
-                        ? '<span style="font-size:11px;color:#666;margin-left:6px;">' + _insp.scenario + '</span>'
-                        : '';
-                    html += '<div style="background:#111;border-radius:10px;padding:12px;border:1px solid #222;">'
-                        + _imgHtml
-                        + '<div style="font-size:14px;color:#fff;font-weight:600;line-height:1.3;">' + (_ii + 1) + '. ' + (_insp.title || '无标题') + '</div>'
-                        + _descHtml
-                        + '<div style="display:flex;align-items:center;margin-top:6px;">'
-                        + _scoreHtml + _scenarioHtml
-                        + '</div>'
-                        + _linkHtml
-                        + '</div>';
-                }
-                html += '</div>'
-                    + '<button onclick="quickInspiration()" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2));border:1px solid rgba(16,185,129,0.3);border-radius:8px;color:#10b981;font-size:13px;cursor:pointer;">🔄 换一批灵感</button>'
-                    + '</div>';
             }
 
             // 🧊 3D模型文件（混元生3D等）
