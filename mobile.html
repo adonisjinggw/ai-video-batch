@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.0.0.9</title>
+    <title>RollRoll 移动版 V9.0.0.4</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -43,7 +43,7 @@
     <script src="/js/writing-vault.js?v=9.0.0.3"></script>
     <!-- 🧩 Skill 技能系统 -->
     <script src="/js/skill-system.js?v=9.0.0.3"></script>
-    <script src="/js/skill-presets.js?v=9.0.0.9"></script>
+    <script src="/js/skill-presets.js?v=9.0.0.4"></script>
     <script src="/js/mv-merge.js?v=9.0.0.3"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
     <script src="/js/assistant-voice.js?v=9.0.0.3"></script>
@@ -12484,8 +12484,6 @@ ${idea.theme}${characterPrompt}
                 return dateStr;
             }
         }
-
-        function closeMobileSkillPanel() {
             const sheet = document.getElementById('skillSheet');
             if (sheet) {
                 sheet.classList.remove('show');
@@ -12508,7 +12506,6 @@ ${idea.theme}${characterPrompt}
                 console.warn('[mobile] 元素未找到: skillResultPage');
             }
         }
-        window.closeMobileSkillPanel = closeMobileSkillPanel;
 
         function mobileSkillSetCategory(cat) {
             _mobileSkillCat = cat;
@@ -13404,157 +13401,42 @@ ${idea.theme}${characterPrompt}
             }
 
             // 💡 灵感结果（获取灵感技能）
-            if (result.inspirations !== undefined) {
-                if (Array.isArray(result.inspirations) && result.inspirations.length > 0) {
-                    const _inspSource = result.source || 'Reddit';
-                    const _inspCategory = result.category || '';
-                    html += '<div class="skill-result-item">'
-                        + '<div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:12px;">💡 创意灵感（来源: ' + _inspSource + '）</div>'
-                        + '<div style="display:flex;flex-direction:column;gap:10px;">';
-                    for (let _ii = 0; _ii < result.inspirations.length; _ii++) {
-                        const _insp = result.inspirations[_ii];
-                        const _imgHtml = _insp.imageUrl && _isValid(_insp.imageUrl)
-                            ? '<img src="' + _insp.imageUrl + '" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:8px;" onclick="openImageViewer(this.src)" style="cursor:pointer;">'
-                            : '';
-                        const _descHtml = _insp.description
-                            ? '<div style="font-size:12px;color:#999;margin-top:4px;line-height:1.4;max-height:60px;overflow:hidden;">' + (_insp.description.length > 120 ? _insp.description.substring(0, 120) + '...' : _insp.description) + '</div>'
-                            : '';
-                        const _linkHtml = _insp.url
-                            ? '<a href="' + _insp.url + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:4px 10px;background:#222;border:1px solid #333;border-radius:6px;color:#10b981;font-size:11px;text-decoration:none;">🔗 查看原文</a>'
-                            : '';
-                        const _scoreHtml = _insp.score
-                            ? '<span style="font-size:11px;color:#f59e0b;">👍 ' + _insp.score + '</span>'
-                            : '';
-                        const _scenarioHtml = _insp.scenario
-                            ? '<span style="font-size:11px;color:#666;margin-left:6px;">' + _insp.scenario + '</span>'
-                            : '';
-                        html += '<div style="background:#111;border-radius:10px;padding:12px;border:1px solid #222;">'
-                            + _imgHtml
-                            + '<div style="font-size:14px;color:#fff;font-weight:600;line-height:1.3;">' + (_ii + 1) + '. ' + (_insp.title || '无标题') + '</div>'
-                            + _descHtml
-                            + '<div style="display:flex;align-items:center;margin-top:6px;">'
-                            + _scoreHtml + _scenarioHtml
-                            + '</div>'
-                            + _linkHtml
-                            + '</div>';
-                    }
-                    html += '</div>'
-                        + '<button onclick="quickInspiration()" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2));border:1px solid rgba(16,185,129,0.3);border-radius:8px;color:#10b981;font-size:13px;cursor:pointer;">🔄 换一批灵感</button>'
-                        + '</div>';
-                } else {
-                    html += '<div class="skill-result-item" style="text-align:center;padding:40px 20px;">'
-                        + '<div style="font-size:48px;margin-bottom:12px;">💡</div>'
-                        + '<div style="font-size:14px;color:#999;">暂无灵感数据</div>'
-                        + '<button onclick="quickInspiration()" style="margin-top:16px;padding:10px 24px;background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2));border:1px solid rgba(16,185,129,0.3);border-radius:8px;color:#10b981;font-size:13px;cursor:pointer;">🔄 换一批</button>'
+            if (result.inspirations && Array.isArray(result.inspirations) && result.inspirations.length > 0) {
+                const _inspSource = result.source || 'Reddit';
+                const _inspCategory = result.category || '';
+                html += '<div class="skill-result-item">'
+                    + '<div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:12px;">💡 创意灵感（来源: ' + _inspSource + '）</div>'
+                    + '<div style="display:flex;flex-direction:column;gap:10px;">';
+                for (let _ii = 0; _ii < result.inspirations.length; _ii++) {
+                    const _insp = result.inspirations[_ii];
+                    const _imgHtml = _insp.imageUrl && _isValid(_insp.imageUrl)
+                        ? '<img src="' + _insp.imageUrl + '" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:8px;" onclick="openImageViewer(this.src)" style="cursor:pointer;">'
+                        : '';
+                    const _descHtml = _insp.description
+                        ? '<div style="font-size:12px;color:#999;margin-top:4px;line-height:1.4;max-height:60px;overflow:hidden;">' + (_insp.description.length > 120 ? _insp.description.substring(0, 120) + '...' : _insp.description) + '</div>'
+                        : '';
+                    const _linkHtml = _insp.url
+                        ? '<a href="' + _insp.url + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:4px 10px;background:#222;border:1px solid #333;border-radius:6px;color:#10b981;font-size:11px;text-decoration:none;">🔗 查看原文</a>'
+                        : '';
+                    const _scoreHtml = _insp.score
+                        ? '<span style="font-size:11px;color:#f59e0b;">👍 ' + _insp.score + '</span>'
+                        : '';
+                    const _scenarioHtml = _insp.scenario
+                        ? '<span style="font-size:11px;color:#666;margin-left:6px;">' + _insp.scenario + '</span>'
+                        : '';
+                    html += '<div style="background:#111;border-radius:10px;padding:12px;border:1px solid #222;">'
+                        + _imgHtml
+                        + '<div style="font-size:14px;color:#fff;font-weight:600;line-height:1.3;">' + (_ii + 1) + '. ' + (_insp.title || '无标题') + '</div>'
+                        + _descHtml
+                        + '<div style="display:flex;align-items:center;margin-top:6px;">'
+                        + _scoreHtml + _scenarioHtml
+                        + '</div>'
+                        + _linkHtml
                         + '</div>';
                 }
-            }
-
-            // 🏆 AI比赛结果
-            if (result.contests !== undefined) {
-                if (Array.isArray(result.contests) && result.contests.length > 0) {
-                    html += '<div class="skill-result-item">'
-                        + '<div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:12px;">🏆 AI比赛信息</div>'
-                        + '<div style="display:flex;flex-direction:column;gap:10px;">';
-                    for (let _ci = 0; _ci < result.contests.length; _ci++) {
-                        const _c = result.contests[_ci];
-                        const _thumbHtml = _c.thumbnail && _isValid(_c.thumbnail)
-                            ? '<img src="' + _c.thumbnail + '" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin-bottom:10px;">'
-                            : '';
-                        const _prizeHtml = _c.prizeText
-                            ? '<div style="font-size:12px;color:#f59e0b;font-weight:600;margin-top:4px;">💰 奖金: ' + _c.prizeText + '</div>'
-                            : '';
-                        const _deadlineHtml = _c.endDate
-                            ? '<div style="font-size:11px;color:#999;margin-top:4px;">📅 截止: ' + _c.endDate + '</div>'
-                            : '';
-                        const _participantsHtml = _c.participants
-                            ? '<div style="font-size:11px;color:#666;margin-top:2px;">👥 参与人数: ' + _c.participants + '</div>'
-                            : '';
-                        const _statusHtml = _c.status
-                            ? '<span style="display:inline-block;padding:2px 8px;background:rgba(34,197,94,0.2);color:#4ade80;border-radius:4px;font-size:10px;">' + _c.status + '</span>'
-                            : '';
-                        const _linkHtml = _c.url
-                            ? '<a href="' + _c.url + '" target="_blank" rel="noopener" style="display:block;margin-top:8px;padding:8px;background:linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3));border:1px solid rgba(99,102,241,0.5);border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">🔗 查看比赛</a>'
-                            : '';
-                        html += '<div style="background:#111;border-radius:10px;padding:12px;border:1px solid #222;">'
-                            + _thumbHtml
-                            + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">'
-                            + '<div style="font-size:14px;color:#fff;font-weight:600;line-height:1.3;flex:1;">' + (_ci + 1) + '. ' + (_c.title || '无标题') + '</div>'
-                            + _statusHtml
-                            + '</div>'
-                            + '<div style="font-size:12px;color:#999;margin-top:6px;line-height:1.4;max-height:60px;overflow:hidden;">' + (_c.description || '') + '</div>'
-                            + _prizeHtml
-                            + _deadlineHtml
-                            + _participantsHtml
-                            + _linkHtml
-                            + '</div>';
-                    }
-                    html += '</div></div>';
-                } else {
-                    html += '<div class="skill-result-item" style="text-align:center;padding:40px 20px;">'
-                        + '<div style="font-size:48px;margin-bottom:12px;">🏆</div>'
-                        + '<div style="font-size:14px;color:#999;">暂无比赛数据</div>'
-                        + '</div>';
-                }
-            }
-
-            // 💎 GitHub项目结果
-            if (result.projects !== undefined) {
-                if (Array.isArray(result.projects) && result.projects.length > 0) {
-                    html += '<div class="skill-result-item">'
-                        + '<div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:12px;">💎 GitHub热门项目</div>'
-                        + '<div style="display:flex;flex-direction:column;gap:10px;">';
-                    for (let _pi = 0; _pi < result.projects.length; _pi++) {
-                        const _p = result.projects[_pi];
-                        const _ownerHtml = _p.owner?.avatar && _isValid(_p.owner.avatar)
-                            ? '<img src="' + _p.owner.avatar + '" style="width:32px;height:32px;border-radius:50%;object-fit:cover;margin-right:8px;">'
-                            : '';
-                        const _starsHtml = _p.stars
-                            ? '<span style="font-size:12px;color:#f59e0b;font-weight:600;">⭐ ' + _p.stars + '</span>'
-                            : '';
-                        const _forksHtml = _p.forks
-                            ? '<span style="font-size:11px;color:#999;margin-left:8px;">🍴 ' + _p.forks + '</span>'
-                            : '';
-                        const _scoreHtml = _p.potentialScore
-                            ? '<span style="font-size:11px;color:#10b981;margin-left:8px;">📊 潜力: ' + _p.potentialScore + '</span>'
-                            : '';
-                        const _langHtml = _p.language
-                            ? '<span style="display:inline-block;padding:2px 6px;background:#222;border-radius:4px;font-size:10px;color:#666;margin-top:4px;">' + _p.language + '</span>'
-                            : '';
-                        const _topicsHtml = _p.topics && Array.isArray(_p.topics) && _p.topics.length > 0
-                            ? _p.topics.slice(0, 4).map(t => '<span style="display:inline-block;padding:2px 6px;background:#1a1a1a;border:1px solid #333;border-radius:4px;font-size:10px;color:#888;margin-right:4px;margin-top:4px;">' + t + '</span>').join('')
-                            : '';
-                        const _linkHtml = _p.url
-                            ? '<a href="' + _p.url + '" target="_blank" rel="noopener" style="display:block;margin-top:8px;padding:8px;background:linear-gradient(135deg, rgba(34,197,94,0.3), rgba(6,182,212,0.3));border:1px solid rgba(34,197,94,0.5);border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">🔗 打开仓库</a>'
-                            : '';
-                        html += '<div style="background:#111;border-radius:10px;padding:12px;border:1px solid #222;">'
-                            + '<div style="display:flex;align-items:center;margin-bottom:8px;">'
-                            + _ownerHtml
-                            + '<div style="flex:1;">'
-                            + '<div style="font-size:14px;color:#fff;font-weight:600;line-height:1.3;">' + (_pi + 1) + '. ' + (_p.fullName || _p.name || '无标题') + '</div>'
-                            + '<div style="font-size:11px;color:#666;">' + (_p.owner?.name || _p.owner || '') + '</div>'
-                            + '</div>'
-                            + '<div style="display:flex;align-items:center;">'
-                            + _starsHtml
-                            + _forksHtml
-                            + _scoreHtml
-                            + '</div>'
-                            + '</div>'
-                            + '<div style="font-size:12px;color:#999;line-height:1.4;max-height:60px;overflow:hidden;">' + (_p.description || '') + '</div>'
-                            + '<div style="display:flex;flex-wrap:wrap;margin-top:6px;">'
-                            + _langHtml
-                            + _topicsHtml
-                            + '</div>'
-                            + _linkHtml
-                            + '</div>';
-                    }
-                    html += '</div></div>';
-                } else {
-                    html += '<div class="skill-result-item" style="text-align:center;padding:40px 20px;">'
-                        + '<div style="font-size:48px;margin-bottom:12px;">💎</div>'
-                        + '<div style="font-size:14px;color:#999;">暂无项目数据</div>'
-                        + '</div>';
-                }
+                html += '</div>'
+                    + '<button onclick="quickInspiration()" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2));border:1px solid rgba(16,185,129,0.3);border-radius:8px;color:#10b981;font-size:13px;cursor:pointer;">🔄 换一批灵感</button>'
+                    + '</div>';
             }
 
             // 🧊 3D模型文件（混元生3D等）
@@ -13700,10 +13582,7 @@ ${idea.theme}${characterPrompt}
                 console.warn('[mobile] 元素未找到: skillResultPage');
             }
 
-            const skillConfigPage = document.getElementById('skillConfigPage');
-            if (skillConfigPage) {
-                skillConfigPage.classList.add('show');
-            }
+            closeMobileSkillPanel();
         }
 
         // ==================== 📤 发布功能 ====================
