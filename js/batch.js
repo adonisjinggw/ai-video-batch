@@ -210,7 +210,7 @@ ${isChinese ? '- 【重要】必须是中国古典国风风格\n- 水墨画韵�
  * @description 角色生成优化 + 自动托管模式 + 全面Bug修复
  */
 
-const APP_VERSION = 'V8.10.2'; // 欢迎页逻辑修复 + 写作页修复
+const APP_VERSION = 'V9.0.1.7'; // 欢迎页逻辑修复 + 写作页修复
 
 // 🔒 简单转义，防止 XSS 注入
 function escapeHtml(str = '') {

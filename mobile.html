@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.0.0.3</title>
+    <title>RollRoll 移动版 V9.0.1.7</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,19 +36,19 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.0.0.3"></script>
+    <script src="/js/supabase-config.js?v=9.0.1.7"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=9.0.0.3"></script>
-    <script src="/js/user-memory.js?v=9.0.0.3"></script>
-    <script src="/js/writing-vault.js?v=9.0.0.3"></script>
+    <script src="/js/api-core.js?v=9.0.1.7"></script>
+    <script src="/js/user-memory.js?v=9.0.1.7"></script>
+    <script src="/js/writing-vault.js?v=9.0.1.7"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=9.0.0.3"></script>
-    <script src="/js/skill-presets.js?v=9.0.0.3"></script>
-    <script src="/js/mv-merge.js?v=9.0.0.3"></script>
+    <script src="/js/skill-system.js?v=9.0.1.7"></script>
+    <script src="/js/skill-presets.js?v=9.0.1.7&t=202604121450"></script>
+    <script src="/js/mv-merge.js?v=9.0.1.7"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-voice.js?v=9.0.0.3"></script>
-    <script src="/js/assistant-xj2.js?v=9.0.0.3"></script>
-    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.0.3">
+    <script src="/js/assistant-voice.js?v=9.0.1.7"></script>
+    <script src="/js/assistant-xj2.js?v=9.0.1.7"></script>
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.1.2">
     <style>
         * {
             margin: 0;
@@ -2739,13 +2739,15 @@
                 // 隐藏欢迎页
                 var welcome = document.getElementById('welcomeScreen');
                 if (welcome) welcome.classList.add('hide');
+                // 🔧 登录跳转回来，标记允许显示小助手
+                window._assistantShouldShow = true;
                 return;
             }
             // 强制显示开场动画和欢迎页
             _showIntro = true;
             var style = document.createElement('style');
             style.id = 'cinemaIntroInjectedStyle';
-            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar,.xj2-container{display:none!important;opacity:0;visibility:hidden}';
+            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar,#xj2Container{display:none!important;opacity:0;visibility:hidden}';
             document.head.appendChild(style);
             _introStyleTag = style;
         })();
@@ -3007,6 +3009,7 @@
                         <optgroup label="🎬 Veo 3.1 系列">
                             <option value="veo3.1">Veo 3.1 (有声/推荐)</option>
                             <option value="veo3.1-4K">Veo 3.1 4K (有声/超清⚠️暂不稳定)</option>
+                            <option value="veo_3_1-lite-4K">Veo 3.1 Lite 4K (9胶片)</option>
                         </optgroup>
                         <optgroup label="🎬 Vidu 系列 - 5秒">
                             <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片)</option>
@@ -3087,10 +3090,11 @@
                             <option value="ltx-video-15s">LTX-Video 15秒 (10胶片)</option>
                             <option value="ltx-video-custom">LTX-Video 自定义时长</option>
                         </optgroup>
-                        <optgroup label="🌟 Seedance 2.0 (RunningHub·LV10+)">
+                        <optgroup label="🌟 Seedance 2.0 (LV10+)">
                             <option value="seedance-t2v">Seedance 2.0 文生视频 (8胶片)</option>
                             <option value="seedance-i2v">Seedance 2.0 图生视频 (10胶片)</option>
                             <option value="seedance-ref">Seedance 2.0 全能参考视频 (12胶片)</option>
+                            <option value="seedance-260128">⚡ Seedance 2.0-260128 (20胶片·贞贞API)</option>
                         </optgroup>
                         <option value="video-continuity">🎬 连续性视频 (逐帧衔接)</option>
                     </select>
@@ -3196,6 +3200,8 @@
                         <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K (4胶片)</option>
                         <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片)</option>
                         <option value="Qwen/Qwen-Image-2512">🖼️ 通义万相Max (8胶片)</option>
+                        <option value="midjourney-v8">🎨 MJ V8 (2胶片)</option>
+                        <option value="midjourney-niji-v8">🎨 MJ Niji V8 (2胶片)</option>
                         <option value="midjourney-fast">🎨 Midjourney Fast (2胶片)</option>
                         <option value="midjourney-turbo">⚡ Midjourney Turbo (2胶片)</option>
                         <option value="midjourney-relax">🐢 Midjourney Relax (2胶片)</option>
@@ -3204,13 +3210,15 @@
                 <div class="option-group" id="mjVersionGroup" style="display:none;">
                     <label for="mjVersion">🎯 MJ版本</label>
                     <select id="mjVersion">
-                        <option value="7">v7 最新</option>
+                        <option value="8">v8 最新</option>
+                        <option value="7">v7</option>
                         <option value="6.1" selected>v6.1 稳定</option>
                         <option value="6">v6.0</option>
                         <option value="5.2">v5.2</option>
                         <option value="5.1">v5.1</option>
                         <option value="5">v5.0</option>
-                        <option value="niji7">Niji 7 动漫（最新）</option>
+                        <option value="niji8">Niji 8 动漫（最新）</option>
+                        <option value="niji7">Niji 7 动漫</option>
                         <option value="niji6">Niji 6 动漫</option>
                     </select>
                 </div>
@@ -3281,6 +3289,8 @@
                     <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K (4胶片)</option>
                     <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片)</option>
                     <option value="Qwen/Qwen-Image-2512">🎭 通义万相Max (8胶片)</option>
+                    <option value="midjourney-v8">🎨 MJ V8 (2胶片)</option>
+                    <option value="midjourney-niji-v8">🎨 MJ Niji V8 (2胶片)</option>
                     <option value="midjourney-fast">🎨 Midjourney Fast (2胶片)</option>
                     <option value="midjourney-turbo">🚀 Midjourney Turbo (2胶片)</option>
                     <option value="midjourney-relax">🌙 Midjourney Relax (2胶片)</option>
@@ -3485,6 +3495,13 @@
 
             <!-- 输入区域 -->
             <div class="xj2-input-area">
+                <button class="xj2-btn xj2-btn-memory" id="xj2MemoryBtn" title="点击切换是否使用记忆" onclick="toggleXJ2Memory()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
+                        <path d="M10 22h4"/>
+                        <circle cx="12" cy="9" r="1" fill="currentColor"/>
+                    </svg>
+                </button>
                 <input type="text" class="xj2-input" id="xj2Input" placeholder="输入消息...">
                 <button class="xj2-btn xj2-btn-voice" id="xj2VoiceBtn">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -3779,6 +3796,11 @@
         let __mobileAuthInitialized = false;
         let i2vImageData = '';
         let i2vImageDataList = []; // 🆕 多图片数据列表
+
+        // 🖼️ 技能系统图片存储（参考图上传用）
+        var skillImageStore = {};
+        // 📁 技能系统文件存储（视频上传用）
+        var skillFileStore = {};
 
         // ==================== 填空模板库(与桌面版完全对齐) ====================
         const fillTemplates = {
@@ -4121,13 +4143,35 @@
         // 📋 点击复制填空预览提示词
         function copyFillPreviewText() {
             const el = document.getElementById('fillPreview');
-            if (el && el.textContent && el.style.display !== 'none') {
-                navigator.clipboard.writeText(el.textContent).then(() => {
-                    showToast('✅ 提示词已复制到剪贴板', 2000);
-                }).catch(() => {
-                    showToast('复制失败，请手动选择复制', 2000);
-                });
-            }
+            if (!el || !el.textContent || el.style.display === 'none') return;
+            const text = el.textContent;
+            const doCopy = (t) => {
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(t).then(() => {
+                            showToast('✅ 提示词已复制到剪贴板', 2000);
+                        }).catch(() => fallbackCopy(t));
+                    } else {
+                        fallbackCopy(t);
+                    }
+                } catch (e) { fallbackCopy(t); }
+            };
+            const fallbackCopy = (t) => {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = t;
+                    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast(ok ? '✅ 提示词已复制到剪贴板' : '复制失败，请手动长按选择复制', 2000);
+                } catch (e2) {
+                    showToast('复制失败，请手动长按选择复制', 2000);
+                }
+            };
+            doCopy(text);
         }
 
         function updateThemeFromBlanks() {
@@ -4325,6 +4369,7 @@
             // Veo 3.1 系列
             'veo3.1': 30,
             'veo3.1-4K': 30,
+            'veo_3_1-lite-4K': 9,
             'grok-video-3': 5,
             'grok-video-3-10s': 8,
             'grok-video-3-15s': 12,
@@ -4666,15 +4711,12 @@
                         }
                         // 🔧 修复：同时处理 INITIAL_SESSION（Supabase v2 首次订阅时触发）
                         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
-                            // 🛡️ 防御：欢迎页时不处理助手显示
-                            const urlParams3 = new URLSearchParams(window.location.search);
-                            const isWelcomePage = !urlParams3.has('logged_in') && !urlParams3.has('skip_welcome');
                             const u = session?.user;
-                            if (u && !isWelcomePage) {
+                            if (u) {
                                 console.log('[mobile] 监听器检测到登录:', u.email, 'event:', event);
                                 isLoggedIn = true;
                                 await loadUserProfile(u);
-                                setAssistantVisible(true); // 登录后显示助手
+                                setAssistantVisible(true);
                             } else if (event !== 'INITIAL_SESSION') {
                                 // session.user 可能不同步，兆底再取一次（INITIAL_SESSION 无session时不需要兆底）
                                 try {
@@ -5368,20 +5410,54 @@
         // ==================== 🤖 小卷助手 ====================
         let assistantPanelOpen = false;
         let isRecordingVoice = false;
+        let xj2UseMemory = true; // 🧠 记忆开关：默认使用记忆
+
+        // 🧠 切换记忆开关
+        function toggleXJ2Memory() {
+            xj2UseMemory = !xj2UseMemory;
+            const btn = document.getElementById('xj2MemoryBtn');
+            if (btn) {
+                if (xj2UseMemory) {
+                    btn.classList.remove('memory-off');
+                    btn.classList.add('memory-on');
+                    btn.title = '记忆已开启（点击关闭）';
+                } else {
+                    btn.classList.remove('memory-on');
+                    btn.classList.add('memory-off');
+                    btn.title = '记忆已关闭（点击开启）';
+                }
+            }
+            showToast?.(xj2UseMemory ? '🧠 已开启记忆' : '🚫 已关闭记忆');
+        }
+
+        // 🧠 初始化记忆按钮状态
+        function initXJ2MemoryBtn() {
+            const btn = document.getElementById('xj2MemoryBtn');
+            if (btn) {
+                btn.classList.add('memory-on'); // 默认开启
+                btn.title = '记忆已开启（点击关闭）';
+            }
+        }
 
         // 显示/隐藏助手容器
-        async function setAssistantVisible(visible) {
-            console.log('[小助手 V2] setAssistantVisible 调用，visible:', visible);
+        // _assistantAllowed: 只有登录成功跳转回来或开场动画结束且已登录时才允许显示
+        var _assistantAllowed = false;
 
-            // 如果要显示，先验证用户是否真正登录
+        async function setAssistantVisible(visible) {
+            console.log('[小助手 V2] setAssistantVisible 调用，visible:', visible, '_assistantAllowed:', _assistantAllowed);
+
+            if (visible && !_assistantAllowed) {
+                console.log('[小助手 V2] 助手尚未允许显示（欢迎页/未登录），跳过');
+                return;
+            }
+
             if (visible) {
                 try {
                     const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
                     if (!session?.user) {
                         console.log('[小助手 V2] 用户未登录，不显示助手');
-                        return; // 未登录，不显示
+                        return;
                     }
-                    console.log('[小助手 V2] Session 验证通过，用户:', session.user.email);
                 } catch (e) {
                     console.warn('[小助手 V2] 检查登录状态失败:', e);
                     return;
@@ -5389,46 +5465,39 @@
             }
 
             const container = document.getElementById('xj2Container');
-            console.log('[小助手 V2] container 元素:', !!container);
             if (container) {
                 if (visible) {
-                    container.classList.add('xj2-visible');
-                    console.log('[小助手 V2] 已添加 xj2-visible 类，当前 classes:', container.className);
+                    container.style.setProperty('display', 'block', 'important');
                 } else {
-                    container.classList.remove('xj2-visible');
-                    console.log('[小助手 V2] 已移除 xj2-visible 类，当前 classes:', container.className);
+                    container.style.setProperty('display', 'none', 'important');
                 }
-            } else {
-                console.warn('[小助手 V2] xj2Container 元素未找到！');
             }
+        }
+
+        // 允许助手显示（登录成功跳转回来 或 开场动画结束且已登录 时调用）
+        async function allowAssistant() {
+            _assistantAllowed = true;
+            console.log('[小助手 V2] allowAssistant 调用，允许显示');
+            // 检查是否已登录，已登录则立即显示
+            try {
+                const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
+                if (session?.user) {
+                    setAssistantVisible(true);
+                }
+            } catch (e) { }
         }
 
         async function initAssistant() {
             try {
-                // 🛡️ 用 _showIntro 判断欢迎页（login 跳转后为 false，欢迎页为 true）
-                const isWelcomePage = (_showIntro === true);
-                console.log('[小助手 V2] 开始初始化，isLoggedIn:', isLoggedIn, '_showIntro:', _showIntro, 'isWelcomePage:', isWelcomePage);
-
-                if (isWelcomePage) {
-                    console.log('[小助手 V2] 欢迎页，跳过初始化');
-                    setAssistantVisible(false);
-                    return;
+                // 🔧 如果登录跳转回来时 IIFE 设置了 _assistantShouldShow，此时允许显示
+                if (window._assistantShouldShow) {
+                    _assistantAllowed = true;
+                    delete window._assistantShouldShow;
                 }
+                console.log('[小助手 V2] initAssistant 调用，_assistantAllowed:', _assistantAllowed);
 
-                // 🛡️ 通过 session 验证决定是否显示
-                let shouldShow = false;
-                if (isLoggedIn && __mobileSupabaseClient) {
-                    try {
-                        const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
-                        shouldShow = !!session?.user;
-                        console.log('[小助手 V2] Session 检查结果:', shouldShow, 'session:', session);
-                    } catch (e) {
-                        console.warn('[小助手 V2] Session 检查失败:', e);
-                    }
-                }
-
-                setAssistantVisible(shouldShow);
-                console.log('[小助手 V2] 初始化完成，shouldShow:', shouldShow);
+                // 🧠 初始化记忆按钮状态
+                initXJ2MemoryBtn();
 
                 // 绑定 XJ2 按钮事件
                 const avatarBtn = document.getElementById('xj2AvatarBtn');
@@ -5452,13 +5521,23 @@
                 if (__mobileSupabaseClient) {
                     __mobileSupabaseClient.auth.onAuthStateChange((event, session) => {
                         if (event === 'SIGNED_IN' && session?.user) {
-                            const urlParams2 = new URLSearchParams(window.location.search);
-                            const isWelcome = !urlParams2.has('logged_in') && !urlParams2.has('skip_welcome');
-                            if (!isWelcome) setAssistantVisible(true);
+                            // 🔧 登录成功 = 允许显示 + 立即显示
+                            _assistantAllowed = true;
+                            setAssistantVisible(true);
                         } else if (event === 'SIGNED_OUT') {
                             setAssistantVisible(false);
                         }
                     });
+                }
+
+                // 🔧 如果已允许且已登录，立即显示
+                if (_assistantAllowed) {
+                    try {
+                        const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
+                        if (session?.user) {
+                            setAssistantVisible(true);
+                        }
+                    } catch (e) { }
                 }
             } catch (e) {
                 console.warn('[小助手 V2] 初始化失败:', e);
@@ -5492,7 +5571,7 @@
             switch(action) {
                 case 'prediction':
                     // 打开技能面板并定位到预测技能
-                    openSkillPanel();
+                    openMobileSkillPanel();
                     setTimeout(() => {
                         mobileSkillSetCategory('prediction');
                     }, 100);
@@ -5551,6 +5630,20 @@
 
             if (!message) return;
 
+            // 🔒 登录检查：未登录用户不能使用小助手 AI 功能
+            try {
+                const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
+                if (!session?.user) {
+                    input.disabled = false;
+                    addAssistantBubble('assistant', '⚠️ 请先登录后再使用小卷助手。<br><br><a href="javascript:void(0)" onclick="closeWelcomeThenLogin()" style="color:#FF6B9D;text-decoration:underline;">👉 点此登录</a>', { emotion: 'sad' });
+                    return;
+                }
+            } catch (e) {
+                input.disabled = false;
+                addAssistantBubble('assistant', '❌ 无法验证登录状态，请刷新页面重试', { emotion: 'sad' });
+                return;
+            }
+
             // 添加用户消息气泡
             addAssistantBubble('user', message);
             input.value = '';
@@ -5580,7 +5673,7 @@
                 if (intent === 'prediction') {
                     removeTypingIndicator(typingId);
                     addAssistantBubble('assistant', '🔮 正在打开预测面板...', { emotion: 'happy' });
-                    openSkillPanel();
+                    openMobileSkillPanel();
                     setTimeout(() => mobileSkillSetCategory('prediction'), 100);
                 } else if (intent === 'video') {
                     removeTypingIndicator(typingId);
@@ -5609,32 +5702,40 @@
                         addAssistantBubble('assistant', '❌ 文案生成失败：' + (e.message || '未知错误'), { emotion: 'sad' });
                     }
                 } else {
-                    // 调用真实AI（search 或 chat）
+                    // 调用真实AI（search 或 chat）——通过 callWriterLLM 以支持记忆开关
                     const model = intent === 'search' ? 'grok-4-fast' : 'grok-4-fast';
                     const systemPrompt = intent === 'search'
                         ? '你是一个专业的搜索助手，可以联网搜索最新信息。请根据用户的问题提供准确、有用、最新的信息。'
                         : '你是小卷助手，一个活泼可爱的AI助手。用简洁友好的语气回复用户，适当使用emoji。';
 
-                    const userId = (await NVAuth?.getCurrentUser?.())?.id || 'anonymous';
-                    const resp = await fetch('/api/writer-llm', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            model,
-                            messages: [
-                                { role: 'system', content: systemPrompt },
-                                { role: 'user', content: message }
-                            ],
-                            userId
-                        })
-                    });
+                    const messages = [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: message }
+                    ];
+
+                    let reply;
+                    if (typeof callWriterLLM === 'function') {
+                        // 🧠 通过 callWriterLLM 调用（自动处理 useMemory 记忆注入）
+                        reply = await callWriterLLM(messages, {
+                            model: model,
+                            useMemory: xj2UseMemory
+                        });
+                    } else {
+                        // 降级：直接 fetch（不支持记忆注入）
+                        const userId = (await NVAuth?.getCurrentUser?.())?.id || 'anonymous';
+                        const resp = await fetch('/api/writer-llm', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ model, messages, userId })
+                        });
+                        if (!resp.ok) throw new Error('请求失败 ' + resp.status);
+                        const data = await resp.json();
+                        reply = data.content || data.message || '（无回复）';
+                    }
 
                     removeTypingIndicator(typingId);
 
-                    if (!resp.ok) throw new Error('请求失败 ' + resp.status);
-                    const data = await resp.json();
-                    const reply = data.content || data.message || '（无回复）';
-                    addAssistantBubble('assistant', reply, { emotion: detectEmotion(reply) });
+                    addAssistantBubble('assistant', reply || '（无回复）', { emotion: detectEmotion(reply || '') });
                 }
             } catch (e) {
                 removeTypingIndicator(typingId);
@@ -6198,6 +6299,7 @@
             'veo3': { cost: 30, label: '30胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
             'veo3.1': { cost: 30, label: '30胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
             'veo3.1-4K': { cost: 30, label: '30胶片', warning: '⚠️ 4K版暂不稳定，建议用 Veo 3.1 标准版' },
+            'veo_3_1-lite-4K': { cost: 9, label: '9胶片', warning: null },
             'vidu-q2-5s-720p': { cost: 25, label: '25胶片', warning: null },
             'vidu-q2-5s-1080p': { cost: 36, label: '36胶片', warning: null },
             'vidu-q2-pro-5s-720p': { cost: 27, label: '27胶片', warning: null },
@@ -8254,6 +8356,18 @@ ${panelDescriptions.join('\n')}
                     };
                     console.log(`[mobile] 使用 Seedance 2.0 全能参考视频, refImages=${i2vImageDataList.filter(Boolean).length}`);
                     break;
+                case 'seedance-260128':
+                    apiEndpoint = '/api/yunwu';
+                    baseRequestBody = {
+                        action: 'seedance-260128',
+                        prompt: '', // 将在循环中填充
+                        duration: clipDuration || 5,
+                        ratio: aspectRatio || '16:9',
+                        resolution: '720p',
+                        skip_billing: true
+                    };
+                    console.log(`[mobile] 使用 Seedance 2.0-260128 (贞贞API)`);
+                    break;
                 default:
                     // 🎬 检查是否是 LTX-Video 模型
                     if (genMode && genMode.startsWith('ltx-video')) {
@@ -9817,6 +9931,7 @@ ${idea.theme}${characterPrompt}
                 console.error('保存历史失败:', e);
                 // 🔧 如果存储超限，清理旧图片key后重试
                 if (e.name === 'QuotaExceededError' || e.code === 22) {
+                    if (typeof showToast === 'function') showToast('⚠️ 本地存储空间不足，已自动清理旧数据', 3000);
                     try {
                         // 清理超过30条的旧图片key
                         const keepIds = new Set(ideas.slice(0, 30).map(i => String(i.id)));
@@ -9830,7 +9945,7 @@ ${idea.theme}${characterPrompt}
                                 }
                             }
                         }
-                        // 重试：只保留极简元数据
+                        // 重试：只保留极简元数据（不存base64图片）
                         const reduced = ideas.slice(0, 20).map(idea => ({
                             id: idea.id, type: idea.type, theme: idea.theme, status: idea.status,
                             createTime: idea.createTime, videoUrl: idea.videoUrl || '',
@@ -9840,9 +9955,13 @@ ${idea.theme}${characterPrompt}
                         }));
                         localStorage.setItem('rollroll_mobile_ideas', JSON.stringify(reduced));
                         console.log('[mobile] 清理旧图片后重试保存成功');
+                        if (typeof showToast === 'function') showToast('✅ 存储空间已释放，数据已精简保存', 2500);
                     } catch (e2) {
                         console.error('[mobile] 降级保存仍失败:', e2.message);
+                        if (typeof showToast === 'function') showToast('❌ 存储空间严重不足，建议清除浏览器缓存', 4000);
                     }
+                } else {
+                    if (typeof showToast === 'function') showToast('⚠️ 数据保存异常，但不影响使用', 2000);
                 }
             }
 
@@ -9881,10 +10000,13 @@ ${idea.theme}${characterPrompt}
                 console.warn('[技能历史] 保存失败:', e.message);
                 // 超限降级：删旧保新
                 if (e.name === 'QuotaExceededError' || e.code === 22) {
+                    if (typeof showToast === 'function') showToast('⚠️ 技能历史存储空间不足，已精简', 2500);
                     try {
                         const h = loadSkillHistory().slice(0, 10).map(r => ({ ...r, result: _compactResult(r.result, true) }));
                         localStorage.setItem(SKILL_HISTORY_KEY, JSON.stringify(h));
-                    } catch (_) { }
+                    } catch (_) {
+                        if (typeof showToast === 'function') showToast('❌ 存储空间已满，部分历史记录可能丢失', 3000);
+                    }
                 }
             }
         }
@@ -11490,7 +11612,7 @@ ${idea.theme}${characterPrompt}
                 'wan26-1080p-5s': 5, 'wan26-1080p-10s': 9, 'wan26-1080p-15s': 13,
                 'wan26-720p-5s-audio': 4, 'wan26-720p-10s-audio': 7, 'wan26-720p-15s-audio': 10,
                 'wan26-1080p-5s-audio': 7, 'wan26-1080p-10s-audio': 14, 'wan26-1080p-15s-audio': 20,
-                'veo3.1': 30, 'veo3.1-4K': 30,
+                'veo3.1': 30, 'veo3.1-4K': 30, 'veo_3_1-lite-4K': 9,
                 'seedance-t2v': 8, 'seedance-i2v': 10, 'seedance-ref': 12
             };
             // 图片模型每张成本
@@ -11839,6 +11961,7 @@ ${idea.theme}${characterPrompt}
         let _mobileSkillSelected = null;
         let _mobileSkillExecId = null;
         let _mobileSkillImageStore = {};
+        let _mobileSkillFileStore = {};
         let _mobileSkillLastResult = null;
         let _mobileSkillLastSkill = null;
 
@@ -12140,6 +12263,18 @@ ${idea.theme}${characterPrompt}
                 }
             }
 
+            if (contests.length === 0) {
+                console.warn('[比赛] 外部API均不可用，使用备用数据');
+                contests = [
+                    { id: 'fb_1', platform: 'Kaggle', title: '2026 AI Video Generation Challenge', description: 'AI视频生成挑战赛，使用最新模型创作高质量视频内容', url: 'https://www.kaggle.com/competitions', prizeText: '$50,000', endDate: '2026-06-30', participants: 2340, status: 'active', tags: ['video', 'AI'], thumbnail: '' },
+                    { id: 'fb_2', platform: '和鲸', title: 'AIGC创意内容大赛', description: '基于大语言模型和多模态模型的创意内容生成比赛', url: 'https://www.heywhale.com/home/competition/', prizeText: '¥100,000', endDate: '2026-05-15', participants: 890, status: 'active', tags: ['AIGC', '创意'], thumbnail: '' },
+                    { id: 'fb_3', platform: '天池', title: '视觉语言模型应用赛', description: '探索VLM在视频理解、图像描述等场景的应用创新', url: 'https://tianchi.aliyun.com/competition/', prizeText: '¥200,000', endDate: '2026-07-20', participants: 1560, status: 'active', tags: ['VLM', '多模态'], thumbnail: '' },
+                    { id: 'fb_4', platform: 'Kaggle', title: 'Stable Diffusion Prompt Engineering', description: '优化提示词工程以生成更精准的AI图像作品', url: 'https://www.kaggle.com/competitions', prizeText: '$20,000', endDate: '2026-05-31', participants: 3200, status: 'active', tags: ['SD', 'Prompt'], thumbnail: '' },
+                    { id: 'fb_5', platform: '和鲸', title: '数字人短视频创作赛', description: '利用AI技术创建逼真的数字人并进行短视频创作', url: 'https://www.heywhale.com/home/competition/', prizeText: '¥80,000', endDate: '2026-06-10', participants: 650, status: 'active', tags: ['数字人', '短视频'], thumbnail: '' },
+                    { id: 'fb_6', platform: '天池', title: '音乐生成AI挑战赛', description: '使用AI模型进行音乐创作、编曲和混音', url: 'https://tianchi.aliyun.com/competition/', prizeText: '¥150,000', endDate: '2026-08-01', participants: 1100, status: 'active', tags: ['音乐', 'AI作曲'], thumbnail: '' }
+                ];
+            }
+
             _chData = contests;
 
             if (contests.length === 0) {
@@ -12192,11 +12327,35 @@ ${idea.theme}${characterPrompt}
                     potentialScore: Math.min(100, Math.round((item.stargazers_count || 0) / (item.forks_count || 1) * 2 + (item.stargazers_count || 0) / 1000))
                 }));
 
+                if (_chData.length === 0) {
+                    console.warn('[GitHub] API无数据，使用备用数据');
+                    _chData = [
+                        { id: 'gh_fb_1', name: 'stable-diffusion-webui', fullName: 'AUTOMATIC1111/stable-diffusion-webui', owner: { name: 'AUTOMATIC1111', avatar: '' }, description: 'Stable Diffusion的Web界面，功能最全的SD前端', url: 'https://github.com/AUTOMATIC1111/stable-diffusion-webui', stars: 145000, forks: 25000, language: 'Python', topics: ['stable-diffusion', 'ai'], updatedAt: '2026-04-01', potentialScore: 95 },
+                        { id: 'gh_fb_2', name: 'ComfyUI', fullName: 'comfyanonymous/ComfyUI', owner: { name: 'comfyanonymous', avatar: '' }, description: '模块化 Stable Diffusion GUI，支持节点式工作流', url: 'https://github.com/comfyanonymous/ComfyUI', stars: 62000, forks: 8500, language: 'Python', topics: ['comfyui', 'node-based'], updatedAt: '2026-03-28', potentialScore: 88 },
+                        { id: 'gh_fb_3', name: 'ollama', fullName: 'ollama/ollama', owner: { name: 'ollama', avatar: '' }, description: '本地运行Llama、Mistral等大模型，简单易用', url: 'https://github.com/ollama/ollama', stars: 98000, forks: 6500, language: 'Go', topics: ['llm', 'local-ai'], updatedAt: '2026-04-05', potentialScore: 92 },
+                        { id: 'gh_fb_4', name: 'LivePortrait', fullName: 'KwaiVGI/LivePortrait', owner: { name: 'KwaiVGI', avatar: '' }, description: '高效肖像动画合成，让静态照片动起来', url: 'https://github.com/KwaiVGI/LivePortrait', stars: 38000, forks: 5200, language: 'Python', topics: ['portrait-animation', 'deepfake'], updatedAt: '2026-03-15', potentialScore: 82 },
+                        { id: 'gh_fb_5', name: 'Fooocus', fullName: 'lllyasviel/Fooocus', owner: { name: 'lllyasviel', avatar: '' }, description: '简化版 Stable Diffusion，自动优化提示词', url: 'https://github.com/lllyasviel/Fooocus', stars: 42000, forks: 5800, language: 'Python', topics: ['stable-diffusion', 'simple'], updatedAt: '2026-02-20', potentialScore: 85 },
+                        { id: 'gh_fb_6', name: 'whisper', fullName: 'openai/whisper', owner: { name: 'openai', avatar: '' }, description: 'OpenAI开源的语音识别模型，支持多语言', url: 'https://github.com/openai/whisper', stars: 78000, forks: 9200, language: 'Python', topics: ['speech-recognition', 'openai'], updatedAt: '2026-01-10', potentialScore: 89 },
+                        { id: 'gh_fb_7', name: 'video-retalking', fullName: 'OpenTalker/video-retalking', owner: { name: 'OpenTalker', avatar: '' }, description: '让照片中的人物根据音频说话，口型同步', url: 'https://github.com/OpenTalker/video-retalking', stars: 18000, forks: 3200, language: 'Python', topics: ['talking-head', 'audio-driven'], updatedAt: '2025-12-18', potentialScore: 75 }
+                    ];
+                }
+
                 if (content) content.innerHTML = '<div class="ch-card-list">' + _chData.map(item => _chCreateGithubCard(item)).join('') + '</div>';
                 _chAttachCardEvents();
             } catch (err) {
                 console.error('[GitHub] 获取失败:', err);
-                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💎</div><p>GitHub数据获取失败</p><button class="ch-refresh-btn" onclick="_chLoadGithub()">🔄 重试</button></div>';
+                console.warn('[GitHub] 使用备用数据');
+                _chData = [
+                    { id: 'gh_fb_1', name: 'stable-diffusion-webui', fullName: 'AUTOMATIC1111/stable-diffusion-webui', owner: { name: 'AUTOMATIC1111', avatar: '' }, description: 'Stable Diffusion的Web界面，功能最全的SD前端', url: 'https://github.com/AUTOMATIC1111/stable-diffusion-webui', stars: 145000, forks: 25000, language: 'Python', topics: ['stable-diffusion', 'ai'], updatedAt: '2026-04-01', potentialScore: 95 },
+                    { id: 'gh_fb_2', name: 'ComfyUI', fullName: 'comfyanonymous/ComfyUI', owner: { name: 'comfyanonymous', avatar: '' }, description: '模块化 Stable Diffusion GUI，支持节点式工作流', url: 'https://github.com/comfyanonymous/ComfyUI', stars: 62000, forks: 8500, language: 'Python', topics: ['comfyui', 'node-based'], updatedAt: '2026-03-28', potentialScore: 88 },
+                    { id: 'gh_fb_3', name: 'ollama', fullName: 'ollama/ollama', owner: { name: 'ollama', avatar: '' }, description: '本地运行Llama、Mistral等大模型，简单易用', url: 'https://github.com/ollama/ollama', stars: 98000, forks: 6500, language: 'Go', topics: ['llm', 'local-ai'], updatedAt: '2026-04-05', potentialScore: 92 },
+                    { id: 'gh_fb_4', name: 'LivePortrait', fullName: 'KwaiVGI/LivePortrait', owner: { name: 'KwaiVGI', avatar: '' }, description: '高效肖像动画合成，让静态照片动起来', url: 'https://github.com/KwaiVGI/LivePortrait', stars: 38000, forks: 5200, language: 'Python', topics: ['portrait-animation', 'deepfake'], updatedAt: '2026-03-15', potentialScore: 82 },
+                    { id: 'gh_fb_5', name: 'Fooocus', fullName: 'lllyasviel/Fooocus', owner: { name: 'lllyasviel', avatar: '' }, description: '简化版 Stable Diffusion，自动优化提示词', url: 'https://github.com/lllyasviel/Fooocus', stars: 42000, forks: 5800, language: 'Python', topics: ['stable-diffusion', 'simple'], updatedAt: '2026-02-20', potentialScore: 85 },
+                    { id: 'gh_fb_6', name: 'whisper', fullName: 'openai/whisper', owner: { name: 'openai', avatar: '' }, description: 'OpenAI开源的语音识别模型，支持多语言', url: 'https://github.com/openai/whisper', stars: 78000, forks: 9200, language: 'Python', topics: ['speech-recognition', 'openai'], updatedAt: '2026-01-10', potentialScore: 89 },
+                    { id: 'gh_fb_7', name: 'video-retalking', fullName: 'OpenTalker/video-retalking', owner: { name: 'OpenTalker', avatar: '' }, description: '让照片中的人物根据音频说话，口型同步', url: 'https://github.com/OpenTalker/video-retalking', stars: 18000, forks: 3200, language: 'Python', topics: ['talking-head', 'audio-driven'], updatedAt: '2025-12-18', potentialScore: 75 }
+                ];
+                if (content) content.innerHTML = '<div class="ch-card-list">' + _chData.map(item => _chCreateGithubCard(item)).join('') + '</div>';
+                _chAttachCardEvents();
             }
         }
 
@@ -12742,16 +12901,29 @@ ${idea.theme}${characterPrompt}
                             input = `<label style="display:flex;align-items:center;gap:8px;color:#fff;font-size:14px;"><input type="checkbox" id="msp_${p.key}" ${p.default ? 'checked' : ''}> ${p.checkboxLabel || '启用'}</label>`;
                             break;
                         case 'file':
+                            _mobileSkillFileStore[p.key] = null;
+                            input = `<div style="position:relative;">
+                                <input type="file" id="msp_${p.key}" accept="${p.accept || '*'}" 
+                                    style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1;"
+                                    onchange="_mobileSkillFileUpload('${p.key}', this, '${p.label}')">
+                                <label for="msp_${p.key}" id="msp_wrap_${p.key}"
+                                    style="display:block;border:2px dashed #444;border-radius:10px;padding:16px;text-align:center;cursor:pointer;color:#888;">
+                                    <div style="font-size:24px;margin-bottom:4px;">📁</div>
+                                    <div class="msp-file-text" style="font-size:13px;">点击上传${p.label || '文件'}</div>
+                                    <div id="msp_file_info_${p.key}" style="display:none;margin-top:10px;font-size:12px;color:#a78bfa;"></div>
+                                </label>
+                            </div>`;
+                            break;
                         case 'image':
                             _mobileSkillImageStore[p.key] = [];
                             input = `<div style="position:relative;">
-                                <input type="file" id="msp_${p.key}" accept="${p.type === 'image' ? 'image/*' : '*'}" ${p.type === 'image' ? 'multiple' : ''}
+                                <input type="file" id="msp_${p.key}" accept="image/*" multiple
                                     style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1;"
                                     onchange="_mobileSkillImageUpload('${p.key}', this)">
                                 <label for="msp_${p.key}" id="msp_wrap_${p.key}"
                                     style="display:block;border:2px dashed #444;border-radius:10px;padding:16px;text-align:center;cursor:pointer;color:#888;">
-                                    <div style="font-size:24px;margin-bottom:4px;">${p.type === 'image' ? '📷' : '📁'}</div>
-                                    <div class="msp-img-text" style="font-size:13px;">点击上传${p.type === 'image' ? '图片（可多选）' : '文件'}</div>
+                                    <div style="font-size:24px;margin-bottom:4px;">📷</div>
+                                    <div class="msp-img-text" style="font-size:13px;">点击上传图片（可多选）</div>
                                     <div id="msp_previews_${p.key}" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
                                 </label>
                             </div>`;
@@ -12852,7 +13024,18 @@ ${idea.theme}${characterPrompt}
                 if (!el) continue;
                 if (p.type === 'checkbox') params[p.key] = el.checked;
                 else if (p.type === 'number') params[p.key] = el.value ? Number(el.value) : p.default;
-                else if (p.type === 'image' || p.type === 'file') {
+                else if (p.type === 'file') {
+                    // File 类型：优先从 _mobileSkillFileStore 读取
+                    if (_mobileSkillFileStore[p.key]) {
+                        params[p.key] = _mobileSkillFileStore[p.key];
+                    } else if (el.files && el.files.length > 0) {
+                        params[p.key] = el.files.length === 1 ? el.files[0] : Array.from(el.files);
+                    } else {
+                        params[p.key] = null;
+                    }
+                }
+                else if (p.type === 'image') {
+                    // Image 类型：从 _mobileSkillImageStore 读取 base64 数组
                     if (_mobileSkillImageStore[p.key] && _mobileSkillImageStore[p.key].length > 0) {
                         params[p.key] = _mobileSkillImageStore[p.key];
                     } else if (el.files && el.files.length > 0) {
@@ -12881,8 +13064,58 @@ ${idea.theme}${characterPrompt}
 
             _mobileSkillSelected = null;
             Object.keys(_mobileSkillImageStore).forEach(k => { _mobileSkillImageStore[k] = []; });
+            Object.keys(_mobileSkillFileStore).forEach(k => { _mobileSkillFileStore[k] = null; });
         }
 
+        // 📁 手机版文件上传处理（保存 File 对象）
+        function _mobileSkillFileUpload(paramKey, input, label) {
+            if (!input.files || input.files.length === 0) return;
+            
+            if (input.files.length === 1) {
+                _mobileSkillFileStore[paramKey] = input.files[0];
+            } else {
+                _mobileSkillFileStore[paramKey] = Array.from(input.files);
+            }
+            
+            // 更新 UI 显示文件名
+            const wrap = document.getElementById(`msp_wrap_${paramKey}`);
+            const fileInfoEl = document.getElementById(`msp_file_info_${paramKey}`);
+            const textEl = wrap?.querySelector('.msp-file-text');
+            
+            if (input.files.length === 1) {
+                const file = input.files[0];
+                const sizeKB = (file.size / 1024).toFixed(1);
+                const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+                const sizeStr = file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+                
+                if (fileInfoEl) {
+                    fileInfoEl.textContent = `✅ ${file.name} (${sizeStr})`;
+                    fileInfoEl.style.display = 'block';
+                }
+                if (textEl) {
+                    textEl.textContent = '已选择文件';
+                }
+                if (wrap) {
+                    wrap.style.borderColor = '#a78bfa';
+                    wrap.style.background = 'rgba(139, 92, 246, 0.1)';
+                }
+            } else if (input.files.length > 1) {
+                if (fileInfoEl) {
+                    fileInfoEl.textContent = `✅ 已选择 ${input.files.length} 个文件`;
+                    fileInfoEl.style.display = 'block';
+                }
+                if (textEl) {
+                    textEl.textContent = '已选择文件';
+                }
+                if (wrap) {
+                    wrap.style.borderColor = '#a78bfa';
+                    wrap.style.background = 'rgba(139, 92, 246, 0.1)';
+                }
+            }
+            
+            input.value = '';
+        }
+        
         // 🖼️ 手机版多图上传处理
         function _mobileSkillImageUpload(paramKey, input) {
             if (!input.files || input.files.length === 0) return;
@@ -12966,6 +13199,69 @@ ${idea.theme}${characterPrompt}
             }
         }
 
+        // 🖼️ 技能系统图片上传处理（参考图/角色图等）
+        function handleSkillImageUpload(paramKey, input) {
+            if (!input.files || input.files.length === 0) return;
+            const files = Array.from(input.files);
+            if (!skillImageStore[paramKey]) skillImageStore[paramKey] = [];
+
+            const processPromises = files.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            Promise.all(processPromises.then ? processPromises : []).then(results => {
+                results.filter(Boolean).forEach(data => skillImageStore[paramKey].push(data));
+                renderSkillImagePreviews(paramKey);
+            });
+            input.value = '';
+        }
+
+        function removeSkillImage(paramKey, index) {
+            if (!skillImageStore[paramKey]) return;
+            skillImageStore[paramKey].splice(index, 1);
+            renderSkillImagePreviews(paramKey);
+            event.stopPropagation();
+        }
+
+        function clearSkillImages(paramKey) {
+            skillImageStore[paramKey] = [];
+            renderSkillImagePreviews(paramKey);
+            event.stopPropagation();
+        }
+
+        function _mobileSkillClearImages(paramKey) {
+            clearSkillImages(paramKey);
+        }
+
+        function renderSkillImagePreviews(paramKey) {
+            var container = document.getElementById('skill_img_previews_' + paramKey);
+            var wrap = document.getElementById('skill_img_wrap_' + paramKey);
+            var textEl = wrap ? wrap.querySelector('.skill-img-text') : null;
+            var images = skillImageStore[paramKey] || [];
+            if (!container) return;
+
+            if (images.length === 0) {
+                container.style.display = 'none';
+                if (textEl) textEl.textContent = '点击上传图片（可多选）';
+                return;
+            }
+
+            container.style.display = 'flex';
+            if (textEl) textEl.textContent = '已选择 ' + images.length + ' 张图片';
+
+            container.innerHTML = images.map(function(data, idx) {
+                return '<div style="position:relative;display:inline-block;margin:4px;border:1px solid #444;border-radius:8px;overflow:hidden;">' +
+                    '<img src="' + data + '" style="width:80px;height:80px;object-fit:cover;display:block;" onclick="openImageViewer(\'' + data.replace(/'/g, "\\'") + '\')">' +
+                    '<span onclick="removeSkillImage(\'' + paramKey + '\',' + idx + ')" style="position:absolute;top:2px;right:2px;width:18px;height:18px;background:rgba(239,68,68,0.9);border-radius:50%;color:#fff;font-size:11px;text-align:center;line-height:18px;cursor:pointer;">✕</span>' +
+                    '</div>';
+            }).join('');
+        }
+
         async function mobileSkillExecute(event) {
             if (event) {
                 event.preventDefault();
@@ -13046,11 +13342,15 @@ ${idea.theme}${characterPrompt}
                         if (stepsEl) stepsEl.innerHTML += `<div style="font-size:12px;color:#4ade80;padding:3px 0;">✅ ${stepName}</div>`;
                     },
                     onComplete: (result) => {
+                        console.log('[mobile] onComplete 被调用, result=', result);
+                        console.log('[mobile] onComplete result 类型:', typeof result);
+                        console.log('[mobile] onComplete result keys:', Object.keys(result || {}));
                         if (iconEl) iconEl.textContent = '✅';
                         if (msgEl) msgEl.textContent = '🎉 执行完成！';
                         if (fillEl) fillEl.style.width = '100%';
                         if (pctEl) pctEl.textContent = '100%';
                         setTimeout(() => {
+                            console.log('[mobile] 准备调用 _mobileSkillShowResult, skill=', skill, 'result=', result);
                             _mobileSkillShowResult(skill, result);
                         }, 800);
                     },
@@ -13101,6 +13401,7 @@ ${idea.theme}${characterPrompt}
         }
 
         function _mobileSkillShowResult(skill, result) {
+            console.log('[mobile] _mobileSkillShowResult 被调用, skill=', skill, 'result=', result);
             const sheet = document.getElementById('skillSheet');
             const body = document.getElementById('skillResultBody');
 
@@ -13209,25 +13510,41 @@ ${idea.theme}${characterPrompt}
             }
 
             // 🖼️ 图片结果
+            console.log('[mobile] 检查图片结果: result.images=', result.images, '长度=', result.images?.length);
             if (result.images && result.images.length > 0) {
                 for (const img of result.images) {
+                    console.log('[mobile] 处理图片项:', img);
                     if (img.status === 'success' && img.imageUrl) {
                         if (typeof saveImageToLibrary === 'function') {
                             saveImageToLibrary(img.imageUrl, `${skillName} - ${img.subject || '图片'}`, 'skill');
                             savedImages++;
                         }
-                        html += `<div class="skill-result-item">
-                            <img src="${img.imageUrl}" class="skill-result-img" alt="${img.subject || '图片'}" onclick="openImageViewer('${img.imageUrl.replace(/'/g, "\\'")}')"
-                                style="cursor:pointer;">
-                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${img.subject || ''}</div>
-                            <div style="display:flex;gap:8px;">
-                                <a href="${img.imageUrl}" download="${img.subject || 'image'}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
-                            </div>
-                        </div>`;
+                        // 📸 九宫格图片特殊展示（大图 + 边框标注）
+                        if (img.isGrid) {
+                            html += `<div class="skill-result-item" style="border-color:rgba(139,92,246,0.3);">
+                                <div style="font-size:12px;color:#a78bfa;margin-bottom:6px;display:flex;align-items:center;gap:4px;">📸 ${img.subject || '九宫格分镜'}</div>
+                                <img src="${img.imageUrl}" class="skill-result-img" alt="${img.subject || '九宫格'}" onclick="openImageViewer('${img.imageUrl.replace(/'/g, "\\'")}')"
+                                    style="cursor:pointer;border:2px solid rgba(139,92,246,0.4);border-radius:8px;">
+                                <div style="font-size:11px;color:#888;margin-top:4px;">💡 点击放大查看九宫格完整画面</div>
+                                <div style="display:flex;gap:8px;">
+                                    <a href="${img.imageUrl}" download="${img.subject || 'grid'}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载九宫格</a>
+                                </div>
+                            </div>`;
+                        } else {
+                            html += `<div class="skill-result-item">
+                                <img src="${img.imageUrl}" class="skill-result-img" alt="${img.subject || '图片'}" onclick="openImageViewer('${img.imageUrl.replace(/'/g, "\\'")}')"
+                                    style="cursor:pointer;">
+                                <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${img.subject || ''}</div>
+                                <div style="display:flex;gap:8px;">
+                                    <a href="${img.imageUrl}" download="${img.subject || 'image'}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                                </div>
+                            </div>`;
+                        }
                     } else if (img.status === 'failed') {
                         html += `<div class="skill-result-item" style="border:1px solid rgba(239,68,68,0.3);"><div style="color:#f87171;font-size:13px;">❌ ${img.subject}: ${img.error}</div></div>`;
                     }
                 }
+                console.log('[mobile] 图片处理完, html长度:', html.length);
             }
 
             // 📖 漫画分镜/页面结果
@@ -13497,10 +13814,73 @@ ${idea.theme}${characterPrompt}
                 }
             }
 
+            // 🎬 视频分析结果
+            if (result.mainPrompt || result.title === '视频分析结果') {
+                html += `<div class="skill-result-item" style="border-color:rgba(139,92,246,0.3);">
+                    <div style="font-size:15px;color:#c084fc;font-weight:700;margin-bottom:10px;">🎬 ${result.title || '视频分析报告'}</div>
+                    ${result.summary ? `<div style="font-size:13px;color:#aaa;margin-bottom:8px;padding:8px;background:rgba(139,92,246,0.08);border-radius:6px;">${result.summary}</div>` : ''}
+                    ${result.mainPrompt ? `<div style="margin:10px 0;">
+                        <div style="font-size:12px;color:#888;margin-bottom:4px;">📝 主提示词（可直接用于文生视频）</div>
+                        <div class="skill-result-text" style="white-space:pre-wrap;word-break:break-all;font-size:13px;color:#e2e8f0;background:#1a1a2e;padding:12px;border-radius:8px;border-left:3px solid #8b5cf6;line-height:1.6;">${result.mainPrompt}</div>
+                        <button onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);showToast('✅ 提示词已复制')" style="margin-top:6px;padding:6px 14px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border:none;border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">📋 复制提示词</button>
+                    </div>` : ''}
+                    ${result.styleKeywords && result.styleKeywords.length > 0 ? `<div style="margin:8px 0;">
+                        <div style="font-size:12px;color:#888;margin-bottom:4px;">🎨 风格关键词</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;">${result.styleKeywords.map(k => `<span style="padding:3px 8px;background:rgba(139,92,246,0.15);color:#c084fc;border-radius:12px;font-size:11px;">${k}</span>`).join('')}</div>
+                    </div>` : ''}
+                    ${result.sceneDescription ? `<div style="margin:8px 0;"><div style="font-size:12px;color:#888;margin-bottom:4px;">🏞️ 场景描述</div><div style="font-size:12px;color:#ccc;">${result.sceneDescription}</div></div>` : ''}
+                    ${result.cameraWork ? `<div style="margin:8px 0;"><div style="font-size:12px;color:#888;margin-bottom:4px;">📷 镜头语言</div><div style="font-size:12px;color:#ccc;">${result.cameraWork}</div></div>` : ''}
+                    ${result.moodAtmosphere ? `<div style="margin:8px 0;"><div style="font-size:12px;color:#888;margin-bottom:4px;">✨ 情绪氛围</div><div style="font-size:12px;color:#ccc;">${result.moodAtmosphere}</div></div>` : ''}
+                    ${result.alternativePrompts && result.alternativePrompts.length > 0 ? `<div style="margin:12px 0;padding:10px;background:rgba(99,102,241,0.08);border-radius:8px;">
+                        <div style="font-size:12px;color:#818cf8;font-weight:600;margin-bottom:8px;">🔄 备选提示词变体</div>
+                        ${result.alternativePrompts.map((ap, i) => `<div style="margin-bottom:8px;padding:8px;background:#111;border-radius:6px;">
+                            <div style="font-size:11px;color:#6366f1;margin-bottom:4px;">${ap.label || '变体' + (i+1)}</div>
+                            <div class="skill-result-text" style="font-size:12px;color:#ddd;white-space:pre-wrap;">${ap.prompt || ''}</div>
+                            <button onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);showToast('✅ 已复制')" style="margin-top:4px;padding:4px 10px;background:#333;border:none;border-radius:4px;color:#fff;font-size:11px;cursor:pointer;">复制</button>
+                        </div>`).join('')}
+                    </div>` : ''}
+                    ${result.technicalParams ? `<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;">
+                        ${result.technicalParams.suggestedDuration ? `<span style="padding:3px 8px;background:rgba(34,197,94,0.15);color:#4ade80;border-radius:10px;font-size:11px;">⏱️ ${result.technicalParams.suggestedDuration}</span>` : ''}
+                        ${result.technicalParams.aspectRatio ? `<span style="padding:3px 8px;background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:10px;font-size:11px;">📐 ${result.technicalParams.aspectRatio}</span>` : ''}
+                        ${result.technicalParams.motionIntensity ? `<span style="padding:3px 8px;background:rgba(251,146,60,0.15);color:#fb923c;border-radius:10px;font-size:11px;">🎬 ${result.technicalParams.motionIntensity}</span>` : ''}
+                    </div>` : ''}
+                </div>`;
+            }
+
+            console.log('[mobile] 当前 html 长度:', html.length, '准备检查兜底逻辑');
+            
+            // 🔄 兜底逻辑：尝试从各种可能的字段中提取图片
             if (!html) {
-                // 🔄 通用兆底：尝试展示原始 JSON 结果
+                console.log('[mobile] 开始兜底搜索，result 结构:', Object.keys(result || {}));
+                // 尝试提取 images 数组
+                let imagesToShow = result.images || result.pages || result.videos || result.scenes || result.episodes || result.generatedMedia;
+                
+                // 检查是否是 SkillManager 的 record 对象（包含 result 字段）
+                if (!imagesToShow && result.result) {
+                    console.log('[mobile] 检测到 record 对象，使用 result.result');
+                    imagesToShow = result.result.images || result.result.pages;
+                }
+                
+                if (imagesToShow && Array.isArray(imagesToShow) && imagesToShow.length > 0) {
+                    console.log('[mobile] 兜底找到图片:', imagesToShow.length, '张');
+                    for (const img of imagesToShow) {
+                        const imgUrl = img.imageUrl || img.url || img.videoUrl;
+                        if (imgUrl) {
+                            html += `<div class="skill-result-item">
+                                ${imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? `<img src="${imgUrl}" class="skill-result-img" onclick="openImageViewer('${imgUrl.replace(/'/g, "\\'")}')" style="cursor:pointer;">` : ''}
+                                <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${img.subject || img.title || '结果'}</div>
+                                ${imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? `<a href="${imgUrl}" download="result.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>` : ''}
+                            </div>`;
+                        }
+                    }
+                }
+            }
+            
+            if (!html) {
+                // 🔄 通用兜底：展示原始 JSON 结果
                 try {
                     const raw = JSON.stringify(result, null, 2);
+                    console.log('[mobile] 原始 JSON:', raw.substring(0, 500));
                     if (raw && raw !== '{}' && raw.length > 5) {
                         html = `<div class="skill-result-item">
                             <div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px;">📋 执行结果</div>
@@ -13511,6 +13891,7 @@ ${idea.theme}${characterPrompt}
                         html = '<div style="text-align:center;padding:40px;color:#888;">执行完成，无可展示的结果</div>';
                     }
                 } catch (e) {
+                    console.error('[mobile] 兜底展示失败:', e);
                     html = '<div style="text-align:center;padding:40px;color:#888;">执行完成，无可展示的结果</div>';
                 }
             }
@@ -15408,6 +15789,9 @@ ${story}
                     // 淡出完成后隐藏intro
                     setTimeout(function () {
                         intro.classList.add('hidden');
+                        _showIntro = false;
+                        // 🔧 开场动画结束进入欢迎页，用户还没登录，不需要显示助手
+                        // 助手会在登录成功跳转回来时通过 allowAssistant() 显示
                     }, 600);
                 }, 20);
             }

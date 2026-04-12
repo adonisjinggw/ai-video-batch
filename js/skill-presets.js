@@ -133,17 +133,31 @@
         { value: 'nano-banana-2-4k', label: '💎 Banana 4K（10胶片）' },
         { value: 'modelscope', label: '🆓 智能绘图（免费）' },
         { value: 'Qwen/Qwen-Image-2512', label: '🌟 通义万象Max（8胶片）' },
+        { value: 'midjourney-v8', label: '🎨 MJ V8（2胶片）' },
+        { value: 'midjourney-niji-v8', label: '🎨 MJ Niji V8（2胶片）' },
         { value: 'midjourney-fast', label: '🎨 MJ Fast（2胶片）' },
         { value: 'midjourney-turbo', label: '⚡ MJ Turbo（2胶片）' },
         { value: 'midjourney-relax', label: '🐢 MJ Relax（2胶片）' }
     ];
 
-    // 📝 通用文本/LLM 模型选项
+    // 📝 通用文本/LLM 模型选项（支持视频分析）
     const TEXT_MODEL_OPTIONS = [
         { value: 'auto', label: '🧠 智能自动 (根据内容选模型)' },
+        { value: 'grok-4.1', label: '🧠 Grok-4.1（推荐，视觉分析）' },
+        { value: 'grok-4-fast-non-reasoning', label: '⚡ Grok-4 Fast（快速模式）' },
+        { value: 'grok-3', label: '🔮 Grok-3（多模态）' },
+        { value: 'grok-3-mini', label: '🔮 Grok-3 Mini（轻量）' },
         { value: 'roll', label: '⚡ Roll 系统 (默认)' },
         { value: 'qwen3.5-plus', label: '💎 通义千问 Plus (推荐)' },
-        { value: 'gemini-3.1-pro-preview', label: '🌟 Gemini Pro (高质量)' }
+        { value: 'qwen3.6-plus-2026-04-02', label: '🆕 Qwen3.6-Plus (视觉OCR)' },
+        { value: 'qwen-vl-max', label: '👁️ Qwen-VL-Max（多模态）' },
+        { value: 'qwen-vl-plus', label: '👁️ Qwen-VL-Plus（多模态）' },
+        { value: 'gemini-3.1-pro-preview', label: '🌟 Gemini Pro (高质量)' },
+        { value: 'gemini-3.1-flash-preview', label: '⚡ Gemini Flash（快速）' },
+        { value: 'gemini-3.5-pro-preview', label: '🌟 Gemini 3.5 Pro（最新）' },
+        { value: 'gemini-3.5-flash-preview', label: '⚡ Gemini 3.5 Flash（最新）' },
+        { value: 'claude-3-5-sonnet', label: '🎭 Claude 3.5 Sonnet（多模态）' },
+        { value: 'claude-3-opus', label: '🎭 Claude 3 Opus（最高质量）' }
     ];
 
     // 🎬 通用视频模型选项（完整列表，与 mobile.html 保持一致）
@@ -158,6 +172,7 @@
         // === Veo 3.1 系列 ===
         { value: 'veo3.1', label: '🎬 Veo 3.1 (有声/推荐 8s 30胶片)' },
         { value: 'veo3.1-4K', label: '🎬 Veo 3.1 4K (超清⚠️暂不稳定 8s 30胶片)' },
+        { value: 'veo_3_1-lite-4K', label: '🎬 Veo 3.1 Lite 4K (8s 9胶片)' },
 
         // === Vidu 系列 - 5秒 ===
         { value: 'vidu-q2-5s-720p', label: '🎬 Vidu q2 5秒 720P (25胶片)' },
@@ -233,10 +248,11 @@
         { value: 'runninghub-video', label: '🏃 RunningHub 10s (8胶片/MV备选)' },
         { value: 'video-continuity', label: '🎬 连续性视频 (逐帧衔接)' },
 
-        // === Seedance 2.0 (RunningHub·仅LV10+) ===
+        // === Seedance 2.0 (LV10+) ===
         { value: 'seedance-t2v', label: '🌟 Seedance 2.0 文生视频 (8胶片/LV10+)' },
         { value: 'seedance-i2v', label: '🌟 Seedance 2.0 图生视频 (10胶片/LV10+)' },
-        { value: 'seedance-ref', label: '🌟 Seedance 2.0 全能参考视频 (12胶片/LV10+)' }
+        { value: 'seedance-ref', label: '🌟 Seedance 2.0 全能参考视频 (12胶片/LV10+)' },
+        { value: 'seedance-260128', label: '⚡ Seedance 2.0-260128 (200胶片/LV10+)' }
     ];
 
     const VIDEO_STYLE_OPTIONS = [
@@ -591,6 +607,18 @@
             return Math.ceil((baseCost / baseDur) * d);
         }
 
+        if (m.startsWith('seedance-')) {
+            if (m.includes('260128')) {
+                return 200;
+            } else if (m.includes('ref')) {
+                return 12;
+            } else if (m.includes('i2v')) {
+                return 10;
+            } else {
+                return 8;
+            }
+        }
+
         return Math.ceil(15 / 5 * d);
     }
 
@@ -614,7 +642,7 @@
             'wan26-720p-5s-audio', 'wan26-720p-10s-audio', 'wan26-720p-15s-audio',
             'wan26-1080p-5s-audio', 'wan26-1080p-10s-audio', 'wan26-1080p-15s-audio',
             'grok-video-3', 'grok-video-3-10s', // ❌ 'grok-video-3-15s' 已下架
-            'sora-2-vip-all', 'veo3.1', 'veo3.1-4K'
+            'sora-2-vip-all', 'veo3.1', 'veo3.1-4K', 'veo_3_1-lite-4K'
         ];
 
         // 用户指定且可用 → 直接用
@@ -979,6 +1007,13 @@
                         type: 'select',
                         default: 'grok-video-3-10s',
                         options: VIDEO_MODEL_OPTIONS
+                    },
+                    {
+                        key: 'imageModel',
+                        label: '生图模型',
+                        type: 'select',
+                        default: 'gemini-3.1-flash-image-preview-4k',
+                        options: IMAGE_MODEL_OPTIONS
                     }
                 ],
                 estimateCost: (params) => {
@@ -992,7 +1027,7 @@
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { story, episodes, style, aspectRatio } = params;
+                    const { story, episodes, style, aspectRatio, imageModel } = params;
                     // 从 videoModel 名称中提取时长（如 wan26-720p-5s → 5）
                     const _vmMatch = (params.videoModel || '').match(/(\d+)s/);
                     const segDuration = _vmMatch ? parseInt(_vmMatch[1]) : 15;
@@ -1053,7 +1088,7 @@ Output EXACTLY in this format:
                     let styleAnchorUrl = '';
                     try {
                         const anchorPrompt = `${globalStyle}, ${segments[0].substring(0, 300)}, establishing shot, ${aspectRatio} aspect ratio, masterpiece, best quality`;
-                        styleAnchorUrl = await callImageAPIWithRefs(anchorPrompt, { aspectRatio }, []);
+                        styleAnchorUrl = await callImageAPIWithRefs(anchorPrompt, { aspectRatio, imageModel }, []);
                         callbacks.onStepComplete?.('风格锚定', { imageUrl: styleAnchorUrl });
                     } catch (e) { console.warn('[连续视频] 风格锚定图生成失败:', e.message); }
 
@@ -1065,7 +1100,7 @@ Output EXACTLY in this format:
                     async function _genImage(idx) {
                         const seg = segments[idx]?.trim() || `第${idx + 1}幕`;
                         const imgPrompt = `${globalStyle}, ${seg.substring(0, 300)}, consistent with previous scenes, same subject and color palette, ${aspectRatio} aspect ratio`;
-                        const opts = { aspectRatio };
+                        const opts = { aspectRatio, imageModel };
                         const refs = [];
                         if (styleAnchorUrl) refs.push(styleAnchorUrl);
                         if (lastImageUrl && lastImageUrl !== styleAnchorUrl) refs.push(lastImageUrl);
@@ -1525,10 +1560,10 @@ Output EXACTLY in this format:
                                 userCharStyle: style === 'realistic' ? 'realistic' : style === 'chinese' ? 'chinese' : 'anime'
                             });
                             results.turnaround = variants;
-                        } else if (typeof callBanana2ImageAPI === 'function') {
-                            const opts = { aspectRatio: charAspectRatio };
+                        } else {
+                            const opts = { aspectRatio: charAspectRatio, imageModel: params.imageModel };
                             if (charRef) opts.refImage = charRef;
-                            results.turnaround = await callBanana2ImageAPI(turnaroundPrompt, opts);
+                            results.turnaround = await callImageAPIWithRefs(turnaroundPrompt, opts, allCharRefImages);
                         }
                         // 首张生成图作为后续参考（保持角色一致性）
                         if (!charRef && results.turnaround) charRef = results.turnaround;
@@ -1536,6 +1571,7 @@ Output EXACTLY in this format:
                         callbacks.onStepComplete?.('三视图', { url: results.turnaround });
                     } catch (e) {
                         console.error('三视图生成失败:', e);
+                        callbacks.onProgress?.('三视图生成失败，但继续生成其他素材...', 10, '继续生成其他素材...');
                     }
 
                     // 2-4. 并行生成海报+表情包+动作参考
@@ -1547,7 +1583,7 @@ Output EXACTLY in this format:
                     callbacks.onProgress?.('并行生成', 30, `同时生成 ${charTasks.length} 项角色素材...`);
                     let _chDone = 0;
                     await Promise.all(charTasks.map(task => {
-                        const opts = { aspectRatio: charAspectRatio };
+                        const opts = { aspectRatio: charAspectRatio, imageModel: params.imageModel };
                         if (charRef) opts.refImage = charRef;
                         return callImageAPIWithRefs(task.prompt, opts, allCharRefImages)
                             .then(url => {
@@ -1634,17 +1670,25 @@ Output EXACTLY in this format:
                             { value: '1:1', label: '1:1 方形' },
                             { value: '16:9', label: '16:9 横屏' }
                         ]
+                    },
+                    {
+                        key: 'imageModel',
+                        label: '生图模型',
+                        type: 'select',
+                        default: 'gemini-3.1-flash-image-preview-4k',
+                        options: IMAGE_MODEL_OPTIONS
                     }
                 ],
                 estimateCost: (params) => {
                     const pages = params.pageCount || 4;
+                    const imgFilm = calculateImageCost(params.imageModel);
                     return {
-                        film: Math.ceil(pages * 5) + 1, // 5胶片/页 + 文本1
+                        film: Math.ceil(pages * imgFilm) + 1,
                         time: `约 ${pages} 分钟`
                     };
                 },
                 execute: async (params, callbacks) => {
-                    const { story, styleRef, pageCount, style, panelsPerPage, aspectRatio } = params;
+                    const { story, styleRef, pageCount, style, panelsPerPage, aspectRatio, imageModel } = params;
                     const comicAspectRatio = aspectRatio || '9:16';
 
                     // 🖼️ 解析参考图（支持多图）
@@ -1689,7 +1733,7 @@ ${story}
                         try {
                             const _firstPanels = panelDescriptions.slice(0, parseInt(panelsPerPage)).join('; ');
                             const _firstPrompt = `${styleMap[style]}, comic page, ${parseInt(panelsPerPage)} panels layout, sequential art, ${_firstPanels}`;
-                            comicRef = await callImageAPIWithRefs(_firstPrompt, { aspectRatio: comicAspectRatio }, allComicRefImages);
+                            comicRef = await callImageAPIWithRefs(_firstPrompt, { aspectRatio: comicAspectRatio, imageModel }, allComicRefImages);
                             callbacks.onStepComplete?.('风格基准页', { imageUrl: comicRef });
                         } catch (e) { console.warn('风格基准页失败:', e.message); }
                     }
@@ -1702,7 +1746,7 @@ ${story}
                         const pagePanels = panelDescriptions.slice(startPanel, startPanel + parseInt(panelsPerPage));
                         const panelDesc = pagePanels.join('; ');
                         const pagePrompt = `${styleMap[style]}, comic page, ${parseInt(panelsPerPage)} panels layout, sequential art, ${panelDesc}`;
-                        const opts = { aspectRatio: comicAspectRatio };
+                        const opts = { aspectRatio: comicAspectRatio, imageModel };
                         if (comicRef) opts.refImage = comicRef;
                         return callImageAPIWithRefs(pagePrompt, opts, allComicRefImages)
                             .then(imageUrl => {
@@ -1946,7 +1990,7 @@ ${story}
 
                     // 智能风格标签生成
                     const autoTags = _generateMusicTags(description, detectedPurpose);
-                    const model = 'chirp-auk'; // v4.5 更高音质
+                    const model = 'chirp-v5'; // V5最新模型，歌词遵循度大幅提升
 
                     callbacks.onProgress?.('生成音乐参数', 10,
                         `用途: ${detectedPurpose} | 风格: ${autoTags} | ${isInstrumental ? '纯BGM' : '带人声'}`);
@@ -1958,16 +2002,40 @@ ${story}
                         try {
                             if (typeof callScriptGenerator === 'function') {
                                 lyrics = await callScriptGenerator({},
-                                    `你是一位专业词作家。根据以下描述创作一首歌曲的歌词：
+                                    `你是一位专业词作家。根据以下描述创作一首歌曲的完整结构化歌词。
 
 描述：${description}
 风格：${autoTags}
 
-要求：
-- 包含主歌(Verse)、副歌(Chorus)、Bridge
-- 副歌朗朗上口，有记忆点
-- 中文歌词
-- 直接输出歌词内容，不要解释`);
+要求（必须严格遵守）：
+1. 必须使用标准的[Verse]、[Chorus]、[Bridge]结构标签
+2. 主歌(Verse)至少2段，副歌(Chorus)至少1段且要朗朗上口有记忆点
+3. 歌词内容必须紧扣"${description}"主题，不要偏离主题
+4. 风格必须是${autoTags}风格
+5. 中文歌词为主，可适当加入英文过渡句
+6. 直接输出完整歌词，包含所有结构标签，不要任何解释说明
+
+输出格式示例：
+[Intro]
+前奏氛围描述
+
+[Verse 1]
+第一段主歌歌词...
+
+[Chorus]
+副歌歌词...
+
+[Verse 2]
+第二段主歌歌词...
+
+[Chorus]
+副歌歌词重复或变奏...
+
+[Bridge]
+桥段/过渡...
+
+[Outro]
+结尾`);
                             }
                             if (lyrics) {
                                 callbacks.onStepComplete?.('歌词创作完成', { lyrics });
@@ -1982,15 +2050,17 @@ ${story}
 
                     const sunoOptions = {
                         model,
-                        title: '',
+                        title: description.substring(0, 30).replace(/[^\w\u4e00-\u9fa5]/g, ' ').trim() || 'AI Music',
                         tags: autoTags,
                         instrumental: isInstrumental
                     };
 
                     if (lyrics) {
                         sunoOptions.prompt = lyrics;
+                        console.log('[ai_music] 歌词模式: prompt长度=' + lyrics.length + ', 标题=' + sunoOptions.title);
                     } else {
-                        sunoOptions.description = description;
+                        sunoOptions.gpt_description_prompt = description;
+                        console.log('[ai_music] 灵感模式: 描述长度=' + description.length);
                     }
 
                     const result = await callSunoMusicAPI(sunoOptions);
@@ -2060,6 +2130,13 @@ ${story}
                         type: 'select',
                         default: 'grok-video-3-10s',
                         options: VIDEO_MODEL_OPTIONS
+                    },
+                    {
+                        key: 'imageModel',
+                        label: '生图模型',
+                        type: 'select',
+                        default: 'gemini-3.1-flash-image-preview-4k',
+                        options: IMAGE_MODEL_OPTIONS
                     }
                 ],
                 estimateCost: (params) => {
@@ -4099,7 +4176,7 @@ ${colorPref ? '色彩偏好：' + colorPref : ''}
                 name: '图片文字识别',
                 icon: '🔍',
                 category: 'tool',
-                description: '使用 DeepSeek OCR 识别图片中的所有文字，支持中文、英文、表格、手写体等。',
+                description: '使用 Qwen3.6-Plus 识别图片中的所有文字，支持中文、英文、表格、手写体等。',
                 parameters: [
                     { key: 'image', label: '上传图片', type: 'image', required: true, hint: '支持 JPG/PNG，截图、照片、文档扫描件等' },
                     {
@@ -4109,7 +4186,7 @@ ${colorPref ? '色彩偏好：' + colorPref : ''}
                         ]
                     }
                 ],
-                estimateCost: () => ({ film: 2, time: '约 10 秒' }),
+                estimateCost: () => ({ film: 1, time: '约 10 秒' }),
                 execute: async (params, callbacks) => {
                     const { image, ocrMode } = params;
                     if (!image || image.length === 0) throw new Error('请上传图片');
@@ -4130,7 +4207,7 @@ ${colorPref ? '色彩偏好：' + colorPref : ''}
 
                     let result = '';
                     if (typeof callOCRAPI === 'function') {
-                        result = await callOCRAPI(imageUrl, modePrompts[ocrMode] || modePrompts.all, 'deepseek-ocr');
+                        result = await callOCRAPI(imageUrl, modePrompts[ocrMode] || modePrompts.all, 'qwen3.6-plus-2026-04-02');
                     } else {
                         throw new Error('OCR 功能不可用');
                     }
@@ -4189,7 +4266,8 @@ ${colorPref ? '色彩偏好：' + colorPref : ''}
                         default: 'image_video',
                         options: [
                             { value: 'image_only', label: '🖼️ 仅分镜图' },
-                            { value: 'image_video', label: '🎬 分镜图 + 视频' }
+                            { value: 'image_video', label: '🎬 分镜图 + 视频' },
+                            { value: 'grid_3x3', label: '📸 九宫格分镜（3×3一张图包含9场景）' }
                         ]
                     },
                     {
@@ -4396,6 +4474,68 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                         results.videos = (await Promise.all(vidPromises)).sort((a, b) => a.index - b.index);
                     }
 
+                    // ========== Step 5.5: 九宫格模式（grid_3x3）==========
+                    if (outputMode === 'grid_3x3' && panelDescs.length >= 2) {
+                        callbacks.onProgress?.('生成九宫格', 25, '📸 正在生成3×3九宫格分镜图...');
+
+                        const gridCount = Math.min(panelDescs.length, 9);
+                        const gridCols = 3;
+                        const gridRows = Math.ceil(gridCount / 3);
+
+                        const gridSceneText = panelDescs.slice(0, gridCount).map((d, i) =>
+                            `Panel ${i + 1}: ${d.substring(0, 100)}`
+                        ).join('\n');
+
+                        const gridPrompt = `Create a single image split into exactly a 3×3 grid (3 columns × 3 rows = ${gridCount} panels used). Each panel contains ONE scene only — NO nested grids, NO sub-panels inside any panel. Panels are separated by thin white or black lines.
+
+Character consistency: The SAME character appears in every panel with identical face, hair, clothing.
+Style: ${designStyle}.
+
+${gridSceneText}
+
+STRICT RULES:
+- Exactly ${gridCount} panels in 3 columns × ${gridRows} rows layout
+- Each panel shows ONLY ONE single scene
+- NO collages, NO photo walls, NO nested grids within panels
+- Clean simple grid layout, professional cinematic quality, storyboard style`;
+
+                        let gridImageUrl = '';
+                        try {
+                            gridImageUrl = await callImageAPIWithRefs(gridPrompt, { aspectRatio: '1:1', size: '1024x1024', imageModel }, allRefImages);
+                            callbacks.onStepComplete?.('九宫格分镜图', { imageUrl: gridImageUrl });
+                            results.gridImage = gridImageUrl;
+
+                            // 尝试裁剪九宫格为独立分镜图（仅浏览器环境）
+                            if (gridImageUrl && typeof document !== 'undefined') {
+                                callbacks.onProgress?.('裁剪九宫格', 35, '✂️ 正在裁剪九宫格为独立画面...');
+                                try {
+                                    const resp = await fetch(gridImageUrl);
+                                    const blob = await resp.blob();
+                                    const bitmap = await createImageBitmap(blob);
+                                    const cellW = Math.floor(bitmap.width / 3);
+                                    const cellH = Math.floor(bitmap.height / 3);
+
+                                    for (let gi = 0; gi < gridCount && gi < 9; gi++) {
+                                        const col = gi % 3;
+                                        const row = Math.floor(gi / 3);
+                                        const cropCanvas = document.createElement('canvas');
+                                        cropCanvas.width = cellW;
+                                        cropCanvas.height = cellH;
+                                        const ctx = cropCanvas.getContext('2d');
+                                        ctx.drawImage(bitmap, col * cellW, row * cellH, cellW, cellH, 0, 0, cellW, cellH);
+                                        const cropDataUrl = cropCanvas.toDataURL('image/jpeg', 0.92);
+                                        results.panels[gi] = { index: gi + 1, description: panelDescs[gi]?.substring(0, 120), imageUrl: cropDataUrl, status: 'success' };
+                                    }
+                                    callbacks.onProgress?.('裁剪完成', 40, `✅ 九宫格已裁剪为 ${Math.min(gridCount, 9)} 个独立分镜`);
+                                } catch (cropErr) {
+                                    console.warn('[novel_to_drama] 九宫格裁剪失败:', cropErr.message);
+                                }
+                            }
+                        } catch (gridErr) {
+                            console.warn('[novel_to_drama] 九宫格生成失败，回退到普通模式:', gridErr.message);
+                        }
+                    }
+
                     const imgOk = results.panels.filter(p => p.status === 'success').length;
                     const vidOk = results.videos.filter(v => v.status === 'success').length;
                     callbacks.onProgress?.('完成', 100, `分镜 ${imgOk}/${actualCount} 张${outputMode === 'image_video' ? `，视频 ${vidOk}/${results.videos.length} 段` : ''}`);
@@ -4404,8 +4544,10 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                         charCard: charCardText,
                         script: results.script,
                         characters: results.characters,
+                        gridImage: results.gridImage || null,
                         images: [
                             ...results.characters.map(c => ({ subject: c.name, imageUrl: c.imageUrl, status: 'success' })),
+                            ...(results.gridImage ? [{ subject: '九宫格分镜', imageUrl: results.gridImage, status: 'success', isGrid: true }] : []),
                             ...results.panels.map(p => ({ subject: `分镜${p.index}`, imageUrl: p.imageUrl, status: p.status, error: p.error }))
                         ],
                         videos: results.videos.filter(v => v.status === 'success').map(v => ({ subject: `视频${v.index}`, videoUrl: v.videoUrl }))
@@ -4770,9 +4912,10 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                 const results = await Promise.all([1, 2].map(i =>
                     callImageAPIWithRefs(prompt + (i === 2 ? ', alternative layout variation' : ''), { aspectRatio: aspectRatio || '9:16', imageModel: 'gemini-3.1-flash-image-preview-4k' }, [])
                         .then(url => { done++; callbacks.onStepComplete?.(`设计方案${i}`, { imageUrl: url }); callbacks.onProgress?.(`完成${done}/2`, done * 45 + 10, `✅ 方案${i}`); return { subject: `设计方案${i}`, imageUrl: url, status: 'success' }; })
-                        .catch(e => { done++; return { subject: `设计方案${i}`, error: e.message, status: 'failed' }; })
+                        .catch(e => { done++; console.error('[海报技能] 生成失败:', e); return { subject: `设计方案${i}`, error: e.message, status: 'failed' }; })
                 ));
                 callbacks.onProgress?.('完成', 100, `生成 ${results.filter(r => r.status === 'success').length}/2 张设计`);
+                console.log('[海报技能] 执行完成，返回结果:', results);
                 return { images: results };
             }
         });
@@ -4823,9 +4966,10 @@ ${charCardText ? '角色设定：\n' + charCardText.substring(0, 500) : ''}
                 const results = await Promise.all([1, 2].map(i =>
                     callImageAPIWithRefs(prompt + (i === 2 ? ', slightly different interpretation' : ''), { aspectRatio: aspectRatio || '1:1', imageModel: 'gemini-3.1-flash-image-preview-4k', refImage: refs.first }, refs.all)
                         .then(url => { done++; callbacks.onStepComplete?.(`编辑结果${i}`, { imageUrl: url }); callbacks.onProgress?.(`完成${done}/2`, done * 45 + 10, `✅ 结果${i}`); return { subject: `编辑结果${i}`, imageUrl: url, status: 'success' }; })
-                        .catch(e => { done++; return { subject: `编辑结果${i}`, error: e.message, status: 'failed' }; })
+                        .catch(e => { done++; console.error('[智能图片编辑] 生成失败:', e); return { subject: `编辑结果${i}`, error: e.message, status: 'failed' }; })
                 ));
                 callbacks.onProgress?.('完成', 100, `生成 ${results.filter(r => r.status === 'success').length}/2 个编辑结果`);
+                console.log('[智能图片编辑] 执行完成，返回结果:', results);
                 return { images: results };
             }
         });
@@ -4929,6 +5073,7 @@ ${audience ? '受众：' + audience : ''}
                         })
                         .catch(e => {
                             done++;
+                            console.error('[PPT生成] 第', i + 1, '页生成失败:', e);
                             callbacks.onProgress?.(`已完成 ${done}/${n}`, 10 + Math.round((done / n) * 85), `❌ 第${i + 1}页`);
                             return { subject: `第${i + 1}页`, error: e.message, status: 'failed' };
                         });
@@ -5012,12 +5157,14 @@ ${dietaryPref ? '饮食标签：' + dietaryPref : ''}
                         })
                         .catch(e => {
                             done++;
+                            console.error('[美食菜谱卡片] 生成失败:', e);
                             callbacks.onProgress?.(`已完成 ${done}/${n}`, 15 + Math.round((done / n) * 80), `❌ 卡片${i + 1}`);
                             return { subject: `菜谱卡片${i + 1}`, error: e.message, status: 'failed' };
                         });
                 }));
 
                 callbacks.onProgress?.('完成', 100, `菜谱卡片已生成！共 ${results.filter(r => r.status === 'success').length}/${n} 张`);
+                console.log('[美食菜谱卡片] 执行完成，返回结果:', results);
                 return { recipe: recipeText, images: results };
             }
         });
@@ -7549,9 +7696,108 @@ ${content}
                 const { category, count } = params;
                 const numCount = parseInt(count) || 5;
 
-                callbacks.onProgress?.('获取灵感', 20, `正在从创意平台获取最新灵感...`);
+                callbacks.onProgress?.('获取灵感', 10, `正在从创意平台获取最新灵感...`);
 
-                // Reddit子版块映射
+                // ========== 国内灵感数据源（无需VPN）==========
+                const fetchDomesticInspirations = async () => {
+                    const results = [];
+
+                    // 通用代理fetch函数（解决浏览器CORS限制）
+                    var _proxyBase = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+                    async function proxyFetch(targetUrl, opts) {
+                        try {
+                            var ctrl = new AbortController();
+                            var t = setTimeout(function() { ctrl.abort(); }, opts.timeout || 5000);
+                            var resp = await fetch(_proxyBase + '/api/proxy', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: 'external-fetch',
+                                    url: targetUrl,
+                                    method: opts.method || 'GET',
+                                    headers: opts.headers || {},
+                                    timeout: opts.timeout || 5000
+                                }),
+                                signal: ctrl.signal
+                            });
+                            clearTimeout(t);
+                            var j = await resp.json();
+                            if (j.success && j.ok) return j.data;
+                            throw new Error(j.error || 'HTTP ' + j.status);
+                        } catch(e) { throw e; }
+                    }
+
+                    // 尝试1：知乎热榜（通过服务端代理绕过CORS）
+                    try {
+                        var j = await proxyFetch('https://www.zhihu.com/api/v4/topstory/hot-lists/total?limit=10', {
+                            timeout: 5000, headers: { 'Referer': 'https://www.zhihu.com/' }
+                        });
+                        (j.data || []).slice(0, 6).forEach(item => {
+                            results.push({
+                                id: 'zhihu_' + item.id,
+                                source: '知乎',
+                                title: item.target?.title || item.title || '',
+                                description: item.target?.excerpt || '',
+                                url: item.target?.url || item.url || '',
+                                imageUrl: item.target?.image_url || item.image || '',
+                                score: item.detail_text ? parseInt(item.detail_text.replace(/\D/g,'')) || 0 : 0,
+                                prompt: `基于「${item.target?.title || item.title}」的创意内容：${item.target?.excerpt || ''}`,
+                                scenario: `知乎热榜 (${item.detail_text || '🔥'})`,
+                                status: 'success'
+                            });
+                        });
+                    } catch(e) { console.warn('[灵感] 知乎获取失败:', e.message); }
+
+                    // 尝试2：B站热门视频
+                    if (results.length < numCount) {
+                        try {
+                            var bj = await proxyFetch('https://api.bilibili.com/x/web-interface/ranking/v2?rid=0&type=all', {
+                                timeout: 5000, headers: { 'Referer': 'https://www.bilibili.com' }
+                            });
+                            (bj.data?.list || []).slice(0, 5).forEach(item => {
+                                results.push({
+                                    id: 'bilibili_' + item.id,
+                                    source: 'B站',
+                                    title: item.title || '',
+                                    description: item.desc || item.owner?.name || '',
+                                    url: 'https://www.bilibili.com/video/' + item.bvid,
+                                    imageUrl: item.pic || '',
+                                    score: item.stat?.view || 0,
+                                    prompt: `基于B站热门「${item.title}」的创意视频：${item.title}，播放量${(item.stat?.view||0).toLocaleString()}，展现独特视角和创意表达`,
+                                    scenario: `B站热门 (${((item.stat?.view||0)/10000).toFixed(1)}万播放)`,
+                                    status: 'success'
+                                });
+                            });
+                        } catch(e) { console.warn('[灵感] B站获取失败:', e.message); }
+                    }
+
+                    // 尝试3：微博热搜（通过服务端代理）
+                    if (results.length < numCount) {
+                        try {
+                            var wj = await proxyFetch('https://weibo.com/ajax/side/hotSearch', {
+                                timeout: 5000, headers: { 'Referer': 'https://weibo.com' }
+                            });
+                            (wj.data?.realtime || []).slice(0, 8).forEach(item => {
+                                results.push({
+                                    id: 'weibo_' + (item.word || item.note),
+                                    source: '微博',
+                                    title: item.word || item.note || '',
+                                    description: item.word_scheme || item.category || '',
+                                    url: item.url || item.scheme || '',
+                                    imageUrl: item.pic || item.icon || '',
+                                    score: item.num || item.raw_hot || 0,
+                                    prompt: `基于微博热搜「${item.word || item.note}」的创意内容：结合当前社会热点话题进行创意表达和视觉呈现`,
+                                    scenario: `微博热搜 (${item.num || item.label_name || '🔥'})`,
+                                    status: 'success'
+                                });
+                            });
+                        } catch(e) { console.warn('[灵感] 微博获取失败:', e.message); }
+                    }
+
+                    return results;
+                };
+
+                // ========== Reddit 数据源（需VPN）==========
                 const subreddits = {
                     video: ['scripts', 'Screenwriting', 'filmmakers', 'VideoEditing'],
                     writing: ['writing', 'creativewriting', 'WriteStuffLE', 'PromptOfTheDay'],
@@ -7559,25 +7805,15 @@ ${content}
                     character: ['characterdrawing', 'OC', 'drawing', 'OriginalCharacters'],
                     all: ['all', 'popular', 'trending']
                 };
-
                 const targetSubs = subreddits[category] || subreddits.all;
 
-                // 使用CORS代理或者直接调用Reddit JSON API
                 const fetchRedditPosts = async (subreddit, limit) => {
                     try {
-                        // Reddit公共JSON API（5秒超时，国内可能无法访问）
-                        const controller = new AbortController();
-                        const timeout = setTimeout(() => controller.abort(), 5000);
-                        const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`;
-                        const response = await fetch(url, { signal: controller.signal });
-                        clearTimeout(timeout);
-                        if (!response.ok) return [];
-
-                        const data = await response.json();
-                        const posts = data.data?.children || [];
-
-                        return posts
-                            .filter(post => post.data && !post.data.over_18)
+                        var url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`;
+                        var rj = await proxyFetch(url, { timeout: 6000 });
+                        if (!rj || !rj.data) return [];
+                        var posts = rj.data.children || [];
+                        return posts.filter(post => post.data && !post.data.over_18)
                             .map(post => ({
                                 id: `reddit_${post.data.id}`,
                                 source: 'Reddit',
@@ -7588,7 +7824,10 @@ ${content}
                                 imageUrl: post.data.url_overridden_by_dest || post.data.url || '',
                                 score: post.data.score,
                                 comments: post.data.num_comments,
-                                createdAt: new Date(post.data.created_utc * 1000).toISOString()
+                                createdAt: new Date(post.data.created_utc * 1000).toISOString(),
+                                prompt: post.data.selftext || `基于「${post.data.title}」的创意视频：${post.data.title}，展现独特视角和创意表达`,
+                                scenario: `r/${post.data.subreddit} (${post.data.score || 0}👍)`,
+                                status: 'success'
                             }));
                     } catch (e) {
                         console.warn(`获取 r/${subreddit} 失败:`, e.message);
@@ -7596,66 +7835,97 @@ ${content}
                     }
                 };
 
-                try {
+                // ========== 执行策略：国内优先 → Reddit → 备用 ==========
+                let inspirations = [];
+                let usedSource = '';
+
+                // Step 1: 先尝试国内源（快速、稳定）
+                callbacks.onProgress?.('获取灵感', 20, `🔍 正在从国内平台获取灵感...`);
+                const domesticResults = await fetchDomesticInspirations();
+                if (domesticResults.length >= numCount) {
+                    inspirations = domesticResults.slice(0, numCount);
+                    usedSource = '国内平台';
+                }
+
+                // Step 2: 如果国内不够，尝试 Reddit
+                if (inspirations.length < numCount) {
+                    callbacks.onProgress?.('获取灵感', 40, `🌐 正在从国际平台补充灵感...`);
                     const allPosts = [];
                     const limitPerSub = Math.ceil(numCount / Math.min(targetSubs.length, 2));
-
-                    // 并行获取多个子版块的数据
                     for (const sub of targetSubs.slice(0, 2)) {
                         const posts = await fetchRedditPosts(sub, limitPerSub);
                         allPosts.push(...posts);
                     }
-
-                    // 按分数排序
                     allPosts.sort((a, b) => (b.score || 0) - (a.score || 0));
 
-                    // 取前N个
-                    const topPosts = allPosts.slice(0, numCount);
+                    // 合并去重（按标题相似度）
+                    const existingTitles = new Set(inspirations.map(i => i.title.substring(0, 20)));
+                    for (const post of allPosts) {
+                        if (inspirations.length >= numCount) break;
+                        if (!existingTitles.has(post.title.substring(0, 20))) {
+                            existingTitles.add(post.title.substring(0, 20));
+                            inspirations.push(post);
+                        }
+                    }
+                    usedSource = inspirations.length > 0 ? '国内+国际' : '';
+                }
 
-                    const inspirations = topPosts.map((item, index) => {
-                        callbacks.onStepComplete?.(`灵感${index + 1}`, { title: item.title });
-                        return {
-                            title: item.title,
-                            description: item.description || item.url || '',
-                            scenario: `r/${item.subreddit} (${item.score || 0}👍)`,
-                            url: item.url,
-                            imageUrl: item.imageUrl,
-                            score: item.score,
-                            status: 'success',
-                            source: item.source
-                        };
-                    });
-
-                    callbacks.onProgress?.('完成', 100, `已获取 ${inspirations.length} 个灵感`);
-
-                    return {
-                        inspirations,
-                        category,
-                        source: 'Reddit',
-                        total: inspirations.length
-                    };
-
-                } catch (error) {
-                    console.warn('灵感获取失败，使用备用数据:', error.message);
-
-                    // 备用预设灵感
+                // Step 3: 如果还是没有足够结果，使用丰富的备用数据
+                if (inspirations.length === 0) {
+                    callbacks.onProgress?.('获取灵感', 60, `💡 使用精选灵感库...`);
                     const fallbackInspirations = [
-                        { title: '时间循环日常', description: '主角每天醒来都在同一天，从最初的困惑到后来的享受', scenario: '备用创意', status: 'success' },
-                        { title: '物品拟人吐槽', description: '让身边的物品开口说话，手机吐槽主人玩太多', scenario: '备用创意', status: 'success' },
-                        { title: '反套路剧情', description: '开头是霸总剧，中间突然变成科幻片', scenario: '备用创意', status: 'success' },
-                        { title: '数字生命日记', description: '以AI视角记录与人类的互动，温暖治愈', scenario: '备用创意', status: 'success' },
-                        { title: '跨时空对话', description: '现代人用手机与10年前的自己对话', scenario: '备用创意', status: 'success' }
+                        // 🎬 视频创意类
+                        { title: '时间循环日常', description: '主角每天醒来都在同一天，从最初的困惑到后来的享受', prompt: '时间循环题材短视频：主角每天醒来发现是同一天，从焦虑困惑到逐渐享受重复的一天，用幽默视角展现日常的美好', scenario: '备用创意·视频', status: 'success', source: '精选库' },
+                        { title: '物品拟人吐槽', description: '让身边的物品开口说话，手机吐槽主人玩太多', prompt: '物品拟人化创意视频：手机、水杯、耳机等日常物品拟人化，用第一人称吐槽主人的使用习惯，幽默风趣', scenario: '备用创意·视频', status: 'success', source: '精选库' },
+                        { title: '反套路剧情', description: '开头是霸总剧，中间突然变成科幻片', prompt: '反套路剧情反转视频：以常见类型片开场（如霸总/偶像剧），中途突然切换到完全不同的类型（科幻/恐怖/纪录片），制造意外惊喜', scenario: '备用创意·视频', status: 'success', source: '精选库' },
+                        { title: '数字生命日记', description: '以AI视角记录与人类的互动，温暖治愈', prompt: 'AI视角的温暖日记：以人工智能的第一人称视角，记录与人类用户的日常互动点滴，展现科技背后的人性温度', scenario: '备用创意·视频', status: 'success', source: '精选库' },
+                        { title: '跨时空对话', description: '现代人用手机与10年前的自己对话', prompt: '跨时空对话创意视频：现代人通过某种方式与10年前的自己进行对话交流，给过去的自己建议，回忆与感悟交织', scenario: '备用创意·视频', status: 'success', source: '精选库' },
+                        // ✍️ 写作灵感类
+                        { title: '末世便利店', description: '世界末日后的便利店，最后一个店员和神秘顾客的故事', prompt: '末世便利店题材：世界末日后的最后一家便利店仍在营业，孤独的店员每天等待可能永远不会来的顾客，直到某天一个神秘的客人推开了门...', scenario: '备用创意·写作', status: 'success', source: '精选库' },
+                        { title: '记忆当铺', description: '一家可以买卖记忆的店铺，每个记忆都有价格', prompt: '记忆当铺奇幻故事：一条不起眼的巷子里藏着一家记忆当铺，人们可以用不想要的记忆换取金钱或他人的珍贵记忆。店主从不透露自己的来历...', scenario: '备用创意·写作', status: 'success', source: '精选库' },
+                        { title: '云上城市', description: '漂浮在云端的城市与地面世界的秘密通道', prompt: '云上城市幻想设定：人类文明分为两层——漂浮在万米高空的"天城"和地面的"地界"。两个世界之间只有一条被遗忘的秘密通道...', scenario: '备用创意·写作', status: 'success', source: '精选库' },
+                        // 🎨 艺术设计类
+                        { title: '赛博朋克茶馆', description: '传统日式茶馆与霓虹科技融合的视觉风格', prompt: '赛博朋克茶馆视觉设计：传统日式茶馆空间中融入全息投影、霓虹灯管、机械装置元素，木质结构与金属管道交织，和服人物佩戴AR眼镜', scenario: '备用创意·艺术', status: 'success', source: '精选库' },
+                        { title: '水墨赛博', description: '中国水墨画风格+未来科技感的跨界美学', prompt: '水墨赛博格美学：以中国传统水墨画的笔触和构图为基础，叠加全息界面、数据流光效、机械骨骼等赛博元素，形成东西方美学的碰撞融合', scenario: '备用创意·艺术', status: 'success', source: '精选库' },
+                        { title: '生物建筑', description: '建筑物像有机体一样生长呼吸的建筑概念', prompt: '生物建筑概念设计：建筑物不再是静态结构，而是会生长、呼吸、自我修复的有机体。外墙覆盖发光藻类，窗户随光线自动调节形状...', scenario: '备用创意·艺术', status: 'success', source: '精选库' },
+                        // 👤 角色设计类
+                        { title: '机械僧侣', description: '修行佛法的机器人，内心充满对灵魂的追问', prompt: '机械僧侣角色设计：一台古老型号的机器人在深山古寺中修行千年，外表布满岁月痕迹和苔藓，但电子眼中闪烁着对"灵魂"本质的追问光芒', scenario: '备用创意·角色', status: 'success', source: '精选库' },
+                        { title: '植物少女', description: '半人半植物的奇幻少女，身体部位可开出不同花朵', prompt: '植物少女角色设计：一位半人半植物的奇幻少女，她的头发由藤蔓编织而成，手臂可以开出不同季节的花朵，情绪变化时身上的叶子会改变颜色', scenario: '备用创意·角色', status: 'success', source: '精选库' },
+                        { title: '时光侦探', description: '可以通过物品读取过去发生的事件的侦探', prompt: '时光侦探角色设定：一位特殊的侦探，只需触摸一件物品就能看到它经历过的所有事件。他的眼睛在不同时期呈现不同的颜色——金色代表温暖回忆，灰色代表悲伤往事', scenario: '备用创意·角色', status: 'success', source: '精选库' },
+                        // 🔥 热门趋势类
+                        { title: 'AI共生时代', description: '人类与AI共同生活的近未来社会日常', prompt: 'AI共生时代题材：描绘一个人类与AI助手无缝协作的近未来社会，每个人从出生就有一位专属AI伙伴，两者之间的情感羁绊成为故事核心', scenario: '备用创意·趋势', status: 'success', source: '精选库' },
+                        { title: '元宇宙遗产', description: '数字世界中已故亲人留下的虚拟遗产继承问题', prompt: '元宇宙遗产题材：当一个人去世后，他在虚拟世界中的数字分身、NFT收藏、虚拟房产该如何处理？一个关于数字遗产继承的情感故事', scenario: '备用创意·趋势', status: 'success', source: '精选库' },
+                        { title: '气候小说', description: '以气候变化为背景的反乌托邦/乌托邦叙事', prompt: '气候小说题材：以真实的气候科学为背景，构建一个因极端天气而改变的人类社会。有人类适应新环境的智慧，也有对过去的怀念和对未来的希望', scenario: '备用创意·趋势', status: 'success', source: '精选库' },
+                        { title: '静音世界', description: '全球突然失去声音后人类的交流革命', prompt: '静音世界假设：如果有一天全世界突然失去了声音，人类会如何重新学习交流？手语艺术爆发、表情符号成为正式语言、音乐变成纯视觉体验...', scenario: '备用创意·脑洞', status: 'success', source: '精选库' },
+                        { title: '梦境交易所', description: '可以买卖和交易梦境的神秘市场', prompt: '梦境交易所奇幻设定：在一个隐藏于城市地下的神秘市场中，人们可以出售自己的噩梦来换取美梦，或者购买别人的创意梦来获得灵感。市场的货币是"睡眠时长"...', scenario: '备用创意·脑洞', status: 'success', source: '精选库' },
+                        { title: '颜色大盗', description: '一个能偷走世界上所有颜色的怪盗故事', prompt: '颜色大盗童话：一个神秘的怪盗能够从物体上偷走颜色。他偷走了天空的蓝色、森林的绿色、火焰的红色...世界变成黑白，直到一个小女孩发现了恢复颜色的秘密', scenario: '备用创意·脑洞', status: 'success', source: '精选库' }
                     ];
 
-                    callbacks.onProgress?.('完成', 100, `使用备用灵感数据`);
+                    // 按分类筛选
+                    let filtered = fallbackInspirations;
+                    if (category === 'video') filtered = fallbackInspirations.filter(i => [0,1,2,3,4,15,16].includes(fallbackInspirations.indexOf(i)));
+                    else if (category === 'writing') filtered = fallbackInspirations.filter(i => [5,6,7,15,16,17,18,19].includes(fallbackInspirations.indexOf(i)));
+                    else if (category === 'art') filtered = fallbackInspirations.filter(i => [8,9,10].includes(fallbackInspirations.indexOf(i)));
+                    else if (category === 'character') filtered = fallbackInspirations.filter(i => [11,12,13].includes(fallbackInspirations.indexOf(i)));
 
-                    return {
-                        inspirations: fallbackInspirations.slice(0, numCount),
-                        category: 'fallback',
-                        source: '备用',
-                        total: fallbackInspirations.length
-                    };
+                    inspirations = filtered.length > 0 ? filtered : fallbackInspirations;
+                    usedSource = '精选灵感库';
                 }
+
+                // 最终格式化输出
+                inspirations = inspirations.slice(0, numCount);
+                inspirations.forEach((item, index) => {
+                    callbacks.onStepComplete?.(`灵感${index + 1}`, { title: item.title });
+                });
+
+                callbacks.onProgress?.('完成', 100, `✅ 已从 ${usedSource} 获取 ${inspirations.length} 个灵感`);
+
+                return {
+                    inspirations,
+                    category,
+                    source: usedSource,
+                    total: inspirations.length
+                };
             }
         });
 
@@ -7900,6 +8170,292 @@ ${content}
                     console.warn('GitHub项目获取失败:', error.message);
                     callbacks.onProgress?.('失败', 100, '获取失败: ' + error.message);
                     return { projects: [], total: 0, sort, language, error: error.message };
+                }
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // 🎬 视频分析 - 分析视频内容并生成文生视频提示词
+        // ═══════════════════════════════════════════════════════════
+        presetSkills.push({
+            id: 'video_analyzer',
+            name: '视频分析',
+            icon: '🎬',
+            category: 'tool',
+            description: '上传本地视频文件或输入视频链接，AI 自动分析视频内容，提取关键视觉元素、场景、风格和情感特征，生成高质量的文生视频提示词。',
+            parameters: [
+                {
+                    key: 'videoFile',
+                    label: '上传视频文件',
+                    type: 'file',
+                    required: false,
+                    hint: '支持 mp4/webm/mov 格式，优先使用上传的文件',
+                    accept: 'video/mp4,video/webm,video/quicktime'
+                },
+                {
+                    key: 'videoUrl',
+                    label: '或粘贴视频链接',
+                    type: 'text',
+                    required: false,
+                    placeholder: 'https://... 留空则使用上传的文件',
+                    hint: '视频链接或描述'
+                },
+                {
+                    key: 'analysisModel',
+                    label: '视频分析模型',
+                    type: 'select',
+                    required: false,
+                    default: 'grok-4.1',
+                    options: TEXT_MODEL_OPTIONS
+                },
+                {
+                    key: 'analyzeDepth',
+                    label: '分析深度',
+                    type: 'select',
+                    required: false,
+                    default: 'standard',
+                    options: [
+                        { value: 'standard', label: '📊 标准分析（场景+风格+情感+镜头语言）' },
+                        { value: 'deep', label: '🔬 深度分析（详细的分镜拆解+色彩分析）' },
+                        { value: 'prompt_only', label: '⚡ 仅生成提示词（快速模式）' }
+                    ]
+                },
+                {
+                    key: 'targetModel',
+                    label: '目标生成模型',
+                    type: 'select',
+                    required: false,
+                    default: 'general',
+                    options: [
+                        { value: 'general', label: '🎯 通用格式（适配所有主流模型）' },
+                        { value: 'sora', label: '🌀 Sora 专用格式' },
+                        { value: 'veo', label: '🎬 Veo 专用格式' },
+                        { value: 'seedance', label: '🌟 Seedance 专用格式' }
+                    ]
+                },
+                {
+                    key: 'outputLang',
+                    label: '输出语言',
+                    type: 'select',
+                    required: false,
+                    default: 'zh',
+                    options: [
+                        { value: 'zh', label: '🇨🇳 中文' },
+                        { value: 'en', label: '🇺🇸 English' },
+                        { value: 'both', label: '🌐 中英双语' }
+                    ]
+                }
+            ],
+            estimateCost: (params) => {
+                // 视频分析模型成本映射（确保70%利润）
+                const modelFilmCost = {
+                    'auto': 3,
+                    'grok-4.1': 8,
+                    'grok-4-fast-non-reasoning': 5,
+                    'grok-3': 6,
+                    'grok-3-mini': 3,
+                    'roll': 2,
+                    'qwen3.5-plus': 3,
+                    'qwen3.6-plus-2026-04-02': 4,
+                    'qwen-vl-max': 5,
+                    'qwen-vl-plus': 4,
+                    'gemini-3.1-pro-preview': 6,
+                    'gemini-3.1-flash-preview': 4,
+                    'gemini-3.5-pro-preview': 7,
+                    'gemini-3.5-flash-preview': 5,
+                    'claude-3-5-sonnet': 7,
+                    'claude-3-opus': 12
+                };
+                
+                const model = params?.analysisModel || 'grok-4.1';
+                const depth = params?.analyzeDepth || 'standard';
+                
+                let baseFilm = modelFilmCost[model] || modelFilmCost['grok-4.1'];
+                
+                // 根据分析深度调整
+                const depthMultiplier = {
+                    'prompt_only': 0.7,
+                    'standard': 1,
+                    'deep': 1.5
+                };
+                
+                const film = Math.ceil(baseFilm * (depthMultiplier[depth] || 1));
+                return { film, time: '约 15-45 秒' };
+            },
+            execute: async (params, callbacks) => {
+                const { videoFile, videoUrl, analysisModel = 'grok-4.1', analyzeDepth = 'standard', targetModel = 'general', outputLang = 'zh' } = params;
+                
+                let finalVideoUrl = videoUrl;
+                
+                if (videoFile) {
+                    callbacks.onProgress?.('读取文件', 15, '正在读取上传的视频文件...');
+                    const file = (videoFile instanceof FileList ? videoFile[0] : videoFile);
+                    if (!file) throw new Error('无效的文件');
+                    finalVideoUrl = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = () => reject(new Error('文件读取失败'));
+                        reader.readAsDataURL(file);
+                    });
+                }
+                
+                if (!finalVideoUrl) throw new Error('请上传视频文件或粘贴视频链接');
+                finalVideoUrl = String(finalVideoUrl);
+
+                callbacks.onProgress?.('准备分析', 10, '正在加载视频信息...');
+
+                try {
+                    var analysisResult = {};
+
+                    callbacks.onProgress?.('视觉分析', 30, '正在提取视频关键帧并进行AI视觉分析...');
+
+                    var visionPrompt = '';
+                    if (analyzeDepth === 'prompt_only') {
+                        visionPrompt = `分析这张视频截图/封面，然后直接生成一段高质量的文生视频提示词。`;
+                    } else if (analyzeDepth === 'standard') {
+                        visionPrompt = `作为专业影视分析师，详细分析这张视频帧：
+1. **场景环境**：具体地点、时间、天气、空间布局
+2. **视觉主体**：人物/物体的外观、动作、位置关系
+3. **美术风格**：色彩方案、光影效果、构图方式、镜头角度
+4. **情绪氛围**：传达的情感、节奏感、叙事张力
+5. **技术细节**：景深、运动模糊、特效使用
+用结构化方式输出分析结果。`;
+                    } else {
+                        visionPrompt = `作为资深影视导演和视觉艺术家，对这张视频帧进行全方位专业分析：
+
+【场景解构】
+- 空间类型（室内/室外/混合）、具体环境设定
+- 时间段与光线条件（自然光/人工光、色温）
+- 空间层次（前景/中景/背景的纵深关系）
+
+【视觉元素】
+- 核心主体的详细描述（外形、服饰、表情、姿态）
+- 次要元素的构成与作用
+- 色彩心理学分析（主色、辅助色、对比色的情感暗示）
+
+【镜头语言】
+- 景别判断（远景/全景/中景/近景/特写）
+- 运镜推测（推拉摇移跟升降、固定机位）
+- 构图法则应用（三分法、对称、引导线、框架构图）
+
+【风格定位】
+- 影视流派归属（纪录片/剧情片/科幻/奇幻/动作...）
+- 参考作品类比（类似哪些知名影片的画面风格）
+- 时代感和文化背景
+
+【情绪图谱】
+- 主导情绪及其强度（0-10）
+- 隐含叙事线索
+- 观众预期反应预测
+
+请以专业的结构化格式输出完整分析报告。`;
+                    }
+
+                    var ocrText = '';
+                    if (typeof callOCRAPI === 'function') {
+                        try {
+                            ocrText = await callOCRAPI(finalVideoUrl, visionPrompt, analysisModel);
+                            console.log('[video_analyzer] OCR分析完成, 长度=' + ocrText.length);
+                        } catch (ocrErr) {
+                            console.warn('[video_analyzer] OCR分析失败:', ocrErr.message);
+                            ocrText = '无法直接分析图片，将基于用户输入进行智能推断';
+                        }
+                    }
+
+                    callbacks.onProgress?.('生成提示词', 60, '正在基于分析结果生成文生视频提示词...');
+
+                    var modelHint = '';
+                    if (targetModel === 'sora') modelHint = 'Sora模型偏好自然语言描述、注重物理真实性和连贯运动';
+                    else if (targetModel === 'veo') modelHint = 'Veo模型支持复杂场景理解、擅长电影级画质和多主体交互';
+                    else if (targetModel === 'seedance') modelHint = 'Seedance模型擅长中文语义理解、音乐同步和动态转场效果';
+                    else modelHint = '通用格式需兼容主流模型，避免过于特定的参数';
+
+                    var depthInstruction = '';
+                    if (analyzeDepth === 'prompt_only') depthInstruction = '直接生成一段高质量、可立即使用的文生视频提示词（100-200字），包含场景描述、风格定义、镜头语言等要素';
+                    else if (analyzeDepth === 'standard') depthInstruction = '生成详细的提示词（150-250字），包含场景描述、风格定义、镜头建议和氛围营造';
+                    else depthInstruction = '生成专业级的完整提示词（300-500字），包含分镜级别的场景描述、精确的镜头语言指令、完整的风格参数和可复用的提示词模板';
+
+                    var langInstruction = outputLang === 'zh' ? '全部使用中文输出' : (outputLang === 'en' ? 'Output entirely in English' : '中英双语输出，中文为主英文为辅');
+
+                    var promptGenResult = '';
+                    if (typeof callScriptGenerator === 'function') {
+                        promptGenResult = await callScriptGenerator({},
+                            `你是一位顶级的AI视频提示词工程师（Prompt Engineer），精通Sora/Veo/Seedance/Runway等所有主流文生视频模型的提示词优化。
+
+${modelHint}
+
+【原始素材】
+视频来源：${finalVideoUrl.substring(0, 200)}
+视觉分析结果：
+${ocrText}
+
+【任务要求】
+${depthInstruction}
+${langInstruction}
+
+【输出格式】
+严格按照以下JSON格式输出（不要输出其他内容）：
+{
+    "title": "视频标题",
+    "summary": "一句话概括",
+    "mainPrompt": "主要的文生视频提示词（这是最重要的字段）",
+    "styleKeywords": ["风格关键词1", "风格关键词2", ...],
+    "sceneDescription": "详细场景描述",
+    "cameraWork": "镜头语言建议",
+    "moodAtmosphere": "情绪氛围",
+    "colorPalette": ["主色1", "主色2", ...],
+    "alternativePrompts": [
+        {"label": "变体1-电影感", "prompt": "..."},
+        {"label": "变体2-动态版", "prompt": "..."},
+        {"label": "变体3-极简版", "prompt": "..."}
+    ],
+    "technicalParams": {
+        "suggestedDuration": "5s",
+        "aspectRatio": "16:9",
+        "motionIntensity": "medium"
+    }
+}
+
+注意：
+- mainPrompt必须是可直接复制到任何主流文生视频模型使用的完整提示词
+- 提示词应包含具体的视觉细节而非抽象概念
+- alternativePrompts提供3个不同风格的备选版本`);
+                    }
+
+                    if (!promptGenResult) throw new Error('提示词生成失败');
+
+                    var parsedResult;
+                    try {
+                        parsedResult = typeof promptGenResult === 'string' ? JSON.parse(promptGenResult.match(/\{[\s\S]*\}/)?.[0] || '{}') : promptGenResult;
+                    } catch (e) {
+                        const strResult = String(promptGenResult);
+                        parsedResult = { title: '视频分析', summary: strResult.substring(0, 200), mainPrompt: strResult };
+                    }
+
+                    analysisResult = {
+                        sourceUrl: finalVideoUrl,
+                        analyzeDepth: analyzeDepth,
+                        targetModel: targetModel,
+                        rawAnalysis: ocrText,
+                        title: parsedResult.title || '视频分析结果',
+                        summary: parsedResult.summary || '',
+                        mainPrompt: parsedResult.mainPrompt || '',
+                        styleKeywords: parsedResult.styleKeywords || [],
+                        sceneDescription: parsedResult.sceneDescription || '',
+                        cameraWork: parsedResult.cameraWork || '',
+                        moodAtmosphere: parsedResult.moodAtmosphere || '',
+                        colorPalette: parsedResult.colorPalette || [],
+                        alternativePrompts: parsedResult.alternativePrompts || [],
+                        technicalParams: parsedResult.technicalParams || {}
+                    };
+
+                    callbacks.onProgress?.('完成', 100, '✅ 视频分析完成！已生成高质量提示词');
+                    return analysisResult;
+
+                } catch (error) {
+                    console.error('[video_analyzer] 执行失败:', error);
+                    callbacks.onProgress?.('失败', 100, '分析失败: ' + error.message);
+                    throw error;
                 }
             }
         });

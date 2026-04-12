@@ -1113,6 +1113,20 @@
                 nameEl.textContent = input.files.length > 1
                     ? `已选择 ${input.files.length} 个文件`
                     : input.files[0].name;
+                
+                // 保存文件对象到 skillFileStore
+                if (typeof skillFileStore !== 'undefined') {
+                    if (input.files.length === 1) {
+                        skillFileStore[key] = input.files[0];
+                    } else {
+                        skillFileStore[key] = Array.from(input.files);
+                    }
+                }
+            } else if (nameEl) {
+                nameEl.style.display = 'none';
+                if (typeof skillFileStore !== 'undefined') {
+                    delete skillFileStore[key];
+                }
             }
         },
 
@@ -1169,6 +1183,15 @@
                         params[param.key] = el.value ? Number(el.value) : param.default;
                         break;
                     case 'file':
+                        // 📁 文件模式：优先从 skillFileStore 读取文件对象
+                        if (typeof skillFileStore !== 'undefined' && skillFileStore[param.key]) {
+                            params[param.key] = skillFileStore[param.key];
+                        } else if (el.files && el.files.length > 0) {
+                            params[param.key] = el.files.length === 1 ? el.files[0] : el.files;
+                        } else {
+                            params[param.key] = null;
+                        }
+                        break;
                     case 'image':
                         // 🖼️ 多图模式：优先从 skillImageStore 读取 base64 数组
                         if (typeof skillImageStore !== 'undefined' && skillImageStore[param.key] && skillImageStore[param.key].length > 0) {

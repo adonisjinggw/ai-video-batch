@@ -94,7 +94,8 @@ const FILM_COST = {
     // Seedance 2.0 视频模型 - RunningHub
     'seedance-t2v': 8,             // Seedance 2.0 文生视频
     'seedance-i2v': 10,            // Seedance 2.0 图生视频
-    'seedance-ref': 12             // Seedance 2.0 全能参考视频 (多参考图)
+    'seedance-ref': 12,             // Seedance 2.0 全能参考视频 (多参考图)
+    'seedance-260128': 200          // Seedance 2.0-260128 (200胶片，成本¥18，70%利润，售价¥60)
 };
 
 // ========== Wan2.6 默认绿幕图 (用于文生视频) ==========
@@ -969,12 +970,15 @@ module.exports = async function handler(req, res) {
 
             // 🔧 模型映射：用户友好名 → 实际API模型名
             const VISION_MODEL_MAP = {
-                'deepseek-ocr': 'deepseek-ocr',               // OCR专用：云雾已配置
                 'grok-4.1': 'grok-4.1',
-                'grok-4-fast-non-reasoning': 'grok-4-fast-non-reasoning'
+                'grok-4-fast-non-reasoning': 'grok-4-fast-non-reasoning',
+                'gemini-3.1-pro-preview': 'gemini-3.1-pro-preview',
+                'gemini-3.1-flash-preview': 'gemini-3.1-flash-preview',
+                'qwen3.5-plus': 'qwen3.5-plus',
+                'qwen3.6-plus-2026-04-02': 'qwen3.6-plus-2026-04-02'
             };
             const model = VISION_MODEL_MAP[reqModel] || reqModel;
-            const isOCR = reqModel === 'deepseek-ocr' || /ocr/i.test(reqModel);
+            const isOCR = /ocr/i.test(reqModel);
 
             const filmCost = FILM_COST['vision'] || 2;
             let billingSuccess = false;
@@ -3119,6 +3123,106 @@ module.exports = async function handler(req, res) {
             }
         }
 
+        // ========== Seedance 2.0-260128 高级模型 ==========
+        if (action === 'seedance-260128') {
+            const RUNNINGHUB_API_KEY = process.env.RUNNINGHUB_API_KEY;
+            if (!RUNNINGHUB_API_KEY) {
+                json(500, { success: false, error: 'RUNNINGHUB_NOT_CONFIGURED', message: 'RUNNINGHUB_API_KEY 未配置' });
+                return;
+            }
+
+            const { prompt, refImage1, refImage2, refImage3, videoFile, audioFile, duration = 5, ratio = 'adaptive', resolution = '720p', isLv10 = false } = body;
+            if (!prompt) {
+                json(400, { success: false, error: 'MISSING_PROMPT', message: '缺少提示词' });
+                return;
+            }
+
+            // LV10 权限检查
+            if (!isLv10 && userId) {
+                const lvCheck = await checkUserLevel(userId, 10);
+                if (!lvCheck.isEnough) {
+                    json(403, { success: false, error: 'LEVEL_REQUIRED', message: 'Seedance 2.0-260128 仅对 LV10+ 用户开放' });
+                    return;
+                }
+            }
+
+            const filmCost = FILM_COST['seedance-260128'] || 200;
+            let billingSuccess = false;
+
+            console.log('[yunwu] Seedance 2.0-260128 高级视频:', { promptLen: prompt?.length, hasRef1: !!refImage1, hasRef2: !!refImage2, hasRef3: !!refImage3, hasVideo: !!videoFile, hasAudio: !!audioFile, duration, ratio, resolution });
+
+            if (!skipBilling && filmCost > 0 && userId) {
+                const billingResult = await __billing('consume', userId, filmCost, `Seedance2.0-260128:${duration}s`);
+                if (!billingResult.success && !billingResult.skipped) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                    return;
+                }
+                billingSuccess = billingResult.success && !billingResult.skipped;
+            } else if (skipBilling) {
+                console.log(`[yunwu] 💰 Seedance 2.0-260128 高级视频跳过扣费: 前端已处理`);
+            }
+
+            try {
+                // 🌟 Seedance 2.0-260128 高级模型 - 使用全能参考视频的appId（相同流程）
+                const SEEDANCE_260128_APP_ID = process.env.RUNNINGHUB_SEEDANCE_260128_APP_ID || process.env.RUNNINGHUB_SEEDANCE_REF_APP_ID || '2037365179167543298';
+
+                // 构建 nodeInfoList（只包含有值的字段）
+                const nodeInfoList = [];
+                // 参考图（支持最多3张）
+                if (refImage1) nodeInfoList.push({ nodeId: "12", fieldName: "image", fieldValue: String(refImage1) });
+                if (refImage2) nodeInfoList.push({ nodeId: "17", fieldName: "image", fieldValue: String(refImage2) });
+                if (refImage3) nodeInfoList.push({ nodeId: "18", fieldName: "image", fieldValue: String(refImage3) });
+                // 可选视频
+                if (videoFile) nodeInfoList.push({ nodeId: "16", fieldName: "file", fieldValue: String(videoFile) });
+                // 可选音频
+                if (audioFile) nodeInfoList.push({ nodeId: "19", fieldName: "audio", fieldValue: String(audioFile) });
+                // 必填参数
+                nodeInfoList.push({ nodeId: "15", fieldName: "duration", fieldValue: String(duration) });
+                nodeInfoList.push({ nodeId: "15", fieldName: "ratio", fieldValue: String(ratio) });
+                nodeInfoList.push({ nodeId: "15", fieldName: "resolution", fieldValue: String(resolution) });
+                nodeInfoList.push({ nodeId: "15", fieldName: "prompt", fieldValue: String(prompt) });
+
+                console.log(`[yunwu] 🌱 Seedance 260128 RunningHub 请求: appId=${SEEDANCE_260128_APP_ID}, nodeInfoList=`, JSON.stringify(nodeInfoList));
+
+                const response = await fetch(`https://www.runninghub.cn/task/openapi/ai-app/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${RUNNINGHUB_API_KEY}`,
+                        'Host': 'www.runninghub.cn'
+                    },
+                    body: JSON.stringify({
+                        webappId: SEEDANCE_260128_APP_ID,
+                        apiKey: RUNNINGHUB_API_KEY,
+                        nodeInfoList
+                    })
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || (data.code !== 0 && data.code !== undefined && !data.taskId)) {
+                    // 按需求：RunningHub 后台生成失败/提交失败不退胶片。
+                    json(response.status || 500, { success: false, error: 'SUBMIT_FAILED', message: data.errorMessage || data.msg || 'Seedance 2.0-260128 高级视频提交失败' });
+                    return;
+                }
+
+                const taskId = data.taskId;
+                console.log(`[yunwu] ✨ Seedance 2.0-260128 高级视频任务已提交: ${taskId}`);
+                json(200, {
+                    success: true,
+                    task_id: taskId,
+                    id: taskId,
+                    _source: 'seedance',
+                    _type: '260128',
+                    billed: billingSuccess ? filmCost : 0
+                });
+                return;
+            } catch (err) {
+                    // 按需求：RunningHub 后台生成失败/提交失败不退胶片。
+                    json(500, { success: false, error: 'API_ERROR', error_code: 'API_ERROR', message: err.message, billed: 0 });
+                    return;
+            }
+        }
+
         // ========== LTX-Video / Seedance RunningHub 任务轮询 ==========
         if (action === 'poll') {
             const { task_id: taskId, source, _source, _endpoint } = body;
@@ -3401,7 +3505,13 @@ module.exports = async function handler(req, res) {
             }
 
             // Midjourney 计费配置
-            const MJ_COSTS = { 'midjourney-fast': 2, 'midjourney-turbo': 2, 'midjourney-relax': 2 };
+            const MJ_COSTS = { 
+                'midjourney-fast': 2, 
+                'midjourney-turbo': 2, 
+                'midjourney-relax': 2,
+                'midjourney-v8': 2,
+                'midjourney-niji-v8': 2
+            };
             const filmCost = MJ_COSTS[model] || 20;
             let billingSuccess = false;
             let taskIdObtained = false;  // 标记是否获得了任务ID（上游已消耗）
@@ -3416,6 +3526,14 @@ module.exports = async function handler(req, res) {
                 billingSuccess = billingResult.success && !billingResult.skipped;
             } else if (skipBilling) {
                 console.log(`[yunwu] 💰 Midjourney跳过扣费: 前端已处理`);
+            }
+
+            // 🔧 映射模型到 version 参数
+            let effectiveVersion = '6.1';
+            if (model === 'midjourney-v8') {
+                effectiveVersion = '8';
+            } else if (model === 'midjourney-niji-v8') {
+                effectiveVersion = 'niji8';
             }
 
             // 🔧 优化提示词：清理所有已有参数，然后重新添加正确格式
@@ -3452,12 +3570,12 @@ module.exports = async function handler(req, res) {
             // 重新添加正确格式的参数
             if (aspect_ratio && aspect_ratio !== '1:1') optimizedPrompt += ` --ar ${aspect_ratio}`;
             // 🔧 修复 niji 版本参数：niji6 需要用 --niji 6 而不是 --v niji6
-            if (version) {
-                if (version.startsWith('niji')) {
-                    const nijiVersion = version.replace('niji', '') || '6';
+            if (effectiveVersion) {
+                if (effectiveVersion.startsWith('niji')) {
+                    const nijiVersion = effectiveVersion.replace('niji', '') || '6';
                     optimizedPrompt += ` --niji ${nijiVersion}`;
                 } else {
-                    optimizedPrompt += ` --v ${version}`;
+                    optimizedPrompt += ` --v ${effectiveVersion}`;
                 }
             }
             if (style) optimizedPrompt += ` --style ${style}`;
@@ -3490,6 +3608,8 @@ module.exports = async function handler(req, res) {
 
                     // 第一步：上传图片到Discord获取URL（直接调用，不计费）
                     console.log('[yunwu] 🖼️ MJ 图生图: 正在上传参考图到Discord...');
+                    // 🔧 去除 data URL 前缀，只保留纯 base64
+                    const pureBase64 = refBase64.includes(',') ? refBase64.split(',')[1] : refBase64;
                     const uploadUrl = `https://api3.wlai.vip/mj-turbo/mj/submit/upload-discord-images`;
                     const uploadResponse = await fetch(uploadUrl, {
                         method: 'POST',
@@ -3498,7 +3618,7 @@ module.exports = async function handler(req, res) {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            base64Array: [refBase64]
+                            base64Array: [pureBase64]
                         })
                     });
 
@@ -3564,14 +3684,14 @@ module.exports = async function handler(req, res) {
                 console.log('[yunwu] 🎯 Midjourney 任务已提交:', mjTaskId);
 
                 // 🚀 优化轮询：渐进式间隔，首次不等待
-                // 前10次: 2秒间隔 (0-20秒)
-                // 后续: 3秒间隔 (20秒-3分钟)
+                // 前15次: 2秒间隔 (0-30秒)
+                // 后续: 3秒间隔 (30秒-4分钟)
                 let imageUrl = null;
-                const maxAttempts = 70;  // 约3分钟
+                const maxAttempts = 100;  // 约4分钟
                 for (let attempt = 0; attempt < maxAttempts; attempt++) {
                     // 🆕 首次立即轮询，不等待
                     if (attempt > 0) {
-                        const interval = attempt < 10 ? 2000 : 3000;  // 渐进式：前10次2秒，后续3秒
+                        const interval = attempt < 15 ? 2000 : 3000;  // 渐进式：前15次2秒，后续3秒
                         await new Promise(resolve => setTimeout(resolve, interval));
                     }
 

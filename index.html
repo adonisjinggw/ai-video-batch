@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RollRoll - 让创意转动 V9.0.0.3</title>
+    <title>RollRoll - 让创意转动 V9.0.1.7</title>
     <!-- 📱 手机端自动跳转 -->
     <script>
         (function () {
@@ -28,8 +28,8 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="css/style.css?v=9.0.0.3">
-    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.0.3">
+    <link rel="stylesheet" href="css/style.css?v=9.0.1.7">
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.1.2">
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Supabase SDK （本地域名代理，避免被插件拦截） -->
@@ -1310,19 +1310,23 @@
                                 <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K</option>
                                 <!-- 即梦已停用 <option value="jimeng">🎨 即梦4.5</option> -->
                                 <option value="jimeng-4.5">🎨 即梦4.5</option>
+                                <option value="midjourney-v8">🎨 MJ V8</option>
+                                <option value="midjourney-niji-v8">🎨 MJ Niji V8</option>
                                 <option value="midjourney-fast">🌟 Midjourney Fast</option>
                                 <option value="midjourney-turbo">🚀 Midjourney Turbo</option>
                                 <option value="midjourney-relax">🌙 Midjourney Relax</option>
                             </optgroup>
                             <!-- 🎯 Midjourney 版本选择器 -->
                             <optgroup label="🎯 MJ 版本">
-                                <option value="7">v7 最新</option>
+                                <option value="8">v8 最新</option>
+                                <option value="7">v7</option>
                                 <option value="6.1" selected>v6.1 稳定</option>
                                 <option value="6">v6.0</option>
                                 <option value="5.2">v5.2</option>
                                 <option value="5.1">v5.1</option>
                                 <option value="5">v5.0</option>
-                                <option value="niji7">Niji 7 动漫（最新）</option>
+                                <option value="niji8">Niji 8 动漫（最新）</option>
+                                <option value="niji7">Niji 7 动漫</option>
                                 <option value="niji6">Niji 6 动漫</option>
                             </optgroup>
                             <optgroup label="🎬 视频模型">
@@ -1442,17 +1446,30 @@
     </div>
 
     <script>
-        // 开场动画/欢迎页显示逻辑
+        // 开场动画/欢迎页显示逻辑（登录后可以跳过，其他情况强制显示）
         var _showIntro = false;
         var _introStyleTag = null;
         (function () {
-            // URL带 logged_in=1 → 已登录（从auth.html跳转回来）
-            if (location.search.indexOf('logged_in=1') > -1) {
+            // 🔒 只有登录后跳转（logged_in=1 或 skip_welcome=1）才跳过
+            // 其他情况强制显示开场动画和欢迎页
+            if (location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1) {
                 history.replaceState({}, '', location.pathname);
                 _showIntro = false;
+                // 🔧 清理可能残留的隐藏CSS（防止浏览器缓存旧版导致白屏/黑屏）
+                var oldStyle = document.getElementById('cinemaIntroInjectedStyle');
+                if (oldStyle) oldStyle.remove();
+                // 确保主页面元素可见
+                document.querySelectorAll('#welcomeScreen,.app-container').forEach(function(el) {
+                    el.style.display = '';
+                    el.style.opacity = '';
+                    el.style.visibility = '';
+                });
+                // 隐藏欢迎页
+                var welcome = document.getElementById('welcomeScreen');
+                if (welcome) welcome.classList.add('hide');
                 return;
             }
-            // 没有登录标记 → 显示开场动画和欢迎页
+            // 强制显示开场动画和欢迎页
             _showIntro = true;
             var style = document.createElement('style');
             style.id = 'cinemaIntroInjectedStyle';
@@ -2171,19 +2188,19 @@
         </div>
     </div>
 
-    <script src="js/supabase-config.js?v=9.0.0.3"></script>
-    <script src="js/free-api.js?v=9.0.0.3"></script>
+    <script src="js/supabase-config.js?v=9.0.1.2"></script>
+    <script src="js/free-api.js?v=9.0.1.2"></script>
     <script src="js/knolling-node.js"></script>
     <!-- 🎬 智能任务调度器 - 优先级队列、自动重试、断点续传 -->
-    <script src="js/task-orchestrator.js?v=9.0.0.3"></script>
+    <script src="js/task-orchestrator.js?v=9.0.1.2"></script>
     <!-- 🛡️ 弹性 API 网关 - 负载均衡、熔断降级、成本优化 -->
-    <script src="js/resilient-api.js?v=9.0.0.3"></script>
+    <script src="js/resilient-api.js?v=9.0.1.2"></script>
     <!-- 🧩 Skill 技能系统 - 用户可选择不同技能完成任务 -->
-    <script src="js/skill-system.js?v=9.0.0.3"></script>
-    <script src="js/skill-presets.js?v=9.0.0.3"></script>
-    <script src="js/batch.js?v=9.0.0.3&t=202604052100"></script>
+    <script src="js/skill-system.js?v=9.0.1.2"></script>
+    <script src="js/skill-presets.js?v=9.0.1.3"></script>
+    <script src="js/batch.js?v=9.0.1.7&t=202604121450"></script>
     <script src="js/help_modal.js"></script>
-    <script src="js/assistant-xj2.js?v=9.0.0.3"></script>
+    <script src="js/assistant-xj2.js?v=9.0.1.2"></script>
 
     <!-- 视频编辑器模态框 -->
     <div id="videoEditorModal" class="modal" style="display:none;">

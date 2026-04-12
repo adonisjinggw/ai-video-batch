@@ -1887,8 +1887,8 @@ ${userInput.substring(0, 1000)}`
                 prompt = document.getElementById('lyricsInput').value.trim();
                 // 优先使用生成的歌词
                 if (currentLyrics) prompt = currentLyrics;
-                // 🧠 智能匹配歌词结构
-                if (prompt && tags) {
+                // 🧠 智能匹配歌词结构（仅非纯音乐模式）
+                if (prompt && tags && !instrumental) {
                     prompt = applySmartStructure(prompt, tags);
                 }
             } else if (currentMode === 'inspiration') {
@@ -1899,6 +1899,16 @@ ${userInput.substring(0, 1000)}`
                 prompt = document.getElementById('smartInput').value.trim();
                 // 🆕 获取智能模式的风格标签
                 tags = document.getElementById('smartTagsInput')?.value.trim() || '';
+            }
+
+            // 🔧 纯音乐模式：必须有风格标签，不能有歌词！
+            if (instrumental) {
+                if (!tags) {
+                    showToast('纯音乐模式请输入风格标签');
+                    return;
+                }
+                prompt = '';
+                currentLyrics = '';
             }
 
             if (!prompt && !tags) {
@@ -2751,9 +2761,14 @@ Style: ${tags}`;
                     // 🎵 处理歌词/描述
                     let cellPrompt = promptInput.value.trim();
                     
-                    // 如果启用智能结构且歌词没有结构标记，应用智能结构
-                    if (cellAutoStructure && cellTags.length > 0) {
-                        cellPrompt = applySmartStructure(cellPrompt, cellTags.join(', '));
+                    // 🔧 纯音乐模式：清空歌词/描述，只保留风格标签
+                    if (cellInst) {
+                        cellPrompt = '';
+                    } else {
+                        // 如果启用智能结构且歌词没有结构标记，应用智能结构
+                        if (cellAutoStructure && cellTags.length > 0) {
+                            cellPrompt = applySmartStructure(cellPrompt, cellTags.join(', '));
+                        }
                     }
                     
                     batchItems.push({
@@ -2833,8 +2848,14 @@ Style: ${tags}`;
                 userId: currentUser.id
             };
             
-            // 如果有风格标签，使用 prompt + tags 模式（自定义模式）
-            if (tags) {
+            // 🔧 纯音乐模式：必须有风格标签，不能有歌词！
+            if (instrumental) {
+                if (!tags) {
+                    throw new Error('纯音乐模式请输入风格标签');
+                }
+                requestBody.tags = tags;
+            } else if (tags) {
+                // 非纯音乐模式，有风格标签：使用 prompt + tags 模式（自定义模式）
                 requestBody.prompt = prompt;
                 requestBody.tags = tags;
             } else {
@@ -2842,7 +2863,7 @@ Style: ${tags}`;
                 requestBody.gpt_description_prompt = prompt;
             }
             
-            if (gender) requestBody.vocal_gender = gender;
+            if (gender && !instrumental) requestBody.vocal_gender = gender;
             if (negativeTags) requestBody.negative_tags = negativeTags;
             
             const response = await fetch('/api/suno', {
@@ -3355,12 +3376,17 @@ ${userInput.substring(0, 800)}`
             const requestBody = {
                 action: 'generate',
                 mv: model,
-                prompt: lyrics,  // 使用歌词作为 prompt
                 title: title,
                 make_instrumental: instrumental,
                 userId: currentUser.id
             };
-            if (gender) requestBody.vocal_gender = gender;
+            
+            // 🔧 纯音乐模式：不传递歌词！
+            if (!instrumental) {
+                requestBody.prompt = lyrics;  // 使用歌词作为 prompt
+                if (gender) requestBody.vocal_gender = gender;
+            }
+            
             if (negativeTags) requestBody.negative_tags = negativeTags;
             
             const response = await fetch('/api/suno', {

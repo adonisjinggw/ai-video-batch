@@ -114,6 +114,27 @@
         const maxRetries = Number.isFinite(options.maxRetries) ? options.maxRetries : 3;
         const retryDelayMs = Number.isFinite(options.retryDelayMs) ? options.retryDelayMs : 3000;
         let lastErr = null;
+        
+        const isRetryableError = (e) => {
+            if (!e) return false;
+            const s = String(e?.message || e || '').toLowerCase();
+            const retryableKeywords = [
+                'timeout', '超时', '500', '502', '503', '504',
+                'network', '网络', 'connection', 'econnreset',
+                '节点不可用', 'unavailable', 'retry', '429',
+                'too many requests', 'rate limit', '限流'
+            ];
+            return retryableKeywords.some(k => s.includes(k));
+        };
+        
+        const getRetryDelay = (attempt, e) => {
+            let delay = retryDelayMs * Math.pow(2, attempt - 1);
+            if (e && e.status === 429) {
+                delay = Math.max(delay, 5000);
+            }
+            return Math.min(delay, 30000);
+        };
+        
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 return await fn(attempt);
@@ -121,7 +142,11 @@
                 lastErr = e;
                 if (e && e.name === 'AbortError') break;
                 if (attempt >= maxRetries) break;
-                await new Promise(r => setTimeout(r, retryDelayMs * attempt));
+                if (!isRetryableError(e)) break;
+                
+                const delay = getRetryDelay(attempt, e);
+                console.warn(`[retryableAPICall] 第${attempt}次失败，${delay}ms后重试:`, e?.message || e);
+                await new Promise(r => setTimeout(r, delay));
             }
         }
         throw lastErr || new Error('API调用失败');
@@ -1789,7 +1814,7 @@
      * 🔍 调用 OCR 识别图片中的文字
      * @param {string} imageUrl - 图片URL或base64
      * @param {string} prompt - 提示词（可选，默认识别所有文字）
-     * @param {string} model - 模型（默认 deepseek-ocr）
+     * @param {string} model - 模型（默认 grok-4.1）
      * @returns {Promise<string>} 识别到的文字
      */
     async function callOCRAPI(imageUrl, prompt, model) {
@@ -1802,7 +1827,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'vision',
-                model: model || 'deepseek-ocr',
+                model: model || 'grok-4.1',
                 prompt: ocrPrompt,
                 image_url: imageUrl,
                 userId,
@@ -1812,7 +1837,7 @@
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
-            throw new Error(data.message || data.error || 'OCR识别失败');
+            throw new Error(data.message || data.error || `OCR识别失败 (${res.status})`);
         }
         return data.text || '';
     }

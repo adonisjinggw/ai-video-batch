@@ -30,6 +30,7 @@ function main() {
     const root = path.resolve(__dirname, '..');
     const pkgPath = path.join(root, 'package.json');
     const indexPath = path.join(root, 'index.html');
+    const mobilePath = path.join(root, 'mobile.html');
     const batchPath = path.join(root, 'js', 'batch.js');
 
     const pkg = readJson(pkgPath);
@@ -42,20 +43,30 @@ function main() {
     const displayVersion = `V${version}`;
     const stamp = buildStamp();
 
+    // index.html 同步
     const indexPrev = fs.readFileSync(indexPath, 'utf8');
     let indexNext = indexPrev;
     indexNext = indexNext.replace(/(<title>\s*RollRoll\s*-\s*让创意转动\s*)V[0-9]+(?:\.[0-9]+){1,3}(\s*<\/title>)/i, `$1${displayVersion}$2`);
     indexNext = indexNext.replace(/(css\/style\.css\?v=)[^"\s>]+/i, `$1${version}`);
     indexNext = indexNext.replace(/(js\/batch\.js\?v=)[^&"\s>]+(&t=)[^"\s>]+/i, `$1${version}$2${stamp}`);
+    const indexChanged = writeTextIfChanged(indexPath, indexNext);
 
+    // mobile.html 同步
+    const mobilePrev = fs.readFileSync(mobilePath, 'utf8');
+    let mobileNext = mobilePrev;
+    mobileNext = mobileNext.replace(/(<title>.*?RollRoll.*?)V[0-9]+(?:\.[0-9]+){1,3}(.*?<\/title>)/i, `$1${displayVersion}$2`);
+    mobileNext = mobileNext.replace(/(css\/style\.css\?v=)[^"\s>]+/ig, `$1${version}`);
+    mobileNext = mobileNext.replace(/(js\/skill-presets\.js\?v=)[^&"\s>]+(&t=)[^"\s>]+/ig, `$1${version}$2${stamp}`);
+    mobileNext = mobileNext.replace(/(js\/[^.]+\.js\?v=)[^&"\s>]+/ig, `$1${version}`);
+    const mobileChanged = writeTextIfChanged(mobilePath, mobileNext);
+
+    // batch.js 同步
     const batchPrev = fs.readFileSync(batchPath, 'utf8');
     let batchNext = batchPrev;
     batchNext = batchNext.replace(/(const\s+APP_VERSION\s*=\s*')V[0-9]+(?:\.[0-9]+){1,3}('\s*;)/, `$1${displayVersion}$2`);
-
-    const indexChanged = writeTextIfChanged(indexPath, indexNext);
     const batchChanged = writeTextIfChanged(batchPath, batchNext);
 
-    if (indexChanged || batchChanged) {
+    if (indexChanged || mobileChanged || batchChanged) {
         console.log(`Synced version -> ${displayVersion} (t=${stamp})`);
     } else {
         console.log(`No changes needed (version ${displayVersion})`);

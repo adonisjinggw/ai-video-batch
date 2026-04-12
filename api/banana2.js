@@ -184,7 +184,7 @@ async function __billing(billingAction, userId, amount, description) {
 }
 
 // ✅ 超时控制：避免上游卡死导致 Vercel 超时（前端表现为 Failed to fetch）
-function fetchWithTimeout(url, options = {}, timeoutMs = 25000) {
+function fetchWithTimeout(url, options = {}, timeoutMs = 120000) {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(new Error('UPSTREAM_TIMEOUT')), timeoutMs);
     const merged = { ...(options || {}), signal: controller.signal };
