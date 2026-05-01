@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>📝 rollroll工坊 - RollRoll</title>
+    <title>📝 rollroll工坊 - RollRoll V9.3.20</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
     <style>
@@ -1050,7 +1050,7 @@
                 </select>
                 <div id="fillPreview"
                     style="display:none; background:var(--bg-card); border-radius:8px; padding:12px; margin-bottom:12px; font-size:13px; line-height:1.6; color:var(--text-dim); cursor:pointer;"
-                    onclick="addFilledTemplateToBatch()" title="点击添加到批量输入">
+                    onclick="copyFillPreview(event)" title="点击复制提示词">
                 </div>
                 <!-- 🆕 下划线填空输入框容器 -->
                 <div id="blankInputsContainer" class="blank-inputs-container" style="display:none;"></div>
@@ -1126,7 +1126,7 @@
         <!-- 单个模式结果区 -->
         <div class="result-section" id="resultSection" style="display:none;">
             <div class="result-title">✨ 优化后的提示词</div>
-            <div class="result-text" id="resultText"></div>
+            <div class="result-text" id="resultText" onclick="copyPrompt()" style="cursor:pointer;" title="点击复制内容"></div>
             <div class="result-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
                 <button class="result-btn" onclick="copyPrompt()"
                     style="flex:1; min-width:80px; background:var(--bg-input); border:1px solid #333; color:var(--text);">📋
@@ -1267,7 +1267,7 @@
             fill_63: { name: '💼 职场精英', desc: '商务职业装', template: '______（人物）穿着专业职业装，办公室/会议室背景，自信姿态，职场精英范' },
             fill_64: { name: '🍰 甜品师', desc: '烘焙厨师装扮', template: '______（人物）穿着甜品师服装，围裙，厨师帽，周围是蛋糕和甜点，温馨甜蜜氛围' },
             fill_65: { name: '🌻 向日葵田', desc: '金色花田场景', template: '______（人物）站在向日葵花田，阳光明媚，金黄色调，温暖治愈氛围，夏日清新感' },
-            fill_66: { name: '🌾 麦田守望者', desc: '金色麦浪场景', template: '______（人物）在金色麦田中，麦浪随风摇曳，夕阳余晖，田园诗���，温暖氛围' },
+            fill_66: { name: '🌾 麦田守望者', desc: '金色麦浪场景', template: '______（人物）在金色麦田中，麦浪随风摇曳，夕阳余晖，田园诗意，温暖氛围' },
             fill_67: { name: '🌵 沙漠探险', desc: '沙漠场景', template: '______（人物）在广阔沙漠，沙丘起伏，骆驼，夕阳，异域风情，冒险感' },
             fill_68: { name: '🏔️ 雪山登顶', desc: '雪山攀登场景', template: '______（人物）登上雪山之巅，雪峰连绵，登山装备，胜利姿态，壮阔景观' },
             fill_69: { name: '🌋 火山背景', desc: '火山熔岩场景', template: '______（人物/主体）在火山前，岩浆流动，火光冲天，热浪氛围，暖色调，史诗感' },
@@ -1327,7 +1327,7 @@
             character_card: { name: '🪪 人物名片卡', desc: '角色信息卡片设计', template: '按照名片设计构图和质感，为______（填写角色）生成卡片，右上角可爱卡通形象突出于卡片，Name: ______（姓名）, Occupation: ______（职业）, Company: ______（公司/组织）, 精致材质感' },
             keychain_merch: { name: '🔑 可爱挂件/钥匙扣', desc: '照片转周边产品', template: '将照片人物变成可爱______（类型：亚克力/橡胶）挂件，扁平设计，挂在______（包包类型）包包上，亚克力/橡胶材质质感，产品摄影风格' },
             cosplay_photo: { name: '📸 Cosplay还原', desc: '插画转真人Cos', template: 'Generate a highly detailed photo of ______（角色/人物） cosplaying this illustration, at Comiket. Exactly replicate the same pose, body posture, hand gestures, facial expression, and camera framing as in the original illustration. Keep the same angle, perspective, and composition' },
-            character_sheet: { name: '📋 角色设定全套', desc: '三视图/表情/动作/服装', template: '为______（填写角色）生成完整角色设定：比例设定（头身比对比），三视图（正面侧面背面），表情设定（多种��绪），动作设定（常见姿势），服装设定（不同造型），专业角色设计稿风格' },
+            character_sheet: { name: '📋 角色设定全套', desc: '三视图/表情/动作/服装', template: '为______（填写角色）生成完整角色设定：比例设定（头身比对比），三视图（正面侧面背面），表情设定（多种情绪），动作设定（常见姿势），服装设定（不同造型），专业角色设计稿风格' },
             figure_scene: { name: '🎨 手办场景图', desc: '角色转3D手办展示', template: 'Turn ______（角色/人物） into a character figure. Behind it, place a box with the character image printed on it, and a computer showing Blender modeling process. In front of the box, add a round plastic base with the figure standing on it. Indoor scene, product photography' },
             line_sticker_pack: { name: '💬 LINE表情包套图', desc: 'Q版半身像表情包4x6布局', template: '为______（填写角色）生成Q版LINE风格半身像表情包，彩色手绘风格，头饰正确还原，4x6网格布局（共24个表情），涵盖常用聊天表情和娱乐meme，每个表情配手写简体中文标注，不要原图复制要重新绘制，4K分辨率16:9画幅，表情丰富可爱实用' },
             ghibli: { name: '🏯 吉卜力风格', desc: '宫崎骏动画风格转换', template: '将______转换为吉卜力工作室动画风格，柔和水彩质感，温暖色调，梦幻氛围，细腻背景细节，宫崎骏电影美学，手绘动画质感' },
@@ -1789,12 +1789,36 @@
             showToast('已复制到剪贴板');
         }
 
+        // 🆕 复制填空预览的提示词
+        function copyFillPreview(e) {
+            if (e) e.stopPropagation();
+            const input = document.getElementById('conceptInput');
+            const filledContent = input.value.trim();
+            if (!filledContent) {
+                showToast('没有可复制的内容');
+                return;
+            }
+            // 兼容各种浏览器的复制方法
+            const textArea = document.createElement('textarea');
+            textArea.value = filledContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('已复制到剪贴板');
+            } catch (err) {
+                console.error('复制失败:', err);
+                showToast('复制失败，请手动复制');
+            }
+            document.body.removeChild(textArea);
+        }
+
         function usePrompt() {
             if (!currentPrompt) {
                 showToast('请先生成提示词');
                 return;
             }
-            localStorage.setItem('knolling_prompt', currentPrompt);
+            try { localStorage.setItem('knolling_prompt', currentPrompt.substring(0, 1000)); } catch(e) {} // 截断防溢出
             location.href = 'banana.html';
         }
 
@@ -1826,7 +1850,7 @@
                 return;
             }
             // 存储到 localStorage 供 sticker.html 读取
-            localStorage.setItem('sticker_prompt', currentPrompt);
+            try { localStorage.setItem('sticker_prompt', currentPrompt.substring(0, 1000)); } catch(e) {} // 截断防溢出
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
             const targetUrl = fromMobile ? 'sticker.html?force=mobile' : 'sticker.html';
@@ -2666,7 +2690,7 @@
                 return;
             }
             // 存储到 localStorage 供 banana.html 读取
-            localStorage.setItem('knolling_batch_prompts', JSON.stringify(selected.map(r => r.prompt)));
+            try { localStorage.setItem('knolling_batch_prompts', JSON.stringify(selected.map(r => (r.prompt || '').substring(0, 500)))); } catch(e) {} // 截断防溢出
             location.href = 'banana.html?batch=1';
         }
 
@@ -2686,10 +2710,10 @@
                 timestamp: Date.now(),
                 from: 'knolling',
                 batchCount: prompts.length,
-                prompts: prompts  // 保留原始数组供解析
+                prompts: (prompts || []).map(p => (p || '').substring(0, 500))  // 截断防溢出
             };
-            localStorage.setItem('writing_to_generation', JSON.stringify(transferData));
-            localStorage.setItem('knolling_batch_prompts', JSON.stringify(prompts));  // 同时保存批量提示词
+            try { localStorage.setItem('writing_to_generation', JSON.stringify(transferData)); } catch(e) {}
+            try { localStorage.setItem('knolling_batch_prompts', JSON.stringify((prompts || []).map(p => (p || '').substring(0, 500)))); } catch(e) {}  // 截断防溢出
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
             const targetUrl = fromMobile ? 'index.html?force=mobile&from_knolling=1&batch=1&skip_welcome=1' : 'index.html?from_knolling=1&batch=1&skip_welcome=1';

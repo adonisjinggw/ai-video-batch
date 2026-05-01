@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.0.1.7</title>
+    <title>RollRoll 移动版 V9.3.20</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,19 +36,22 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.0.1.7"></script>
+    <script src="/js/supabase-config.js?v=9.3.20"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=9.0.1.7"></script>
-    <script src="/js/user-memory.js?v=9.0.1.7"></script>
-    <script src="/js/writing-vault.js?v=9.0.1.7"></script>
+    <script src="/js/api-core.js?v=9.3.20&t=202605011857"></script>
+    <script src="/js/user-memory.js?v=9.3.20"></script>
+    <script src="/js/writing-vault.js?v=9.3.20"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=9.0.1.7"></script>
-    <script src="/js/skill-presets.js?v=9.0.1.7&t=202604121450"></script>
-    <script src="/js/mv-merge.js?v=9.0.1.7"></script>
+    <script src="/js/skill-system.js?v=9.3.20"></script>
+    <script src="/js/skill-presets.js?v=9.3.20&t=202605011857"></script>
+    <script src="/js/grid-split.js?v=9.3.20"></script>
+    <!-- SheetJS (XLSX) - Excel/CSV 解析库 -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="/js/mv-merge.js?v=9.3.20"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-voice.js?v=9.0.1.7"></script>
-    <script src="/js/assistant-xj2.js?v=9.0.1.7"></script>
-    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.0.1.2">
+    <script src="/js/assistant-voice.js?v=9.3.20"></script>
+    <script src="/js/assistant-xj2.js?v=9.3.20"></script>
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.3.20">
     <style>
         * {
             margin: 0;
@@ -2152,6 +2155,23 @@
             flex-shrink: 0;
         }
 
+        .skill-exec-bar-close {
+            background: none;
+            border: 1px solid #555;
+            border-radius: 8px;
+            color: #999;
+            font-size: 14px;
+            padding: 4px 10px;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-left: 2px;
+        }
+
+        .skill-exec-bar-close:hover {
+            color: #fff;
+            border-color: #888;
+        }
+
         /* 技能结果面板 */
         .skill-result-page {
             position: absolute;
@@ -2731,7 +2751,7 @@
                 var oldStyle = document.getElementById('cinemaIntroInjectedStyle');
                 if (oldStyle) oldStyle.remove();
                 // 确保主页面元素可见
-                document.querySelectorAll('#welcomeScreen,header.header,main.main,#mobileDebugBar').forEach(function(el) {
+                document.querySelectorAll('#welcomeScreen,header.header,main.main').forEach(function(el) {
                     el.style.display = '';
                     el.style.opacity = '';
                     el.style.visibility = '';
@@ -2739,15 +2759,18 @@
                 // 隐藏欢迎页
                 var welcome = document.getElementById('welcomeScreen');
                 if (welcome) welcome.classList.add('hide');
+                // 🔧 显示底部导航栏
+                var bottomNav = document.querySelector('.bottom-nav');
+                if (bottomNav) bottomNav.style.display = 'flex';
                 // 🔧 登录跳转回来，标记允许显示小助手
                 window._assistantShouldShow = true;
                 return;
             }
-            // 强制显示开场动画和欢迎页
+            // 强制显示开场动画和欢迎页（未登录用户必须经过欢迎页）
             _showIntro = true;
             var style = document.createElement('style');
             style.id = 'cinemaIntroInjectedStyle';
-            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#mobileDebugBar,#xj2Container{display:none!important;opacity:0;visibility:hidden}';
+            style.textContent = '#cinemaIntro{display:flex!important}#welcomeScreen,header.header,main.main,#xj2Container,.bottom-nav{display:none!important;opacity:0;visibility:hidden}';
             document.head.appendChild(style);
             _introStyleTag = style;
         })();
@@ -2798,11 +2821,6 @@
             <a href="auth.html?force=mobile&no_redirect=true" class="user-btn" id="userBtn">👤</a>
         </div>
     </header>
-
-    <div id="mobileDebugBar"
-        style="padding:6px 12px;font-size:11px;color:#fff;background:#333;border-bottom:1px solid rgba(255,255,255,0.06);display:none;">
-        调试信息加载中...
-    </div>
 
     <!-- 主内容 -->
     <main class="main">
@@ -2954,7 +2972,7 @@
                 <div id="fillPreview" onclick="copyFillPreviewText()"
                     style="display:none; margin-top:10px; padding:12px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:8px; font-size:13px; color:#a78bfa; white-space:pre-wrap; word-break:break-word; cursor:pointer; position:relative;"
                     title="点击复制提示词">
-                    <span style="position:absolute;top:8px;right:10px;font-size:11px;color:rgba(167,139,250,0.5);">📋 点击复制</span>
+                    <span style="position:absolute;top:8px;right:10px;font-size:11px;color:rgba(167,139,250,0.5);pointer-events:none;">📋 点击复制</span>
                 </div>
 
                 <!-- 🎤 台词输入（可选） -->
@@ -3106,6 +3124,124 @@
                 <div id="priceHintContent"></div>
             </div>
 
+            <!-- 🆕 宫格切割入口按钮（始终可见） -->
+            <button onclick="openGridSplit()" id="gridSplitOpenBtn" style="display:block; width:100%; margin-top:10px; padding:12px; background:rgba(251,191,36,0.12); border:1px dashed rgba(251,191,36,0.5); border-radius:10px; color:#fbbf24; font-size:14px; font-weight:600; cursor:pointer; text-align:center; transition:background 0.2s;">✂️ 宫格图切割 → 批量图生视频</button>
+<!-- 🆕 宫格切割面板 -->
+        <div id="gridSplitSection" style="display:none; margin-top:16px; padding:16px; background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.3); border-radius:12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <span style="font-size:15px; color:#fbbf24; font-weight:600;">✂️ 宫格切割 → 批量图生视频</span>
+                <button onclick="closeGridSplit()" style="background:none; border:none; color:#888; font-size:18px; cursor:pointer;">&times;</button>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                <button class="grid-type-btn active" data-grid="4" onclick="selectGridType(4)">2×2 (4格)</button>
+                <button class="grid-type-btn" data-grid="6" onclick="selectGridType(6)">2×3 (6格)</button>
+                <button class="grid-type-btn" data-grid="8" onclick="selectGridType(8)">2×4 (8格)</button>
+                <button class="grid-type-btn" data-grid="9" onclick="selectGridType(9)">3×3 (9格)</button>
+                <button class="grid-type-btn" data-grid="12" onclick="selectGridType(12)">3×4 (12格)</button>
+                <button class="grid-type-btn" data-grid="16" onclick="selectGridType(16)">4×4 (16格)</button>
+            </div>
+            <input type="file" id="gridSplitImageInput" accept="image/*" style="display:none;" onchange="handleGridSplitUpload(this)">
+            <div onclick="document.getElementById('gridSplitImageInput').click()" style="border:2px dashed #444; border-radius:8px; padding:20px; text-align:center; cursor:pointer; transition:border-color 0.3s;" id="gridSplitUploadArea">
+                <div style="font-size:28px; margin-bottom:6px;">🖼️</div>
+                <div style="color:#888; font-size:13px;">点击上传宫格图</div>
+            </div>
+            <div id="gridSplitPreview" style="display:none; margin-top:12px;"></div>
+            <div id="gridSplitActions" style="display:none; margin-top:12px;">
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+                    <label style="font-size:12px; color:#888; white-space:nowrap;">🎬 视频模型:</label>
+                    <select id="gridSplitVideoModel" style="flex:1; padding:8px 10px; background:#1a1a24; border:1px solid #333; border-radius:6px; color:#fff; font-size:13px;">
+<option value="modelscope-video">🆓 魔塔视频（免费）</option>
+<optgroup label="🌟 Veo 3.1 系列 (4K+音频)">
+    <option value="veo3.1-components-4k">Veo 3.1 4K (推荐)</option>
+    <option value="veo_3_1-fast-4K">Veo 3.1 Fast 4K (快速)</option>
+    <option value="veo_3_1-fast-components-4K">veo_3_1-fast-components-4K</option>
+    <option value="veo_3_1-components-4K">Veo 3.1 Components 4K</option>
+</optgroup>
+<optgroup label="🎬 Vidu 系列 - 5秒">
+    <option value="vidu-q2-5s-720p">Vidu q2 5秒 720P (25胶片/支持7图)</option>
+    <option value="vidu-q2-5s-1080p">Vidu q2 5秒 1080P (36胶片/支持7图)</option>
+    <option value="vidu-q2-pro-5s-720p">Vidu q2-pro 5秒 720P (27胶片)</option>
+    <option value="vidu-q2-pro-5s-1080p">Vidu q2-pro 5秒 1080P (54胶片)</option>
+    <option value="vidu-q2-turbo-5s-720p">Vidu q2-turbo 5秒 720P (19胶片/最快)</option>
+    <option value="vidu-q2-turbo-5s-1080p">Vidu q2-turbo 5秒 1080P (36胶片)</option>
+    <option value="vidu-q3-pro-5s-720p">Vidu q3-pro 5秒 720P (72胶片/顶级)</option>
+    <option value="vidu-q3-pro-5s-1080p">Vidu q3-pro 5秒 1080P (77胶片/顶级)</option>
+</optgroup>
+<optgroup label="🎬 Vidu 系列 - 10秒">
+    <option value="vidu-q2-10s-720p">Vidu q2 10秒 720P (50胶片/支持7图)</option>
+    <option value="vidu-q2-10s-1080p">Vidu q2 10秒 1080P (72胶片/支持7图)</option>
+    <option value="vidu-q2-pro-10s-720p">Vidu q2-pro 10秒 720P (54胶片)</option>
+    <option value="vidu-q2-pro-10s-1080p">Vidu q2-pro 10秒 1080P (108胶片)</option>
+    <option value="vidu-q2-turbo-10s-720p">Vidu q2-turbo 10秒 720P (38胶片)</option>
+    <option value="vidu-q2-turbo-10s-1080p">Vidu q2-turbo 10秒 1080P (72胶片)</option>
+    <option value="vidu-q3-pro-10s-720p">Vidu q3-pro 10秒 720P (144胶片/顶级)</option>
+    <option value="vidu-q3-pro-10s-1080p">Vidu q3-pro 10秒 1080P (154胶片/顶级)</option>
+</optgroup>
+<optgroup label="🐚 海螺 Hailuo - 6秒">
+    <option value="hailuo-02-768p-6s">海螺 02 6秒 768P (7胶片)</option>
+    <option value="hailuo-02-1080p-6s">海螺 02 6秒 1080P (12胶片)</option>
+    <option value="hailuo-fast-768p-6s">海螺 Fast 6秒 768P (5胶片/最快)</option>
+    <option value="hailuo-fast-1080p-6s">海螺 Fast 6秒 1080P (8胶片)</option>
+</optgroup>
+<optgroup label="🐚 海螺 Hailuo - 10秒">
+    <option value="hailuo-02-768p-10s">海螺 02 10秒 768P (11胶片)</option>
+    <option value="hailuo-02-1080p-10s">海螺 02 10秒 1080P (20胶片)</option>
+    <option value="hailuo-fast-768p-10s">海螺 Fast 10秒 768P (8胶片)</option>
+    <option value="hailuo-fast-1080p-10s">海螺 Fast 10秒 1080P (13胶片)</option>
+</optgroup>
+<optgroup label="✨ 可灵 Kling - 5秒">
+    <option value="kling-2.5-720p-5s">可灵 2.5 5秒 720P (5胶片/性价比)</option>
+    <option value="kling-2.5-1080p-5s">可灵 2.5 5秒 1080P (9胶片)</option>
+    <option value="kling-2.0-720p-5s">可灵 2.0 5秒 720P (7胶片)</option>
+    <option value="kling-2.0-1080p-5s">可灵 2.0 5秒 1080P (12胶片)</option>
+    <option value="kling-o1-720p-5s">可灵 O1 5秒 720P (15胶片/顶级)</option>
+    <option value="kling-o1-1080p-5s">可灵 O1 5秒 1080P (20胶片)</option>
+</optgroup>
+<optgroup label="✨ 可灵 Kling - 10秒">
+    <option value="kling-2.5-720p-10s">可灵 2.5 10秒 720P (10胶片)</option>
+    <option value="kling-2.5-1080p-10s">可灵 2.5 10秒 1080P (17胶片)</option>
+    <option value="kling-2.0-720p-10s">可灵 2.0 10秒 720P (14胶片)</option>
+    <option value="kling-2.0-1080p-10s">可灵 2.0 10秒 1080P (24胶片)</option>
+    <option value="kling-o1-720p-10s">可灵 O1 10秒 720P (31胶片)</option>
+    <option value="kling-o1-1080p-10s">可灵 O1 10秒 1080P (41胶片)</option>
+</optgroup>
+<optgroup label="🎬 Wan2.6 - 5秒">
+    <option value="wan26-720p-5s">Wan2.6 720p 5秒 (3胶片)</option>
+    <option value="wan26-1080p-5s">Wan2.6 1080p 5秒 (5胶片)</option>
+    <option value="wan26-720p-5s-audio">Wan2.6 720p 5秒 有声 (4胶片)</option>
+    <option value="wan26-1080p-5s-audio">Wan2.6 1080p 5秒 有声 (7胶片)</option>
+</optgroup>
+<optgroup label="🎬 Wan2.6 - 10秒">
+    <option value="wan26-720p-10s">Wan2.6 720p 10秒 (5胶片)</option>
+    <option value="wan26-1080p-10s">Wan2.6 1080p 10秒 (9胶片)</option>
+    <option value="wan26-720p-10s-audio">Wan2.6 720p 10秒 有声 (7胶片)</option>
+    <option value="wan26-1080p-10s-audio">Wan2.6 1080p 10秒 有声 (14胶片)</option>
+</optgroup>
+<optgroup label="🎬 Wan2.6 - 15秒">
+    <option value="wan26-720p-15s">Wan2.6 720p 15秒 (7胶片)</option>
+    <option value="wan26-1080p-15s">Wan2.6 1080p 15秒 (13胶片)</option>
+    <option value="wan26-720p-15s-audio">Wan2.6 720p 15秒 有声 (11胶片)</option>
+    <option value="wan26-1080p-15s-audio">Wan2.6 1080p 15秒 有声 (21胶片)</option>
+</optgroup>
+<optgroup label="🎬 LTX-Video (Lightricks)">
+    <option value="ltx-video-5s">LTX-Video 5秒 (4胶片/快速)</option>
+    <option value="ltx-video-10s">LTX-Video 10秒 (7胶片)</option>
+    <option value="ltx-video-15s">LTX-Video 15秒 (10胶片)</option>
+    <option value="ltx-video-custom">LTX-Video 自定义时长</option>
+</optgroup>
+<option value="grok-video-3">Grok Video 3 (6秒)</option>
+<option value="grok-video-3-10s">Grok Video 3 (10秒)</option>
+</select>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button onclick="startGridSplitGenerate()" id="gridSplitGenBtn" style="flex:1; padding:10px 16px; background:linear-gradient(135deg,#f59e0b,#d97706); border:none; border-radius:8px; color:#000; font-size:14px; font-weight:600; cursor:pointer;">🎬 批量生成视频</button>
+                    <button onclick="redoGridSplit()" style="padding:10px 14px; background:#333; border:none; border-radius:8px; color:#fff; font-size:13px; cursor:pointer;">🔄 重做</button>
+                    <button onclick="downloadAllGridSplitVideos()" style="padding:10px 14px; background:#333; border:none; border-radius:8px; color:#fff; font-size:13px; cursor:pointer;">⬇️ 全部下载</button>
+                </div>
+            </div>
+            <div id="gridSplitResults" style="display:none; margin-top:12px;"></div>
+        </div>
+
             <!-- 🧩 API 格式（与电脑版一致，可强制首选格式） -->
             <div class="option-row">
                 <div class="option-group">
@@ -3200,24 +3336,23 @@
                         <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K (4胶片)</option>
                         <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片)</option>
                         <option value="Qwen/Qwen-Image-2512">🖼️ 通义万相Max (8胶片)</option>
-                        <option value="midjourney-v8">🎨 MJ V8 (2胶片)</option>
-                        <option value="midjourney-niji-v8">🎨 MJ Niji V8 (2胶片)</option>
                         <option value="midjourney-fast">🎨 Midjourney Fast (2胶片)</option>
                         <option value="midjourney-turbo">⚡ Midjourney Turbo (2胶片)</option>
                         <option value="midjourney-relax">🐢 Midjourney Relax (2胶片)</option>
+                        <option value="gpt-image-2">🤖 GPT-Image-2 官方（按量计费）</option>
+                        <option value="gpt-image-2-all">🤖 GPT-Image-2-All（5胶片）</option>
                     </select>
                 </div>
                 <div class="option-group" id="mjVersionGroup" style="display:none;">
                     <label for="mjVersion">🎯 MJ版本</label>
                     <select id="mjVersion">
                         <option value="8">v8 最新</option>
+                        <option value="niji8">Niji 8 动漫</option>
                         <option value="7">v7</option>
                         <option value="6.1" selected>v6.1 稳定</option>
                         <option value="6">v6.0</option>
                         <option value="5.2">v5.2</option>
                         <option value="5.1">v5.1</option>
-                        <option value="5">v5.0</option>
-                        <option value="niji8">Niji 8 动漫（最新）</option>
                         <option value="niji7">Niji 7 动漫</option>
                         <option value="niji6">Niji 6 动漫</option>
                     </select>
@@ -3289,11 +3424,11 @@
                     <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K (4胶片)</option>
                     <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片)</option>
                     <option value="Qwen/Qwen-Image-2512">🎭 通义万相Max (8胶片)</option>
-                    <option value="midjourney-v8">🎨 MJ V8 (2胶片)</option>
-                    <option value="midjourney-niji-v8">🎨 MJ Niji V8 (2胶片)</option>
                     <option value="midjourney-fast">🎨 Midjourney Fast (2胶片)</option>
                     <option value="midjourney-turbo">🚀 Midjourney Turbo (2胶片)</option>
                     <option value="midjourney-relax">🌙 Midjourney Relax (2胶片)</option>
+                    <option value="gpt-image-2">🤖 GPT-Image-2 官方（按量计费）</option>
+                    <option value="gpt-image-2-all">🤖 GPT-Image-2-All（5胶片）</option>
                 </select>
             </div>
             <label class="input-label">🖼️ 上传参考图片 <span style="font-size:12px;color:#888;">(可选，支持多图)</span></label>
@@ -3331,10 +3466,14 @@
                 <!-- ❌ Sora2 已停用 -->
                 <!-- <div style="margin-top:8px; font-size:11px; color:#666;">Sora-2 会将多张图片合并为一张参考图生成视频</div> -->
             </div>
+        
+
         </div>
 
         <!-- 🎭 已选角色显示 -->
-        <div id="selectedCharacterDisplay"
+        <div 
+        
+id="selectedCharacterDisplay"
             style="display:none; margin:12px 0; padding:12px 16px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:10px;">
             <div style="display:flex; align-items:center; justify-content:space-between;">
                 <div style="display:flex; align-items:center; gap:10px;">
@@ -3624,10 +3763,9 @@
                     <span id="skillConfigTitle" style="font-size:16px;font-weight:600;color:#fff;"></span>
                 </div>
                 <div class="skill-config-body" id="skillConfigBody"></div>
-                <!-- 该技能专属历史 -->
-                <div id="skillConfigHistory" style="padding:0 16px 12px;max-height:220px;overflow-y:auto;display:none;">
-                    <div style="font-size:13px;font-weight:600;color:#888;margin-bottom:8px;">📂 历史记录</div>
-                    <div id="skillConfigHistoryList"></div>
+                <!-- 该技能专属历史 (已禁用，遮挡操作窗口) -->
+                <div id="skillConfigHistory" style="display:none;">
+                    <div id="skillConfigHistoryList" style="padding:10px;max-height:200px;overflow-y:auto;"></div>
                 </div>
                 <div class="skill-config-footer">
                     <div id="skillCostArea"></div>
@@ -3736,6 +3874,7 @@
             </div>
         </div>
         <button class="skill-exec-bar-cancel" onclick="mobileSkillCancel()">取消</button>
+        <button class="skill-exec-bar-close" onclick="dismissExecBar()" title="关闭">✕</button>
     </div>
 
     <!-- 🎨 Midjourney 图片选择器弹窗 -->
@@ -3853,7 +3992,7 @@
             fill_63: { name: '💼 职场精英', desc: '商务职业装', template: '______（人物）穿着专业职业装，办公室/会议室背景，自信姿态，职场精英范' },
             fill_64: { name: '🍰 甜品师', desc: '烘焙厨师装扮', template: '______（人物）穿着甜品师服装，围裙，厨师帽，周围是蛋糕和甜点，温馨甜蜜氛围' },
             fill_65: { name: '🌻 向日葵田', desc: '金色花田场景', template: '______（人物）站在向日葵花田，阳光明媚，金黄色调，温暖治愈氛围，夏日清新感' },
-            fill_66: { name: '🌾 麦田守望者', desc: '金色麦浪场景', template: '______（人物）在金色麦田中，麦浪随风摇曳，夕阳余晖，田园诗���，温暖氛围' },
+            fill_66: { name: '🌾 麦田守望者', desc: '金色麦浪场景', template: '______（人物）在金色麦田中，麦浪随风摇曳，夕阳余晖，田园诗意，温暖氛围' },
             fill_67: { name: '🌵 沙漠探险', desc: '沙漠场景', template: '______（人物）在广阔沙漠，沙丘起伏，骆驼，夕阳，异域风情，冒险感' },
             fill_68: { name: '🏔️ 雪山登顶', desc: '雪山攀登场景', template: '______（人物）登上雪山之巅，雪峰连绵，登山装备，胜利姿态，壮阔景观' },
             fill_69: { name: '🌋 火山背景', desc: '火山熔岩场景', template: '______（人物/主体）在火山前，岩浆流动，火光冲天，热浪氛围，暖色调，史诗感' },
@@ -3874,16 +4013,16 @@
             fill_84: { name: '🚴 自行车骑行', desc: '骑行运动场景', template: '______（人物）骑自行车，郊外风景，阳光，运动装备，自由惬意氛围' },
             fill_85: { name: '🧘 瑜伽冥想', desc: '瑜伽姿势', template: '______（人物）做瑜伽动作，______（具体姿势），瑜伽垫，室内/户外，平静氛围' },
             fill_86: { name: '💆 SPA放松', desc: 'SPA美容场景', template: '______（人物）在SPA馆享受护理，花瓣浴/按摩，蜡烛，放松惬意，温馨氛围' },
-            fill_87: { name: '💅 美甲艺术', desc: '精致美甲展示', template: '展示______（人物）的精致美甲，______（图案/颜色），特写镜头，时尚感，少女女心' },
+            fill_87: { name: '💅 美甲艺术', desc: '精致美甲展示', template: '展示______（人物）的精致美甲，______（图案/颜色），特写镜头，时尚感，少女心' },
             fill_nail_1: { name: '💅 法式美甲', desc: '经典法式美甲', template: '精致法式美甲特写，______（颜色：粉色/裸色/白色）底色，______（指尖颜色：白色/金色/银色）指尖，修长甲型，专业美甲摄影，高清细节，干净背景' },
             fill_nail_2: { name: '🌸 花卉美甲', desc: '花朵图案美甲', template: '精美花卉美甲特写，______（花卉：樱花/玫瑰/雏菊/小雏菊）图案手绘，______（底色：白色/透明/粉色）底色，精致彩绘细节，少女清新风格，专业美甲摄影' },
-            fill_nail_3: { name: '✨ 闪粉美甲', desc: '亮片闪钻美甲', template: '奢华闪粉美甲特写，______（颜色：玫瑰金/香槟色/蕴萄紫）闪粉，______（装饰：水钻/亮片/金箔）点缀，光泽感强，派对风格，灯光下闪耀，高清专业摄影' },
-            fill_nail_4: { name: '🎀 网红美甲', desc: '潮流网红款式', template: '时尚网红美甲特写，______（风格：极光镶/猃砡妖姬/黑法师/蛋白石）效果，______（颜色：威士忌酒红/奶白色/焦糖色）主色，网红美甲店风格，小红书爆款，专业美甲摄影' },
-            fill_nail_5: { name: '🌙 猃砡美甲', desc: '猃砡猫眼美甲', template: '神秘猃砡美甲特写，______（颜色：威尼斯绿/星河蓝/黑千金）猃砡效果，______（类型：猫眼/极光/银河）效果，光影流动，神秘魅惑，高级感，专业美甲摄影' },
+            fill_nail_3: { name: '✨ 闪粉美甲', desc: '亮片闪钻美甲', template: '奢华闪粉美甲特写，______（颜色：玫瑰金/香槟色/葡萄紫）闪粉，______（装饰：水钻/亮片/金箔）点缀，光泽感强，派对风格，灯光下闪耀，高清专业摄影' },
+            fill_nail_4: { name: '🎀 网红美甲', desc: '潮流网红款式', template: '时尚网红美甲特写，______（风格：极光镶/猫眼妖姬/黑法师/蛋白石）效果，______（颜色：威士忌酒红/奶白色/焦糖色）主色，网红美甲店风格，小红书爆款，专业美甲摄影' },
+            fill_nail_5: { name: '🌙 猫眼美甲', desc: '猫眼猫眼美甲', template: '神秘猫眼美甲特写，______（颜色：威尼斯绿/星河蓝/黑千金）猫眼效果，______（类型：猫眼/极光/银河）效果，光影流动，神秘魅惑，高级感，专业美甲摄影' },
             fill_nail_6: { name: '🌿 清新美甲', desc: '简约清新风格', template: '清新简约美甲特写，______（元素：小雏菊/叶子/云朵/星星）图案，______（底色：透明/奶白/肉粉）底色，简单干净，日常百搭，小清新风格，专业美甲摄影' },
-            fill_nail_7: { name: '💍 婚礼美甲', desc: '新娘婚礼美甲', template: '优雅婚礼美甲特写，______（元素：珍珠/水钻/蝶结/蕾丝）装饰，______（颜色：白色/香槟/裸粉）主色，精致高雅，适合新娘，浪漫婚礼氛围，专业美甲摄影' },
+            fill_nail_7: { name: '💍 婚礼美甲', desc: '新娘婚礼美甲', template: '优雅婚礼美甲特写，______（元素：珍珠/水钻/蝴蝶结/蕾丝）装饰，______（颜色：白色/香槟/裸粉）主色，精致高雅，适合新娘，浪漫婚礼氛围，专业美甲摄影' },
             fill_nail_8: { name: '🎃 节日美甲', desc: '节日主题美甲', template: '______（节日：圣诞/万圣/情人/新年）主题美甲特写，______（元素：雪花/南瓜/爱心/龙）图案，应景配色，节日氛围浓厚，创意有趣，专业美甲摄影' },
-            fill_nail_9: { name: '🎲 设计师美甲', desc: '几何/艺术美甲', template: '艺术设计师美甲特写，______（风格：几何图形/抽象艺术/波普风/线条）设计，______（配色：撕裂配/对比色/渐变）配色，独特个性，设计感强，专业美甲摄影' },
+            fill_nail_9: { name: '🎲 设计师美甲', desc: '几何/艺术美甲', template: '艺术设计师美甲特写，______（风格：几何图形/抽象艺术/波普风/线条）设计，______（配色：撞色/对比色/渐变）配色，独特个性，设计感强，专业美甲摄影' },
             fill_nail_10: { name: '🌴 度假美甲', desc: '海边/旅行美甲', template: '清凉度假美甲特写，______（元素：棕榈树/海浪/贝壳/水果）图案，______（颜色：海洋蓝/阳光橙/清新绿）主色，海岛度假风，清新活力，专业美甲摄影' },
             fill_88: { name: '💄 化妆教程', desc: '化妆步骤展示', template: '______（人物）化妆过程，______（妆容类型），化妆品道具，镜子前，时尚美妆感' },
             fill_89: { name: '👗 时装走秀', desc: 'T台走秀场景', template: '______（人物）在T台走秀，时尚服装，专业姿态，聚光灯，时装周氛围' },
@@ -3906,6 +4045,7 @@
             fill_106: { name: '🧧 春节红包封面（竖版）', desc: '微信红包封面/电子红包封面', template: '微信红包封面设计（春节主题），1080x1920 竖版，中国红底+金色烫金浮雕，主视觉：______（生肖/财神/舞狮/灯笼/年货），背景暗纹：祥云/回纹/剪纸纹理，四周预留安全区留白（不要贴边），中部留出祝福文案"______（祝福语）"，底部留出署名/品牌位"______（署名/品牌）"，高清细节，无水印' },
             fill_107: { name: '🎁 圣诞红包内页（开红包页面）', desc: '微信红包打开后内部页面/金额与祝福文案页', template: '微信红包内页设计（圣诞主题/开红包页面），1080x1920 竖版，整体高级简洁，顶部保留安全区留白。背景氛围：圣诞树枝、雪花、暖光灯串、金粉散景bokeh（不要遮挡主体信息）。信息区域排版清晰：1) 顶部：发送者/品牌署名"______（From/品牌名/昵称）"；2) 中部：祝福语大字"______（祝福语）"，字形清晰可读，烫金或金属质感；3) 下方：金额展示区域"______（金额/如 8.88）元"或"______（口令/福利）"，留出醒目空间；4) 底部：小字说明/活动规则"______（说明）"，并预留一个二维码/Logo 占位区（用空白框表示，不要生成真实二维码）。配色：深绿+金 或 红绿金；材质：丝绒/磨砂卡纸/局部UV；整体干净、无水印、无乱码文字、四周留安全区。' },
             fill_108: { name: '🧧 春节红包内页（开红包页面）', desc: '微信红包打开后内部页面/金额与祝福文案页', template: '微信红包内页设计（春节主题/开红包页面），1080x1920 竖版，中国红底+金色点缀，高级克制国风（不过度花哨），顶部保留安全区留白。背景暗纹：祥云/回纹/锦缎纹理/剪纸暗纹，金粉散景bokeh（不要遮挡主体信息）。信息区域排版清晰：1) 顶部：发送者/品牌署名"______（品牌名/昵称/From）"；2) 中部：祝福语大字"______（祝福语）"，烫金浮雕质感，字形清晰可读；3) 下方：金额展示区域"______（金额/如 88.88）元"或"______（口令/福利）"，留出醒目空间；4) 底部：小字说明/活动规则"______（说明）"，并预留一个二维码/Logo 占位区（用空白框表示，不要生成真实二维码）。主视觉可点缀：灯笼、舞狮、金元宝、福字、烟花；整体干净高级、无水印、无乱码文字、四周留安全区。' },
+            fill_109: { name: '👤 小说角色设定', desc: '小说生成角色形象设计', template: '角色设定卡：______（角色名），______性别，______年龄，外貌描述：______（发型/脸型/眼睛/肤色），服装风格：______（着装/颜色），性格特点：______（2-3个关键词），场景：______（姿态/表情/背景），专业角色设计稿风格，正面/侧面/背面三视图，统一角色形象' },
             knolling: { name: '🧩 Knolling 万物拆解', desc: '物品整齐摆放俯视图', template: 'Knolling layout of ______（填写物品名称），neatly arranged components, top-down view, organized flat lay, professional product photography, white background, soft shadows, 8K detail' },
             journal_relations: { name: '📔 手帐人物关系图', desc: '剧本角色关系可视化', template: '手帐风格人物关系图，展示______（填写角色们）的关系网络，每个人物有可爱头像，势力派系用不同颜色区分，连接线标注关系类型，温馨插画风格，16:9横版构图' },
             y2k_poster: { name: '✨ Y2K毛玻璃海报', desc: '照片转现代设计海报', template: '将______（人物/主体）精确抠出作为核心，背景替换为毛玻璃质感抽象背景保留原色调，主体后方添加醒目纯色矩形色块，添加粗大无衬线字体标题置于主体后方形成遮挡层次，添加信息性小字和透明胶带素材，Y2K酸性设计美学，丰富纹理层次感' },
@@ -3913,7 +4053,7 @@
             character_card: { name: '🪪 人物名片卡', desc: '角色信息卡片设计', template: '按照名片设计构图和质感，为______（填写角色）生成卡片，右上角可爱卡通形象突出于卡片，Name: ______（姓名）, Occupation: ______（职业）, Company: ______（公司/组织）, 精致材质感' },
             keychain_merch: { name: '🔑 可爱挂件/钥匙扣', desc: '照片转周边产品', template: '将照片人物变成可爱______（类型：亚克力/橡胶）挂件，扁平设计，挂在______（包包类型）包包上，亚克力/橡胶材质质感，产品摄影风格' },
             cosplay_photo: { name: '📸 Cosplay还原', desc: '插画转真人Cos', template: 'Generate a highly detailed photo of ______（角色/人物） cosplaying this illustration, at Comiket. Exactly replicate the same pose, body posture, hand gestures, facial expression, and camera framing as in the original illustration. Keep the same angle, perspective, and composition' },
-            character_sheet: { name: '📋 角色设定全套', desc: '三视图/表情/动作/服装', template: '为______（填写角色）生成完整角色设定：比例设定（头身比对比），三视图（正面侧面背面），表情设定（多种��绪），动作设定（常见姿势），服装设定（不同造型），专业角色设计稿风格' },
+            character_sheet: { name: '📋 角色设定全套', desc: '三视图/表情/动作/服装', template: '为______（填写角色）生成完整角色设定：比例设定（头身比对比），三视图（正面侧面背面），表情设定（多种情绪），动作设定（常见姿势），服装设定（不同造型），专业角色设计稿风格' },
             figure_scene: { name: '🎨 手办场景图', desc: '角色转3D手办展示', template: 'Turn ______（角色/人物） into a character figure. Behind it, place a box with the character image printed on it, and a computer showing Blender modeling process. In front of the box, add a round plastic base with the figure standing on it. Indoor scene, product photography' },
             line_sticker_pack: { name: '💬 LINE表情包套图', desc: 'Q版半身像表情包4x6布局', template: '为______（填写角色）生成Q版LINE风格半身像表情包，彩色手绘风格，头饰正确还原，4x6网格布局（共24个表情），涵盖常用聊天表情和娱乐meme，每个表情配手写简体中文标注，不要原图复制要重新绘制，4K分辨率16:9画幅，表情丰富可爱实用' },
             ghibli: { name: '🏯 吉卜力风格', desc: '宫崎骏动画风格转换', template: '将______转换为吉卜力工作室动画风格，柔和水彩质感，温暖色调，梦幻氛围，细腻背景细节，宫崎骏电影美学，手绘动画质感' },
@@ -4144,7 +4284,15 @@
         function copyFillPreviewText() {
             const el = document.getElementById('fillPreview');
             if (!el || !el.textContent || el.style.display === 'none') return;
-            const text = el.textContent;
+            // 获取所有文本节点，排除span里的"📋 点击复制"
+            let text = '';
+            el.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
+            });
+            // 如果没拿到文本（异常），才回退到textContent
+            if (!text.trim()) text = el.textContent;
+            // 去掉前后多余空格
+            text = text.trim();
             const doCopy = (t) => {
                 try {
                     if (navigator.clipboard && window.isSecureContext) {
@@ -4514,6 +4662,21 @@
             }
         }
 
+        // ==================== 统一的胶片余额加载函数 ====================
+        async function loadUserQuota() {
+            try {
+                if (typeof NVAuth === 'undefined') return;
+                const user = await NVAuth.getCurrentUser();
+                if (!user) return;
+                const profile = await NVAuth.getUserProfile(user.id);
+                userQuota = profile?.quota_balance || 0;
+                updateQuotaDisplay(userQuota);
+                console.log('[mobile] 用户胶片:', userQuota);
+            } catch (e) {
+                console.error('[mobile] 加载配额失败:', e);
+            }
+        }
+
         // ==================== 统一的用户资料加载函数 ====================
         async function loadUserProfile(user) {
             try {
@@ -4648,130 +4811,132 @@
                 userBtnEl.style.width = '40px';
                 userBtnEl.style.padding = '0';
             }
-
         }
 
         // ==================== 初始化 ====================
         document.addEventListener('DOMContentLoaded', async function () {
             console.log('[mobile] 页面加载完成，开始初始化...');
-            // 临时调试：显示初始化开始
-            // alert('初始化开始');
 
-            // 0. 检测是否从素材库返回，并自动填充内容
+            // 0. 只在跳过欢迎页时才立即显示页面（避免和欢迎页冲突！）
+            if (!_showIntro) {
+                document.querySelectorAll('header.header,.bottom-nav').forEach(el => {
+                    if (el) {
+                        el.style.display = '';
+                        el.style.opacity = '';
+                        el.style.visibility = '';
+                    }
+                });
+                // 只显示创作页面的main，隐藏作品页面的main
+                const createPage = document.querySelector('.main:not(.works-page)');
+                const worksPage = document.getElementById('worksPage');
+                if (createPage) createPage.style.display = 'block';
+                if (worksPage) worksPage.style.display = 'none';
+            }
+
+            // 0.1 检测是否从素材库返回，并自动填充内容
             checkAndFillFromLibrary();
 
-            // 1. 初始化 Supabase 客户端
+            // 0.2 加载历史任务（本地存储，不等待网络）
+            loadHistory();
+
+            // 0.3 初始化手势操作（纯前端）
+            initGestures();
+
+            // 1. 初始化 Supabase 客户端（非阻塞）
             __mobileSupabaseClient = getSupabase();
             if (!__mobileSupabaseClient) {
                 console.error('[mobile] Supabase 客户端初始化失败');
                 updateUIForLoggedOut();
-                loadHistory();
-                initGestures();
                 return;
             }
 
-            // 2. 等待 NVAuth 模块加载
-            const authTimeout = 5000; // 5秒超时
-            const startTime = Date.now();
+            // 2. 异步初始化认证（不阻塞页面）
+            (async function () {
+                // 等待 NVAuth 模块加载
+                const authTimeout = 2000; // 2秒超时
+                const startTime = Date.now();
+                while (typeof NVAuth === 'undefined' && (Date.now() - startTime) < authTimeout) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                if (typeof NVAuth === 'undefined') {
+                    console.error('[mobile] NVAuth 模块加载超时');
+                    updateUIForLoggedOut();
+                    return;
+                }
+                console.log('[mobile] NVAuth 模块已加载');
 
-            while (typeof NVAuth === 'undefined' && (Date.now() - startTime) < authTimeout) {
-                await new Promise(r => setTimeout(r, 200));
-            }
+                // 等待认证状态就绪
+                try {
+                    await Promise.race([
+                        typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
+                        new Promise(resolve => setTimeout(resolve, 1500)) // 1.5秒超时
+                    ]);
+                    console.log('[mobile] 认证状态已就绪');
+                } catch (e) {
+                    console.warn('[mobile] 等待认证状态超时');
+                }
 
-            if (typeof NVAuth === 'undefined') {
-                console.error('[mobile] NVAuth 模块加载超时');
-                updateUIForLoggedOut();
-                loadHistory();
-                initGestures();
-                return;
-            }
-
-            console.log('[mobile] NVAuth 模块已加载');
-
-            // 3. 等待认证状态就绪（使用 __nvAuthReadyPromise）
-            try {
-                await Promise.race([
-                    typeof __nvAuthReadyPromise !== 'undefined' ? __nvAuthReadyPromise : Promise.resolve(),
-                    new Promise(resolve => setTimeout(resolve, 3000)) // 3秒超时
-                ]);
-                console.log('[mobile] 认证状态已就绪');
-            } catch (e) {
-                console.warn('[mobile] 等待认证状态超时');
-            }
-
-            // 4. 绑定认证状态监听器（关键：确保后续登录/登出能正确更新状态）
-            try {
-                if (!window.__mobileAuthListenerBound) {
-                    window.__mobileAuthListenerBound = true;
-                    NVAuth.onAuthStateChange(async (event, session) => {
-                        console.log('[mobile] 认证状态变化:', event, session ? '有session' : '无session');
-                        if (event === 'SIGNED_OUT') {
-                            updateUIForLoggedOut();
-                            return;
-                        }
-                        // 🔧 修复：同时处理 INITIAL_SESSION（Supabase v2 首次订阅时触发）
-                        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
-                            const u = session?.user;
-                            if (u) {
-                                console.log('[mobile] 监听器检测到登录:', u.email, 'event:', event);
-                                isLoggedIn = true;
-                                await loadUserProfile(u);
-                                setAssistantVisible(true);
-                            } else if (event !== 'INITIAL_SESSION') {
-                                // session.user 可能不同步，兆底再取一次（INITIAL_SESSION 无session时不需要兆底）
-                                try {
-                                    const u2 = await NVAuth.getCurrentUser();
-                                    if (u2) {
-                                        isLoggedIn = true;
-                                        await loadUserProfile(u2);
-                                    }
-                                } catch (e) { }
+                // 绑定认证状态监听器
+                try {
+                    if (!window.__mobileAuthListenerBound) {
+                        window.__mobileAuthListenerBound = true;
+                        NVAuth.onAuthStateChange(async (event, session) => {
+                            console.log('[mobile] 认证状态变化:', event, session ? '有session' : '无session');
+                            if (event === 'SIGNED_OUT') {
+                                updateUIForLoggedOut();
+                                return;
                             }
-                        }
-                    });
+                            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
+                                const u = session?.user;
+                                if (u) {
+                                    console.log('[mobile] 监听器检测到登录:', u.email, 'event:', event);
+                                    isLoggedIn = true;
+                                    await loadUserProfile(u);
+                                    setAssistantVisible(true);
+                                } else if (event !== 'INITIAL_SESSION') {
+                                    try {
+                                        const u2 = await NVAuth.getCurrentUser();
+                                        if (u2) {
+                                            isLoggedIn = true;
+                                            await loadUserProfile(u2);
+                                        }
+                                    } catch (e) { }
+                                }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn('[mobile] 绑定认证监听器失败:', e);
                 }
-            } catch (e) {
-                console.warn('[mobile] 绑定认证监听器失败:', e);
-            }
 
-            // 5. 轮询等待获取当前用户（避免"已登录但初次 getCurrentUser 为空"）
-            try {
-                let user = null;
-                for (let i = 0; i < 10; i++) {
-                    try {
-                        user = await NVAuth.getCurrentUser();
-                        if (user) break;
-                    } catch (e) { }
-                    await new Promise(r => setTimeout(r, 300));
-                }
-
-                if (user) {
-                    console.log('[mobile] 用户已登录:', user.email);
-                    isLoggedIn = true;
-
-                    // 加载用户资料
-                    await loadUserProfile(user);
-
-
-                    // 🔄 登录后同步云端数据（任务和角色库）
-                    setTimeout(() => {
-                        syncTasksFromCloud().then(() => renderTaskList());
-                        syncCharactersFromCloud();
-                    }, 1000);
-                } else {
-                    console.log('[mobile] 用户未登录');
+                // 获取当前用户（最多3次）
+                try {
+                    let user = null;
+                    for (let i = 0; i < 3; i++) {
+                        try {
+                            user = await NVAuth.getCurrentUser();
+                            if (user) break;
+                        } catch (e) { }
+                        await new Promise(r => setTimeout(r, 200));
+                    }
+                    if (user) {
+                        console.log('[mobile] 用户已登录:', user.email);
+                        isLoggedIn = true;
+                        _assistantAllowed = true;
+                        await loadUserProfile(user);
+                        setTimeout(() => {
+                            syncTasksFromCloud().then(() => renderTaskList());
+                            syncCharactersFromCloud();
+                        }, 500);
+                    } else {
+                        console.log('[mobile] 用户未登录');
+                        updateUIForLoggedOut();
+                    }
+                } catch (error) {
+                    console.error('[mobile] 获取用户信息失败:', error);
                     updateUIForLoggedOut();
                 }
-            } catch (error) {
-                console.error('[mobile] 获取用户信息失败:', error);
-                updateUIForLoggedOut();
-            }
-
-            // 6. 加载历史任务
-            loadHistory();
-
-            // 7. 初始化手势操作
-            initGestures();
+            })();
 
             // 8. 绑定模型选择器事件监听器
             const comicModelSelect = document.getElementById('comicModel');
@@ -5040,7 +5205,7 @@
                 switchMode('comic');
             }
 
-            // ��藏正常输入区域
+            // 隐藏正常输入区域
             const inputSection = document.querySelector('.input-section');
             if (inputSection) inputSection.style.display = 'none';
 
@@ -5451,19 +5616,6 @@
                 return;
             }
 
-            if (visible) {
-                try {
-                    const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
-                    if (!session?.user) {
-                        console.log('[小助手 V2] 用户未登录，不显示助手');
-                        return;
-                    }
-                } catch (e) {
-                    console.warn('[小助手 V2] 检查登录状态失败:', e);
-                    return;
-                }
-            }
-
             const container = document.getElementById('xj2Container');
             if (container) {
                 if (visible) {
@@ -5476,15 +5628,19 @@
 
         // 允许助手显示（登录成功跳转回来 或 开场动画结束且已登录 时调用）
         async function allowAssistant() {
-            _assistantAllowed = true;
-            console.log('[小助手 V2] allowAssistant 调用，允许显示');
-            // 检查是否已登录，已登录则立即显示
+            console.log('[小助手 V2] allowAssistant 调用，正在检查登录状态...');
             try {
                 const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
-                if (session?.user) {
-                    setAssistantVisible(true);
+                if (!session?.user) {
+                    console.log('[小助手 V2] allowAssistant 被调用但用户未登录，忽略');
+                    return;
                 }
-            } catch (e) { }
+                _assistantAllowed = true;
+                console.log('[小助手 V2] allowAssistant 检查通过，允许显示');
+                setAssistantVisible(true);
+            } catch (e) {
+                console.warn('[小助手 V2] allowAssistant 登录检查失败:', e);
+            }
         }
 
         async function initAssistant() {
@@ -5544,11 +5700,25 @@
             }
         }
 
-        function toggleAssistantPanel() {
+        async function toggleAssistantPanel() {
             const panel = document.getElementById('xj2Panel');
             const backdrop = document.getElementById('xj2Backdrop');
             const container = document.getElementById('xj2Container');
             if (!panel) return;
+
+            // 🔒 安全检查：未登录不允许打开助手面板
+            if (!assistantPanelOpen) {
+                try {
+                    const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
+                    if (!session?.user) {
+                        showToast('请先登录后再使用小卷助手');
+                        return;
+                    }
+                } catch (e) {
+                    showToast('请先登录后再使用小卷助手');
+                    return;
+                }
+            }
 
             assistantPanelOpen = !assistantPanelOpen;
 
@@ -6156,9 +6326,15 @@
                 showToast('✅ 开始下载原图');
             } catch (e) {
                 console.error('[saveImageHD]', e);
-                // 最终降级：新窗口打开
-                window.open(src, '_blank');
-                showToast('已在新窗口打开，请长按保存');
+                // 最终降级：iframe方式强制下载（避免打开新窗口）
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = src;
+                document.body.appendChild(iframe);
+                setTimeout(() => {
+                    try { document.body.removeChild(iframe); } catch (e) {}
+                }, 3000);
+                showToast('开始下载原图');
             }
         }
 
@@ -6334,7 +6510,7 @@
             'kling-2.5-1080p-10s': { cost: 17, label: '17胶片', warning: null },
             'kling-2.0-720p-10s': { cost: 14, label: '14胶片', warning: null },
             'kling-2.0-1080p-10s': { cost: 24, label: '24胶片', warning: null },
-            'kling-o1-720p-10s': { cost: 31, label: '31胶片', warning: '⚠️ 这是高价模型，请确��您确实需要！' },
+            'kling-o1-720p-10s': { cost: 31, label: '31胶片', warning: '⚠️ 这是高价模型，请确保您确实需要！' },
             'kling-o1-1080p-10s': { cost: 41, label: '41胶片', warning: '⚠️ 这是高价模型，请确认您确实需要！' },
             'grok-video-3-text': { cost: 5, label: '5胶片', warning: null },
             'grok-video-3': { cost: 5, label: '5胶片', warning: null },
@@ -6397,6 +6573,10 @@
             // 🎯 网格图模式与普通模式切换
             const normalOptions = document.getElementById('normalModeOptions');
             const gridOptions = document.getElementById('gridModeOptions');
+            
+            // 🆕 宫格切割按钮：始终显示（已移至 videoOptionsSection，不依赖模式）
+            // 按钮已不在 imageUploadSection 内，无需根据模式切换显示
+
             if (normalOptions && gridOptions) {
                 if (mode === 'banana-grid-to-video') {
                     normalOptions.style.display = 'none';
@@ -6870,7 +7050,7 @@ Output must look like a frame from a Japanese anime series. The character should
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt: sketchPrompt,
-                        model: 'nano-banana-2',  // 使用 Gemini-3 图生图
+                        model: 'gpt-image-2-all',  // 使用 GPT-Image 图生图
                         image_url: imageUrl,
                         aspect_ratio: '16:9',
                         userId
@@ -7273,7 +7453,7 @@ Output must look like a frame from a Japanese anime series. The character should
 
         // ==================== 商用级视频提示词优化系统 ====================
         /**
-            � 商用         化器
+            优 商用         化器
          * 支持所有主         2, Runway, Veo3, Grok Video, Kling等
          * 核心功能:           * 1. 智能                 * 2. 文化               * 3. 图生                * 4. 防止         
          * 5. 动态                */
@@ -7619,7 +7799,7 @@ ${isGrok10s ? '- NO CUT-OFF: 绝对禁止动作/语音进行中突然截断\n- N
 
 =════ ☑️ 必须包含 ═════
 - 角色持续动作（走动、手势、表情变化）
-- ��头持续运动（tracking/dolly/crane/orbit）
+- 镔头持续运动（tracking/dolly/crane/orbit）
 ${isGrok10s ? '- 完整的动作弧线（开始→进行→完成）\n- 自然的结束姿态（定格/远去/淡出）' : '- 快节奏剪辑感（每3-5秒一个动作变化）'}
 - 动态环境元素（风/光影/粒子）
 
@@ -7764,11 +7944,11 @@ ${isGrok10s ? `- 【强制】10秒视频：所有语音必须在第8秒前完成
             console.log('[mobile] 开始生成视频，生成模式:', genMode, '分镜数:', sceneCount);
 
             // 🖼️ 检测是否为图生视频模式
-            const isImageToVideo = genMode.includes('image-to-video') || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-') || genMode === 'banana-image-to-video' || genMode === 'banana-grid-to-video';
+            const isImageToVideo = genMode && (genMode.includes('image-to-video') || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-') || genMode === 'banana-image-to-video' || genMode === 'banana-grid-to-video');
 
-            // 🆕 多图合并支持：如果有多张图片，先合并再生成
+            // 🆕 多图合并支持：如果有多张图片，先合并再生成（无论选择什么模型，只要用户上传了参考图就处理）
             let finalImageData = i2vImageData;
-            if (isImageToVideo && i2vImageDataList.length > 1) {
+            if (i2vImageDataList.length > 1) {
                 showLoading('🖼️ 正在合并参考图片...');
                 const mergeMode = document.getElementById('i2vMergeMode')?.value || 'grid';
                 try {
@@ -7779,12 +7959,14 @@ ${isGrok10s ? `- 【强制】10秒视频：所有语音必须在第8秒前完成
                     showToast('图片合并失败，使用第一张图片');
                     finalImageData = i2vImageDataList[0];
                 }
-            } else if (isImageToVideo && i2vImageDataList.length === 1) {
+            } else if (i2vImageDataList.length === 1) {
                 finalImageData = i2vImageDataList[0];
             }
 
-            let hasReferenceImage = isImageToVideo && finalImageData;
-            console.log('[mobile] 图生视频模式:', isImageToVideo, '有参考图:', hasReferenceImage, '图片数量:', i2vImageDataList.length);
+            // 🔧 修复：只要有参考图上传，就标记为 hasReferenceImage，不局限于图生视频模式
+            // 这样即使选择文生视频模型（如Veo 3.1），参考图也能被传递到API
+            let hasReferenceImage = !!finalImageData;
+            console.log('[mobile] 图生视频模式:', isImageToVideo, '有参考图:', hasReferenceImage, '图片数量:', i2vImageDataList.length, 'finalImageData存在:', !!finalImageData);
 
             // 👤 构建角色描述（如果有选中角色）
             let characterPrompt = '';
@@ -7961,7 +8143,7 @@ ${characterPrompt}
 
             if (sceneCount > 1) {
                 // 尝试多种格式匹配
-                let sceneMatches = idea.script.match(/【场��\d+】[^【]*/g);
+                let sceneMatches = idea.script.match(/【场景\d+】[^【]*/g);
                 if (!sceneMatches || sceneMatches.length === 0) {
                     // 尝试匹配 "场景X：" 或 "场景X:" 格式
                     sceneMatches = idea.script.match(/场景\d+[：:][^场景【]*/gi);
@@ -8147,8 +8329,8 @@ ${panelDescriptions.join('\n')}
 
             // 🖼️ 普通图生视频：若无参考图，则基于"剧本+优化分镜"生成一张与剧本匹配的参考图
             // 🔧 排除文生视频模式（-text 结尾）：文生视频不需要生成参考图
-            const _isGrokImageMode = genMode.startsWith('grok-video-3') && !genMode.endsWith('-text');
-            const _needAutoImage = genMode === 'image-to-video' || genMode === 'banana-image-to-video' || _isGrokImageMode || (genMode.startsWith('wan26-') && !genMode.endsWith('-text'));
+            const _isGrokImageMode = genMode && genMode.startsWith('grok-video-3') && !genMode.endsWith('-text');
+            const _needAutoImage = genMode && (genMode === 'image-to-video' || genMode === 'banana-image-to-video' || _isGrokImageMode || (genMode.startsWith('wan26-') && !genMode.endsWith('-text')));
             if (!finalImageData && _needAutoImage) {
                 console.log('[mobile] 普通图生视频，剧本已生成，开始根据剧本生成参考图...');
                 showLoading('🖼️ 正在根据剧本生成参考图片...');
@@ -8492,7 +8674,7 @@ ${panelDescriptions.join('\n')}
             baseRequestBody.userId = idea.userId;
 
             // 🎭 如果有 Sora2 固定角色，添加到请求体（支持多角色）- 仅给Sora2模型使用
-            if (!genMode.startsWith('wan26-') && !genMode.startsWith('grok-video') && idea.sora2Characters && idea.sora2Characters.length > 0) {
+            if (genMode && !genMode.startsWith('wan26-') && !genMode.startsWith('grok-video') && idea.sora2Characters && idea.sora2Characters.length > 0) {
                 // 多角色：传递 username 数组，后端会自动注入 @username 前缀到 prompt
                 const usernames = idea.sora2Characters.map(c => c.username).filter(Boolean);
                 if (usernames.length > 0) {
@@ -8553,7 +8735,7 @@ ${panelDescriptions.join('\n')}
                 let scenePrompt;
 
                 // 🔑 图生视频：必须“按剧本动起来”+“严格保持参考图人物/风格不变”
-                const isImageToVideoMode = currentPanelImageUrl && (genMode === 'image-to-video' || genMode === 'banana-grid-to-video' || genMode === 'banana-image-to-video' || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-'));
+                const isImageToVideoMode = currentPanelImageUrl && genMode && (genMode === 'image-to-video' || genMode === 'banana-grid-to-video' || genMode === 'banana-image-to-video' || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-'));
                 if (isImageToVideoMode) {
                     // 🎬 从剧本中提取具体动作指令
                     const scriptLine = (optimizedPrompts && optimizedPrompts[i]) || (scenePrompts && scenePrompts[i]) || idea.theme;
@@ -8610,7 +8792,7 @@ ${scriptLine}
 
                     // 🎨 为每个分镜设置对应的参考图
                     const requestBody = { ...baseRequestBody, prompt: scenePrompt };
-                    if (panelImageForThisTask && (genMode === 'banana-grid-to-video' || genMode === 'image-to-video' || genMode === 'banana-image-to-video' || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-'))) {
+                    if (panelImageForThisTask && genMode && (genMode === 'banana-grid-to-video' || genMode === 'image-to-video' || genMode === 'banana-image-to-video' || genMode.startsWith('grok-video-3') || genMode.startsWith('wan26-'))) {
                         requestBody.image_url = panelImageForThisTask;
                         requestBody.action = 'image-to-video';
                     }
@@ -8854,8 +9036,46 @@ ${scriptLine}
         }
 
         // ==================== 🖼️ 图片生成辅助函数 ====================
+
+        // 🔄 轮询 Midjourney 任务状态
+        async function pollMjTask(taskId, maxAttempts = 120, intervalMs = 5000) {
+            console.log(`🔄 [MJ] 开始轮询任务 ${taskId}，最多 ${maxAttempts} 次，间隔 ${intervalMs}ms`);
+            for (let i = 0; i < maxAttempts; i++) {
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'mj-poll',
+                            taskId: taskId
+                        })
+                    });
+                    const pollData = await res.json();
+                    console.log(`🔄 [MJ] 轮询 ${i + 1}/${maxAttempts}:`, pollData.status || '未知状态');
+
+                    if (pollData.success && (pollData.status === 'SUCCESS' || pollData.status === 'COMPLETED')) {
+                        console.log('✅ [MJ] 任务完成！');
+                        return {
+                            imageUrl: pollData.imageUrl || pollData.url || '',
+                            gridBase64: pollData.gridBase64 || '',
+                            taskId: taskId
+                        };
+                    } else if (pollData.status === 'FAILURE' || pollData.status === 'FAILED') {
+                        throw new Error(pollData.failReason || pollData.message || '任务失败');
+                    }
+
+                    // 等待后再次轮询
+                    await new Promise(r => setTimeout(r, intervalMs));
+                } catch (err) {
+                    console.warn(`🔄 [MJ] 轮询第 ${i + 1} 次出错:`, err.message);
+                    await new Promise(r => setTimeout(r, intervalMs));
+                }
+            }
+            throw new Error('轮询超时，请稍后通过历史记录查看结果');
+        }
+
         /**
-            � 切割         ey 2x2 网格图为4张独立图片
+            key 切割         ey 2x2 网格图为4张独立图片
          * @para         } gridImageData - 网格图 base64 或 URL
          * @returns {Promise<string[]>} 4张图片的 base64 数据
          */
@@ -8902,6 +9122,7 @@ ${scriptLine}
             const isSeedream = model && (model.includes('seedream') || model.includes('doubao-seedream') || model.includes('openrouter:bytedance-seed/seedream'));
             const isModelScope = model === 'modelscope';  // 🆓 免费智能绘图模型
             const isOpenRouterImage = model && model.startsWith('openrouter:');
+            const isGptImage = model && model.includes('gpt-image');  // 🤖 GPT-Image模型
 
             // 🔧 2026-01-20 统一路由策略：优先使用最稳定的 API
             // - Midjourney → /api/yunwu (必须用 yunwu，有专门的 MJ 轮询机制)
@@ -8951,7 +9172,7 @@ ${scriptLine}
                 }
 
                 // 尺寸转换
-                const sizeMap = { '1:1': '1024x1024', '16:9': '1920x1080', '9:16': '1080x1920', '4:3': '1024x768', '3:4': '768x1024' };
+                const sizeMap = { '1:1': '1024x1024', '16:9': '1920x1080', '9:16': '1080x1920', '4:3': '1024x768', '3:4': '768x1024', '21:9': '2560x1080' };
                 requestBody.size = sizeMap[aspectRatio] || '1024x1024';
             }
             // 🎭 Qwen万相Max模型特殊处理：支持单图和多图编辑
@@ -8992,6 +9213,19 @@ ${scriptLine}
                     requestBody.action = 'image';
                 }
             }
+            // 🤖 GPT-Image模型图生图模式：支持单图和多图
+            else if (isGptImage) {
+                // 多图参考模式（优先处理）
+                if (referenceImages && Array.isArray(referenceImages) && referenceImages.length >= 2) {
+                    requestBody.image_urls = referenceImages;
+                    console.log(`[mobile] 🤖 GPT-Image多图融合模式: ${referenceImages.length}张参考图`);
+                }
+                // 单图参考模式
+                else if (referenceImage) {
+                    requestBody.image_url = referenceImage;
+                    console.log('[mobile] 🤖 GPT-Image单图参考模式');
+                }
+            }
             // 🎨 其他模型（Banana/即梦等）图生图模式：支持单图和多图
             // 多图参考模式（优先处理）
             else if (referenceImages && Array.isArray(referenceImages) && referenceImages.length >= 2) {
@@ -9008,7 +9242,7 @@ ${scriptLine}
 
             // Midjourney 特有参数
             if (isMidjourney) {
-                requestBody.action = referenceImage ? 'midjourney-blend' : 'midjourney';
+                requestBody.action = referenceImage ? 'midjourney' : 'midjourney';
 
                 // 获取用户选择的版本
                 const mjVersionSelect = document.getElementById('mjVersion');
@@ -9019,9 +9253,10 @@ ${scriptLine}
                 }
 
                 // Midjourney 参考图权重（--iw 参数）
+                // 🔧 后端使用 image_url 参数接收参考图，不是 reference_url
                 if (referenceImage) {
                     requestBody.iw = 1.5;  // 图像权重 0.5-2，默认1
-                    requestBody.reference_url = referenceImage;
+                    requestBody.image_url = referenceImage;
                 }
             }
 
@@ -9041,8 +9276,8 @@ ${scriptLine}
                         timeoutMs = 240000;  // MJ 后端轮询可能需要3分钟
                     } else if (isSeedream && outputCount > 1) {
                         timeoutMs = 180000;  // 星梦批量模式
-                    } else if (isSeedream || isQwenImage) {
-                        timeoutMs = 180000;  // 🔧 星梦/万象单图（增加到180秒）
+                    } else if (isSeedream || isQwenImage || isGptImage) {
+                        timeoutMs = 180000;  // 🔧 星梦/万象/GPT-Image单图（增加到180秒）
                     }
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -9072,6 +9307,21 @@ ${scriptLine}
                             console.error('[mobile] 后端调试信息:', data.debug);
                         }
                         throw new Error(data.message || data.error);
+                    }
+
+                    // 🔧 MJ 需要轮询的情况（图生图等异步操作）
+                    if (isMidjourney && data.needPoll && data.taskId) {
+                        console.log(`[mobile] 🎨 MJ 任务已提交，开始轮询 taskId: ${data.taskId}`);
+                        showToast('Midjourney 任务已提交，正在生成...');
+                        const pollResult = await pollMjTask(data.taskId);
+                        if (pollResult.gridBase64) {
+                            data.gridBase64 = pollResult.gridBase64;
+                            data.taskId = pollResult.taskId || data.taskId;
+                        } else if (pollResult.imageUrl) {
+                            data.url = pollResult.imageUrl;
+                        } else {
+                            throw new Error('轮询完成但未获取到图片');
+                        }
                     }
 
                     // 提取图片 URL（支持多种API返回格式）
@@ -10066,10 +10316,12 @@ ${idea.theme}${characterPrompt}
                         copy[k] = v;
                     }
                 } else if (Array.isArray(v)) {
-                    copy[k] = v.slice(0, aggressive ? 5 : 10).map(item => {
+                    // 对数组进行智能处理：保留所有元素，不做切片限制！
+                    copy[k] = v.map(item => {
                         if (typeof item === 'object' && item !== null) {
                             const ic = {};
                             for (const [ik, iv] of Object.entries(item)) {
+                                // 只过滤掉 base64 字符串，保留 URL！
                                 if (typeof iv === 'string' && iv.startsWith('data:')) continue;
                                 if (typeof iv === 'string' && iv.length > maxText) ic[ik] = iv.substring(0, maxText) + '...';
                                 else ic[ik] = iv;
@@ -10250,12 +10502,18 @@ ${idea.theme}${characterPrompt}
                 if (idea.videoUrls.length > 1) {
                     showVideoPlayer(idea);
                 } else {
-                    // 单个视频直接打开
-                    window.open(idea.videoUrl, '_blank');
+                    // 单个视频直接下载
+                    const link = document.createElement('a');
+                    link.href = idea.videoUrl;
+                    link.download = `video_${idea.id || Date.now()}.mp4`;
+                    link.click();
                 }
             } else if (idea.type === 'video' && idea.videoUrl) {
                 // 兼容旧数据格式
-                window.open(idea.videoUrl, '_blank');
+                const link = document.createElement('a');
+                link.href = idea.videoUrl;
+                link.download = `video_${idea.id || Date.now()}.mp4`;
+                link.click();
             } else if (idea.type === 'comic') {
                 // 📖 漫画阅读: 翻页阅读器（优先），无分镜图时降级到网格视图
                 const panels = idea.panelImages || [];
@@ -10885,15 +11143,21 @@ ${idea.theme}${characterPrompt}
 
             } catch (e) {
                 console.warn('[download] fetch方式失败，尝试直接链接:', e.message);
-                // 回退到直接链接方式（可能被浏览器在新窗口打开）
+                // 回退到直接链接方式（强制下载而不是打开）
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = filename;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                // 移除 target='_blank' 避免浏览器在新标签页打开图片
+                // 使用 iframe 方式强制下载
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = url;
+                document.body.appendChild(iframe);
+                setTimeout(() => {
+                    try {
+                        document.body.removeChild(iframe);
+                    } catch (e) {}
+                }, 3000);
             }
         }
 
@@ -11469,12 +11733,33 @@ ${idea.theme}${characterPrompt}
                     
                     <div style="display:flex; flex-direction:column; gap:14px;">
                         <div>
+                            <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎵 音乐来源</label>
+                            <select id="mobileMVMusicSource" onchange="toggleMobileMusicSource()" style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
+                                <option value="ai" style="background:#1a1a2e;color:#fff;">🎵 AI创作音乐（歌词+曲）</option>
+                                <option value="upload" style="background:#1a1a2e;color:#fff;">📤 上传我的音频</option>
+                            </select>
+                        </div>
+                        
+                        <div id="mobileMVLyricsSection">
                             <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎤 歌词或主题</label>
                             <textarea id="mobileMVLyrics" placeholder="输入歌词或描述主题..." 
                                 style="width:100%; height:100px; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px; resize:none;"></textarea>
                         </div>
                         
-                        <div>
+                        <div id="mobileMVUploadSection" style="display:none;">
+                            <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">📤 上传音频文件</label>
+                            <input id="mobileMV_audioFile" type="file" accept="audio/*" onchange="onMobileAudioFileChange(this)" 
+                                style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:13px;">
+                            <div id="mobileMVAudioName" style="color:#10b981; font-size:11px; margin-top:3px; display:none;"></div>
+                        </div>
+                        
+                        <div id="mobileMVUploadDescSection" style="display:none;">
+                            <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">📝 音频描述（帮助AI匹配画面）</label>
+                            <textarea id="mobileMVAudioDesc" placeholder="描述这段音乐的风格、情绪、主题，例如：忧伤的钢琴曲，讲述离别的故事" 
+                                style="width:100%; height:70px; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px; resize:none;"></textarea>
+                        </div>
+                        
+                        <div id="mobileMVMusicStyleSection">
                             <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎼 音乐风格</label>
                             <select id="mobileMVStyle" style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
                                 <option value="pop" style="background:#1a1a2e;color:#fff;">🎵 流行 Pop</option>
@@ -11517,6 +11802,15 @@ ${idea.theme}${characterPrompt}
                         </div>
                         
                         <div>
+                            <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎬 视频生成模式</label>
+                            <select id="mobileMVVideoMode" onchange="updateMobileMVCost(); _toggleMVImageModel()" style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
+                                <option value="image2video" selected style="background:#1a1a2e;color:#fff;">🖼️→🎬 图生视频（推荐，分镜一致性高）</option>
+                                <option value="text2video" style="background:#1a1a2e;color:#fff;">📝→🎬 文生视频（创意更自由）</option>
+                            </select>
+                            <div id="mobileMVModeHint" style="color:#888; font-size:11px; margin-top:3px;">图生视频：先画分镜再生成，画面更连贯</div>
+                        </div>
+                        
+                        <div>
                             <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎬 视频模型</label>
                             <select id="mobileMVModel" onchange="updateMobileMVCost()" style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
                                 <option value="wan26-720p-15s" selected style="background:#1a1a2e;color:#fff;">⭐ Wan2.6 720p 15s 无声（推荐 7胶片）</option>
@@ -11525,11 +11819,32 @@ ${idea.theme}${characterPrompt}
                                 <option value="wan26-1080p-15s" style="background:#1a1a2e;color:#fff;">Wan2.6 1080p 15s 无声（13胶片）</option>
                                 <option value="wan26-1080p-10s" style="background:#1a1a2e;color:#fff;">Wan2.6 1080p 10s 无声（9胶片）</option>
                                 <option value="wan26-1080p-5s" style="background:#1a1a2e;color:#fff;">Wan2.6 1080p 5s 无声（5胶片）</option>
+                                <option value="wan26-720p-15s-audio" style="background:#1a1a2e;color:#fff;">Wan2.6 720p 15s 有声（10胶片）</option>
+                                <option value="wan26-720p-10s-audio" style="background:#1a1a2e;color:#fff;">Wan2.6 720p 10s 有声（7胶片）</option>
+                                <option value="wan26-720p-5s-audio" style="background:#1a1a2e;color:#fff;">Wan2.6 720p 5s 有声（4胶片）</option>
+                                <option value="wan26-1080p-15s-audio" style="background:#1a1a2e;color:#fff;">Wan2.6 1080p 15s 有声（20胶片）</option>
+                                <option value="wan26-1080p-10s-audio" style="background:#1a1a2e;color:#fff;">Wan2.6 1080p 10s 有声（14胶片）</option>
+                                <option value="wan26-1080p-5s-audio" style="background:#1a1a2e;color:#fff;">Wan2.6 1080p 5s 有声（7胶片）</option>
+                                <optgroup label="🌟 Grok Video（推荐）" style="background:#1a1a2e;color:#fff;">
+                                    <option value="grok-video-3" style="background:#1a1a2e;color:#fff;">Grok Video 6s（5胶片）</option>
+                                    <option value="grok-video-3-10s" style="background:#1a1a2e;color:#fff;">Grok Video 10s（8胶片）</option>
+                                    <option value="grok-video-3-15s" style="background:#1a1a2e;color:#fff;">Grok Video 15s（12胶片）</option>
+                                </optgroup>
+                                <optgroup label="🎬 Veo 3.1（高质量）" style="background:#1a1a2e;color:#fff;">
+                                    <option value="veo3.1" style="background:#1a1a2e;color:#fff;">Veo 3.1（30胶片）</option>
+                                    <option value="veo3.1-4K" style="background:#1a1a2e;color:#fff;">Veo 3.1 4K（30胶片）</option>
+                                    <option value="veo_3_1-lite-4K" style="background:#1a1a2e;color:#fff;">Veo 3.1 Lite 4K（9胶片）</option>
+                                </optgroup>
+                                <optgroup label="⚡ Seedance 2.0" style="background:#1a1a2e;color:#fff;">
+                                    <option value="seedance-t2v" style="background:#1a1a2e;color:#fff;">Seedance T2V（8胶片）</option>
+                                    <option value="seedance-i2v" style="background:#1a1a2e;color:#fff;">Seedance I2V（10胶片）</option>
+                                    <option value="seedance-ref" style="background:#1a1a2e;color:#fff;">Seedance Ref（12胶片）</option>
+                                </optgroup>
                             </select>
-                            <div style="color:#888; font-size:11px; margin-top:3px;">MV使用无声模型，音频来自Suno音乐</div>
+                            <div id="mobileMVAudioHint" style="color:#888; font-size:11px; margin-top:3px;">无声模型音频来自Suno，有声模型自带音效</div>
                         </div>
                         
-                        <div>
+                        <div id="mobileMVImageModelSection">
                             <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎨 生图模型</label>
                             <select id="mobileMVImageModel" onchange="updateMobileMVCost()" style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
                                 <option value="gemini-3.1-flash-image-preview-4k" style="background:#1a1a2e;color:#fff;">💎 Gemini Flash 4K（推荐 7胶片）</option>
@@ -11548,10 +11863,12 @@ ${idea.theme}${characterPrompt}
                                 <option value="midjourney-fast" style="background:#1a1a2e;color:#fff;">🎨 MJ Fast（2胶片）</option>
                                 <option value="midjourney-turbo" style="background:#1a1a2e;color:#fff;">⚡ MJ Turbo（2胶片）</option>
                                 <option value="midjourney-relax" style="background:#1a1a2e;color:#fff;">🐢 MJ Relax（2胶片）</option>
+                                <option value="gpt-image-2" style="background:#1a1a2e;color:#fff;">🤖 GPT-Image-2 官方（按量计费）</option>
+                                <option value="gpt-image-2-all" style="background:#1a1a2e;color:#fff;">🤖 GPT-Image-2-All（5胶片）</option>
                             </select>
                         </div>
                         
-                        <div>
+                        <div id="mobileMVVocalSection">
                             <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎤 声线类型</label>
                             <select id="mobileMVVocal" style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
                                 <option value="" style="background:#1a1a2e;color:#fff;">🧠 AI自动判断</option>
@@ -11595,6 +11912,7 @@ ${idea.theme}${characterPrompt}
             document.body.appendChild(modal);
             modal.addEventListener('click', (e) => { if (e.target === modal) closeMobileMVGenerator(); });
             modal.addEventListener('touchend', (e) => { if (e.target === modal) closeMobileMVGenerator(); });
+            _toggleMVImageModel();
         }
 
         function closeMobileMVGenerator() {
@@ -11602,9 +11920,51 @@ ${idea.theme}${characterPrompt}
             if (modal) modal.remove();
         }
 
+        function toggleMobileMusicSource() {
+            const source = document.getElementById('mobileMVMusicSource')?.value || 'ai';
+            const lyricsSection = document.getElementById('mobileMVLyricsSection');
+            const uploadSection = document.getElementById('mobileMVUploadSection');
+            const uploadDescSection = document.getElementById('mobileMVUploadDescSection');
+            const musicStyleSection = document.getElementById('mobileMVMusicStyleSection');
+            const vocalSection = document.getElementById('mobileMVVocalSection');
+            const audioHint = document.getElementById('mobileMVAudioHint');
+
+            if (source === 'upload') {
+                if (lyricsSection) lyricsSection.style.display = 'none';
+                if (uploadSection) uploadSection.style.display = 'block';
+                if (uploadDescSection) uploadDescSection.style.display = 'block';
+                if (musicStyleSection) musicStyleSection.style.display = 'none';
+                if (vocalSection) vocalSection.style.display = 'none';
+                if (audioHint) audioHint.textContent = '上传音频模式：Seedance音视频驱动，画面随音乐律动';
+            } else {
+                if (lyricsSection) lyricsSection.style.display = 'block';
+                if (uploadSection) uploadSection.style.display = 'none';
+                if (uploadDescSection) uploadDescSection.style.display = 'none';
+                if (musicStyleSection) musicStyleSection.style.display = 'block';
+                if (vocalSection) vocalSection.style.display = 'block';
+                if (audioHint) audioHint.textContent = '无声模型音频来自Suno，有声模型自带音效';
+            }
+            updateMobileMVCost();
+        }
+
+        function onMobileAudioFileChange(input) {
+            const nameEl = document.getElementById('mobileMVAudioName');
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                if (nameEl) {
+                    nameEl.textContent = '✅ ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + 'MB)';
+                    nameEl.style.display = 'block';
+                }
+            } else {
+                if (nameEl) nameEl.style.display = 'none';
+            }
+        }
+
         function updateMobileMVCost() {
             const vModel = document.getElementById('mobileMVModel')?.value || 'grok-video-3-15s';
             const iModel = document.getElementById('mobileMVImageModel')?.value || 'gemini-3.1-flash-image-preview-4k';
+            const musicSource = document.getElementById('mobileMVMusicSource')?.value; 'ai';
+            const isUpload = musicSource === 'upload';
             // 视频模型每段成本
             const vCosts = {
                 'grok-video-3-15s': 12, 'grok-video-3-10s': 8, 'grok-video-3': 5,
@@ -11631,14 +11991,30 @@ ${idea.theme}${characterPrompt}
             // Suno典型音乐时长120-240秒，段数上限8
             const estSegs = Math.min(8, Math.ceil(180 / segSec));
             const minSegs = Math.min(8, Math.ceil(120 / segSec));
-            // 歌词2 + 音乐9 + 角色设定2 + 场景分析1 + 宫格分镜图1张 + 封面图1张 + 每段视频(wan26-720p-15s)
-            const total = Math.ceil(2 + 9 + 2 + 1 + iPerSeg + iPerSeg + estSegs * mvVideoFilm);
-            const minTotal = Math.ceil(2 + 9 + 2 + 1 + iPerSeg + iPerSeg + minSegs * mvVideoFilm);
+            // AI\u6A21\u5F0F: \u6B4C\u8BCD2 + \u97F3\u4E509 + \u89D2\u8272\u8BBE\u5B9A2 + \u573A\u666F\u5206\u67901 + \u5BAB\u683C\u5206\u955C\u56FE1\u5F20 + \u5C01\u9762\u56FE1\u5F20 + \u6BCF\u6BB5\u89C6\u9891
+            // \u4E0A\u4F20\u6A21\u5F0F: \u97F3\u9891\u5206\u67902 + \u89D2\u8272\u8BBE\u5B9A2 + \u573A\u666F\u5206\u67901 + \u5BAB\u683C\u5206\u955C\u56FE1\u5F20 + \u5C01\u9762\u56FE1\u5F20 + \u6BCF\u6BB5\u89C6\u9891\uFF08\u65E0\u6B4C\u8BCD+\u97F3\u4E50\u8D39\uFF09
+            const aiExtra = isUpload ? 2 : (2 + 9);
+            const total = Math.ceil(aiExtra + 2 + 1 + iPerSeg + iPerSeg + estSegs * mvVideoFilm);
+            const minTotal = Math.ceil(aiExtra + 2 + 1 + iPerSeg + iPerSeg + minSegs * mvVideoFilm);
+            const modeLabel = isUpload ? '\u4E0A\u4F20\u97F3\u9891\u00B7Seedance\u9A71\u52A8' : 'AI\u97F3\u4E50\u00B7wan26\u65E0\u58F0';
             const costDiv = document.getElementById('mobileMVCost');
             if (costDiv) {
-                costDiv.innerHTML = `<span style="color:#a78bfa;">💰 预估成本:</span> <span style="color:#fbbf24; font-weight:600;">~${minTotal}-${total}胶片</span> <span style="color:#888;">(wan26无声·${minSegs}-${estSegs}段×15s·宫格分镜·上限8段)</span>`;
+                costDiv.innerHTML = `<span style="color:#a78bfa;">💰 预估成本:</span> <span style="color:#fbbf24; font-weight:600;">~${minTotal}-${total}胶片</span> <span style="color:#888;">(${modeLabel}·${minSegs}-${estSegs}段×15s·宫格分镜·上限8段)</span>`;
             } else {
                 console.warn('[mobile] 元素未找到: mobileMVCost');
+            }
+        }
+
+        function _toggleMVImageModel() {
+            const mode = document.getElementById('mobileMVVideoMode')?.value;
+            const imgSection = document.getElementById('mobileMVImageModelSection');
+            const hintDiv = document.getElementById('mobileMVModeHint');
+            if (mode === 'text2video') {
+                if (imgSection) imgSection.style.display = 'none';
+                if (hintDiv) hintDiv.textContent = '文生视频：直接从文字描述生成，无需分镜图';
+            } else {
+                if (imgSection) imgSection.style.display = '';
+                if (hintDiv) hintDiv.textContent = '图生视频：先画分镜再生成，画面更连贯';
             }
         }
 
@@ -11652,8 +12028,18 @@ ${idea.theme}${characterPrompt}
             const singerDesc = document.getElementById('mobileMVSinger')?.value?.trim();
             const mvStyle = document.getElementById('mobileMVVisualStyle')?.value || 'auto';
             const vocalType = document.getElementById('mobileMVVocal')?.value || '';
+            const musicSource = document.getElementById('mobileMVMusicSource')?.value || 'ai';
+            const videoMode = document.getElementById('mobileMVVideoMode')?.value || 'image2video';
+            const audioFileInput = document.getElementById('mobileMV_audioFile');
+            const audioFile = audioFileInput?.files?.[0] || null;
+            const audioDescription = document.getElementById('mobileMVAudioDesc')?.value?.trim() || '';
 
-            if (!lyrics) { showToast('请输入歌词或主题'); return; }
+            // 验证
+            if (musicSource === 'upload') {
+                if (!audioFile) { showToast('请上传音频文件'); return; }
+            } else {
+                if (!lyrics) { showToast('请输入歌词或主题'); return; }
+            }
 
             _mobileMVGenerating = true;
             const btn = document.getElementById('mobileMVBtn');
@@ -11701,35 +12087,50 @@ ${idea.theme}${characterPrompt}
             try {
                 // 优先使用技能系统（skill-presets.js 中的 ai_music_video）
                 if (typeof SkillManager !== 'undefined' && SkillManager.getById('ai_music_video')) {
-                    const description = singerDesc ? `${lyrics}（歌手：${singerDesc}）` : lyrics;
-                    // 将歌手性别/风格信息融入音乐标签，确保男歌手生成男声
+                    const isUploadMode = musicSource === 'upload';
+                    // AI模式用歌词+歌手描述，上传模式用音频描述
+                    const description = isUploadMode
+                        ? (audioDescription || '音乐MV')
+                        : (singerDesc ? `${lyrics}（歌手：${singerDesc}）` : lyrics);
+                    // 将歌手性别/风格信息融入音乐标签，确保男歌手生成男声（仅AI模式）
                     var _mvMusicTags = '';
-                    if (typeof _generateMusicTags === 'function') {
-                        _mvMusicTags = _generateMusicTags(description + ' ' + (musicStyle || ''), 'song');
-                    } else {
-                        // 兜底：基础风格映射 + 性别检测
-                        var _styleMap = { pop: 'pop, melodic', rock: 'rock, guitar', electronic: 'electronic, synth', ballad: 'ballad, emotional', hiphop: 'hip-hop, rap', chinese: 'chinese folk, traditional', jazz: 'jazz, smooth, blues', rnb: 'r&b, soul', folk: 'folk, acoustic guitar', country: 'country, acoustic', reggae: 'reggae', latin: 'latin, bossa nova', cinematic: 'cinematic, epic, orchestral', ambient: 'ambient, calm, instrumental', metal: 'metal, heavy, guitar', punk: 'punk, energetic', classical: 'classical, orchestral, instrumental', dark: 'dark, atmospheric, gothic', instrumental: 'instrumental, piano, melodic' };
-                        _mvMusicTags = _styleMap[musicStyle] || 'pop';
-                    }
-                    // 声线类型注入（优先级高于歌手描述中的性别检测）
-                    var _vocalMap = { male: 'male vocal', female: 'female vocal', duet: 'male vocal, female vocal, duet', choir: 'choir, harmony, vocal group' };
-                    if (vocalType && _vocalMap[vocalType]) {
-                        _mvMusicTags += ', ' + _vocalMap[vocalType];
-                    } else if (singerDesc && /男/.test(singerDesc)) {
-                        _mvMusicTags += ', male vocal';
-                    } else if (singerDesc && /女/.test(singerDesc)) {
-                        _mvMusicTags += ', female vocal';
+                    if (!isUploadMode) {
+                        if (typeof _generateMusicTags === 'function') {
+                            _mvMusicTags = _generateMusicTags(description + ' ' + (musicStyle || ''), 'song');
+                        } else {
+                            // 兜底：基础风格映射 + 性别检测
+                            var _styleMap = { pop: 'pop, melodic', rock: 'rock, guitar', electronic: 'electronic, synth', ballad: 'ballad, emotional', hiphop: 'hip-hop, rap', chinese: 'chinese folk, traditional', jazz: 'jazz, smooth, blues', rnb: 'r&b, soul', folk: 'folk, acoustic guitar', country: 'country, acoustic', reggae: 'reggae', latin: 'latin, bossa nova', cinematic: 'cinematic, epic, orchestral', ambient: 'ambient, calm, instrumental', metal: 'metal, heavy, guitar', punk: 'punk, energetic', classical: 'classical, orchestral, instrumental', dark: 'dark, atmospheric, gothic', instrumental: 'instrumental, piano, melodic' };
+                            _mvMusicTags = _styleMap[musicStyle] || 'pop';
+                        }
+                        // 声线类型注入（优先级高于歌手描述中的性别检测）
+                        var _vocalMap = { male: 'male vocal', female: 'female vocal', duet: 'male vocal, female vocal, duet', choir: 'choir, harmony, vocal group' };
+                        if (vocalType && _vocalMap[vocalType]) {
+                            _mvMusicTags += ', ' + _vocalMap[vocalType];
+                        } else if (singerDesc && /男/.test(singerDesc)) {
+                            _mvMusicTags += ', male vocal';
+                        } else if (singerDesc && /女/.test(singerDesc)) {
+                            _mvMusicTags += ', female vocal';
+                        }
                     }
                     const mvResults = [];
-                    const result = await SkillManager.execute('ai_music_video', {
+                    const skillParams = {
                         description: description,
-                        musicTags: _mvMusicTags,
+                        musicTags: _mvMusicTags || '',
                         mvStyle: mvStyle,
-                        segments: 8,
+                        mvNarrative: 'story',
+                        segments: 0,
                         aspectRatio: '16:9',
                         videoModel: videoModel || 'wan26-720p-15s',
-                        imageModel: imageModel || 'gemini-3.1-flash-image-preview-4k'
-                    }, {
+                        imageModel: imageModel || 'gemini-3.1-flash-image-preview-4k',
+                        musicSource: musicSource,
+                        audioDescription: audioDescription || '',
+                        videoMode: videoMode || 'image2video'
+                    };
+                    // 上传模式传入音频文件
+                    if (isUploadMode && audioFile) {
+                        skillParams.audioFile = audioFile;
+                    }
+                    const result = await SkillManager.execute('ai_music_video', skillParams, {
                         onProgress: (stage, percent, msg) => _updateMVProgress(stage, percent, msg),
                         onStepComplete: (step, data) => console.log('[MobileMV] 步骤完成:', step, data)
                     });
@@ -11842,9 +12243,78 @@ ${idea.theme}${characterPrompt}
                 showToast('✅ 已保存到手机');
             } catch (e) {
                 console.warn('[MV下载]', e.message);
-                // 兜底：新窗口打开，让用户长按保存
-                window.open(url, '_blank');
-                showToast('请长按视频/音频保存到手机');
+                // 兜底：iframe方式强制下载（避免打开新窗口）
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = url;
+                document.body.appendChild(iframe);
+                setTimeout(() => {
+                    try { document.body.removeChild(iframe); } catch (e) {}
+                }, 3000);
+                showToast('开始下载到手机');
+        }
+    }
+
+    async function _downloadAllMVSegments() {
+        const cache = window._mvResultCache;
+        if (!cache || !cache.segments || cache.segments.length === 0) {
+            showToast('没有可下载的视频片段');
+            return;
+        }
+        
+        showToast('⏳ 开始下载全部视频片段...');
+        
+        let successCount = 0;
+        for (let i = 0; i < cache.segments.length; i++) {
+            const seg = cache.segments[i];
+            if (!seg.videoUrl) continue;
+            
+            try {
+                const segNum = seg.segment || (i + 1);
+                showToast(`⏳ 下载第 ${segNum}/${cache.segments.length} 个片段...`);
+                await _mvSaveFile(seg.videoUrl, `mv-segment-${segNum}.mp4`);
+                successCount++;
+                // 间隔一下防止浏览器拦截
+                await new Promise(r => setTimeout(r, 500));
+            } catch (e) {
+                console.warn('[MV全部下载] 片段下载失败:', e.message);
+            }
+        }
+        
+        showToast(`✅ 下载完成！成功下载 ${successCount}/${cache.segments.length} 个片段`);
+    }
+
+        async function _tryLocalMerge() {
+            const cache = window._mvResultCache;
+            if (!cache || !cache.segments || cache.segments.length === 0) {
+                showToast('没有可合成的视频片段');
+                return;
+            }
+            const statusDiv = document.getElementById('_localMergeStatus');
+            if (statusDiv) statusDiv.textContent = '⏳ 正在加载合成引擎...';
+            try {
+                if (typeof window.mergeMVWithAudio !== 'function') {
+                    showToast('合成引擎未加载');
+                    return;
+                }
+                const videoUrls = cache.segments.map(s => s.videoUrl).filter(Boolean);
+                const audioUrl = cache.audioUrl || window._mvResultCache?.audioUrl;
+                if (!audioUrl) { showToast('没有音频'); return; }
+                if (statusDiv) statusDiv.textContent = '⏳ 正在合成，请稍候...';
+                const result = await window.mergeMVWithAudio(videoUrls, audioUrl, (p, msg) => {
+                    if (statusDiv) statusDiv.textContent = `${msg} (${p}%)`;
+                });
+                if (result && result.url) {
+                    cache.mergedUrl = result.url;
+                    if (statusDiv) statusDiv.innerHTML = '✅ 合成成功！<a href="' + result.url + '" download="music-mv-full.mp4" style="color:#a78bfa; font-weight:600;">📥 点击下载完整MV</a>';
+                    showToast('🎉 MV合成成功！');
+                } else {
+                    if (statusDiv) statusDiv.textContent = '❌ 合成未返回结果';
+                }
+            } catch (e) {
+                console.warn('[MV本地合成]', e.message);
+                if (statusDiv) statusDiv.textContent = '❌ 合成失败: ' + e.message;
+                showToast('合成失败: ' + e.message);
             }
         }
 
@@ -11853,28 +12323,42 @@ ${idea.theme}${characterPrompt}
             if (!modal) return;
             // 在模态框内展示完整结果，替换原有进度区
             const allSegments = result?.segments || [];
-            const segments = allSegments.filter(s => s.videoUrl);
+            const videoSegments = allSegments.filter(s => s.videoUrl);
+            const imageSegments = allSegments.filter(s => s.imageUrl);
             const mergedUrl = result?.mergedMVUrl || (result?.mergedMVBlob ? URL.createObjectURL(result.mergedMVBlob) : '');
             const lyrics = result?.lyrics || '';
             const musicTitle = result?.music?.title || 'AI Music';
             const musicCover = coverUrl || result?.music?.coverUrl || '';
-            const successCount = segments.length;
+            const videoCount = videoSegments.length;
+            const imageCount = imageSegments.length;
             const totalCount = allSegments.length;
             // 缓存所有URL供下载按钮使用
-            window._mvResultCache = { mergedUrl, audioUrl, segments, musicTitle };
+            window._mvResultCache = { mergedUrl, audioUrl, segments: videoSegments, allSegments, musicTitle };
 
             let html = '<div style="max-height:70vh; overflow-y:auto; padding:4px;">';
 
             // 标题
             html += `<div style="text-align:center; margin-bottom:12px;">
                 <div style="color:#4ade80; font-size:16px; font-weight:700;">🎉 MV生成完成！</div>
-                <div style="color:#888; font-size:12px; margin-top:4px;">${musicTitle} · ${successCount}/${totalCount}段视频</div>
+                <div style="color:#888; font-size:12px; margin-top:4px;">${musicTitle} · ${videoCount}/${totalCount}段视频 · ${imageCount}张分镜图</div>
             </div>`;
 
             // 封面
             if (musicCover) {
                 html += `<div style="text-align:center; margin-bottom:12px;">
                     <img src="${musicCover}" style="max-width:100%; max-height:160px; border-radius:10px; object-fit:cover;" alt="MV封面">
+                </div>`;
+            }
+
+            // 宫格分镜原图（如果有）
+            const anchorUrl = result?.styleAnchorUrl || '';
+            if (anchorUrl) {
+                html += `<div style="margin-bottom:14px; background:rgba(251,191,36,0.1); border-radius:10px; padding:10px;">
+                    <div style="color:#fbbf24; font-size:12px; font-weight:600; margin-bottom:6px;">🖼️ 宫格分镜原图</div>
+                    <img src="${anchorUrl}" style="width:100%; border-radius:8px;" alt="宫格分镜图" onclick="window.open(this.src,'_blank')">
+                    <div style="margin-top:6px; text-align:center;">
+                        <button onclick="_mvSaveFile('${anchorUrl}','mv-storyboard.png')" style="padding:4px 12px; background:#fbbf24; color:#000; border-radius:6px; border:none; font-size:11px; font-weight:600; cursor:pointer;">📥 保存分镜图</button>
+                    </div>
                 </div>`;
             }
 
@@ -11885,6 +12369,18 @@ ${idea.theme}${characterPrompt}
                     <video src="${mergedUrl}" controls playsinline style="width:100%; max-height:220px; border-radius:8px; background:#000;"></video>
                     <div style="margin-top:6px; text-align:center;">
                         <button onclick="_mvSaveFile(window._mvResultCache.mergedUrl,'music-mv-full.mp4')" style="padding:6px 14px; background:linear-gradient(135deg,#8b5cf6,#ec4899); color:#fff; border-radius:8px; border:none; font-size:12px; font-weight:600; cursor:pointer;">📥 保存完整MV到手机</button>
+                    </div>
+                </div>`;
+            }
+            
+            // 🎯 主要方案：下载全部片段+音乐，推荐用剪映等剪辑软件拼接
+            if (videoSegments.length > 0 && audioUrl) {
+                html += `<div style="margin-bottom:14px; background:rgba(34,197,94,0.1); border-radius:10px; padding:10px; text-align:center;">
+                    <div style="color:#22c55e; font-size:12px; font-weight:600; margin-bottom:6px;">✨ 推荐方案：下载全部素材自己剪</div>
+                    <div style="color:#888; font-size:11px; margin-bottom:8px;">下载所有视频片段和音乐，用剪映/快影/必剪等软件拼接，最灵活最稳定</div>
+                    <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                        <button onclick="_downloadAllMVSegments()" style="padding:8px 14px; background:linear-gradient(135deg,#8b5cf6,#ec4899); color:#fff; border-radius:8px; border:none; font-size:12px; font-weight:600; cursor:pointer;">📥 下载全部视频片段</button>
+                        <button onclick="_mvSaveFile(window._mvResultCache.audioUrl, window._mvResultCache.musicTitle+'.mp3')" style="padding:8px 14px; background:#3b82f6; color:#fff; border-radius:8px; border:none; font-size:12px; font-weight:600; cursor:pointer;">🎵 下载音乐</button>
                     </div>
                 </div>`;
             }
@@ -11903,26 +12399,50 @@ ${idea.theme}${characterPrompt}
             // 各段视频片段（显示所有段，包括失败的）
             if (allSegments.length > 0) {
                 html += `<div style="margin-bottom:14px;">
-                    <div style="color:#a78bfa; font-size:13px; font-weight:600; margin-bottom:8px;">🎬 视频片段 (${successCount}/${totalCount}段成功)</div>`;
-                allSegments.forEach((seg, idx) => {
-                    const segNum = seg.segment || idx + 1;
-                    const hasSeg = !!seg.videoUrl;
-                    const segIdx = hasSeg ? segments.indexOf(seg) : -1;
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="color:#a78bfa; font-size:13px; font-weight:600;">🎬 视频片段 (${videoCount}/${totalCount}段成功)</span>
+                        ${videoCount > 0 ? `<button onclick="_downloadAllMVSegments()" style="padding:6px 12px; background:linear-gradient(135deg,#8b5cf6,#ec4899); color:#fff; border-radius:6px; border:none; font-size:11px; font-weight:600; cursor:pointer;">📥 全部下载</button>` : ''}
+                    </div>`;
+                videoSegments.forEach((seg, idx) => {
+                    const segNum = seg.segment || (allSegments.indexOf(seg) + 1);
+                    const globalIdx = allSegments.indexOf(seg);
                     html += `<div style="margin-bottom:10px; background:rgba(255,255,255,0.05); border-radius:8px; padding:8px;">
-                        <div style="color:${hasSeg ? '#ccc' : '#f87171'}; font-size:11px; margin-bottom:4px;">第${segNum}段 · ${seg.section || ''} ${hasSeg ? '' : '❌ 生成失败'}</div>`;
-                    if (hasSeg) {
-                        html += `<video src="${seg.videoUrl}" controls playsinline style="width:100%; max-height:180px; border-radius:6px; background:#000;"></video>
+                        <div style="color:#4ade80; font-size:11px; margin-bottom:4px;">第${segNum}段 · ${seg.section || ''} ✅</div>`;
+                    html += `<video src="${seg.videoUrl}" controls playsinline style="width:100%; max-height:180px; border-radius:6px; background:#000;"></video>
                         <div style="display:flex; gap:6px; margin-top:4px;">
-                            <button onclick="_mvSaveFile(window._mvResultCache.segments[${segIdx}].videoUrl,'mv-segment-${segNum}.mp4')" style="padding:4px 10px; background:#333; color:#ccc; border-radius:6px; border:none; font-size:11px; cursor:pointer;">📥 保存片段</button>
-                            ${seg.imageUrl ? `<button onclick="_mvSaveFile(window._mvResultCache.segments[${segIdx}].imageUrl,'mv-frame-${segNum}.png')" style="padding:4px 10px; background:#333; color:#ccc; border-radius:6px; border:none; font-size:11px; cursor:pointer;">🖼️ 保存画面</button>` : ''}
+                            <button onclick="_mvSaveFile(window._mvResultCache.segments[${idx}].videoUrl,'mv-segment-${segNum}.mp4')" style="padding:4px 10px; background:#333; color:#ccc; border-radius:6px; border:none; font-size:11px; cursor:pointer;">📥 保存视频</button>
+                            ${seg.imageUrl ? `<button onclick="_mvSaveFile(window._mvResultCache.allSegments[${globalIdx}].imageUrl,'mv-frame-${segNum}.png')" style="padding:4px 10px; background:#333; color:#ccc; border-radius:6px; border:none; font-size:11px; cursor:pointer;">🖼️ 保存画面</button>` : ''}
                         </div>`;
-                    } else if (seg.imageUrl) {
-                        html += `<img src="${seg.imageUrl}" style="width:100%; max-height:180px; border-radius:6px; object-fit:cover;" alt="分镜图">
-                        <div style="color:#888; font-size:11px; margin-top:4px;">${seg.error || '视频生成失败，仅有分镜图'}</div>`;
-                    } else {
-                        html += `<div style="color:#888; font-size:11px;">${seg.error || '视频和图片均生成失败'}</div>`;
-                    }
                     html += `</div>`;
+                });
+                html += '</div>';
+            }
+
+            // 🖼️ 分镜图片展示（所有生成的图片，花钱了必须能看到）
+            if (imageSegments.length > 0) {
+                html += `<div style="margin-bottom:14px;">
+                    <div style="color:#fbbf24; font-size:13px; font-weight:600; margin-bottom:8px;">🖼️ 分镜图片 (${imageCount}张)</div>`;
+                imageSegments.forEach((seg, idx) => {
+                    const segNum = seg.segment || (allSegments.indexOf(seg) + 1);
+                    const hasVideo = !!seg.videoUrl;
+                    const globalIdx = allSegments.indexOf(seg);
+                    html += `<div style="margin-bottom:8px; background:rgba(255,255,255,0.05); border-radius:8px; padding:6px; display:inline-block; width:48%; vertical-align:top; margin-right:2%;">
+                        <div style="color:${hasVideo ? '#4ade80' : '#f87171'}; font-size:10px; margin-bottom:3px;">第${segNum}段 · ${seg.section || ''} ${hasVideo ? '✅' : '❌ 视频未生成'}</div>
+                        <img src="${seg.imageUrl}" style="width:100%; max-height:140px; border-radius:6px; object-fit:cover; cursor:pointer;" alt="分镜${segNum}" onclick="window.open(this.src,'_blank')">
+                        <button onclick="_mvSaveFile(window._mvResultCache.allSegments[${globalIdx}].imageUrl,'mv-frame-${segNum}.png')" style="margin-top:3px; padding:3px 8px; background:#333; color:#ccc; border-radius:4px; border:none; font-size:10px; cursor:pointer;">📥 保存</button>
+                    </div>`;
+                });
+                html += '</div><div style="clear:both;"></div>';
+            }
+
+            // 失败段落提示
+            const failedSegs = allSegments.filter(s => !s.videoUrl && !s.imageUrl);
+            if (failedSegs.length > 0) {
+                html += `<div style="margin-bottom:14px; background:rgba(248,113,113,0.1); border-radius:10px; padding:8px;">
+                    <div style="color:#f87171; font-size:12px; font-weight:600; margin-bottom:4px;">❌ 失败段落 (${failedSegs.length}段)</div>`;
+                failedSegs.forEach((seg, idx) => {
+                    const segNum = seg.segment || (allSegments.indexOf(seg) + 1);
+                    html += `<div style="color:#888; font-size:11px; margin-bottom:2px;">第${segNum}段: ${seg.error || '生成失败'}</div>`;
                 });
                 html += '</div>';
             }
@@ -11955,6 +12475,9 @@ ${idea.theme}${characterPrompt}
             }
         }
         window.openMobileMVGenerator = openMobileMVGenerator;
+        window.closeMobileMVGenerator = closeMobileMVGenerator;
+        window.toggleMobileMusicSource = toggleMobileMusicSource;
+        window.onMobileAudioFileChange = onMobileAudioFileChange;
 
         // ==================== 🧩 手机版技能面板 ====================
         let _mobileSkillCat = 'all';
@@ -12075,6 +12598,34 @@ ${idea.theme}${characterPrompt}
             _chLoadData();
         }
 
+        // 通用代理fetch（解决浏览器CORS限制）
+        async function _chProxyFetch(url, opts = {}) {
+            try {
+                const ctrl = new AbortController();
+                const t = setTimeout(() => ctrl.abort(), opts.timeout || 8000);
+                const resp = await fetch('/api/proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        apiType: 'public-api',
+                        action: 'external-fetch',
+                        url: url,
+                        method: opts.method || 'GET',
+                        headers: opts.headers || {},
+                        timeout: opts.timeout || 8000
+                    }),
+                    signal: ctrl.signal
+                });
+                clearTimeout(t);
+                const j = await resp.json();
+                if (j.success && j.ok) {
+                    try { return JSON.parse(j.data); }
+                    catch { return j.data; }
+                }
+                throw new Error(j.error || 'HTTP ' + j.status);
+            } catch (e) { throw e; }
+        }
+
         async function _chLoadData() {
             const body = document.getElementById('chBody');
             const loading = document.getElementById('chLoading');
@@ -12175,14 +12726,13 @@ ${idea.theme}${characterPrompt}
 
             let contests = [];
 
-            // 并行获取真实数据
+            // 并行获取真实数据（通过代理避免CORS）
             const fetchKaggle = async () => {
                 try {
-                    const resp = await fetch('https://www.kaggle.com/api/v1/competitions/list?group=general&sortBy=prize&page=1', {
-                        headers: { 'User-Agent': 'Mozilla/5.0' }
+                    const data = await _chProxyFetch('https://www.kaggle.com/api/v1/competitions/list?group=general&sortBy=prize&page=1', {
+                        headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 8000
                     });
-                    if (!resp.ok) return [];
-                    const data = await resp.json();
+                    if (!data || !Array.isArray(data)) return [];
                     return data.slice(0, 12).map(c => ({
                         id: 'kaggle_' + (c.id || c.ref),
                         platform: 'Kaggle',
@@ -12204,11 +12754,10 @@ ${idea.theme}${characterPrompt}
 
             const fetchHeywhale = async () => {
                 try {
-                    const resp = await fetch('https://www.heywhale.com/api/competitions?status=ongoing&page=1&pageSize=10', {
-                        headers: { 'User-Agent': 'Mozilla/5.0' }
+                    const json = await _chProxyFetch('https://www.heywhale.com/api/competitions?status=ongoing&page=1&pageSize=10', {
+                        headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 8000
                     });
-                    if (!resp.ok) return [];
-                    const json = await resp.json();
+                    if (!json) return [];
                     const list = json.data || json.result || [];
                     return list.slice(0, 10).map(c => ({
                         id: 'heywhale_' + c.id,
@@ -12235,14 +12784,13 @@ ${idea.theme}${characterPrompt}
             if (platform === 'all' || platform === 'kaggle') contests.push(...kaggle);
             if (platform === 'all' || platform === 'heywhale') contests.push(...heywhale);
 
-            // 天池 - 使用公开的竞赛列表页面获取（CORS可能有限制）
+            // 天池 - 通过代理获取（避免CORS限制）
             if (platform === 'all' || platform === 'tianchi') {
                 try {
-                    const resp = await fetch('https://tianchi.aliyun.com/competition/proxy/api/competitions/list?pageNo=1&pageSize=10&status=1', {
-                        headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json' }
+                    const json = await _chProxyFetch('https://tianchi.aliyun.com/competition/proxy/api/competitions/list?pageNo=1&pageSize=10&status=1', {
+                        headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json' }, timeout: 8000
                     });
-                    if (resp.ok) {
-                        const json = await resp.json();
+                    if (json) {
                         const list = json.data?.list || json.result || [];
                         contests.push(...list.slice(0, 10).map(c => ({
                             id: 'tianchi_' + c.competitionId,
@@ -12299,12 +12847,10 @@ ${idea.theme}${characterPrompt}
             const sortParam = sortBy === 'updated' ? 'updated' : 'stars';
 
             try {
-                const resp = await fetch('https://api.github.com/search/repositories?q=' + encodeURIComponent(query) + '&sort=' + sortParam + '&order=desc&per_page=20', {
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                const json = await _chProxyFetch('https://api.github.com/search/repositories?q=' + encodeURIComponent(query) + '&sort=' + sortParam + '&order=desc&per_page=20', {
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }, timeout: 10000
                 });
-
-                if (!resp.ok) throw new Error('GitHub API: ' + resp.status);
-                const json = await resp.json();
+                if (!json) throw new Error('GitHub API: 无响应');
                 const items = json.items || [];
 
                 if (items.length === 0) {
@@ -12590,15 +13136,20 @@ ${idea.theme}${characterPrompt}
             }
             // 关闭创作者资源中心
             closeCreatorHub();
-            // 将灵感提示词填入输入框
-            const textarea = document.getElementById('promptInput') || document.getElementById('promptTextarea');
-            if (textarea) {
-                textarea.value = item.prompt;
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                showToast('灵感已填入，可以开始创作');
-            } else {
-                showToast('请先进入创作页面');
-            }
+            // 自动切换到创作页面
+            if (typeof showTab === 'function') showTab('create');
+            // 延时等待页面切换完成，再将灵感提示词填入输入框
+            setTimeout(() => {
+                const textarea = document.getElementById('themeInput') || document.getElementById('promptInput') || document.getElementById('promptTextarea') || document.querySelector('.input-box');
+                if (textarea) {
+                    textarea.value = item.prompt;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    showToast('灵感已填入，可以开始创作');
+                } else {
+                    showToast('请先进入创作页面');
+                }
+            }, 300);
         }
 
         // ---- 事件绑定 ----
@@ -12866,6 +13417,14 @@ ${idea.theme}${characterPrompt}
             if (!skill) return;
             _mobileSkillSelected = skillId;
 
+            // 🔧 清理之前技能的图片/文件存储，防止残留数据
+            Object.keys(_mobileSkillImageStore).forEach(k => { _mobileSkillImageStore[k] = []; });
+            Object.keys(_mobileSkillFileStore).forEach(k => { _mobileSkillFileStore[k] = null; });
+
+            // 🔧 确保结果页已关闭
+            const prevResultPage = document.getElementById('skillResultPage');
+            if (prevResultPage) prevResultPage.classList.remove('show');
+
             const skillConfigTitle = document.getElementById('skillConfigTitle');
             if (skillConfigTitle) {
                 skillConfigTitle.textContent = `${skill.icon} ${skill.name}`;
@@ -12895,7 +13454,9 @@ ${idea.theme}${characterPrompt}
                             input = `<input type="number" id="msp_${p.key}" class="skill-param-input-m" value="${p.default || ''}" min="${p.min ?? ''}" max="${p.max ?? ''}">`;
                             break;
                         case 'select':
-                            input = `<select id="msp_${p.key}" class="skill-param-select-m">${(p.options || []).map(o => `<option value="${o.value}" ${o.value === p.default ? 'selected' : ''}>${o.label}</option>`).join('')}</select>`;
+                            // 为 videoModel 添加 change 事件监听器
+                            const changeHandler = p.key === 'videoModel' ? ' onchange="_handleVideoModelChange(this.value)"' : '';
+                            input = `<select id="msp_${p.key}" class="skill-param-select-m"${changeHandler}>${(p.options || []).map(o => `<option value="${o.value}" ${o.value === p.default ? 'selected' : ''}>${o.label}</option>`).join('')}</select>`;
                             break;
                         case 'checkbox':
                             input = `<label style="display:flex;align-items:center;gap:8px;color:#fff;font-size:14px;"><input type="checkbox" id="msp_${p.key}" ${p.default ? 'checked' : ''}> ${p.checkboxLabel || '启用'}</label>`;
@@ -12932,7 +13493,9 @@ ${idea.theme}${characterPrompt}
                             input = `<input type="text" id="msp_${p.key}" class="skill-param-input-m" placeholder="${p.placeholder || ''}" value="${p.default || ''}">`;
                     }
                     const hint = p.hint ? `<div class="skill-param-hint-m">${p.hint}</div>` : '';
-                    return `<div class="skill-param-group-m"><label class="skill-param-label-m">${p.label}${req}</label>${input}${hint}</div>`;
+                    // 为 imageModel 添加可识别的 id
+                    const groupId = p.key === 'imageModel' ? ' id="skill-param-group-imageModel"' : '';
+                    return `<div class="skill-param-group-m"${groupId}><label class="skill-param-label-m">${p.label}${req}</label>${input}${hint}</div>`;
                 }).join('');
             }
 
@@ -12955,6 +13518,34 @@ ${idea.theme}${characterPrompt}
                 skillExecBtn.innerHTML = '⚡ 开始执行';
             } else {
                 console.warn('[mobile] 元素未找到: skillExecBtn');
+            }
+
+            // 初始调用一次，根据默认选中的视频模型显示/隐藏生图模型
+            const videoModelEl = document.getElementById('msp_videoModel');
+            if (videoModelEl) {
+                _handleVideoModelChange(videoModelEl.value);
+            }
+        }
+
+        /**
+         * 处理视频模型变化，根据选择的模型显示/隐藏生图模型
+         * @param {string} videoModelValue - 选中的视频模型值
+         */
+        function _handleVideoModelChange(videoModelValue) {
+            const imageModelGroup = document.getElementById('skill-param-group-imageModel');
+            if (!imageModelGroup) return;
+
+            // 判断是否是文生视频模型（不需要生图）
+            const isTextToVideo = videoModelValue === 'text-to-video' || 
+                                  videoModelValue === 'grok-video-3-text' || 
+                                  videoModelValue === 'grok-video-3-10s-text' || 
+                                  videoModelValue === 'seedance-t2v' ||
+                                  (videoModelValue && videoModelValue.includes('text'));
+
+            if (isTextToVideo) {
+                imageModelGroup.style.display = 'none';
+            } else {
+                imageModelGroup.style.display = 'block';
             }
         }
 
@@ -13350,6 +13941,7 @@ ${idea.theme}${characterPrompt}
                         if (fillEl) fillEl.style.width = '100%';
                         if (pctEl) pctEl.textContent = '100%';
                         setTimeout(() => {
+                            dismissExecBar(); // 🆕 完成后自动隐藏进度条
                             console.log('[mobile] 准备调用 _mobileSkillShowResult, skill=', skill, 'result=', result);
                             _mobileSkillShowResult(skill, result);
                         }, 800);
@@ -13400,6 +13992,13 @@ ${idea.theme}${characterPrompt}
             }
         }
 
+        function dismissExecBar() {
+            const bar = document.getElementById('skillExecBar');
+            if (bar) {
+                bar.classList.remove('show');
+            }
+        }
+
         function _mobileSkillShowResult(skill, result) {
             console.log('[mobile] _mobileSkillShowResult 被调用, skill=', skill, 'result=', result);
             const sheet = document.getElementById('skillSheet');
@@ -13421,6 +14020,66 @@ ${idea.theme}${characterPrompt}
             let savedVideos = 0;
             let savedCharacters = 0;
             const _isValid = typeof isValidMediaUrl === 'function' ? isValidMediaUrl : (u => u && typeof u === 'string' && (u.startsWith('http') || u.startsWith('data:')));
+
+            // 🖼️ 图片数组结果 — 很多技能返回 { images: [{imageUrl, status, subject}, ...] }
+            if (result.images && Array.isArray(result.images) && result.images.length > 0) {
+                html += `<div style="margin-bottom:12px;"><div style="font-size:15px;color:var(--accent);font-weight:700;margin-bottom:10px;">🖼️ 生成图片</div>`;
+                for (const imgItem of result.images) {
+                    const imgUrl = imgItem.imageUrl || imgItem.url || imgItem;
+                    if (imgUrl && _isValid(imgUrl)) {
+                        html += `<div class="skill-result-item">
+                            <img src="${imgUrl}" class="skill-result-img" onclick="openImageViewer('${String(imgUrl).replace(/'/g, "\\'")}')" style="cursor:pointer;" loading="lazy">
+                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${imgItem.subject || imgItem.title || ''}</div>
+                            <button onclick="downloadImageFromUrl('${String(imgUrl).replace(/'/g, "\\'")}', '${(imgItem.title || 'image').replace(/[^\w\u4e00-\u9fa5]/g, '_')}.png')" style="display:block;width:100%;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
+                        </div>`;
+                        savedImages++;
+                    }
+                }
+                html += '</div>';
+            }
+
+            // 🎬 episodes 格式 — 连续剧情视频等技能返回 { episodes: [{episode, imageUrl, videoUrl, script, status}, ...] }
+            if (result.episodes && Array.isArray(result.episodes) && result.episodes.length > 0) {
+                html += `<div style="margin-bottom:12px;"><div style="font-size:15px;color:var(--accent);font-weight:700;margin-bottom:10px;">🎬 连续剧情视频</div>`;
+                for (const ep of result.episodes) {
+                    const epLabel = typeof ep.episode === 'number' ? `第${ep.episode}集` : ep.episode;
+                    const epStatus = ep.status === 'success' ? '✅' : '❌';
+                    html += `<div style="margin-bottom:16px;padding:10px;background:#1a1a2e;border-radius:8px;">`;
+                    html += `<div style="font-size:13px;color:#fff;margin-bottom:8px;">${epStatus} ${epLabel}</div>`;
+                    if (ep.imageUrl && _isValid(ep.imageUrl)) {
+                        html += `<img src="${ep.imageUrl}" style="width:100%;border-radius:6px;margin-bottom:8px;cursor:pointer;" onclick="openImageViewer('${String(ep.imageUrl).replace(/'/g, "\\'")}')">`;
+                    }
+                    if (ep.videoUrl && _isValid(ep.videoUrl)) {
+                        html += `<video src="${ep.videoUrl}" controls style="width:100%;border-radius:6px;margin-bottom:8px;"></video>`;
+                    }
+                    if (ep.script) {
+                        html += `<div style="font-size:11px;color:#888;white-space:pre-wrap;">${ep.script.substring(0, 200)}${ep.script.length > 200 ? '...' : ''}</div>`;
+                    }
+                    if (ep.error) {
+                        html += `<div style="font-size:11px;color:#f44;">错误: ${ep.error}</div>`;
+                    }
+                    html += `</div>`;
+                    if (ep.imageUrl) savedImages++;
+                }
+                html += '</div>';
+            }
+
+            // 🎨 自定义类型结果（items数组）— GPT Image 2模板等技能返回的图片列表
+            if (result.type === 'custom' && result.items && Array.isArray(result.items)) {
+                html += `<div style="margin-bottom:12px;"><div style="font-size:15px;color:var(--accent);font-weight:700;margin-bottom:10px;">${result.title || skillName}</div>`;
+                for (const item of result.items) {
+                    const imgUrl = item.imageUrl || item.url;
+                    if (imgUrl && _isValid(imgUrl)) {
+                        html += `<div class="skill-result-item">
+                            <img src="${imgUrl}" class="skill-result-img" onclick="openImageViewer('${imgUrl.replace(/'/g, "\\'")}')" style="cursor:pointer;" loading="lazy">
+                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${item.title || item.subject || ''}</div>
+                            <button onclick="downloadImageFromUrl('${imgUrl.replace(/'/g, "\\'")}', '${(item.title || 'image').replace(/[^\w\u4e00-\u9fa5]/g, '_')}.png')" style="display:block;width:100%;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
+                        </div>`;
+                        savedImages++;
+                    }
+                }
+                html += '</div>';
+            }
 
             // 📝 文本结果（兼容所有文本格式）
             const _textContent = result.content || result.ocrText || result.result || result.copyText || result.strategy || result.script || result.outline || result.recipe || result.optimizedPrompt || result.prompt || result.enhancedPrompt || null;
@@ -13473,39 +14132,71 @@ ${idea.theme}${characterPrompt}
             // 👤 角色设定包结果（characterName + assets）→ 保存到角色库
             if (result.characterName && result.assets) {
                 const assets = result.assets;
-                const posterUrl = assets.poster || assets.turnaround;
-                if (posterUrl && _isValid(posterUrl) && typeof saveCharacterToLibrary === 'function') {
+
+                // 🔧 展平 assets：createCharacterImageVariants 返回 [{type,label,url}] 数组，需展平为独立条目
+                const flatAssets = [];
+                Object.entries(assets).forEach(([key, val]) => {
+                    if (Array.isArray(val)) {
+                        val.forEach(item => {
+                            if (item && item.url && _isValid(item.url)) {
+                                flatAssets.push({ key: `${key}_${item.type || item.label || flatAssets.length}`, url: item.url, label: item.label || item.type || key });
+                            }
+                        });
+                    } else if (typeof val === 'string' && _isValid(val)) {
+                        flatAssets.push({ key, url: val, label: key });
+                    }
+                });
+
+                // 保存角色到角色库
+                const posterAsset = flatAssets.find(a => a.key.includes('poster')) || flatAssets[0];
+                if (posterAsset && typeof saveCharacterToLibrary === 'function') {
+                    const turnaroundAsset = flatAssets.find(a => a.key.includes('turnaround'));
                     saveCharacterToLibrary(
                         result.characterName, '',
-                        posterUrl, null,
-                        typeof assets.turnaround === 'string' ? assets.turnaround : null
+                        posterAsset.url, null,
+                        turnaroundAsset ? turnaroundAsset.url : null
                     );
                     savedCharacters++;
                 }
+
                 // 保存所有角色素材到素材库
-                Object.entries(assets).forEach(([key, url]) => {
-                    if (url && _isValid(url) && typeof saveImageToLibrary === 'function') {
-                        saveImageToLibrary(url, `${result.characterName} - ${key}`, 'character');
+                flatAssets.forEach(({ key, url, label }) => {
+                    if (typeof saveImageToLibrary === 'function') {
+                        saveImageToLibrary(url, `${result.characterName} - ${label}`, 'character');
                         savedImages++;
                     }
                 });
+
                 // 展示角色素材
-                Object.entries(assets).forEach(([key, url]) => {
-                    if (url && _isValid(url)) {
-                        html += `<div class="skill-result-item">
-                            <img src="${url}" class="skill-result-img" alt="${key}" onclick="openImageViewer('${url.replace(/'/g, "\\'")}')"
-                                style="cursor:pointer;">
-                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">👤 ${result.characterName} - ${key}</div>
-                            <a href="${url}" download="${result.characterName}_${key}.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
-                        </div>`;
-                    }
+                flatAssets.forEach(({ key, url, label }) => {
+                    html += `<div class="skill-result-item">
+                        <img src="${url}" class="skill-result-img" alt="${label}" onclick="openImageViewer('${url.replace(/'/g, "\\'")}')"
+                            style="cursor:pointer;">
+                        <div style="font-size:12px;color:#aaa;margin-bottom:6px;">👤 ${result.characterName} - ${label}</div>
+                        <button onclick="downloadImageFromUrl('${url.replace(/'/g, "\\'")}', '${result.characterName}_${key}.png')" style="display:block;width:100%;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
+                    </div>`;
                 });
             } else if (result.characterName && result.images) {
-                // ip_character_ecosystem: characterName + images → 保存角色
-                const firstImg = result.images.find(i => i.status === 'success' && i.imageUrl);
+                // ip_character_ecosystem: characterName + images → 保存角色 + 展示图片
+                const firstImg = result.images.find(i => (i.status === 'success' || i.imageUrl) && i.imageUrl);
                 if (firstImg && typeof saveCharacterToLibrary === 'function') {
                     saveCharacterToLibrary(result.characterName, '', firstImg.imageUrl);
                     savedCharacters++;
+                }
+                // 展示所有图片
+                for (const img of result.images) {
+                    const imgUrl = img.imageUrl;
+                    if (imgUrl && _isValid(imgUrl)) {
+                        if (typeof saveImageToLibrary === 'function') {
+                            saveImageToLibrary(imgUrl, `${result.characterName} - ${img.subject || '素材'}`, 'character');
+                            savedImages++;
+                        }
+                        html += `<div class="skill-result-item">
+                            <img src="${imgUrl}" class="skill-result-img" alt="${img.subject || ''}" onclick="openImageViewer('${imgUrl.replace(/'/g, "\\'")}')" style="cursor:pointer;">
+                            <div style="font-size:12px;color:#aaa;margin-bottom:6px;">👤 ${result.characterName} - ${img.subject || '素材'}</div>
+                            <button onclick="downloadImageFromUrl('${imgUrl.replace(/'/g, "\\'")}', '${result.characterName}_${img.subject || "img"}.png')" style="display:block;width:100%;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
+                        </div>`;
+                    }
                 }
             }
 
@@ -13514,7 +14205,11 @@ ${idea.theme}${characterPrompt}
             if (result.images && result.images.length > 0) {
                 for (const img of result.images) {
                     console.log('[mobile] 处理图片项:', img);
-                    if (img.status === 'success' && img.imageUrl) {
+                    // 🔧 兼容：有 status 字段按 status 判断，无 status 字段但有 imageUrl 也视为成功
+                    const isSuccess = img.status === 'success' || (!img.status && img.imageUrl);
+                    // 🔧 验证 imageUrl 是否为有效 URL
+                    const hasValidUrl = img.imageUrl && _isValid(img.imageUrl);
+                    if (isSuccess && hasValidUrl) {
                         if (typeof saveImageToLibrary === 'function') {
                             saveImageToLibrary(img.imageUrl, `${skillName} - ${img.subject || '图片'}`, 'skill');
                             savedImages++;
@@ -13527,7 +14222,7 @@ ${idea.theme}${characterPrompt}
                                     style="cursor:pointer;border:2px solid rgba(139,92,246,0.4);border-radius:8px;">
                                 <div style="font-size:11px;color:#888;margin-top:4px;">💡 点击放大查看九宫格完整画面</div>
                                 <div style="display:flex;gap:8px;">
-                                    <a href="${img.imageUrl}" download="${img.subject || 'grid'}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载九宫格</a>
+                                    <button onclick="downloadImageFromUrl('${img.imageUrl.replace(/'/g, "\\'")}', '${(img.subject || 'grid').replace(/'/g, "\\'")}.png')" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载九宫格</button>
                                 </div>
                             </div>`;
                         } else {
@@ -13536,7 +14231,7 @@ ${idea.theme}${characterPrompt}
                                     style="cursor:pointer;">
                                 <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${img.subject || ''}</div>
                                 <div style="display:flex;gap:8px;">
-                                    <a href="${img.imageUrl}" download="${img.subject || 'image'}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                                    <button onclick="downloadImageFromUrl('${img.imageUrl.replace(/'/g, "\\'")}', '${(img.subject || 'image').replace(/'/g, "\\'")}.png')" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
                                 </div>
                             </div>`;
                         }
@@ -13550,7 +14245,10 @@ ${idea.theme}${characterPrompt}
             // 📖 漫画分镜/页面结果
             if (result.pages && result.pages.length > 0) {
                 for (const page of result.pages) {
-                    if (page.status === 'success' && page.imageUrl) {
+                    // 🔧 兼容：有 status 字段按 status 判断，无 status 字段但有 imageUrl 也视为成功
+                    const pageSuccess = page.status === 'success' || (!page.status && page.imageUrl);
+                    const pageValidUrl = page.imageUrl && _isValid(page.imageUrl);
+                    if (pageSuccess && pageValidUrl) {
                         if (typeof saveImageToLibrary === 'function') {
                             saveImageToLibrary(page.imageUrl, `${skillName} - 第${page.page || ''}页`, 'comic');
                             savedImages++;
@@ -13560,7 +14258,7 @@ ${idea.theme}${characterPrompt}
                                 style="cursor:pointer;">
                             <div style="font-size:12px;color:#aaa;margin-bottom:6px;">📖 第${page.page || ''}页</div>
                             <div style="display:flex;gap:8px;">
-                                <a href="${page.imageUrl}" download="page_${page.page || ''}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                                <button onclick="downloadImageFromUrl('${page.imageUrl.replace(/'/g, "\\'")}', 'page_${page.page || ''}.png')" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
                                 <button onclick="jumpToI2VFromComic('${page.imageUrl.replace(/'/g, "\\'")}', '${page.page || ''}')" style="flex:1;padding:8px;background:linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1));border:1px solid rgba(139,92,246,0.5);border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">🎬 图生视频</button>
                             </div>
                         </div>`;
@@ -13571,7 +14269,9 @@ ${idea.theme}${characterPrompt}
             // 📺 连续剧情结果（episodes）→ 转为标准 videos/images
             if (result.episodes && result.episodes.length > 0) {
                 for (const ep of result.episodes) {
-                    if (ep.status === 'success') {
+                    // 🔧 兼容：有 status 字段按 status 判断，无 status 字段但有 videoUrl/imageUrl 也视为成功
+                    const epSuccess = ep.status === 'success' || (!ep.status && (ep.videoUrl || ep.imageUrl));
+                    if (epSuccess) {
                         if (ep.videoUrl && _isValid(ep.videoUrl)) {
                             if (typeof saveVideoToLibrary === 'function') {
                                 saveVideoToLibrary(ep.videoUrl, `${skillName} - 第${ep.episode}集`, 'skill', ep.imageUrl);
@@ -13624,7 +14324,7 @@ ${idea.theme}${characterPrompt}
                             <img src="${comic.imageUrl}" class="skill-result-img" onclick="openImageViewer('${comic.imageUrl.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
                             <div style="font-size:12px;color:#aaa;margin-bottom:6px;">📖 漫画第${comic.page || ''}页</div>
                             <div style="display:flex;gap:8px;">
-                                <a href="${comic.imageUrl}" download="comic_page_${comic.page || ''}.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                                <button onclick="downloadImageFromUrl('${comic.imageUrl.replace(/'/g, "\\'")}', 'comic_page_${comic.page || ''}.png')" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
                                 <button onclick="jumpToI2VFromComic('${comic.imageUrl.replace(/'/g, "\\\\'")}', '${comic.page || ''}')" style="flex:1;padding:8px;background:linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.1));border:1px solid rgba(139,92,246,0.5);border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">🎬 图生视频</button>
                             </div>
                         </div>`;
@@ -13641,14 +14341,17 @@ ${idea.theme}${characterPrompt}
                 html += `<div class="skill-result-item">
                     <img src="${result.charSheet}" class="skill-result-img" onclick="openImageViewer('${result.charSheet.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
                     <div style="font-size:12px;color:#aaa;">👤 角色设定表</div>
-                    <a href="${result.charSheet}" download="charsheet.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                    <button onclick="downloadImageFromUrl('${result.charSheet.replace(/'/g, "\\'")}', 'charsheet.png')" style="display:block;width:100%;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
                 </div>`;
             }
 
             // 🎬 视频结果
             if (result.videos && result.videos.length > 0) {
                 for (const vid of result.videos) {
-                    if (vid.status === 'success' && vid.videoUrl) {
+                    // 🔧 兼容：有 status 字段按 status 判断，无 status 字段但有 videoUrl 也视为成功
+                    const vidSuccess = vid.status === 'success' || (!vid.status && vid.videoUrl);
+                    const vidValidUrl = vid.videoUrl && _isValid(vid.videoUrl);
+                    if (vidSuccess && vidValidUrl) {
                         if (typeof saveVideoToLibrary === 'function') {
                             saveVideoToLibrary(vid.videoUrl, `${skillName} - 视频${vid.index || ''}`, 'skill', vid.imageUrl);
                             savedVideos++;
@@ -13679,16 +14382,18 @@ ${idea.theme}${characterPrompt}
             // 🎵 音乐结果（AI音乐制作）
             if (result.music && result.music.length > 0) {
                 for (const m of result.music) {
+                    const musicImgValid = m.imageUrl && _isValid(m.imageUrl);
+                    const musicAudioValid = m.audioUrl && _isValid(m.audioUrl);
                     html += `<div class="skill-result-item">
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                            ${m.imageUrl ? `<img src="${m.imageUrl}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;">` : ''}
+                            ${musicImgValid ? `<img src="${m.imageUrl}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;">` : ''}
                             <div>
                                 <div style="font-size:14px;color:#fff;font-weight:600;">🎵 ${m.title || '未命名'}</div>
                                 ${m.tags ? `<div style="font-size:11px;color:#888;margin-top:2px;">${m.tags}</div>` : ''}
                                 ${m.duration ? `<div style="font-size:11px;color:#666;">‣ ${Math.round(m.duration)}s</div>` : ''}
                             </div>
                         </div>
-                        ${m.audioUrl ? `<audio src="${m.audioUrl}" controls style="width:100%;margin-bottom:8px;"></audio>
+                        ${musicAudioValid ? `<audio src="${m.audioUrl}" controls style="width:100%;margin-bottom:8px;"></audio>
                         <a href="${m.audioUrl}" download="${(m.title || 'music').replace(/[^\w\u4e00-\u9fa5]/g, '_')}.mp3" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>` : ''}
                     </div>`;
                 }
@@ -13706,12 +14411,12 @@ ${idea.theme}${characterPrompt}
                     <div class="skill-result-text" style="white-space:pre-wrap;max-height:300px;overflow-y:auto;">${promptText}</div>
                 </div>`;
 
-                if (result.previewImage) {
+                if (result.previewImage && _isValid(result.previewImage)) {
                     html += `<div class="skill-result-item">
                         <img src="${result.previewImage}" class="skill-result-img" onclick="openImageViewer('${result.previewImage.replace(/'/g, "\\\\'")}')" style="cursor:pointer;">
                         <div style="font-size:12px;color:#aaa;margin-bottom:6px;">🖼️ 预览图</div>
                         <div style="display:flex;gap:8px;">
-                            <a href="${result.previewImage}" download="preview.png" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                            <button onclick="downloadImageFromUrl('${result.previewImage.replace(/'/g, "\\'")}', 'preview.png')" style="flex:1;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
                             <button onclick="jumpToVideoToolsFromPromptOpt('${promptText.replace(/'/g, "\\\\'")}')" style="flex:1;padding:8px;background:linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.1));border:1px solid rgba(251,191,36,0.5);border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">🎬 生成视频</button>
                         </div>
                     </div>`;
@@ -13764,7 +14469,7 @@ ${idea.theme}${characterPrompt}
                     var _f = result.model3dFiles[_fi];
                     var _flabel = _f.type ? _f.type.toUpperCase() : ('文件' + (_fi + 1));
                     var _ffname = 'hunyuan3d_' + (result.jobId || Date.now()) + '_' + _flabel.toLowerCase() + '.' + (_f.type || 'glb').toLowerCase();
-                    var _fprev = _f.previewUrl ? ('<img src="' + _f.previewUrl + '" style="width:100%;max-height:180px;object-fit:contain;border-radius:6px;margin-bottom:8px;" onclick="openImageViewer(this.src)">') : '';
+                    var _fprev = (_f.previewUrl && _isValid(_f.previewUrl)) ? ('<img src="' + _f.previewUrl + '" style="width:100%;max-height:180px;object-fit:contain;border-radius:6px;margin-bottom:8px;" onclick="openImageViewer(this.src)">') : '';
                     _3dItemsHtml += '<div style="margin-bottom:12px;padding:10px;background:#111;border-radius:8px;">'
                         + _fprev
                         + '<div style="font-size:11px;color:#888;margin-bottom:8px;">' + _flabel + ' 格式</div>'
@@ -13789,7 +14494,7 @@ ${idea.theme}${characterPrompt}
                         html += `<div class="skill-result-item">
                             <img src="${media.url}" class="skill-result-img" onclick="openImageViewer('${media.url.replace(/'/g, "\\'")}')" style="cursor:pointer;">
                             <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${media.step || '生成图片'}</div>
-                            <a href="${media.url}" download="${media.step || 'image'}.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                            <button onclick="downloadImageFromUrl('${media.url.replace(/'/g, "\\'")}', '${(media.step || 'image').replace(/'/g, "\\'")}.png')" style="display:block;width:100%;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
                         </div>`;
                     } else if (media.type === 'video' && media.url && _isValid(media.url)) {
                         if (typeof saveVideoToLibrary === 'function') {
@@ -13799,7 +14504,7 @@ ${idea.theme}${characterPrompt}
                         html += `<div class="skill-result-item">
                             <video src="${media.url}" controls class="skill-result-video"></video>
                             <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${media.step || '生成视频'}</div>
-                            <a href="${media.url}" download="${media.step || 'video'}.mp4" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>
+                            <button onclick="downloadFile('${media.url.replace(/'/g, "\\'")}', '${(media.step || 'video').replace(/'/g, "\\'")}.mp4')" style="display:block;width:100%;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>
                         </div>`;
                     } else if (media.type === 'text' && media.content) {
                         html += `<div class="skill-result-item">
@@ -13869,7 +14574,7 @@ ${idea.theme}${characterPrompt}
                             html += `<div class="skill-result-item">
                                 ${imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? `<img src="${imgUrl}" class="skill-result-img" onclick="openImageViewer('${imgUrl.replace(/'/g, "\\'")}')" style="cursor:pointer;">` : ''}
                                 <div style="font-size:12px;color:#aaa;margin-bottom:6px;">${img.subject || img.title || '结果'}</div>
-                                ${imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? `<a href="${imgUrl}" download="result.png" style="display:block;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;text-decoration:none;">💾 下载</a>` : ''}
+                                ${imgUrl.startsWith('data:') || imgUrl.startsWith('http') ? `<button onclick="downloadImageFromUrl('${imgUrl.replace(/'/g, "\\'")}', 'result.png')" style="display:block;width:100%;padding:8px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;text-align:center;cursor:pointer;">💾 下载</button>` : ''}
                             </div>`;
                         }
                     }
@@ -13877,22 +14582,43 @@ ${idea.theme}${characterPrompt}
             }
             
             if (!html) {
-                // 🔄 通用兜底：展示原始 JSON 结果
-                try {
-                    const raw = JSON.stringify(result, null, 2);
-                    console.log('[mobile] 原始 JSON:', raw.substring(0, 500));
-                    if (raw && raw !== '{}' && raw.length > 5) {
-                        html = `<div class="skill-result-item">
-                            <div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px;">📋 执行结果</div>
-                            <pre style="white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;font-size:12px;color:#ccc;background:#111;padding:12px;border-radius:8px;">${raw}</pre>
-                            <button onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);showToast('✅ 已复制')" style="margin-top:8px;padding:6px 12px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">复制结果</button>
+                // 🔧 角色设定包部分失败：有 characterName 但素材生成失败
+                if (result.characterName) {
+                    html = `<div class="skill-result-item" style="border-color:rgba(251,146,60,0.3);">
+                        <div style="font-size:15px;color:#fb923c;font-weight:700;margin-bottom:10px;">👤 ${result.characterName}</div>
+                        <div style="font-size:13px;color:#aaa;margin-bottom:8px;">⚠️ 角色素材生成未成功，可能是图片服务暂时不可用。</div>
+                        <div style="font-size:12px;color:#888;margin-bottom:12px;">建议：稍后重试，或切换生图模型后重试。</div>
+                        <button onclick="mobileSkillRerun()" style="padding:8px 16px;background:linear-gradient(135deg,#fb923c,#f59e0b);border:none;border-radius:8px;color:#fff;font-size:13px;cursor:pointer;">🔄 重新执行</button>
+                    </div>`;
+                } else {
+                    try {
+                        const raw = JSON.stringify(result, null, 2);
+                        console.log('[mobile] 原始 JSON:', raw.substring(0, 500));
+                        if (raw && raw !== '{}' && raw.length > 5) {
+                            html = `<div class="skill-result-item">
+                                <div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px;">📋 执行结果</div>
+                                <pre style="white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;font-size:12px;color:#ccc;background:#111;padding:12px;border-radius:8px;">${raw}</pre>
+                                <button onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);showToast('✅ 已复制')" style="margin-top:8px;padding:6px 12px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">复制结果</button>
+                            </div>`;
+                        } else {
+                            html = `<div style="text-align:center;padding:30px;">
+                                <div style="font-size:36px;margin-bottom:12px;">⏳</div>
+                                <div style="font-size:15px;color:#fb923c;font-weight:600;margin-bottom:8px;">未获取到生成结果</div>
+                                <div style="font-size:12px;color:#888;margin-bottom:6px;">可能原因：网络超时或服务器响应过慢</div>
+                                <div style="font-size:12px;color:#f87171;margin-bottom:12px;">⚠️ 后端可能已成功执行并扣费，请稍后在素材库/角色库中查看</div>
+                                <button onclick="mobileSkillRerun()" style="padding:8px 16px;background:linear-gradient(135deg,#fb923c,#f59e0b);border:none;border-radius:8px;color:#fff;font-size:13px;cursor:pointer;">🔄 重新执行</button>
+                            </div>`;
+                        }
+                    } catch (e) {
+                        console.error('[mobile] 兜底展示失败:', e);
+                        html = `<div style="text-align:center;padding:30px;">
+                            <div style="font-size:36px;margin-bottom:12px;">⏳</div>
+                            <div style="font-size:15px;color:#fb923c;font-weight:600;margin-bottom:8px;">未获取到生成结果</div>
+                            <div style="font-size:12px;color:#888;margin-bottom:6px;">可能原因：网络超时或服务器响应过慢</div>
+                            <div style="font-size:12px;color:#f87171;margin-bottom:12px;">⚠️ 后端可能已成功执行并扣费，请稍后在素材库/角色库中查看</div>
+                            <button onclick="mobileSkillRerun()" style="padding:8px 16px;background:linear-gradient(135deg,#fb923c,#f59e0b);border:none;border-radius:8px;color:#fff;font-size:13px;cursor:pointer;">🔄 重新执行</button>
                         </div>`;
-                    } else {
-                        html = '<div style="text-align:center;padding:40px;color:#888;">执行完成，无可展示的结果</div>';
                     }
-                } catch (e) {
-                    console.error('[mobile] 兜底展示失败:', e);
-                    html = '<div style="text-align:center;padding:40px;color:#888;">执行完成，无可展示的结果</div>';
                 }
             }
 
@@ -13923,15 +14649,15 @@ ${idea.theme}${characterPrompt}
                 console.warn('[mobile] 元素未找到: skillResultPage');
             }
 
-            // 📂 自动保存技能结果到历史（仅在真实执行时保存，从历史查看时跳过）
-            if (_mobileSkillSelected) {
-                try {
-                    const _params = _mobileSkillCollectParams(skill);
-                    saveSkillResult(skill, _params, result);
-                } catch (e) {
-                    console.warn('[技能历史] 自动保存异常:', e.message);
-                }
-            }
+            // 📂 自动保存技能结果到历史（已禁用）
+            // if (_mobileSkillSelected) {
+            //     try {
+            //         const _params = _mobileSkillCollectParams(skill);
+            //         saveSkillResult(skill, _params, result);
+            //     } catch (e) {
+            //         console.warn('[技能历史] 自动保存异常:', e.message);
+            //     }
+            // }
         }
 
         /** 再次运行：回到当前技能的配置页，保留上次参数 */
@@ -13964,7 +14690,13 @@ ${idea.theme}${characterPrompt}
                 console.warn('[mobile] 元素未找到: skillResultPage');
             }
 
-            closeMobileSkillPanel();
+            // 回到技能配置页，而不是关闭技能面板
+            const skillConfigPage = document.getElementById('skillConfigPage');
+            if (skillConfigPage) {
+                skillConfigPage.classList.add('show');
+            } else {
+                console.warn('[mobile] 元素未找到: skillConfigPage');
+            }
         }
 
         // ==================== 📤 发布功能 ====================
@@ -13988,7 +14720,7 @@ ${idea.theme}${characterPrompt}
         }
 
         /**
-            � 从任         task idea数据桥接到发布面板）
+            意 从任         task idea数据桥接到发布面板）
          * 支持从创作         pleted任务直接调起发布面板
          */
         function publishTask(id) {
@@ -14120,7 +14852,7 @@ ${idea.theme}${characterPrompt}
         }
 
         /**
-            � 任务         提示条
+            进度 任务         提示条
          * 在底部显示         用户可一键发布/下载
          */
         function showAutoPublishBar(ideaId) {
@@ -14243,9 +14975,10 @@ ${idea.theme}${characterPrompt}
                     text: text ? text.slice(0, 500) : '查看我用RollRoll AI创作的内容',
                 };
 
-                if (navigator.canShare && hasMedia) {
+                // 🛡️ 安全加载媒体文件
+                let files = [];
+                if (hasMedia && typeof navigator.canShare === 'function') {
                     try {
-                        const files = [];
                         for (let i = 0; i < Math.min(images.length, 4); i++) {
                             try {
                                 const resp = await fetch(images[i]);
@@ -14273,13 +15006,26 @@ ${idea.theme}${characterPrompt}
                                 console.warn('[Publish] 加载音频失败:', e);
                             }
                         }
-                        if (files.length > 0) shareData.files = files;
+                        if (files.length > 0) {
+                            // 🛡️ 检查是否可以分享这些文件
+                            try {
+                                const testShareData = { ...shareData, files };
+                                if (navigator.canShare(testShareData)) {
+                                    shareData.files = files;
+                                } else {
+                                    console.warn('[Publish] 该浏览器不支持分享这些文件');
+                                }
+                            } catch (e) {
+                                console.warn('[Publish] canShare 检查失败:', e);
+                            }
+                        }
                     } catch (e) {
                         console.warn('[Publish] 加载媒体文件失败:', e);
                     }
                 }
 
-                if (navigator.share) {
+                // 🚀 尝试调用系统分享
+                if (typeof navigator.share === 'function') {
                     try {
                         await navigator.share(shareData);
                         showToast('✅ 分享成功');
@@ -14292,13 +15038,30 @@ ${idea.theme}${characterPrompt}
                     }
                 }
 
+                // 📋 分享失败，复制链接/文案
                 if (hasMedia) {
                     const allUrls = [...images, ...videos].join('\n');
                     try {
-                        await navigator.clipboard.writeText(allUrls || shareData.text);
-                        showToast('✅ 链接已复制到剪贴板');
+                        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                            await navigator.clipboard.writeText(allUrls || shareData.text);
+                            showToast('✅ 链接已复制到剪贴板');
+                        } else {
+                            throw new Error('Clipboard API 不可用');
+                        }
                     } catch (e) {
-                        showToast('链接复制失败');
+                        // 🛡️ 降级方案
+                        try {
+                            const ta = document.createElement('textarea');
+                            ta.value = allUrls || shareData.text;
+                            ta.style.cssText = 'position:fixed;left:-9999px';
+                            document.body.appendChild(ta);
+                            ta.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(ta);
+                            showToast('✅ 链接已复制到剪贴板');
+                        } catch (e2) {
+                            showToast('链接复制失败');
+                        }
                     }
                 } else {
                     publishAction('copyText');
@@ -14506,6 +15269,8 @@ ${idea.theme}${characterPrompt}
             if (!toast) return;
             toast.textContent = message;
             toast.classList.add('show');
+            // 🆕 点击toast可立即关闭
+            toast.onclick = () => { toast.classList.remove('show'); if (toast._hideTimeout) { clearTimeout(toast._hideTimeout); toast._hideTimeout = null; } };
             // 清除之前的隐藏定时器，防止快速切换时上一个 toast 卡住
             if (toast._hideTimeout) {
                 clearTimeout(toast._hideTimeout);
@@ -14613,7 +15378,7 @@ ${idea.theme}${characterPrompt}
         }
 
         /**
-            � 手机         器（支持放大和下载）
+            预览器 手机         器（支持放大和下载）
          * @param {string[]} images - 4张切图
          * @para         } taskId - MJ任务ID
          * @param {Function} callback - 回调，返回选中的索引(1-4)或null
@@ -14642,7 +15407,7 @@ ${idea.theme}${characterPrompt}
                     <button id="mobile-mj-download-all" style="padding:10px 16px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">💾 下载全部(5张)</button>
                     <button id="mobile-mj-cancel" style="padding:10px 16px;background:#555;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">取消</button>
                 </div>
-                <div style="margin-top:8px;color:#888;font-size:11px;text-align:center;">💡 「下载全部」会下载4张分割图 + 1张原始网���图</div>
+                <div style="margin-top:8px;color:#888;font-size:11px;text-align:center;">💡 「下载全部」会下载4张分割图 + 1张原始网格图</div>
             `;
 
             document.body.appendChild(overlay);
@@ -14677,7 +15442,7 @@ ${idea.theme}${characterPrompt}
         }
 
         /**
-            � 下载         4张切图 + 网格图）
+            （全部 下载         4张切图 + 网格图）
          */
         async function downloadAllMjImages() {
             const data = window.__currentMjPickerData;
@@ -14723,23 +15488,48 @@ ${idea.theme}${characterPrompt}
         }
 
         /**
-            载 UR              */
+         * 💾 下载图片（支持跨域、base64、进度显示）
+         */
         async function downloadImageFromUrl(url, filename) {
+            if (!url) {
+                showToast('下载链接为空');
+                return;
+            }
+            // base64 直接下载
+            if (url.startsWith('data:')) {
+                downloadBase64Image(url, filename);
+                showToast('开始下载...');
+                return;
+            }
+            showToast('正在下载...');
             try {
-                const response = await fetch(url);
+                const response = await fetch(url, { mode: 'cors' });
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 const blob = await response.blob();
+                if (blob.size === 0) throw new Error('图片数据为空');
                 const blobUrl = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = blobUrl;
-                link.download = filename;
+                link.download = filename || 'download.png';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                URL.revokeObjectURL(blobUrl);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                showToast('下载完成');
             } catch (e) {
-                // 跨域失败，尝试新窗口打开
-                console.warn('直接下载失败，打开新窗口:', e.message);
-                window.open(url, '_blank');
+                console.warn('[download] CORS下载失败，尝试降级方案:', e.message);
+                // 降级：使用浏览器打开新窗口下载（用户体验更好）
+                try {
+                    const win = window.open(url, '_blank');
+                    if (win) {
+                        showToast('请在打开的页面中右键保存图片');
+                    } else {
+                        showToast('下载被阻止，请长按图片保存');
+                    }
+                } catch (e2) {
+                    console.warn('[download] window.open也失败:', e2.message);
+                    showToast('已尝试下载（如未开始请长按图片保存）');
+                }
             }
         }
 
@@ -15770,11 +16560,16 @@ ${story}
                 if (!animationRunning) return;
                 animationRunning = false;
 
+                // 🔧 强制隐藏小助手 - 欢迎页期间不允许显示小助手
+                setAssistantVisible(false);
+                _assistantAllowed = false;
+
                 // 🔧 移除注入的隐藏CSS，恢复 main.main 等元素可见性
                 var injectedStyle = document.getElementById('cinemaIntroInjectedStyle');
                 if (injectedStyle) injectedStyle.remove();
 
-                // 🔧 显示欢迎页和隐藏开场动画（main.main 由浏览器默认样式控制，不再需要覆盖）
+                // 🔧 所有用户都必须经过欢迎页，不能自动跳过
+                // 显示欢迎页
                 var welcome = document.getElementById('welcomeScreen');
                 if (welcome) {
                     welcome.style.cssText = 'display:flex!important;opacity:0;visibility:visible;transition:opacity 0.5s ease';
@@ -15790,8 +16585,6 @@ ${story}
                     setTimeout(function () {
                         intro.classList.add('hidden');
                         _showIntro = false;
-                        // 🔧 开场动画结束进入欢迎页，用户还没登录，不需要显示助手
-                        // 助手会在登录成功跳转回来时通过 allowAssistant() 显示
                     }, 600);
                 }, 20);
             }
@@ -15812,6 +16605,50 @@ ${story}
 
     <!-- 🎬 小助手生成函数 -->
     <script>
+    // 🆕 GPT-Image-2 提示词优化
+    async function optimizePromptForGPTImage2(prompt) {
+        try {
+            const optimizeSystemPrompt = `你是一个专业的 GPT-Image-2 提示词优化专家。请将用户的简单描述转换为高质量的 GPT-Image-2 提示词。
+
+优化原则：
+1. 保持原意，增强细节和画面感
+2. 添加风格、光影、构图等专业摄影/设计术语
+3. 针对 GPT-Image-2 的特性优化（支持高保真、多风格、复杂场景）
+4. 如果是电商/产品类，添加排版、品牌、详情页结构描述
+5. 如果是人物类，添加外貌、服装、表情、姿态细节
+6. 如果是场景类，添加环境、氛围、光线、色彩描述
+7. 使用英文关键词增强效果（GPT-Image-2 对英文理解更好）
+8. 适当添加质量增强词：4K, ultra-detailed, professional, cinematic 等
+
+输出格式：直接返回优化后的提示词，不要解释。`;
+
+            const messages = [
+                { role: 'system', content: optimizeSystemPrompt },
+                { role: 'user', content: `请优化以下提示词：\n\n${prompt}` }
+            ];
+
+            const response = await fetch('/api/writer-llm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'grok-4-fast',
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 800
+                })
+            });
+
+            if (!response.ok) throw new Error('优化请求失败');
+
+            const data = await response.json();
+            const optimizedPrompt = data.content || data.message || data.result;
+            return optimizedPrompt && optimizedPrompt.trim() ? optimizedPrompt.trim() : prompt;
+        } catch (e) {
+            console.error('提示词优化失败:', e);
+            return prompt; // 失败时返回原提示词
+        }
+    }
+
     // 从文本生成图片
     async function generateImageFromText(text) {
         const user = await getCurrentUser();
@@ -15821,13 +16658,23 @@ ${story}
         let prompt = text.replace(/画.*图|生成.*图|作图|帮我画/i, '').trim();
         if (!prompt) prompt = text;
         
-        // 使用项目中稳定的付费模型 nano-banana-2
-        const result = await generateImageWithModel(prompt, 'nano-banana-2', '9:16', user.id);
+        // 🆕 自动优化提示词
+        addAssistantBubble('assistant', '✨ 正在优化提示词...', { emotion: 'happy' });
+        const optimizedPrompt = await optimizePromptForGPTImage2(prompt);
+        
+        // 如果优化成功且不同，显示优化结果
+        if (optimizedPrompt !== prompt) {
+            addAssistantBubble('assistant', `📝 优化后：${optimizedPrompt.substring(0, 100)}${optimizedPrompt.length > 100 ? '...' : ''}`, { emotion: 'happy' });
+        }
+        
+        // 使用 GPT-Image-2 官方模型
+        const result = await generateImageWithModel(optimizedPrompt, 'gpt-image-2', '9:16', user.id);
         if (result) {
             // generateImageWithModel 返回 { url, images, billed }
             const imageUrl = result.url || (result.images && result.images[0]) || (Array.isArray(result) && result[0]);
             if (imageUrl) {
-                showImageResult(imageUrl);
+                // 直接在小助手中显示图片
+                showImageResultInAssistant(imageUrl);
             }
         }
     }
@@ -15884,7 +16731,33 @@ ${story}
         throw new Error('未返回文案内容');
     }
 
-    // 显示图片结果
+    // 在小助手中显示图片结果
+    function showImageResultInAssistant(imageUrl) {
+        // 在小助手面板中显示图片
+        const panelContent = document.getElementById('xj2Messages');
+        if (panelContent) {
+            addAssistantBubble('assistant', '🎨 图片生成成功！');
+            
+            // 创建图片消息
+            const imgMsg = document.createElement('div');
+            imgMsg.className = 'xj2-message assistant';
+            imgMsg.innerHTML = `
+                <img src="${imageUrl}" style="max-width:100%;height:auto;border-radius:8px;cursor:pointer;" onclick="window.open('${imageUrl}', '_blank')">
+                <div style="margin-top:8px;display:flex;gap:8px;">
+                    <button onclick="window.open('${imageUrl}', '_blank')" style="flex:1;padding:6px;background:#FF6B9D;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">查看大图</button>
+                    <button onclick="downloadImageFromUrl('${imageUrl.replace(/'/g, "\\'")}', 'image.png')" style="flex:1;padding:6px;background:#C44569;color:#fff;border:none;border-radius:6px;font-size:12px;text-align:center;cursor:pointer;">下载图片</button>
+                </div>
+            `;
+            panelContent.appendChild(imgMsg);
+            panelContent.scrollTop = panelContent.scrollHeight;
+        } else {
+            // 备用方案，使用原来的新窗口方式
+            const imgWin = window.open('', '_blank');
+            imgWin.document.write(`<img src="${imageUrl}" style="max-width:100%;height:auto;"><br><a href="${imageUrl}" download>下载图片</a>`);
+        }
+    }
+
+    // 显示图片结果（保留原有功能，用于其他场景）
     function showImageResult(imageUrl) {
         // 检查是否在小助手对话框内
         const chatContainer = document.getElementById('rollroll-chat');
@@ -15897,7 +16770,7 @@ ${story}
                 <img src="${imageUrl}" style="max-width:100%;height:auto;border-radius:8px;cursor:pointer;" onclick="window.open('${imageUrl}', '_blank')">
                 <div style="margin-top:8px;display:flex;gap:8px;">
                     <button onclick="window.open('${imageUrl}', '_blank')" style="flex:1;padding:6px;background:#FF6B9D;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">查看大图</button>
-                    <a href="${imageUrl}" download style="flex:1;padding:6px;background:#C44569;color:#fff;border:none;border-radius:6px;font-size:12px;text-align:center;text-decoration:none;display:block;">下载图片</a>
+                    <button onclick="downloadImageFromUrl('${imageUrl.replace(/'/g, "\\'")}', 'image.png')" style="flex:1;padding:6px;background:#C44569;color:#fff;border:none;border-radius:6px;font-size:12px;text-align:center;cursor:pointer;">下载图片</button>
                 </div>
             `;
             chatContainer.appendChild(imgMsg);
@@ -15921,6 +16794,7 @@ ${story}
         return session?.user || null;
     }
     </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"145dcb7ce94448da9feb40a29fccff28","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 
 </html>

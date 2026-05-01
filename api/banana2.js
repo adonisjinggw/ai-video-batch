@@ -14,18 +14,80 @@ const FILM_COST = {
     'nano-banana-2-4k': 10,    // Banana 4K
     'qwen-image-max': 8,       // 🌟 通义万相Max（banana.html 使用）
     'Qwen/Qwen-Image-2512': 8, // 通义万相Max（魔塔模型名）
-    'doubao-seedream-4-5-251128': 7,  // 星梦画师
+    'doubao-seedream-4-5-251128': 7,  // 星梦画师4.5
+    'doubao-seedream-5-0-260128': 7,  // 星梦画师5.0
     'jimeng-4.5': 7,           // 即梦4.5
     'gemini-3.1-flash-image-preview': 4,  // Gemini Flash 图片生成
     'gemini-3.1-flash-image-preview-2k': 4,  // Gemini Flash 2K
     'gemini-3.1-flash-image-preview-4k': 7,  // Gemini Flash 4K
+    'gpt-image-2': 1,  // GPT-Image-2 官方（预扣1胶片，最终根据token动态计算）
+    'gpt2': 1,           // GPT-Image-2 简写（同上）
+    'gpt-image-2-all': 5,  // GPT-Image-2-All（dall-e-3格式逆向）
+    'gpt-image-2-all-2k': 8,  // GPT-Image-2-All 2K
+    'gpt-image-2-all-4k': 12,  // GPT-Image-2-All 4K
     'openrouter:bytedance-seed/seedream-4.5': 0  // OpenRouter Seedream 4.5（免费）
 };
+
+// 🎯 按实际 token 计费：每 1000 token = 1 胶片（最低 1 胶片）
+const FILM_PER_1K_TOKENS = 1;
+
+/**
+ * 根据 API 返回的 usage 计算实际胶片消耗
+ * @param {object} usage - API 返回的 { prompt_tokens, completion_tokens, total_tokens }
+ * @returns {number} 应扣胶片数
+ */
+function calculateTokenCost(usage) {
+    const totalTokens = usage?.total_tokens || ((usage?.prompt_tokens || 0) + (usage?.completion_tokens || 0));
+    if (totalTokens <= 0) return 1; // 最低 1 胶片
+    return Math.max(1, Math.ceil(totalTokens / 1000 * FILM_PER_1K_TOKENS));
+}
 
 // ========== Supabase Storage 配置（大图上传，避免base64超过Vercel 4.5MB响应限制） ==========
 const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const IMAGE_BUCKET = 'generated-images';
+
+// 🆕 异步任务管理 - 直接调用 Supabase REST API
+// ⚠️ 需要在 Supabase 中先创建表：
+// CREATE TABLE generation_tasks (id UUID PRIMARY KEY, user_id UUID, task_type TEXT, status TEXT DEFAULT 'pending', request_body JSONB, result JSONB, error TEXT, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ, completed_at TIMESTAMPTZ);
+async function __createGenerationTask(userId, taskType, requestBody) {
+    try {
+        const taskId = require('crypto').randomUUID();
+        const now = new Date().toISOString();
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/generation_tasks`, {
+            method: 'POST',
+            headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+            body: JSON.stringify({ id: taskId, user_id: userId, task_type: taskType, status: 'pending', request_body: requestBody, created_at: now, updated_at: now })
+        });
+        if (!res.ok) { console.warn(`[banana2] 创建任务失败: ${res.status}`); return null; }
+        console.log(`[banana2] 📋 异步任务创建: ${taskId}`);
+        return taskId;
+    } catch(e) { console.warn(`[banana2] 创建任务异常: ${e.message}`); return null; }
+}
+
+async function __getGenerationTask(taskId) {
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/generation_tasks?id=eq.${encodeURIComponent(taskId)}&select=*&limit=1`, {
+            headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` }
+        });
+        if (!res.ok) return null;
+        const rows = await res.json();
+        return rows?.[0] || null;
+    } catch(e) { return null; }
+}
+
+async function __updateGenerationTask(taskId, status, result, error) {
+    try {
+        const data = { status, updated_at: new Date().toISOString() };
+        if (result) data.result = result;
+        if (error) data.error = error;
+        if (status === 'completed') data.completed_at = new Date().toISOString();
+        await fetch(`${SUPABASE_URL}/rest/v1/generation_tasks?id=eq.${encodeURIComponent(taskId)}`, {
+            method: 'PATCH', headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    } catch(e) { console.warn(`[banana2] 更新任务异常: ${e.message}`); }
+}
 
 /**
  * 📤 将base64图片上传到Supabase Storage，返回公开URL
@@ -42,8 +104,11 @@ async function __uploadBase64ToStorage(base64Data, mimeType, userId) {
         const ext = mimeType.includes('png') ? 'png' : (mimeType.includes('webp') ? 'webp' : 'jpg');
         const fileName = `${userId || 'anon'}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-        // 尝试上传
+        // 尝试上传（带10秒超时）
         const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${IMAGE_BUCKET}/${fileName}`;
+        const uploadController = new AbortController();
+        const uploadTimeout = setTimeout(() => uploadController.abort(), 10000);
+        
         let upRes = await fetch(uploadUrl, {
             method: 'PUT',
             headers: {
@@ -52,12 +117,16 @@ async function __uploadBase64ToStorage(base64Data, mimeType, userId) {
                 'Content-Type': mimeType,
                 'x-upsert': 'true'
             },
-            body: buffer
+            body: buffer,
+            signal: uploadController.signal
         });
+        clearTimeout(uploadTimeout);
 
         // 如果bucket不存在(404)，尝试自动创建
         if (!upRes.ok && upRes.status === 404) {
             console.log(`[banana2] Bucket "${IMAGE_BUCKET}" 不存在，尝试自动创建...`);
+            const createController = new AbortController();
+            const createTimeout = setTimeout(() => createController.abort(), 10000);
             const createRes = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
                 method: 'POST',
                 headers: {
@@ -65,10 +134,15 @@ async function __uploadBase64ToStorage(base64Data, mimeType, userId) {
                     'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ id: IMAGE_BUCKET, name: IMAGE_BUCKET, public: true })
+                body: JSON.stringify({ id: IMAGE_BUCKET, name: IMAGE_BUCKET, public: true }),
+                signal: createController.signal
             });
+            clearTimeout(createTimeout);
+            
             if (createRes.ok || createRes.status === 409) {
-                // 重试上传
+                // 重试上传（带10秒超时）
+                const retryController = new AbortController();
+                const retryTimeout = setTimeout(() => retryController.abort(), 10000);
                 upRes = await fetch(uploadUrl, {
                     method: 'PUT',
                     headers: {
@@ -77,8 +151,10 @@ async function __uploadBase64ToStorage(base64Data, mimeType, userId) {
                         'Content-Type': mimeType,
                         'x-upsert': 'true'
                     },
-                    body: buffer
+                    body: buffer,
+                    signal: retryController.signal
                 });
+                clearTimeout(retryTimeout);
             }
         }
 
@@ -98,15 +174,72 @@ async function __uploadBase64ToStorage(base64Data, mimeType, userId) {
 }
 
 /**
+ * 🌐 下载外部图片URL并上传到Supabase Storage
+ * 解决第三方CDN(pro.filesystem.site等)不稳定导致前端无法加载的问题
+ */
+async function __downloadAndUploadToStorage(imageUrl, userId) {
+    if (!SUPABASE_SERVICE_KEY) {
+        console.warn('[banana2] 无SUPABASE_SERVICE_KEY，跳过图片转存');
+        return null;
+    }
+    if (!imageUrl || typeof imageUrl !== 'string') return null;
+    // 已经是Supabase URL或base64，无需转存
+    if (imageUrl.includes('supabase.co') || imageUrl.startsWith('data:')) {
+        return imageUrl;
+    }
+
+    try {
+        console.log(`[banana2] 🌐 下载外部图片: ${imageUrl.substring(0, 80)}...`);
+        const imgRes = await fetchWithTimeout(imageUrl, {}, 30000);
+        if (!imgRes.ok) {
+            console.warn(`[banana2] ⚠️ 下载外部图片失败: ${imgRes.status}`);
+            return null;
+        }
+        const arrayBuffer = await imgRes.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const contentType = imgRes.headers.get('content-type') || 'image/png';
+        const ext = contentType.includes('png') ? 'png' : (contentType.includes('webp') ? 'webp' : 'jpg');
+        const fileName = `${userId || 'anon'}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        // 上传到Storage
+        const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${IMAGE_BUCKET}/${fileName}`;
+        const uploadController = new AbortController();
+        const uploadTimeout = setTimeout(() => uploadController.abort(), 10000);
+        const upRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                'Content-Type': contentType,
+                'x-upsert': 'true'
+            },
+            body: buffer,
+            signal: uploadController.signal
+        });
+        clearTimeout(uploadTimeout);
+
+        if (!upRes.ok) {
+            console.warn(`[banana2] ⚠️ Storage上传失败: ${upRes.status}`);
+            return null;
+        }
+
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${IMAGE_BUCKET}/${fileName}`;
+        console.log(`[banana2] ✅ 外部图片转存成功: ${Math.round(buffer.length / 1024)}KB → ${publicUrl.substring(0, 80)}...`);
+        return publicUrl;
+    } catch (err) {
+        console.warn(`[banana2] ⚠️ 图片转存异常: ${err.message}`);
+        return null;
+    }
+}
+
+/**
  * 📝 保存生成记录 - 确保用户能找回已生成的内容
  */
 async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, model, cost, metadata) {
     if (!userId) return { success: false, error: 'no userId' };
 
     try {
-        const baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'https://www.rollroll.art';
+        const baseUrl = 'https://www.rollroll.art';
 
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
@@ -147,9 +280,7 @@ async function __billing(billingAction, userId, amount, description) {
     const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
 
     try {
-        const baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'https://www.rollroll.art';
+        const baseUrl = 'https://www.rollroll.art';
 
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
@@ -226,6 +357,7 @@ const YUNWU_API_KEY = YUNMENG_API_KEYS[0] || ''; // 兼容旧变量名
 
 const YUNMENG_ENDPOINTS = [
     'https://api3.wlai.vip',
+    'https://api.wlai.vip',
     'https://yunwu.zeabur.app',
     'https://yunwu.ai'
 ];
@@ -241,24 +373,38 @@ const API_KEY = '';
  */
 async function fetchWithFallback(requestBody, isGemini3Native = false, geminiModelName = '') {
     const model = String(requestBody?.model || '');
-    const is4k = /4k|2k/i.test(model);
+    console.log(`[banana2] 📥 fetchWithFallback 收到模型:`, model);
+    const is4k = /4k/i.test(model);
+    const is2k = /2k/i.test(model);
     const isJimeng = model.includes('jimeng');
     const isSeedream = model.includes('seedream') || model.includes('doubao') || model.includes('openrouter:bytedance-seed/seedream');
-    // 🔧 统一超时设置：与生图页面(banana.html)保持一致
-    // Gemini模型90秒，其他模型根据类型调整
-    // 🔧 4K大图生成耗时更长：云雾API生成+下载可能超过90s
-    const baseTimeoutMs = isGemini3Native ? (is4k ? 150000 : 120000) : (isJimeng ? 90000 : (isSeedream ? 120000 : 90000));
+    const isGptImage2 = model === 'gpt-image-2' || model === 'gpt2';    const isGptImage2All = model === 'gpt-image-2-all' || model === 'gpt-image-2-all-2k' || model === 'gpt-image-2-all-4k';
+    const isGptImage2Family = isGptImage2 || isGptImage2All;
+    // 🔧 统一超时设置：2K/4K需要更长时间
+    const baseTimeoutMs = is4k ? 240000 : (is2k ? 180000 : (isGptImage2Family ? 120000 : (isGemini3Native ? 85000 : (isJimeng ? 80000 : (isSeedream ? 85000 : 80000)))));
 
-    // 🔧 全局时间守卫：防止总时间超过 Cloudflare 100s 代理超时
-    // 4K大图需要额外时间上传Supabase Storage，所以留30秒给后处理
-    const GLOBAL_DEADLINE_MS = 70000;  // 70秒硬上限，留30秒给Storage上传+计费+响应
+    const GLOBAL_DEADLINE_MS = is4k ? 240000 : (is2k ? 180000 : 95000);  // 4K/2K需要更长时间
     const startTime = Date.now();
 
     // 根据实际模型名构建正确的 API 路径
     const geminiModel = geminiModelName || 'gemini-3-pro-image-preview';
-    const apiPath = isGemini3Native
-        ? `/v1beta/models/${geminiModel}:generateContent`
-        : '/v1/images/generations';
+    // 🆕 GPT-Image-2 系列支持图生图/编辑模式
+    const hasRefImage = !!(requestBody?.image_url || (requestBody?.image_urls && requestBody.image_urls.length > 0));
+    let apiPath;
+    
+    if (isGemini3Native) {
+        apiPath = `/v1beta/models/${geminiModel}:generateContent`;
+    } else if (isGptImage2 && hasRefImage) {
+        // 🆕 GPT-Image-2 官方模型带参考图/编辑：使用 images/edits 端点
+        apiPath = '/v1/images/edits';
+        console.log(`[banana2] 🔧 GPT-Image-2 官方模型带参考图/编辑，使用 edits 端点`);
+    } else {
+        // 其他模型（包括 gpt-image-2-all）使用 generations 端点
+        apiPath = '/v1/images/generations';
+        if (isGptImage2All && hasRefImage) {
+            console.log(`[banana2] 🔧 GPT-Image-2-All 带参考图，使用 generations 端点`);
+        }
+    }
     console.log(`[banana2] 🔧 模型 ${model || 'gemini-3'} 使用端点: ${apiPath}, 单端点超时: ${baseTimeoutMs}ms`);
 
     if (YUNMENG_API_KEYS.length === 0) {
@@ -267,47 +413,137 @@ async function fetchWithFallback(requestBody, isGemini3Native = false, geminiMod
 
     const apiKey = YUNMENG_API_KEYS[0];
 
-    // 🔧 只使用第一个（主）端点，更稳定
-    const endpoint = YUNMENG_ENDPOINTS[0];
-    if (!endpoint) {
-        throw new Error('没有可用的API端点');
+    // 🆕 GPT-Image-2 系列：构建请求体
+    let finalRequestBody = { ...requestBody };
+    // 🆕 传递 response_format 参数（例如 "psd" 用于生成分层PSD）
+    if (requestBody.response_format) {
+        finalRequestBody.response_format = requestBody.response_format;
+        console.log(`[banana2] 📄 设置response_format:`, requestBody.response_format);
+    }
+    console.log(`[banana2] 📝 构建finalRequestBody前，原始model:`, requestBody.model, 'isGptImage2:', isGptImage2, 'isGptImage2All:', isGptImage2All, 'isGptImage2Family:', isGptImage2Family, 'hasRefImage:', hasRefImage, 'requestBody.image_urls:', !!requestBody.image_urls, 'requestBody.image_url:', !!requestBody.image_url);
+    let refImages = [];
+    if (isGptImage2Family && hasRefImage) {
+        refImages = requestBody.image_urls || (requestBody.image_url ? [requestBody.image_url] : []);
+        // 🔧 直接使用原始参考图（base64或URL），云雾API原生支持base64
+        const uploadedRefs = [];
+        for (let ri = 0; ri < refImages.length; ri++) {
+            const ref = refImages[ri];
+            if (ref) {
+                uploadedRefs.push(ref);
+            }
+        }
+        refImages = uploadedRefs;
+
+        if (refImages.length > 0) {
+            if (isGptImage2) {
+                finalRequestBody.images = refImages.map(url => ({ image_url: String(url).trim() }));
+                delete finalRequestBody.image_url;
+                delete finalRequestBody.image_urls;
+                delete finalRequestBody.image;
+                console.log(`[banana2] 🎨 GPT-Image-2 编辑/图生图模式: ${refImages.length}张参考图`);
+                if (requestBody.mask) {
+                    finalRequestBody.mask = requestBody.mask;
+                }
+                if (requestBody.background) {
+                    finalRequestBody.background = requestBody.background;
+                }
+                if (requestBody.input_fidelity) {
+                    finalRequestBody.input_fidelity = requestBody.input_fidelity;
+                }
+            } else if (isGptImage2All) {
+                finalRequestBody.image = refImages.map(url => String(url).trim());
+                delete finalRequestBody.image_url;
+                delete finalRequestBody.image_urls;
+                delete finalRequestBody.images;
+                console.log(`[banana2] 🎨 GPT-Image-2-All 图生图模式: ${refImages.length}张参考图`);
+            }
+        }
+    }
+    // 🔧 清理内部字段，不发送给云雾API
+    delete finalRequestBody.__userId;
+    delete finalRequestBody.__idempotencyKey;
+    
+    // 🔍 打印完整请求体（但不打印完整base64避免日志过大）
+    const logRequestBody = { ...finalRequestBody };
+    if (logRequestBody.image) {
+        logRequestBody.image = logRequestBody.image.map(url => url.substring(0, 80) + '...');
+    }
+    if (logRequestBody.images) {
+        logRequestBody.images = logRequestBody.images.map(img => ({ image_url: img.image_url.substring(0, 80) + '...' }));
+    }
+    console.log(`[banana2] 📤 发送请求到云雾:`, JSON.stringify(logRequestBody, null, 2));
+
+    // 🔄 依次尝试所有端点，遇到 429/5xx 自动切换，带延迟重试
+    let lastError = null;
+    let retryCount = 0;
+    const maxRetries = 2; // 最多额外重试2轮
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        for (let i = 0; i < YUNMENG_ENDPOINTS.length; i++) {
+            const endpoint = YUNMENG_ENDPOINTS[i];
+            if (!endpoint) continue;
+
+            const url = `${endpoint}${apiPath}`;
+            // 🔧 全局时间守卫：如果已超过截止时间，不再尝试下一个端点
+            const _elapsed = Date.now() - startTime;
+            if (_elapsed >= GLOBAL_DEADLINE_MS) {
+                console.warn(`[banana2] ⏰ 全局时间守卫触发 (已耗时${Math.round(_elapsed / 1000)}s >= ${Math.round(GLOBAL_DEADLINE_MS / 1000)}s)，停止尝试`);
+                break;
+            }
+            // 🔧 剩余时间作为本端点的超时上限
+            const _remainingMs = GLOBAL_DEADLINE_MS - _elapsed;
+            const _endpointTimeoutMs = Math.min(baseTimeoutMs, _remainingMs);
+            console.log(`[banana2] ☁️ 请求端点[${i + 1}/${YUNMENG_ENDPOINTS.length}] (第${attempt + 1}轮): ${endpoint} (超时${Math.round(_endpointTimeoutMs / 1000)}s, 剩余${Math.round(_remainingMs / 1000)}s)`);
+
+            try {
+                console.log(`[banana2] 🚀 发送请求到 ${url}, 模型: ${finalRequestBody.model}, 端点: ${apiPath}`);
+                    console.log(`[banana2] 📤 请求体:`, JSON.stringify(finalRequestBody, null, 2));
+                    const response = await fetchWithTimeout(url, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json',
+                            ...(requestBody?.__idempotencyKey ? { 'Idempotency-Key': String(requestBody.__idempotencyKey) } : {})
+                        },
+                        body: JSON.stringify(finalRequestBody)
+                    }, _endpointTimeoutMs);
+
+                if (response.ok) {
+                    console.log(`[banana2] ☁️ ✅ 端点[${i + 1}]成功 (耗时${Math.round((Date.now() - startTime) / 1000)}s)`);
+                    return response;
+                }
+
+                // 4xx 客户端错误不重试（参数错误、余额不足等），但 429 可以换端点重试
+                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                    console.warn(`[banana2] ☁️ 端点[${i + 1}]客户端错误 ${response.status}，不再重试`);
+                    throw new Error(`请求失败: ${response.status}`);
+                }
+
+                // 5xx 或 429 错误，记录并尝试下一个端点
+                console.warn(`[banana2] ☁️ 端点[${i + 1}]返回 ${response.status}，尝试下一个端点...`);
+                lastError = new Error(`图片生成失败: ${response.status}`);
+
+            } catch (err) {
+                // 客户端错误直接抛出
+                if (err.message.startsWith('请求失败:')) throw err;
+
+                console.warn(`[banana2] ☁️ 端点[${i + 1}]异常: ${err.message}`);
+                lastError = err;
+            }
+        }
+        
+        // 如果还有重试次数，且是因为429/5xx失败，等待后重试
+        if (attempt < maxRetries && lastError && (lastError.message.includes('429') || lastError.message.includes('5'))) {
+            const delayMs = 3000 * (attempt + 1); // 3s, 6s 递增
+            console.log(`[banana2] ⏳ 所有端点失败，等待 ${delayMs}ms 后第 ${attempt + 2} 轮重试...`);
+            await new Promise(r => setTimeout(r, delayMs));
+        } else {
+            break;
+        }
     }
 
-    const url = `${endpoint}${apiPath}`;
-    console.log(`[banana2] ☁️ 请求主端点: ${endpoint} (超时${baseTimeoutMs/1000}s)`);
-
-    try {
-        const response = await fetchWithTimeout(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                ...(requestBody?.__idempotencyKey ? { 'Idempotency-Key': String(requestBody.__idempotencyKey) } : {})
-            },
-            body: JSON.stringify(requestBody)
-        }, baseTimeoutMs);
-
-        if (response.ok) {
-            console.log(`[banana2] ☁️ ✅ 主端点成功 (耗时${Math.round((Date.now() - startTime) / 1000)}s)`);
-            return response;
-        }
-
-        // 4xx 客户端错误不重试（参数错误、余额不足等）
-        if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-            console.warn(`[banana2] ☁️ 主端点客户端错误 ${response.status}`);
-            throw new Error(`请求失败: ${response.status}`);
-        }
-
-        // 5xx 或 429 错误
-        console.warn(`[banana2] ☁️ 主端点返回 ${response.status}`);
-        throw new Error(`图片生成失败: ${response.status}`);
-    } catch (err) {
-        // 客户端错误直接抛出
-        if (err.message.startsWith('请求失败:')) throw err;
-
-        console.warn(`[banana2] ☁️ 主端点异常: ${err.message}`);
-        throw new Error(`图片生成超时或节点不可用: ${err.message}`);
-    }
+    // 所有端点都失败了
+    throw new Error(`图片生成超时或节点不可用: ${lastError?.message || '所有端点均失败'}`);
 }
 
 /**
@@ -393,7 +629,7 @@ async function callQwenImageMaxViaYunwu(prompt, options = {}) {
                     prompt_extend: true
                 })
             },
-            120000
+            180000
         );
 
         if (!response.ok) {
@@ -642,11 +878,35 @@ module.exports = async function handler(req, res) {
     };
 
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
         json(204, {});
+        return;
+    }
+
+    // 🆕 GET 端点：轮询任务状态（异步任务模式）
+    if (req.method === 'GET') {
+        const url = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
+        const taskId = url.searchParams.get('task_id');
+
+        if (!taskId) {
+            json(400, { error: 'MISSING_TASK_ID' });
+            return;
+        }
+
+        try {
+            const task = await __getGenerationTask(taskId);
+            if (!task) {
+                json(404, { error: 'TASK_NOT_FOUND' });
+                return;
+            }
+            json(200, task);
+        } catch (err) {
+            console.error('[banana2] GET 任务查询失败:', err.message);
+            json(500, { error: 'INTERNAL_ERROR', message: err.message });
+        }
         return;
     }
 
@@ -674,6 +934,7 @@ module.exports = async function handler(req, res) {
             aspect_ratio = '1:1',
             image_url,   // 单图（兼容旧版）
             image_urls,  // 🆕 多图融合数组
+            response_format, // 🆕 响应格式：支持 "psd"、"png" 等
             userId: reqUserId       // 🔐 用户ID（计费用）
         } = body || {};
 
@@ -738,6 +999,8 @@ module.exports = async function handler(req, res) {
             model,
             aspect_ratio,
             hasRefImage: !!image_url,
+            hasRefImages: !!(image_urls && Array.isArray(image_urls) && image_urls.length > 0),
+            refImagesCount: image_urls ? image_urls.length : 0,
             promptLength: prompt.length
         });
 
@@ -763,6 +1026,10 @@ module.exports = async function handler(req, res) {
             actualModel = 'gemini-3-pro-image-preview';  // 云雾 Gemini 图像生成
             resolution = '4K';
             console.log(`[banana2] 🔄 模型映射: ${model} -> ${actualModel} (${resolution})`);
+        } else if (model.includes('seedream') || model.includes('doubao')) {
+            actualModel = model;  // 星梦画师系列保持原名
+            resolution = '1K';
+            console.log(`[banana2] 🔄 星梦画师模型: ${model} (${resolution})`);
         } else if (model === 'gemini-3.1-flash-image-preview') {
             actualModel = 'gemini-3.1-flash-image-preview';  // ✅ 保持3.1模型名
             resolution = '1K';
@@ -773,6 +1040,22 @@ module.exports = async function handler(req, res) {
             console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
         } else if (model === 'gemini-3.1-flash-image-preview-4k') {
             actualModel = 'gemini-3.1-flash-image-preview';  // ✅ 保持3.1模型名
+            resolution = '4K';
+            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
+        } else if (model === 'gpt-image-2' || model === 'gpt2') {
+            actualModel = 'gpt-image-2';  // ✅ GPT-Image-2 官方模型（gpt2 是简写）
+            resolution = '1K';
+            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
+        } else if (model === 'gpt-image-2-all') {
+            actualModel = 'gpt-image-2-all';  // ✅ GPT-Image-2-All 使用dall-e-3格式
+            resolution = '1K';
+            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
+        } else if (model === 'gpt-image-2-all-2k') {
+            actualModel = 'gpt-image-2-all';  // 2K也用同一个模型
+            resolution = '2K';
+            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
+        } else if (model === 'gpt-image-2-all-4k') {
+            actualModel = 'gpt-image-2-all';  // 4K也用同一个模型
             resolution = '4K';
             console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
         }
@@ -788,8 +1071,36 @@ module.exports = async function handler(req, res) {
         const isQwenImageMax = useYunwuAPI && (model === 'qwen-image-max' || model === 'Qwen/Qwen-Image-2512');
         // 🆕 OpenRouter 图片模型
         const isOpenRouterImage = model && model.startsWith('openrouter:');
+        // 🆕 GPT-Image-2 官方模型
+        const isGptImage2 = model === 'gpt-image-2' || model === 'gpt2';
+        const isGptImage2All = model === 'gpt-image-2-all' || model === 'gpt-image-2-all-2k' || model === 'gpt-image-2-all-4k';
+        const isGptImage2All_2k = model === 'gpt-image-2-all-2k';
+        const isGptImage2All_4k = model === 'gpt-image-2-all-4k';
 
         let response;
+
+        // 🆕 异步任务模式：4K请求走后台任务，避免100s超时
+        const is4K = resolution === '4K';
+        let taskId = null;
+
+        if (is4K && userId && filmCost > 0) {
+            taskId = await __createGenerationTask(userId, 'image', { prompt, model, aspect_ratio, image_url: image_url || null, image_urls: image_urls || null, resolution });
+            if (taskId) {
+                // 🔄 重写 json 函数，生成完成后更新 Supabase 而非直接返回
+                const _origJson = json;
+                json = function(status, payload) {
+                    if (status === 200) {
+                        __updateGenerationTask(taskId, 'completed', { url: payload.url, urls: payload.urls || [payload.url], billed: payload.billed || 0 }).catch(() => {});
+                    } else {
+                        __updateGenerationTask(taskId, 'failed', null, payload?.message || payload?.error || '未知错误').catch(() => {});
+                    }
+                };
+                // ✅ 立即返回 202 + taskId，客户端开始轮询
+                _origJson(202, { taskId, status: 'pending', message: '任务已创建，正在处理中...', billed: 0 });
+                console.log(`[banana2] 🚀 4K异步任务启动: ${taskId}, 立即返回202`);
+                // 函数继续执行，完成图片生成后会通过 json() 更新 Supabase 任务状态
+            }
+        }
 
         // 🆕 qwen-image-max 使用云雾API（付费）
         if (isQwenImageMax) {
@@ -807,7 +1118,9 @@ module.exports = async function handler(req, res) {
                 // 根据 aspect_ratio 计算 size
                 // 🔧 云雾API qwen-image-max 支持的尺寸: 1024x1024, 1328x1328 等
                 let size = '1328x1328';  // 默认正方形
-                if (aspect_ratio === '16:9') {
+                if (aspect_ratio === '21:9') {
+                    size = '1328x570';   // 超宽：宽1328 x 高570
+                } else if (aspect_ratio === '16:9') {
                     size = '1328x768';   // 横屏：宽1328 x 高768
                 } else if (aspect_ratio === '9:16') {
                     size = '768x1328';   // 竖屏：宽768 x 高1328
@@ -870,7 +1183,10 @@ module.exports = async function handler(req, res) {
             try {
                 // 计算图片尺寸
                 let width, height;
-                if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
+                if (aspect_ratio === '21:9') {
+                    width = 2560;
+                    height = 1080;
+                } else if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
                     width = 1920;
                     height = 1080;
                 } else if (aspect_ratio === '9:16' || aspect_ratio === '10:16') {
@@ -962,7 +1278,7 @@ module.exports = async function handler(req, res) {
             let orientationHint = '';
             if (aspect_ratio === '9:16' || aspect_ratio === '3:4') {
                 orientationHint = ' [IMPORTANT: Generate a VERTICAL/PORTRAIT image, taller than wide, aspect ratio ' + aspect_ratio + ']';
-            } else if (aspect_ratio === '16:9' || aspect_ratio === '4:3') {
+            } else if (aspect_ratio === '16:9' || aspect_ratio === '4:3' || aspect_ratio === '21:9') {
                 orientationHint = ' [IMPORTANT: Generate a HORIZONTAL/LANDSCAPE image, wider than tall, aspect ratio ' + aspect_ratio + ']';
             }
             const enhancedPrompt = prompt + orientationHint;
@@ -1041,13 +1357,17 @@ module.exports = async function handler(req, res) {
                 '9:16': '9:16',   // 竖屏
                 '4:3': '4:3',     // 标准横屏
                 '3:4': '3:4',     // 标准竖屏
-                '1:1': '1:1'      // 正方形
+                '1:1': '1:1',     // 正方形
+                '21:9': '21:9'    // 超宽银幕
             };
             geminiAspectRatio = aspectMap[aspect_ratio] || '1:1';
             console.log(`[banana2] 🎯 Gemini aspect_ratio: 前端=${aspect_ratio}, 实际=${geminiAspectRatio}`);
 
             let width, height;
-            if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
+            if (aspect_ratio === '21:9') {
+                width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
+                height = (resolution === '4K') ? 1646 : (resolution === '2K' ? 1097 : 823);
+            } else if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
                 width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
                 height = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
             } else if (aspect_ratio === '9:16' || aspect_ratio === '10:16') {
@@ -1092,13 +1412,17 @@ module.exports = async function handler(req, res) {
             // 其他模型使用 OpenAI 兼容格式
             const requestBody = {
                 model: actualModel,
-                prompt
+                prompt,
+                __userId: userId
             };
 
             if (isSeedream) {
                 // 🔧 修复比例反转：星梦画师使用 size 参数（宽x高格式）
                 let width, height;
-                if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
+                if (aspect_ratio === '21:9') {
+                    width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
+                    height = (resolution === '4K') ? 1646 : (resolution === '2K' ? 1097 : 823);
+                } else if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
                     // 横屏：宽 > 高
                     width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
                     height = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
@@ -1119,7 +1443,10 @@ module.exports = async function handler(req, res) {
             } else if (isGemini3) {
                 // ✅ Gemini图像模型根据resolution设置size
                 let width, height;
-                if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
+                if (aspect_ratio === '21:9') {
+                    width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
+                    height = (resolution === '4K') ? 1646 : (resolution === '2K' ? 1097 : 823);
+                } else if (aspect_ratio === '16:9' || aspect_ratio === '16:10') {
                     // 横屏：宽 > 高
                     width = (resolution === '4K') ? 3840 : (resolution === '2K' ? 2560 : 1920);
                     height = (resolution === '4K') ? 2160 : (resolution === '2K' ? 1440 : 1080);
@@ -1133,6 +1460,80 @@ module.exports = async function handler(req, res) {
                 }
                 requestBody.size = `${width}x${height}`;
                 console.log(`[banana2] Gemini图像模型使用size: ${requestBody.size} (${resolution}, ${aspect_ratio})`);
+            } else if (isGptImage2) {
+                // ✅ gpt-image-2 官方支持的尺寸
+                // 前端直接发送尺寸格式（如1024x1024），后端直接使用
+                if (aspect_ratio && aspect_ratio.includes('x')) {
+                    requestBody.size = aspect_ratio;
+                    console.log(`[banana2] gpt-image-2 直接使用前端尺寸: ${aspect_ratio}`);
+                } else {
+                    // 按比例计算尺寸
+                    let width, height;
+                    if (aspect_ratio === '16:9') {
+                        width = 1536;
+                        height = 1024;
+                    } else if (aspect_ratio === '9:16') {
+                        width = 1024;
+                        height = 1536;
+                    } else if (aspect_ratio === '4:3') {
+                        width = 1024;
+                        height = 768;
+                    } else if (aspect_ratio === '3:4') {
+                        width = 768;
+                        height = 1024;
+                    } else if (aspect_ratio === '1:1') {
+                        width = 1024;
+                        height = 1024;
+                    } else if (aspect_ratio === '21:9') {
+                        width = 2560;
+                        height = 1080;
+                    } else if (aspect_ratio === 'auto' || !aspect_ratio) {
+                        width = 1024;
+                        height = 1024;
+                    } else {
+                        width = 1024;
+                        height = 1024;
+                    }
+                    requestBody.size = `${width}x${height}`;
+                    console.log(`[banana2] gpt-image-2 计算尺寸: ${requestBody.size} (${aspect_ratio})`);
+                }
+            } else if (isGptImage2All) {
+                // ✅ gpt-image-2-all 官方支持的尺寸
+                if (aspect_ratio && aspect_ratio.includes('x')) {
+                    requestBody.size = aspect_ratio;
+                    console.log(`[banana2] gpt-image-2-all 直接使用前端尺寸: ${aspect_ratio}`);
+                } else {
+                    let width, height;
+                    // 🔧 根据分辨率选择尺寸：1K=1024, 2K=2048, 4K=4096
+                    const sizeMultiplier = isGptImage2All_4k ? 4 : (isGptImage2All_2k ? 2 : 1);
+                    if (aspect_ratio === '16:9') {
+                        width = 1536 * sizeMultiplier;
+                        height = 1024 * sizeMultiplier;
+                    } else if (aspect_ratio === '9:16') {
+                        width = 1024 * sizeMultiplier;
+                        height = 1536 * sizeMultiplier;
+                    } else if (aspect_ratio === '4:3') {
+                        width = 1024 * sizeMultiplier;
+                        height = 768 * sizeMultiplier;
+                    } else if (aspect_ratio === '3:4') {
+                        width = 768 * sizeMultiplier;
+                        height = 1024 * sizeMultiplier;
+                    } else if (aspect_ratio === '1:1') {
+                        width = 1024 * sizeMultiplier;
+                        height = 1024 * sizeMultiplier;
+                    } else if (aspect_ratio === '21:9') {
+                        width = 2560 * sizeMultiplier;
+                        height = 1080 * sizeMultiplier;
+                    } else if (aspect_ratio === 'auto' || !aspect_ratio) {
+                        width = 1024 * sizeMultiplier;
+                        height = 1024 * sizeMultiplier;
+                    } else {
+                        width = 1024 * sizeMultiplier;
+                        height = 1024 * sizeMultiplier;
+                    }
+                    requestBody.size = `${width}x${height}`;
+                    console.log(`[banana2] gpt-image-2-all 计算尺寸: ${requestBody.size} (${aspect_ratio}, ${resolution})`);
+                }
             } else {
                 // 其他模型默认使用 size
                 requestBody.size = '1024x1024';
@@ -1142,11 +1543,13 @@ module.exports = async function handler(req, res) {
             // 图生图模式（支持多图融合）
             if (image_urls && Array.isArray(image_urls) && image_urls.length > 0) {
                 requestBody.image_urls = image_urls;
-                console.log(`[banana2] 多图融合模式: ${image_urls.length} 张参考图`);
+                console.log(`[banana2] 多图融合模式: ${image_urls.length} 张参考图，第一个参考图:`, image_urls[0] ? (typeof image_urls[0] + ' ' + (image_urls[0].startsWith('data:') ? 'base64' : 'http')) : 'null');
             } else if (image_url) {
                 requestBody.image_url = image_url;
+                console.log(`[banana2] 单图模式:`, image_url ? (typeof image_url + ' ' + (image_url.startsWith('data:') ? 'base64' : 'http')) : 'null');
             }
 
+            console.log(`[banana2] 📤 即将调用fetchWithFallback，requestBody.model:`, requestBody.model);
             response = await fetchWithFallback(requestBody, false);
         }
 
@@ -1195,13 +1598,67 @@ module.exports = async function handler(req, res) {
         }
 
         // 🔧 body读取超时：4K大图base64可能很大（30MB+），设180s上限
-        const data = await Promise.race([
+        let data = await Promise.race([
             response.json(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('响应体读取超时(180s)，图片数据过大或网络慢')), 180000))
         ]);
 
+        // 🔧 GPT-Image-2-All 异步任务处理：如果返回 task_id，轮询等待结果
+        if (isGptImage2All && data?.task_id) {
+            console.log(`[banana2] 🤖 GPT-Image-2-All 异步任务: ${data.task_id}，开始轮询...`);
+            const taskId = data.task_id;
+            const maxPollAttempts = 200;  // 200次 × 3秒 = 600秒，给500秒生成时间留有余量
+            let pollData = null;
+
+            for (let pollAttempt = 0; pollAttempt < maxPollAttempts; pollAttempt++) {
+                await new Promise(resolve => setTimeout(resolve, 3000));  // 3秒轮询间隔
+
+                try {
+                    const pollResponse = await fetchWithTimeout(
+                        `https://yunwu.ai/v1/images/generations/${taskId}`,
+                        {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${apiKey}`,
+                                'Content-Type': 'application/json'
+                            }
+                        },
+                        60000
+                    );
+
+                    if (pollResponse.ok) {
+                        pollData = await pollResponse.json();
+                        console.log(`[banana2] 轮询[${pollAttempt + 1}/${maxPollAttempts}]:`, JSON.stringify(pollData).substring(0, 200));
+
+                        // 检查是否完成
+                        if (pollData?.data && pollData.data.length > 0) {
+                            console.log(`[banana2] ✅ GPT-Image-2-All 任务完成`);
+                            data = pollData;  // 使用轮询结果
+                            break;
+                        }
+
+                        // 检查状态
+                        if (pollData?.status === 'failed') {
+                            throw new Error(`GPT-Image任务失败: ${pollData?.error || '未知错误'}`);
+                        }
+                    }
+                } catch (pollErr) {
+                    console.warn(`[banana2] 轮询异常: ${pollErr.message}`);
+                }
+
+                // 每10次输出进度
+                if ((pollAttempt + 1) % 10 === 0) {
+                    console.log(`[banana2] ⏳ GPT-Image-2-All 轮询进度: ${pollAttempt + 1}/${maxPollAttempts} (${Math.round((pollAttempt + 1) * 3)}秒)`);
+                }
+            }
+
+            if (!data?.data || data.data.length === 0) {
+                throw new Error('GPT-Image-2-All 异步任务超时，未获取到结果');
+            }
+        }
+
         // 🔧 调试：输出原始返回格式
-        console.log('[banana2] 返回数据:', JSON.stringify(data).substring(0, 500));
+        console.log('[banana2] 返回数据完整格式:', JSON.stringify(data).substring(0, 1500));
 
         // 🔍 检查返回数据中的错误信息
         if (data?.error) {
@@ -1314,38 +1771,133 @@ module.exports = async function handler(req, res) {
             throw new Error('API 未返回图片，可能内容审核未通过');
         }
 
-        // 📤 大图上传到Supabase Storage：base64超3MB自动上传，避免超Vercel 4.5MB响应限制
+        // 🔧 只处理超大base64，其他URL直接返回（避免过度转换导致失败）
+        const _storageUploads = [];
         for (let i = 0; i < imageUrls.length; i++) {
             const imgData = imageUrls[i];
+            // 只上传超大base64（超过3MB），普通URL和小型base64直接返回
             if (imgData && imgData.startsWith('data:') && imgData.length > 3 * 1024 * 1024) {
-                const match = imgData.match(/^data:([^;]+);base64,(.+)$/);
-                if (match) {
-                    console.log(`[banana2] 📤 图片${i}过大(${Math.round(imgData.length / 1024 / 1024)}MB)，上传到Storage...`);
-                    const storageUrl = await __uploadBase64ToStorage(match[2], match[1], userId);
-                    if (storageUrl) {
-                        imageUrls[i] = storageUrl;
-                    } else {
-                        console.warn(`[banana2] ⚠️ Storage上传失败，尝试截断base64返回`);
+                _storageUploads.push({ index: i, type: 'base64', data: imgData });
+            }
+            // 外部CORS受限的URL才下载到Storage（跳过已经是supabase的URL）
+            else if (imgData && imgData.startsWith('http') && !imgData.includes('supabase.co') && !imgData.includes('rollroll.art')) {
+                _storageUploads.push({ index: i, type: 'url', data: imgData });
+            }
+        }
+        if (_storageUploads.length > 0) {
+            for (const upload of _storageUploads) {
+                const i = upload.index;
+                try {
+                    if (upload.type === 'base64') {
+                        const imgData = upload.data;
+                        const match = imgData.match(/^data:([^;]+);base64,(.+)$/);
+                        if (match) {
+                            console.log(`[banana2] 📤 图片${i}过大(${Math.round(imgData.length / 1024 / 1024)}MB)，上传到Storage...`);
+                            const storageUrl = await __uploadBase64ToStorage(match[2], match[1], userId);
+                            if (storageUrl) {
+                                imageUrls[i] = storageUrl;
+                            } else {
+                                console.warn(`[banana2] ⚠️ Storage上传失败，移除超大base64避免响应超限`);
+                                imageUrls[i] = null;
+                            }
+                        }
+                    } else if (upload.type === 'url') {
+                        // 🔧 下载CORS受限的图片到Storage
+                        console.log(`[banana2] 📤 图片${i}存在CORS限制，下载到Storage...`);
+                        try {
+                            const response = await fetch(imgData);
+                            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                            const buffer = await response.arrayBuffer();
+                            const base64 = Buffer.from(buffer).toString('base64');
+                            const mimeType = response.headers.get('content-type') || 'image/png';
+                            const storageUrl = await __uploadBase64ToStorage(base64, mimeType, userId);
+                            if (storageUrl) {
+                                imageUrls[i] = storageUrl;
+                                console.log(`[banana2] ✅ CORS图片转换成功: ${imgData.substring(0, 50)}... -> ${storageUrl}`);
+                            } else {
+                                console.warn(`[banana2] ⚠️ CORS图片下载失败，保留原URL`);
+                            }
+                        } catch (downloadErr) {
+                            console.warn(`[banana2] ⚠️ CORS图片下载异常: ${downloadErr.message}`);
+                        }
                     }
+                } catch (uploadErr) {
+                    console.warn(`[banana2] ⚠️ Storage上传异常: ${uploadErr.message}，移除超大图片`);
+                    imageUrls[i] = null;
                 }
             }
         }
-        imageUrl = imageUrls[0] || null;
+        imageUrl = imageUrls.filter(Boolean)[0] || null;
 
-        // ✅ 生成成功：保存记录并返回（已在开头扣费）
-        await __saveGenerationRecord(userId, 'image', imageUrl, prompt, model, filmCost, { aspect_ratio, resolution, imageCount: imageUrls.length });
+        if (!imageUrl) {
+            console.error('[banana2] 所有图片URL无效（Storage上传可能失败）');
+            throw new Error('图片生成成功但无法获取URL，请重试');
+        }
 
-        console.log(`[banana2] ✅ 图片生成成功, 图片数=${imageUrls.length}, 计费=${billingSuccess ? filmCost + '胶片' : '无'}`);
+        // 🌐 转存外部CDN图片到Supabase Storage（解决pro.filesystem.site等CDN不稳定问题）
+        for (let i = 0; i < imageUrls.length; i++) {
+            const imgUrl = imageUrls[i];
+            if (imgUrl && typeof imgUrl === 'string' && imgUrl.startsWith('http') && !imgUrl.includes('supabase.co')) {
+                console.log(`[banana2] 🌐 图片${i}是外部URL，尝试转存到Storage...`);
+                try {
+                    const storageUrl = await __downloadAndUploadToStorage(imgUrl, userId);
+                    if (storageUrl) {
+                        imageUrls[i] = storageUrl;
+                    } else {
+                        console.warn(`[banana2] ⚠️ 图片${i}转存失败，保留原始URL`);
+                    }
+                } catch (transferErr) {
+                    console.warn(`[banana2] ⚠️ 图片${i}转存异常: ${transferErr.message}，保留原始URL`);
+                }
+            }
+        }
+        imageUrl = imageUrls.filter(Boolean)[0] || null;
 
-        // 🔧 安全检查：确保响应体不超过Vercel限制
+        const validImageUrls = imageUrls.filter(Boolean);
+
+        // 🎯 GPT-Image-2 官方模型：根据 token 重新计算胶片
+        let actualFilmCost = filmCost;
+        if (isGptImage2 && data?.usage) {
+            const calculatedCost = calculateTokenCost(data.usage);
+            console.log(`[banana2] 🎯 GPT-Image-2 token用量:`, data.usage, `→ 重新计算胶片: ${calculatedCost}`);
+            
+            if (calculatedCost !== filmCost) {
+                if (billingSuccess) {
+                    await __billing('refund', userId, filmCost, 'GPT-Image-2预扣退还');
+                }
+                if (calculatedCost > 0 && userId && !skipBilling) {
+                    const billingResult = await __billing('consume', userId, calculatedCost, `画图生成:GPT-Image-2`);
+                    billingSuccess = billingResult.success && !billingResult.skipped;
+                }
+                actualFilmCost = calculatedCost;
+            }
+        }
+
+        // 🔧 关键优化：先立即返回响应给前端，保存记录改为异步不阻塞
+        // 图片已生成成功，前端需要尽快拿到URL，保存记录不应阻塞响应
+        console.log(`[banana2] ✅ 图片生成成功, 图片数=${validImageUrls.length}, 计费=${billingSuccess ? actualFilmCost + '胶片' : '无'}`);
+
         const responseData = {
             success: true,
             url: imageUrl,
-            urls: imageUrls,
-            imageCount: imageUrls.length,
-            billed: billingSuccess ? filmCost : 0
+            urls: validImageUrls,
+            imageCount: validImageUrls.length,
+            billed: billingSuccess ? actualFilmCost : 0
         };
-        // 不再返回原始candidates/data，节省响应体积
+
+        // 🔧 保存记录加短超时（5秒），超时则跳过但不阻塞响应
+        // 图片已生成成功，前端需要尽快拿到URL，保存记录不应成为瓶颈
+        if (userId && imageUrl) {
+            try {
+                await Promise.race([
+                    __saveGenerationRecord(userId, 'image', imageUrl, prompt, model, actualFilmCost, { aspect_ratio, resolution, imageCount: validImageUrls.length, usage: data?.usage }),
+                    new Promise((resolve) => setTimeout(resolve, 5000))
+                ]);
+            } catch (saveErr) {
+                console.warn(`[banana2] ⚠️ 保存记录超时或失败: ${saveErr?.message || '5s timeout'}`);
+            }
+        }
+
         json(200, responseData);
 
     } catch (error) {

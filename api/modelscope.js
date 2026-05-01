@@ -55,9 +55,8 @@ async function __billing(billingAction, userId, amount, description) {
     const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
     
     try {
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
-            : 'https://www.rollroll.art';
+        // 🔧 始终使用主域名，避免 VERCEL_URL 导致请求发到旧部署
+        const baseUrl = 'https://www.rollroll.art';
         
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
@@ -625,27 +624,73 @@ async function callYunwuGeminiAPI(prompt, geminiModel, targetResolution, imageUr
     }
 
     const data = await response.json();
-    console.log(`[modelscope] 🎨 Gemini完整响应:`, JSON.stringify(data, null, 2).substring(0, 1000));
+            console.log(`[modelscope] 🎨 Gemini完整响应:`, JSON.stringify(data, null, 2));
 
-    // 解析响应
-    if (data?.candidates?.[0]?.content?.parts) {
-        for (const part of data.candidates[0].content.parts) {
-            if (part.inline_data) {
-                const mimeType = part.inline_data.mime_type || 'image/png';
-                console.log(`[modelscope] 🎨 找到inline_data图片，mimeType=${mimeType}`);
-                return `data:${mimeType};base64,${part.inline_data.data}`;
+            // 🔧 详细调试：打印响应结构
+            console.log(`[modelscope] 🎨 响应顶级键:`, Object.keys(data));
+            if (data.candidates) {
+                console.log(`[modelscope] 🎨 candidates数量:`, data.candidates.length);
+                if (data.candidates[0]) {
+                    console.log(`[modelscope] 🎨 candidate 0键:`, Object.keys(data.candidates[0]));
+                    if (data.candidates[0].content) {
+                        console.log(`[modelscope] 🎨 content键:`, Object.keys(data.candidates[0].content));
+                        if (data.candidates[0].content.parts) {
+                            console.log(`[modelscope] 🎨 parts数量:`, data.candidates[0].content.parts.length);
+                            data.candidates[0].content.parts.forEach((part, idx) => {
+                                console.log(`[modelscope] 🎨 part ${idx}键:`, Object.keys(part));
+                                if (part.inline_data) {
+                                    console.log(`[modelscope] 🎨 part ${idx} inline_data键:`, Object.keys(part.inline_data));
+                                }
+                            });
+                        }
+                    }
+                }
             }
-        }
-    }
 
-    if (data?.images?.length > 0) {
-        console.log(`[modelscope] 🎨 找到images数组，返回第一张`);
-        return data.images[0];
-    }
+            // 解析响应：尝试多种可能的位置
+            let imageResult = null;
+            
+            // 1. 标准位置：candidates[0].content.parts[*].inline_data
+            if (data?.candidates?.[0]?.content?.parts) {
+                for (let idx = 0; idx < data.candidates[0].content.parts.length; idx++) {
+                    const part = data.candidates[0].content.parts[idx];
+                    if (part.inline_data?.data) {
+                        const mimeType = part.inline_data.mime_type || 'image/png';
+                        console.log(`[modelscope] 🎨 找到inline_data图片，mimeType=${mimeType}`);
+                        imageResult = `data:${mimeType};base64,${part.inline_data.data}`;
+                        break;
+                    } else if (part.text) {
+                        console.log(`[modelscope] 🎨 part ${idx}是文本:`, part.text.substring(0, 100));
+                    }
+                }
+            }
+            
+            // 2. 尝试 images 数组
+            if (!imageResult && data?.images?.length > 0) {
+                console.log(`[modelscope] 🎨 找到images数组，返回第一张`);
+                imageResult = data.images[0];
+            }
+            
+            // 3. 尝试 data.images
+            if (!imageResult && data?.data?.images?.length > 0) {
+                console.log(`[modelscope] 🎨 找到data.images数组`);
+                imageResult = data.data.images[0];
+            }
+            
+            // 4. 尝试其他常见位置
+            if (!imageResult && data?.image_url) {
+                console.log(`[modelscope] 🎨 找到image_url`);
+                imageResult = data.image_url;
+            }
 
-    // 🔧 更详细的错误信息
-    console.error(`[modelscope] 🎨 Gemini API响应格式异常:`, JSON.stringify(data, null, 2));
-    throw new Error(`Gemini API未返回图片数据。响应: ${JSON.stringify(data).substring(0, 200)}`);
+            if (imageResult) {
+                console.log(`[modelscope] 🎨 成功返回图片`);
+                return imageResult;
+            }
+
+            // 🔧 更详细的错误信息
+            console.error(`[modelscope] 🎨 Gemini API响应格式异常，未找到图片`);
+            throw new Error(`Gemini API未返回图片数据。响应前300字符: ${JSON.stringify(data).substring(0, 300)}`);
 }
 
 /**
@@ -914,25 +959,70 @@ async function handleImageToVideoGeneration(prompt, imageUrls, apiKey, aspectRat
 }
 
 async function handleTextGeneration(prompt, apiKey) {
-    const response = await callModelScope('v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: TEXT_MODEL, // 使用 Qwen2.5-72B-Instruct，适合写剧本
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.7,
-            max_tokens: 4096
-        })
-    });
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) {
-        throw new Error('文本生成返回格式异常');
+    // 先尝试 ModelScope API
+    if (apiKey) {
+        try {
+            const response = await callModelScope('v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: TEXT_MODEL,
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.7,
+                    max_tokens: 4096
+                })
+            });
+            const data = await response.json();
+            const content = data?.choices?.[0]?.message?.content;
+            if (content) return content.trim();
+            console.log('[modelscope] text: ModelScope返回空内容，尝试fallback');
+        } catch (err) {
+            console.log('[modelscope] text: ModelScope失败:', err.message, '，尝试yunwu fallback');
+        }
     }
-    return content.trim();
+    
+    // Fallback: 使用 yunwu API 调用 Qwen
+    if (YUNWU_API_KEYS.length === 0) {
+        throw new Error('文本生成服务暂不可用（无可用API Key）');
+    }
+    // 只尝试前2个最快的端点，每个8秒超时，避免累计超Vercel 100秒限制导致524
+    const fallbackEndpoints = YUNWU_ENDPOINTS.slice(0, 2);
+    for (let i = 0; i < fallbackEndpoints.length; i++) {
+        const endpoint = fallbackEndpoints[i];
+        const yunwuKey = YUNWU_API_KEYS[endpoint.keyIdx] || YUNWU_API_KEYS[0];
+        if (!yunwuKey) continue;
+        try {
+            const yunwuRes = await fetchWithTimeout(`${endpoint.url}/v1/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${yunwuKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'Qwen/Qwen2.5-72B-Instruct',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.7,
+                    max_tokens: 4096
+                })
+            }, 8000);
+            if (!yunwuRes.ok) {
+                console.log('[modelscope] text fallback:', endpoint.name, 'HTTP', yunwuRes.status);
+                continue;
+            }
+            const yunwuData = await yunwuRes.json();
+            const content = yunwuData?.choices?.[0]?.message?.content;
+            if (content) {
+                console.log('[modelscope] text: yunwu fallback成功 via', endpoint.name);
+                return content.trim();
+            }
+        } catch (err) {
+            console.log('[modelscope] text fallback:', endpoint.name, '失败:', err.message);
+        }
+    }
+    throw new Error('文本生成服务暂不可用，请稍后重试');
 }
 
 module.exports = async function handler(req, res) {
@@ -1117,8 +1207,8 @@ module.exports = async function handler(req, res) {
                 console.log('[modelscope] 📤 请求体:', JSON.stringify({
                     model: requestBody.model,
                     prompt: prompt?.substring(0, 50) + '...',
-                    imageCount: imageUrls.length,
-                    firstImageType: imageUrls[0]?.substring(0, 20)
+                    imageCount: finalImageUrls.length,
+                    firstImageType: finalImageUrls[0]?.substring(0, 20)
                 }));
                 
                 // 🔧 使用 chat/completions 端点（同步模式 - Qwen-VL系列通常不支持异步）

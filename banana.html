@@ -4,10 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🎨 AI画图 - RollRoll</title>
+    <title>🎨 AI画图 - RollRoll V9.3.20</title>
     <!-- Supabase SDK 先加载 -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
     <script src="/js/supabase-config.js"></script>
+    <script src="/js/api-core.js"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -1403,6 +1404,13 @@
         <div class="input-section" id="singleInputSection">
             <label class="input-label">✨ 描述你想画的内容</label>
             <textarea class="input-box" id="promptInput" placeholder="例如：一只可爱的橘猫在阳光下打盹..."></textarea>
+            <!-- 🆕 GPT-Image-2 提示词优化 -->
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button onclick="optimizePromptForGPTImage2()" id="gpt2OptimizeBtn" style="padding:6px 12px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:8px;color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all 0.2s;">
+                    ✨ GPT-Image-2 优化
+                </button>
+                <span id="gpt2OptimizeStatus" style="font-size:11px;color:#888;display:none;align-items:center;">正在优化...</span>
+            </div>
         </div>
 
         <!-- 🆕 批量模式输入区 (9宫格) - 每格独立配置 -->
@@ -1474,15 +1482,17 @@
                     <optgroup label="🆓 OpenRouter 免费">
                         <option value="openrouter:bytedance-seed/seedream-4.5">🆓 Seedream 4.5</option>
                     </optgroup>
-                    <option value="gemini-3.1-flash-image-preview">⚡ Gemini Flash (4胶片)</option>
-                    <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K (4胶片)</option>
-                    <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片)</option>
+                    <option value="gemini-3.1-flash-image-preview">⚡ Gemini Flash (4胶片) 🎬支持21:9</option>
+                    <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini Flash 2K (4胶片) 🎬支持21:9</option>
+                    <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片) 🎬支持21:9</option>
                     <!-- 即梦已停用 <option value="jimeng-4.5">🎨 即梦4.5 (7胶片)</option> -->
-                    <option value="midjourney-v8">🎨 MJ V8 (2胶片)</option>
-                    <option value="midjourney-niji-v8">🎨 MJ Niji V8 (2胶片)</option>
-                    <option value="midjourney-fast">🌟 Midjourney Fast (2胶片)</option>
-                    <option value="midjourney-turbo">🚀 Midjourney Turbo (2胶片)</option>
-                    <option value="midjourney-relax">🌙 Midjourney Relax (2胶片)</option>
+                    <option value="midjourney-fast">🌟 Midjourney Fast (2胶片) 🎬支持任意比例</option>
+                    <option value="midjourney-turbo">🚀 Midjourney Turbo (2胶片) 🎬支持任意比例</option>
+                    <option value="midjourney-relax">🌙 Midjourney Relax (2胶片) 🎬支持任意比例</option>
+                    <option value="gpt-image-2">🤖 GPT-Image-2 官方（按量计费）</option>
+                    <option value="gpt-image-2-all">🤖 GPT-Image-2-All 1K (5胶片)</option>
+                    <option value="gpt-image-2-all-2k">🤖 GPT-Image-2-All 2K (8胶片)</option>
+                    <option value="gpt-image-2-all-4k">🤖 GPT-Image-2-All 4K (12胶片) ✨最佳效果</option>
                 </select>
                 <div class="model-info" id="modelInfo">消耗 0.7 胶片</div>
                 <!-- 🎯 MJ版本选择器 -->
@@ -1511,7 +1521,10 @@
                     <option value="9:16">9:16 竖屏</option>
                     <option value="4:3">4:3 标准</option>
                     <option value="3:4">3:4 竖版</option>
+                    <option value="21:9">🎬 21:9 超宽银幕</option>
+                    <option value="custom">📐 自定义比例</option>
                 </select>
+                <input type="text" id="customRatioInput" placeholder="如 2:1 或 3:2" style="display:none; margin-top:6px; width:100%; padding:8px; background:#1a1a1a; border:1px solid #333; border-radius:6px; color:#fff; font-size:13px;">
             </div>
         </div>
         <!-- 📷 摄影角度选择器 -->
@@ -1734,10 +1747,10 @@
         <div class="result-section" id="resultSection">
             <img class="result-image" id="resultImage" src="" alt="生成结果">
             <div class="result-actions">
-                <button class="result-btn" onclick="downloadImage()">💾 下载</button>
-                <button class="result-btn" onclick="shareImage()">📤 分享</button>
-                <button class="result-btn" onclick="pushToVideoTool()">🎬 去生视频</button>
-                <button class="result-btn primary" onclick="regenerate()">🔄 重新生成</button>
+                <button class="result-btn" id="downloadBtn" onclick="downloadImage()">💾 下载</button>
+                <button class="result-btn" id="shareBtn" onclick="shareImage()">📤 分享</button>
+                <button class="result-btn" id="pushToVideoBtn" onclick="pushToVideoTool()">🎬 去生视频</button>
+                <button class="result-btn primary" id="regenerateBtn" onclick="regenerate()">🔄 重新生成</button>
             </div>
         </div>
 
@@ -1812,6 +1825,99 @@
     </div>
 
     <script>
+        // ========== 🎨 多角度出图视角模板 ==========
+        const ANGLE_TEMPLATES = {
+            // 主体模式 - 旋转角度 (模拟3D旋转效果)
+            'front': { 
+                name: '正视图', 
+                prompt: 'front view, direct front angle, centered composition, professional product photography, clean background, studio lighting, maintain exact same product appearance',
+                mode: 'subject',
+                rotation: { y: 0 }
+            },
+            'back': { 
+                name: '后视图', 
+                prompt: 'back view, rear angle, showing the back side, professional product photography, clean background, studio lighting, maintain exact same product appearance',
+                mode: 'subject',
+                rotation: { y: 180 }
+            },
+            'left': { 
+                name: '左视图', 
+                prompt: 'left side view, 90 degree angle from left, showing left profile, professional product photography, clean background, studio lighting, maintain exact same product appearance',
+                mode: 'subject',
+                rotation: { y: -90 }
+            },
+            'right': { 
+                name: '右视图', 
+                prompt: 'right side view, 90 degree angle from right, showing right profile, professional product photography, clean background, studio lighting, maintain exact same product appearance',
+                mode: 'subject',
+                rotation: { y: 90 }
+            },
+            'top': { 
+                name: '俯视图', 
+                prompt: 'top down view, overhead angle, bird eye view from directly above, professional product photography, clean background, studio lighting, maintain exact same product appearance',
+                mode: 'subject',
+                rotation: { x: -90 }
+            },
+            'bottom': { 
+                name: '仰视图', 
+                prompt: 'bottom view, worm eye view, looking up angle from below, professional product photography, clean background, studio lighting, maintain exact same product appearance',
+                mode: 'subject',
+                rotation: { x: 90 }
+            },
+            'iso-left': { 
+                name: '左等轴测', 
+                prompt: 'isometric view from left, 45 degree angle, three-quarter view showing front and left side, professional product photography, clean background, studio lighting, maintain exact same product appearance',
+                mode: 'subject',
+                rotation: { y: -45 }
+            },
+            'iso-right': { 
+                name: '右等轴测', 
+                prompt: 'isometric view from right, 45 degree angle, three-quarter view showing front and right side, professional product photography, clean background, studio lighting, maintain exact same product appearance',
+                mode: 'subject',
+                rotation: { y: 45 }
+            },
+            // 摄像头模式 - 镜头效果 (虚拟摄像机控制)
+            'close-up': { 
+                name: '特写镜头', 
+                prompt: 'extreme close-up shot, macro photography, detail focus, shallow depth of field, professional product photography, tight framing on subject',
+                mode: 'camera',
+                lens: 'macro'
+            },
+            'wide': { 
+                name: '广角镜头', 
+                prompt: 'wide angle shot, expanded view, more context and environment, professional product photography, dramatic perspective, 24mm lens effect',
+                mode: 'camera',
+                lens: 'wide'
+            },
+            'macro': { 
+                name: '微距镜头', 
+                prompt: 'macro lens photography, extreme detail, texture focus, professional product photography, sharp details, 100mm macro lens effect',
+                mode: 'camera',
+                lens: 'macro'
+            },
+            'fisheye': { 
+                name: '鱼眼镜头', 
+                prompt: 'fisheye lens effect, distorted wide angle, spherical perspective, creative product photography, 8mm fisheye effect',
+                mode: 'camera',
+                lens: 'fisheye'
+            },
+            'telephoto': {
+                name: '长焦镜头',
+                prompt: 'telephoto lens compression, 85mm portrait lens, blurred background, professional product photography, subject isolation',
+                mode: 'camera',
+                lens: 'telephoto'
+            },
+            'tilt-shift': {
+                name: '移轴镜头',
+                prompt: 'tilt-shift lens effect, miniature look, selective focus, toy-like appearance, creative product photography',
+                mode: 'camera',
+                lens: 'tilt-shift'
+            }
+        };
+
+        // 广角扩展提示词
+        const WIDE_ANGLE_PROMPT = 'Expand the image to wide angle view, show more of the surrounding environment, maintain the subject in center, professional photography style, seamless extension, outpainting technique';
+
         // ========== 🎨 多角度出图功能（滑动交互版） ==========
         let multiAngleMode = {
             enabled: false,
@@ -2437,6 +2543,43 @@
         let batchGenerating = false;
         let batchResults = [];  // { index, prompt, imageUrl, error, selected }
 
+        // 🔄 轮询 Midjourney 任务状态
+        async function pollMjTask(taskId, maxAttempts = 120, intervalMs = 5000) {
+            console.log(`🔄 [MJ] 开始轮询任务 ${taskId}，最多 ${maxAttempts} 次，间隔 ${intervalMs}ms`);
+            for (let i = 0; i < maxAttempts; i++) {
+                try {
+                    const res = await fetch('/api/yunwu', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'mj-poll',
+                            taskId: taskId
+                        })
+                    });
+                    const pollData = await res.json();
+                    console.log(`🔄 [MJ] 轮询 ${i + 1}/${maxAttempts}:`, pollData.status || '未知状态');
+
+                    if (pollData.success && (pollData.status === 'SUCCESS' || pollData.status === 'COMPLETED')) {
+                        console.log('✅ [MJ] 任务完成！');
+                        return {
+                            imageUrl: pollData.imageUrl || pollData.url || '',
+                            gridBase64: pollData.gridBase64 || '',
+                            taskId: taskId
+                        };
+                    } else if (pollData.status === 'FAILURE' || pollData.status === 'FAILED') {
+                        throw new Error(pollData.failReason || pollData.message || '任务失败');
+                    }
+
+                    // 等待后再次轮询
+                    await new Promise(r => setTimeout(r, intervalMs));
+                } catch (err) {
+                    console.warn(`🔄 [MJ] 轮询第 ${i + 1} 次出错:`, err.message);
+                    await new Promise(r => setTimeout(r, intervalMs));
+                }
+            }
+            throw new Error('轮询超时，请稍后通过历史记录查看结果');
+        }
+
         // 🔪 前端切图：将 MJ 2x2 网格图切成4张独立图片
         async function splitMjGridImage(gridBase64) {
             console.log('🔪 [MJ] 开始前端切图...');
@@ -2542,14 +2685,8 @@
                     return;
                 }
             } else {
-                // 普通 URL 直接下载
-                const a = document.createElement('a');
-                a.href = imgUrl;
-                a.download = filename;
-                a.target = '_blank';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                // 远程URL通过fetch+blob下载
+                downloadUrlAsFile(imgUrl, filename);
             }
             showToast(`已下载第 ${index + 1} 张图片`);
         }
@@ -2591,13 +2728,7 @@
                         document.body.removeChild(a);
                         URL.revokeObjectURL(blobUrl);
                     } else {
-                        const a = document.createElement('a');
-                        a.href = imgUrl;
-                        a.download = filename;
-                        a.target = '_blank';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
+                        await downloadUrlAsFile(imgUrl, filename);
                     }
                     successCount++;
                 } catch (e) {
@@ -2735,12 +2866,14 @@
             'gemini-3.1-flash-image-preview': 4,
             'gemini-3.1-flash-image-preview-2k': 4,
             'gemini-3.1-flash-image-preview-4k': 7,
-            'midjourney-v8': 2,
-            'midjourney-niji-v8': 2,
             'midjourney-fast': 2,
             'midjourney-turbo': 2,
             'midjourney-relax': 2,
-            'openrouter:bytedance-seed/seedream-4.5': 0
+            'openrouter:bytedance-seed/seedream-4.5': 0,
+            'gpt-image-2': 1,
+            'gpt-image-2-all': 5,
+            'gpt-image-2-all-2k': 8,
+            'gpt-image-2-all-4k': 12
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -2849,6 +2982,11 @@
                             // 🆕 如果是从writing页面来的，显示特殊提示
                             if (urlParams.get('from_writing') === '1') {
                                 showToast(`已加载 ${Math.min(prompts.length, 9)} 个AI写作内容，点击批量生成`);
+                                // 🎨 从写作页面跳转时，批量模式也使用 GPT-Image-2-All 模型
+                                batchCellConfigs.forEach(config => {
+                                    config.model = 'gpt-image-2-all';
+                                });
+                                console.log('[banana] 从写作页面跳转（批量模式），自动设置 GPT-Image-2-All 模型');
                             } else {
                                 showToast(`已加载 ${Math.min(prompts.length, 9)} 个提示词`);
                             }
@@ -2879,6 +3017,12 @@
                     } catch (e) {
                         console.error('[banana] 解析writing数据失败:', e);
                     }
+                }
+                // 🎨 从写作页面跳转时，自动选择 GPT-Image-2-All 模型
+                const modelSelect = document.getElementById('modelSelect');
+                if (modelSelect) {
+                    modelSelect.value = 'gpt-image-2-all';
+                    console.log('[banana] 从写作页面跳转，自动选择 GPT-Image-2-All 模型');
                 }
             }
 
@@ -2943,14 +3087,24 @@
             if (mjVersionGroup) {
                 mjVersionGroup.style.display = isMidjourney ? 'block' : 'none';
             }
-            // 🎨 多图参考支持：星梦画师 + 通义万象MAX + Banana系列 + OpenRouter
+            // 🎬 显示/隐藏自定义比例输入框
+            const ratioSelect = document.getElementById('ratioSelect');
+            const customRatioInput = document.getElementById('customRatioInput');
+            if (ratioSelect && customRatioInput) {
+                const isCustom = ratioSelect.value === 'custom';
+                customRatioInput.style.display = isCustom ? 'block' : 'none';
+            }
+            // 🎨 多图参考支持：星梦画师 + 通义万象MAX + Banana系列 + OpenRouter + GPT + Gemini
             const isOpenRouterImage = model && model.startsWith('openrouter:');
             const isSeedream = model && !isOpenRouterImage && (model.includes('seedream') || model.includes('doubao-seedream'));
             const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
             const isBanana = model && model.startsWith('nano-banana-');
+            const isGptImage = model && model.includes('gpt-image');
+            const isGPTImage = model && model.includes('gpt-image');
+            const isGemini = model && model.startsWith('gemini-');
             const multiRefSection = document.getElementById('multiRefSection');
             if (multiRefSection) {
-                if (isSeedream || isQwenImage || isBanana || isOpenRouterImage) {
+                if (isSeedream || isQwenImage || isBanana || isOpenRouterImage || isGPTImage || isGemini) {
                     multiRefSection.classList.add('show');
                 } else {
                     multiRefSection.classList.remove('show');
@@ -2960,10 +3114,56 @@
                     }
                 }
             }
+            // 🤖 GPT-Image-2 只支持特定尺寸，其他尺寸会导致500错误
+            if (ratioSelect) {
+                const currentRatio = ratioSelect.value;
+                if (isGptImage || isGPTImage) {
+                    // GPT模型：显示GPT官方支持的所有尺寸
+                    ratioSelect.innerHTML = `
+                        <option value="1024x1024">1024×1024 (1:1)</option>
+                        <option value="1536x1024">1536×1024 (16:9)</option>
+                        <option value="1024x1536">1024×1536 (9:16)</option>
+                        <option value="2048x2048">2048×2048 (2K 1:1)</option>
+                        <option value="2048x1152">2048×1152 (2K 16:9)</option>
+                        <option value="3840x2160">3840×2160 (4K 16:9)</option>
+                        <option value="2160x3840">2160×3840 (4K 9:16)</option>
+                        <option value="auto">auto 默认</option>
+                    `;
+                    // 自动切换到支持的尺寸
+                    const validRatios = ['1024x1024', '1536x1024', '1024x1536', '2048x2048', '2048x1152', '3840x2160', '2160x3840', 'auto'];
+                    if (validRatios.includes(currentRatio)) {
+                        ratioSelect.value = currentRatio;
+                    } else {
+                        ratioSelect.value = '1024x1024';
+                    }
+                } else {
+                    // 其他模型：显示全部尺寸
+                    ratioSelect.innerHTML = `
+                        <option value="1:1">1:1 方形</option>
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="4:3">4:3 标准</option>
+                        <option value="3:4">3:4 竖版</option>
+                        <option value="21:9">🎬 21:9 超宽银幕</option>
+                        <option value="custom">📐 自定义比例</option>
+                    `;
+                    ratioSelect.value = ['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', 'custom'].includes(currentRatio) ? currentRatio : '1:1';
+                }
+            }
         }
+
+        // 🔧 生成锁：防止重复点击
+        let _generating = false;
 
         async function generateSingleImage() {
             console.log('[banana] generateSingleImage 被调用');
+
+            // 🔧 防止重复点击
+            if (_generating) {
+                console.log('[banana] 正在生成中，忽略重复点击');
+                return;
+            }
+            _generating = true;
 
             let prompt = document.getElementById('promptInput').value.trim();
             if (!prompt) { showToast('请输入描述内容'); return; }
@@ -3011,8 +3211,31 @@
             const userId = currentUser.id;  // 🔒 缓存用户ID，避免后续可能的空引用
             console.log('[banana] 用户ID:', userId);
 
+            // 🔍 调试：参考图状态
+            console.log('🔍 [调试] 单参考图URL存在:', !!window.referenceImageUrl);
+            if (window.referenceImageUrl) {
+                console.log('🔍 [调试] 单参考图URL长度:', window.referenceImageUrl.length, '是否为base64:', window.referenceImageUrl.startsWith('data:'));
+                console.log('🔍 [调试] 单参考图URL前100字符:', window.referenceImageUrl.substring(0, 100));
+            }
+            console.log('🔍 [调试] 多参考图数量:', window.multiRefImages ? window.multiRefImages.length : 0);
+            if (window.multiRefImages && window.multiRefImages.length > 0) {
+                window.multiRefImages.forEach((img, idx) => {
+                    console.log(`🔍 [调试] 多参考图${idx}: 长度=${img.length}, 是否base64=${img.startsWith('data:')}, 前50字符=${img.substring(0, 50)}`);
+                });
+            }
+
             const model = document.getElementById('modelSelect').value;
-            const ratio = document.getElementById('ratioSelect').value;
+            let ratio = document.getElementById('ratioSelect').value;
+            // 📐 自定义比例处理
+            if (ratio === 'custom') {
+                const customRatio = document.getElementById('customRatioInput')?.value?.trim();
+                if (customRatio && /^\d+:\d+$/.test(customRatio)) {
+                    ratio = customRatio;
+                } else {
+                    ratio = '1:1';
+                    showToast('自定义比例格式错误，使用 1:1');
+                }
+            }
             const filmCost = FILM_COST[model] || 0;
 
             // 配额检查（使用刷新后的余额）
@@ -3023,6 +3246,7 @@
 
             // 🔧 在函数开头声明变量，避免 finally 块中未定义
             let progressInterval = null;
+            let savedImages = 0;
 
             const loading = document.getElementById('loading');
             const resultSection = document.getElementById('resultSection');
@@ -3103,8 +3327,9 @@
                 } else {
                     const isMidjourney = model && model.startsWith('midjourney-');
                     const isOpenRouterImage = model && model.startsWith('openrouter:');
-                    // 🔧 修复：排除 openrouter: 前缀，避免免费 Seedream 4.5 被误路由到云雾通道
                     const isSeedream = model && !isOpenRouterImage && (model.includes('seedream') || model.includes('doubao-seedream'));
+                    const isGPTImage = model && model.includes('gpt-image');
+
                     // 🎨 路由优先级：OpenRouter → /api/openrouter，星梦画师 → /api/yunwu，其他 → /api/banana2
                     const apiEndpoint = isMidjourney ? '/api/yunwu' : (isOpenRouterImage ? '/api/openrouter' : (isSeedream ? '/api/yunwu' : '/api/banana2'));
                     const requestBody = { prompt, model, aspect_ratio: ratio, userId: userId };  // 🔒 使用缓存的userId
@@ -3140,10 +3365,12 @@
                             console.log('🎨 [星梦画师] 单图模式');
                         }
                     } else {
-                        // 🍌 Banana 模型多图参考处理
+                        // 🍌 Banana / GPT / Gemini 模型多图参考处理
                         const isBanana = model && model.startsWith('nano-banana-');
-                        if (isBanana && window.multiRefImages && window.multiRefImages.length >= 2) {
-                            // Banana 多图融合模式
+                        const isGPTImage = model && model.includes('gpt-image');
+                        const isGemini = model && model.startsWith('gemini-');
+                        if ((isBanana || isGPTImage || isGemini) && window.multiRefImages && window.multiRefImages.length >= 2) {
+                            // 多图融合模式
                             const totalSize = window.multiRefImages.reduce((sum, img) => sum + img.length, 0);
                             if (totalSize > 20 * 1024 * 1024) {
                                 showToast('多张参考图总大小超过20MB，请减少图片或使用较小的图片');
@@ -3152,10 +3379,22 @@
                                 return;
                             }
                             requestBody.image_urls = window.multiRefImages;
-                            console.log(`🍌 [Banana] 多图融合模式: ${window.multiRefImages.length}张参考图`);
+                            console.log(`🍌 [${isGPTImage ? 'GPT-Image' : isGemini ? 'Gemini' : 'Banana'}] 多图融合模式: ${window.multiRefImages.length}张参考图`);
+                        }
+                        // GPT-Image 单张参考图处理
+                        // 🔧 修复：与其他模型保持一致，使用 image_url 格式（后端自动处理）
+                        if (isGPTImage && window.referenceImageUrl && (!window.multiRefImages || window.multiRefImages.length < 2)) {
+                            if (window.referenceImageUrl.length > 5 * 1024 * 1024) {
+                                showToast('参考图过大，请选择较小的图片');
+                                ButtonState.reset('generateBtn');
+                                loading.style.display = 'none';
+                                return;
+                            }
+                            requestBody.image_url = window.referenceImageUrl;
+                            console.log(`🤖 [GPT-Image] 单图参考模式`);
                         }
                         // 其他模型的单图参考处理
-                        else if (window.referenceImageUrl) {
+                        else if (!isGPTImage && window.referenceImageUrl) {
                             // 检查参考图大小，避免请求体过大导致413错误
                             if (window.referenceImageUrl.length > 5 * 1024 * 1024) {  // 5MB限制
                                 showToast('参考图过大，请选择较小的图片');
@@ -3174,6 +3413,20 @@
                         const mjVersionSelect = document.getElementById('mjVersion');
                         requestBody.version = mjVersionSelect ? mjVersionSelect.value : '6.1';
                     }
+                    // 🔍 调试：打印完整的请求体信息
+                    console.log('🔍 [调试] 发送到后端的完整请求体:', {
+                        apiEndpoint,
+                        model: requestBody.model,
+                        prompt_length: requestBody.prompt?.length,
+                        has_image_url: !!requestBody.image_url,
+                        has_image_urls: !!requestBody.image_urls,
+                        image_urls_count: requestBody.image_urls?.length,
+                        image_url_type: requestBody.image_url ? (requestBody.image_url.startsWith('data:') ? 'base64' : 'http') : 'none',
+                        // 打印部分参考图信息但不完全打印base64
+                        image_url_preview: requestBody.image_url ? requestBody.image_url.substring(0, 100) : 'none',
+                        image_urls_preview: requestBody.image_urls ? requestBody.image_urls.map(img => img.substring(0, 50)) : 'none'
+                    });
+
                     fetchOptions.body = JSON.stringify(requestBody);
                     response = await fetch(apiEndpoint, fetchOptions);
                 }
@@ -3212,6 +3465,7 @@
                 // 🎨 检查是否是 Midjourney 返回（新版本返回 gridBase64 + taskId）
                 const hasMjGrid = isMidjourney && data.gridBase64 && data.taskId;
                 const hasMjImages = isMidjourney && data.images && data.images.length > 1;  // 兼容旧版
+                const needsPoll = isMidjourney && data.needPoll && data.taskId;  // 🔧 需要轮询的情况
 
                 // 💰 更新余额显示（后端已扣费）
                 if (data.billed && data.billed > 0) {
@@ -3221,8 +3475,43 @@
                     console.log(`🎞️ 扣费: -${data.billed}胶片, 余额=${userQuota}`);
                 }
 
+                // 🔧 MJ 需要轮询：后端返回 taskId，前端轮询获取结果
+                if (needsPoll) {
+                    console.log(`🎨 [MJ] 任务已提交，开始轮询 taskId: ${data.taskId}`);
+                    showToast('Midjourney 任务已提交，正在生成...');
+
+                    try {
+                        const pollResult = await pollMjTask(data.taskId);
+                        if (pollResult.gridBase64) {
+                            // 轮询成功，有网格图，进入切图流程
+                            data.gridBase64 = pollResult.gridBase64;
+                            data.taskId = pollResult.taskId || data.taskId;
+                            // 继续执行下面的 hasMjGrid 逻辑
+                        } else if (pollResult.imageUrl) {
+                            // 直接返回图片URL
+                            currentImageUrl = pollResult.imageUrl;
+                            document.getElementById('resultImage').src = currentImageUrl;
+                            resultSection.style.display = 'block';
+                            showToast('生成成功！');
+                            try {
+                                saveToHistory(prompt, currentImageUrl);
+                            } catch (historyErr) {
+                                console.warn('保存历史记录失败:', historyErr);
+                            }
+                            ButtonState.reset('generateBtn');
+                            loading.style.display = 'none';
+                            return;
+                        } else {
+                            throw new Error('轮询完成但未获取到图片');
+                        }
+                    } catch (pollErr) {
+                        console.error('❌ [MJ] 轮询失败:', pollErr);
+                        throw new Error('Midjourney 生成超时或失败: ' + pollErr.message);
+                    }
+                }
+
                 // 🆕 MJ 网格图 + taskId：前端切图 + 用户选择 + upscale
-                if (hasMjGrid) {
+                if (hasMjGrid || (isMidjourney && data.gridBase64)) {
                     console.log('🎨 [MJ] 收到网格图，开始前端切图选择流程');
                     ButtonState.reset('generateBtn');
                     loading.style.display = 'none';
@@ -3366,12 +3655,54 @@
                     clearInterval(progressInterval);
                     progressInterval = null;
                 }
+                // 🔧 兜底：确保按钮始终恢复可用状态
+                // 正常路径由 setSuccess/setError 处理，这里防止异常路径遗漏
+                const btn = document.getElementById('generateBtn');
+                if (btn && btn.disabled) {
+                    ButtonState.reset('generateBtn');
+                }
+                // 🔧 释放生成锁
+                _generating = false;
             }
         }
 
         function regenerate() { generateImage(); }
-        function downloadImage() { if (!currentImageUrl) { showToast('没有可下载的图片'); return; } const a = document.createElement('a'); a.href = currentImageUrl; a.download = 'rollroll_' + Date.now() + '.png'; a.click(); showToast('开始下载'); }
-        function shareImage() { if (!currentImageUrl) { showToast('没有可分享的图片'); return; } if (navigator.share) { navigator.share({ title: 'RollRoll AI画图', text: '看看我用AI画的图！', url: currentImageUrl }); } else { navigator.clipboard.writeText(currentImageUrl); showToast('链接已复制'); } }
+        function downloadImage(imgUrl) {
+            const url = imgUrl || currentImageUrl;
+            if (!url) { showToast('没有可下载的图片'); return; }
+            // 🔧 远程URL通过fetch+blob下载，避免跨域拦截
+            downloadUrlAsFile(url, 'rollroll_' + Date.now() + '.png');
+        }
+
+        // 🔧 通用下载函数：fetch → blob → 触发浏览器下载
+        async function downloadUrlAsFile(url, filename) {
+            try {
+                const resp = await fetch(url);
+                const blob = await resp.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                showToast('✅ 下载成功');
+            } catch (e) {
+                console.error('下载失败:', e);
+                // 降级：直接用a标签
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showToast('开始下载');
+            }
+        }
+        let _sharing = false;
+        function shareImage() { if (!currentImageUrl) { showToast('没有可分享的图片'); return; } if (_sharing) { showToast('分享中，请稍候...'); return; } _sharing = true; if (navigator.share) { navigator.share({ title: 'RollRoll AI画图', text: '看看我用AI画的图！', url: currentImageUrl }).catch(() => {}).finally(() => { _sharing = false; }); } else { navigator.clipboard.writeText(currentImageUrl).then(() => showToast('链接已复制')).catch(() => showToast('复制失败')).finally(() => { _sharing = false; }); } }
 
         // 🔧 IndexedDB 存储工具（解决 localStorage 5MB 限制问题）
         const imageTransferDB = {
@@ -3857,6 +4188,7 @@
                 
                 const originalText = btn.dataset.originalText || btn.textContent;
                 
+                btn.disabled = false;  // 🔧 立即解锁按钮，允许用户重新生成
                 btn.textContent = successText;
                 btn.classList.remove('btn-loading', 'progress-0', 'progress-25', 'progress-50', 'progress-75');
                 btn.classList.add('btn-success');
@@ -3979,7 +4311,7 @@
         const batchCellConfigs = [];
         for (let i = 0; i < 8; i++) {
             batchCellConfigs.push({
-                model: 'nano-banana-2',
+                model: 'gpt-image-2-all',
                 ratio: '1:1',
                 mjVersion: '6.1',  // MJ 版本
                 refImage: null  // 每个格子独立的参考图
@@ -4005,6 +4337,10 @@
                 <option value="midjourney-fast">🌟 MJ Fast</option>
                 <option value="midjourney-turbo">🚀 MJ Turbo</option>
                 <option value="midjourney-relax">🌙 MJ Relax</option>
+                <option value="gpt-image-2">🤖 GPT-Image-2 官方（按量计费）</option>
+                <option value="gpt-image-2-all">🤖 GPT-Image-2-All 1K (5胶片)</option>
+                <option value="gpt-image-2-all-2k">🤖 GPT-Image-2-All 2K (8胶片)</option>
+                <option value="gpt-image-2-all-4k">🤖 GPT-Image-2-All 4K (12胶片) ✨</option>
                 <option value="modelscope">🧠 免费</option>
             `;
             const ratioOptions = `
@@ -4013,6 +4349,7 @@
                 <option value="9:16">9:16</option>
                 <option value="4:3">4:3</option>
                 <option value="3:4">3:4</option>
+                <option value="21:9">🎬 21:9</option>
             `;
             const mjVersionOptions = `
                 <option value="7">v7</option>
@@ -4159,7 +4496,16 @@
         // 🆕 应用全局配置到所有格子
         function applyGlobalConfigToBatch() {
             const globalModel = document.getElementById('modelSelect').value;
-            const globalRatio = document.getElementById('ratioSelect').value;
+            let globalRatio = document.getElementById('ratioSelect').value;
+            // 📐 自定义比例处理
+            if (globalRatio === 'custom') {
+                const customRatio = document.getElementById('customRatioInput')?.value?.trim();
+                if (customRatio && /^\d+:\d+$/.test(customRatio)) {
+                    globalRatio = customRatio;
+                } else {
+                    globalRatio = '1:1';
+                }
+            }
             const globalMjVersion = document.getElementById('mjVersion')?.value || '6.1';
             for (let i = 0; i < 8; i++) {
                 batchCellConfigs[i].model = globalModel;
@@ -4204,6 +4550,73 @@
             document.getElementById('batchResultSection').style.display = 'none';
         }
 
+        // 🆕 GPT-Image-2 提示词优化
+        async function optimizePromptForGPTImage2() {
+            const promptInput = document.getElementById('promptInput');
+            const originalPrompt = promptInput.value.trim();
+            if (!originalPrompt) {
+                showToast('请先输入描述内容');
+                return;
+            }
+
+            const btn = document.getElementById('gpt2OptimizeBtn');
+            const status = document.getElementById('gpt2OptimizeStatus');
+            btn.disabled = true;
+            status.style.display = 'inline-flex';
+
+            try {
+                // 构建优化提示词
+                const optimizeSystemPrompt = `你是一个专业的 GPT-Image-2 提示词优化专家。请将用户的简单描述转换为高质量的 GPT-Image-2 提示词。
+
+优化原则：
+1. 保持原意，增强细节和画面感
+2. 添加风格、光影、构图等专业摄影/设计术语
+3. 针对 GPT-Image-2 的特性优化（支持高保真、多风格、复杂场景）
+4. 如果是电商/产品类，添加排版、品牌、详情页结构描述
+5. 如果是人物类，添加外貌、服装、表情、姿态细节
+6. 如果是场景类，添加环境、氛围、光线、色彩描述
+7. 使用英文关键词增强效果（GPT-Image-2 对英文理解更好）
+8. 适当添加质量增强词：4K, ultra-detailed, professional, cinematic 等
+
+输出格式：直接返回优化后的提示词，不要解释。`;
+
+                const messages = [
+                    { role: 'system', content: optimizeSystemPrompt },
+                    { role: 'user', content: `请优化以下提示词：\n\n${originalPrompt}` }
+                ];
+
+                const response = await fetch('/api/writer-llm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'grok-4-fast',
+                        messages: messages,
+                        temperature: 0.7,
+                        max_tokens: 800,
+                        userId: currentUser?.id
+                    })
+                });
+
+                if (!response.ok) throw new Error('优化请求失败');
+
+                const data = await response.json();
+                const optimizedPrompt = data.content || data.message || data.result;
+
+                if (optimizedPrompt && optimizedPrompt.trim()) {
+                    promptInput.value = optimizedPrompt.trim();
+                    showToast('✨ 提示词已优化！');
+                } else {
+                    throw new Error('优化结果为空');
+                }
+            } catch (e) {
+                console.error('提示词优化失败:', e);
+                showToast('优化失败：' + e.message);
+            } finally {
+                btn.disabled = false;
+                status.style.display = 'none';
+            }
+        }
+
         // 生成图片入口（根据模式分发）
         async function generateImage() {
             console.log('[banana] generateImage 被调用, batchMode=', batchMode, 'multiAngle=', multiAngleMode.enabled);
@@ -4242,8 +4655,9 @@
             
             // 获取参考图（支持单图、多图参考）
             let referenceImage = window.referenceImageUrl || null;
-            if (!referenceImage && window.multiRefImages && window.multiRefImages.length > 0) {
-                referenceImage = window.multiRefImages[0];
+            let multiRefImages = window.multiRefImages || null;
+            if (!referenceImage && multiRefImages && multiRefImages.length > 0) {
+                referenceImage = multiRefImages[0];
             }
             
             // 验证：必须有提示词或参考图
@@ -4262,27 +4676,14 @@
             // 使用全局按钮状态管理
             ButtonState.setLoading('generateBtn', '⏳ 生成中...');
             
-            // 🎬 改进进度更新：更平滑且持续更长时间
-            let progress = 0;
-            let waitingTime = 0;  // 跟踪等待时间
+            // 🎬 进度更新
+            let currentAngle = 0;
             const totalAngles = multiAngleMode.selectedAngles.length;
             const progressInterval = setInterval(() => {
-                progress += Math.random() * 5 + 2;  // 每次增加 2-7%
-                waitingTime += 1.5;  // 每次间隔 1.5 秒
-                
-                // 🔧 改进：超过 30 秒后显示"后台处理中"提示
-                if (waitingTime > 20) {  // 约 30 秒
-                    ButtonState.setProgress('generateBtn', 95);
-                    const btn = document.getElementById('generateBtn');
-                    if (btn) btn.textContent = '⏳ 后台处理中...';
-                    loadingText.textContent = '后台正在生成，请耐心等待...';
-                } else if (progress > 90) {
-                    progress = 90;  // 保持在 90%，等真正完成再显示 100%
-                    ButtonState.setProgress('generateBtn', Math.floor(progress));
-                } else {
-                    ButtonState.setProgress('generateBtn', Math.floor(progress));
-                }
-            }, 1500);
+                currentAngle++;
+                const progress = Math.min(Math.floor((currentAngle / totalAngles) * 100), 95);
+                ButtonState.setProgress('generateBtn', progress);
+            }, 2000);
             
             try {
                 // 🔐 检查登录
@@ -4295,94 +4696,108 @@
                 
                 // 获取用户选择的模型
                 const selectedModel = document.getElementById('modelSelect')?.value;
+                const ratio = document.getElementById('ratioSelect').value;
                 
-                // 调用API
-                const requestBody = {
-                    action: 'multi-angle',
-                    userId: currentUser.id,
-                    angles: multiAngleMode.selectedAngles,
-                    mode: multiAngleMode.mode,
-                    originalPrompt: prompt || 'generate multiple angles'
-                };
+                console.log('[banana] 🎨 开始多角度生成: 模型=', selectedModel, '视角数=', totalAngles);
                 
-                // 只添加有值的参数
-                if (referenceImage) {
-                    requestBody.referenceImage = referenceImage;
-                }
-                if (multiAngleMode.layerEdit && multiAngleMode.layerEdit.enabled) {
-                    requestBody.layerEdit = multiAngleMode.layerEdit;
-                }
-                if (multiAngleMode.vectorMode) {
-                    requestBody.vectorMode = multiAngleMode.vectorMode;
-                }
-                // 添加用户选择的模型（排除免费模型modelscope）
-                if (selectedModel && selectedModel !== 'modelscope') {
-                    requestBody.selectedModel = selectedModel;
-                }
+                const results = [];
+                const failedAngles = [];
                 
-                console.log('[banana] 🎨 发送请求:', requestBody);
-
-                const response = await fetch('/api/modelscope', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
-                });
-
-                // 🔧 改进错误处理：先检查响应类型
-                let data;
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    data = await response.json();
-                } else {
-                    // 非JSON响应，可能是HTML错误页面
-                    const text = await response.text();
-                    console.error('[banana] 🎨 API返回非JSON响应:', text.substring(0, 500));
-                    throw new Error(`服务器返回错误(${response.status}): ${text.substring(0, 100)}`);
-                }
-                
-                console.log('[banana] 🎨 API响应:', data);
-                console.log('[banana] 🎨 data.success:', data.success);
-                console.log('[banana] 🎨 data.results:', JSON.stringify(data.results, null, 2));
-                console.log('[banana] 🎨 data.totalGenerated:', data.totalGenerated);
-                
-                if (!response.ok) {
-                    throw new Error(data.message || data.error || `请求失败(${response.status})`);
+                // 🔧 逐个调用 generateSingleImageAPI，跟单图生成完全一致
+                for (let i = 0; i < totalAngles; i++) {
+                    const angleKey = multiAngleMode.selectedAngles[i];
+                    const template = ANGLE_TEMPLATES[angleKey];
+                    
+                    if (!template) {
+                        failedAngles.push({ angle: angleKey, name: angleKey, error: '未知视角' });
+                        continue;
+                    }
+                    
+                    console.log(`[banana] 🎨 生成视角 ${i+1}/${totalAngles}: ${template.name}`);
+                    
+                    try {
+                        // 根据模式构建提示词
+                        let anglePrompt;
+                        switch (multiAngleMode.mode) {
+                            case 'wide-extend':
+                                anglePrompt = `${WIDE_ANGLE_PROMPT}, ${prompt}`;
+                                break;
+                            case 'subject':
+                                anglePrompt = `${template.prompt}, rotate the subject to show ${angleKey} view, maintain exact same product, consistent lighting and style, 3D rotation effect, ${prompt}`;
+                                break;
+                            case 'camera':
+                                anglePrompt = `${template.prompt}, camera angle change, ${template.lens || 'standard'} lens perspective, professional cinematography, ${prompt}`;
+                                break;
+                            default:
+                                anglePrompt = `${template.prompt}, ${prompt}`;
+                        }
+                        
+                        // 调用跟单图完全一样的 API
+                        const imageUrl = await generateSingleImageAPI(
+                            anglePrompt,
+                            selectedModel,
+                            ratio,
+                            multiRefImages,
+                            referenceImage
+                        );
+                        
+                        // 处理可能返回的多图
+                        let finalImageUrls;
+                        if (imageUrl && typeof imageUrl === 'object' && imageUrl.urls) {
+                            finalImageUrls = imageUrl.urls;
+                        } else {
+                            finalImageUrls = [imageUrl];
+                        }
+                        
+                        results.push({
+                            success: true,
+                            angle: angleKey,
+                            name: template.name,
+                            mode: template.mode || 'normal',
+                            images: finalImageUrls,
+                            rotation: template.rotation || null,
+                            lens: template.lens || null
+                        });
+                        
+                        console.log(`[banana] 🎨 视角 ${template.name} 生成成功`);
+                        
+                    } catch (angleError) {
+                        console.error(`[banana] 🎨 视角 ${template.name} 生成失败:`, angleError.message);
+                        failedAngles.push({
+                            angle: angleKey,
+                            name: template.name,
+                            error: angleError.message || '生成失败'
+                        });
+                    }
                 }
                 
                 // 处理部分失败的情况
-                if (data.totalFailed > 0) {
-                    console.warn(`[banana] 🎨 部分视角生成失败: ${data.totalFailed}/${data.totalGenerated + data.totalFailed}`);
-                    if (data.failed && data.failed.length > 0) {
-                        console.warn('[banana] 🎨 失败详情:', data.failed);
-                        // 🔧 显示失败详情给用户
-                        const failedNames = data.failed.map(f => `${f.name || f.angle}(${f.error || '未知错误'})`).join('、');
-                        showToast(`⚠️ 部分视角失败: ${failedNames}`, 5000);
-                    }
+                if (failedAngles.length > 0) {
+                    console.warn(`[banana] 🎨 部分视角生成失败: ${failedAngles.length}/${totalAngles}`);
+                    const failedNames = failedAngles.map(f => `${f.name}(${f.error || '未知错误'})`).join('、');
+                    showToast(`⚠️ 部分视角失败: ${failedNames}`, 5000);
                 }
-
+                
                 // 如果全部失败
-                if (!data.success || data.totalGenerated === 0) {
-                    const failDetails = data.failed?.map(f => `${f.name || f.angle}: ${f.error || '未知原因'}`).join('\n') || '未知原因';
+                if (results.length === 0) {
+                    const failDetails = failedAngles.map(f => `${f.name}: ${f.error || '未知原因'}`).join('\n');
                     throw new Error(`所有视角生成失败:\n${failDetails}`);
                 }
                 
                 // 显示结果
-                console.log('[banana] 🎨 准备显示结果, results数量:', data.results?.length);
-                displayMultiAngleResults(data.results);
+                console.log('[banana] 🎨 准备显示结果, results数量:', results.length);
+                displayMultiAngleResults(results);
                 
                 // 更新余额
-                if (data.billed > 0) {
-                    await loadUserQuota();
-                }
+                await loadUserQuota();
                 
                 // 设置进度为100%
                 clearInterval(progressInterval);
                 ButtonState.setProgress('generateBtn', 100);
                 
-                showToast(`✅ 成功生成 ${data.totalGenerated} 个视角`);
+                showToast(`✅ 成功生成 ${results.length} 个视角`);
                 
-                // 🔧 修复：使用 setSuccess 但延长持续时间到 5 秒，避免快速恢复
-                ButtonState.setSuccess('generateBtn', `✅ 成功 ${data.totalGenerated} 张`, 5000);
+                ButtonState.setSuccess('generateBtn', `✅ 成功 ${results.length} 张`, 5000);
                 
             } catch (error) {
                 console.error('[banana] 🎨 多角度出图失败:', error);
@@ -4392,6 +4807,10 @@
                 ButtonState.setError('generateBtn', '❌ 生成失败');
             } finally {
                 loading.style.display = 'none';
+                const btn = document.getElementById('generateBtn');
+                if (btn && btn.disabled) {
+                    ButtonState.reset('generateBtn');
+                }
             }
         }
         
@@ -4763,6 +5182,7 @@
             const isSeedream = model && !isOpenRouterImage && (model.includes('seedream') || model.includes('doubao-seedream'));
             const isQwenImage = model && (model.includes('Qwen-Image') || model.includes('Qwen/Qwen-Image'));
             const isBanana = model && model.startsWith('nano-banana-');
+            const isGptImage = model && model.includes('gpt-image');
 
             // 🔧 根据模型类型设置不同的超时时间
             // 万象Max 需要较长时间（异步任务轮询）
@@ -4816,6 +5236,16 @@
                         console.log('🍌 [批量-Banana] 单图参考模式');
                     }
                 }
+                // 🤖 GPT-Image模型参考图处理
+                else if (isGptImage) {
+                    if (multiRefImages && multiRefImages.length >= 2) {
+                        requestBody.image_urls = multiRefImages;
+                        console.log(`🤖 [批量-GPT-Image] 多图融合模式: ${multiRefImages.length}张参考图`);
+                    } else if (singleRefImage) {
+                        requestBody.image_url = singleRefImage;
+                        console.log('🤖 [批量-GPT-Image] 单图参考模式');
+                    }
+                }
                 // 其他模型单图参考
                 else if (singleRefImage && !isMidjourney) {
                     requestBody.image_url = singleRefImage;
@@ -4852,6 +5282,20 @@
 
             const data = await response.json();
             if (data.error) throw new Error(data.message || data.error);
+
+            // 🔧 MJ 需要轮询的情况（图生图等异步操作）
+            if (isMidjourney && data.needPoll && data.taskId) {
+                console.log(`🎨 [MJ批量] 任务已提交，开始轮询 taskId: ${data.taskId}`);
+                const pollResult = await pollMjTask(data.taskId);
+                if (pollResult.gridBase64) {
+                    data.gridBase64 = pollResult.gridBase64;
+                    data.taskId = pollResult.taskId || data.taskId;
+                } else if (pollResult.imageUrl) {
+                    return pollResult.imageUrl;
+                } else {
+                    throw new Error('轮询完成但未获取到图片');
+                }
+            }
 
             // 提取图片URL
             let imageUrl = data.url || data.image_url || '';
@@ -4941,16 +5385,10 @@
                 showToast('请先选择要下载的图片');
                 return;
             }
-
             showToast(`开始下载 ${selected.length} 张图片...`);
-
             for (let i = 0; i < selected.length; i++) {
-                const item = selected[i];
-                const a = document.createElement('a');
-                a.href = item.imageUrl;
-                a.download = `rollroll_batch_${Date.now()}_${i + 1}.png`;
-                a.click();
-                await new Promise(r => setTimeout(r, 300));  // 间隔下载
+                await downloadUrlAsFile(selected[i].imageUrl, `rollroll_batch_${Date.now()}_${i + 1}.png`);
+                await new Promise(r => setTimeout(r, 300));
             }
         }
 
