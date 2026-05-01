@@ -1515,7 +1515,7 @@ async function novelGenerateCharImage(charIdx) {
 
     try {
                 var imageUrl = await callBanana2ImageAPI(prompt, {
-                    model: 'nano-banana-2-4k',
+                    model: 'gpt-image-2-all',
                     aspectRatio: '3:4'
                 });
         ch.imageUrl = imageUrl;
@@ -1610,7 +1610,7 @@ async function novelGenerateAllCharImages() {
         
         try {
             var imageUrl = await callBanana2ImageAPI(prompt, {
-                model: 'nano-banana-2-4k',
+                model: 'gpt-image-2-all',
                 aspectRatio: '3:4'
             });
             ch.imageUrl = imageUrl;
@@ -2140,7 +2140,7 @@ async function novelGenerateSceneImage(chapterIdx) {
 
     try {
         var imageOptions = {
-            model: 'gemini-3.1-flash-image-preview-4k',
+            model: 'gpt2',
             aspectRatio: aspectRatio
         };
         if (refImages.length > 0) imageOptions.refImages = refImages;
@@ -2159,7 +2159,7 @@ async function novelGenerateSceneImage(chapterIdx) {
             showToast('⚠️ 参考图过多导致失败，减少至' + reducedCount + '张重试...');
             try {
                 var retryUrl = await callBanana2ImageAPI(prompt, {
-                    model: 'gemini-3.1-flash-image-preview-4k',
+                    model: 'gpt2',
                     aspectRatio: aspectRatio,
                     refImages: reducedImages
                 });
@@ -2174,7 +2174,7 @@ async function novelGenerateSceneImage(chapterIdx) {
                     showToast('⚠️ 继续减少至1张关键角色参考图...');
                     try {
                         var singleUrl = await callBanana2ImageAPI(prompt, {
-                            model: 'gemini-3.1-flash-image-preview-4k',
+                            model: 'gpt2',
                             aspectRatio: aspectRatio,
                             refImages: [refImages[0]]
                         });
@@ -3017,7 +3017,7 @@ async function _novelGenerateStoryboardPanel(chapterIdx) {
         '\n\n要求：\n- 每个格子用细白线分隔\n- 每格下方小字标注序号\n- 整体风格统一，电影级光影\n- 每格之间留少量间距';
 
     var refImages = _novelGetCharImageUrls();
-    var options = { model: 'gemini-3.1-flash-image-preview-4k', aspectRatio: layout.aspectRatio };
+    var options = { model: 'gpt2', aspectRatio: layout.aspectRatio };
     if (refImages.length > 0) {
         options.refImages = refImages;
         prompt = '【角色一致性参考】请严格参照参考图中角色形象，保持每格分镜中角色外观一致。\n\n' + prompt;
