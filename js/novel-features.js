@@ -2140,7 +2140,7 @@ async function novelGenerateSceneImage(chapterIdx) {
 
     try {
         var imageOptions = {
-            model: 'gpt2',
+            model: 'gpt-image-2-all',
             aspectRatio: aspectRatio
         };
         if (refImages.length > 0) imageOptions.refImages = refImages;
@@ -2159,7 +2159,7 @@ async function novelGenerateSceneImage(chapterIdx) {
             showToast('⚠️ 参考图过多导致失败，减少至' + reducedCount + '张重试...');
             try {
                 var retryUrl = await callBanana2ImageAPI(prompt, {
-                    model: 'gpt2',
+                    model: 'gpt-image-2-all',
                     aspectRatio: aspectRatio,
                     refImages: reducedImages
                 });
@@ -2174,7 +2174,7 @@ async function novelGenerateSceneImage(chapterIdx) {
                     showToast('⚠️ 继续减少至1张关键角色参考图...');
                     try {
                         var singleUrl = await callBanana2ImageAPI(prompt, {
-                            model: 'gpt2',
+                            model: 'gpt-image-2-all',
                             aspectRatio: aspectRatio,
                             refImages: [refImages[0]]
                         });
