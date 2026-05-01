@@ -580,112 +580,287 @@ async function novelCloudLoad() {
     } catch (e) { showToast('云端加载失败: ' + e.message); }
 }
 
-// ==================== 9. 角色卡片提取（简化版：优先从大纲【角色】部分提取） ====================
+// ==================== 9. 角色卡片提取（增强版：全角色识别+精准过滤） ====================
 function novelExtractCharacters() {
     const outline = novelState.outline || '';
+    // 取全量正文（每章取前1500字+末500字，覆盖更多角色出场信息）
+    const doneChapters = novelState.chapters.filter(c => c.content);
+    let sampleText = outline + '\n';
+    for (var ci = 0; ci < doneChapters.length; ci++) {
+        var ct = doneChapters[ci].content || '';
+        if (ct.length <= 2500) {
+            sampleText += ct + '\n';
+        } else {
+            sampleText += ct.substring(0, 1500) + '\n...\n' + ct.slice(-500) + '\n';
+        }
+    }
+
+    // 从大纲中提取角色（多种格式匹配）
     const chars = [];
-    const addedNames = new Set();
+    const addedNames = new Set(); // 用Set加速去重
 
     function _addChar(name, desc, source) {
         name = name.replace(/[""「」『』【】\[\]]/g, '').trim();
-        if (name.length < 2 || name.length > 10) return false;
+        if (name.length < 2 || name.length > 15) return false;
         if (addedNames.has(name)) return false;
-        
-        // 黑名单
-        const stopWords = new Set(['他们','她们','我们','自己','大家','所有','这个','那个','一个','什么','对方','众人','旁边','周围','有人','别人','某人','此人','其他','各位','那人','这人','老者','少年','少女','女子','男子','老人','孩子','小孩','老头','妇人','小姐','公子','先生','夫人','陛下','殿下']);
-        if (stopWords.has(name)) return false;
-        
-        // 检查是否包含非法字符
-        if (/[的了是在有不人我他她它这那里也就都要会可以上下来去到过说着被让给把还没很太更最又再才刚]/.test(name) && name.length <= 3) return false;
-        
+        // 大纲来源允许英文名（用户明确标注的），正文来源走完整过滤
+        var isOutlineSource = (source === 'outline_section' || source === 'keyword_pattern');
+        if (_isNotCharName(name, isOutlineSource)) return false;
         addedNames.add(name);
-        chars.push({ name, desc: (desc || '').substring(0, 80).trim() || '主要角色', _source: source });
+        chars.push({ name, desc: (desc || '').substring(0, 80).trim() || '暂无描述', _source: source });
         return true;
     }
 
-    // ===== 第1层：从大纲【角色】段落提取（最可靠） =====
-    // 匹配【角色】或【人物】后面的所有内容，一直到下一个【或字符串结束
+    // 非角色名黑名单（地名、组织、物品、修饰语、常见非人名词汇）
+    const _stopWordsSet = new Set([
+        // 代词/指代/泛指人物
+        '他们', '她们', '我们', '自己', '大家', '所有', '这个', '那个', '一个', '什么',
+        '对方', '众人', '旁边', '周围', '有人', '别人', '某人', '此人', '其他', '各位',
+        '那人', '这人', '来人', '何人', '老者', '少年', '少女', '女子', '男子', '老人',
+        '孩子', '小孩', '老头', '妇人', '小姐', '公子', '先生', '夫人', '陛下', '殿下',
+        '掌柜', '伙计', '侍卫', '护卫', '士兵', '弟子', '长辈', '晚辈', '下人', '仆人',
+        '丫鬟', '婢女', '侍女', '管家', '掌门', '门主', '教主', '魔头', '妖怪', '怪物',
+        // 连词/副词/助词/语气词
+        '不过', '只是', '如果', '但是', '因为', '所以', '然后', '于是', '虽然', '可是',
+        '突然', '终于', '居然', '竟然', '果然', '忽然', '已经', '正在', '马上', '立刻',
+        '只见', '原来', '看来', '似乎', '仿佛', '几乎', '随即', '随后', '接着', '忽地',
+        '这时', '此时', '那时', '当时', '顿时', '瞬间', '刹那', '霎时', '同时', '眼前',
+        '而且', '并且', '不仅', '不但', '即使', '尽管', '何况', '况且', '否则', '要么',
+        '或许', '也许', '大概', '恐怕', '只好', '只得', '不禁', '不由', '不免', '难免',
+        // 常见误识别词（动作/状态/方向/量词/身体部位/场所）
+        '一声', '一步', '两人', '三人', '几人', '数人', '众人', '二人', '四人', '五人',
+        '身后', '面前', '身旁', '身边', '脚下', '头顶', '上方', '下方', '左右', '前方',
+        '心中', '脑海', '眼中', '手中', '怀中', '口中', '耳边', '嘴角', '眼角', '额头',
+        '门外', '门口', '窗外', '屋内', '殿内', '房间', '院子', '客厅', '大厅', '广场',
+        '天空', '地面', '远处', '近处', '深处', '尽头', '山顶', '水面', '空中', '雾中',
+        '一时', '片刻', '许久', '好久', '不久', '多久', '此刻', '那刻', '良久', '半晌',
+        '修为', '修炼', '修行', '武功', '内力', '真气', '灵力', '法力', '魔力', '功法',
+        '第一', '第二', '第三', '第四', '第五', '最后', '最终', '目前', '此番', '这次',
+        // 常见物品/概念
+        '宝剑', '长剑', '飞剑', '法器', '法宝', '灵石', '灵药', '丹药', '阵法', '禁制',
+        '功力', '境界', '天赋', '血脉', '命运', '因果', '轮回', '天道', '大道', '规则',
+        '一切', '一些', '所有', '全部', '整个', '每个', '任何', '无数', '万千', '千万',
+        // 时间词
+        '今天', '明天', '昨天', '今日', '明日', '昨日', '今晚', '昨晚', '早上', '晚上',
+        '白天', '夜晚', '深夜', '清晨', '黄昏', '傍晚', '午后', '正午', '子时', '丑时',
+        '多年', '数年', '百年', '千年', '万年', '几天', '数日', '多日', '数月', '几年'
+    ]);
+
+    // 常见地名/组织后缀 — 用于判断是否为非人名
+    const _placeOrgSuffix = /(?:城|镇|村|山|岛|谷|洞|宫|殿|阁|楼|院|寺|庙|派|宗|门|盟|帮|族|国|界|域|林|海|湖|河|峰|崖|关|堡|营|府|堂|庄|居|台|坛|池|塔|洲|陆|境|天下|世界|大陆|王朝|帝国|联邦|公司|集团|学院|学校|组织|协会)$/;
+
+    // 常见双字非人名前缀（动词/形容词开头）
+    const _verbAdjectivePrefix = /^(?:突然|忽然|渐渐|慢慢|轻轻|缓缓|微微|猛然|赫然|骤然|蓦然|悄然|默默|静静|急忙|连忙|赶紧|飞速|迅速|快速|拼命|用力|奋力|尽力|全力|死死|紧紧|狠狠|重重|深深|高高|远远|暗暗|偷偷|纷纷|频频|处处|步步|层层|阵阵|声声|隐隐|淡淡|冷冷|幽幽|森森|沉沉|茫茫)/;
+
+    function _isNotCharName(name, isOutlineSource) {
+        if (_stopWordsSet.has(name)) return true;
+        // 纯数字/纯符号
+        if (/^[\d\s\p{P}]+$/u.test(name)) return true;
+        // 以地名/组织后缀结尾
+        if (_placeOrgSuffix.test(name)) return true;
+        // 常见叠词（轻轻、慢慢等）或副词前缀开头
+        if (_verbAdjectivePrefix.test(name)) return true;
+        // 全是常见虚词/功能词（2字）
+        if (/^[的了是在有不人我他她它这那里也就都要会可以上下来去到过说着被让给把还没很太更最又再才刚也]/.test(name) && name.length === 2) return true;
+        // 以常见动词开头的2字组合（如"说完""走了""看着"）
+        if (/^(?:说|道|喊|问|笑|叹|怒|吼|想|看|听|走|跑|飞|打|杀|拿|握|拉|推|挡|挥|抬|低|站|坐|躺|跪|蹲)[了着过去来到完下出入开关住好掉起]$/.test(name)) return true;
+        // 含英文字母 → 中文小说正文中排除；大纲来源允许（用户明确标注的英文角色名）
+        if (!isOutlineSource && /[a-zA-Z]/.test(name)) return true;
+        // 包含标点符号
+        if (/[，。！？、；：""''（）《》【】\[\]{}]/.test(name)) return true;
+        return false;
+    }
+
+    // ===== 第1层：大纲【角色】段落提取（最可靠） =====
     const charSectionPatterns = [
-        /【角色[设定简介关系]*】([\s\S]*?)(?=【|$)/gi,
-        /【(?:主要)?人物[设定简介关系]*】([\s\S]*?)(?=【|$)/gi,
+        /【角色[设定简介]*】([\s\S]*?)(?=【|$)/g,
+        /【(?:主要)?人物[设定简介]*】([\s\S]*?)(?=【|$)/g,
+        /#{1,3}\s*角色[设定简介]*\n([\s\S]*?)(?=#{1,3}\s|$)/g,
+        /角色[设定简介]*[：:]\s*\n([\s\S]*?)(?=\n\n|\n【|$)/g,
     ];
-    
-    console.log('[novel] 开始提取角色，outline前100字:', outline.substring(0, 100));
-    
     charSectionPatterns.forEach(pat => {
         var sm;
-        while ((sm = pat.exec(outline)) !== null) {
-            console.log('[novel] 匹配到角色段落，长度:', sm[1].length, '内容前50字:', sm[1].substring(0, 50));
+        while ((sm = pat.exec(sampleText)) !== null) {
             var secLines = sm[1].split('\n');
             for (var li = 0; li < secLines.length; li++) {
                 var cline = secLines[li].trim();
-                if (!cline || cline.length < 5) continue;
-                console.log('[novel] 处理行:', cline);
-                
-                // 匹配 "- 角色名：描述" 格式（无年龄）
-                var cm0 = cline.match(/^[-\s　]*([\u4e00-\u9fa5]{2,6})[：:]\s*(.+)/);
-                if (cm0) {
-                    console.log('[novel] 提取到角色(-格式):', cm0[1], '描述:', cm0[2].substring(0, 30));
-                    _addChar(cm0[1], cm0[2], 'outline_section');
-                    continue;
-                }
-                
-                // 简化匹配：找到 "名字" + "数字岁" 的模式
-                // 格式：1. 陆沉　—— 27岁 或 陆沉 27岁
-                var cm1 = cline.match(/([\u4e00-\u9fa5]{2,6})[\s　\-—]+(\d{1,3}岁)/);
-                if (cm1) {
-                    console.log('[novel] 提取到角色(简单匹配):', cm1[1], '描述:', cm1[2]);
-                    _addChar(cm1[1], cm1[2], 'outline_section');
-                    continue;
-                }
-                
-                // 匹配 "1. 角色名　—— 描述" 格式
-                var cm2 = cline.match(/^(\d+[.)、]\s*)?([\u4e00-\u9fa5]{2,10})[　\s]+[——:：\-＝]\s*(.+)/);
-                if (cm2) {
-                    console.log('[novel] 提取到角色:', cm2[2], '描述:', cm2[3].substring(0, 30));
-                    _addChar(cm2[2], cm2[3], 'outline_section');
-                    continue;
-                }
-                
-                // 也匹配没有分隔符的情况：直接是 "角色名 描述"
-                var cm3 = cline.match(/^([\u4e00-\u9fa5]{2,4})\s+(\d+岁.*)/);
-                if (cm3) {
-                    console.log('[novel] 提取到角色(无分隔符):', cm3[1], '描述:', cm3[2].substring(0, 30));
-                    _addChar(cm3[1], cm3[2], 'outline_section');
-                    continue;
-                }
-                
-                // 匹配 "- 角色名（身份）" 格式
-                var cm2 = cline.match(/^[-\-·•*\d.、)）]?\s*[「""]?([\u4e00-\u9fa5·]{2,10})[」""]?\s*[（(](.*?)[)）]/);
-                if (cm2) {
-                    console.log('[novel] 提取到角色(括号):', cm2[1], '描述:', cm2[2]);
-                    _addChar(cm2[1], cm2[2], 'outline_section');
+                if (!cline || cline.length < 3) continue;
+                // "- 名字：描述" 或 "- 名字（身份）：描述" 或 "1. 名字：描述"
+                var cm = cline.match(/^[-\-·•*\d.、)）]?\s*[「""]?([A-Za-z\u4e00-\u9fa5·\s]{2,15}?)[」""]?\s*[（(]?[^)）]*[)）]?\s*[：:—\-]\s*(.+)/);
+                if (cm) {
+                    _addChar(cm[1], cm[2], 'outline_section');
                 }
             }
         }
     });
-    
-    console.log('[novel] 第1层提取后角色数:', chars.length, chars.map(c => c.name));
 
-    // ===== 第2层：如果大纲中没有角色，尝试简单的关键词匹配（暂时禁用） =====
-    // if (chars.length === 0) {
-    //     const simplePatterns = [
-    //         /主角[：:]\s*([\u4e00-\u9fa5]{2,10})/g,
-    //         /男主[：:]\s*([\u4e00-\u9fa5]{2,10})/g,
-    //         /女主[：:]\s*([\u4e00-\u9fa5]{2,10})/g,
-    //     ];
-    //     simplePatterns.forEach(pat => {
-    //         let m;
-    //         while ((m = pat.exec(outline)) !== null) {
-    //             _addChar(m[1], '主角', 'keyword');
-    //         }
-    //     });
-    // }
+    // ===== 第2层：关键词模式匹配（大纲中的角色标记） =====
+    const charPatterns = [
+        /[【\[]主角[】\]]\s*[:：]?\s*(.+)/g,
+        /[【\[](?:女主|男主|配角|反派|BOSS|boss|Boss)[】\]]\s*[:：]?\s*(.+)/g,
+        /(?:主角|女主角?|男主角?|主人公|男一号?|女一号?|男二号?|女二号?|反派|大Boss|BOSS)\s*[:：]\s*(.+)/g,
+        /角色\d*\s*[:：]\s*(.+)/g,
+        /(?:人物|角色|配角)(?:设定|简介)?[：:]\s*(.+)/g,
+    ];
+    charPatterns.forEach(pat => {
+        let m;
+        while ((m = pat.exec(sampleText)) !== null) {
+            const line = m[1].trim();
+            const nameMatch = line.match(/^[「""]?([^\s,，、（(\n""」]+)/);
+            if (nameMatch) {
+                var desc = line.substring(nameMatch[0].length).replace(/^[,，、（(\s""」]+/, '').substring(0, 80).trim();
+                _addChar(nameMatch[1], desc, 'keyword_pattern');
+            }
+        }
+    });
 
-    // ===== 第3层：如果还是没有，提供默认角色（暂时禁用） =====
-    // if (chars.length === 0) {
-    //     _addChar('主角', '故事的主人公', 'default');
-    // }
+    // ===== 第3层：正文行为模式匹配（对话/动作/心理） =====
+    const nameFreq = {};
+    const nameContexts = {}; // 记录角色周围上下文片段（用于生成描述）
+
+    // 辅助：记录名字出现+收集上下文
+    function _hitName(name, matchIndex) {
+        name = name.trim();
+        if (!name || _isNotCharName(name)) return;
+        nameFreq[name] = (nameFreq[name] || 0) + 1;
+        // 收集匹配位置前后各40字作为上下文（最多保留8条）
+        if (!nameContexts[name]) nameContexts[name] = [];
+        if (nameContexts[name].length < 8 && typeof matchIndex === 'number') {
+            var ctxStart = Math.max(0, matchIndex - 40);
+            var ctxEnd = Math.min(sampleText.length, matchIndex + name.length + 40);
+            nameContexts[name].push(sampleText.substring(ctxStart, ctxEnd));
+        }
+    }
+
+    var dm;
+
+    // 模式1：名字+对话动词
+    const dialogVerbs = '说道|笑道|喊道|叹道|怒道|问道|答道|骂道|哭道|叫道|嘟囔|低声|高声|冷声|淡淡|沉声|厉声|轻声|柔声|急声|朗声|娇声|嘶声|哑声|闷声|大声|小声|尖声';
+    const simpleVerbs = '说|道|喊|笑|叹|怒|问|答|叫|吼|哼|嗤|哂|嘲|斥|呵|喝|吩咐|命令|提醒|解释|回应|反驳|插嘴|附和|嘀咕|呢喃|自语|咆哮|恳求|央求';
+    const namePattern1 = new RegExp('(?:^[\\s，。！？；：\\n])([A-Za-z\\u4e00-\\u9fa5·]{2,8})(?:' + dialogVerbs + '|' + simpleVerbs + ')', 'g');
+    while ((dm = namePattern1.exec(sampleText)) !== null) {
+        _hitName(dm[1], dm.index);
+    }
+
+    // 模式2："xxx"前的人名（对话标记）
+    const namePattern2 = /([\u4e00-\u9fa5A-Za-z·]{2,8})\s*[：:]\s*[「""']/g;
+    while ((dm = namePattern2.exec(sampleText)) !== null) {
+        _hitName(dm[1], dm.index);
+    }
+
+    // 模式3：动作描写 — 对xxx说/xxx转身 等
+    const actionVerbs = '说|道|喊|问|笑|叹|怒|吼|转身|点头|摇头|皱眉|抬头|低头|起身|坐下|站起|走到|跑到|飞到|看向|望向|扑向|冲向|退后|后退|上前|走来|赶到|来到|出现|消失|离开|离去|回到|进入|走出|跳出|冲出|闪身|挥手|伸手|收手|出手|拔剑|拔刀|挥剑|举刀|施法|运功';
+    const namePattern3 = new RegExp('(?:对|向|朝|跟|与|和|替|帮|给|让|叫|被|把|将|拉着|拽着|扶着|看着|望着|盯着|瞪着|指着|拦住|挡住|救了|打了|杀了|伤了)([\\u4e00-\\u9fa5A-Za-z·]{2,8})(?:' + actionVerbs + ')', 'g');
+    while ((dm = namePattern3.exec(sampleText)) !== null) {
+        _hitName(dm[1], dm.index);
+    }
+
+    // 模式4：心理活动 — xxx心想/xxx暗道
+    const namePattern4 = /([\u4e00-\u9fa5A-Za-z·]{2,8})(?:心想|暗想|心道|暗道|想到|心中|内心|感到|觉得|认为|明白|知道|意识到)/g;
+    while ((dm = namePattern4.exec(sampleText)) !== null) {
+        _hitName(dm[1], dm.index);
+    }
+
+    // 模式5：称谓+名字
+    const titlePattern = /(?:师父|师傅|师兄|师姐|师弟|师妹|前辈|晚辈|老师|教授|院长|队长|将军|大人|陛下|殿下|王爷|皇上|掌门|宗主|长老|护法|圣女|圣子|使者|首领|头目|老板|老大|二哥|三哥|大姐|二姐)([\u4e00-\u9fa5A-Za-z·]{2,6})|([\u4e00-\u9fa5A-Za-z·]{2,6})(?:师兄|师姐|师弟|师妹|前辈|老师|教授|队长|将军|大人|大哥|大姐|哥哥|姐姐|弟弟|妹妹|叔叔|阿姨|爷爷|奶奶|伯伯|婶婶)/g;
+    while ((dm = titlePattern.exec(sampleText)) !== null) {
+        var n5 = (dm[1] || dm[2] || '').trim();
+        if (n5) _hitName(n5, dm.index);
+    }
+
+    // 模式6：引号后紧跟的说话人 — "xxx"，xxx说/道
+    const quotePattern = /[""」』]\s*[，,]?\s*([\u4e00-\u9fa5A-Za-z·]{2,8})(?:说|道|喊|问|笑|叹|怒|吼|哼|嗤|答|叫)/g;
+    while ((dm = quotePattern.exec(sampleText)) !== null) {
+        _hitName(dm[1], dm.index);
+    }
+
+    // ===== 第4层：子串去重 + 频次过滤 + 智能描述 =====
+
+    // 子串去重：如果"高长青"(freq=20)已存在，则"高长"(freq=5)和"长青"(freq=3)被排除
+    const allCandidateNames = Object.keys(nameFreq);
+    const substringBlacklist = new Set();
+    // 按名字长度降序排列，长名字优先
+    allCandidateNames.sort((a, b) => b.length - a.length);
+    for (var li = 0; li < allCandidateNames.length; li++) {
+        var longName = allCandidateNames[li];
+        if (substringBlacklist.has(longName)) continue;
+        for (var si = li + 1; si < allCandidateNames.length; si++) {
+            var shortName = allCandidateNames[si];
+            // 短名字是长名字的子串，且长名字频次 >= 短名字频次的30%
+            if (longName.includes(shortName) && nameFreq[longName] >= nameFreq[shortName] * 0.3) {
+                substringBlacklist.add(shortName);
+            }
+        }
+    }
+
+    // 从上下文片段中提取角色描述
+    function _buildCharDesc(name, contexts, freq) {
+        var traits = [];
+        var allCtx = contexts.join(' ');
+
+        // 性别推断（只在该角色自己的上下文中查找）
+        var femaleHints = /她|姐|妹|娘|媳|嫂|婆|公主|皇后|夫人|小姐|姑娘|仙子|闺|妃|美人|少女|女儿|母亲|娘亲|丫鬟|婢女|女侠|姐姐|妹妹|奶奶|阿姨|婶婶/;
+        var maleHints = /他|兄|弟|爷|叔|伯|侯|将|帅|先生|少年|公子|世子|殿下|大人|老爷|少侠|少主|大哥|弟弟|爷爷|叔叔|伯伯|父亲|爹|师兄|师弟|壮汉/;
+        var fHit = femaleHints.test(allCtx);
+        var mHit = maleHints.test(allCtx);
+        if (fHit && !mHit) traits.push('女');
+        else if (mHit && !fHit) traits.push('男');
+
+        // 身份/称谓提取（精确匹配该角色名+称谓）
+        var titleRe = new RegExp(name + '(?:师兄|师姐|师弟|师妹|前辈|老师|教授|队长|将军|大人|大哥|大姐|哥哥|姐姐|弟弟|妹妹|叔叔|阿姨|爷爷|奶奶)');
+        var titleMatch = allCtx.match(titleRe);
+        if (titleMatch) {
+            var t = titleMatch[0].replace(name, '');
+            if (t && !traits.includes(t)) traits.push(t);
+        }
+        var preTitleRe = new RegExp('(?:师父|师傅|掌门|宗主|长老|护法|圣女|圣子|使者|首领|头目|老板|老大|王爷|皇上|陛下|殿下)' + name);
+        var preTitleMatch = allCtx.match(preTitleRe);
+        if (preTitleMatch) {
+            var pt = preTitleMatch[0].replace(name, '');
+            if (pt && !traits.includes(pt)) traits.push(pt);
+        }
+
+        // 身份描述 — "xxx是xxx的弟子"
+        var idRe = new RegExp(name + '(?:是|乃|本是|原是)([\\u4e00-\\u9fa5]{2,15})');
+        var idMatch = idRe.exec(allCtx);
+        if (idMatch && idMatch[1]) {
+            var idDesc = idMatch[1].replace(/[，。！？]/g, '').substring(0, 12);
+            if (idDesc.length >= 2 && !traits.includes(idDesc)) traits.push(idDesc);
+        }
+
+        // 性格/语气推断
+        var coldRe = new RegExp(name + '(?:冷声|冷笑|冷哼|冰冷|淡漠|漠然)');
+        var gentleRe = new RegExp(name + '(?:柔声|轻声|温柔|微笑|淡淡|轻笑|莞尔)');
+        var angryRe = new RegExp(name + '(?:怒道|怒吼|厉声|斥道|喝道|咆哮|骂道)');
+        if (coldRe.test(allCtx)) traits.push('性格冷峻');
+        else if (gentleRe.test(allCtx)) traits.push('性格温和');
+        else if (angryRe.test(allCtx)) traits.push('性格刚烈');
+
+        // 组合描述
+        if (traits.length > 0) {
+            return traits.join('，') + '（出现' + freq + '次）';
+        }
+        return freq >= 10 ? '主要角色（出现' + freq + '次）' : '配角（出现' + freq + '次）';
+    }
+
+    // 按频次降序排列，排除子串，提高频次门槛
+    const sortedNames = Object.entries(nameFreq)
+        .filter(([name]) => !substringBlacklist.has(name))
+        .sort((a, b) => b[1] - a[1]);
+    var textCharCount = 0;
+    sortedNames.forEach(([name, freq]) => {
+        if (addedNames.has(name)) return;
+        if (textCharCount >= 15) return; // 最多从正文提取15个角色
+        if (freq >= 5) {
+            var desc = _buildCharDesc(name, nameContexts[name] || [], freq);
+            _addChar(name, desc, 'text_major');
+            textCharCount++;
+        } else if (freq >= 3) {
+            var desc2 = _buildCharDesc(name, nameContexts[name] || [], freq);
+            _addChar(name, desc2, 'text_minor');
+            textCharCount++;
+        }
+    });
 
     // 保留已有角色的imageUrl（避免重新生成时丢失图片）
     if (novelState.characters && novelState.characters.length > 0) {
@@ -696,7 +871,8 @@ function novelExtractCharacters() {
             if (old) {
                 nc.imageUrl = old.imageUrl;
                 if (old._generating) nc._generating = old._generating;
-                if (old.desc && old.desc.length > nc.desc.length) nc.desc = old.desc;
+                // 保留更详细的描述
+                if (old.desc && old.desc.length > nc.desc.length && !nc.desc.includes('主要角色')) nc.desc = old.desc;
             }
         });
     }
@@ -1338,10 +1514,10 @@ async function novelGenerateCharImage(charIdx) {
         '配色精致，排版专业，适合小说角色百科';
 
     try {
-        var imageUrl = await callBanana2ImageAPI(prompt, {
-            model: 'gemini-3.1-flash-image-preview-4k',
-            aspectRatio: '3:4'
-        });
+                var imageUrl = await callBanana2ImageAPI(prompt, {
+                    model: 'nano-banana-2-4k',
+                    aspectRatio: '3:4'
+                });
         ch.imageUrl = imageUrl;
         ch._generating = false;
         _novelRenderCharCards();
@@ -1434,7 +1610,7 @@ async function novelGenerateAllCharImages() {
         
         try {
             var imageUrl = await callBanana2ImageAPI(prompt, {
-                model: 'gemini-3.1-flash-image-preview-4k',
+                model: 'nano-banana-2-4k',
                 aspectRatio: '3:4'
             });
             ch.imageUrl = imageUrl;

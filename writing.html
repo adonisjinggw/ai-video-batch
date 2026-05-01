@@ -7,11 +7,11 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>✍️ AI写作 - RollRoll</title>
+    <title>✍️ AI写作 - RollRoll V9.3.20</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js"></script>
-    <script src="/js/user-memory.js?v=20260325"></script>
-    <script src="/js/skill-presets.js?v=20260325"></script>
+    <script src="/js/supabase-config.js?v=9.3.20"></script>
+    <script src="/js/user-memory.js?v=9.3.20"></script>
+    <script src="/js/skill-presets.js?v=9.3.20&t=202605011857"></script>
     <script>
         // 📖 全局 novelState 定义（必须在 novel-engine.js 之前）
         window.novelState = window.novelState || {
@@ -27,8 +27,8 @@
 
         // 📖 加载 novel-engine.js（在 novelState 定义之后）
     </script>
-    <script src="/js/novel-engine.js?v=8.21.1"></script>
-    <script src="/js/novel-features.js?v=8.22.0"></script>
+    <script src="/js/novel-engine.js?v=9.3.20"></script>
+    <script src="/js/novel-features.js?v=9.3.20"></script>
     <script>
         // 🔄 显示版本号（从 script src 自动读取）
         // 注意：verBadge 在 body 中，head 中的脚本执行时 DOM 未就绪，必须用 DOMContentLoaded
@@ -1009,7 +1009,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="/css/novel-enhanced.css?v=4">
+    <link rel="stylesheet" href="/css/novel-enhanced.css?v=9.3.20">
 </head>
 
 <body>
@@ -1077,6 +1077,7 @@
                 <select id="writerModelSelect">
                     <option value="yunwu:grok-4-fast" selected>🌟 Grok-4 Fast（首选）</option>
                     <option value="yunwu:grok-4.1">🌟 Grok-4.1</option>
+                    <option value="qwen3.6-plus-2026-04-02" selected>💎 Qwen3.6-Plus</option>
                     <option value="qwen3.5-plus">🧠 Qwen3.5-Plus</option>
                     <option value="mimo">⚡ MIMO</option>
                     <option value="yunwu:qwen-plus">☁️ 云雾 qwen-plus</option>
@@ -1353,7 +1354,8 @@
                 <div class="setting-item">
                     <label>写作模型</label>
                     <select id="novelModelSelect">
-                        <option value="qwen3.5-plus" selected>🧠 Qwen3.5-Plus（推荐）</option>
+                        <option value="qwen3.6-plus-2026-04-02" selected>💎 Qwen3.6-Plus（推荐）</option>
+                        <option value="qwen3.5-plus">🧠 Qwen3.5-Plus</option>
                         <option value="yunwu:qwen-plus">☁️ Qwen-Plus</option>
                         <option value="yunwu:grok-4-fast">⚡ Grok-4 Fast</option>
                         <option value="yunwu:grok-4.1">🌟 Grok-4.1</option>
@@ -1602,7 +1604,7 @@
             copy: { label: '✨ 输入产品或活动信息', placeholder: '例如：新品咖啡上市，主打健康低糖...' },
             continue: { label: '✨ 粘贴需要续写的内容', placeholder: '粘贴你的文章开头，AI将帮你续写...' },
             paper: { label: '📄 输入论文题目或研究方向', placeholder: '例如：基于深度学习的自然语言处理技术在医疗领域的应用研究...' },
-            novel: { label: '✨ 输入小说主题或大纲', placeholder: '例如：一个普通程序员意外获得了穿越时空的能力，在不同朝代利用现代知识改变历史走向...' }
+            novel: { label: '✨ 输入小��主题或大纲', placeholder: '例如：一个普通程序员意外获得了穿越时空的能力，在不同朝代利用现代知识改变历史走向...' }
         };
 
         // 🆕 初始化批量输入框（带独立参数：类型、风格、长度、模型）
@@ -1643,6 +1645,7 @@
                             </select>
                             <select id="batchModel${i}">
                                 <option value="">--模型--</option>
+                                <option value="qwen3.6-plus-2026-04-02">💎Qwen3.6</option>
                                 <option value="qwen3.5-plus">🧠3.5Plus</option>
                                 <option value="mimo">⚡MIMO</option>
                                 <option value="yunwu:grok-4-fast">⚡Grok-4 Fast</option>
@@ -1758,7 +1761,7 @@
         }
 
         function saveHistory() {
-            localStorage.setItem('writing_history', JSON.stringify(history.slice(0, 20)));
+            try { localStorage.setItem('writing_history', JSON.stringify(history.slice(0, 20))); } catch(e) {}
         }
 
         function renderHistory() {
@@ -1848,16 +1851,21 @@
                 const selectedModel = document.getElementById('writerModelSelect').value;
                 const selectedStyle = document.getElementById('styleSelect').value;
                 
-                // 🧠 注入用户记忆到 prompt
+                // 🧠 注入用户记忆到 prompt（仅当用户选择"使用记忆"时）
                 let finalPrompt = typePromptMap[window.currentType];
-                try {
-                    const memoryPrompt = window.getUserMemoryPrompt();
-                    if (memoryPrompt) {
-                        finalPrompt = memoryPrompt + '\n\n' + finalPrompt;
-                        console.log('🧠 [AI写作] 已注入用户记忆');
+                const useMemory = document.querySelector('input[name="writerMemory"]:checked')?.value === 'true';
+                if (useMemory) {
+                    try {
+                        const memoryPrompt = window.getUserMemoryPrompt();
+                        if (memoryPrompt) {
+                            finalPrompt = memoryPrompt + '\n\n' + finalPrompt;
+                            console.log('🧠 [AI写作] 已注入用户记忆');
+                        }
+                    } catch (e) {
+                        console.warn('🧠 [AI写作] 记忆注入失败:', e);
                     }
-                } catch (e) {
-                    console.warn('🧠 [AI写作] 记忆注入失败:', e);
+                } else {
+                    console.log('🚫 [AI写作] 用户选择不使用记忆');
                 }
 
                 const response = await fetch('/api/writer-llm', {
@@ -1874,7 +1882,8 @@
                 if (!response.ok) {
                     throw new Error(data?.message || data?.error || '服务调用失败');
                 }
-                currentResult = data.content || data.response || data.text || '';
+                currentResult = (data.content || data.response || data.text || '')
+                    .replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
                 if (currentResult) {
                     // 🧠 记录用户偏好
@@ -2181,8 +2190,16 @@
                 target: 'batch-image',
                 timestamp: Date.now()
             };
-            localStorage.setItem('writing_batch_to_image', JSON.stringify(transferData));
-            localStorage.setItem('knolling_batch_prompts', JSON.stringify(selected.map(r => r.result)));  // 完整内容
+            try { localStorage.setItem('writing_batch_to_image', JSON.stringify(transferData)); } catch(e) {
+                // 截断内容防止溢出
+                transferData.prompts = transferData.prompts.map(s => (s||'').substring(0, 3000));
+                transferData.scenes = transferData.scenes.map(s => (s||'').substring(0, 3000));
+                try { localStorage.setItem('writing_batch_to_image', JSON.stringify(transferData)); } catch(e2) {}
+            }
+            const raw = selected.map(r => r.result || '');
+            try { localStorage.setItem('knolling_batch_prompts', JSON.stringify(raw)); } catch(e) {
+                try { localStorage.setItem('knolling_batch_prompts', JSON.stringify(raw.map(s => s.substring(0, 3000)))); } catch(e2) {}
+            }
 
             showToast('正在跳转到批量生图...');
             setTimeout(() => {
@@ -2200,9 +2217,15 @@
                 mode: 'batch-video',
                 timestamp: Date.now()
             };
-            localStorage.setItem('writing_batch_to_video', JSON.stringify(transferData));
+            try { localStorage.setItem('writing_batch_to_video', JSON.stringify(transferData)); } catch(e) {
+                transferData.scripts = transferData.scripts.map(s => ({ content: (s.content||'').substring(0, 3000), input: (s.input||'').substring(0, 500) }));
+                try { localStorage.setItem('writing_batch_to_video', JSON.stringify(transferData)); } catch(e2) {}
+            }
             // 同时存储为 video_batch_prompts 格式供 video-tools.html 使用
-            localStorage.setItem('video_batch_prompts', JSON.stringify(selected.map(r => r.result)));
+            const rawV = selected.map(r => r.result || '');
+            try { localStorage.setItem('video_batch_prompts', JSON.stringify(rawV)); } catch(e) {
+                try { localStorage.setItem('video_batch_prompts', JSON.stringify(rawV.map(s => s.substring(0, 3000)))); } catch(e2) {}
+            }
 
             showToast('正在跳转到批量视频...');
             const urlParams = new URLSearchParams(window.location.search);
@@ -2224,7 +2247,10 @@
                 mode: 'batch-comic',
                 timestamp: Date.now()
             };
-            localStorage.setItem('writing_batch_to_comic', JSON.stringify(transferData));
+            try { localStorage.setItem('writing_batch_to_comic', JSON.stringify(transferData)); } catch(e) {
+                transferData.scripts = transferData.scripts.map(s => ({ content: (s.content||'').substring(0, 3000), input: (s.input||'').substring(0, 500) }));
+                try { localStorage.setItem('writing_batch_to_comic', JSON.stringify(transferData)); } catch(e2) {}
+            }
 
             showToast('正在跳转到批量漫画...');
             const urlParams = new URLSearchParams(window.location.search);
@@ -2243,15 +2269,18 @@
             }
             if (!confirm('确定要跳转到配音页面吗？')) return;
 
-            // 保存数据到 localStorage
+            // 保存数据到 localStorage（截断内容防止QuotaExceededError）
             const transferData = {
-                content: currentResult,
+                content: currentResult.substring(0, 1000),
                 target: 'voice',
                 timestamp: Date.now()
             };
-            localStorage.setItem('writing_to_voice', JSON.stringify(transferData));
-
-            // 检查是否从手机版来的
+            // 🧹 清理旧跳转数据释放空间
+            try { localStorage.removeItem('writing_to_voice'); localStorage.removeItem('writing_to_image'); } catch(e) {}
+            try { localStorage.setItem('writing_to_voice', JSON.stringify(transferData)); } catch(e) {
+                transferData.content = transferData.content.substring(0, 500);
+                try { localStorage.setItem('writing_to_voice', JSON.stringify(transferData)); } catch(e2) {}
+            }
             const urlParams = new URLSearchParams(window.location.search);
             const fromMobile = urlParams.get('force') === 'mobile';
 
@@ -2274,9 +2303,15 @@
                 mode: 'batch-voice',
                 timestamp: Date.now()
             };
-            localStorage.setItem('writing_batch_to_voice', JSON.stringify(transferData));
+            try { localStorage.setItem('writing_batch_to_voice', JSON.stringify(transferData)); } catch(e) {
+                transferData.scripts = transferData.scripts.map(s => ({ content: (s.content||'').substring(0, 3000), input: (s.input||'').substring(0, 500) }));
+                try { localStorage.setItem('writing_batch_to_voice', JSON.stringify(transferData)); } catch(e2) {}
+            }
             // 同时存储为 voice_batch_scripts 格式供 voice.html 使用
-            localStorage.setItem('voice_batch_scripts', JSON.stringify(selected.map(r => r.result)));
+            const rawVoice = selected.map(r => r.result || '');
+            try { localStorage.setItem('voice_batch_scripts', JSON.stringify(rawVoice)); } catch(e) {
+                try { localStorage.setItem('voice_batch_scripts', JSON.stringify(rawVoice.map(s => s.substring(0, 3000)))); } catch(e2) {}
+            }
 
             showToast('正在跳转到批量配音...');
             const urlParams = new URLSearchParams(window.location.search);
@@ -2298,8 +2333,14 @@
                 mode: 'batch-sticker',
                 timestamp: Date.now()
             };
-            localStorage.setItem('writing_batch_to_sticker', JSON.stringify(transferData));
-            localStorage.setItem('sticker_batch_prompts', JSON.stringify(selected.map(r => r.result)));  // 完整内容
+            try { localStorage.setItem('writing_batch_to_sticker', JSON.stringify(transferData)); } catch(e) {
+                transferData.prompts = transferData.prompts.map(s => (s||'').substring(0, 3000));
+                try { localStorage.setItem('writing_batch_to_sticker', JSON.stringify(transferData)); } catch(e2) {}
+            }
+            const rawSticker = selected.map(r => r.result || '');
+            try { localStorage.setItem('sticker_batch_prompts', JSON.stringify(rawSticker)); } catch(e) {
+                try { localStorage.setItem('sticker_batch_prompts', JSON.stringify(rawSticker.map(s => s.substring(0, 3000)))); } catch(e2) {}
+            }
 
             showToast('正在跳转到批量表情包...');
             setTimeout(() => {
@@ -2447,14 +2488,20 @@
             // 从文本中提取场景描述（按段落分割）
             const paragraphs = currentResult.split(/\n+/).filter(p => p.trim().length > 10);
 
-            // 保存数据到 localStorage
+            // 保存数据到 localStorage（截断内容防止QuotaExceededError）
             const transferData = {
-                content: currentResult,
-                scenes: paragraphs.slice(0, 8),  // 最多8个场景
+                content: currentResult.substring(0, 1000),
+                scenes: paragraphs.slice(0, 8).map(p => p.substring(0, 200)),
                 target: 'image',
                 timestamp: Date.now()
             };
-            localStorage.setItem('writing_to_image', JSON.stringify(transferData));
+            // 🧹 清理旧数据释放空间
+            try { localStorage.removeItem('writing_to_voice'); localStorage.removeItem('writing_to_image'); } catch(e) {}
+            try { localStorage.setItem('writing_to_image', JSON.stringify(transferData)); } catch(e) {
+                transferData.content = transferData.content.substring(0, 500);
+                transferData.scenes = transferData.scenes.map(s => s.substring(0, 100));
+                try { localStorage.setItem('writing_to_image', JSON.stringify(transferData)); } catch(e2) {}
+            }
 
             // 检查是否从手机版来的
             const urlParams = new URLSearchParams(window.location.search);
@@ -2483,7 +2530,11 @@
                 mode: convertMode,      // 'full-auto' | 'semi-auto' | 'manual'
                 timestamp: Date.now()
             };
-            localStorage.setItem('writing_to_generation', JSON.stringify(transferData));
+            try { localStorage.setItem('writing_to_generation', JSON.stringify(transferData)); } catch(e) {
+                if (transferData.content) transferData.content = transferData.content.substring(0, 500);
+                if (transferData.scenes) transferData.scenes = transferData.scenes.map(s => (s||'').substring(0, 100));
+                try { localStorage.setItem('writing_to_generation', JSON.stringify(transferData)); } catch(e2) {}
+            }
 
             hideConvertModal();
 
@@ -2536,7 +2587,7 @@
 
                 if (data.success || data.newBalance !== undefined) {
                     userQuota = data.newBalance ?? data.quotaBalance ?? userQuota - cost;
-                    localStorage.setItem('film_balance', String(userQuota));
+                    try { localStorage.setItem('film_balance', String(userQuota)); } catch(e) {}
                     return true;
                 }
                 throw new Error(data.message || data.error || '扣费失败');
@@ -2704,7 +2755,7 @@
                 try {
                     const controller = new AbortController();
                     const timer = setTimeout(() => controller.abort(), timeout);
-                    const res = await fetch('/api/writer-llm', {
+                    res = await fetch('/api/writer-llm', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -2757,16 +2808,28 @@
                                 }
                             }
                         }
-                        // 如果不是 SSE 格式，buffer 里可能还有剩余纯文本
-                        if (!hasSSE && buffer) content += buffer;
+                        // 如果不是 SSE 格式，后端可能返回了完整 JSON（yunwu 非流式）
+                        if (!hasSSE && buffer) {
+                            try {
+                                const jsonData = JSON.parse(buffer);
+                                content = jsonData.content || '';
+                            } catch(e) {
+                                // 不是 JSON，当纯文本用
+                                content += buffer;
+                            }
+                        }
                         if (!content) throw new Error('流式响应为空');
+                        // 🧹 去除 qwen 等模型的 `` 推理块和多余的英文分析
+                        content = content.replace(/[\s\S]*?<\/think>/gi, '').trim() || content;
                         return content;
                     }
 
                     // 非流式处理（res.json() 无超时限制，因为服务端已在处理中）
                     const data = await res.json();
-                    const content = data.content || '';
+                    let content = data.content || '';
                     if (opts.onProgress && content) opts.onProgress(content);
+                    // 🧹 去除 `` 推理块
+                    content = content.replace(/[\s\S]*?<\/think>/gi, '').trim() || content;
                     // 返回完整数据对象，包含扣费信息
                     return {
                         content: content,
@@ -3065,10 +3128,15 @@
         // 解析LLM返回的章节大纲文本，追加到 novelState.chapters
         function _novelParseChapters(text, fromIdx, expectedCount) {
             const lines = text.match(/第\d+[章节集]\s+[^\n]+/g) || [];
+            // 从文本中推断使用"章"还是"集"
+            let label = '章';
+            if (text.includes('第') && text.includes('集') && text.includes('短剧')) {
+                label = '集';
+            }
             for (let j = 0; j < expectedCount; j++) {
                 const line = lines[j] || '';
                 const titleMatch = line.match(/第\d+[章节集]\s+(.+)/);
-                const rawTitle = titleMatch ? titleMatch[1] : '第' + (fromIdx + j + 1) + chapterLabel;
+                const rawTitle = titleMatch ? titleMatch[1] : '第' + (fromIdx + j + 1) + label;
                 const parts = rawTitle.split(/[：:]/);
                 novelState.chapters.push({
                     title: parts[0].trim(),
@@ -3422,7 +3490,7 @@
                 page: novelReaderState.currentPage,
                 timestamp: Date.now()
             };
-            localStorage.setItem(key, JSON.stringify(progress));
+            try { localStorage.setItem(key, JSON.stringify(progress)); } catch(e) {}
         }
 
         // 加载阅读进度

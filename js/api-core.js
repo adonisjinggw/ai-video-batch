@@ -647,17 +647,22 @@
             userId,
             skip_billing: _billingSessionCount > 0 || undefined
         };
+        // 🆕 传递response_format参数（例如"psd"用于生成分层PSD）
+        if (options.response_format) {
+            body.response_format = options.response_format;
+        }
         if (refImagesArr && Array.isArray(refImagesArr) && refImagesArr.length > 0) {
-            // 过滤 data URI 和超长 URL，防止 413
+            // 过滤无效数据，但保留 base64（后端支持）
+            // 超长 base64 会在后端自动处理，前端不过滤避免丢失参考图
             body.image_urls = refImagesArr.filter(function (u) {
-                return u && typeof u === 'string' && !u.startsWith('data:') && u.length <= 2000;
+                return u && typeof u === 'string' && u.length > 0;
             }).slice(0, 4);
         } else if (refImageUrl) {
             body.image_url = refImageUrl;
         }
-        // 🔧 加前端超时：防止移动端浏览器静默断开长连接导致 net::ERR
+        // 🔧 加前端超时：防止 Cloudflare 524（代理超时~100s），前端180秒超时（匹配后端）
         const _b2Controller = new AbortController();
-        const _b2Timeout = setTimeout(() => _b2Controller.abort(), 150000); // 150秒超时
+        const _b2Timeout = setTimeout(() => _b2Controller.abort(), 180000);
         let res;
         try {
             res = await fetch('/api/banana2', {
@@ -668,22 +673,146 @@
             });
         } catch (fetchErr) {
             clearTimeout(_b2Timeout);
-            throw new Error(fetchErr.name === 'AbortError' ? '图片生成超时（150秒）' : fetchErr.message);
+            // 🔧 超时恢复：图片可能已在后端生成成功，尝试查询最近的生成记录获取URL
+            if (fetchErr.name === 'AbortError') {
+                console.warn('[callBanana2ImageAPI] ⏰ 前端超时(95s)，尝试恢复获取已生成的图片...');
+                const recoveredUrl = await _recoverImageFromRecord(userId, prompt);
+                if (recoveredUrl) {
+                    console.log('[callBanana2ImageAPI] ✅ 超时恢复成功，获取到图片URL');
+                    return recoveredUrl;
+                }
+                throw new Error('图片生成超时（180秒），图片可能已生成但响应丢失，请稍后在生成记录中查看');
+            }
+            throw new Error(fetchErr.message);
         }
         clearTimeout(_b2Timeout);
         let data;
         try {
             data = await res.json();
         } catch (jsonErr) {
-            // 服务器返回非 JSON（可能是 Cloudflare 502/504 错误页）
-            throw new Error('服务器响应异常，图片可能生成失败，请重试');
+            // 🔧 Cloudflare 524/502/504：后端可能已生成成功但代理超时，尝试恢复
+            console.warn('[callBanana2ImageAPI] ⚠️ 响应非JSON，尝试恢复获取已生成的图片...');
+            const recoveredUrl = await _recoverImageFromRecord(userId, prompt);
+            if (recoveredUrl) {
+                console.log('[callBanana2ImageAPI] ✅ 非JSON响应恢复成功');
+                return recoveredUrl;
+            }
+            throw new Error('服务器响应异常，图片可能已生成但响应丢失，请稍后在生成记录中查看');
         }
+
+        // 🆕 异步任务模式：检测 202 + taskId（4K等长耗时请求）
+        if (res.status === 202 && data.taskId) {
+            console.log(`[callBanana2ImageAPI] 🔄 异步任务: ${data.taskId}`);
+            const imageUrl = await _pollTaskForResult(data.taskId);
+            if (imageUrl) return imageUrl;
+            throw new Error('异步任务超时，请稍后在生成记录中查看');
+        }
+
         if (!res.ok || !data.success) {
             throw new Error(data.message || data.error || `Banana2失败: ${res.status}`);
         }
         const img = data.url || (data.urls && data.urls[0]) || (data.data && data.data[0] && data.data[0].url);
         if (!img) throw new Error('Banana2 未返回图片');
         return img;
+    }
+
+    /**
+     * 🔧 超时恢复：查询最近的图片生成记录，尝试获取已生成但响应丢失的图片URL
+     * 场景：后端图片生成成功（30秒），但 Cloudflare 代理超时(524) 或前端超时(95s) 导致前端没收到URL
+     */
+    async function _recoverImageFromRecord(userId, promptHint) {
+        if (!userId) return null;
+        try {
+            const res = await fetch('/api/supabase-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'queryGenerationRecords',
+                    userId,
+                    recordType: 'image',
+                    limit: 3
+                })
+            });
+            if (!res.ok) return null;
+            const data = await res.json().catch(() => ({}));
+            if (!data.success || !data.records || !Array.isArray(data.records)) return null;
+            // 查找最近120秒内生成的记录（匹配 prompt 前缀或取最新的）
+            const _cutoff = Date.now() - 120000;
+            for (const rec of data.records) {
+                const recTime = rec.created_at ? new Date(rec.created_at).getTime() : 0;
+                if (recTime < _cutoff) continue;
+                if (rec.content_url && (rec.content_url.startsWith('http') || rec.content_url.startsWith('data:'))) {
+                    // 如果 prompt 匹配则优先返回
+                    if (promptHint && rec.prompt && rec.prompt.includes(promptHint.substring(0, 30))) {
+                        console.log(`[recover] ✅ 匹配prompt找到图片: ${rec.content_url.substring(0, 60)}...`);
+                        return rec.content_url;
+                    }
+                }
+            }
+            // 没有匹配 prompt 的，取最新的有效记录
+            for (const rec of data.records) {
+                const recTime = rec.created_at ? new Date(rec.created_at).getTime() : 0;
+                if (recTime < _cutoff) continue;
+                if (rec.content_url && (rec.content_url.startsWith('http') || rec.content_url.startsWith('data:'))) {
+                    console.log(`[recover] ✅ 取最新记录图片: ${rec.content_url.substring(0, 60)}...`);
+                    return rec.content_url;
+                }
+            }
+            return null;
+        } catch (e) {
+            console.warn('[recover] 恢复查询失败:', e.message);
+            return null;
+        }
+    }
+
+    /**
+     * 🆕 轮询异步图片生成任务（用于4K等长耗时生成）
+     * @param {string} taskId - 任务ID
+     * @returns {Promise<string|null>} - 图片URL，超时返回null
+     */
+    async function _pollTaskForResult(taskId) {
+        const maxAttempts = 60; // 180秒（3分钟）
+        const pollInterval = 3000; // 3秒
+        
+        for (let i = 0; i < maxAttempts; i++) {
+            await sleep(pollInterval);
+            
+            try {
+                const res = await fetch('/api/banana2?task_id=' + encodeURIComponent(taskId));
+                if (!res.ok) { console.warn(`[pollTask] 轮询 ${i+1}: HTTP ${res.status}`); continue; }
+                
+                const task = await res.json().catch(() => null);
+                if (!task) continue;
+                
+                // 每10次输出进度
+                if ((i + 1) % 10 === 0) {
+                    console.log(`[pollTask] 轮询 ${i+1}/${maxAttempts}: ${task.status}`);
+                }
+                
+                if (task.status === 'completed') {
+                    const url = task.result?.url || task.result?.urls?.[0];
+                    if (url) {
+                        console.log(`[pollTask] ✅ 任务完成: ${url.substring(0, 60)}...`);
+                        return url;
+                    }
+                    console.warn('[pollTask] 任务完成但无图片URL');
+                    return null;
+                }
+                
+                if (task.status === 'failed') {
+                    throw new Error(task.error || '任务失败');
+                }
+            } catch (err) {
+                if (err.message !== '任务失败') {
+                    console.warn(`[pollTask] 轮询异常: ${err.message}`);
+                } else {
+                    throw err;
+                }
+            }
+        }
+        
+        console.warn(`[pollTask] 轮询超时 (${maxAttempts * pollInterval / 1000}s)`);
+        return null;
     }
 
     // ==================== 🎬 视频生成 API ====================
@@ -851,22 +980,36 @@
     async function _videoFetchWithRetry(url, fetchOptions, maxRetries = 1) {
         // ⚠️ 默认不重试：后端收到请求即扣费+创建任务，重试会重复扣费
         // maxRetries=1 表示只请求一次
+        // 🔧 添加前端超时：防止 Cloudflare 524 网关超时后前端仍无限等待
+        const _timeoutMs = fetchOptions.__timeoutMs || 90000;
+        const _controller = new AbortController();
+        const _timer = setTimeout(() => _controller.abort(), _timeoutMs);
+        const _mergedSignal = fetchOptions.signal
+            ? (() => { const c = new AbortController(); fetchOptions.signal.addEventListener('abort', () => c.abort()); _controller.signal.addEventListener('abort', () => c.abort()); return c.signal; })()
+            : _controller.signal;
+
         let lastErr = null;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                const res = await fetch(url, fetchOptions);
+                const res = await fetch(url, { ...fetchOptions, signal: _mergedSignal });
+                clearTimeout(_timer);
                 return res;
             } catch (e) {
+                if (/abort/i.test(e.name)) {
+                    clearTimeout(_timer);
+                    throw new Error(`视频API请求超时（${Math.round(_timeoutMs / 1000)}秒），服务器可能繁忙，请稍后重试`);
+                }
                 lastErr = e;
-                if (/abort/i.test(e.name)) throw e;
                 if (attempt < maxRetries) {
                     console.warn(`[视频API] ${url} 网络错误(${e.message})，第${attempt}次重试...`);
                     await new Promise(r => setTimeout(r, 2000 * attempt));
                 } else {
+                    clearTimeout(_timer);
                     throw e;
                 }
             }
         }
+        clearTimeout(_timer);
         throw lastErr || new Error('视频API请求失败');
     }
 
@@ -1765,6 +1908,43 @@
 
     // ==================== 🎨 Midjourney 图片生成 ====================
 
+    // 🔄 轮询 Midjourney 任务状态
+    async function pollMjTask(taskId, maxAttempts = 120, intervalMs = 5000) {
+        console.log(`🔄 [MJ] 开始轮询任务 ${taskId}，最多 ${maxAttempts} 次，间隔 ${intervalMs}ms`);
+        for (let i = 0; i < maxAttempts; i++) {
+            try {
+                const res = await fetch('/api/yunwu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'mj-poll',
+                        taskId: taskId
+                    })
+                });
+                const pollData = await res.json();
+                console.log(`🔄 [MJ] 轮询 ${i + 1}/${maxAttempts}:`, pollData.status || '未知状态');
+
+                if (pollData.success && (pollData.status === 'SUCCESS' || pollData.status === 'COMPLETED')) {
+                    console.log('✅ [MJ] 任务完成！');
+                    return {
+                        imageUrl: pollData.imageUrl || pollData.url || '',
+                        gridBase64: pollData.gridBase64 || '',
+                        taskId: taskId
+                    };
+                } else if (pollData.status === 'FAILURE' || pollData.status === 'FAILED') {
+                    throw new Error(pollData.failReason || pollData.message || '任务失败');
+                }
+
+                // 等待后再次轮询
+                await new Promise(r => setTimeout(r, intervalMs));
+            } catch (err) {
+                console.warn(`🔄 [MJ] 轮询第 ${i + 1} 次出错:`, err.message);
+                await new Promise(r => setTimeout(r, intervalMs));
+            }
+        }
+        throw new Error('轮询超时，请稍后通过历史记录查看结果');
+    }
+
     /**
      * 🎨 调用 Midjourney 图片 API（通过 yunwu 后端）
      * 返回单张图片URL（自动取网格图，适用于技能/智能团队场景）
@@ -1802,7 +1982,21 @@
         if (!res.ok || !data.success) {
             throw new Error(data.message || data.error || `Midjourney失败: ${res.status}`);
         }
-        const imageUrl = data.imageUrl || data.url || '';
+
+        // 🔧 MJ 需要轮询的情况
+        if (data.needPoll && data.taskId) {
+            console.log(`🎨 [api-core MJ] 任务已提交，开始轮询 taskId: ${data.taskId}`);
+            const pollResult = await pollMjTask(data.taskId);
+            if (pollResult.imageUrl) {
+                data.url = pollResult.imageUrl;
+            } else if (pollResult.gridBase64) {
+                data.gridBase64 = pollResult.gridBase64;
+            } else {
+                throw new Error('轮询完成但未获取到图片');
+            }
+        }
+
+        const imageUrl = data.imageUrl || data.url || data.gridBase64 || '';
         if (!imageUrl) throw new Error('Midjourney 未返回图片URL');
         console.log(`🎨 [api-core MJ] 生成成功: ${imageUrl.substring(0, 80)}`);
         return imageUrl;
