@@ -1516,7 +1516,7 @@ async function novelGenerateCharImage(charIdx) {
     try {
                 var imageUrl = await callBanana2ImageAPI(prompt, {
                     model: 'gpt-image-2-all',
-                    aspectRatio: '3:4'
+                    aspectRatio: '9:16'
                 });
         ch.imageUrl = imageUrl;
         ch._generating = false;
@@ -1611,7 +1611,7 @@ async function novelGenerateAllCharImages() {
         try {
             var imageUrl = await callBanana2ImageAPI(prompt, {
                 model: 'gpt-image-2-all',
-                aspectRatio: '3:4'
+                aspectRatio: '9:16'
             });
             ch.imageUrl = imageUrl;
             if (typeof _novelDB !== 'undefined') {
@@ -3017,7 +3017,7 @@ async function _novelGenerateStoryboardPanel(chapterIdx) {
         '\n\n要求：\n- 每个格子用细白线分隔\n- 每格下方小字标注序号\n- 整体风格统一，电影级光影\n- 每格之间留少量间距';
 
     var refImages = _novelGetCharImageUrls();
-    var options = { model: 'gpt2', aspectRatio: layout.aspectRatio };
+    var options = { model: 'gpt-image-2-all', aspectRatio: layout.aspectRatio };
     if (refImages.length > 0) {
         options.refImages = refImages;
         prompt = '【角色一致性参考】请严格参照参考图中角色形象，保持每格分镜中角色外观一致。\n\n' + prompt;
