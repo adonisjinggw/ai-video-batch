@@ -104,8 +104,12 @@ ${isChinese ? '- 【重要】必须是中国古典国风风格\n- 水墨画韵�
             const m = (imageModel || '').toString().toLowerCase();
             const wantModelScope = m === 'modelscope' || m === 'motaverse' || m === 'zaomeng' || m.includes('modelscope') || m.includes('造梦');
             const wantSeedream = m === 'seedream' || m.includes('seedream') || m.includes('doubao');
-            const wantBanana4k = m === 'banana2-4k' || m === 'banana2_4k' || m.includes('nano-banana-2-4k') || m.includes('4k');
+            const wantBanana4k = m === 'banana2-4k' || m === 'banana2_4k' || m.includes('nano-banana-2-4k') || (m.includes('4k') && !m.includes('gpt'));
             const wantBanana = m === 'banana2' || m.includes('nano-banana-2');
+            const wantGptImage = m.includes('gpt-image');
+            const wantGemini = m.includes('gemini');
+            const wantQwen = m.includes('qwen') || m.includes('万相');
+            const wantMj = m.includes('midjourney') || m.includes('mj');
 
             // 🛟 Banana2 临时不可用窗口：直接跳过 Banana2，避免每张图都先 500 再降级拖慢整体
             const banana2Down = (() => {
@@ -119,6 +123,14 @@ ${isChinese ? '- 【重要】必须是中国古典国风风格\n- 水墨画韵�
                 url = await callModelScopeImageAPI(prompt, { aspectRatio: '16:9' });
             } else if (wantSeedream) {
                 url = await callBanana2ImageAPI(prompt, { aspectRatio: '16:9', model: 'doubao-seedream-4-5-251128', maxRetries, retryDelayMs });
+            } else if (wantGptImage) {
+                url = await callBanana2ImageAPI(prompt, { aspectRatio: '16:9', model: imageModel, maxRetries, retryDelayMs });
+            } else if (wantGemini) {
+                url = await callBanana2ImageAPI(prompt, { aspectRatio: '16:9', model: imageModel, maxRetries, retryDelayMs });
+            } else if (wantQwen) {
+                url = await callBanana2ImageAPI(prompt, { aspectRatio: '16:9', model: imageModel, maxRetries, retryDelayMs });
+            } else if (wantMj) {
+                url = await callBanana2ImageAPI(prompt, { aspectRatio: '16:9', model: imageModel, maxRetries, retryDelayMs });
             } else if (wantBanana4k) {
                 if (banana2Down) {
                     url = await callModelScopeImageAPI(_trimPromptForFallback(prompt, 1500), { aspectRatio: '16:9' });
@@ -210,7 +222,7 @@ ${isChinese ? '- 【重要】必须是中国古典国风风格\n- 水墨画韵�
  * @description 角色生成优化 + 自动托管模式 + 全面Bug修复
  */
 
-const APP_VERSION = 'V9.0.1.7'; // 欢迎页逻辑修复 + 写作页修复
+const APP_VERSION = 'V9.3.74'; // 503错误修复 + 认证脚本加载优化
 
 // 🔒 简单转义，防止 XSS 注入
 function escapeHtml(str = '') {
@@ -14551,14 +14563,26 @@ function renderCanvas() {
                             <select class="node-model-select" onchange="updateNodeModel('${node.id}', this.value)" onmousedown="event.stopPropagation()" style="flex:1; background:#222; border:1px solid #444; color:#fff; padding:4px; border-radius:4px; font-size:12px; cursor:pointer;">
                                 ${getBananaModelOptions(node.data.model)}
                             </select>
-                            <select class="node-aspect-select" onchange="updateNodeAspect('${node.id}', this.value)" onmousedown="event.stopPropagation()" style="width:70px; background:#222; border:1px solid #444; color:#fff; padding:4px; border-radius:4px; font-size:12px; cursor:pointer;" title="图片比例">
+                            <select class="node-aspect-select" onchange="updateNodeAspect('${node.id}', this.value)" onmousedown="event.stopPropagation()" style="width:70px; background:#222; border:1px solid #444; color:#fff; padding:4px; border-radius:4px; font-size:12px; cursor:pointer;" title="图片比例 / 尺寸（GPT 模型请选 2K/4K 像素尺寸）">
                                 <option value="1:1" ${(node.data.aspectRatio || '1:1') === '1:1' ? 'selected' : ''}>1:1</option>
                                 <option value="16:9" ${node.data.aspectRatio === '16:9' ? 'selected' : ''}>16:9</option>
                                 <option value="9:16" ${node.data.aspectRatio === '9:16' ? 'selected' : ''}>9:16</option>
                                 <option value="4:3" ${node.data.aspectRatio === '4:3' ? 'selected' : ''}>4:3</option>
                                 <option value="3:4" ${node.data.aspectRatio === '3:4' ? 'selected' : ''}>3:4</option>
+                                <option value="21:9" ${node.data.aspectRatio === '21:9' ? 'selected' : ''}>21:9</option>
+                                <option value="1024x1024" ${node.data.aspectRatio === '1024x1024' ? 'selected' : ''}>1024×1024</option>
+                                <option value="1536x1024" ${node.data.aspectRatio === '1536x1024' ? 'selected' : ''}>1536×1024</option>
+                                <option value="1024x1536" ${node.data.aspectRatio === '1024x1536' ? 'selected' : ''}>1024×1536</option>
+                                <option value="2048x2048" ${node.data.aspectRatio === '2048x2048' ? 'selected' : ''}>2K 1:1</option>
+                                <option value="2048x1152" ${node.data.aspectRatio === '2048x1152' ? 'selected' : ''}>2K 16:9</option>
+                                <option value="1152x2048" ${node.data.aspectRatio === '1152x2048' ? 'selected' : ''}>2K 9:16</option>
+                                <option value="3072x3072" ${node.data.aspectRatio === '3072x3072' ? 'selected' : ''}>4K 1:1</option>
+                                <option value="3840x2160" ${node.data.aspectRatio === '3840x2160' ? 'selected' : ''}>4K 16:9</option>
+                                <option value="2160x3840" ${node.data.aspectRatio === '2160x3840' ? 'selected' : ''}>4K 9:16</option>
                             </select>
                             <select class="node-mj-version" id="mj-version-${node.id}" onchange="updateNodeMjVersion('${node.id}', this.value)" onmousedown="event.stopPropagation()" style="width:70px; background:#222; border:1px solid #444; color:#fff; padding:4px; border-radius:4px; font-size:12px; cursor:pointer; display:${(node.data.model || '').startsWith('midjourney-') ? 'block' : 'none'};" title="MJ版本">
+                                <option value="8" ${node.data.mjVersion === '8' ? 'selected' : ''}>v8</option>
+                                <option value="niji8" ${node.data.mjVersion === 'niji8' ? 'selected' : ''}>Niji 8</option>
                                 <option value="7" ${node.data.mjVersion === '7' ? 'selected' : ''}>v7</option>
                                 <option value="6.1" ${(node.data.mjVersion || '6.1') === '6.1' ? 'selected' : ''}>v6.1</option>
                                 <option value="6" ${node.data.mjVersion === '6' ? 'selected' : ''}>v6</option>
@@ -14606,7 +14630,7 @@ function renderCanvas() {
                         <div id="result-${node.id}" class="node-result-area">
                             ${node.data.generatedImage ?
                         `<div class="node-result-image">
-                                    <img src="${node.data.generatedImage}" onclick="window.open('${node.data.generatedImage}')" oncontextmenu="showNodeImageMenu(event, '${node.data.generatedImage}')" title="左键查看大图 | 右键保存" onerror="this.parentElement.innerHTML='<div style=\'color:#ef4444; padding:5px;\'>⚠️ 图片加载失败</div>'">
+                                    <img src="${getProxiedImageUrl(node.data.generatedImage)}" onclick="window.open('${node.data.generatedImage}')" oncontextmenu="showNodeImageMenu(event, '${node.data.generatedImage}')" title="左键查看大图 | 右键保存" onerror="this.parentElement.innerHTML='<div style=\'color:#ef4444; padding:5px;\'>⚠️ 图片加载失败</div>'">
                                     <div class="result-image-actions">
                                         <button onclick="downloadNodeImage('${node.data.generatedImage}', 'banana_${node.id}_${Date.now()}.png')" title="下载图片">💾</button>
                                         <button onclick="copyImageUrl('${node.data.generatedImage}')" title="复制链接">🔗</button>
@@ -17387,7 +17411,7 @@ async function generateNodeImage(nodeId) {
         if (resultArea) {
             resultArea.innerHTML = `
                 <div class="node-result-image">
-                    <img src="${url}" onclick="window.open('${url}')" oncontextmenu="showNodeImageMenu(event, '${url}')" title="左键查看大图 | 右键保存">
+                    <img src="${getProxiedImageUrl(url)}" onclick="window.open('${url}')" oncontextmenu="showNodeImageMenu(event, '${url}')" title="左键查看大图 | 右键保存">
                     <div class="result-image-actions">
                         <button onclick="downloadNodeImage('${url}', 'banana_${nodeId}_${Date.now()}.png')" title="下载图片">💾</button>
                         <button onclick="copyImageUrl('${url}')" title="复制链接">🔗</button>
@@ -17825,6 +17849,12 @@ window.updateNodeAspect = function (nodeId, aspectRatio) {
     }
 };
 
+window.getProxiedImageUrl = function (url) {
+    return (typeof url === 'string' && /^https?:\/\//i.test(url))
+        ? '/api/proxy?apiType=public-api&action=image-download&url=' + encodeURIComponent(url)
+        : url;
+};
+
 /**
  * 下载节点生成的图片
  */
@@ -17859,7 +17889,16 @@ window.downloadNodeImage = async function (url, filename) {
             console.log('✅ 图片下载成功');
             return;
         }
-        const response = await fetch(url);
+        const downloadUrl = (typeof url === 'string' && /^https?:\/\//i.test(url))
+            ? '/api/proxy?apiType=public-api&action=image-download'
+            : url;
+        const fetchOptions = downloadUrl === url ? undefined : {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'image-download', url, filename: filename || 'banana_image.png' })
+        };
+        const response = await fetch(downloadUrl, fetchOptions);
+        if (!response.ok) throw new Error(`图片下载失败: ${response.status}`);
         const blob = await response.blob();
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -17871,8 +17910,7 @@ window.downloadNodeImage = async function (url, filename) {
         console.log('✅ 图片下载成功');
     } catch (e) {
         console.error('下载失败:', e);
-        // 降级方案：直接打开链接
-        window.open(url, '_blank');
+        alert('下载失败，请稍后重试或复制图片链接');
     }
 };
 
@@ -30067,9 +30105,15 @@ function getBananaModelOptions(currentModel) {
     options.push(`<option value="Qwen/Qwen-Image-2512" ${currentModel === 'Qwen/Qwen-Image-2512' ? 'selected' : ''}>🎭 通义万相Max (8胶片)</option>`);
 
     // Midjourney 模型
+    options.push(`<option value="midjourney-v8" ${currentModel === 'midjourney-v8' ? 'selected' : ''}>🎨 MJ V8 (2胶片)</option>`);
+    options.push(`<option value="midjourney-niji-v8" ${currentModel === 'midjourney-niji-v8' ? 'selected' : ''}>🎨 MJ Niji V8 (2胶片)</option>`);
     options.push(`<option value="midjourney-fast" ${currentModel === 'midjourney-fast' ? 'selected' : ''}>🌟 Midjourney Fast (2胶片)</option>`);
     options.push(`<option value="midjourney-turbo" ${currentModel === 'midjourney-turbo' ? 'selected' : ''}>🚀 Midjourney Turbo (2胶片)</option>`);
     options.push(`<option value="midjourney-relax" ${currentModel === 'midjourney-relax' ? 'selected' : ''}>🌙 Midjourney Relax (2胶片)</option>`);
+
+    // GPT-Image-2 模型
+    options.push(`<option value="gpt-image-2" ${currentModel === 'gpt-image-2' ? 'selected' : ''}>🤖 GPT-Image-2 官方（按量计费）</option>`);
+    options.push(`<option value="gpt-image-2-all" ${currentModel === 'gpt-image-2-all' ? 'selected' : ''}>🤖 GPT-Image-2-All（尺寸选项控制分辨率，默认4K 12胶片）</option>`);
 
     // 🚫 RH Flux 暂时禁用（并发限制问题，后续有号池再启用）
     // options.push(`<option value="rh-flux" ${currentModel === 'rh-flux' ? 'selected' : ''}>⚡ Flux Pro (需RH Key)</option>`);
@@ -35919,86 +35963,34 @@ function closeWelcomeScreen() {
 
 /**
  * 🏠 检查是否应该显示欢迎页
- * 🔧 修复：已登录用户刷新时不显示欢迎页，和手机版保持一致
- * 逻辑：
- * 1. 带 logged_in=1 或 skip_welcome=1 参数 → 跳过欢迎页
- * 2. 已登录用户 → 跳过欢迎页，直接进入工作区
- * 3. 未登录用户 → 显示欢迎页
+ * PC端入口强制显示欢迎页，不再通过登录缓存或 URL 参数绕过。
  */
 async function checkWelcomeScreen() {
     const welcomeScreen = document.getElementById('welcomeScreen');
     console.log('🏠 checkWelcomeScreen 开始执行, welcomeScreen:', !!welcomeScreen);
 
-    // 🔧 如果开场动画正在播放，不操作 welcomeScreen（由 finishIntro 接管）
+    try {
+        if (window.location.search) {
+            history.replaceState({}, '', window.location.pathname);
+        }
+    } catch (e) { }
+
+    try {
+        const assistant = document.getElementById('xj2Container');
+        if (assistant) assistant.classList.remove('xj2-visible');
+    } catch (e) { }
+
     if (typeof _showIntro !== 'undefined' && _showIntro) {
-        console.log('🏠 开场动画正在播放，跳过 checkWelcomeScreen');
+        console.log('🏠 开场动画正在播放，欢迎页由 finishIntro 强制显示');
         return true;
     }
 
-    // 1. 检查 URL 参数：从登录页跳转回来或从功能页返回时跳过欢迎页
-    const urlParams = new URLSearchParams(window.location.search);
-    const isLoggedInRedirect = urlParams.has('logged_in') || urlParams.has('skip_welcome');
-
-    if (isLoggedInRedirect) {
-        try {
-            const cleanUrl = window.location.pathname;
-            history.replaceState({}, '', cleanUrl);
-        } catch (e) { }
-
-        if (welcomeScreen) welcomeScreen.style.display = 'none';
-        console.log('🏠 跳过欢迎页（从登录页/功能页返回）');
-
-        try {
-            if (typeof NVAuth !== 'undefined' && NVAuth && typeof NVAuth.getCurrentUser === 'function') {
-                (async () => {
-                    try {
-                        console.log('🔄 [登录返回] 开始同步云端数据...');
-                        if (typeof syncDataFromCloud === 'function') {
-                            await syncDataFromCloud();
-                        } else if (typeof refreshFilmBalanceFromCloud === 'function') {
-                            await refreshFilmBalanceFromCloud(true);
-                        }
-                        console.log('✅ [登录返回] 数据同步完成');
-                    } catch (e) {
-                        console.warn('⚠️ [登录返回] 同步失败:', e?.message);
-                    }
-                })();
-            }
-        } catch (e) { }
-
-        return false;
-    }
-
-    // 2. 🔧 检查用户是否已登录 - 页面刷新时必须重新登录
-    try {
-        const navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
-        const isReload = (navEntry && navEntry.type === 'reload') || (performance.navigation && performance.navigation.type === 1);
-
-        if (isReload) {
-            console.log('🏠 页面刷新，需要重新登录');
-        } else if (typeof NVAuth !== 'undefined' && NVAuth && typeof NVAuth.getCurrentUser === 'function') {
-            let user = null;
-            for (let i = 0; i < 5; i++) {
-                try { user = await NVAuth.getCurrentUser(); if (user) break; } catch (e) { }
-                try { await sleep(300); } catch (e) { }
-            }
-
-            if (user) {
-                console.log('🏠 已登录用户，跳过欢迎页');
-                if (welcomeScreen) welcomeScreen.style.display = 'none';
-                return false;
-            }
-        }
-    } catch (e) {
-        console.warn('🏠 检查登录状态失败:', e?.message);
-    }
-
-    // 3. 显示欢迎页
-    console.log('🏠 显示欢迎页');
+    console.log('🏠 强制显示欢迎页');
     if (welcomeScreen) {
         try {
             welcomeScreen.style.display = 'flex';
             welcomeScreen.style.opacity = '1';
+            welcomeScreen.style.visibility = 'visible';
         } catch (e) { }
     }
     return true;
@@ -36522,8 +36514,9 @@ async function initUserStatus(retryCount = 0) {
         updateWelcomeUserBar(user, profile);
 
         try {
+            const isAuthReturn = window.__NVAuthReturn === true;
             const skipWelcome = sessionStorage.getItem('skip_welcome');
-            if (skipWelcome !== 'true') {
+            if (isAuthReturn || skipWelcome !== 'true') {
                 closeWelcomeScreen();
             }
         } catch (e) { }
@@ -36886,19 +36879,9 @@ function resetWelcomeUserBar() {
 function updateWelcomeCTA(isLoggedIn) {
     const btn = document.getElementById('welcomeEnterBtn');
     if (!btn) return;
-    if (isLoggedIn) {
-        btn.textContent = '🚪 进入创作';
-        btn.setAttribute('href', 'javascript:void(0)');
-        btn.onclick = function (ev) {
-            try { ev.preventDefault(); } catch (e) { }
-            closeWelcomeScreen();
-            return false;
-        };
-    } else {
-        btn.textContent = '🔒 登录 / 注册开始创作';
-        btn.setAttribute('href', 'auth.html');
-        btn.onclick = null;
-    }
+    btn.textContent = '🔒 登录 / 注册开始创作';
+    btn.setAttribute('href', 'auth.html');
+    btn.onclick = null;
 }
 
 // 标记是否已从云端加载过数据（防止重复加载覆盖本地操作）
