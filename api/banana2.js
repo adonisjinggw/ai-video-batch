@@ -22,9 +22,7 @@ const FILM_COST = {
     'gemini-3.1-flash-image-preview-4k': 7,  // Gemini Flash 4K
     'gpt-image-2': 1,  // GPT-Image-2 官方（预扣1胶片，最终根据token动态计算）
     'gpt2': 1,           // GPT-Image-2 简写（同上）
-    'gpt-image-2-all': 5,  // GPT-Image-2-All（dall-e-3格式逆向）
-    'gpt-image-2-all-2k': 8,  // GPT-Image-2-All 2K
-    'gpt-image-2-all-4k': 12,  // GPT-Image-2-All 4K
+    'gpt-image-2-all': 12,  // GPT-Image-2-All（默认4K，尺寸选项控制实际分辨率）
     'openrouter:bytedance-seed/seedream-4.5': 0  // OpenRouter Seedream 4.5（免费）
 };
 
@@ -47,31 +45,45 @@ const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const IMAGE_BUCKET = 'generated-images';
 
-// 🆕 异步任务管理 - 直接调用 Supabase REST API
+// 🆕 异步任务管理 - 通过 supabase-proxy 操作（避免直连 Supabase REST 权限问题）
 // ⚠️ 需要在 Supabase 中先创建表：
 // CREATE TABLE generation_tasks (id UUID PRIMARY KEY, user_id UUID, task_type TEXT, status TEXT DEFAULT 'pending', request_body JSONB, result JSONB, error TEXT, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ, completed_at TIMESTAMPTZ);
-async function __createGenerationTask(userId, taskType, requestBody) {
+const INTERNAL_BASE = 'https://lossloop.cn';
+
+async function __createGenerationTask(userId, taskType, requestBody, customTaskId) {
     try {
-        const taskId = require('crypto').randomUUID();
-        const now = new Date().toISOString();
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/generation_tasks`, {
+        const taskId = customTaskId || require('crypto').randomUUID();
+        const res = await fetch(`${INTERNAL_BASE}/api/supabase-proxy`, {
             method: 'POST',
-            headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-            body: JSON.stringify({ id: taskId, user_id: userId, task_type: taskType, status: 'pending', request_body: requestBody, created_at: now, updated_at: now })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'createGenerationTask',
+                userId,
+                provider: taskType,
+                model: requestBody?.model || '',
+                prompt: requestBody?.prompt || '',
+                requestBody,
+                meta: { taskId, taskType }
+            })
         });
-        if (!res.ok) { console.warn(`[banana2] 创建任务失败: ${res.status}`); return null; }
-        console.log(`[banana2] 📋 异步任务创建: ${taskId}`);
-        return taskId;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            console.warn(`[banana2] 创建任务失败: ${data.error || data.message || res.status}`);
+            return null;
+        }
+        console.log(`[banana2] 📋 异步任务创建: ${data.taskId || taskId}`);
+        return data.taskId || taskId;
     } catch(e) { console.warn(`[banana2] 创建任务异常: ${e.message}`); return null; }
 }
 
 async function __getGenerationTask(taskId) {
     try {
+        // 🔧 直连 Supabase REST（使用 service key，不过滤 userId，因为轮询时不一定有 userId）
         const res = await fetch(`${SUPABASE_URL}/rest/v1/generation_tasks?id=eq.${encodeURIComponent(taskId)}&select=*&limit=1`, {
             headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` }
         });
         if (!res.ok) return null;
-        const rows = await res.json();
+        const rows = await res.json().catch(() => ([]));
         return rows?.[0] || null;
     } catch(e) { return null; }
 }
@@ -82,6 +94,7 @@ async function __updateGenerationTask(taskId, status, result, error) {
         if (result) data.result = result;
         if (error) data.error = error;
         if (status === 'completed') data.completed_at = new Date().toISOString();
+        // 🔧 直连 Supabase REST（service key，不过滤 userId）
         await fetch(`${SUPABASE_URL}/rest/v1/generation_tasks?id=eq.${encodeURIComponent(taskId)}`, {
             method: 'PATCH', headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -277,38 +290,52 @@ async function __billing(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
 
     const intAmount = Math.ceil(amount);
-    const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
+    const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
+    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const headers = {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+    };
 
     try {
-        const baseUrl = 'https://www.rollroll.art';
+        const profileUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}&select=quota_balance,quota_used`;
+        const profileRes = await fetch(profileUrl, { headers });
+        if (!profileRes.ok) throw new Error(`获取余额失败: ${profileRes.status}`);
+        const rows = await profileRes.json().catch(() => []);
+        const row = rows?.[0];
+        if (!row) throw new Error('用户不存在');
 
-        const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: proxyAction,
-                userId,
-                amount: intAmount,
-                description: description || (billingAction === 'refund' ? '退款' : '消费')
-            })
-        });
+        const currentBalance = row.quota_balance || 0;
+        const currentUsed = row.quota_used || 0;
+        let newBalance, newUsed;
 
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || !data.success) {
-            if (billingAction === 'consume') {
-                throw new Error(data.message || data.error || '扣费失败');
-            }
-            console.error(`[banana2] 退款失败:`, data);
-            return { success: false, error: data.message || data.error };
+        if (billingAction === 'consume') {
+            if (currentBalance < intAmount) throw new Error('余额不足');
+            newBalance = Math.round((currentBalance - intAmount) * 100) / 100;
+            newUsed = Math.round((currentUsed + intAmount) * 100) / 100;
+        } else {
+            newBalance = Math.round((currentBalance + intAmount) * 100) / 100;
+            newUsed = currentUsed;
         }
+
+        const updateUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`;
+        const updateData = { quota_balance: newBalance };
+        if (billingAction === 'consume') updateData.quota_used = newUsed;
+
+        const updateRes = await fetch(updateUrl, { method: 'PATCH', headers, body: JSON.stringify(updateData) });
+        if (!updateRes.ok) throw new Error(`更新余额失败: ${updateRes.status}`);
+
+        fetch(`${SUPABASE_URL}/rest/v1/quota_logs`, {
+            method: 'POST', headers,
+            body: JSON.stringify({ user_id: userId, action_type: billingAction === 'refund' ? 'recharge' : 'consume', amount: billingAction === 'refund' ? intAmount : -intAmount, balance_after: newBalance, description: description || (billingAction === 'refund' ? '退款' : '消费') })
+        }).catch(() => {});
 
         console.log(`[banana2] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
-        return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
+        return { success: true, newBalance, newUsed };
     } catch (e) {
-        if (billingAction === 'consume') {
-            throw e;
-        }
+        if (billingAction === 'consume') throw e;
         console.error(`[banana2] 退款异常:`, e.message);
         return { success: false, error: e.message };
     }
@@ -378,16 +405,19 @@ async function fetchWithFallback(requestBody, isGemini3Native = false, geminiMod
     const is2k = /2k/i.test(model);
     const isJimeng = model.includes('jimeng');
     const isSeedream = model.includes('seedream') || model.includes('doubao') || model.includes('openrouter:bytedance-seed/seedream');
-    const isGptImage2 = model === 'gpt-image-2' || model === 'gpt2';    const isGptImage2All = model === 'gpt-image-2-all' || model === 'gpt-image-2-all-2k' || model === 'gpt-image-2-all-4k';
+    const modelLower = model.toLowerCase();
+    const isGptImage2 = modelLower === 'gpt-image-2' || modelLower === 'gpt2';
+    const isGptImage2All = modelLower.includes('gpt-image-2-all');
     const isGptImage2Family = isGptImage2 || isGptImage2All;
-    // 🔧 统一超时设置：2K/4K需要更长时间
-    const baseTimeoutMs = is4k ? 240000 : (is2k ? 180000 : (isGptImage2Family ? 120000 : (isGemini3Native ? 85000 : (isJimeng ? 80000 : (isSeedream ? 85000 : 80000)))));
+    // 🔧 统一超时设置：Cloudflare 100秒限制，所有模型统一 95 秒
+    // 避免 524 错误（Cloudflare 在 100 秒时断开连接）
+    const baseTimeoutMs = is4k ? 95000 : (is2k || isGptImage2All ? 95000 : (isGemini3Native ? 85000 : (isJimeng ? 80000 : (isSeedream ? 85000 : 80000))));
 
-    const GLOBAL_DEADLINE_MS = is4k ? 240000 : (is2k ? 180000 : 95000);  // 4K/2K需要更长时间
+    const GLOBAL_DEADLINE_MS = 95000;  // 统一 95 秒，避免 Cloudflare 524
     const startTime = Date.now();
 
     // 根据实际模型名构建正确的 API 路径
-    const geminiModel = geminiModelName || 'gemini-3-pro-image-preview';
+    const geminiModel = geminiModelName || 'gemini-3.1-flash-image-preview';
     // 🆕 GPT-Image-2 系列支持图生图/编辑模式
     const hasRefImage = !!(requestBody?.image_url || (requestBody?.image_urls && requestBody.image_urls.length > 0));
     let apiPath;
@@ -871,7 +901,7 @@ async function callQwenImageMax(prompt, options = {}) {
 }
 
 module.exports = async function handler(req, res) {
-    const json = (status, payload) => {
+    let json = (status, payload) => {
         res.statusCode = status;
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify(payload));
@@ -899,7 +929,8 @@ module.exports = async function handler(req, res) {
         try {
             const task = await __getGenerationTask(taskId);
             if (!task) {
-                json(404, { error: 'TASK_NOT_FOUND' });
+                // 🔧 不返404：Supabase记录可能还在异步写入中，返回 pending 状态让前端继续轮询
+                json(200, { status: 'pending', message: '任务正在初始化...' });
                 return;
             }
             json(200, task);
@@ -930,15 +961,16 @@ module.exports = async function handler(req, res) {
         }
         const {
             prompt,
-            model = 'gemini-3-pro-image-preview',  // ✅ 云梦 API 的 Gemini-3 图片生成模型
+            model = 'gemini-3.1-flash-image-preview',  // ✅ 云梦 API 的 Gemini Flash 图片生成模型
             aspect_ratio = '1:1',
             image_url,   // 单图（兼容旧版）
             image_urls,  // 🆕 多图融合数组
             response_format, // 🆕 响应格式：支持 "psd"、"png" 等
-            userId: reqUserId       // 🔐 用户ID（计费用）
+            userId: reqUserId,       // 🔐 用户ID（计费用）
+            async: isAsync           // 🆕 异步模式：true 时立即返回 task_id，后台生成
         } = body || {};
 
-        console.log(`[banana2] 📥 收到请求: model=${model}, prompt=${prompt?.substring(0, 30)}...`);
+        console.log(`[banana2] 📥 收到请求: model=${model}, prompt=${prompt?.substring(0, 30)}..., async=${isAsync}`);
 
         userId = reqUserId;  // 赋值给外层变量
         const skipBilling = body?.skip_billing === true;
@@ -965,10 +997,11 @@ module.exports = async function handler(req, res) {
         let useYunwuAPI = false;       // 🆕 标记是否使用云雾API
 
         if (model === 'modelscope') {
-            // ✅ modelscope免费模型使用云梦Gemini-3，不需要MODELSCOPE_API_KEY
-            mappedModel = 'gemini-3-pro-image-preview';
-            useModelScopeAPI = false;
-            console.log(`[banana2] 🔄 模型映射: modelscope -> gemini-3-pro-image-preview (云梦API)`);
+            // ✅ modelscope 走真正的魔塔 API (qwen-image-max)，与 GPT 模型完全分开
+            mappedModel = 'qwen-image-max';
+            useModelScopeAPI = true;
+            useYunwuAPI = false;
+            console.log(`[banana2] 🔄 模型映射: modelscope -> qwen-image-max (魔塔API)`);
         } else if (model === 'qwen-image-max' || model === 'Qwen/Qwen-Image-2512') {
             // 🔧 万象Max走云雾API（付费），不是ModelScope
             mappedModel = 'Qwen/Qwen-Image-2512';
@@ -988,8 +1021,8 @@ module.exports = async function handler(req, res) {
 
         if (isQwenModel && !MODELSCOPE_API_KEY) {
             console.error('[banana2] ❗ MODELSCOPE_API_KEY 未配置，尝试使用云梦API替代');
-            // 改用云梦API的Gemini-3替代
-            mappedModel = 'gemini-3-pro-image-preview';
+            // 改用云梦API的GPT-Image-2-All替代
+            mappedModel = 'gpt-image-2-all';
             useModelScopeAPI = false;
         }
 
@@ -1004,9 +1037,9 @@ module.exports = async function handler(req, res) {
             promptLength: prompt.length
         });
 
-        // 🔧 模型名称映射：前端使用 nano-banana-2 系列，统一映射到云雾的 gemini-3-pro-image-preview
+        // 🔧 模型名称映射：模型不再携带 2K/4K，分辨率统一由尺寸/比例字段决定
         let actualModel = model;
-        let resolution = '1K';  // 默认 1K
+        let resolution = '4K';  // 默认统一 4K
 
         // 🆕 OpenRouter 模型处理：去掉前缀
         if (model.startsWith('openrouter:')) {
@@ -1014,49 +1047,35 @@ module.exports = async function handler(req, res) {
             console.log(`[banana2] 🔄 OpenRouter 模型映射: ${model} -> ${actualModel}`);
         }
 
-        if (model === 'nano-banana-2' || model === 'banana2') {
-            actualModel = 'gemini-3-pro-image-preview';  // 云雾 Gemini 图像生成
-            resolution = '1K';
-            console.log(`[banana2] 🔄 模型映射: ${model} -> ${actualModel} (${resolution})`);
-        } else if (model === 'nano-banana-2-2k' || model === 'banana2-2k' || model === 'banana2_2k') {
-            actualModel = 'gemini-3-pro-image-preview';  // 云雾 Gemini 图像生成
+        // ✅ 优先按前端传来的尺寸值推断分辨率，彻底避免“4K模型 + 4K尺寸 => 8K”叠加
+        if (/^(2048x2048|2048x1152|1152x2048)$/i.test(aspect_ratio)) {
             resolution = '2K';
-            console.log(`[banana2] 🔄 模型映射: ${model} -> ${actualModel} (${resolution})`);
-        } else if (model === 'nano-banana-2-4k' || model === 'banana2-4k' || model === 'banana2_4k') {
-            actualModel = 'gemini-3-pro-image-preview';  // 云雾 Gemini 图像生成
+        } else if (/^(1024x1024|1536x1024|1024x1536)$/i.test(aspect_ratio)) {
+            resolution = '1K';
+        } else {
             resolution = '4K';
+        }
+
+        // 🆓 modelscope 免费模型使用 1K 分辨率，避免超大尺寸导致 API 503
+        if (model === 'modelscope') {
+            resolution = '1K';
+            console.log(`[banana2] 🆓 modelscope 免费模型限制为 1K 分辨率`);
+        }
+
+        if (model === 'nano-banana-2' || model === 'banana2') {
+            actualModel = 'gpt-image-2-all';
             console.log(`[banana2] 🔄 模型映射: ${model} -> ${actualModel} (${resolution})`);
         } else if (model.includes('seedream') || model.includes('doubao')) {
-            actualModel = model;  // 星梦画师系列保持原名
-            resolution = '1K';
+            actualModel = model;
             console.log(`[banana2] 🔄 星梦画师模型: ${model} (${resolution})`);
         } else if (model === 'gemini-3.1-flash-image-preview') {
-            actualModel = 'gemini-3.1-flash-image-preview';  // ✅ 保持3.1模型名
-            resolution = '1K';
+            actualModel = 'gemini-3.1-flash-image-preview';
             console.log(`[banana2] 🔄 模型: ${model} (${resolution})`);
-        } else if (model === 'gemini-3.1-flash-image-preview-2k') {
-            actualModel = 'gemini-3.1-flash-image-preview';  // ✅ 保持3.1模型名
-            resolution = '2K';
-            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
-        } else if (model === 'gemini-3.1-flash-image-preview-4k') {
-            actualModel = 'gemini-3.1-flash-image-preview';  // ✅ 保持3.1模型名
-            resolution = '4K';
-            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
         } else if (model === 'gpt-image-2' || model === 'gpt2') {
-            actualModel = 'gpt-image-2';  // ✅ GPT-Image-2 官方模型（gpt2 是简写）
-            resolution = '1K';
+            actualModel = 'gpt-image-2';
             console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
         } else if (model === 'gpt-image-2-all') {
-            actualModel = 'gpt-image-2-all';  // ✅ GPT-Image-2-All 使用dall-e-3格式
-            resolution = '1K';
-            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
-        } else if (model === 'gpt-image-2-all-2k') {
-            actualModel = 'gpt-image-2-all';  // 2K也用同一个模型
-            resolution = '2K';
-            console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
-        } else if (model === 'gpt-image-2-all-4k') {
-            actualModel = 'gpt-image-2-all';  // 4K也用同一个模型
-            resolution = '4K';
+            actualModel = 'gpt-image-2-all';
             console.log(`[banana2] 🔄 模型: ${model} -> ${actualModel} (${resolution})`);
         }
 
@@ -1065,40 +1084,99 @@ module.exports = async function handler(req, res) {
         const isJimeng = actualModel && actualModel.includes('jimeng');
         // ✅ modelscope 映射后会是 gemini-3，所以要用 actualModel 或 mappedModel 判断
         // ✅ 覆盖 gemini-3.0 和 gemini-3.1 图片模型
-        let isGemini3 = (actualModel && (actualModel.includes('gemini-3-pro-image-preview') || actualModel.includes('gemini-3.1-flash-image-preview'))) || (mappedModel && mappedModel.includes('gemini-3-pro-image-preview'));
-        const isNanoBanana = model && (model.includes('nano-banana-2') || model === 'banana2' || model === 'modelscope');
-        // 🆕 只有配置了MODELSCOPE_API_KEY且明确使用ModelScope API时才走qwen-image-max分支
-        const isQwenImageMax = useYunwuAPI && (model === 'qwen-image-max' || model === 'Qwen/Qwen-Image-2512');
+        let isGemini3 = (actualModel && (actualModel.includes('gemini-3.1-flash-image-preview'))) || (mappedModel && mappedModel.includes('gemini-3.1-flash-image-preview'));
+        const isNanoBanana = model && (model === 'nano-banana-2' || model === 'banana2');
+        // 🆕 modelscope 和 qwen-image-max 都走魔塔 API (ModelScope)
+        const isQwenImageMax = useModelScopeAPI && (model === 'modelscope' || model === 'qwen-image-max' || model === 'Qwen/Qwen-Image-2512');
         // 🆕 OpenRouter 图片模型
         const isOpenRouterImage = model && model.startsWith('openrouter:');
         // 🆕 GPT-Image-2 官方模型
         const isGptImage2 = model === 'gpt-image-2' || model === 'gpt2';
-        const isGptImage2All = model === 'gpt-image-2-all' || model === 'gpt-image-2-all-2k' || model === 'gpt-image-2-all-4k';
-        const isGptImage2All_2k = model === 'gpt-image-2-all-2k';
-        const isGptImage2All_4k = model === 'gpt-image-2-all-4k';
+        const isGptImage2All = model === 'gpt-image-2-all';
 
         let response;
 
-        // 🆕 异步任务模式：4K请求走后台任务，避免100s超时
-        const is4K = resolution === '4K';
-        let taskId = null;
+        // 🆕 长连接直返模式（已禁用，前端不支持）：
+        // 1) 所有 GPT-Image-2-All 变体（1K/2K/4K）
+        // 2) GPT-Image-2 官方模型在参考图生图/编辑模式下
+        // 暂时禁用长连接模式，直接返回 JSON，避免前端解析失败
+        const hasGptRefInput = !!image_url || !!(image_urls && Array.isArray(image_urls) && image_urls.length > 0);
+        const isLongRunningGptRequest = false; // 禁用长连接模式: isGptImage2All || (isGptImage2 && hasGptRefInput);
+        if (isLongRunningGptRequest && userId && filmCost > 0) {
+            console.log(`[banana2] 🚀 GPT 图片长连接直返模式启动: model=${model}, resolution=${resolution}, hasRef=${hasGptRefInput}`);
+            // 立即发送响应头，建立连接
+            res.writeHead(200, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Cache-Control': 'no-cache',
+                'X-Content-Type-Options': 'nosniff'
+            });
+            // 🔧 立刻先发一个字节，马上把响应冲出去，避免卡到 15 秒后才有首包
+            try { res.write('.'); } catch (e) {}
+            // 心跳保活：每 15 秒发一个点，防止 Cloudflare 100s 杀连接
+            const heartbeat = setInterval(() => {
+                try { res.write('.'); } catch (e) { clearInterval(heartbeat); }
+            }, 15000);
+            // 🔄 重写 json 函数：停止心跳后输出最终 JSON
+            const _origJson = json;
+            json = function(status, payload) {
+                clearInterval(heartbeat);
+                // 最终响应是纯 JSON，前端通过 lastIndexOf('{') 提取
+                res.end(JSON.stringify(status === 200 ? { ...payload, _streamed: true } : payload));
+                // 后台异步补录 Supabase（不阻塞响应）
+                if (status === 200) {
+                    __updateGenerationTask(taskId, 'completed', { url: payload.url, urls: payload.urls || [payload.url], billed: payload.billed || 0 }).catch(() => {});
+                }
+            };
+            taskId = require('crypto').randomUUID();
+            // 后台异步创建 Supabase 记录
+            __createGenerationTask(userId, 'image', { prompt, model, aspect_ratio, image_url: image_url || null, image_urls: image_urls || null, resolution }, taskId).catch(() => {});
+            // 继续执行图片生成，完成后 json(200, responseData) 会被重写的 json 处理
+        }
 
-        if (is4K && userId && filmCost > 0) {
-            taskId = await __createGenerationTask(userId, 'image', { prompt, model, aspect_ratio, image_url: image_url || null, image_urls: image_urls || null, resolution });
-            if (taskId) {
-                // 🔄 重写 json 函数，生成完成后更新 Supabase 而非直接返回
-                const _origJson = json;
-                json = function(status, payload) {
-                    if (status === 200) {
-                        __updateGenerationTask(taskId, 'completed', { url: payload.url, urls: payload.urls || [payload.url], billed: payload.billed || 0 }).catch(() => {});
-                    } else {
-                        __updateGenerationTask(taskId, 'failed', null, payload?.message || payload?.error || '未知错误').catch(() => {});
-                    }
-                };
-                // ✅ 立即返回 202 + taskId，客户端开始轮询
-                _origJson(202, { taskId, status: 'pending', message: '任务已创建，正在处理中...', billed: 0 });
-                console.log(`[banana2] 🚀 4K异步任务启动: ${taskId}, 立即返回202`);
-                // 函数继续执行，完成图片生成后会通过 json() 更新 Supabase 任务状态
+        // 🆕 modelscope 走魔塔原生 API（免费）
+        if (model === 'modelscope') {
+            try {
+                // 根据 aspect_ratio 计算 size
+                let size = '1024*1024';  // 默认正方形
+                if (aspect_ratio === '21:9') {
+                    size = '1024*432';
+                } else if (aspect_ratio === '16:9') {
+                    size = '1024*576';
+                } else if (aspect_ratio === '9:16') {
+                    size = '576*1024';
+                } else if (aspect_ratio === '4:3') {
+                    size = '1024*768';
+                } else if (aspect_ratio === '3:4') {
+                    size = '768*1024';
+                } else if (aspect_ratio === '1:1') {
+                    size = '1024*1024';
+                }
+                console.log(`[banana2] 🆓 modelscope 魔塔API size: ${size} (aspect_ratio=${aspect_ratio})`);
+
+                const refImage = (image_urls && Array.isArray(image_urls) && image_urls.length > 0) ? image_urls : (image_url || null);
+                const imageUrl = await callQwenImageMax(prompt, { size, image_url: refImage });
+
+                // ✅ 生成成功：保存记录并返回（免费，不扣费）
+                await __saveGenerationRecord(userId, 'image', imageUrl, prompt, 'modelscope', 0, { aspect_ratio, size });
+
+                console.log(`[banana2] ✅ modelscope 魔塔API 生成成功, 计费=免费`);
+                json(200, {
+                    success: true,
+                    url: imageUrl,
+                    data: [{ url: imageUrl }],
+                    billed: 0
+                });
+                return;
+            } catch (err) {
+                console.error('[banana2] modelscope 魔塔API 失败:', err.message);
+                json(500, {
+                    success: false,
+                    error: 'API_ERROR',
+                    error_code: 'API_ERROR',
+                    message: `智能绘图生成失败: ${err.message}`,
+                    billed: 0
+                });
+                return;
             }
         }
 
@@ -1386,12 +1464,10 @@ module.exports = async function handler(req, res) {
                 generationConfig: {
                     responseModalities: ['TEXT', 'IMAGE'],
                     image_config: {
-                        aspect_ratio: geminiAspectRatio,
-                        size: `${width}x${height}`
+                        aspect_ratio: geminiAspectRatio
                     }
                 }
             };
-            console.log(`[banana2] Gemini图像模型使用size: ${width}x${height} (${resolution}, ${aspect_ratio})`);
 
             // 🔧 清晰度配置：云梦/云雾 API 不支持 image_size，改用在 prompt 中强调高分辨率
             // Gemini 3 Pro 本身支持生成高分辨率图像，通过提示词引导
@@ -1498,14 +1574,13 @@ module.exports = async function handler(req, res) {
                     console.log(`[banana2] gpt-image-2 计算尺寸: ${requestBody.size} (${aspect_ratio})`);
                 }
             } else if (isGptImage2All) {
-                // ✅ gpt-image-2-all 官方支持的尺寸
+                // ✅ gpt-image-2-all 尺寸完全由前端尺寸选项控制，模型名不再携带 2K/4K
                 if (aspect_ratio && aspect_ratio.includes('x')) {
                     requestBody.size = aspect_ratio;
                     console.log(`[banana2] gpt-image-2-all 直接使用前端尺寸: ${aspect_ratio}`);
                 } else {
                     let width, height;
-                    // 🔧 根据分辨率选择尺寸：1K=1024, 2K=2048, 4K=4096
-                    const sizeMultiplier = isGptImage2All_4k ? 4 : (isGptImage2All_2k ? 2 : 1);
+                    const sizeMultiplier = resolution === '4K' ? 4 : (resolution === '2K' ? 2 : 1);
                     if (aspect_ratio === '16:9') {
                         width = 1536 * sizeMultiplier;
                         height = 1024 * sizeMultiplier;
@@ -1797,15 +1872,14 @@ module.exports = async function handler(req, res) {
                             if (storageUrl) {
                                 imageUrls[i] = storageUrl;
                             } else {
-                                console.warn(`[banana2] ⚠️ Storage上传失败，移除超大base64避免响应超限`);
-                                imageUrls[i] = null;
+                            console.warn(`[banana2] ⚠️ Storage上传失败，保留原始URL（超大base64）`);
                             }
                         }
                     } else if (upload.type === 'url') {
                         // 🔧 下载CORS受限的图片到Storage
                         console.log(`[banana2] 📤 图片${i}存在CORS限制，下载到Storage...`);
                         try {
-                            const response = await fetch(imgData);
+                            const response = await fetchWithTimeout(imgData, {}, 30000);
                             if (!response.ok) throw new Error(`HTTP ${response.status}`);
                             const buffer = await response.arrayBuffer();
                             const base64 = Buffer.from(buffer).toString('base64');

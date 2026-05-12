@@ -192,9 +192,8 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
     if (!userId) return { success: false, error: 'no userId' };
 
     try {
-        const baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'https://www.rollroll.art';
+        // 🔧 修复：始终使用生产域名，避免VERCEL_URL指向内部域名导致调用失败
+        const baseUrl = 'https://www.rollroll.art';
 
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
@@ -235,41 +234,69 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
 async function __billing(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
 
-    // 🔧 确保金额是整数
     const intAmount = Math.ceil(amount);
-
-    // 映射 action: consume -> consume, refund -> recharge
-    const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
+    const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
+    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const headers = {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+    };
 
     try {
-        // 获取当前请求的 host（用于内部调用）
-        const baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'https://www.rollroll.art';
+        const profileUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}&select=quota_balance,quota_used`;
+        const profileRes = await fetch(profileUrl, { headers });
+        if (!profileRes.ok) {
+            throw new Error(`获取余额失败: ${profileRes.status}`);
+        }
+        const rows = await profileRes.json().catch(() => []);
+        const row = rows?.[0];
+        if (!row) throw new Error('用户不存在');
 
-        const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: proxyAction,
-                userId,
-                amount: intAmount,
-                description: description || (billingAction === 'refund' ? '退款' : '消费')
-            })
-        });
+        const currentBalance = row.quota_balance || 0;
+        const currentUsed = row.quota_used || 0;
+        let newBalance, newUsed;
 
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || !data.success) {
-            if (billingAction === 'consume') {
-                throw new Error(data.message || data.error || '扣费失败');
+        if (billingAction === 'consume') {
+            if (currentBalance < intAmount) {
+                throw new Error('余额不足');
             }
-            console.error(`[yunwu] 退款失败:`, data);
-            return { success: false, error: data.message || data.error };
+            newBalance = Math.round((currentBalance - intAmount) * 100) / 100;
+            newUsed = Math.round((currentUsed + intAmount) * 100) / 100;
+        } else {
+            newBalance = Math.round((currentBalance + intAmount) * 100) / 100;
+            newUsed = currentUsed;
         }
 
+        const updateUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`;
+        const updateData = { quota_balance: newBalance };
+        if (billingAction === 'consume') updateData.quota_used = newUsed;
+
+        const updateRes = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(updateData)
+        });
+        if (!updateRes.ok) {
+            const errText = await updateRes.text().catch(() => '');
+            throw new Error(`更新余额失败: ${updateRes.status} ${errText}`);
+        }
+
+        fetch(`${SUPABASE_URL}/rest/v1/quota_logs`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                user_id: userId,
+                action_type: billingAction === 'refund' ? 'recharge' : 'consume',
+                amount: billingAction === 'refund' ? intAmount : -intAmount,
+                balance_after: newBalance,
+                description: description || (billingAction === 'refund' ? '退款' : '消费')
+            })
+        }).catch(() => {});
+
         console.log(`[yunwu] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
-        return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
+        return { success: true, newBalance, newUsed };
     } catch (e) {
         if (billingAction === 'consume') {
             throw e;
@@ -353,8 +380,40 @@ const YUNWU_ENDPOINTS = [
 // 默认使用第一个（国内最快）
 let YUNWU_BASE_URL = YUNWU_ENDPOINTS[0].url;
 
+/**
+ * 🆕 LLM 对话专用多端点串行 fallback（chat / text 等轻量 completions 请求）
+ * 与 _tryAllEndpoints 区别：该函数对非MJ请求也会串行尝试所有端点，避免单端点故障导致全部 500
+ * @param {object} requestBody - OpenAI 兼容请求体（已含 model/messages/...）
+ * @param {number} timeoutMs - 单次请求超时（毫秒）
+ * @returns {Promise<{response: Response, endpoint: string} | null>}
+ */
+async function llmChatAllEndpoints(requestBody, timeoutMs = 60000) {
+    let lastResponse = null;
+    for (let i = 0; i < YUNWU_ENDPOINTS.length; i++) {
+        const ep = YUNWU_ENDPOINTS[i];
+        const apiKey = YUNWU_API_KEYS[ep.keyIdx] || YUNWU_API_KEY;
+        try {
+            const r = await fetch(`${ep.url}/v1/chat/completions`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+                signal: AbortSignal.timeout(timeoutMs)
+            });
+            if (r.ok) {
+                console.log(`[yunwu] ✅ ${ep.name} LLM 成功`);
+                return { response: r, endpoint: ep.name };
+            }
+            console.warn(`[yunwu] ${ep.name} LLM 返回 ${r.status}，尝试下一端点`);
+            lastResponse = r;
+        } catch (e) {
+            console.warn(`[yunwu] ${ep.name} LLM 异常:`, e.message);
+        }
+    }
+    return { response: lastResponse, endpoint: 'ALL_FAILED' };
+}
+
 // ========== 腾讯混元3D API 配置 ==========
-// 混元3D使用腾讯云OpenAI兼容接口
+// 混元3D使用腾讯云 OpenAI 兼容接口；HUNYUAN3D_API_KEY 应为兼容接口 token，直接透传 Authorization
 const HUNYUAN3D_API_KEY = process.env.HUNYUAN3D_API_KEY || '';
 const HUNYUAN3D_BASE_URL = 'https://api.ai3d.cloud.tencent.com';
 
@@ -515,7 +574,7 @@ module.exports = async function handler(req, res) {
 
         // 🔐 安全检查：必须提供 userId 才能使用 API（防止白嫒）
         // 豁免某些只读操作（不扣费）
-        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll', 'vc-list', 'wan26-poll', 'ltx-poll', 'upload-image'];  // 获取音色列表、轮询、图片上传不需要登录
+        const exemptActions = ['tts-voices', 'kling-voices', 'tts-poll', 'kling-tts-poll', 'vc-poll', 'vc-list', 'wan26-poll', 'ltx-poll', 'upload-image', 'poll', 'poll-vod'];  // 获取音色列表、轮询、图片上传不需要登录
         console.log(`[yunwu] 检查权限: action=${action}, userId=${userId}, 豁免=${exemptActions.includes(action)}`);
         if (!userId && !exemptActions.includes(action)) {
             json(401, { error: 'UNAUTHORIZED', message: '请先登录后再使用此功能' });
@@ -761,12 +820,17 @@ module.exports = async function handler(req, res) {
 
             // 🔒 先扣费
             if (!skipBilling && filmCost > 0 && userId) {
-                const billingResult = await __billing('consume', userId, filmCost, `星梦画师:${actualMode}`);
-                if (!billingResult.success && !billingResult.skipped) {
-                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                try {
+                    const billingResult = await __billing('consume', userId, filmCost, `星梦画师:${actualMode}`);
+                    if (!billingResult.success && !billingResult.skipped) {
+                        json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                        return;
+                    }
+                    billingSuccess = billingResult.success && !billingResult.skipped;
+                } catch (billingErr) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingErr.message || '扣费失败', billed: 0 });
                     return;
                 }
-                billingSuccess = billingResult.success && !billingResult.skipped;
             } else if (skipBilling) {
                 console.log(`[yunwu] 💰 星梦画师跳过扣费: 前端已处理`);
             }
@@ -1013,7 +1077,7 @@ module.exports = async function handler(req, res) {
                 if (ocrSystemMsg) messages.push(ocrSystemMsg);
                 messages.push({ role: 'user', content: msgContent });
 
-                const response = await fetchWithFallback(`/v1/chat/completions`, {
+                const response = await fetchWithFallbackWithTimeout(`/v1/chat/completions`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${YUNWU_API_KEY}`,
@@ -1024,7 +1088,7 @@ module.exports = async function handler(req, res) {
                         messages,
                         max_tokens: maxTokens
                     })
-                });
+                }, 80000);
 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -1096,13 +1160,14 @@ module.exports = async function handler(req, res) {
                 'grok-4-fast-non-reasoning': { input: 1.5, output: 6.0 }, // Grok-4 无推理版
                 'gemini-3-flash-preview': { input: 0.15, output: 0.9 },   // 最便宜
                 'qwen3.5-plus': { input: 0.24, output: 0.6 },             // 中文优化
+                'qwen3.6-plus-2026-04-02': { input: 0.4, output: 1.2 },   // 中文最新多模态
                 'gemini-3-pro-preview': { input: 0.6, output: 3.6 },      // 多模态(旧)
                 'gemini-3.1-pro-preview': { input: 0.6, output: 3.6 },    // 多模态(新)
                 'gemini-3-pro-preview-thinking': { input: 0.6, output: 3.6 }  // 思考模式
             };
 
             // 获取价格，未知模型用flash的价格（最便宜）
-            const pricing = MODEL_PRICING[model] || MODEL_PRICING['gemini-3-flash-preview'];
+            let pricing = MODEL_PRICING[model] || MODEL_PRICING['gemini-3-flash-preview'];
 
             console.log('[yunwu] AI对话:', { model, messagesCount: messages.length, enableSearch });
 
@@ -1116,8 +1181,10 @@ module.exports = async function handler(req, res) {
             const timeoutMs = 80000;  // 80秒超时（原来是120秒，超过Cloudflare 100秒限制）
 
             // 🔧 优先尝试 MODELSCOPE（更稳定）
+            // ⚠️ 但如果用户明确指定了 qwen/grok/gemini 等云雾专属模型，跳过魔塔直接走云雾
+            const YUNWU_ONLY_MODELS = ['qwen3.6-plus-2026-04-02', 'qwen3.5-plus', 'grok-4.1', 'grok-4-fast', 'grok-4-fast-non-reasoning', 'gemini-3-pro-preview', 'gemini-3.1-pro-preview', 'gemini-3-pro-preview-thinking'];
             const MODELSCOPE_API_KEY = process.env.MODELSCOPE_API_KEY || '';
-            if (MODELSCOPE_API_KEY) {
+            if (MODELSCOPE_API_KEY && !YUNWU_ONLY_MODELS.includes(model)) {
                 try {
                     console.log('[yunwu] chat 尝试魔塔模型...');
                     const msResponse = await fetch('https://api-inference.modelscope.cn/v1/chat/completions', {
@@ -1179,8 +1246,14 @@ module.exports = async function handler(req, res) {
             }
 
             try {
+                // 🔧 抄 writer-llm.js 的修复：qwen3.6-plus-2026-04-02 完整模型名云雾不认识，转为短名
+                let yunwuModel = model;
+                if (typeof model === 'string') {
+                    if (model.includes('qwen3.6-plus')) yunwuModel = 'qwen3.6-plus';
+                    else if (model.includes('qwen3.5-plus')) yunwuModel = 'qwen3.5-plus';
+                }
                 const requestBody = {
-                    model,
+                    model: yunwuModel,
                     messages: finalMessages,
                     temperature,
                     max_tokens,
@@ -1201,14 +1274,54 @@ module.exports = async function handler(req, res) {
                     body: JSON.stringify(requestBody)
                 }, timeoutMs);
 
+                let finalResponse = response;
+                let finalModel = model;
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('[yunwu] AI对话错误:', response.status, errorText);
-                    json(500, { success: false, error: 'API_ERROR', message: `AI对话失败 (${response.status})`, billed: 0 });
-                    return;
+                    const primaryErrText = await response.text().catch(() => '');
+                    console.warn('[yunwu] 主模型首端点失败，串行尝试其他端点:', response.status, primaryErrText.slice(0, 200));
+                    // 🔧 抄 writer-llm.js：第一端点失败时串行尝试 2、3、4 号端点（同模型）
+                    for (let i = 1; i < YUNWU_ENDPOINTS.length; i++) {
+                        const ep = YUNWU_ENDPOINTS[i];
+                        const apiKey = YUNWU_API_KEYS[ep.keyIdx] || YUNWU_API_KEY;
+                        try {
+                            const r = await fetch(`${ep.url}/v1/chat/completions`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                                body: JSON.stringify(requestBody),
+                                signal: AbortSignal.timeout(timeoutMs)
+                            });
+                            if (r.ok) {
+                                console.log(`[yunwu] ✅ ${ep.name} 串行 fallback 成功`);
+                                finalResponse = r;
+                                break;
+                            }
+                            console.warn(`[yunwu] ${ep.name} 返回 ${r.status}`);
+                        } catch (e) { console.warn(`[yunwu] ${ep.name} 异常:`, e.message); }
+                    }
+                    // 所有端点都失败 → 最后降级到 qwen3.5-plus
+                    if (!finalResponse.ok && model !== 'qwen3.5-plus') {
+                        const fallbackBody = { ...requestBody, model: 'qwen3.5-plus' };
+                        try {
+                            const retry = await fetchWithFallbackWithTimeout(`/v1/chat/completions`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${YUNWU_API_KEY}`, 'Content-Type': 'application/json' },
+                                body: JSON.stringify(fallbackBody)
+                            }, timeoutMs);
+                            if (retry.ok) {
+                                finalResponse = retry;
+                                finalModel = 'qwen3.5-plus';
+                                pricing = MODEL_PRICING['qwen3.5-plus'];
+                            }
+                        } catch (e) { console.warn('[yunwu] 备用模型也失败:', e.message); }
+                    }
+                    if (!finalResponse.ok) {
+                        console.error('[yunwu] AI对话错误:', finalResponse.status, primaryErrText);
+                        json(500, { success: false, error: 'API_ERROR', message: `AI对话失败 (${finalResponse.status})`, billed: 0 });
+                        return;
+                    }
                 }
 
-                const data = await response.json();
+                const data = await finalResponse.json();
                 const content = data?.choices?.[0]?.message?.content;
                 const usage = data?.usage || {};
 
@@ -1239,7 +1352,7 @@ module.exports = async function handler(req, res) {
                 }
 
                 // 保存记录
-                await __saveGenerationRecord(userId, 'chat', content?.trim() || '', messages[messages.length - 1]?.content || '', model, filmCost, {
+                await __saveGenerationRecord(userId, 'chat', content?.trim() || '', messages[messages.length - 1]?.content || '', finalModel, filmCost, {
                     promptTokens, completionTokens, totalTokens, enableSearch
                 });
 
@@ -1247,10 +1360,11 @@ module.exports = async function handler(req, res) {
                 json(200, {
                     success: true,
                     content: content?.trim() || '',
+                    reply: content?.trim() || '',
                     usage: { promptTokens, completionTokens, totalTokens },
                     cost: { yuan: totalCostYuan, film: filmCost },
                     billed: billingSuccess ? filmCost : 0,
-                    model
+                    model: finalModel
                 });
                 return;
             } catch (err) {
@@ -1416,24 +1530,18 @@ module.exports = async function handler(req, res) {
             const timeoutMs = 60000;
 
             try {
-                const response = await fetchWithFallbackWithTimeout(`/v1/chat/completions`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${YUNWU_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'gemini-3.1-pro-preview',
-                        messages: [{ role: 'user', content: prompt }],
-                        temperature,
-                        max_tokens,
-                        speed
-                    })
+                // 🔧 使用多端点串行 fallback，避免单端点故障导致 500
+                const { response } = await llmChatAllEndpoints({
+                    model: 'gemini-3.1-pro-preview',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature,
+                    max_tokens,
+                    speed
                 }, timeoutMs);
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('[yunwu] 文本生成错误:', response.status, errorText);
+                if (!response || !response.ok) {
+                    const errorText = response ? await response.text().catch(() => '') : 'NO_RESPONSE';
+                    console.error('[yunwu] 文本生成错误:', response ? response.status : 'N/A', errorText);
                     // 🔄 API失败退款
                     if (billingSuccess) {
                         await __billing('refund', userId, filmCost, '文本生成API失败退款');
@@ -1442,13 +1550,33 @@ module.exports = async function handler(req, res) {
                         success: false,
                         error: 'API_ERROR',
                         error_code: 'API_ERROR',
-                        message: `文本生成失败 (${response.status})`,
+                        message: `文本生成失败 (${response ? response.status : 502})`,
                         billed: 0
                     });
                     return;
                 }
 
-                const data = await response.json();
+                let data;
+                let responseText = '';
+                try {
+                    // 先读取文本，再解析JSON，避免body被消耗后无法读取
+                    responseText = await response.text();
+                    data = JSON.parse(responseText);
+                } catch (parseErr) {
+                    console.error('[yunwu] 文本生成响应解析失败:', parseErr.message, '原始响应:', responseText.substring(0, 500));
+                    // 🔄 API失败退款
+                    if (billingSuccess) {
+                        await __billing('refund', userId, filmCost, '文本生成响应解析失败退款');
+                    }
+                    json(500, {
+                        success: false,
+                        error: 'API_ERROR',
+                        error_code: 'API_ERROR',
+                        message: '文本生成响应格式错误',
+                        billed: 0
+                    });
+                    return;
+                }
                 const content = data?.choices?.[0]?.message?.content;
 
                 // ✅ 生成成功：保存记录并返回（已在开头扣费）
@@ -1773,12 +1901,17 @@ module.exports = async function handler(req, res) {
 
             // 🔒 先扣费
             if (!skipBilling && filmCost > 0 && userId) {
-                const billingResult = await __billing('consume', userId, filmCost, `Veo视频:${actualModel}`);
-                if (!billingResult.success && !billingResult.skipped) {
-                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                try {
+                    const billingResult = await __billing('consume', userId, filmCost, `Veo视频:${actualModel}`);
+                    if (!billingResult.success && !billingResult.skipped) {
+                        json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingResult.error || '扣费失败', billed: 0 });
+                        return;
+                    }
+                    billingSuccess = billingResult.success && !billingResult.skipped;
+                } catch (billingErr) {
+                    json(400, { success: false, error: 'BILLING_FAILED', error_code: 'BILLING_FAILED', message: billingErr.message || '扣费失败', billed: 0 });
                     return;
                 }
-                billingSuccess = billingResult.success && !billingResult.skipped;
             } else if (skipBilling) {
                 console.log(`[yunwu] 💰 Veo跳过扣费: 前端已处理`);
             }
@@ -1818,17 +1951,13 @@ module.exports = async function handler(req, res) {
                 // 如果有参考图片，作为 input_reference 上传
                 if (image_url) {
                     if (image_url.startsWith('data:')) {
-                        // base64 → Blob
-                        const [header, base64Data] = image_url.split(',');
-                        const mimeMatch = header.match(/data:(.*?);base64/);
-                        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-                        const byteChars = atob(base64Data);
-                        const byteArray = new Uint8Array(byteChars.length);
-                        for (let i = 0; i < byteChars.length; i++) {
-                            byteArray[i] = byteChars.charCodeAt(i);
+                        const match = image_url.match(/^data:([^;]+);base64,(.+)$/);
+                        if (match) {
+                            const mime = match[1] || 'image/png';
+                            const buffer = Buffer.from(match[2], 'base64');
+                            const blob = new Blob([buffer], { type: mime });
+                            formData.append('input_reference', blob, `reference.${mime.split('/')[1] || 'png'}`);
                         }
-                        const blob = new Blob([byteArray], { type: mime });
-                        formData.append('input_reference', blob, `reference.${mime.split('/')[1] || 'png'}`);
                     } else if (image_url.startsWith('http://') || image_url.startsWith('https://')) {
                         // URL → fetch 为 Blob
                         try {
@@ -5081,7 +5210,7 @@ module.exports = async function handler(req, res) {
                     billingSuccess = billingResult.success && !billingResult.skipped;
                 }
 
-                // 🔧 构造请求体（腾讯云API 3.0格式）
+                // 🔧 构造请求体（混元3D兼容接口格式）
                 const requestBody = {};
                 if (prompt) requestBody.Prompt = prompt;
                 if (imageUrl) requestBody.ImageUrl = imageUrl;

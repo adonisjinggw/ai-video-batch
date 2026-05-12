@@ -1,14 +1,14 @@
-<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🎨 AI画图 - RollRoll V9.3.20</title>
+    <title>🎨 AI画图 - RollRoll V9.3.75</title>
     <!-- Supabase SDK 先加载 -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js"></script>
-    <script src="/js/api-core.js"></script>
+    <script src="/js/supabase-config.js?v=9.3.75"></script>
+    <script src="/js/api-core.js?v=9.3.75"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -1490,9 +1490,7 @@
                     <option value="midjourney-turbo">🚀 Midjourney Turbo (2胶片) 🎬支持任意比例</option>
                     <option value="midjourney-relax">🌙 Midjourney Relax (2胶片) 🎬支持任意比例</option>
                     <option value="gpt-image-2">🤖 GPT-Image-2 官方（按量计费）</option>
-                    <option value="gpt-image-2-all">🤖 GPT-Image-2-All 1K (5胶片)</option>
-                    <option value="gpt-image-2-all-2k">🤖 GPT-Image-2-All 2K (8胶片)</option>
-                    <option value="gpt-image-2-all-4k">🤖 GPT-Image-2-All 4K (12胶片) ✨最佳效果</option>
+                    <option value="gpt-image-2-all">🤖 GPT-Image-2-All（尺寸选项控制分辨率，默认4K 12胶片）✨最佳效果</option>
                 </select>
                 <div class="model-info" id="modelInfo">消耗 0.7 胶片</div>
                 <!-- 🎯 MJ版本选择器 -->
@@ -1745,7 +1743,7 @@
             <div id="loadingText">正在生成...</div>
         </div>
         <div class="result-section" id="resultSection">
-            <img class="result-image" id="resultImage" src="" alt="生成结果">
+            <img class="result-image" id="resultImage" src="" alt="生成结果" onerror="handleResultImageLoadError(this)">
             <div class="result-actions">
                 <button class="result-btn" id="downloadBtn" onclick="downloadImage()">💾 下载</button>
                 <button class="result-btn" id="shareBtn" onclick="shareImage()">📤 分享</button>
@@ -2871,9 +2869,7 @@
             'midjourney-relax': 2,
             'openrouter:bytedance-seed/seedream-4.5': 0,
             'gpt-image-2': 1,
-            'gpt-image-2-all': 5,
-            'gpt-image-2-all-2k': 8,
-            'gpt-image-2-all-4k': 12
+            'gpt-image-2-all': 12
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -3125,16 +3121,18 @@
                         <option value="1024x1536">1024×1536 (9:16)</option>
                         <option value="2048x2048">2048×2048 (2K 1:1)</option>
                         <option value="2048x1152">2048×1152 (2K 16:9)</option>
+                        <option value="1152x2048">1152×2048 (2K 9:16)</option>
+                        <option value="3072x3072">3072×3072 (4K 1:1)</option>
                         <option value="3840x2160">3840×2160 (4K 16:9)</option>
                         <option value="2160x3840">2160×3840 (4K 9:16)</option>
                         <option value="auto">auto 默认</option>
                     `;
                     // 自动切换到支持的尺寸
-                    const validRatios = ['1024x1024', '1536x1024', '1024x1536', '2048x2048', '2048x1152', '3840x2160', '2160x3840', 'auto'];
+                    const validRatios = ['1024x1024', '1536x1024', '1024x1536', '2048x2048', '2048x1152', '1152x2048', '3072x3072', '3840x2160', '2160x3840', 'auto'];
                     if (validRatios.includes(currentRatio)) {
                         ratioSelect.value = currentRatio;
                     } else {
-                        ratioSelect.value = '1024x1024';
+                        ratioSelect.value = '3840x2160';
                     }
                 } else {
                     // 其他模型：显示全部尺寸
@@ -3147,7 +3145,7 @@
                         <option value="21:9">🎬 21:9 超宽银幕</option>
                         <option value="custom">📐 自定义比例</option>
                     `;
-                    ratioSelect.value = ['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', 'custom'].includes(currentRatio) ? currentRatio : '1:1';
+                    ratioSelect.value = ['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', 'custom'].includes(currentRatio) ? currentRatio : '16:9';
                 }
             }
         }
@@ -3459,7 +3457,20 @@
                     throw new Error(errMsg);
                 }
 
-                const data = await response.json();
+                let data;
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('text/plain')) {
+                    // 🆕 长连接直返模式：后端发心跳点保活，最终返回 JSON，需从文本中提取
+                    const rawText = await response.text();
+                    const jsonStart = rawText.lastIndexOf('{');
+                    if (jsonStart >= 0) {
+                        data = JSON.parse(rawText.substring(jsonStart));
+                    } else {
+                        throw new Error('响应格式异常');
+                    }
+                } else {
+                    data = await response.json();
+                }
                 if (data.error) throw new Error(data.message || data.error);
 
                 // 🎨 检查是否是 Midjourney 返回（新版本返回 gridBase64 + taskId）
@@ -3490,7 +3501,7 @@
                         } else if (pollResult.imageUrl) {
                             // 直接返回图片URL
                             currentImageUrl = pollResult.imageUrl;
-                            document.getElementById('resultImage').src = currentImageUrl;
+                            showCurrentImage(currentImageUrl);
                             resultSection.style.display = 'block';
                             showToast('生成成功！');
                             try {
@@ -3527,7 +3538,7 @@
                         showMjImagePicker(splitImages, (selectedUrl) => {
                             if (selectedUrl) {
                                 currentImageUrl = selectedUrl;
-                                document.getElementById('resultImage').src = currentImageUrl;
+                                showCurrentImage(currentImageUrl);
                                 resultSection.style.display = 'block';
                                 showToast('图片已放大！');
                                 try {
@@ -3541,7 +3552,7 @@
                         console.error('❌ [MJ] 切图失败:', splitErr);
                         // 切图失败，显示原始网格图
                         currentImageUrl = data.imageUrl || data.url;
-                        document.getElementById('resultImage').src = currentImageUrl;
+                        showCurrentImage(currentImageUrl);
                         resultSection.style.display = 'block';
                         showToast('切图失败，显示网格图');
                     }
@@ -3558,7 +3569,7 @@
                     showMjImagePicker(data.images, (selectedUrl) => {
                         if (selectedUrl) {
                             currentImageUrl = selectedUrl;
-                            document.getElementById('resultImage').src = currentImageUrl;
+                            showCurrentImage(currentImageUrl);
                             resultSection.style.display = 'block';
                             showToast('已选择图片！');
                             try {
@@ -3601,7 +3612,7 @@
                 clearInterval(progressInterval);
                 ButtonState.setProgress('generateBtn', 100);
 
-                document.getElementById('resultImage').src = currentImageUrl;
+                showCurrentImage(currentImageUrl);
                 resultSection.style.display = 'block';
                 showToast('生成成功！');
                 // 🔧 修复：延长持续时间到 5 秒，避免快速恢复到原始状态
@@ -3667,17 +3678,41 @@
         }
 
         function regenerate() { generateImage(); }
+        function getImageDisplayUrl(url) {
+            return (typeof url === 'string' && /^https?:\/\//i.test(url))
+                ? '/api/proxy?apiType=public-api&action=image-download&url=' + encodeURIComponent(url)
+                : url;
+        }
+        function showCurrentImage(url) {
+            const img = document.getElementById('resultImage');
+            if (img) img.src = getImageDisplayUrl(url);
+        }
         function downloadImage(imgUrl) {
             const url = imgUrl || currentImageUrl;
             if (!url) { showToast('没有可下载的图片'); return; }
-            // 🔧 远程URL通过fetch+blob下载，避免跨域拦截
             downloadUrlAsFile(url, 'rollroll_' + Date.now() + '.png');
         }
 
-        // 🔧 通用下载函数：fetch → blob → 触发浏览器下载
         async function downloadUrlAsFile(url, filename) {
             try {
-                const resp = await fetch(url);
+                let resp;
+                if (typeof url === 'string' && url.startsWith('data:')) {
+                    const parts = url.split(',');
+                    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+                    const bstr = atob(parts[1]);
+                    const u8arr = new Uint8Array(bstr.length);
+                    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+                    resp = { ok: true, blob: async () => new Blob([u8arr], { type: mime }) };
+                } else if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+                    resp = await fetch('/api/proxy?apiType=public-api&action=image-download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'image-download', url, filename })
+                    });
+                } else {
+                    resp = await fetch(url);
+                }
+                if (!resp.ok) throw new Error(`图片下载失败: ${resp.status || 0}`);
                 const blob = await resp.blob();
                 const blobUrl = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -3690,15 +3725,7 @@
                 showToast('✅ 下载成功');
             } catch (e) {
                 console.error('下载失败:', e);
-                // 降级：直接用a标签
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.target = '_blank';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                showToast('开始下载');
+                showToast('下载失败，请稍后重试或复制链接');
             }
         }
         let _sharing = false;
@@ -3887,6 +3914,48 @@
             });
         }
 
+        async function pollBananaImageTask(taskId, maxAttempts = 200, intervalMs = 3000) {
+            // 🔧 首轮延迟 5 秒，给 Supabase 异步写入留足时间
+            await new Promise(r => setTimeout(r, 5000));
+            for (let i = 0; i < maxAttempts; i++) {
+                const res = await fetch('/api/banana2?task_id=' + encodeURIComponent(taskId));
+                if (!res.ok) {
+                    // 404/500 直接跳过，等待下一轮
+                    console.warn('[banana] 异步图片轮询HTTP:', res.status);
+                    await new Promise(r => setTimeout(r, intervalMs));
+                    continue;
+                }
+                const task = await res.json().catch(() => null);
+                if (!task) { await new Promise(r => setTimeout(r, intervalMs)); continue; }
+                const status = String(task.status || '').toLowerCase();
+                const url = task.result?.url || task.result?.urls?.[0] || task.url || task.urls?.[0] || task.data?.url || task.data?.urls?.[0] || '';
+                if (url) return { imageUrl: url, taskId };
+                if (status === 'failed' || status === 'error') throw new Error(task.error || '图片生成失败');
+                // 降低日志频率：每 30 次才输出一次进度
+                if ((i + 1) % 30 === 0 || i === 0) console.log('[banana] 异步图片轮询:', i + 1, '/', maxAttempts, status || 'pending');
+                await new Promise(r => setTimeout(r, intervalMs));
+            }
+            throw new Error('图片生成仍在处理中，请稍后在作品记录中查看');
+        }
+
+        async function handleResultImageLoadError(img) {
+            const failedUrl = img && img.src ? img.src : '';
+            if (!failedUrl || img.dataset.proxyTried === '1' || failedUrl.startsWith('data:')) return;
+            img.dataset.proxyTried = '1';
+            console.warn('[banana] 图片直链加载失败，尝试代理加载:', failedUrl.substring(0, 120));
+            try {
+                const proxyRes = await fetch('/api/proxy?method=GET&apiType=image-proxy&targetUrl=' + encodeURIComponent(failedUrl));
+                const proxyData = await proxyRes.json().catch(() => ({}));
+                if (proxyRes.ok && proxyData.dataUrl) {
+                    img.src = proxyData.dataUrl;
+                    return;
+                }
+            } catch (e) {
+                console.warn('[banana] 图片代理加载失败:', e.message);
+            }
+            img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect fill="%23222222" width="800" height="600"/><text x="50%25" y="50%25" fill="%23aaa" text-anchor="middle" font-size="28">图片已生成但CDN加载超时，请稍后刷新或下载</text></svg>';
+        }
+
         async function saveToHistory(prompt, url) {
             // 🖼️ 和小说模块同样方式：原图独立存到单独 localStorage key
             const time = Date.now();
@@ -3974,7 +4043,7 @@
                 `<div class="history-item" onclick="useHistory('${item.url.replace(/'/g, "\\'")}')"><img src="${item.url}" alt="历史图片" onerror="this.style.display='none'"></div>`
             ).join('');
         }
-        function useHistory(url) { currentImageUrl = url; document.getElementById('resultImage').src = url; document.getElementById('resultSection').style.display = 'block'; }
+        function useHistory(url) { currentImageUrl = url; showCurrentImage(url); document.getElementById('resultSection').style.display = 'block'; }
         function clearRefImage() {
             window.referenceImageUrl = null;
             document.getElementById('refSection').style.display = 'none';
@@ -4326,21 +4395,19 @@
 
             const modelOptions = `
                 <option value="nano-banana-2">🍌 Banana</option>
-                <option value="nano-banana-2-2k">🌟 2K</option>
-                <option value="nano-banana-2-4k">💎 4K</option>
+                <option value="nano-banana-2">🌟 2K</option>
+                <option value="nano-banana-2">💎 4K</option>
                 <option value="doubao-seedream-5-0-260128">🌟 星梦5.0</option>
                 <option value="doubao-seedream-4-5-251128">✨ 星梦4.5</option>
                 <option value="gemini-3.1-flash-image-preview">⚡ Gemini</option>
-                <option value="gemini-3.1-flash-image-preview-2k">⚡ Gemini 2K</option>
-                <option value="gemini-3.1-flash-image-preview-4k">💎 Gemini Flash 4K (7胶片)</option>
+                <option value="gemini-3.1-flash-image-preview">⚡ Gemini 2K</option>
+                <option value="gemini-3.1-flash-image-preview">💎 Gemini Flash 4K (7胶片)</option>
                 <option value="Qwen/Qwen-Image-2512">🎭 通义万象Max (8胶片)</option>
                 <option value="midjourney-fast">🌟 MJ Fast</option>
                 <option value="midjourney-turbo">🚀 MJ Turbo</option>
                 <option value="midjourney-relax">🌙 MJ Relax</option>
                 <option value="gpt-image-2">🤖 GPT-Image-2 官方（按量计费）</option>
-                <option value="gpt-image-2-all">🤖 GPT-Image-2-All 1K (5胶片)</option>
-                <option value="gpt-image-2-all-2k">🤖 GPT-Image-2-All 2K (8胶片)</option>
-                <option value="gpt-image-2-all-4k">🤖 GPT-Image-2-All 4K (12胶片) ✨</option>
+                <option value="gpt-image-2-all">🤖 GPT-Image-2-All（尺寸选项控制分辨率） ✨</option>
                 <option value="modelscope">🧠 免费</option>
             `;
             const ratioOptions = `
@@ -4589,17 +4656,19 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        model: 'grok-4-fast',
+                        model: 'roll',
                         messages: messages,
                         temperature: 0.7,
-                        max_tokens: 800,
+                        max_completion_tokens: 800,
                         userId: currentUser?.id
                     })
                 });
 
-                if (!response.ok) throw new Error('优化请求失败');
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data?.success === false) {
+                    throw new Error(data?.message || data?.error || '优化请求失败');
+                }
 
-                const data = await response.json();
                 const optimizedPrompt = data.content || data.message || data.result;
 
                 if (optimizedPrompt && optimizedPrompt.trim()) {
@@ -5280,8 +5349,32 @@
                 throw new Error(errMsg);
             }
 
-            const data = await response.json();
+            let data;
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('text/plain')) {
+                const rawText = await response.text();
+                const jsonStart = rawText.lastIndexOf('{');
+                if (jsonStart >= 0) {
+                    data = JSON.parse(rawText.substring(jsonStart));
+                } else {
+                    throw new Error('响应格式异常');
+                }
+            } else {
+                data = await response.json();
+            }
             if (data.error) throw new Error(data.message || data.error);
+
+            // 🆕 GPT-Image-2-All 2K/4K 异步任务：批量生成也轮询任务结果
+            if (data.taskId && (response.status === 202 || data.status === 'pending')) {
+                console.log('[banana] 批量图片异步任务已提交，开始轮询:', data.taskId);
+                const pollResult = await pollBananaImageTask(data.taskId);
+                if (pollResult.imageUrl) {
+                    data.url = pollResult.imageUrl;
+                    data.imageUrl = pollResult.imageUrl;
+                } else {
+                    throw new Error('异步任务完成但未获取到图片');
+                }
+            }
 
             // 🔧 MJ 需要轮询的情况（图生图等异步操作）
             if (isMidjourney && data.needPoll && data.taskId) {
@@ -5484,6 +5577,7 @@
             __batchCellPickerSelected = -1;
         }
     </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"145dcb7ce94448da9feb40a29fccff28","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 
 </html>

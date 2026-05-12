@@ -95,9 +95,8 @@ async function __saveGenerationRecord(userId, recordType, contentUrl, prompt, mo
     if (!userId) return { success: false, error: 'no userId' };
 
     try {
-        const baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'https://www.rollroll.art';
+        // 🔧 修复：始终使用生产域名，避免VERCEL_URL指向内部域名导致调用失败
+        const baseUrl = 'https://www.rollroll.art';
 
         const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
             method: 'POST',
@@ -135,40 +134,52 @@ async function __billing(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
 
     const intAmount = Math.ceil(amount);
-    const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
+    const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
+    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const headers = {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+    };
 
     try {
-        const baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'https://www.rollroll.art';
+        const profileUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}&select=quota_balance,quota_used`;
+        const profileRes = await fetch(profileUrl, { headers });
+        if (!profileRes.ok) throw new Error(`获取余额失败: ${profileRes.status}`);
+        const rows = await profileRes.json().catch(() => []);
+        const row = rows?.[0];
+        if (!row) throw new Error('用户不存在');
 
-        const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: proxyAction,
-                userId,
-                amount: intAmount,
-                description: description || (billingAction === 'refund' ? '退款' : '消费')
-            })
-        });
+        const currentBalance = row.quota_balance || 0;
+        const currentUsed = row.quota_used || 0;
+        let newBalance, newUsed;
 
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || !data.success) {
-            if (billingAction === 'consume') {
-                throw new Error(data.message || data.error || '扣费失败');
-            }
-            console.error(`[writer-llm] 退款失败:`, data);
-            return { success: false, error: data.message || data.error };
+        if (billingAction === 'consume') {
+            if (currentBalance < intAmount) throw new Error('余额不足');
+            newBalance = Math.round((currentBalance - intAmount) * 100) / 100;
+            newUsed = Math.round((currentUsed + intAmount) * 100) / 100;
+        } else {
+            newBalance = Math.round((currentBalance + intAmount) * 100) / 100;
+            newUsed = currentUsed;
         }
+
+        const updateUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`;
+        const updateData = { quota_balance: newBalance };
+        if (billingAction === 'consume') updateData.quota_used = newUsed;
+
+        const updateRes = await fetch(updateUrl, { method: 'PATCH', headers, body: JSON.stringify(updateData) });
+        if (!updateRes.ok) throw new Error(`更新余额失败: ${updateRes.status}`);
+
+        fetch(`${SUPABASE_URL}/rest/v1/quota_logs`, {
+            method: 'POST', headers,
+            body: JSON.stringify({ user_id: userId, action_type: billingAction === 'refund' ? 'recharge' : 'consume', amount: billingAction === 'refund' ? intAmount : -intAmount, balance_after: newBalance, description: description || (billingAction === 'refund' ? '退款' : '消费') })
+        }).catch(() => {});
 
         console.log(`[writer-llm] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
-        return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
+        return { success: true, newBalance, newUsed };
     } catch (e) {
-        if (billingAction === 'consume') {
-            throw e;
-        }
+        if (billingAction === 'consume') throw e;
         console.error(`[writer-llm] 退款异常:`, e.message);
         return { success: false, error: e.message };
     }
@@ -279,7 +290,7 @@ module.exports = async function handler(req, res) {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(80000)
+                    signal: AbortSignal.timeout(180000)
                 });
 
                 if (response.ok) {
@@ -307,7 +318,7 @@ module.exports = async function handler(req, res) {
         const preferMimo = (modelLc === 'mimo' || modelLc.startsWith('mimo:') || modelLc.startsWith('mimo-') || modelLc.includes('mimo'));
 
         // 2) 检查是否显式选择云雾（包括 grok-4-fast）
-        const preferYunwu = (modelLc === 'yunwu' || modelLc === 'yunmeng' || modelLc.startsWith('yunwu:') || modelLc === 'qwen3.5-plus' || modelLc.startsWith('qwen-') || modelLc.startsWith('grok-'));
+        const preferYunwu = (modelLc === 'yunwu' || modelLc === 'yunmeng' || modelLc.startsWith('yunwu:') || modelLc === 'qwen3.5-plus' || modelLc.startsWith('qwen3') || modelLc.startsWith('qwen-') || modelLc.startsWith('grok-'));
 
         // 1b) MIMO（主通道）
         if ((preferMimo || (!preferYunwu)) && WRITER_MIMO_API_KEY) {
@@ -337,7 +348,7 @@ module.exports = async function handler(req, res) {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(80000)
+                    signal: AbortSignal.timeout(180000)
                 });
 
                 if (response.ok) {
@@ -365,10 +376,15 @@ module.exports = async function handler(req, res) {
         // ⚠️ 修复：原并行模式导致1次请求向云雾发N次（N=端点数），浪费资源且触发限流
         if ((preferYunwu || (!preferMimo)) && YUNMENG_API_KEY) {
             let yunwuModel = YUNMENG_MODEL || 'grok-4-fast';
-            if (modelLc === 'qwen3.5-plus' || modelLc.startsWith('qwen-')) yunwuModel = reqModel;
+            if (modelLc === 'qwen3.5-plus' || modelLc.startsWith('qwen-') || modelLc.startsWith('qwen3')) {
+                // 🔧 修复：qwen3.6-plus-2026-04-02 完整模型名云雾不认识，转为云雾接受的别名
+                if (reqModel.includes('qwen3.6-plus')) yunwuModel = 'qwen3.6-plus';
+                else if (reqModel.includes('qwen3.5-plus')) yunwuModel = 'qwen3.5-plus';
+                else yunwuModel = reqModel;
+            }
             if (modelLc.startsWith('grok-')) yunwuModel = reqModel;
             if (modelLc.startsWith('yunwu:')) yunwuModel = reqModel.split(':').slice(1).join(':') || 'grok-4-fast';
-            
+
             console.log(`[writer-llm] ☁️ 云雾模型选择: reqModel=${reqModel}, yunwuModel=${yunwuModel}`);
             
             const payload = {
@@ -401,7 +417,7 @@ module.exports = async function handler(req, res) {
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify(payload),
-                            signal: AbortSignal.timeout(80000)
+                            signal: AbortSignal.timeout(180000)
                         });
 
                         if (res.ok) {
@@ -502,8 +518,12 @@ module.exports = async function handler(req, res) {
                 }
 
                 // 非流式：原有逻辑
+                let data;
+                let responseText = '';
                 try {
-                    data = await result.response.json();
+                    // 先读取文本，再解析JSON，避免body被消耗后无法读取
+                    responseText = await result.response.text();
+                    data = JSON.parse(responseText);
                     content = data?.choices?.[0]?.message?.content;
                     // 💰 后计费：按实际 token 扣费
                     const usage = data?.usage;
@@ -517,7 +537,7 @@ module.exports = async function handler(req, res) {
                     json(200, { success: true, content: typeof content === 'string' ? content.trim() : '', raw: data, billed: filmCost, tokens: usage?.total_tokens || 0 });
                     return;
                 } catch (parseErr) {
-                    console.warn('[writer-llm] 解析响应失败:', parseErr.message);
+                    console.warn('[writer-llm] 解析响应失败:', parseErr.message, '原始响应:', responseText.substring(0, 500));
                 }
             }
 

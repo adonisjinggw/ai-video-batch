@@ -52,39 +52,52 @@ async function __billing(billingAction, userId, amount, description) {
     if (!userId || amount <= 0) return { success: true, skipped: true };
     
     const intAmount = Math.ceil(amount);
-    const proxyAction = billingAction === 'refund' ? 'recharge' : 'consume';
-    
+    const SUPABASE_URL = 'https://tdoquxvslsuhwgiqwbrv.supabase.co';
+    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const headers = {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+    };
+
     try {
-        // 🔧 始终使用主域名，避免 VERCEL_URL 导致请求发到旧部署
-        const baseUrl = 'https://www.rollroll.art';
-        
-        const res = await fetch(`${baseUrl}/api/supabase-proxy`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: proxyAction,
-                userId,
-                amount: intAmount,
-                description: description || (billingAction === 'refund' ? '退款' : '消费')
-            })
-        });
-        
-        const data = await res.json().catch(() => ({}));
-        
-        if (!res.ok || !data.success) {
-            if (billingAction === 'consume') {
-                throw new Error(data.message || data.error || '扣费失败');
-            }
-            console.error(`[modelscope] 退款失败:`, data);
-            return { success: false, error: data.message || data.error };
-        }
-        
-        console.log(`[modelscope] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
-        return { success: true, newBalance: data.newBalance, newUsed: data.newUsed };
-    } catch (e) {
+        const profileUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}&select=quota_balance,quota_used`;
+        const profileRes = await fetch(profileUrl, { headers });
+        if (!profileRes.ok) throw new Error(`获取余额失败: ${profileRes.status}`);
+        const rows = await profileRes.json().catch(() => []);
+        const row = rows?.[0];
+        if (!row) throw new Error('用户不存在');
+
+        const currentBalance = row.quota_balance || 0;
+        const currentUsed = row.quota_used || 0;
+        let newBalance, newUsed;
+
         if (billingAction === 'consume') {
-            throw e;
+            if (currentBalance < intAmount) throw new Error('余额不足');
+            newBalance = Math.round((currentBalance - intAmount) * 100) / 100;
+            newUsed = Math.round((currentUsed + intAmount) * 100) / 100;
+        } else {
+            newBalance = Math.round((currentBalance + intAmount) * 100) / 100;
+            newUsed = currentUsed;
         }
+
+        const updateUrl = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`;
+        const updateData = { quota_balance: newBalance };
+        if (billingAction === 'consume') updateData.quota_used = newUsed;
+
+        const updateRes = await fetch(updateUrl, { method: 'PATCH', headers, body: JSON.stringify(updateData) });
+        if (!updateRes.ok) throw new Error(`更新余额失败: ${updateRes.status}`);
+
+        fetch(`${SUPABASE_URL}/rest/v1/quota_logs`, {
+            method: 'POST', headers,
+            body: JSON.stringify({ user_id: userId, action_type: billingAction === 'refund' ? 'recharge' : 'consume', amount: billingAction === 'refund' ? intAmount : -intAmount, balance_after: newBalance, description: description || (billingAction === 'refund' ? '退款' : '消费') })
+        }).catch(() => {});
+
+        console.log(`[modelscope] 💰 ${billingAction === 'refund' ? '退款' : '扣费'}成功: ${userId} ${billingAction === 'refund' ? '+' : '-'}${intAmount}胶片`);
+        return { success: true, newBalance, newUsed };
+    } catch (e) {
+        if (billingAction === 'consume') throw e;
         console.error(`[modelscope] 退款异常:`, e.message);
         return { success: false, error: e.message };
     }
@@ -1103,6 +1116,14 @@ module.exports = async function handler(req, res) {
                 const modelToUse = body.model || IMAGE_MODEL; // 如果前端指定了模型，则使用指定的模型
                 // 🔧 将 aspect_ratio 转换为 width/height（Z-Image-Turbo 需要）
                 const imageSize = aspectRatioToSize(finalAspectRatio);
+                const ratioPromptMap = {
+                    '16:9': 'wide landscape composition, horizontal 16:9 aspect ratio, landscape orientation, not portrait, not vertical',
+                    '9:16': 'vertical portrait composition, 9:16 aspect ratio, portrait orientation, not landscape',
+                    '4:3': 'standard horizontal 4:3 aspect ratio, landscape orientation',
+                    '3:4': 'vertical 3:4 aspect ratio, portrait orientation',
+                    '1:1': 'square 1:1 aspect ratio'
+                };
+                const finalPrompt = ratioPromptMap[finalAspectRatio] ? `${prompt}\n\n${ratioPromptMap[finalAspectRatio]}` : prompt;
                 console.log(`[modelscope] 📏 图片尺寸: ${finalAspectRatio} -> ${imageSize.width}x${imageSize.height}`);
                 const submitRes = await callModelScope('v1/images/generations', {
                     method: 'POST',
@@ -1113,7 +1134,7 @@ module.exports = async function handler(req, res) {
                     },
                     body: JSON.stringify({
                         model: modelToUse,
-                        prompt,
+                        prompt: finalPrompt,
                         width: imageSize.width,
                         height: imageSize.height
                     })

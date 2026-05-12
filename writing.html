@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -7,11 +7,11 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>✍️ AI写作 - RollRoll V9.3.20</title>
+    <title>✍️ AI写作 - RollRoll V9.3.75</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.3.20"></script>
-    <script src="/js/user-memory.js?v=9.3.20"></script>
-    <script src="/js/skill-presets.js?v=9.3.20&t=202605011857"></script>
+    <script src="/js/supabase-config.js?v=9.3.75"></script>
+    <script src="/js/user-memory.js?v=9.3.75"></script>
+    <script src="/js/skill-presets.js?v=9.3.75"></script>
     <script>
         // 📖 全局 novelState 定义（必须在 novel-engine.js 之前）
         window.novelState = window.novelState || {
@@ -27,8 +27,8 @@
 
         // 📖 加载 novel-engine.js（在 novelState 定义之后）
     </script>
-    <script src="/js/novel-engine.js?v=9.3.20"></script>
-    <script src="/js/novel-features.js?v=9.3.20"></script>
+    <script src="/js/novel-engine.js?v=9.3.75"></script>
+    <script src="/js/novel-features.js?v=9.3.75"></script>
     <script>
         // 🔄 显示版本号（从 script src 自动读取）
         // 注意：verBadge 在 body 中，head 中的脚本执行时 DOM 未就绪，必须用 DOMContentLoaded
@@ -1009,7 +1009,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="/css/novel-enhanced.css?v=9.3.20">
+    <link rel="stylesheet" href="/css/novel-enhanced.css?v=9.3.75">
 </head>
 
 <body>
@@ -1882,8 +1882,7 @@
                 if (!response.ok) {
                     throw new Error(data?.message || data?.error || '服务调用失败');
                 }
-                currentResult = (data.content || data.response || data.text || '')
-                    .replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                currentResult = _cleanLLMOutput((data.content || data.response || data.text || ''));
 
                 if (currentResult) {
                     // 🧠 记录用户偏好
@@ -2667,13 +2666,41 @@
             document.getElementById('novelManualBtn').classList.toggle('active', mode === 'manual');
         }
 
+        // 🧹 清理LLM输出：去除推理块、代码块、多余格式
+        function _cleanLLMOutput(text) {
+            if (!text || typeof text !== 'string') return text;
+            // 1. 去除 <think> 推理块
+            text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+            // 2. 去除 markdown 代码块（```lang\n...\n```），保留含中文的短代码块内容
+            text = text.replace(/```[\s\S]*?```/g, function(match) {
+                var inner = match.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+                if (inner.length < 200 && !/[\u4e00-\u9fff]/.test(inner)) return '';
+                return inner;
+            });
+            // 3. 去除行内代码（`code`），但保留含中文的内容
+            text = text.replace(/`([^`]+)`/g, function(m, inner) {
+                return /[\u4e00-\u9fff]/.test(inner) ? inner : m;
+            });
+            // 4. 去除 markdown 粗体/斜体标记
+            text = text.replace(/\*\*\*([^*]+)\*\*\*/g, '$1');
+            text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+            text = text.replace(/\*([^*]+)\*/g, '$1');
+            // 5. 去除残留的 # 标题标记
+            text = text.replace(/^#{1,6}\s+/gm, '');
+            // 6. 去除 HTML 标签
+            text = text.replace(/<[^>]+>/g, '');
+            // 7. 清理多余空行
+            text = text.replace(/\n{4,}/g, '\n\n\n');
+            return text.trim();
+        }
+
         // 调用 writer-llm API 的统一封装（支持流式+超时+自动重试）
         async function _novelLLM(messages, opts = {}) {
             // 🎯 优先使用 opts.model，其次从 novelModelSelect 取值
             const model = opts.model || document.getElementById('novelModelSelect').value;
             const maxRetries = opts.retries !== undefined ? opts.retries : 1;
             const timeout = opts.timeout || 150000;  // 🔧 150秒，LLM生成可能需要较长时间，超时会导致Cloudflare 524
-            const useStream = opts.stream === true;
+            const useStream = opts.stream !== false; // 默认开 stream，避免 Cloudflare 524 超时
 
             // 🚀 OpenRouter 模型特殊处理
             if (model.startsWith('openrouter:')) {
@@ -2819,8 +2846,8 @@
                             }
                         }
                         if (!content) throw new Error('流式响应为空');
-                        // 🧹 去除 qwen 等模型的 `` 推理块和多余的英文分析
-                        content = content.replace(/[\s\S]*?<\/think>/gi, '').trim() || content;
+                        // 🧹 清理LLM输出
+                        content = _cleanLLMOutput(content);
                         return content;
                     }
 
@@ -2828,8 +2855,8 @@
                     const data = await res.json();
                     let content = data.content || '';
                     if (opts.onProgress && content) opts.onProgress(content);
-                    // 🧹 去除 `` 推理块
-                    content = content.replace(/[\s\S]*?<\/think>/gi, '').trim() || content;
+                    // 🧹 清理LLM输出
+                    content = _cleanLLMOutput(content);
                     // 返回完整数据对象，包含扣费信息
                     return {
                         content: content,
@@ -3030,7 +3057,7 @@
                 ], { maxTokens: 4096, temperature: 0.9, stream: true, useMemory: false });
 
                 const skeletonText = typeof skeleton === 'object' && skeleton !== null ? (skeleton.content || '') : skeleton;
-                novelState.outline = skeletonText;
+                novelState.outline = _cleanLLMOutput(skeletonText);
                 console.log('[novel] 阶段1完成：故事骨架已生成，长度:', skeletonText.length);
 
                 // 若总章节≤100，骨架中可能已包含章节大纲，尝试直接解析
@@ -3049,7 +3076,7 @@
                     ], { maxTokens: 8192, temperature: 0.85, stream: true, useMemory: false });
 
                     const detailText = typeof detailResult === 'object' && detailResult !== null ? (detailResult.content || '') : detailResult;
-                    novelState.outline += '\n\n【章节大纲】\n' + detailText;
+                    novelState.outline += '\n\n【章节大纲】\n' + _cleanLLMOutput(detailText);
                     _novelParseChapters(detailText, 0, chapterCount);
                 } else {
                     // 阶段2：分批生成详细章节大纲（每批带骨架上下文）
@@ -3223,7 +3250,9 @@
                 ], { maxTokens: dynamicMaxTokens, temperature: 0.9, useMemory: false, stream: true });
 
                 // 流式返回纯字符串，非流式返回 {content, billed, tokens}
-                const content = typeof result === 'string' ? result : (result.content || '');
+                let content = typeof result === 'string' ? result : (result.content || '');
+                // 🧹 清理LLM输出：去除代码块、推理块、多余格式
+                content = _cleanLLMOutput(content);
 
                 ch.content = content;
                 ch.wordCount = content.length;
@@ -3507,7 +3536,8 @@
         // novelChangeTheme, novelGoToPrevChapter, novelGoToNextChapter 等函数
         // 已在 novel-features.js 中实现（连续滚动阅读模式）
     </script>
-    <script src="/js/api-core.js"></script>
-    <script src="/js/wake-lock.js"></script>
+    <script src="/js/api-core.js?v=9.3.75"></script>
+    <script src="/js/wake-lock.js?v=9.3.75"></script>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"145dcb7ce94448da9feb40a29fccff28","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </html>

@@ -1,5 +1,32 @@
 # 📝 更新日志 (Changelog)
 
+## [v9.3.75] - 2026-05-12
+
+### 🔧 Bug修复
+- **扣费系统重构**：所有API文件的`__billing`函数从HTTP自调用`/api/supabase-proxy`改为直接调用Supabase REST API
+  - 修复Vercel serverless函数自调用导致的"扣费失败"500错误
+  - 影响文件：`yunwu.js`、`writer-llm.js`、`sora2.js`、`banana2.js`、`modelscope.js`、`video-continuity.js`
+- **Response body重复读取修复**：`yunwu.js`和`writer-llm.js`中先`text()`再`JSON.parse()`，避免body只能读取一次的问题
+
+### 🚀 部署记录
+- 生产站点：`https://lossloop.cn`、`https://www.rollroll.art`
+- 部署命令：`$env:NODE_TLS_REJECT_UNAUTHORIZED="0"; vercel --prod`
+
+---
+
+## [v9.3.59] - 2026-05-07
+
+### 🔧 Bug修复
+- 写作质量评估新增 Qwen3.6-Plus 模型选项，单模型评估默认使用 `qwen3.6-plus-2026-04-02`。
+- 多模型对比评估新增 Qwen3.6-Plus，并补齐结果面板模型显示名。
+- 确认前端模型名与 `/api/writer-llm` 后端映射兼容，服务端会转换为云雾可识别的 `qwen3.6-plus`。
+
+### 🚀 部署记录
+- 生产站点：`https://lossloop.cn`、`https://www.rollroll.art`
+- 部署命令：`$env:NODE_TLS_REJECT_UNAUTHORIZED="0"; vercel --prod`
+
+---
+
 ## [v2.2.0] - 2025-11-22
 
 ### ✨ 新增功能

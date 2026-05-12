@@ -264,7 +264,108 @@ module.exports = async function handler(req, res) {
                     return;
                 }
                 
-                console.log('[supabase-proxy] ✅ 注册成功:', email);
+                const userId = authData.user?.id;
+                console.log('[supabase-proxy] ✅ 注册成功:', email, 'userId:', userId);
+                
+                // 🎁 为新用户创建 profile 并赠送胶片
+                if (userId && SUPABASE_SERVICE_KEY) {
+                    try {
+                        const hasInviter = !!(inviteCode && inviteCode.trim());
+                        const initialUnlock = hasInviter ? 500 : 100;  // 有邀请码解锁500，没邀请码解锁100
+                        const GIFT_TOTAL = 100000;  // 所有新用户都赠送10万锁定胶片
+                        
+                        // 创建用户 profile
+                        const profileUrl = `${SUPABASE_URL}/rest/v1/user_profiles`;
+                        const profileRes = await fetch(profileUrl, {
+                            method: 'POST',
+                            headers: {
+                                'apikey': SUPABASE_SERVICE_KEY,
+                                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=minimal'
+                            },
+                            body: JSON.stringify({
+                                id: userId,
+                                email: email,
+                                nickname: nickname || email.split('@')[0],
+                                quota_balance: initialUnlock,  // 可用胶片（已解锁）
+                                quota_locked: GIFT_TOTAL,      // 锁定胶片（10万）
+                                quota_used: 0,
+                                membership_type: 'free',
+                                membership_level: 0,
+                                invite_code: inviteCode || null  // 记录邀请人
+                            })
+                        });
+                        
+                        if (profileRes.ok) {
+                            console.log('[supabase-proxy] ✅ 用户profile创建成功，解锁胶片:', initialUnlock, '锁定胶片:', GIFT_TOTAL);
+                            
+                            // 1. 记录赠送胶片的日志（已解锁部分）
+                            const logUrl = `${SUPABASE_URL}/rest/v1/quota_logs`;
+                            await fetch(logUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'apikey': SUPABASE_SERVICE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                                    'Content-Type': 'application/json',
+                                    'Prefer': 'return=minimal'
+                                },
+                                body: JSON.stringify({
+                                    user_id: userId,
+                                    action_type: 'gift_unlock',
+                                    amount: initialUnlock,
+                                    balance_after: initialUnlock,
+                                    description: hasInviter ? '新用户注册（使用邀请码）解锁胶片' : '新用户注册解锁胶片'
+                                })
+                            });
+                            
+                            // 2. 创建锁定胶片记录（10万锁定胶片）
+                            const lotsUrl = `${SUPABASE_URL}/rest/v1/film_lots`;
+                            await fetch(lotsUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'apikey': SUPABASE_SERVICE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                                    'Content-Type': 'application/json',
+                                    'Prefer': 'return=minimal'
+                                },
+                                body: JSON.stringify({
+                                    user_id: userId,
+                                    lot_type: 'locked_gift',
+                                    amount_total: GIFT_TOTAL,
+                                    amount_remaining: GIFT_TOTAL,
+                                    description: '新用户注册赠送锁定胶片'
+                                })
+                            });
+                            
+                            // 3. 记录锁定胶片赠送日志
+                            await fetch(logUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'apikey': SUPABASE_SERVICE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                                    'Content-Type': 'application/json',
+                                    'Prefer': 'return=minimal'
+                                },
+                                body: JSON.stringify({
+                                    user_id: userId,
+                                    action_type: 'locked_gift',
+                                    amount: GIFT_TOTAL,
+                                    balance_after: GIFT_TOTAL,
+                                    description: '新用户注册赠送10万锁定胶片'
+                                })
+                            });
+                            
+                            console.log('[supabase-proxy] ✅ 胶片赠送记录已保存（锁定:', GIFT_TOTAL, '已解锁:', initialUnlock, ')');
+                        } else {
+                            const errText = await profileRes.text();
+                            console.error('[supabase-proxy] ⚠️ 用户profile创建失败:', profileRes.status, errText);
+                        }
+                    } catch (profileErr) {
+                        console.error('[supabase-proxy] ⚠️ 创建用户profile异常:', profileErr.message);
+                    }
+                }
+                
                 res.status(200).json({
                     success: true,
                     access_token: authData.access_token,
@@ -643,8 +744,8 @@ module.exports = async function handler(req, res) {
 
         async function fetchProfileRow() {
             // 尝试获取完整字段，如果失败则回退到基础字段
-            const selectFull = 'quota_balance,quota_used,membership_type,membership_level,membership_expires_at,invited_by,free_video_count';
-            const selectLegacy = 'quota_balance,quota_used,membership_type,invited_by,free_video_count';
+            const selectFull = 'quota_balance,quota_used,membership_type,membership_level,membership_expires_at,invited_by,free_video_count,nickname';
+            const selectLegacy = 'quota_balance,quota_used,membership_type,invited_by,free_video_count,nickname';
             const url1 = `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}&select=${encodeURIComponent(selectFull)}`;
             const r1 = await fetch(url1, { headers });
             if (r1.ok) {
@@ -1101,6 +1202,14 @@ module.exports = async function handler(req, res) {
             return;
         }
 
+        // ========== 获取用户配置(返回完整 profile 对象，供前端 getUserProfile 使用) ==========
+        if (action === 'getUserProfile') {
+            res.status(200).json({
+                success: true,
+                profile: profileRow || null
+            });
+            return;
+        }
 
         // ========== 获取解锁状态 ==========
         if (action === 'giftUnlockStatus') {
@@ -2055,6 +2164,31 @@ module.exports = async function handler(req, res) {
             } catch (e) {
                 console.error('[supabase-proxy] getUserMemory error:', e.message);
                 res.status(500).json({ error: 'GET_MEMORY_ERROR', message: e.message });
+                return;
+            }
+        }
+
+        // ========== 查询生成记录 ==========
+        if (action === 'queryGenerationRecords') {
+            const { recordType, limit = 10 } = body || {};
+            const safeLimit = Math.max(1, Math.min(50, parseInt(limit, 10) || 10));
+            const filters = [`user_id=eq.${encodeURIComponent(userId)}`];
+            if (recordType) filters.push(`record_type=eq.${encodeURIComponent(String(recordType))}`);
+            try {
+                const queryUrl = `${SUPABASE_URL}/rest/v1/generation_records?${filters.join('&')}&select=*&order=created_at.desc&limit=${safeLimit}`;
+                const queryRes = await fetch(queryUrl, { headers });
+                if (!queryRes.ok) {
+                    const errText = await queryRes.text();
+                    console.error('[supabase-proxy] 查询生成记录失败:', queryRes.status, errText);
+                    res.status(500).json({ success: false, error: 'QUERY_RECORDS_FAILED', message: errText || '查询生成记录失败' });
+                    return;
+                }
+                const records = await queryRes.json().catch(() => []);
+                res.status(200).json({ success: true, records: Array.isArray(records) ? records : [] });
+                return;
+            } catch (e) {
+                console.error('[supabase-proxy] 查询生成记录异常:', e.message);
+                res.status(500).json({ success: false, error: 'QUERY_RECORDS_ERROR', message: e.message });
                 return;
             }
         }

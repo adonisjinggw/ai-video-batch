@@ -1,10 +1,10 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.3.20</title>
+    <title>RollRoll 移动版 V9.3.75</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,22 +36,24 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.3.20"></script>
+    <script src="/js/supabase-config.js?v=9.3.75"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=9.3.20&t=202605011857"></script>
-    <script src="/js/user-memory.js?v=9.3.20"></script>
-    <script src="/js/writing-vault.js?v=9.3.20"></script>
+    <script src="/js/api-core.js?v=9.3.75&t=20260511"></script>
+    <script src="/js/user-memory.js?v=9.3.75"></script>
+    <script src="/js/writing-vault.js?v=9.3.75"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=9.3.20"></script>
-    <script src="/js/skill-presets.js?v=9.3.20&t=202605011857"></script>
-    <script src="/js/grid-split.js?v=9.3.20"></script>
+    <script src="/js/skill-system.js?v=9.3.75"></script>
+    <script src="/js/skill-presets.js?v=9.3.75"></script>
+    <script src="/js/grid-split.js?v=9.3.75"></script>
     <!-- SheetJS (XLSX) - Excel/CSV 解析库 -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="/js/mv-merge.js?v=9.3.20"></script>
+    <!-- PptxGenJS - 纯 JavaScript 生成原生 PPTX 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.min.js"></script>
+    <script src="/js/mv-merge.js?v=9.3.75"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-voice.js?v=9.3.20"></script>
-    <script src="/js/assistant-xj2.js?v=9.3.20"></script>
-    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.3.20">
+    <script src="/js/assistant-voice.js?v=9.3.75"></script>
+    <script src="/js/assistant-xj2.js?v=9.3.75"></script>
+    <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.3.75">
     <style>
         * {
             margin: 0;
@@ -569,22 +571,47 @@
         /* Toast提示 */
         .toast {
             position: fixed;
-            top: 80px;
+            top: calc(env(safe-area-inset-top, 0px) + 12px);
             left: 50%;
-            transform: translateX(-50%) translateY(-100px);
+            transform: translateX(-50%) translateY(-90px);
             background: var(--bg-card);
             border: 1px solid #333;
-            padding: 14px 24px;
+            padding: 12px 42px 12px 18px;
             border-radius: 12px;
             font-size: 14px;
+            line-height: 1.4;
             z-index: 20000;
             /* 提升到覆盖所有弹层之上 */
-            transition: transform 0.3s;
+            transition: transform 0.3s, opacity 0.3s;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            max-width: calc(100vw - 40px);
+            min-width: 180px;
+            word-break: break-word;
+            opacity: 0;
         }
 
         .toast.show {
             transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast-close {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-dim);
+            font-size: 18px;
+            line-height: 28px;
+            cursor: pointer;
+        }
+
+        .toast-close:active {
+            background: rgba(255, 255, 255, 0.18);
         }
 
         /* 胶片余额显示 */
@@ -1226,36 +1253,6 @@
                 padding-bottom: 40px;
             }
 
-            .welcome-content {
-                max-width: 95vw;
-                padding: 20px;
-                margin-left: 0;
-                margin-bottom: 40px;
-            }
-
-            .welcome-title {
-                font-size: 24px !important;
-            }
-
-            .welcome-subtitle {
-                font-size: 14px !important;
-            }
-
-            .welcome-desc {
-                font-size: 13px !important;
-            }
-
-            .welcome-quote-box {
-                padding: 15px !important;
-                margin: 20px 0 !important;
-            }
-
-            .btn-start-journey {
-                padding: 16px 36px !important;
-                font-size: 16px !important;
-                margin-top: 20px;
-            }
-
             .welcome-bg-text {
                 display: block;
                 /* 移动端显示背景文字，缩小并调整位置 */
@@ -1275,25 +1272,6 @@
             .welcome-user-bar {
                 top: 10px;
                 right: 10px;
-            }
-
-            .welcome-promo {
-                margin: 10px auto 14px;
-                padding: 12px 12px;
-                max-width: 92vw;
-            }
-
-            .welcome-promo-title {
-                font-size: 16px;
-            }
-
-            .welcome-promo-desc {
-                font-size: 14px;
-            }
-
-            .welcome-promo-action {
-                width: 100%;
-                max-width: 360px;
             }
         }
 
@@ -2536,6 +2514,32 @@
             transition: all 0.3s;
         }
         .ch-card:active { background: rgba(255,255,255,0.06); }
+        .ch-inspiration-card {
+            display: grid; grid-template-columns: 112px 1fr;
+            min-height: 142px;
+        }
+        .ch-inspiration-cover {
+            position: relative; min-height: 142px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.22), rgba(236,72,153,0.16));
+            overflow: hidden;
+        }
+        .ch-inspiration-cover img {
+            width: 100%; height: 100%; object-fit: cover;
+            display: block;
+        }
+        .ch-inspiration-source {
+            position: absolute; left: 8px; top: 8px;
+            max-width: calc(100% - 16px);
+            padding: 3px 8px; border-radius: 999px;
+            background: rgba(0,0,0,0.58); color: #fff;
+            font-size: 10px; font-weight: 700;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        }
+        .ch-inspiration-card .ch-card-body { padding: 12px; min-width: 0; }
+        .ch-inspiration-card .ch-card-title { font-size: 14px; margin-bottom: 6px; }
+        .ch-inspiration-card .ch-card-desc { font-size: 12px; -webkit-line-clamp: 3; }
+        .ch-inspiration-card .ch-card-meta { gap: 8px; flex-wrap: wrap; }
         .ch-card-img {
             width: 100%; height: 180px; object-fit: cover;
             border-bottom: 1px solid rgba(255,255,255,0.04);
@@ -2738,35 +2742,18 @@
     </div>
 
     <script>
-        // 开场动画/欢迎页显示逻辑（登录后可以跳过，其他情况强制显示）
+        // 开场动画/欢迎页显示逻辑（移动端：登录回跳直接进工作区，普通打开先显示欢迎页）
         var _showIntro = false;
         var _introStyleTag = null;
         (function () {
-            // 🔒 只有登录后跳转（logged_in=1 或 skip_welcome=1）才跳过
+            // 🔒 只有登录后跳转（logged_in=1 / auth_pass=1 / skip_welcome=1）才跳过
             // 其他情况强制显示开场动画和欢迎页
-            if (location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('skip_welcome=1') > -1) {
+            if (location.search.indexOf('logged_in=1') > -1 || location.search.indexOf('auth_pass=1') > -1 || location.search.indexOf('skip_welcome=1') > -1) {
                 history.replaceState({}, '', location.pathname);
                 _showIntro = false;
-                // 🔧 清理可能残留的隐藏CSS（防止浏览器缓存旧版导致白屏/黑屏）
-                var oldStyle = document.getElementById('cinemaIntroInjectedStyle');
-                if (oldStyle) oldStyle.remove();
-                // 确保主页面元素可见
-                document.querySelectorAll('#welcomeScreen,header.header,main.main').forEach(function(el) {
-                    el.style.display = '';
-                    el.style.opacity = '';
-                    el.style.visibility = '';
-                });
-                // 隐藏欢迎页
-                var welcome = document.getElementById('welcomeScreen');
-                if (welcome) welcome.classList.add('hide');
-                // 🔧 显示底部导航栏
-                var bottomNav = document.querySelector('.bottom-nav');
-                if (bottomNav) bottomNav.style.display = 'flex';
-                // 🔧 登录跳转回来，标记允许显示小助手
-                window._assistantShouldShow = true;
                 return;
             }
-            // 强制显示开场动画和欢迎页（未登录用户必须经过欢迎页）
+            // 强制显示开场动画和欢迎页
             _showIntro = true;
             var style = document.createElement('style');
             style.id = 'cinemaIntroInjectedStyle';
@@ -3139,6 +3126,7 @@
                 <button class="grid-type-btn" data-grid="9" onclick="selectGridType(9)">3×3 (9格)</button>
                 <button class="grid-type-btn" data-grid="12" onclick="selectGridType(12)">3×4 (12格)</button>
                 <button class="grid-type-btn" data-grid="16" onclick="selectGridType(16)">4×4 (16格)</button>
+                <button class="grid-type-btn" data-grid="36" onclick="selectGridType(36)">6×6 (36格)</button>
             </div>
             <input type="file" id="gridSplitImageInput" accept="image/*" style="display:none;" onchange="handleGridSplitUpload(this)">
             <div onclick="document.getElementById('gridSplitImageInput').click()" style="border:2px dashed #444; border-radius:8px; padding:20px; text-align:center; cursor:pointer; transition:border-color 0.3s;" id="gridSplitUploadArea">
@@ -3428,7 +3416,7 @@
                     <option value="midjourney-turbo">🚀 Midjourney Turbo (2胶片)</option>
                     <option value="midjourney-relax">🌙 Midjourney Relax (2胶片)</option>
                     <option value="gpt-image-2">🤖 GPT-Image-2 官方（按量计费）</option>
-                    <option value="gpt-image-2-all">🤖 GPT-Image-2-All（5胶片）</option>
+                    <option value="gpt-image-2-all">🤖 GPT-Image-2-All（尺寸选项控制分辨率） ✨最佳效果</option>
                 </select>
             </div>
             <label class="input-label">🖼️ 上传参考图片 <span style="font-size:12px;color:#888;">(可选，支持多图)</span></label>
@@ -4819,6 +4807,8 @@ id="selectedCharacterDisplay"
 
             // 0. 只在跳过欢迎页时才立即显示页面（避免和欢迎页冲突！）
             if (!_showIntro) {
+                var guardStyle = document.getElementById('welcomeGuardStyle');
+                if (guardStyle) guardStyle.remove();
                 document.querySelectorAll('header.header,.bottom-nav').forEach(el => {
                     if (el) {
                         el.style.display = '';
@@ -4831,6 +4821,14 @@ id="selectedCharacterDisplay"
                 const worksPage = document.getElementById('worksPage');
                 if (createPage) createPage.style.display = 'block';
                 if (worksPage) worksPage.style.display = 'none';
+                // 🔧 隐藏欢迎页（登录跳转回来时必须隐藏）
+                const welcome = document.getElementById('welcomeScreen');
+                if (welcome) {
+                    welcome.classList.add('hide');
+                    welcome.style.display = 'none';
+                }
+                // 🔧 允许小助手显示
+                _assistantAllowed = true;
             }
 
             // 0.1 检测是否从素材库返回，并自动填充内容
@@ -4891,6 +4889,7 @@ id="selectedCharacterDisplay"
                                 if (u) {
                                     console.log('[mobile] 监听器检测到登录:', u.email, 'event:', event);
                                     isLoggedIn = true;
+                                    _assistantAllowed = true;
                                     await loadUserProfile(u);
                                     setAssistantVisible(true);
                                 } else if (event !== 'INITIAL_SESSION') {
@@ -4909,21 +4908,35 @@ id="selectedCharacterDisplay"
                     console.warn('[mobile] 绑定认证监听器失败:', e);
                 }
 
-                // 获取当前用户（最多3次）
+                // 获取当前用户（最多5次，增加间隔确保SDK同步完成）
                 try {
                     let user = null;
-                    for (let i = 0; i < 3; i++) {
+                    for (let i = 0; i < 5; i++) {
                         try {
                             user = await NVAuth.getCurrentUser();
                             if (user) break;
                         } catch (e) { }
-                        await new Promise(r => setTimeout(r, 200));
+                        console.log(`[mobile] 获取用户重试 ${i + 1}/5...`);
+                        await new Promise(r => setTimeout(r, 500));
                     }
                     if (user) {
                         console.log('[mobile] 用户已登录:', user.email);
                         isLoggedIn = true;
                         _assistantAllowed = true;
                         await loadUserProfile(user);
+                        // 🔧 同时调用 loadUserStatus 确保完整状态加载（首次登录奖励等）
+                        await loadUserStatus();
+                        // 🔧 登录后确保欢迎页隐藏并显示小助手
+                        // ⚠️ 但如果欢迎页正在显示中（用户还没点击登录按钮），不能跳过
+                        const welcome = document.getElementById('welcomeScreen');
+                        const welcomeVisible = welcome && (welcome.style.display === 'flex' || welcome.classList.contains('show')) && !welcome.classList.contains('hide');
+                        if (!welcomeVisible && welcome && !welcome.classList.contains('hide')) {
+                            welcome.classList.add('hide');
+                            welcome.style.display = 'none';
+                            var g = document.getElementById('welcomeGuardStyle');
+                            if (g) g.remove();
+                        }
+                        if (!welcomeVisible) setAssistantVisible(true);
                         setTimeout(() => {
                             syncTasksFromCloud().then(() => renderTaskList());
                             syncCharactersFromCloud();
@@ -5612,17 +5625,38 @@ id="selectedCharacterDisplay"
             console.log('[小助手 V2] setAssistantVisible 调用，visible:', visible, '_assistantAllowed:', _assistantAllowed);
 
             if (visible && !_assistantAllowed) {
+                try {
+                    const authUser = (typeof NVAuth !== 'undefined' && typeof NVAuth.getCurrentUser === 'function') ? await NVAuth.getCurrentUser() : null;
+                    if (authUser) {
+                        isLoggedIn = true;
+                        _assistantAllowed = true;
+                    }
+                } catch (e) { }
+            }
+
+            if (visible && !_assistantAllowed) {
                 console.log('[小助手 V2] 助手尚未允许显示（欢迎页/未登录），跳过');
+                return;
+            }
+            if (visible) {
+                const welcome = document.getElementById('welcomeScreen');
+                if (welcome && !welcome.classList.contains('hide') && welcome.style.display !== 'none') {
+                    console.log('[小助手 V2] 欢迎页显示中，不显示助手');
+                    visible = false;
+                }
+            }
+
+            if (!visible) {
+                const container = document.getElementById('xj2Container');
+                if (container) {
+                    container.style.setProperty('display', 'none', 'important');
+                }
                 return;
             }
 
             const container = document.getElementById('xj2Container');
             if (container) {
-                if (visible) {
-                    container.style.setProperty('display', 'block', 'important');
-                } else {
-                    container.style.setProperty('display', 'none', 'important');
-                }
+                container.style.setProperty('display', 'block', 'important');
             }
         }
 
@@ -5630,13 +5664,15 @@ id="selectedCharacterDisplay"
         async function allowAssistant() {
             console.log('[小助手 V2] allowAssistant 调用，正在检查登录状态...');
             try {
+                // 🔐 严格登录检查：必须通过服务器验证 session，不能只靠本地缓存
                 const { data: { session } } = await __mobileSupabaseClient.auth.getSession();
                 if (!session?.user) {
-                    console.log('[小助手 V2] allowAssistant 被调用但用户未登录，忽略');
+                    console.log('[小助手 V2] allowAssistant 用户未登录，忽略');
                     return;
                 }
                 _assistantAllowed = true;
                 console.log('[小助手 V2] allowAssistant 检查通过，允许显示');
+                setAssistantVisible(true);
                 setAssistantVisible(true);
             } catch (e) {
                 console.warn('[小助手 V2] allowAssistant 登录检查失败:', e);
@@ -5676,8 +5712,7 @@ id="selectedCharacterDisplay"
                 // 监听认证状态变化
                 if (__mobileSupabaseClient) {
                     __mobileSupabaseClient.auth.onAuthStateChange((event, session) => {
-                        if (event === 'SIGNED_IN' && session?.user) {
-                            // 🔧 登录成功 = 允许显示 + 立即显示
+                        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
                             _assistantAllowed = true;
                             setAssistantVisible(true);
                         } else if (event === 'SIGNED_OUT') {
@@ -8121,7 +8156,8 @@ ${characterPrompt}
                 body: JSON.stringify({
                     action: 'text',
                     prompt: scriptPrompt,
-                    userId: idea.userId  // 🔐 传递用户ID
+                    userId: idea.userId,  // 🔐 传递用户ID
+                    skip_billing: true  // 前端 startGenerate 已统一预扣整单费用
                 })
             });
             const scriptData = await scriptResponse.json().catch(() => ({}));
@@ -8194,13 +8230,12 @@ ${characterPrompt}
             const optimizedPrompts = await optimizeSora2Prompts(scenePrompts, idea, clipDuration, hasReferenceImage, genMode);
 
             // 3. 根据生成模式构建基础请求参数
-            let apiEndpoint = '/api/sora2';
+            let apiEndpoint = '/api/yunwu';  // 默认都走 yunwu.js
             let baseRequestBody = {
                 action: 'text-to-video',
                 model: 'grok-video-3-15s',
                 duration: clipDuration,
                 aspect_ratio: '16:9',
-                hd: false,
                 skip_billing: true  // 跳过API端重复扣费
             };
             // 🧩 与电脑版一致：允许前端首选 API 格式（auto/unified/openai）
@@ -8665,8 +8700,36 @@ ${panelDescriptions.join('\n')}
                             image_weight: hasReferenceImage ? 0.3 : undefined
                         };
                         console.log(`[mobile] 使用 Wan2.6 模型: resolution=${wanResolution}, duration=${wanDuration}s, audio=${wanAudio}, hasImage=${hasReferenceImage}`);
-                    } else {
-                        console.warn('[mobile] 未知的生成模式，使用默认Sora-2:', effectiveGenMode);
+                    }
+                    // 🎬 检查是否是 Grok Video 模型（旧模型，现在也走 yunwu.js）
+                    else if (genMode && genMode.startsWith('grok-video')) {
+                        apiEndpoint = '/api/yunwu';  // 显式设置
+                        baseRequestBody = {
+                            action: hasReferenceImage ? 'image-to-video' : 'text-to-video',
+                            model: genMode,
+                            prompt: finalPrompt,
+                            duration: clipDuration,
+                            aspect_ratio: aspectRatio || '16:9',
+                            skip_billing: true,
+                            image_url: hasReferenceImage ? finalImageData : undefined,
+                            image_weight: hasReferenceImage ? 0.95 : undefined,
+                            preserve_subject: hasReferenceImage ? true : undefined,
+                            motion_intensity: hasReferenceImage ? 'medium' : undefined
+                        };
+                        console.log(`[mobile] 使用 Grok Video 模型: ${genMode}, hasImage=${hasReferenceImage}`);
+                    }
+                    else {
+                        console.warn('[mobile] 未知的生成模式，使用默认 Grok Video:', effectiveGenMode);
+                        // 默认还是用 Grok Video，走 yunwu.js
+                        apiEndpoint = '/api/yunwu';
+                        baseRequestBody = {
+                            action: 'text-to-video',
+                            model: 'grok-video-3-15s',
+                            prompt: finalPrompt,
+                            duration: clipDuration,
+                            aspect_ratio: aspectRatio || '16:9',
+                            skip_billing: true
+                        };
                     }
             }
 
@@ -9143,7 +9206,8 @@ ${scriptLine}
                 prompt: enhancedPrompt,
                 model,
                 aspect_ratio: aspectRatio,
-                userId
+                userId,
+                skip_billing: true
             };
 
             // 🌟 星梦画师特殊处理：支持图生图、多图生图、批量输出
@@ -9271,13 +9335,14 @@ ${scriptLine}
                     // - 星梦画师批量: 180秒
                     // - 万象Max: 180秒（后端轮询最多2.5分钟）
                     // - 其他: 90秒
+                    // ⚠️ Cloudflare 100秒限制，所有同步请求不能超过 95 秒
                     let timeoutMs = 90000;
                     if (isMidjourney) {
                         timeoutMs = 240000;  // MJ 后端轮询可能需要3分钟
                     } else if (isSeedream && outputCount > 1) {
                         timeoutMs = 180000;  // 星梦批量模式
                     } else if (isSeedream || isQwenImage || isGptImage) {
-                        timeoutMs = 180000;  // 🔧 星梦/万象/GPT-Image单图（增加到180秒）
+                        timeoutMs = 95000;  // 🔧 星梦/万象/GPT-Image单图（限制95秒，避免Cloudflare 524）
                     }
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -9518,7 +9583,8 @@ ${idea.theme}${characterPrompt}
 第2格：场景描述
 第3格：场景描述
 第4格：场景描述`,
-                    userId: idea.userId  // 🔐 传递用户ID
+                    userId: idea.userId,  // 🔐 传递用户ID
+                    skip_billing: true  // 前端 startGenerate 已统一预扣整单费用
                 })
             });
 
@@ -11847,17 +11913,17 @@ ${idea.theme}${characterPrompt}
                         <div id="mobileMVImageModelSection">
                             <label style="display:block; color:#a78bfa; font-size:12px; margin-bottom:4px;">🎨 生图模型</label>
                             <select id="mobileMVImageModel" onchange="updateMobileMVCost()" style="width:100%; padding:10px; background:var(--bg-main); border:1px solid rgba(139,92,246,0.4); border-radius:10px; color:#fff; font-size:14px;">
-                                <option value="gemini-3.1-flash-image-preview-4k" style="background:#1a1a2e;color:#fff;">💎 Gemini Flash 4K（推荐 7胶片）</option>
+                                <option value="gemini-3.1-flash-image-preview" style="background:#1a1a2e;color:#fff;">💎 Gemini Flash 4K（推荐 7胶片）</option>
                                 <option value="gemini-3.1-flash-image-preview" style="background:#1a1a2e;color:#fff;">⚡ Gemini Flash（4胶片）</option>
-                                <option value="gemini-3.1-flash-image-preview-2k" style="background:#1a1a2e;color:#fff;">⚡ Gemini Flash 2K（4胶片）</option>
+                                <option value="gemini-3.1-flash-image-preview" style="background:#1a1a2e;color:#fff;">⚡ Gemini Flash 2K（4胶片）</option>
                                 <option value="doubao-seedream-5-0-260128" style="background:#1a1a2e;color:#fff;">⭐ 星梦画师5.0（生图/改图 7胶片）</option>
                                 <option value="doubao-seedream-4-5-251128" style="background:#1a1a2e;color:#fff;">✨ 星梦画师4.5（7胶片）</option>
                                 <optgroup label="🆓 OpenRouter 免费" style="background:#1a1a2e;color:#fff;">
                                     <option value="openrouter:bytedance-seed/seedream-4.5" style="background:#1a1a2e;color:#fff;">🆓 Seedream 4.5</option>
                                 </optgroup>
                                 <option value="nano-banana-2" style="background:#1a1a2e;color:#fff;">🎨 Banana 标准（6胶片）</option>
-                                <option value="nano-banana-2-2k" style="background:#1a1a2e;color:#fff;">⭐ Banana 2K（6胶片）</option>
-                                <option value="nano-banana-2-4k" style="background:#1a1a2e;color:#fff;">💎 Banana 4K（10胶片）</option>
+                                <option value="nano-banana-2" style="background:#1a1a2e;color:#fff;">⭐ Banana 2K（6胶片）</option>
+                                <option value="nano-banana-2" style="background:#1a1a2e;color:#fff;">💎 Banana 4K（10胶片）</option>
                                 <option value="modelscope" style="background:#1a1a2e;color:#fff;">🆓 智能绘图（免费）</option>
                                 <option value="Qwen/Qwen-Image-2512" style="background:#1a1a2e;color:#fff;">⭐ 通义万象Max（8胶片）</option>
                                 <option value="midjourney-fast" style="background:#1a1a2e;color:#fff;">🎨 MJ Fast（2胶片）</option>
@@ -11962,7 +12028,7 @@ ${idea.theme}${characterPrompt}
 
         function updateMobileMVCost() {
             const vModel = document.getElementById('mobileMVModel')?.value || 'grok-video-3-15s';
-            const iModel = document.getElementById('mobileMVImageModel')?.value || 'gemini-3.1-flash-image-preview-4k';
+            const iModel = document.getElementById('mobileMVImageModel')?.value || 'gemini-3.1-flash-image-preview';
             const musicSource = document.getElementById('mobileMVMusicSource')?.value; 'ai';
             const isUpload = musicSource === 'upload';
             // 视频模型每段成本
@@ -11977,11 +12043,17 @@ ${idea.theme}${characterPrompt}
             };
             // 图片模型每张成本
             const iCosts = {
-                'gemini-3.1-flash-image-preview-4k': 7, 'gemini-3.1-flash-image-preview': 4, 'gemini-3.1-flash-image-preview-2k': 4,
-                'doubao-seedream-5-0-260128': 7, 'doubao-seedream-4-5-251128': 7,
-                'nano-banana-2': 6, 'nano-banana-2-2k': 6, 'nano-banana-2-4k': 10,
-                'modelscope': 0, 'Qwen/Qwen-Image-2512': 8,
-                'midjourney-fast': 2, 'midjourney-turbo': 2, 'midjourney-relax': 2,
+                'gemini-3.1-flash-image-preview': 7,
+                'doubao-seedream-5-0-260128': 7,
+                'doubao-seedream-4-5-251128': 7,
+                'nano-banana-2': 10,
+                'modelscope': 0,
+                'Qwen/Qwen-Image-2512': 8,
+                'midjourney-fast': 2,
+                'midjourney-turbo': 2,
+                'midjourney-relax': 2,
+                'gpt-image-2': 1,
+                'gpt-image-2-all': 12,
                 'openrouter:bytedance-seed/seedream-4.5': 0
             };
             const iPerSeg = iCosts[iModel] || 7;
@@ -12121,7 +12193,7 @@ ${idea.theme}${characterPrompt}
                         segments: 0,
                         aspectRatio: '16:9',
                         videoModel: videoModel || 'wan26-720p-15s',
-                        imageModel: imageModel || 'gemini-3.1-flash-image-preview-4k',
+                        imageModel: imageModel || 'gemini-3.1-flash-image-preview',
                         musicSource: musicSource,
                         audioDescription: audioDescription || '',
                         videoMode: videoMode || 'image2video'
@@ -12603,17 +12675,19 @@ ${idea.theme}${characterPrompt}
             try {
                 const ctrl = new AbortController();
                 const t = setTimeout(() => ctrl.abort(), opts.timeout || 8000);
+                const payload = {
+                    apiType: 'public-api',
+                    action: 'external-fetch',
+                    url: url,
+                    method: opts.method || 'GET',
+                    headers: opts.headers || {},
+                    timeout: opts.timeout || 8000
+                };
+                if (opts.body !== undefined && opts.body !== null) payload.body = opts.body;
                 const resp = await fetch('/api/proxy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        apiType: 'public-api',
-                        action: 'external-fetch',
-                        url: url,
-                        method: opts.method || 'GET',
-                        headers: opts.headers || {},
-                        timeout: opts.timeout || 8000
-                    }),
+                    body: JSON.stringify(payload),
                     signal: ctrl.signal
                 });
                 clearTimeout(t);
@@ -12659,6 +12733,42 @@ ${idea.theme}${characterPrompt}
         }
 
         // ---- 灵感标签页 ----
+        function _chGetFallbackImage(index) {
+            const images = [
+                'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=600&q=80',
+                'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80',
+                'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80',
+                'https://images.unsplash.com/photo-1518709268805-4e9042af2176?auto=format&fit=crop&w=600&q=80',
+                'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=600&q=80',
+                'https://images.unsplash.com/photo-1535223289827-42f1e9919769?auto=format&fit=crop&w=600&q=80'
+            ];
+            return images[index % images.length];
+        }
+
+        function _chNormalizeInspirationImage(url, index) {
+            if (!url || typeof url !== 'string') return _chGetFallbackImage(index);
+            const cleanUrl = url.split('?')[0].toLowerCase();
+            const isImage = /\.(jpg|jpeg|png|webp|gif)$/.test(cleanUrl) || url.includes('images.unsplash.com') || url.includes('i.redd.it') || url.includes('preview.redd.it');
+            return isImage ? url : _chGetFallbackImage(index);
+        }
+
+        function _chCreateFallbackInspirations(count) {
+            const items = [
+                { title: '雨夜霓虹街角的独白短片', description: '一个疲惫的外卖员在雨夜送最后一单，发现收件人竟是多年后的自己。适合做强情绪反转短视频。', source: '视觉灵感', author: 'RollRoll精选', tags: ['剧情', '雨夜', '反转'], prompt: '雨夜，霓虹灯，孤独外卖员，电影感街角，最后一单送给未来的自己，强情绪反转，写实短片风格' },
+                { title: '复古录像带里的家庭机器人', description: '用90年代家用录像带质感拍一个机器人第一次理解亲情的故事，画面有旧电视噪点和暖色客厅。', source: '图文灵感', author: 'RollRoll精选', tags: ['复古', '机器人', '亲情'], prompt: '1990年代家庭录像带质感，客厅，家用机器人，温暖灯光，轻微噪点，机器人理解亲情，怀旧科幻短片' },
+                { title: '城市上空漂浮的透明鲸鱼', description: '巨大透明鲸鱼穿过摩天楼，路人抬头拍照，适合生成奇观感AI视频或海报。', source: '视觉灵感', author: 'RollRoll精选', tags: ['奇观', '城市', '鲸鱼'], prompt: '透明发光鲸鱼漂浮在现代城市上空，摩天楼反射蓝光，人群仰望，超现实，电影级广角，史诗感' },
+                { title: '会把梦境打印出来的咖啡馆', description: '每杯咖啡都会打印顾客昨晚的梦，主角发现所有人的梦都指向同一个地点。', source: '故事灵感', author: 'RollRoll精选', tags: ['悬疑', '咖啡馆', '梦境'], prompt: '深夜咖啡馆，梦境打印机，纸张吐出超现实图案，所有梦境指向同一地点，悬疑电影感' },
+                { title: '废墟花园里的AI园丁', description: '末日城市废墟中，一个AI园丁坚持照料最后一座花园，适合治愈系科幻短片。', source: '图文灵感', author: 'RollRoll精选', tags: ['末日', '治愈', 'AI'], prompt: '末日城市废墟，绿色花园，AI机器人园丁，阳光穿过破碎建筑，治愈科幻，细腻情绪' },
+                { title: '手机屏幕里的微缩世界', description: '主角发现手机屏幕里住着一座真实小城，每次滑动都会改变居民命运。', source: '创意灵感', author: 'RollRoll精选', tags: ['微缩', '奇幻', '手机'], prompt: '手机屏幕内的微缩城市，发光街道，小人物生活，手指滑动改变世界，奇幻微距摄影风格' }
+            ];
+            return items.slice(0, count).map((item, i) => ({
+                ...item,
+                id: 'fallback_insp_' + i,
+                imageUrl: _chGetFallbackImage(i),
+                createdAt: new Date().toISOString()
+            }));
+        }
+
         async function _chLoadInspiration() {
             const content = document.getElementById('chContent');
             const featured = document.getElementById('chFeatured');
@@ -12688,7 +12798,7 @@ ${idea.theme}${characterPrompt}
                         description: insp.prompt || insp.description || '',
                         source: insp.source || 'AI生成',
                         author: 'RollRoll AI',
-                        imageUrl: insp.imageUrl || '',
+                        imageUrl: _chNormalizeInspirationImage(insp.imageUrl || insp.url || '', i),
                         createdAt: new Date().toISOString(),
                         tags: insp.tags || [],
                         prompt: insp.prompt || ''
@@ -12707,11 +12817,11 @@ ${idea.theme}${characterPrompt}
                     if (content) content.innerHTML = '<div class="ch-card-list">' + _chData.slice(3).map(item => _chCreateInspirationCard(item)).join('') + '</div>';
                     _chAttachCardEvents();
                 } else {
-                    if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💡</div><p>暂无灵感数据</p><button class="ch-refresh-btn" onclick="_chLoadInspiration()">🔄 换一批</button></div>';
+                    if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💡</div><p>暂时拉不到实时灵感<br><span style="font-size:12px;color:#666;">请检查网络或稍后重试</span></p><button class="ch-refresh-btn" onclick="_chLoadInspiration()">🔄 重试</button></div>';
                 }
             } catch (err) {
                 console.error('[灵感] 获取失败:', err);
-                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💡</div><p>灵感获取失败</p><button class="ch-refresh-btn" onclick="_chLoadInspiration()">🔄 重试</button></div>';
+                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💡</div><p>暂时拉不到实时灵感<br><span style="font-size:12px;color:#666;">' + (err.message || '网络错误') + '</span></p><button class="ch-refresh-btn" onclick="_chLoadInspiration()">🔄 重试</button></div>';
             }
         }
 
@@ -12727,50 +12837,53 @@ ${idea.theme}${characterPrompt}
             let contests = [];
 
             // 并行获取真实数据（通过代理避免CORS）
+            // Kaggle 官方API需Auth，使用 MLContests 聚合数据源（GitHub Raw JSON，无鉴权）
             const fetchKaggle = async () => {
                 try {
-                    const data = await _chProxyFetch('https://www.kaggle.com/api/v1/competitions/list?group=general&sortBy=prize&page=1', {
-                        headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 8000
+                    const data = await _chProxyFetch('https://raw.githubusercontent.com/mlcontests/mlcontests.github.io/main/competitions.json', {
+                        timeout: 10000
                     });
                     if (!data || !Array.isArray(data)) return [];
-                    return data.slice(0, 12).map(c => ({
-                        id: 'kaggle_' + (c.id || c.ref),
-                        platform: 'Kaggle',
-                        title: c.title || 'Kaggle Competition',
-                        description: c.description || '',
-                        url: 'https://www.kaggle.com/c/' + c.ref,
-                        prizeText: c.reward || '荣誉奖励',
-                        endDate: c.deadline || '',
-                        participants: c.teamCount || 0,
-                        status: c.enabled ? 'active' : 'ended',
-                        tags: c.tags || [],
-                        thumbnail: c.thumbnailImageUrl || ''
-                    }));
+                    return data.filter(c => (c.platform || '').toLowerCase() === 'kaggle' || (c.url || '').includes('kaggle.com'))
+                        .slice(0, 12).map((c, idx) => ({
+                            id: 'kaggle_' + (c.slug || c.name || idx),
+                            platform: 'Kaggle',
+                            title: c.name || c.title || 'Kaggle Competition',
+                            description: c.description || c.summary || '',
+                            url: c.url || 'https://www.kaggle.com/competitions',
+                            prizeText: c.prize || c.reward || '荣誉奖励',
+                            endDate: c.deadline || c.end_date || '',
+                            participants: c.teams || 0,
+                            status: 'active',
+                            tags: c.tags || [],
+                            thumbnail: c.image || ''
+                        }));
                 } catch (e) {
                     console.warn('[比赛] Kaggle获取失败:', e.message);
                     return [];
                 }
             };
 
+            // 和鲸 Heywhale 新路径：perPage 替代 pageSize
             const fetchHeywhale = async () => {
                 try {
-                    const json = await _chProxyFetch('https://www.heywhale.com/api/competitions?status=ongoing&page=1&pageSize=10', {
-                        headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 8000
+                    const json = await _chProxyFetch('https://www.heywhale.com/api/competitions?perPage=20&page=1&sortBy=&tag=', {
+                        headers: { 'Referer': 'https://www.heywhale.com/home/competition' }, timeout: 8000
                     });
                     if (!json) return [];
-                    const list = json.data || json.result || [];
-                    return list.slice(0, 10).map(c => ({
-                        id: 'heywhale_' + c.id,
+                    const list = json.list || json.data || json.result || [];
+                    return list.slice(0, 12).map(c => ({
+                        id: 'heywhale_' + (c._id || c.id || c.ShortName),
                         platform: '和鲸',
-                        title: c.title || '和鲸比赛',
-                        description: c.description || c.intro || '',
-                        url: 'https://www.heywhale.com/home/competition/' + c.id,
-                        prizeText: c.bonus || c.reward || '未知',
-                        endDate: c.endTime || '',
-                        participants: c.teamCount || c.participantCount || 0,
-                        status: 'active',
-                        tags: c.tags || [],
-                        thumbnail: c.cover || c.thumbnail || ''
+                        title: c.Title || c.title || '和鲸比赛',
+                        description: c.SubTitle || c.description || c.intro || '',
+                        url: 'https://www.heywhale.com/home/competition/' + (c._id || c.id || c.ShortName),
+                        prizeText: (c.Bonus ? ('¥' + c.Bonus.toLocaleString()) : (c.bonus || c.reward || '未知')),
+                        endDate: c.EndDate || c.endTime || '',
+                        participants: c.TeamCount || c.teamCount || c.participantCount || 0,
+                        status: (c.Status === 2 || c.Stage === 'ongoing') ? 'active' : (c.Stage === 'upcoming' ? 'upcoming' : 'ended'),
+                        tags: (c.Tags || c.tags || []),
+                        thumbnail: c.CoverImage || c.cover || c.thumbnail || ''
                     }));
                 } catch (e) {
                     console.warn('[比赛] 和鲸获取失败:', e.message);
@@ -12784,49 +12897,44 @@ ${idea.theme}${characterPrompt}
             if (platform === 'all' || platform === 'kaggle') contests.push(...kaggle);
             if (platform === 'all' || platform === 'heywhale') contests.push(...heywhale);
 
-            // 天池 - 通过代理获取（避免CORS限制）
+            // 天池新端点 front-v2 (POST JSON)
             if (platform === 'all' || platform === 'tianchi') {
                 try {
-                    const json = await _chProxyFetch('https://tianchi.aliyun.com/competition/proxy/api/competitions/list?pageNo=1&pageSize=10&status=1', {
-                        headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json' }, timeout: 8000
+                    const json = await _chProxyFetch('https://tianchi.aliyun.com/api/front-v2/competition/queryCompetitionListV2', {
+                        method: 'POST',
+                        headers: { 'Referer': 'https://tianchi.aliyun.com/competition/activeList', 'Origin': 'https://tianchi.aliyun.com', 'Content-Type': 'application/json' },
+                        body: { pageNum: 1, pageSize: 20, state: '', sortType: 'hot', type: '' },
+                        timeout: 10000
                     });
                     if (json) {
-                        const list = json.data?.list || json.result || [];
-                        contests.push(...list.slice(0, 10).map(c => ({
-                            id: 'tianchi_' + c.competitionId,
+                        const list = (json.data && json.data.data) || json.data?.list || json.result || [];
+                        contests.push(...list.slice(0, 12).map(c => ({
+                            id: 'tianchi_' + (c.competitionId || c.id),
                             platform: '天池',
-                            title: c.name || c.title || '天池比赛',
-                            description: c.description || c.brief || '',
-                            url: 'https://tianchi.aliyun.com/competition/entrance/' + c.competitionId,
-                            prizeText: c.bonus || '未知',
-                            endDate: c.endDate || '',
-                            participants: c.currentTeamNumber || 0,
-                            status: 'active',
-                            tags: c.tags || [],
-                            thumbnail: c.logo || ''
+                            title: c.title || c.name || '天池比赛',
+                            description: c.brief || c.description || '',
+                            url: 'https://tianchi.aliyun.com/competition/entrance/' + (c.competitionId || c.id),
+                            prizeText: c.bonus || c.currentSeasonBonus || '未知',
+                            endDate: c.currentSeasonEnd || c.endDate || '',
+                            participants: c.currentTeamNumber || c.teamCount || 0,
+                            status: ((c.currentSeasonStateDesc || '').includes('进行') || (c.currentSeasonStateDesc || '').includes('报名')) ? 'active' : 'ended',
+                            tags: c.tags || [c.type].filter(Boolean),
+                            thumbnail: c.coverImage || c.logo || ''
                         })));
                     }
                 } catch (e) {
-                    console.warn('[比赛] 天池获取失败(CORS限制):', e.message);
+                    console.warn('[比赛] 天池获取失败:', e.message);
                 }
             }
 
             if (contests.length === 0) {
-                console.warn('[比赛] 外部API均不可用，使用备用数据');
-                contests = [
-                    { id: 'fb_1', platform: 'Kaggle', title: '2026 AI Video Generation Challenge', description: 'AI视频生成挑战赛，使用最新模型创作高质量视频内容', url: 'https://www.kaggle.com/competitions', prizeText: '$50,000', endDate: '2026-06-30', participants: 2340, status: 'active', tags: ['video', 'AI'], thumbnail: '' },
-                    { id: 'fb_2', platform: '和鲸', title: 'AIGC创意内容大赛', description: '基于大语言模型和多模态模型的创意内容生成比赛', url: 'https://www.heywhale.com/home/competition/', prizeText: '¥100,000', endDate: '2026-05-15', participants: 890, status: 'active', tags: ['AIGC', '创意'], thumbnail: '' },
-                    { id: 'fb_3', platform: '天池', title: '视觉语言模型应用赛', description: '探索VLM在视频理解、图像描述等场景的应用创新', url: 'https://tianchi.aliyun.com/competition/', prizeText: '¥200,000', endDate: '2026-07-20', participants: 1560, status: 'active', tags: ['VLM', '多模态'], thumbnail: '' },
-                    { id: 'fb_4', platform: 'Kaggle', title: 'Stable Diffusion Prompt Engineering', description: '优化提示词工程以生成更精准的AI图像作品', url: 'https://www.kaggle.com/competitions', prizeText: '$20,000', endDate: '2026-05-31', participants: 3200, status: 'active', tags: ['SD', 'Prompt'], thumbnail: '' },
-                    { id: 'fb_5', platform: '和鲸', title: '数字人短视频创作赛', description: '利用AI技术创建逼真的数字人并进行短视频创作', url: 'https://www.heywhale.com/home/competition/', prizeText: '¥80,000', endDate: '2026-06-10', participants: 650, status: 'active', tags: ['数字人', '短视频'], thumbnail: '' },
-                    { id: 'fb_6', platform: '天池', title: '音乐生成AI挑战赛', description: '使用AI模型进行音乐创作、编曲和混音', url: 'https://tianchi.aliyun.com/competition/', prizeText: '¥150,000', endDate: '2026-08-01', participants: 1100, status: 'active', tags: ['音乐', 'AI作曲'], thumbnail: '' }
-                ];
+                console.warn('[比赛] 外部API均不可用');
             }
 
             _chData = contests;
 
             if (contests.length === 0) {
-                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">🏆</div><p>暂无比赛数据<br><span style="font-size:12px;color:#666;">可能因网络限制无法获取</span></p><button class="ch-refresh-btn" onclick="_chLoadContests()">🔄 重试</button></div>';
+                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">🏆</div><p>暂时拉不到实时比赛数据<br><span style="font-size:12px;color:#666;">请检查网络或稍后重试</span></p><button class="ch-refresh-btn" onclick="_chLoadContests()">🔄 重试</button></div>';
                 return;
             }
 
@@ -12843,12 +12951,12 @@ ${idea.theme}${characterPrompt}
             const activeFilter = document.querySelector('.ch-filter-chip.active');
             const sortBy = activeFilter ? activeFilter.dataset.val : 'stars';
 
-            const query = 'topic:ai OR topic:machine-learning OR topic:llm OR topic:stable-diffusion OR topic:comfyui';
+            const query = 'topic:ai stars:>500';
             const sortParam = sortBy === 'updated' ? 'updated' : 'stars';
 
             try {
                 const json = await _chProxyFetch('https://api.github.com/search/repositories?q=' + encodeURIComponent(query) + '&sort=' + sortParam + '&order=desc&per_page=20', {
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }, timeout: 10000
+                    headers: { 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, timeout: 10000
                 });
                 if (!json) throw new Error('GitHub API: 无响应');
                 const items = json.items || [];
@@ -12873,35 +12981,11 @@ ${idea.theme}${characterPrompt}
                     potentialScore: Math.min(100, Math.round((item.stargazers_count || 0) / (item.forks_count || 1) * 2 + (item.stargazers_count || 0) / 1000))
                 }));
 
-                if (_chData.length === 0) {
-                    console.warn('[GitHub] API无数据，使用备用数据');
-                    _chData = [
-                        { id: 'gh_fb_1', name: 'stable-diffusion-webui', fullName: 'AUTOMATIC1111/stable-diffusion-webui', owner: { name: 'AUTOMATIC1111', avatar: '' }, description: 'Stable Diffusion的Web界面，功能最全的SD前端', url: 'https://github.com/AUTOMATIC1111/stable-diffusion-webui', stars: 145000, forks: 25000, language: 'Python', topics: ['stable-diffusion', 'ai'], updatedAt: '2026-04-01', potentialScore: 95 },
-                        { id: 'gh_fb_2', name: 'ComfyUI', fullName: 'comfyanonymous/ComfyUI', owner: { name: 'comfyanonymous', avatar: '' }, description: '模块化 Stable Diffusion GUI，支持节点式工作流', url: 'https://github.com/comfyanonymous/ComfyUI', stars: 62000, forks: 8500, language: 'Python', topics: ['comfyui', 'node-based'], updatedAt: '2026-03-28', potentialScore: 88 },
-                        { id: 'gh_fb_3', name: 'ollama', fullName: 'ollama/ollama', owner: { name: 'ollama', avatar: '' }, description: '本地运行Llama、Mistral等大模型，简单易用', url: 'https://github.com/ollama/ollama', stars: 98000, forks: 6500, language: 'Go', topics: ['llm', 'local-ai'], updatedAt: '2026-04-05', potentialScore: 92 },
-                        { id: 'gh_fb_4', name: 'LivePortrait', fullName: 'KwaiVGI/LivePortrait', owner: { name: 'KwaiVGI', avatar: '' }, description: '高效肖像动画合成，让静态照片动起来', url: 'https://github.com/KwaiVGI/LivePortrait', stars: 38000, forks: 5200, language: 'Python', topics: ['portrait-animation', 'deepfake'], updatedAt: '2026-03-15', potentialScore: 82 },
-                        { id: 'gh_fb_5', name: 'Fooocus', fullName: 'lllyasviel/Fooocus', owner: { name: 'lllyasviel', avatar: '' }, description: '简化版 Stable Diffusion，自动优化提示词', url: 'https://github.com/lllyasviel/Fooocus', stars: 42000, forks: 5800, language: 'Python', topics: ['stable-diffusion', 'simple'], updatedAt: '2026-02-20', potentialScore: 85 },
-                        { id: 'gh_fb_6', name: 'whisper', fullName: 'openai/whisper', owner: { name: 'openai', avatar: '' }, description: 'OpenAI开源的语音识别模型，支持多语言', url: 'https://github.com/openai/whisper', stars: 78000, forks: 9200, language: 'Python', topics: ['speech-recognition', 'openai'], updatedAt: '2026-01-10', potentialScore: 89 },
-                        { id: 'gh_fb_7', name: 'video-retalking', fullName: 'OpenTalker/video-retalking', owner: { name: 'OpenTalker', avatar: '' }, description: '让照片中的人物根据音频说话，口型同步', url: 'https://github.com/OpenTalker/video-retalking', stars: 18000, forks: 3200, language: 'Python', topics: ['talking-head', 'audio-driven'], updatedAt: '2025-12-18', potentialScore: 75 }
-                    ];
-                }
-
                 if (content) content.innerHTML = '<div class="ch-card-list">' + _chData.map(item => _chCreateGithubCard(item)).join('') + '</div>';
                 _chAttachCardEvents();
             } catch (err) {
                 console.error('[GitHub] 获取失败:', err);
-                console.warn('[GitHub] 使用备用数据');
-                _chData = [
-                    { id: 'gh_fb_1', name: 'stable-diffusion-webui', fullName: 'AUTOMATIC1111/stable-diffusion-webui', owner: { name: 'AUTOMATIC1111', avatar: '' }, description: 'Stable Diffusion的Web界面，功能最全的SD前端', url: 'https://github.com/AUTOMATIC1111/stable-diffusion-webui', stars: 145000, forks: 25000, language: 'Python', topics: ['stable-diffusion', 'ai'], updatedAt: '2026-04-01', potentialScore: 95 },
-                    { id: 'gh_fb_2', name: 'ComfyUI', fullName: 'comfyanonymous/ComfyUI', owner: { name: 'comfyanonymous', avatar: '' }, description: '模块化 Stable Diffusion GUI，支持节点式工作流', url: 'https://github.com/comfyanonymous/ComfyUI', stars: 62000, forks: 8500, language: 'Python', topics: ['comfyui', 'node-based'], updatedAt: '2026-03-28', potentialScore: 88 },
-                    { id: 'gh_fb_3', name: 'ollama', fullName: 'ollama/ollama', owner: { name: 'ollama', avatar: '' }, description: '本地运行Llama、Mistral等大模型，简单易用', url: 'https://github.com/ollama/ollama', stars: 98000, forks: 6500, language: 'Go', topics: ['llm', 'local-ai'], updatedAt: '2026-04-05', potentialScore: 92 },
-                    { id: 'gh_fb_4', name: 'LivePortrait', fullName: 'KwaiVGI/LivePortrait', owner: { name: 'KwaiVGI', avatar: '' }, description: '高效肖像动画合成，让静态照片动起来', url: 'https://github.com/KwaiVGI/LivePortrait', stars: 38000, forks: 5200, language: 'Python', topics: ['portrait-animation', 'deepfake'], updatedAt: '2026-03-15', potentialScore: 82 },
-                    { id: 'gh_fb_5', name: 'Fooocus', fullName: 'lllyasviel/Fooocus', owner: { name: 'lllyasviel', avatar: '' }, description: '简化版 Stable Diffusion，自动优化提示词', url: 'https://github.com/lllyasviel/Fooocus', stars: 42000, forks: 5800, language: 'Python', topics: ['stable-diffusion', 'simple'], updatedAt: '2026-02-20', potentialScore: 85 },
-                    { id: 'gh_fb_6', name: 'whisper', fullName: 'openai/whisper', owner: { name: 'openai', avatar: '' }, description: 'OpenAI开源的语音识别模型，支持多语言', url: 'https://github.com/openai/whisper', stars: 78000, forks: 9200, language: 'Python', topics: ['speech-recognition', 'openai'], updatedAt: '2026-01-10', potentialScore: 89 },
-                    { id: 'gh_fb_7', name: 'video-retalking', fullName: 'OpenTalker/video-retalking', owner: { name: 'OpenTalker', avatar: '' }, description: '让照片中的人物根据音频说话，口型同步', url: 'https://github.com/OpenTalker/video-retalking', stars: 18000, forks: 3200, language: 'Python', topics: ['talking-head', 'audio-driven'], updatedAt: '2025-12-18', potentialScore: 75 }
-                ];
-                if (content) content.innerHTML = '<div class="ch-card-list">' + _chData.map(item => _chCreateGithubCard(item)).join('') + '</div>';
-                _chAttachCardEvents();
+                if (content) content.innerHTML = '<div class="ch-empty"><div class="ch-empty-icon">💎</div><p>暂时拉不到GitHub数据<br><span style="font-size:12px;color:#666;">' + (err.message || '网络错误') + '</span></p><button class="ch-refresh-btn" onclick="_chLoadGithub()">🔄 重试</button></div>';
             }
         }
 
@@ -12997,11 +13081,14 @@ ${idea.theme}${characterPrompt}
         function _chCreateInspirationCard(item) {
             const isFav = _chFavorites.some(f => f.id === item.id);
             return `
-                <div class="ch-card" data-id="${item.id}">
-                    ${item.imageUrl ? '<img src="' + item.imageUrl + '" alt="" class="ch-card-img" onerror="this.style.display=\'none\'">' : ''}
+                <div class="ch-card ch-inspiration-card" data-id="${item.id}">
+                    <div class="ch-inspiration-cover">
+                        <img src="${item.imageUrl}" alt="" class="ch-card-img" onerror="this.style.display='none'">
+                        <div class="ch-inspiration-source">${_chEsc(item.source || '灵感')}</div>
+                    </div>
                     <div class="ch-card-body">
                         <div class="ch-card-header">
-                            <span class="ch-badge ch-badge-purple">💡 ${item.source || '灵感'}</span>
+                            <span class="ch-badge ch-badge-purple">💡 ${_chEsc(item.source || '灵感')}</span>
                             <button class="ch-fav-btn ${isFav ? 'active' : ''}" data-id="${item.id}" onclick="event.stopPropagation();_chToggleFavorite('${item.id}')">${isFav ? '⭐' : '☆'}</button>
                         </div>
                         <div class="ch-card-title">${_chEsc(item.title)}</div>
@@ -13516,6 +13603,8 @@ ${idea.theme}${characterPrompt}
             if (skillExecBtn) {
                 skillExecBtn.disabled = false;
                 skillExecBtn.innerHTML = '⚡ 开始执行';
+                // 🔧 每次打开技能都重置执行按钮事件，避免失败/重试闭包残留到下一个技能
+                skillExecBtn.onclick = function (event) { mobileSkillExecute(event); };
             } else {
                 console.warn('[mobile] 元素未找到: skillExecBtn');
             }
@@ -13805,7 +13894,7 @@ ${idea.theme}${characterPrompt}
                 });
             });
 
-            Promise.all(processPromises.then ? processPromises : []).then(results => {
+            Promise.all(processPromises).then(results => {
                 results.filter(Boolean).forEach(data => skillImageStore[paramKey].push(data));
                 renderSkillImagePreviews(paramKey);
             });
@@ -13910,6 +13999,10 @@ ${idea.theme}${characterPrompt}
                     <div id="mspExecSteps" style="margin-top:16px;text-align:left;padding:0 10px;max-height:200px;overflow-y:auto;"></div>
                 </div>`;
 
+            // 🔧 修复：唤起顶部进度条
+            const execBar = document.getElementById('skillExecBar');
+            if (execBar) execBar.classList.add('show');
+
             const msgEl = document.getElementById('mspExecMsg');
             const fillEl = document.getElementById('mspExecFill');
             const pctEl = document.getElementById('mspExecPct');
@@ -14009,6 +14102,9 @@ ${idea.theme}${characterPrompt}
                 if (!body) console.warn('[mobile] 元素未找到: skillResultBody');
                 return;
             }
+
+            // 🔧 修复：唤起结果弹窗
+            sheet.classList.add('show');
 
             // 存储结果供发布功能使用
             _mobileSkillLastResult = result;
@@ -14264,6 +14360,28 @@ ${idea.theme}${characterPrompt}
                         </div>`;
                     }
                 }
+            }
+
+            // 📊 PPT/幻灯片结果（slides 数组）
+            if (result.slides && Array.isArray(result.slides) && result.slides.length > 0) {
+                html += `<div class="skill-result-item">
+                    <div style="font-size:15px;color:var(--accent);font-weight:700;margin-bottom:10px;">📊 ${result.title || 'PPT 大纲'}</div>
+                    <div style="margin-bottom:8px;font-size:12px;color:#888;">📐 格式: ${result.format || '16:9'} · 📄 ${result.pageCount || result.slides.length} 页 · ${result.design === 'corporate' ? '🎯 商务风格' : result.design === 'tech' ? '💻 科技风格' : result.design === 'minimal' ? '✨ 简约风格' : result.design === 'creative' ? '🎨 创意风格' : '📋' + (result.design || '')} ${result.imageGen === 'gpt-image-2' ? '🖼️ GPT Image 2' : result.imageGen === 'web-search' ? '🔍 网络图片' : ''} ${result.animation ? '✨ 动画' : ''}</div>
+                    <div style="max-height:400px;overflow-y:auto;">`;
+                for (const slide of result.slides) {
+                    html += `<div style="padding:8px 0;border-bottom:1px solid #222;">
+                        <div style="font-size:13px;color:#fff;font-weight:600;margin-bottom:4px;">第${slide.page}页 · ${slide.title || '无标题'}</div>
+                        <div style="font-size:12px;color:#aaa;white-space:pre-wrap;">${slide.content || ''}</div>
+                    </div>`;
+                }
+                html += `</div>`;
+                if (result.pptxDataUrl || window.pptMasterData) {
+                    html += `<div style="margin-top:10px;"><button onclick="downloadPptMaster()" style="width:100%;padding:10px;background:linear-gradient(135deg, var(--accent), rgba(251,191,36,0.7));border:none;border-radius:8px;color:#000;font-size:13px;font-weight:700;cursor:pointer;">💾 下载 PPTX 文件</button></div>`;
+                }
+                if (result.instructions) {
+                    html += `<div style="margin-top:10px;padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;font-size:12px;color:#10b981;white-space:pre-wrap;">${result.instructions}</div>`;
+                }
+                html += `</div>`;
             }
 
             // 📺 连续剧情结果（episodes）→ 转为标准 videos/images
@@ -15267,18 +15385,40 @@ ${idea.theme}${characterPrompt}
         function showToast(message, duration = 2500) {
             const toast = document.getElementById('toast');
             if (!toast) return;
-            toast.textContent = message;
-            toast.classList.add('show');
-            // 🆕 点击toast可立即关闭
-            toast.onclick = () => { toast.classList.remove('show'); if (toast._hideTimeout) { clearTimeout(toast._hideTimeout); toast._hideTimeout = null; } };
-            // 清除之前的隐藏定时器，防止快速切换时上一个 toast 卡住
             if (toast._hideTimeout) {
                 clearTimeout(toast._hideTimeout);
-            }
-            toast._hideTimeout = setTimeout(() => {
-                toast.classList.remove('show');
                 toast._hideTimeout = null;
-            }, duration);
+            }
+            toast.classList.remove('show');
+            toast.innerHTML = '';
+
+            const text = document.createElement('span');
+            text.className = 'toast-text';
+            text.textContent = message;
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'toast-close';
+            closeBtn.setAttribute('aria-label', '关闭提示');
+            closeBtn.textContent = '×';
+
+            const hideToast = () => {
+                toast.classList.remove('show');
+                if (toast._hideTimeout) {
+                    clearTimeout(toast._hideTimeout);
+                    toast._hideTimeout = null;
+                }
+            };
+
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                hideToast();
+            };
+            toast.onclick = hideToast;
+            toast.appendChild(text);
+            toast.appendChild(closeBtn);
+            requestAnimationFrame(() => toast.classList.add('show'));
+            toast._hideTimeout = setTimeout(hideToast, Math.max(1200, duration));
         }
 
         // ==================== 🎨 Midjourney 图片选择器 ====================
@@ -15531,6 +15671,22 @@ ${idea.theme}${characterPrompt}
                     showToast('已尝试下载（如未开始请长按图片保存）');
                 }
             }
+        }
+
+        // 📊 PPT Master PPTX 下载函数
+        function downloadPptMaster() {
+            const dataUrl = window.pptMasterData;
+            if (!dataUrl) {
+                showToast('PPTX 文件未生成，请重新运行技能');
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = 'RollRoll_PPTX_' + Date.now() + '.pptx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('PPTX 下载已开始！');
         }
 
         // 🎨 带图片选择的 Midjourney 生成函数（返回 Promise）
@@ -16564,9 +16720,13 @@ ${story}
                 setAssistantVisible(false);
                 _assistantAllowed = false;
 
-                // 🔧 移除注入的隐藏CSS，恢复 main.main 等元素可见性
+                // 🔧 移除注入的隐藏CSS，但保持工作区隐藏直到登录完成
                 var injectedStyle = document.getElementById('cinemaIntroInjectedStyle');
                 if (injectedStyle) injectedStyle.remove();
+                var welcomeGuard = document.createElement('style');
+                welcomeGuard.id = 'welcomeGuardStyle';
+                welcomeGuard.textContent = 'header.header,main.main,#xj2Container,.bottom-nav{display:none!important;opacity:0;visibility:hidden}';
+                document.head.appendChild(welcomeGuard);
 
                 // 🔧 所有用户都必须经过欢迎页，不能自动跳过
                 // 显示欢迎页
@@ -16794,6 +16954,7 @@ ${story}
         return session?.user || null;
     }
     </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"145dcb7ce94448da9feb40a29fccff28","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"145dcb7ce94448da9feb40a29fccff28","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 

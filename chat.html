@@ -4,23 +4,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 AI对话 - RollRoll</title>
+    <title>🤖 AI对话 - RollRoll V9.3.75</title>
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js"></script>
-    <script src="/js/api-core.js?v=20260225e&t=20260225e"></script>
-    <script src="/js/prompt-templates.js?v=20260322a"></script>
-    <script src="/js/user-memory.js?v=20260213a"></script>
-    <script src="/js/writing-vault.js?v=20260213a"></script>
-    <script src="/js/billing.js?v=20260213a"></script>
-    <script src="/js/wake-lock.js?v=20260226b"></script>
-    <script src="/js/skill-system.js?v=20260213a&t=20260213a"></script>
-    <script src="/js/skill-presets.js?v=20260309k&t=20260309k"></script>
-    <script src="/js/video-merge.js?v=20260226a"></script>
-    <script src="/js/watermark.js?v=20260213a"></script>
-    <script src="/js/agent-team.js?v=20260225b&t=20260225b"></script>
-    <script src="/js/agent-roles.js?v=20260224b&t=20260224b"></script>
-    <script src="/js/agent-ui.js?v=20260213b&t=20260213b"></script>
-    <script src="/js/role-expert.js?v=20260213a"></script>
+    <script src="/js/supabase-config.js?v=9.3.75"></script>
+    <script src="/js/api-core.js?v=9.3.75"></script>
+    <script src="/js/prompt-templates.js?v=9.3.75"></script>
+    <script src="/js/user-memory.js?v=9.3.75"></script>
+    <script src="/js/writing-vault.js?v=9.3.75"></script>
+    <script src="/js/billing.js?v=9.3.75"></script>
+    <script src="/js/wake-lock.js?v=9.3.75"></script>
+    <script src="/js/skill-system.js?v=9.3.75"></script>
+    <script src="/js/skill-presets.js?v=9.3.75"></script>
+    <script src="/js/video-merge.js?v=9.3.75"></script>
+    <script src="/js/watermark.js?v=9.3.75"></script>
+    <script src="/js/agent-team.js?v=9.3.75"></script>
+    <script src="/js/agent-roles.js?v=9.3.75"></script>
+    <script src="/js/agent-ui.js?v=9.3.75"></script>
+    <script src="/js/role-expert.js?v=9.3.75"></script>
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -2165,6 +2165,7 @@
             <textarea class="input-box" id="inputBox" placeholder="输入消息..." rows="1" onkeydown="handleKeydown(event)"
                 oninput="_toggleSendBtnStyle()"></textarea>
         </div>
+        <button id="chatMemoryBtn" onclick="toggleChatMemory()" title="记忆已关闭（点击开启）" style="width:36px;height:36px;border:none;border-radius:50%;cursor:pointer;font-size:16px;background:rgba(100,100,100,0.2);color:#888;flex-shrink:0;transition:all 0.2s;">🧠</button>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
     </div>
 
@@ -2409,7 +2410,7 @@
             <div class="cs-field">
                 <label>提示词模板 * <span style="color:#666; font-size:12px;">(用 {{变量名}} 引用参数)</span></label>
                 <textarea id="csPromptTemplate"
-                    placeholder="例如：���为{{topic}}生成{{count}}条小红书风格的笔记文案，要求吸引眼球、有干货..."></textarea>
+                    placeholder="例如：假设{{topic}}生成{{count}}条小红书风格的笔记文案，要求吸引眼球、有干货..."></textarea>
             </div>
             <div class="cs-field">
                 <label>参数定义 <button onclick="addCustomParam()"
@@ -2666,7 +2667,8 @@
         // 模型价格参考 (yunwu.ai):
         // - grok-4-fast: 输入￥1.5/1M, 输出￥6.0/1M (首选对话模型)
         // - gemini-3-flash-preview: 输入￥0.15/1M, 输出￥0.9/1M (最便宜)
-        // - qwen3.5-plus: 输入￥0.24/1M, 输出￥0.6/1M (中文优化)
+        // - qwen3.5-plus: 输入￥0.24/1M, 输出￥0.6/1M (中文优化，已升级为qwen3.6)
+        // - qwen3.6-plus: 输入￥0.24/1M, 输出￥0.6/1M (中文优化新版)
         // - gemini-3.1-pro-preview: 输入￥0.6/1M, 输出￥3.6/1M (多模态)
         // - gemini-3.1-pro-preview-thinking: 输入￥0.6/1M, 输出￥3.6/1M (思考模式)
         function selectModelByIntent(text) {
@@ -2719,7 +2721,8 @@
             'gemini-3-flash-preview': 'Gemini Flash',
             'gemini-3.1-pro-preview': 'Gemini Pro',
             'gemini-3.1-pro-preview-thinking': 'Gemini 思考',
-            'qwen3.5-plus': '通义千问',
+            'qwen3.5-plus': '通义千问3.5',
+            'qwen3.6-plus-2026-04-02': '通义千问3.6',
             'deepseek-ocr': 'DeepSeek OCR'
         };
 
@@ -4000,6 +4003,25 @@ ${paramDesc}
             }
         };
 
+        // 🧠 记忆开关：默认关闭
+        window._chatUseMemory = false;
+        function toggleChatMemory() {
+            window._chatUseMemory = !window._chatUseMemory;
+            const btn = document.getElementById('chatMemoryBtn');
+            if (btn) {
+                if (window._chatUseMemory) {
+                    btn.style.background = 'rgba(139,92,246,0.3)';
+                    btn.style.color = '#a78bfa';
+                    btn.title = '记忆已开启（点击关闭）';
+                } else {
+                    btn.style.background = 'rgba(100,100,100,0.2)';
+                    btn.style.color = '#888';
+                    btn.title = '记忆已关闭（点击开启）';
+                }
+            }
+            showToast(window._chatUseMemory ? '🧠 已开启记忆' : '🚫 已关闭记忆');
+        }
+
         async function sendMessage() {
             const input = document.getElementById('inputBox');
             const text = input.value.trim();
@@ -4150,6 +4172,7 @@ ${paramDesc}
             // 保存当前上传的文件（发送后清空）
             const currentFiles = [...uploadedFiles];
             uploadedFiles = [];
+            window.__chatUploadedImages = [];  // 清空全局图片变量
             updateUploadPreview();
 
             // 显示typing + 模型提示
@@ -4202,11 +4225,13 @@ ${paramDesc}
                     systemPrompt = activeRole.systemPrompt + '\n\n' + systemPrompt;
                 }
 
-                // 🧠 注入用户长期记忆
-                if (typeof getUserMemoryPrompt === 'function') {
+                // 🧠 注入用户长期记忆（仅当开关开启时）
+                const chatUseMemory = window._chatUseMemory === true;
+                if (chatUseMemory && typeof getUserMemoryPrompt === 'function') {
                     const memPrompt = getUserMemoryPrompt();
                     if (memPrompt) {
                         systemPrompt = systemPrompt ? (memPrompt + '\n' + systemPrompt) : memPrompt;
+                        console.log('🧠 [chat] 已注入用户记忆');
                     }
                 }
 
@@ -4215,16 +4240,16 @@ ${paramDesc}
                     UserMemory.recordModel('text', routing.model);
                 }
 
-                // 🧠 从用户输入提取记忆
-                if (typeof window.MemorySystem !== 'undefined') {
+                // 🧠 从用户输入提取记忆（仅当开关开启时）
+                if (chatUseMemory && typeof window.MemorySystem !== 'undefined') {
                     const extractedMemories = window.MemorySystem.extractMemories(text);
                     if (extractedMemories.length > 0) {
                         console.log(`🧠 提取了 ${extractedMemories.length} 条记忆:`, extractedMemories.map(m => `[${m.type}] ${m.value}`));
                     }
                 }
 
-                // 🧠 加载记忆作为上下文
-                if (typeof window.MemorySystem !== 'undefined') {
+                // 🧠 加载记忆作为上下文（仅当开关开启时）
+                if (chatUseMemory && typeof window.MemorySystem !== 'undefined') {
                     const memoryContext = window.MemorySystem.loadMemoriesForContext();
                     if (memoryContext) {
                         systemPrompt = systemPrompt ? (systemPrompt + memoryContext) : memoryContext;
@@ -4409,8 +4434,8 @@ ${paramDesc}
                 addMessageWithBadge(aiText, 'ai', modelBadge);
                 messages.push({ role: 'assistant', content: aiText });
 
-                // 🧠 从AI回复中提取记忆
-                if (typeof window.MemorySystem !== 'undefined') {
+                // 🧠 从AI回复中提取记忆（仅当开关开启时）
+                if (window._chatUseMemory && typeof window.MemorySystem !== 'undefined') {
                     const extractedMemories = window.MemorySystem.extractMemories(aiText);
                     if (extractedMemories.length > 0) {
                         console.log(`🧠 从AI回复提取了 ${extractedMemories.length} 条记忆:`, extractedMemories.map(m => `[${m.type}] ${m.value}`));
@@ -4562,6 +4587,11 @@ ${paramDesc}
                     data: base64
                 };
                 uploadedFiles.push(fileObj);
+                // 保存图片到全局变量，供模板执行时使用
+                if (type === 'image') {
+                    if (!window.__chatUploadedImages) window.__chatUploadedImages = [];
+                    window.__chatUploadedImages.push(fileObj);
+                }
 
                 // 显示预览
                 const preview = document.createElement('div');
@@ -4584,7 +4614,13 @@ ${paramDesc}
         }
 
         function removeUploadedFile(index) {
+            const removed = uploadedFiles[index];
             uploadedFiles.splice(index, 1);
+            // 同步清理全局图片变量
+            if (removed && removed.type === 'image' && window.__chatUploadedImages) {
+                const chatIdx = window.__chatUploadedImages.indexOf(removed);
+                if (chatIdx > -1) window.__chatUploadedImages.splice(chatIdx, 1);
+            }
             updateUploadPreview();
         }
 
@@ -5593,10 +5629,22 @@ ${paramDesc}
                 _setStep('🎨 正在生成图片...', 55);
                 if (typeof callBanana2ImageAPI !== 'function') throw new Error('图片生成API未加载');
                 const tplAspectRatio = matched && matched.tpl.aspectRatio ? matched.tpl.aspectRatio : '1:1';
-                const imageUrl = await callBanana2ImageAPI(generatedPrompt, {
-                    model: 'gemini-3.1-flash-image-preview-4k',
+
+                // 🔧 检查用户是否上传了参考图
+                const uploadedImages = (window.__chatUploadedImages || []).filter(f => f.type === 'image');
+                const imageOpts = {
+                    model: 'gpt-image-2-all',
                     aspectRatio: tplAspectRatio
-                });
+                };
+
+                // 如果有参考图，添加到选项中
+                if (uploadedImages.length > 0) {
+                    const refImage = uploadedImages[0].data;
+                    imageOpts.image_url = refImage;
+                    console.log('[模板执行] 检测到参考图，使用GPT-Image-2编辑模式');
+                }
+
+                const imageUrl = await callBanana2ImageAPI(generatedPrompt, imageOpts);
                 if (!imageUrl) throw new Error('图片生成未返回结果');
 
                 // 5. 更新卡片状态为已完成
@@ -6755,6 +6803,7 @@ ${paramDesc}
         })();
     </script>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"145dcb7ce94448da9feb40a29fccff28","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 
 </html>

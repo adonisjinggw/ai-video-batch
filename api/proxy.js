@@ -586,6 +586,87 @@ module.exports = async function handler(req, res) {
         const startTime = Date.now();
 
         try {
+            // ==================== 外部URL代理获取（灵感技能等） ====================
+            if (action === 'external-fetch') {
+                const { url: fetchUrl, method: fetchMethod = 'GET', headers: fetchHeaders = {}, body: fetchBody, timeout: fetchTimeout = 8000 } = requestBody || {};
+                if (!fetchUrl) {
+                    return res.status(400).json({ success: false, error: 'MISSING_URL', message: '缺少 url 参数' });
+                }
+                try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), fetchTimeout);
+                    const mergedHeaders = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36', 'Accept': 'application/json, text/plain, */*', 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8', ...fetchHeaders };
+                    const fetchOpts = {
+                        method: (fetchMethod || 'GET').toUpperCase(),
+                        headers: mergedHeaders,
+                        signal: controller.signal,
+                        redirect: 'follow'
+                    };
+                    if (fetchBody !== undefined && fetchBody !== null && fetchOpts.method !== 'GET' && fetchOpts.method !== 'HEAD') {
+                        fetchOpts.body = typeof fetchBody === 'string' ? fetchBody : JSON.stringify(fetchBody);
+                        if (!mergedHeaders['Content-Type'] && !mergedHeaders['content-type']) {
+                            mergedHeaders['Content-Type'] = 'application/json';
+                        }
+                    }
+                    const resp = await fetch(fetchUrl, fetchOpts);
+                    clearTimeout(timer);
+                    const text = await resp.text();
+                    let data;
+                    try { data = JSON.parse(text); } catch { data = text; }
+                    return res.json({ success: true, ok: resp.ok, status: resp.status, data: typeof data === 'string' ? data : JSON.stringify(data) });
+                } catch (e) {
+                    return res.status(502).json({ success: false, error: 'FETCH_FAILED', message: e.message });
+                }
+            }
+
+            if (action === 'image-download') {
+                const { url: imageUrl, filename = 'rollroll_image.png', timeout = 30000 } = requestBody || req.query || {};
+                if (!imageUrl || typeof imageUrl !== 'string') {
+                    return res.status(400).json({ success: false, error: 'MISSING_URL', message: '缺少 url 参数' });
+                }
+                let parsed;
+                try {
+                    parsed = new URL(imageUrl);
+                } catch (e) {
+                    return res.status(400).json({ success: false, error: 'INVALID_URL', message: '图片地址无效' });
+                }
+                if (!['http:', 'https:'].includes(parsed.protocol)) {
+                    return res.status(400).json({ success: false, error: 'INVALID_PROTOCOL', message: '只支持 http/https 图片地址' });
+                }
+                const host = parsed.hostname.toLowerCase();
+                if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1' || /^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host) || /^169\.254\./.test(host)) {
+                    return res.status(400).json({ success: false, error: 'PRIVATE_URL_BLOCKED', message: '不支持下载内网地址' });
+                }
+                try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), Math.min(Math.max(Number(timeout) || 30000, 3000), 60000));
+                    const resp = await fetch(imageUrl, {
+                        method: 'GET',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+                        },
+                        signal: controller.signal
+                    });
+                    clearTimeout(timer);
+                    if (!resp.ok) {
+                        return res.status(resp.status).json({ success: false, error: 'IMAGE_FETCH_FAILED', message: `图片下载失败: ${resp.status}` });
+                    }
+                    const contentType = resp.headers.get('content-type') || 'image/png';
+                    if (!contentType.startsWith('image/') && contentType !== 'application/octet-stream') {
+                        return res.status(415).json({ success: false, error: 'UNSUPPORTED_CONTENT_TYPE', message: '远程资源不是图片' });
+                    }
+                    const arrayBuffer = await resp.arrayBuffer();
+                    const safeFilename = String(filename || 'rollroll_image.png').replace(/[\\/\r\n";]/g, '_').slice(0, 120) || 'rollroll_image.png';
+                    res.setHeader('Content-Type', contentType);
+                    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+                    res.setHeader('Cache-Control', 'private, max-age=300');
+                    return res.status(200).send(Buffer.from(arrayBuffer));
+                } catch (e) {
+                    return res.status(502).json({ success: false, error: 'IMAGE_DOWNLOAD_FAILED', message: e.message });
+                }
+            }
+
             // ==================== API Key管理接口（需要用户认证） ====================
             if (['create-key', 'list-keys', 'revoke-key', 'key-stats', 'call-logs'].includes(action)) {
                 const userId = requestBody?.userId || req.query?.userId;
@@ -1515,6 +1596,7 @@ module.exports = async function handler(req, res) {
                     'generate',
                     'info',
                     'proxy',
+                    'external-fetch',
                     'text-to-video',
                     'image-to-video',
                     'poll',

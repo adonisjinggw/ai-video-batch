@@ -1514,10 +1514,10 @@ async function novelGenerateCharImage(charIdx) {
         '配色精致，排版专业，适合小说角色百科';
 
     try {
-                var imageUrl = await callBanana2ImageAPI(prompt, {
-                    model: 'gpt-image-2-all',
-                    aspectRatio: '9:16'
-                });
+        var imageUrl = await callBanana2ImageAPI(prompt, {
+            model: 'gpt-image-2-all',
+            aspectRatio: '9:16'
+        });
         ch.imageUrl = imageUrl;
         ch._generating = false;
         _novelRenderCharCards();
@@ -1577,58 +1577,60 @@ async function novelGenerateAllCharImages() {
     }
 
     try {
-    // 获取统一的故事风格
-    var genre = '';
-    try { genre = document.getElementById('novelGenreSelect').value; } catch (e) { }
-    var theme = '';
-    try { theme = document.getElementById('novelThemeInput').value; } catch (e) { }
-    var storyContext = genre || '奇幻';
-    if (theme) storyContext += '，主题：' + theme;
-    
-    showToast('🎨 开始并行生成 ' + toGen.length + ' 个角色图（风格统一）...');
-    
-    // 设置所有角色为生成中状态
-    toGen.forEach(function(c) { c._generating = true; });
-    _novelRenderCharCards();
-    
-    // 串行生成角色图（避免后端过载）
-    for (var gi = 0; gi < toGen.length; gi++) {
-        var ch = toGen[gi];
-        var prompt = '专业角色设计图(character design sheet)，全部文字必须使用中文标注。\n' +
-            '大标题：「人物介绍」，风格：' + storyContext + '。\n' +
-            '角色名：「' + ch.name + '」\n' +
-            '角色设定：' + ch.desc + '\n' +
-            '画面布局要求：\n' +
-            '- 中央主图区：角色正面全身精致立绘（占画面40%），旁边半身特写头像\n' +
-            '- 三视图区：正面、侧面、背面三个小图，下方中文标注「正面」「侧面」「背面」\n' +
-            '- 表情变化区：6种表情小图（默认、开心、愤怒、悲伤、惊讶、冷酷），每个下方中文标注\n' +
-            '- 动作姿态区：3-4种代表性动作，下方中文标注动作名称\n' +
-            '- 角色信息面板：中文标注角色名、身份、性格特征、代表台词\n' +
-            '- 服装细节：箭头指向关键服饰配件并用中文标注\n' +
-            '整体风格：浅色米色复古纸张背景，中式装饰边框，高质量动漫插画，人物比例准确，' +
-            '配色精致，排版专业，与同故事其他角色风格统一，适合小说角色百科';
+        // 获取统一的故事风格
+        var genre = '';
+        try { genre = document.getElementById('novelGenreSelect').value; } catch (e) { }
+        var theme = '';
+        try { theme = document.getElementById('novelThemeInput').value; } catch (e) { }
+        var storyContext = genre || '奇幻';
+        if (theme) storyContext += '，主题：' + theme;
         
-        try {
-            var imageUrl = await callBanana2ImageAPI(prompt, {
-                model: 'gpt-image-2-all',
-                aspectRatio: '9:16'
-            });
-            ch.imageUrl = imageUrl;
-            if (typeof _novelDB !== 'undefined') {
-                try {
-                    await _novelDB.save('novel_char_' + novelState.currentProjectId + '_' + ch.name, { imageUrl: imageUrl, timestamp: Date.now() });
-                } catch (e) { console.warn('[novel] IndexedDB保存失败:', e); }
-            }
-        } catch (e) {
-            console.error('[novel] 角色图生成失败:', ch.name, e);
-        }
-        ch._generating = false;
+        showToast('🎨 开始并行生成 ' + toGen.length + ' 个角色图（风格统一）...');
+        
+        // 设置所有角色为生成中状态
+        toGen.forEach(function(c) { c._generating = true; });
         _novelRenderCharCards();
-    }
-    
-    _novelRenderCharCards();
-    try { novelSaveCurrentProject(); } catch (e) { }
-    showToast('✅ 角色图批量生成完成');
+        
+        // 并行生成所有角色图
+        var promises = toGen.map(async function(ch) {
+            var prompt = '专业角色设计图(character design sheet)，全部文字必须使用中文标注。\n' +
+                '大标题：「人物介绍」，风格：' + storyContext + '。\n' +
+                '角色名：「' + ch.name + '」\n' +
+                '角色设定：' + ch.desc + '\n' +
+                '画面布局要求：\n' +
+                '- 中央主图区：角色正面全身精致立绘（占画面40%），旁边半身特写头像\n' +
+                '- 三视图区：正面、侧面、背面三个小图，下方中文标注「正面」「侧面」「背面」\n' +
+                '- 表情变化区：6种表情小图（默认、开心、愤怒、悲伤、惊讶、冷酷），每个下方中文标注\n' +
+                '- 动作姿态区：3-4种代表性动作，下方中文标注动作名称\n' +
+                '- 角色信息面板：中文标注角色名、身份、性格特征、代表台词\n' +
+                '- 服装细节：箭头指向关键服饰配件并用中文标注\n' +
+                '整体风格：浅色米色复古纸张背景，中式装饰边框，高质量动漫插画，人物比例准确，' +
+                '配色精致，排版专业，与同故事其他角色风格统一，适合小说角色百科';
+            
+            try {
+                var imageUrl = await callBanana2ImageAPI(prompt, {
+                    model: 'gpt-image-2-all',
+                    aspectRatio: '9:16'
+                });
+                ch.imageUrl = imageUrl;
+                if (typeof _novelDB !== 'undefined') {
+                    try {
+                        await _novelDB.save('novel_char_' + novelState.currentProjectId + '_' + ch.name, { imageUrl: imageUrl, timestamp: Date.now() });
+                    } catch (e) { console.warn('[novel] IndexedDB保存失败:', e); }
+                }
+            } catch (e) {
+                console.error('[novel] 角色图生成失败:', ch.name, e);
+            }
+            ch._generating = false;
+            _novelRenderCharCards();
+        });
+        
+        // 等待所有角色图生成完成
+        await Promise.all(promises);
+        
+        _novelRenderCharCards();
+        try { novelSaveCurrentProject(); } catch (e) { }
+        showToast('✅ 角色图批量生成完成');
     } catch (e) {
         console.error('[novel] 批量生成角色图失败:', e);
         showToast('角色图生成失败：' + (e.message || '未知错误'));
