@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.3.78</title>
+    <title>RollRoll 移动版 V9.3.79</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,23 +36,23 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.3.78"></script>
+    <script src="/js/supabase-config.js?v=9.3.79"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=9.3.78&t=20260511"></script>
-    <script src="/js/user-memory.js?v=9.3.78"></script>
-    <script src="/js/writing-vault.js?v=9.3.78"></script>
+    <script src="/js/api-core.js?v=9.3.79&t=20260511"></script>
+    <script src="/js/user-memory.js?v=9.3.79"></script>
+    <script src="/js/writing-vault.js?v=9.3.79"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=9.3.78"></script>
-    <script src="/js/skill-presets.js?v=9.3.78"></script>
-    <script src="/js/grid-split.js?v=9.3.78"></script>
+    <script src="/js/skill-system.js?v=9.3.79"></script>
+    <script src="/js/skill-presets.js?v=9.3.79"></script>
+    <script src="/js/grid-split.js?v=9.3.79"></script>
     <!-- SheetJS (XLSX) - Excel/CSV 解析库 -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- PptxGenJS - 纯 JavaScript 生成原生 PPTX 库 -->
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.min.js"></script>
-    <script src="/js/mv-merge.js?v=9.3.78"></script>
+    <script src="/js/mv-merge.js?v=9.3.79"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-voice.js?v=9.3.78"></script>
-    <script src="/js/assistant-xj2.js?v=9.3.78"></script>
+    <script src="/js/assistant-voice.js?v=9.3.79"></script>
+    <script src="/js/assistant-xj2.js?v=9.3.79"></script>
     <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.3.75">
     <style>
         * {
@@ -9336,24 +9336,49 @@ ${scriptLine}
                         body: JSON.stringify(requestBody)
                     });
 
-                    const data = await response.json().catch(() => ({}));
-
+                    // 🔧 修复：先检查响应状态，再解析JSON
                     if (!response.ok) {
-                        const errMsg = data.message || data.error || `HTTP ${response.status}`;
-                        // 🔧 输出调试信息
-                        if (data.debug) {
-                            console.error('[mobile] 后端调试信息:', data.debug);
+                        let errMsg = `HTTP ${response.status}`;
+                        let debugInfo = '';
+                        try {
+                            const errData = await response.json();
+                            errMsg = errData.message || errData.error || errMsg;
+                            debugInfo = errData.debug || JSON.stringify(errData).slice(0, 400);
+                            console.error('[mobile] API错误详情(JSON):', errData);
+                        } catch (e) {
+                            try {
+                                const errText = await response.text();
+                                if (errText) {
+                                    debugInfo = errText.slice(0, 400);
+                                    // 尝试从纯文本中提取 message
+                                    const m = errText.match(/message\"?\s*:\s*\"([^\"]+)/i);
+                                    if (m && m[1]) errMsg = m[1];
+                                }
+                                console.error('[mobile] API错误详情(TEXT):', debugInfo);
+                            } catch (e2) { }
                         }
-                        console.error('[mobile] API错误详情:', data);
+                        // 如果有debug信息，输出到控制台
+                        if (debugInfo) {
+                            console.error('[mobile] 后端返回调试信息:', debugInfo);
+                        }
                         throw new Error(errMsg);
                     }
 
-                    if (data.error) {
-                        if (data.debug) {
-                            console.error('[mobile] 后端调试信息:', data.debug);
+                    let data;
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('text/plain')) {
+                        // 🆕 长连接直返模式：后端发心跳点保活，最终返回 JSON，需从文本中提取
+                        const rawText = await response.text();
+                        const jsonStart = rawText.lastIndexOf('{');
+                        if (jsonStart >= 0) {
+                            data = JSON.parse(rawText.substring(jsonStart));
+                        } else {
+                            throw new Error('响应格式异常');
                         }
-                        throw new Error(data.message || data.error);
+                    } else {
+                        data = await response.json();
                     }
+                    if (data.error) throw new Error(data.message || data.error);
 
                     // 🔧 MJ 需要轮询的情况（图生图等异步操作）
                     if (isMidjourney && data.needPoll && data.taskId) {
