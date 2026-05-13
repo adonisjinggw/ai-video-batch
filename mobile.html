@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.3.77</title>
+    <title>RollRoll 移动版 V9.3.78</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,23 +36,23 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.3.77"></script>
+    <script src="/js/supabase-config.js?v=9.3.78"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=9.3.77&t=20260511"></script>
-    <script src="/js/user-memory.js?v=9.3.77"></script>
-    <script src="/js/writing-vault.js?v=9.3.77"></script>
+    <script src="/js/api-core.js?v=9.3.78&t=20260511"></script>
+    <script src="/js/user-memory.js?v=9.3.78"></script>
+    <script src="/js/writing-vault.js?v=9.3.78"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=9.3.77"></script>
-    <script src="/js/skill-presets.js?v=9.3.77"></script>
-    <script src="/js/grid-split.js?v=9.3.77"></script>
+    <script src="/js/skill-system.js?v=9.3.78"></script>
+    <script src="/js/skill-presets.js?v=9.3.78"></script>
+    <script src="/js/grid-split.js?v=9.3.78"></script>
     <!-- SheetJS (XLSX) - Excel/CSV 解析库 -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- PptxGenJS - 纯 JavaScript 生成原生 PPTX 库 -->
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.min.js"></script>
-    <script src="/js/mv-merge.js?v=9.3.77"></script>
+    <script src="/js/mv-merge.js?v=9.3.78"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-voice.js?v=9.3.77"></script>
-    <script src="/js/assistant-xj2.js?v=9.3.77"></script>
+    <script src="/js/assistant-voice.js?v=9.3.78"></script>
+    <script src="/js/assistant-xj2.js?v=9.3.78"></script>
     <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.3.75">
     <style>
         * {
@@ -9279,7 +9279,6 @@ ${scriptLine}
             }
             // 🤖 GPT-Image模型图生图模式：支持单图和多图
             else if (isGptImage) {
-                requestBody.pollBackend = false;  // 🎯 关键：让后端不轮询，直接返回 task_id 给前端轮询
                 // 多图参考模式（优先处理）
                 if (referenceImages && Array.isArray(referenceImages) && referenceImages.length >= 2) {
                     requestBody.image_urls = referenceImages;
@@ -9330,33 +9329,12 @@ ${scriptLine}
             let lastError = null;
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    const controller = new AbortController();
-                    // 🔧 根据模型设置合理超时：
-                    // - Midjourney: 后端轮询最多3分钟，前端给240秒
-                    // - 星梦画师批量: 180秒
-                    // - 万象Max: 180秒（后端轮询最多2.5分钟）
-                    // - 其他: 90秒
-                    // ⚠️ Cloudflare 100秒限制，所有同步请求不能超过 95 秒
-                    let timeoutMs = 90000;
-                    if (isMidjourney) {
-                        timeoutMs = 240000;  // MJ 后端轮询可能需要3分钟
-                    } else if (isSeedream && outputCount > 1) {
-                        timeoutMs = 180000;  // 星梦批量模式
-                    } else if (isGptImage) {
-                        timeoutMs = 300000;  // 🤖 GPT-Image-2 后端异步轮询，给300秒足够时间
-                    } else if (isSeedream || isQwenImage) {
-                        timeoutMs = 95000;  // 🔧 星梦/万象单图（限制95秒，避免Cloudflare 524）
-                    }
-                    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
+                    // 🎯 和 AI画图（banana.html）完全一样：不要 AbortController，不要前端超时
                     const response = await fetch(apiEndpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestBody),
-                        signal: controller.signal
+                        body: JSON.stringify(requestBody)
                     });
-
-                    clearTimeout(timeoutId);
 
                     const data = await response.json().catch(() => ({}));
 
@@ -9389,56 +9367,6 @@ ${scriptLine}
                             data.url = pollResult.imageUrl;
                         } else {
                             throw new Error('轮询完成但未获取到图片');
-                        }
-                    }
-                    // 🔧 GPT-Image 需要前端轮询的情况
-                    else if (isGptImage && (data.needPoll || data.task_id)) {
-                        const taskId = data.task_id;
-                        console.log(`[mobile] 🤖 GPT-Image 任务已提交，开始轮询 task_id: ${taskId}`);
-                        showToast('GPT-Image 任务已提交，正在生成...');
-
-                        const maxPollAttempts = 200;  // 200次 × 3秒 = 600秒
-                        let pollData = null;
-                        let gotResult = false;
-
-                        for (let pollAttempt = 0; pollAttempt < maxPollAttempts; pollAttempt++) {
-                            await new Promise(resolve => setTimeout(resolve, 3000));  // 3秒轮询间隔
-
-                            try {
-                                const pollResponse = await fetch(
-                                    `https://yunwu.ai/v1/images/generations/${taskId}`,
-                                    { method: 'GET' }
-                                );
-
-                                if (pollResponse.ok) {
-                                    pollData = await pollResponse.json();
-                                    console.log(`[mobile] 轮询[${pollAttempt + 1}/${maxPollAttempts}]:`, JSON.stringify(pollData).substring(0, 200));
-
-                                    // 检查是否完成
-                                    if (pollData?.data && pollData.data.length > 0) {
-                                        console.log(`[mobile] ✅ GPT-Image 任务完成`);
-                                        data = pollData;
-                                        gotResult = true;
-                                        break;
-                                    }
-
-                                    // 检查状态
-                                    if (pollData?.status === 'failed') {
-                                        throw new Error(`GPT-Image任务失败: ${pollData?.error || '未知错误'}`);
-                                    }
-                                }
-                            } catch (pollErr) {
-                                console.warn(`[mobile] 轮询异常: ${pollErr.message}`);
-                            }
-
-                            // 每10次输出进度
-                            if ((pollAttempt + 1) % 10 === 0) {
-                                console.log(`[mobile] ⏳ GPT-Image 轮询进度: ${pollAttempt + 1}/${maxPollAttempts} (${Math.round((pollAttempt + 1) * 3)}秒)`);
-                            }
-                        }
-
-                        if (!gotResult) {
-                            throw new Error('GPT-Image 异步任务超时，未获取到结果');
                         }
                     }
 
