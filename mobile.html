@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RollRoll 移动版 V9.3.75</title>
+    <title>RollRoll 移动版 V9.3.76</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,23 +36,23 @@
     </script>
     <!-- Supabase SDK -->
     <script src="/api/supabase-sdk?version=2.45.1"></script>
-    <script src="/js/supabase-config.js?v=9.3.75"></script>
+    <script src="/js/supabase-config.js?v=9.3.76"></script>
     <!-- 🔧 API 核心模块（技能执行所需） -->
-    <script src="/js/api-core.js?v=9.3.75&t=20260511"></script>
-    <script src="/js/user-memory.js?v=9.3.75"></script>
-    <script src="/js/writing-vault.js?v=9.3.75"></script>
+    <script src="/js/api-core.js?v=9.3.76&t=20260511"></script>
+    <script src="/js/user-memory.js?v=9.3.76"></script>
+    <script src="/js/writing-vault.js?v=9.3.76"></script>
     <!-- 🧩 Skill 技能系统 -->
-    <script src="/js/skill-system.js?v=9.3.75"></script>
-    <script src="/js/skill-presets.js?v=9.3.75"></script>
-    <script src="/js/grid-split.js?v=9.3.75"></script>
+    <script src="/js/skill-system.js?v=9.3.76"></script>
+    <script src="/js/skill-presets.js?v=9.3.76"></script>
+    <script src="/js/grid-split.js?v=9.3.76"></script>
     <!-- SheetJS (XLSX) - Excel/CSV 解析库 -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- PptxGenJS - 纯 JavaScript 生成原生 PPTX 库 -->
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.min.js"></script>
-    <script src="/js/mv-merge.js?v=9.3.75"></script>
+    <script src="/js/mv-merge.js?v=9.3.76"></script>
     <!-- 🤖 小卷助手 V2 - 霓虹灵魂 -->
-    <script src="/js/assistant-voice.js?v=9.3.75"></script>
-    <script src="/js/assistant-xj2.js?v=9.3.75"></script>
+    <script src="/js/assistant-voice.js?v=9.3.76"></script>
+    <script src="/js/assistant-xj2.js?v=9.3.76"></script>
     <link rel="stylesheet" href="/css/assistant-xj2.css?v=9.3.75">
     <style>
         * {
@@ -9341,8 +9341,10 @@ ${scriptLine}
                         timeoutMs = 240000;  // MJ 后端轮询可能需要3分钟
                     } else if (isSeedream && outputCount > 1) {
                         timeoutMs = 180000;  // 星梦批量模式
-                    } else if (isSeedream || isQwenImage || isGptImage) {
-                        timeoutMs = 95000;  // 🔧 星梦/万象/GPT-Image单图（限制95秒，避免Cloudflare 524）
+                    } else if (isGptImage) {
+                        timeoutMs = 300000;  // 🤖 GPT-Image-2 后端异步轮询，给300秒足够时间
+                    } else if (isSeedream || isQwenImage) {
+                        timeoutMs = 95000;  // 🔧 星梦/万象单图（限制95秒，避免Cloudflare 524）
                     }
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
