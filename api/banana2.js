@@ -1678,57 +1678,65 @@ module.exports = async function handler(req, res) {
             new Promise((_, reject) => setTimeout(() => reject(new Error('响应体读取超时(180s)，图片数据过大或网络慢')), 180000))
         ]);
 
-        // 🔧 GPT-Image-2-All 异步任务处理：如果返回 task_id，轮询等待结果
+        // 🔧 GPT-Image-2-All 异步任务处理：如果返回 task_id，根据 pollBackend 参数决定是否后端轮询
+        const pollBackend = req.body.pollBackend !== false;  // 默认 true，向后兼容
         if (isGptImage2All && data?.task_id) {
-            console.log(`[banana2] 🤖 GPT-Image-2-All 异步任务: ${data.task_id}，开始轮询...`);
-            const taskId = data.task_id;
-            const maxPollAttempts = 200;  // 200次 × 3秒 = 600秒，给500秒生成时间留有余量
-            let pollData = null;
+            if (pollBackend) {
+                // 旧模式：后端轮询（给 banana.html 用）
+                console.log(`[banana2] 🤖 GPT-Image-2-All 后端轮询模式: ${data.task_id}，开始轮询...`);
+                const taskId = data.task_id;
+                const maxPollAttempts = 200;  // 200次 × 3秒 = 600秒
+                let pollData = null;
 
-            for (let pollAttempt = 0; pollAttempt < maxPollAttempts; pollAttempt++) {
-                await new Promise(resolve => setTimeout(resolve, 3000));  // 3秒轮询间隔
+                for (let pollAttempt = 0; pollAttempt < maxPollAttempts; pollAttempt++) {
+                    await new Promise(resolve => setTimeout(resolve, 3000));  // 3秒轮询间隔
 
-                try {
-                    const pollResponse = await fetchWithTimeout(
-                        `https://yunwu.ai/v1/images/generations/${taskId}`,
-                        {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${apiKey}`,
-                                'Content-Type': 'application/json'
+                    try {
+                        const pollResponse = await fetchWithTimeout(
+                            `https://yunwu.ai/v1/images/generations/${taskId}`,
+                            {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': `Bearer ${apiKey}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            },
+                            60000
+                        );
+
+                        if (pollResponse.ok) {
+                            pollData = await pollResponse.json();
+                            console.log(`[banana2] 轮询[${pollAttempt + 1}/${maxPollAttempts}]:`, JSON.stringify(pollData).substring(0, 200));
+
+                            // 检查是否完成
+                            if (pollData?.data && pollData.data.length > 0) {
+                                console.log(`[banana2] ✅ GPT-Image-2-All 任务完成`);
+                                data = pollData;  // 使用轮询结果
+                                break;
                             }
-                        },
-                        60000
-                    );
 
-                    if (pollResponse.ok) {
-                        pollData = await pollResponse.json();
-                        console.log(`[banana2] 轮询[${pollAttempt + 1}/${maxPollAttempts}]:`, JSON.stringify(pollData).substring(0, 200));
-
-                        // 检查是否完成
-                        if (pollData?.data && pollData.data.length > 0) {
-                            console.log(`[banana2] ✅ GPT-Image-2-All 任务完成`);
-                            data = pollData;  // 使用轮询结果
-                            break;
+                            // 检查状态
+                            if (pollData?.status === 'failed') {
+                                throw new Error(`GPT-Image任务失败: ${pollData?.error || '未知错误'}`);
+                            }
                         }
-
-                        // 检查状态
-                        if (pollData?.status === 'failed') {
-                            throw new Error(`GPT-Image任务失败: ${pollData?.error || '未知错误'}`);
-                        }
+                    } catch (pollErr) {
+                        console.warn(`[banana2] 轮询异常: ${pollErr.message}`);
                     }
-                } catch (pollErr) {
-                    console.warn(`[banana2] 轮询异常: ${pollErr.message}`);
+
+                    // 每10次输出进度
+                    if ((pollAttempt + 1) % 10 === 0) {
+                        console.log(`[banana2] ⏳ GPT-Image-2-All 轮询进度: ${pollAttempt + 1}/${maxPollAttempts} (${Math.round((pollAttempt + 1) * 3)}秒)`);
+                    }
                 }
 
-                // 每10次输出进度
-                if ((pollAttempt + 1) % 10 === 0) {
-                    console.log(`[banana2] ⏳ GPT-Image-2-All 轮询进度: ${pollAttempt + 1}/${maxPollAttempts} (${Math.round((pollAttempt + 1) * 3)}秒)`);
+                if (!data?.data || data.data.length === 0) {
+                    throw new Error('GPT-Image-2-All 异步任务超时，未获取到结果');
                 }
-            }
-
-            if (!data?.data || data.data.length === 0) {
-                throw new Error('GPT-Image-2-All 异步任务超时，未获取到结果');
+            } else {
+                // 新模式：前端轮询（给 mobile.html 漫画功能用），立刻返回 task_id
+                console.log(`[banana2] 🤖 GPT-Image-2-All 前端轮询模式: ${data.task_id}，直接返回给前端`);
+                data.needPoll = true;  // 标记需要前端轮询
             }
         }
 
